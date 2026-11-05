@@ -4,6 +4,7 @@ import {
     type DocumentChartBlock,
 } from '@lightdash/common';
 import { Editor } from '@tiptap/core';
+import { sharedLightdashApi } from '../../../api';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
 
@@ -40,7 +41,7 @@ const markdown = (text: string): DocumentChartBlock => ({
 const load = (blocks: DocumentChartBlock[], editable = true) => {
     const editor = new Editor({
         editable,
-        extensions: createDocumentEditorExtensions({
+        extensions: createDocumentEditorExtensions(sharedLightdashApi, {
             projectUuid: 'project',
             editing: editable
                 ? { onInsertChart: null, onEditChart: null }

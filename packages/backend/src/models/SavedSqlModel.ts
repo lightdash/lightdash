@@ -1,9 +1,11 @@
+import { type AgentIdentityClaim } from '@lightdash/common';
 import {
     AllVizChartConfig,
     ConflictError,
     ContentReviewContentType,
     CreateSqlChart,
     generateSlug,
+    normalizeAgentIdentityClaim,
     NotFoundError,
     ParameterError,
     ResolvedProjectColorPalette,
@@ -34,6 +36,8 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
+import { storedVersionAgentIdentity } from './ContentVersionIdentity';
+import { type OnContentVersionCreated } from './OnContentVersionCreated';
 
 export type SqlChartConnectionBinding = {
     kind: 'connection';
@@ -62,7 +66,15 @@ type SelectSavedSql = Pick<
     | 'first_viewed_at'
     | 'last_viewed_at'
 > &
-    Pick<DbSavedSqlVersion, 'sql' | 'limit' | 'config' | 'chart_kind'> & {
+    Pick<
+        DbSavedSqlVersion,
+        | 'saved_sql_version_uuid'
+        | 'sql'
+        | 'limit'
+        | 'config'
+        | 'chart_kind'
+        | 'agent_identity'
+    > & {
         warehouse_connection_uuid: string | null;
     } & Pick<DbSpace, 'space_uuid' | 'path'> &
     Pick<DbProject, 'project_uuid'> & {
@@ -110,12 +122,16 @@ export class SavedSqlModel {
 
     static convertSelectSavedSql(row: SelectSavedSql): Omit<
         SqlChart,
-        'space' | 'resolvedColorPalette'
+        'space' | 'resolvedColorPalette' | 'agentIdentity'
     > & {
+        [storedVersionAgentIdentity]: AgentIdentityClaim | null;
         space: Pick<SpaceSummary, 'uuid' | 'name'>;
     } {
         return {
             savedSqlUuid: row.saved_sql_uuid,
+            [storedVersionAgentIdentity]: normalizeAgentIdentityClaim(
+                row.agent_identity,
+            ),
             name: row.name,
             description: row.description,
             slug: row.slug,
@@ -172,6 +188,8 @@ export class SavedSqlModel {
         projectUuid?: string;
         deleted?: boolean;
     }) {
+        // Lateral top-1 keeps the planner from hashing every version row;
+        // the version uuid tiebreak matches getLatestVersionWarehouseConnectionUuid.
         return this.database
             .from(SavedSqlTableName)
             .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
@@ -202,10 +220,18 @@ export class SavedSqlModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .innerJoin(
-                SavedSqlVersionsTableName,
-                `${SavedSqlTableName}.saved_sql_uuid`,
-                `${SavedSqlVersionsTableName}.saved_sql_uuid`,
+            .joinRaw(
+                `INNER JOIN LATERAL (
+                    SELECT * FROM ?? AS latest_version
+                    WHERE latest_version.saved_sql_uuid = ??
+                    ORDER BY latest_version.created_at DESC, latest_version.saved_sql_version_uuid DESC
+                    LIMIT 1
+                ) AS ?? ON TRUE`,
+                [
+                    SavedSqlVersionsTableName,
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                    SavedSqlVersionsTableName,
+                ],
             )
             .leftJoin(
                 `${UserTableName} as createdByUser`,
@@ -232,6 +258,8 @@ export class SavedSqlModel {
                 `${SavedSqlTableName}.first_viewed_at`,
                 `${SavedSqlTableName}.last_viewed_at`,
                 `${DashboardsTableName}.name as dashboardName`,
+                `${SavedSqlVersionsTableName}.saved_sql_version_uuid`,
+                `${SavedSqlVersionsTableName}.agent_identity`,
                 `${SavedSqlVersionsTableName}.sql`,
                 `${SavedSqlVersionsTableName}.limit`,
                 `${SavedSqlVersionsTableName}.config`,
@@ -278,21 +306,6 @@ export class SavedSqlModel {
                         options.projectUuid,
                     );
                 }
-
-                // Required filter to join only the latest version
-                void builder.where(
-                    `${SavedSqlVersionsTableName}.created_at`,
-                    '=',
-                    this.database
-                        .from(SavedSqlVersionsTableName)
-                        .max('created_at')
-                        .where(
-                            `${SavedSqlVersionsTableName}.saved_sql_uuid`,
-                            this.database.ref(
-                                `${SavedSqlTableName}.saved_sql_uuid`,
-                            ),
-                        ),
-                );
             })
             .orderBy(`${SavedSqlVersionsTableName}.created_at`, 'desc');
     }
@@ -351,6 +364,7 @@ export class SavedSqlModel {
             sql: string;
             limit: number;
             binding?: SqlChartVersionBinding;
+            agentIdentity: AgentIdentityClaim | null;
         },
     ): Promise<string> {
         const warehouseConnectionUuid =
@@ -383,6 +397,7 @@ export class SavedSqlModel {
             SavedSqlVersionsTableName,
         ).insert(
             {
+                agent_identity: data.agentIdentity,
                 saved_sql_uuid: data.savedSqlUuid,
                 sql: data.sql,
                 limit: data.limit,
@@ -410,6 +425,10 @@ export class SavedSqlModel {
         projectUuid: string,
         data: CreateSqlChart,
         binding?: SqlChartConnectionBinding,
+        // 'unique' treats data.slug as a base and appends -1, -2… on conflict.
+        { slugMode }: { slugMode: 'exact' | 'unique' } = { slugMode: 'exact' },
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<{
         savedSqlUuid: string;
         slug: string;
@@ -424,7 +443,7 @@ export class SavedSqlModel {
                     projectUuid,
                     `saved-sql:${baseSlug}`,
                 );
-                if (finalSlug === undefined) {
+                if (finalSlug === undefined || slugMode === 'unique') {
                     finalSlug = await generateUniqueSlugScopedToProject(
                         trx,
                         projectUuid,
@@ -456,7 +475,13 @@ export class SavedSqlModel {
                         sql: data.sql,
                         limit: data.limit,
                         binding,
+                        agentIdentity,
                     },
+                );
+                await onVersionCreated?.(
+                    trx,
+                    savedSqlVersionUuid,
+                    savedSqlUuid,
                 );
                 return { savedSqlUuid, slug, savedSqlVersionUuid };
             })
@@ -475,6 +500,8 @@ export class SavedSqlModel {
             sqlChart: UpdateSqlChart;
         },
         binding?: SqlChartVersionBinding,
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
         return this.database.transaction(async (trx) => {
             if (data.sqlChart.unversionedData) {
@@ -496,9 +523,15 @@ export class SavedSqlModel {
                     sql: data.sqlChart.versionedData.sql,
                     limit: data.sqlChart.versionedData.limit,
                     binding,
+                    agentIdentity,
                 });
             }
 
+            await onVersionCreated?.(
+                trx,
+                savedSqlVersionUuid,
+                data.savedSqlUuid,
+            );
             return { savedSqlUuid: data.savedSqlUuid, savedSqlVersionUuid };
         });
     }

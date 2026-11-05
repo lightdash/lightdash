@@ -165,6 +165,38 @@ describe('DocumentService.upsertAsCode', () => {
         );
     });
 
+    it('keeps content from a newer release through a download and upload', async () => {
+        const { service, documentModel } = setup();
+        const futureContent = {
+            markdown: '# Findings\n\n<document-chart id="c1">',
+            charts: {},
+            unsupportedCharts: { c1: { source: 'image' } },
+        };
+        documentModel.getBySlug.mockResolvedValue({
+            ...document,
+            version: { ...document.version, content: futureContent },
+        });
+        const download = { ...asCode, ...futureContent };
+
+        await expect(
+            service.upsertAsCode(
+                makeAccount(),
+                projectUuid,
+                'review',
+                download,
+            ),
+        ).resolves.toBe(PromotionAction.NO_CHANGES);
+        await expect(
+            service.upsertAsCode(makeAccount(), projectUuid, 'review', {
+                ...download,
+                unsupportedCharts: { c1: { source: 'image', changed: true } },
+            }),
+        ).rejects.toThrow('Chart "c1" is "image"');
+        writes(documentModel).forEach((write) =>
+            expect(write).not.toHaveBeenCalled(),
+        );
+    });
+
     it('creates a Document with the file slug in the named space', async () => {
         const { service, documentModel } = setup();
         documentModel.getBySlug.mockRejectedValue(
@@ -182,6 +214,8 @@ describe('DocumentService.upsertAsCode', () => {
                 name: 'Review',
                 content: document.version.content,
             }),
+            null,
+            expect.any(Function),
         );
     });
 
@@ -201,6 +235,8 @@ describe('DocumentService.upsertAsCode', () => {
             documentUuid,
             expect.objectContaining({ baseVersionUuid: versionUuid, content }),
             userUuid,
+            null,
+            expect.any(Function),
         );
         expect(documentModel.updateMetadata).not.toHaveBeenCalled();
         expect(documentModel.moveToSpace).not.toHaveBeenCalled();
@@ -280,20 +316,19 @@ describe('DocumentService.upsertAsCode', () => {
         );
     });
 
-    it.each([
-        ['a viewer', () => makeAccount(OrganizationMemberRole.VIEWER)],
-        ['a disabled Documents flag', () => makeAccount()],
-    ])('writes nothing for %s', async (label, account) => {
-        const { service, documentModel, featureFlagModel } = setup();
-        if (label === 'a disabled Documents flag') {
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-        }
+    it('writes nothing for a viewer', async () => {
+        const { service, documentModel } = setup();
 
         await expect(
-            service.upsertAsCode(account(), projectUuid, 'review', {
-                ...asCode,
-                name: 'Renamed',
-            }),
+            service.upsertAsCode(
+                makeAccount(OrganizationMemberRole.VIEWER),
+                projectUuid,
+                'review',
+                {
+                    ...asCode,
+                    name: 'Renamed',
+                },
+            ),
         ).rejects.toThrow(ForbiddenError);
 
         writes(documentModel).forEach((write) =>
@@ -383,6 +418,21 @@ describe('DocumentService.listAsCode', () => {
             missingSlugs: ['hidden'],
             nextOffset: null,
         });
+    });
+
+    it('asks a client that reads an older schema version to upgrade', async () => {
+        const { service } = setup();
+
+        await expect(
+            service.listAsCode(makeAccount(), projectUuid, {
+                schemaVersion: 1,
+            }),
+        ).rejects.toThrow('Upgrade the CLI');
+        await expect(
+            service.listAsCode(makeAccount(), projectUuid, {
+                schemaVersion: 3,
+            }),
+        ).resolves.toEqual(expect.objectContaining({ documents: [asCode] }));
     });
 
     it('requires content-as-code access', async () => {

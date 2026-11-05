@@ -1,5 +1,10 @@
 import { LightdashAnalytics } from '../../../../analytics/LightdashAnalytics';
-import { buildSqlApprovalDecidedEvent } from './sqlApprovals';
+import {
+    buildSqlApprovalDecidedEvent,
+    findSameTurnSqlApproval,
+    isNativeSqlApprovalToolCall,
+    type SqlApprovalDecisionOnCall,
+} from './sqlApprovals';
 
 const baseDecision = {
     organizationUuid: 'org-uuid',
@@ -72,6 +77,23 @@ describe('buildSqlApprovalDecidedEvent', () => {
         });
     });
 
+    it('marks a repeat of SQL approved earlier in the turn as automatic, crediting the earlier decider', () => {
+        const event = buildSqlApprovalDecidedEvent({
+            ...baseDecision,
+            toolName: 'createContent',
+            decision: 'approved',
+            source: 'same_turn_approval',
+            userUuid: 'user-uuid',
+        });
+
+        expect(event.userId).toBe('user-uuid');
+        expect(event.properties).toMatchObject({
+            source: 'same_turn_approval',
+            isAutoApproved: true,
+            isThreadAutoApproval: false,
+        });
+    });
+
     it('attributes a timed-out approval to the prompted user as a human decision', () => {
         const event = buildSqlApprovalDecidedEvent({
             ...baseDecision,
@@ -87,5 +109,143 @@ describe('buildSqlApprovalDecidedEvent', () => {
             isAutoApproved: false,
             isThreadAutoApproval: false,
         });
+    });
+});
+
+describe('isNativeSqlApprovalToolCall', () => {
+    it('covers the tools whose Slack runs suspend on approval', () => {
+        expect(isNativeSqlApprovalToolCall('runSql', { sql: 'select 1' })).toBe(
+            true,
+        );
+        expect(
+            isNativeSqlApprovalToolCall('createContent', { type: 'sql_chart' }),
+        ).toBe(true);
+        expect(
+            isNativeSqlApprovalToolCall('createContent', { type: 'chart' }),
+        ).toBe(false);
+        expect(
+            isNativeSqlApprovalToolCall('editContent', {
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/sql', value: 'select 1' }],
+            }),
+        ).toBe(true);
+        expect(isNativeSqlApprovalToolCall('runComposerQueries', {})).toBe(
+            false,
+        );
+        expect(
+            isNativeSqlApprovalToolCall('runComposerQueries', {
+                queries: [
+                    { nodeId: 'raw', sourceType: 'sql', sql: 'select 1' },
+                ],
+            }),
+        ).toBe(true);
+    });
+});
+
+describe('findSameTurnSqlApproval', () => {
+    const runSqlApproved: SqlApprovalDecisionOnCall = {
+        toolCallId: 'run-sql-1',
+        toolName: 'runSql',
+        toolArgs: { sql: 'select 1', limit: 10 },
+        decision: 'approved',
+        decidedByUserUuid: 'user-uuid',
+    };
+
+    it('finds an approved call in the turn with the same SQL', () => {
+        expect(
+            findSameTurnSqlApproval([runSqlApproved], {
+                toolCallId: 'create-1',
+                sql: 'select 1;',
+            }),
+        ).toEqual({ decidedByUserUuid: 'user-uuid' });
+    });
+
+    it('reads the SQL a SQL chart save or edit was approved for', () => {
+        const createApproved: SqlApprovalDecisionOnCall = {
+            toolCallId: 'create-1',
+            toolName: 'createContent',
+            toolArgs: { type: 'sql_chart', content: { sql: 'select 2' } },
+            decision: 'approved',
+            decidedByUserUuid: null,
+        };
+        const editApproved: SqlApprovalDecisionOnCall = {
+            toolCallId: 'edit-1',
+            toolName: 'editContent',
+            toolArgs: {
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/sql', value: 'select 3' }],
+            },
+            decision: 'approved',
+            decidedByUserUuid: 'user-uuid',
+        };
+        const approvals = [createApproved, editApproved];
+        expect(
+            findSameTurnSqlApproval(approvals, {
+                toolCallId: 'run-sql-1',
+                sql: 'select 2',
+            }),
+        ).toEqual({ decidedByUserUuid: null });
+        expect(
+            findSameTurnSqlApproval(approvals, {
+                toolCallId: 'run-sql-1',
+                sql: 'select 3',
+            }),
+        ).toEqual({ decidedByUserUuid: 'user-uuid' });
+    });
+
+    it('ignores different SQL and rejected calls', () => {
+        expect(
+            findSameTurnSqlApproval([runSqlApproved], {
+                toolCallId: 'create-1',
+                sql: 'select 2',
+            }),
+        ).toBeNull();
+        expect(
+            findSameTurnSqlApproval(
+                [{ ...runSqlApproved, decision: 'rejected' }],
+                { toolCallId: 'create-1', sql: 'select 1' },
+            ),
+        ).toBeNull();
+    });
+
+    it('matches a composer approval only against its whole pipeline SQL', () => {
+        const composerApproved: SqlApprovalDecisionOnCall = {
+            ...runSqlApproved,
+            toolCallId: 'composer-1',
+            toolName: 'runComposerQueries',
+            toolArgs: {
+                queries: [
+                    { nodeId: 'raw', sourceType: 'sql', sql: 'select 1' },
+                ],
+            },
+        };
+        expect(
+            findSameTurnSqlApproval([composerApproved], {
+                toolCallId: 'run-sql-2',
+                sql: 'select 1',
+            }),
+        ).toBeNull();
+        expect(
+            findSameTurnSqlApproval([composerApproved], {
+                toolCallId: 'composer-2',
+                sql: '-- raw\nselect 1',
+            }),
+        ).toEqual({ decidedByUserUuid: 'user-uuid' });
+    });
+
+    it('leaves a call that has its own decision to that decision', () => {
+        expect(
+            findSameTurnSqlApproval(
+                [
+                    runSqlApproved,
+                    {
+                        ...runSqlApproved,
+                        toolCallId: 'run-sql-2',
+                        decision: 'rejected',
+                    },
+                ],
+                { toolCallId: 'run-sql-2', sql: 'select 1' },
+            ),
+        ).toBeNull();
     });
 });

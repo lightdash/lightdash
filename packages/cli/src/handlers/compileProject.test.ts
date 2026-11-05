@@ -931,6 +931,67 @@ describe('compileProject completeness', () => {
         },
     );
 
+    test('propagates selected manifest failures instead of compiling a partial manifest', async () => {
+        vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'work');
+        vi.mocked(loadManifest).mockResolvedValue(
+            manifest({
+                'model.test.orders': dbtNode(
+                    'model.test.orders',
+                    'model',
+                    true,
+                ),
+            }),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders'],
+            originallySelectedModelIds: undefined,
+        });
+        const failure = new Error('Selected credential unavailable');
+        vi.mocked(lightdashRawApi).mockRejectedValue(failure);
+        try {
+            await expect(
+                compileProject({
+                    ...compileOptions(tempDir),
+                    combineManifestProjectUuid: 'project-uuid',
+                }),
+            ).rejects.toBe(failure);
+        } finally {
+            vi.unstubAllEnvs();
+        }
+    });
+
+    test('contains a connection manifest JSON parser excerpt before rethrowing', async () => {
+        vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'work');
+        vi.mocked(loadManifest).mockResolvedValue(
+            manifest({
+                'model.test.orders': dbtNode(
+                    'model.test.orders',
+                    'model',
+                    true,
+                ),
+            }),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders'],
+            originallySelectedModelIds: undefined,
+        });
+        vi.mocked(lightdashRawApi).mockResolvedValue(
+            new Response('unseen server marker!'),
+        );
+        try {
+            await expect(
+                compileProject({
+                    ...compileOptions(tempDir),
+                    combineManifestProjectUuid: 'project-uuid',
+                }),
+            ).rejects.toThrow(
+                'The server rejected the agent connection request (status 200).',
+            );
+        } finally {
+            vi.unstubAllEnvs();
+        }
+    });
+
     test('does not fetch a served manifest when manifest combining is disabled', async () => {
         vi.mocked(loadManifest).mockResolvedValue(
             manifest({

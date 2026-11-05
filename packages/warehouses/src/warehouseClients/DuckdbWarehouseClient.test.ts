@@ -167,6 +167,203 @@ describe('internal Parquet projects', () => {
         );
     });
 
+    it('queues a third analytics session before allocating its instance or resolving its source', async () => {
+        const releases = new Map<number, () => void>();
+        const resolveSource = vi.fn(async () => source());
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource,
+        });
+        const callback = vi.fn(
+            async (id: number) =>
+                new Promise<void>((resolve) => {
+                    releases.set(id, resolve);
+                }),
+        );
+        const first = client['withEphemeralQuerySession'](() => callback(1));
+        const second = client['withEphemeralQuerySession'](() => callback(2));
+        const third = client['withEphemeralQuerySession'](() => callback(3));
+        await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+        expect(resolveSource).toHaveBeenCalledTimes(2);
+        releases.get(1)!();
+        await first;
+        await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(3));
+        releases.get(2)!();
+        releases.get(3)!();
+        await Promise.all([second, third]);
+    });
+
+    it('releases capacity when instance creation or connection fails', async () => {
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        createInstanceMock.mockRejectedValueOnce(new Error('create failed'));
+        await expect(
+            client['withEphemeralQuerySession'](async () => {}),
+        ).rejects.toThrow('create failed');
+        const instance = createMockConnection(vi.fn(), run);
+        instance.connect = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('connect failed'));
+        createInstanceMock.mockResolvedValueOnce(instance);
+        await expect(
+            client['withEphemeralQuerySession'](async () => {}),
+        ).rejects.toThrow('connect failed');
+        expect(instance.closeSync).toHaveBeenCalledOnce();
+        await expect(
+            client['withEphemeralQuerySession'](async () => 42),
+        ).resolves.toBe(42);
+    });
+
+    it('keeps the primary error and releases capacity after close and directory cleanup failures', async () => {
+        const instance = createMockConnection(vi.fn(), run);
+        const connection = await instance.connect();
+        connection.closeSync.mockImplementation(() => {
+            throw new Error('close failed');
+        });
+        instance.connect = vi.fn(async () => connection);
+        createInstanceMock.mockResolvedValueOnce(instance);
+        const remove = fs.rm.bind(fs);
+        const rm = vi
+            .spyOn(fs, 'rm')
+            .mockRejectedValueOnce(new Error('cleanup failed'));
+        const logger = { info: vi.fn(), warn: vi.fn() };
+        const client = new DuckdbWarehouseClient(
+            { type: 'duckdb_parquet', resolveSource: async () => source() },
+            { logger },
+        );
+        try {
+            await expect(
+                client['withEphemeralQuerySession'](async () => {
+                    throw new Error('query failed');
+                }),
+            ).rejects.toThrow('query failed');
+            expect(connection.disconnectSync).toHaveBeenCalledOnce();
+            expect(instance.closeSync).toHaveBeenCalledOnce();
+            expect(rm).toHaveBeenCalledOnce();
+            expect(logger.warn).toHaveBeenCalledWith(
+                'DuckDB query cleanup failed',
+            );
+            await expect(
+                client['withEphemeralQuerySession'](async () => 42),
+            ).resolves.toBe(42);
+        } finally {
+            const failedDirectory = rm.mock.calls[0]?.[0];
+            rm.mockRestore();
+            if (failedDirectory)
+                await remove(failedDirectory, { recursive: true, force: true });
+        }
+    });
+
+    it('holds capacity through asynchronous directory cleanup', async () => {
+        const remove = fs.rm.bind(fs);
+        let finishCleanup!: () => void;
+        const cleaning = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+        });
+        const rm = vi
+            .spyOn(fs, 'rm')
+            .mockImplementationOnce(async (...args) => {
+                await cleaning;
+                await remove(...args);
+            });
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        let finishSecond!: () => void;
+        const first = client['withEphemeralQuerySession'](async () => 1);
+        const second = client['withEphemeralQuerySession'](
+            async () =>
+                new Promise<void>((resolve) => {
+                    finishSecond = resolve;
+                }),
+        );
+        await vi.waitFor(() => expect(rm).toHaveBeenCalledOnce());
+        const thirdCallback = vi.fn(async () => 3);
+        const third = client['withEphemeralQuerySession'](thirdCallback);
+        await new Promise<void>((resolve) => {
+            setImmediate(resolve);
+        });
+        expect(thirdCallback).not.toHaveBeenCalled();
+        finishCleanup();
+        await first;
+        await expect(third).resolves.toBe(3);
+        finishSecond();
+        await second;
+        rm.mockRestore();
+    });
+
+    it('interrupts active queries after 120 seconds, leaves queued queries untimed, and releases capacity', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const interrupts: Mock[] = [];
+        let ready!: () => void;
+        const active = new Promise<void>((resolve) => {
+            ready = resolve;
+        });
+        createInstanceMock.mockImplementation(async () => {
+            const interrupt = vi.fn();
+            interrupts.push(interrupt);
+            return createMockConnection(vi.fn(), run, { interrupt });
+        });
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        let started = 0;
+        const blockNative = async (db: { interrupt: () => void }) =>
+            new Promise<void>((_, reject) => {
+                vi.mocked(db.interrupt).mockImplementation(() =>
+                    reject(new Error('native interrupted')),
+                );
+                started += 1;
+                if (started === 2) ready();
+            });
+        try {
+            const first = client['withSession'](blockNative);
+            const second = client['withSession'](blockNative);
+            const errors = Promise.allSettled([first, second]);
+            const third = client['withSession'](async () => 42);
+            await active;
+            expect(vi.getTimerCount()).toBe(2);
+            expect(createInstanceMock).toHaveBeenCalledTimes(2);
+            await vi.advanceTimersByTimeAsync(120_000);
+            expect(await errors).toEqual([
+                {
+                    status: 'rejected',
+                    reason: expect.objectContaining({
+                        message: expect.stringContaining(
+                            '120 second execution limit',
+                        ),
+                    }),
+                },
+                {
+                    status: 'rejected',
+                    reason: expect.objectContaining({
+                        message: expect.stringContaining(
+                            '120 second execution limit',
+                        ),
+                    }),
+                },
+            ]);
+            await expect(third).resolves.toBe(42);
+            expect(interrupts[0]).toHaveBeenCalledOnce();
+            expect(interrupts[1]).toHaveBeenCalledOnce();
+            expect(interrupts[2]).not.toHaveBeenCalled();
+            expect(vi.getTimerCount()).toBe(0);
+            await expect(
+                client['withSession'](async () => {
+                    throw new Error('query failed');
+                }),
+            ).rejects.toThrow('Internal analytics query failed');
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('binds trusted views, restricts external access and refreshes the manifest each session', async () => {
         const resolveSource = vi.fn(async () => source());
         const client = new DuckdbWarehouseClient({
@@ -179,7 +376,16 @@ describe('internal Parquet projects', () => {
         expect(createInstanceMock).toHaveBeenCalledTimes(4);
         expect(run).toHaveBeenCalledWith(`SET allowed_paths = ['${url}'];`);
         expect(run).toHaveBeenCalledWith('SET enable_external_access = false;');
-        expect(run).toHaveBeenCalledWith("SET temp_directory = '';");
+        expect(run).toHaveBeenCalledWith(
+            "SET max_temp_directory_size = '2GB';",
+        );
+        expect(run).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /SET temp_directory = '.*lightdash-analytics-query-.*\/spill';/,
+            ),
+        );
+        expect(run).toHaveBeenCalledWith("SET allowed_configs = ['TimeZone'];");
+        expect(run).toHaveBeenCalledWith('SET lock_configuration = true;');
         expect(run).toHaveBeenCalledWith(
             expect.stringContaining(
                 'CREATE VIEW "query_events" AS SELECT * FROM read_parquet',
@@ -198,7 +404,7 @@ describe('internal Parquet projects', () => {
         const bind = statements.findIndex((sql) =>
             sql.startsWith('CREATE VIEW'),
         );
-        expect(run).toHaveBeenCalledWith('SET threads = 4;');
+        expect(run).toHaveBeenCalledWith('SET threads = 1;');
         expect(statements[bind]).toContain('union_by_name = true');
         const instance = await createInstanceMock.mock.results[0].value;
         expect(instance.closeSync).toHaveBeenCalledTimes(1);
@@ -1869,6 +2075,259 @@ describe('DuckdbWarehouseClient', () => {
         expect(runMock).not.toHaveBeenCalledWith('SET threads = 8;');
     });
 
+    it('widens a shared instance S3 secret in place when a session needs a file outside its scope', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+        const s3Config = {
+            endpoint: 'localhost:9000',
+            region: 'us-east-1',
+            accessKey: 'key',
+            secretKey: 'secret',
+            forcePathStyle: true,
+            useSsl: false,
+        };
+        const makeClient = (scope: string[]) =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                { type: 'duckdb_s3', s3Config: { ...s3Config, scope } },
+                { instanceCacheKey: 'pre-aggregate-query-instance:project-a' },
+            );
+        const secretScopes = () =>
+            runMock.mock.calls
+                .map(([sql]) => sql as string)
+                .filter((sql) =>
+                    sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+                )
+                .map((sql) => sql.match(/SCOPE \(([^)]*)\)/)?.[1]);
+
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        // Same files: the bootstrap secret is left alone
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        expect(secretScopes()).toEqual(["'s3://bucket/a.parquet'"]);
+
+        // A new file widens the secret once, keeping what other sessions read
+        await Promise.all(
+            Array.from({ length: 5 }, () =>
+                makeClient([
+                    's3://bucket/a.parquet',
+                    's3://bucket/b.parquet',
+                ]).runQuery('SELECT 1'),
+            ),
+        );
+        expect(secretScopes()).toEqual([
+            "'s3://bucket/a.parquet'",
+            "'s3://bucket/a.parquet', 's3://bucket/b.parquet'",
+        ]);
+
+        // A session that only needs the old file never narrows it back
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        expect(secretScopes()).toHaveLength(2);
+        expect(createInstanceMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('restricts an object-storage session to its bucket after loading extensions', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+        const logger = { info: vi.fn() };
+        const client = DuckdbWarehouseClient.createForPreAggregate(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: true,
+                    useSsl: false,
+                    scope: [
+                        's3://bucket/a.parquet',
+                        's3://bucket/b.parquet',
+                        's3://other-bucket/c.parquet',
+                    ],
+                },
+            },
+            {
+                instanceCacheKey: 'pre-aggregate-query-instance:project-a',
+                objectStorageOnly: true,
+                logger,
+                enableQueryProfiling: true,
+            },
+        );
+
+        await client.runQuery('SELECT 1 AS val');
+
+        const statements = runMock.mock.calls.map(([sql]) => sql as string);
+        const indexOf = (needle: string) =>
+            statements.findIndex((sql) => sql.includes(needle));
+        const allowed = statements.find((sql) =>
+            sql.startsWith('SET allowed_directories'),
+        );
+        expect(allowed).toContain("'s3://bucket/'");
+        expect(allowed).toContain("'s3://other-bucket/'");
+        expect(allowed).not.toContain('a.parquet');
+        expect(statements).toContain('SET enable_external_access = false;');
+        expect(indexOf('SET enable_external_access = false;')).toBeGreaterThan(
+            indexOf('httpfs'),
+        );
+        expect(indexOf('SET enable_external_access = false;')).toBeGreaterThan(
+            indexOf('CREATE OR REPLACE SECRET __lightdash_s3'),
+        );
+        expect(indexOf('SET temp_directory')).toBeLessThan(
+            indexOf('SET enable_external_access = false;'),
+        );
+        expect(statements.some((sql) => sql.includes('enable_profiling'))).toBe(
+            false,
+        );
+    });
+
+    it('leaves other shared instances unrestricted', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        const client = DuckdbWarehouseClient.createForPreAggregate(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: true,
+                    useSsl: false,
+                    scope: ['s3://bucket/'],
+                },
+            },
+            { instanceCacheKey: 'compose-engine-instance' },
+        );
+
+        await client.runQuery('SELECT 1 AS val');
+
+        const statements = runMock.mock.calls.map(([sql]) => sql as string);
+        expect(statements).not.toContain('SET enable_external_access = false;');
+        expect(
+            statements.some((sql) => sql.startsWith('SET allowed_directories')),
+        ).toBe(false);
+    });
+
+    it('keeps per-project serve instances apart', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        createInstanceMock.mockImplementation(async () =>
+            createMockConnection(streamMock, runMock),
+        );
+        const makeClient = (projectUuid: string, scope: string[]) =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        endpoint: 'localhost:9000',
+                        region: 'us-east-1',
+                        accessKey: 'key',
+                        secretKey: 'secret',
+                        forcePathStyle: true,
+                        useSsl: false,
+                        scope,
+                    },
+                },
+                {
+                    instanceCacheKey: `pre-aggregate-query-instance:${projectUuid}`,
+                },
+            );
+
+        await makeClient('project-a', ['s3://bucket/a.parquet']).runQuery(
+            'SELECT 1',
+        );
+        await makeClient('project-b', ['s3://bucket/b.parquet']).runQuery(
+            'SELECT 1',
+        );
+
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+        const secrets = runMock.mock.calls
+            .map(([sql]) => sql as string)
+            .filter((sql) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            );
+        expect(secrets).toHaveLength(2);
+        expect(secrets[0]).toContain("SCOPE ('s3://bucket/a.parquet')");
+        expect(secrets[0]).not.toContain('b.parquet');
+        expect(secrets[1]).toContain("SCOPE ('s3://bucket/b.parquet')");
+        expect(secrets[1]).not.toContain('a.parquet');
+    });
+
+    it('widens a shared instance GCS secret with the token it currently holds', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        const getAccessToken = vi.fn(async () => 'token');
+        const makeClient = (scope: string[]) =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        endpoint: 'storage.googleapis.com',
+                        forcePathStyle: false,
+                        useSsl: true,
+                        authMode: 'gcp_oauth',
+                        getAccessToken,
+                        scope,
+                    },
+                },
+                { instanceCacheKey: 'pre-aggregate-query-instance:project-a' },
+            );
+        const secrets = () =>
+            runMock.mock.calls
+                .filter(([sql]) =>
+                    (sql as string).includes(
+                        'CREATE OR REPLACE SECRET __lightdash_s3',
+                    ),
+                )
+                .map(([sql, params]) => ({
+                    scope: (sql as string).match(/SCOPE \(([^)]*)\)/)?.[1],
+                    token: (params as string[])[0],
+                }));
+
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        const afterFirst = secrets().length;
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        expect(secrets()).toHaveLength(afterFirst);
+
+        await makeClient(['s3://bucket/b.parquet']).runQuery('SELECT 1');
+        expect(secrets()).toHaveLength(afterFirst + 1);
+        expect(secrets().at(-1)).toEqual({
+            scope: "'s3://bucket/a.parquet', 's3://bucket/b.parquet'",
+            token: 'token',
+        });
+    });
+
     it('hardens each query connection on a shared instance', async () => {
         const bootstrapRunMock = vi.fn();
         const queryRunMock = vi.fn();
@@ -2241,6 +2700,12 @@ describe('DuckdbWarehouseClient', () => {
                                 operator_cardinality: 9905024,
                                 children: [],
                             },
+                            {
+                                operator_name: 'READ_JSON_AUTO',
+                                operator_timing: 0.05,
+                                operator_cardinality: 10,
+                                children: [],
+                            },
                         ],
                     }),
                 );
@@ -2291,6 +2756,7 @@ describe('DuckdbWarehouseClient', () => {
             expect.objectContaining({
                 latencyMs: 4747,
                 readParquetMs: 4632,
+                readJsonMs: 50,
                 bytesRead: 20225287,
             }),
         );

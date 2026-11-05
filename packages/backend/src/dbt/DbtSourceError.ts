@@ -3,11 +3,14 @@ import { DbtError, ParameterError, type DbtLog } from '@lightdash/common';
 export class DbtSourceError extends ParameterError {
     readonly logs: DbtLog[];
 
-    constructor(message: string, error: unknown) {
+    declare readonly cause: unknown;
+
+    constructor(message: string, cause: unknown) {
         super(message);
+        Object.defineProperty(this, 'cause', { value: cause });
         this.logs =
-            error instanceof DbtError || error instanceof DbtSourceError
-                ? (error.logs ?? [])
+            cause instanceof DbtError || cause instanceof DbtSourceError
+                ? (cause.logs ?? [])
                 : [];
     }
 }

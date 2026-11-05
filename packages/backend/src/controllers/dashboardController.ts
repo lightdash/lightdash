@@ -34,6 +34,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -123,6 +124,9 @@ export class DashboardController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'DashboardController.updateDashboardCustomMetric',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Patch('/custom-metrics')
@@ -164,6 +168,9 @@ export class DashboardController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'DashboardController.deleteDashboardCustomMetric',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('/custom-metrics/{metricTable}/{metricName}')
@@ -290,6 +297,9 @@ export class DashboardController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         getDeprecatedRouteMiddleware(new Date('2026-01-26')),
+        requireOAuthScopeOperation(
+            'DashboardController.getDashboardSchedulers',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')

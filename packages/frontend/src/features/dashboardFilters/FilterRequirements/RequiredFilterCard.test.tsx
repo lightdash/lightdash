@@ -1,8 +1,14 @@
 import { FilterOperator, type DashboardFilterRule } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    type DashboardStoreTestValues,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
 import RequiredFilterCard from './RequiredFilterCard';
 
 const buildRule = (
@@ -38,8 +44,20 @@ vi.mock('./useUpdateDashboardFilterRule', () => ({
     useUpdateDashboardFilterRule: vi.fn(() => updateFilterRule),
 }));
 
+let storeValues: DashboardStoreTestValues = {};
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore(storeValues)}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
+
 const setDashboardFilters = (dimensions: DashboardFilterRule[]) => {
-    mockDashboardContext.current = {
+    mockDashboardContext.current = {};
+    storeValues = {
         dashboardFilters: {
             dimensions,
             metrics: [],
@@ -54,6 +72,28 @@ const getRequiredSwitch = () =>
 describe('RequiredFilterCard', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    it.each([
+        ['the card', true, 'circle-dashed'],
+        ["the controls editor's settings row", false, 'asterisk'],
+    ])('marks Required in %s with its icon', (_, withCard, icon) => {
+        const rule = buildRule({ required: true });
+        setDashboardFilters([rule]);
+        const { container } = renderWithProviders(
+            <RequiredFilterCard
+                filterRule={rule}
+                withCard={withCard}
+                onToggleRequired={vi.fn()}
+                onChangeFilterRule={vi.fn()}
+            />,
+        );
+        expect(container.querySelector(`.tabler-icon-${icon}`)).not.toBeNull();
+        expect(
+            container.querySelector(
+                `.tabler-icon-${icon === 'asterisk' ? 'circle-dashed' : 'asterisk'}`,
+            ),
+        ).toBeNull();
     });
 
     it('renders inactive and reports toggling required on', async () => {
@@ -82,7 +122,13 @@ describe('RequiredFilterCard', () => {
 
     it('offers an alternative filter when it is the only rule member and saved', async () => {
         const rule = buildRule({ required: true });
-        setDashboardFilters([rule]);
+        setDashboardFilters([
+            rule,
+            buildRule({
+                id: 'filter-2',
+                target: { fieldId: 'customers_age', tableName: 'customers' },
+            }),
+        ]);
 
         renderWithProviders(
             <RequiredFilterCard
@@ -103,6 +149,28 @@ describe('RequiredFilterCard', () => {
             screen.getByRole('button', { name: 'Add an alternative filter' }),
         );
         expect(screen.getByPlaceholderText('+ Add a filter')).not.toBeNull();
+    });
+
+    it('says another filter is needed when no other filter can be an alternative', () => {
+        const rule = buildRule({ required: true });
+        setDashboardFilters([rule]);
+
+        renderWithProviders(
+            <RequiredFilterCard
+                filterRule={rule}
+                onToggleRequired={vi.fn()}
+                onChangeFilterRule={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', {
+                name: 'Add an alternative filter',
+            }),
+        ).toBeNull();
+        expect(
+            screen.getByText('Add another filter to use it as an alternative.'),
+        ).not.toBeNull();
     });
 
     it('converts both filters to valueless group members when adding an alternative', async () => {
@@ -192,5 +260,71 @@ describe('RequiredFilterCard', () => {
             screen.getByRole('button', { name: 'Edit rule →' }),
         );
         expect(onEditRules).toHaveBeenCalledTimes(1);
+    });
+
+    it('hands the other filter to onChangeOtherFilterRule when given, instead of writing the dashboard filters', async () => {
+        const rule = buildRule({ required: true });
+        const sibling = buildRule({
+            id: 'filter-2',
+            target: { fieldId: 'customers_age', tableName: 'customers' },
+        });
+        setDashboardFilters([rule, sibling]);
+        const onChangeFilterRule = vi.fn();
+        const onChangeOtherFilterRule = vi.fn();
+
+        renderWithProviders(
+            <RequiredFilterCard
+                filterRule={rule}
+                onToggleRequired={vi.fn()}
+                onChangeFilterRule={onChangeFilterRule}
+                onChangeOtherFilterRule={onChangeOtherFilterRule}
+            />,
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add an alternative filter' }),
+        );
+        await userEvent.click(screen.getByPlaceholderText('+ Add a filter'));
+        fireEvent.click(
+            screen.getByRole('option', {
+                name: /customers_age/,
+                hidden: true,
+            }),
+        );
+
+        expect(updateFilterRule).not.toHaveBeenCalled();
+        expect(onChangeOtherFilterRule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 'filter-2',
+                required: false,
+                disabled: true,
+                values: [],
+                requiredGroupId: expect.any(String),
+            }),
+        );
+        const [[other]] = onChangeOtherFilterRule.mock.calls;
+        expect(onChangeFilterRule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 'filter-1',
+                requiredGroupId: other.requiredGroupId,
+            }),
+        );
+    });
+
+    it('disables the switch and says why when given a reason', () => {
+        const rule = buildRule();
+        setDashboardFilters([rule]);
+
+        renderWithProviders(
+            <RequiredFilterCard
+                filterRule={rule}
+                onToggleRequired={vi.fn()}
+                onChangeFilterRule={vi.fn()}
+                disabledReason="Not now"
+            />,
+        );
+
+        expect(getRequiredSwitch().disabled).toBe(true);
+        expect(screen.getByText('Not now')).not.toBeNull();
     });
 });

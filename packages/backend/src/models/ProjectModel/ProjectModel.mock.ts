@@ -4,6 +4,7 @@ import {
     BigqueryCredentials,
     CreateBigqueryCredentials,
     CreatePostgresCredentials,
+    CreateWarehouseCredentials,
     DbtCloudIDEProjectConfig,
     DbtProjectType,
     DefaultSupportedDbtVersion,
@@ -440,6 +441,16 @@ export const CompletePostgresCredentials: CreatePostgresCredentials = {
 };
 
 export const singleRouteProjectModelMethods = {
+    async getWarehouseCredentialsForProjectUncached(
+        this: {
+            getWarehouseCredentialsForProject: (
+                requestedProjectUuid: string,
+            ) => Promise<CreateWarehouseCredentials>;
+        },
+        requestedProjectUuid: string,
+    ) {
+        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    },
     async requireSingleConnectionRoute() {
         return 'single' as const;
     },
@@ -455,6 +466,25 @@ export const singleRouteProjectModelMethods = {
             target: { kind: 'original' as const },
             originalWarehouseConnectionUuid: null,
         };
+    },
+    async getWarehouseConnectionForBinding(
+        this: {
+            getWarehouseCredentialsForProject: (
+                requestedProjectUuid: string,
+            ) => unknown;
+        },
+        requestedProjectUuid: string,
+    ) {
+        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    },
+    async getDeployStartOfWeek() {
+        return { kind: 'original' as const };
+    },
+    async getDbtSourceWarehouseType() {
+        return WarehouseTypes.POSTGRES;
+    },
+    async getWarehouseConnectionsMetadata() {
+        return [];
     },
     async getWarehouseCredentialsForBinding(
         this: {

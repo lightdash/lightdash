@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { OrganizationAgentIdentityRulesModel } from '../../../models/OrganizationAgentIdentityRulesModel';
 import { OrganizationAgentIdentitySettingsModel } from '../../../models/OrganizationAgentIdentitySettingsModel';
 import {
     createMigratedDatabase,
@@ -25,6 +26,9 @@ test('defaults to false, updates one row, and cascades organization deletion', a
             .returning('organization_uuid');
         const model = new OrganizationAgentIdentitySettingsModel({
             database: trx,
+            rulesModel: new OrganizationAgentIdentityRulesModel({
+                database: trx,
+            }),
         });
         expect(await model.get(org.organization_uuid)).toEqual({
             requireVerifiedAgentSessions: false,

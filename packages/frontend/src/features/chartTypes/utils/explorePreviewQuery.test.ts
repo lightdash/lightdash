@@ -10,11 +10,12 @@ import {
     type MetricQueryRequest,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { pollForResults } from '../../queryRunner/executeQuery';
 import { executeExplorePreviewQuery } from './explorePreviewQuery';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../queryRunner/executeQuery', () => ({ pollForResults: vi.fn() }));
 
 const query: Omit<MetricQueryRequest, 'csvLimit'> = {
@@ -30,7 +31,7 @@ const query: Omit<MetricQueryRequest, 'csvLimit'> = {
 describe('executeExplorePreviewQuery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             queryUuid: 'preview-query',
             fields: {
                 orders_date: {
@@ -107,7 +108,7 @@ describe('executeExplorePreviewQuery', () => {
         };
 
         await expect(
-            executeExplorePreviewQuery({
+            executeExplorePreviewQuery(sharedLightdashApi, {
                 projectUuid: 'project-1',
                 query,
                 pivotConfiguration,
@@ -118,7 +119,7 @@ describe('executeExplorePreviewQuery', () => {
             pivotDetails,
         });
 
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project-1/query/metric-query',
                 version: 'v2',

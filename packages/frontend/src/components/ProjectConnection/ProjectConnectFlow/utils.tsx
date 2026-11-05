@@ -105,3 +105,10 @@ export const getWarehouseIcon = (
             return assertUnreachable(item, 'Unknown icon type');
     }
 };
+
+export const OTHER_ROUTE_PARAM = 'other';
+
+export const getWarehouseRoute = (key: SelectedWarehouse) =>
+    `/onboarding/data-source/${
+        key === OtherWarehouse.Other ? OTHER_ROUTE_PARAM : key
+    }`;

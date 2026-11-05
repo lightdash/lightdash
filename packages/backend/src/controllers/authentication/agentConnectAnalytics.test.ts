@@ -23,6 +23,7 @@ import {
     AiAccessService,
     type AgentConnectAttempt,
 } from '../../services/AiAccessService/AiAccessService';
+import { snowflakeAgentClientMock } from '../../services/AiAccessService/SnowflakeAgentClientResolver.mock';
 import {
     agentConnectCallback,
     authenticateAgentConnect,
@@ -35,7 +36,7 @@ import { requireAgentIdentity } from './requireAgentIdentity';
 import { AgentConnectStateStore } from './strategies/AgentConnectStateStore';
 import * as snowflakeAiStrategyModule from './strategies/snowflakeAiStrategy';
 import {
-    snowflakeAiPassportStrategy,
+    createSnowflakeAiPassportStrategy,
     snowflakeAiSessionCheck,
 } from './strategies/snowflakeAiStrategy';
 
@@ -49,20 +50,17 @@ vi.mock('../../config/lightdashConfig', async () => {
             license: { licenseKey: 'test-license' },
             auth: {
                 ...lightdashConfigMock.auth,
-                snowflakeAi: {
-                    account: 'test-account',
-                    clientId: 'client',
-                    clientSecret: 'secret',
-                    authorizationEndpoint:
-                        'https://snowflake.example/authorize',
-                    tokenEndpoint: 'https://snowflake.example/token',
-                    callbackPath: '/oauth/redirect/snowflake-ai',
-                },
+                snowflakeAi: lightdashConfigMock.auth.snowflakeAi,
             },
         },
     };
 });
 
+const createStrategy = createSnowflakeAiPassportStrategy;
+const snowflakeAiPassportStrategy = createSnowflakeAiPassportStrategy({
+    ...snowflakeAgentClientMock,
+    organizationUuid: defaultSessionUser.organizationUuid!,
+});
 const projectId = '9cf75257-3605-450e-b711-81a2d0fef5e3';
 const setup = () => {
     const analytics = { track: vi.fn() };
@@ -73,10 +71,17 @@ const setup = () => {
         })),
     };
     const service = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         analytics,
         featureFlagModel: flags,
         projectModel: projects,
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
+    vi.spyOn(service, 'resolveSnowflakeAgentClient').mockImplementation(
+        async () => ({
+            ...snowflakeAgentClientMock,
+            organizationUuid: defaultSessionUser.organizationUuid!,
+        }),
+    );
     const upsert = vi.fn<() => Promise<void>>(async () => undefined);
     const req = {
         query: {
@@ -151,7 +156,10 @@ const oauth = (
 )._oauth2;
 
 beforeEach(() => {
-    passport.use('snowflake-ai', snowflakeAiPassportStrategy!);
+    vi.spyOn(
+        snowflakeAiStrategyModule,
+        'createSnowflakeAiPassportStrategy',
+    ).mockReturnValue(snowflakeAiPassportStrategy);
     vi.spyOn(oauth, 'getOAuthAccessToken').mockImplementation(
         (_code, _params, done) => {
             done(null, 'access-token', 'refresh-token', {});
@@ -167,7 +175,6 @@ afterEach(() => {
     vi.restoreAllMocks();
     passport.unuse('snowflake-ai');
     lightdashConfig.license.licenseKey = 'test-license';
-    lightdashConfig.auth.snowflakeAi.account = 'test-account';
 });
 
 describe('connect start', () => {
@@ -264,6 +271,55 @@ describe('connect start', () => {
 });
 
 describe('connect outcome with real Passport', () => {
+    it.each(['access_denied', 'server_error'])(
+        'consumes the nonce and binding after %s and rejects a replay',
+        async (error) => {
+            const { req, start, authorize, callback, upsert } = setup();
+            await start();
+            const state = new URL(await authorize()).searchParams.get('state')!;
+            req.query = { error, state, error_description: 'OAuth failed' };
+            await callback();
+            expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+            expect(req.session.agentConnectBindings).toEqual({});
+            req.query = { code: 'replayed-code', state };
+            expect(await callback()).toContain('error=sign_in_failed');
+            expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    it('rejects a denied nonce after the user changes organizations', async () => {
+        const { req, service, start, authorize, callback, upsert } = setup();
+        await start();
+        const state = new URL(await authorize()).searchParams.get('state')!;
+        req.query = { error: 'access_denied', state };
+        await callback();
+        req.user!.organizationUuid = 'other-org';
+        vi.mocked(service.resolveSnowflakeAgentClient).mockResolvedValue({
+            ...snowflakeAgentClientMock,
+            organizationUuid: 'other-org',
+        });
+        req.query = { code: 'replayed-code', state };
+        expect(await callback()).toContain('error=sign_in_failed');
+        expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])(
+        'rejects an unbound nonce with or without a bindings map (map=%s)',
+        async (hasBindings) => {
+            const { req, callback, upsert } = setup();
+            req.session['oauth2:snowflake-ai'] = { state: 'legacy-state' };
+            if (hasBindings) req.session.agentConnectBindings = {};
+            req.query = { code: 'code', state: 'legacy-state' };
+            const result = await callback();
+            expect(result).toContain('error=sign_in_failed');
+            expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
+            expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+        },
+    );
+
     it('correlates overlapping starts when A is denied and B connects', async () => {
         const { req, analytics, upsert, start, authorize, callback } = setup();
         req.query.entryPoint = EntryPoint.CHAT_CARD;
@@ -338,6 +394,8 @@ describe('connect outcome with real Passport', () => {
         });
         expect(req.session.agentConnectAttempts ?? {}).toEqual({});
         expect(analytics.track).toHaveBeenCalledTimes(2);
+        expect(req.session.agentConnectBindings).toEqual({});
+        expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
         expect(await callback()).toBe(
             'http://localhost:4321/done?x=1&error=sign_in_failed',
         );
@@ -374,7 +432,6 @@ describe('connect outcome with real Passport', () => {
             FailureReason.SESSION_CHECK_FAILED,
             'not_agent_session',
         ],
-        ['configuration', FailureReason.NOT_CONFIGURED, 'not_agent_session'],
         ['save_error', FailureReason.CREDENTIAL_SAVE_FAILED, 'sign_in_failed'],
         ['unknown', FailureReason.SIGN_IN_FAILED, 'sign_in_failed'],
     ])(
@@ -449,8 +506,6 @@ describe('connect outcome with real Passport', () => {
                 vi.mocked(snowflakeAiSessionCheck.check).mockRejectedValue(
                     new Error('private probe text'),
                 );
-            if (branch === 'configuration')
-                lightdashConfig.auth.snowflakeAi.account = undefined;
             if (branch === 'save_error')
                 upsert.mockRejectedValue(new Error('save failed'));
             if (branch === 'unknown')
@@ -502,7 +557,7 @@ describe('connect outcome with real Passport', () => {
     );
 
     it.each([undefined, 'unknown'])(
-        'does not consume attribution when Passport rejects code with state %j',
+        'preserves a pending attempt when a callback has unbound state %j',
         async (state) => {
             const { req, start, authorize, callback, analytics, upsert } =
                 setup();
@@ -516,7 +571,10 @@ describe('connect outcome with real Passport', () => {
             expect(req.session.agentConnectAttempts).toEqual({
                 [pendingState]: attempt,
             });
-            expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+            expect(req.session['oauth2:snowflake-ai']?.state).toBe(
+                pendingState,
+            );
+            expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
             expect(upsert).not.toHaveBeenCalled();
         },
     );
@@ -626,13 +684,11 @@ describe('connect outcome with real Passport', () => {
         const { req, start, analytics } = setup();
         const attempt = await start();
         passport.unuse('snowflake-ai');
-        vi.spyOn(
-            snowflakeAiStrategyModule,
-            'snowflakeAiPassportStrategy',
-            'get',
-        ).mockReturnValue(undefined);
+        vi.mocked(
+            req.services.getAiAccessService().resolveSnowflakeAgentClient,
+        ).mockResolvedValue(null);
         const next = vi.fn();
-        authenticateAgentConnect(req, {} as Response, next);
+        await authenticateAgentConnect(req, {} as Response, next);
         expect(next).toHaveBeenCalledExactlyOnceWith(expect.any(Error));
         expect(analytics.track).toHaveBeenCalledTimes(2);
         expect(analytics.track).toHaveBeenLastCalledWith({
@@ -656,7 +712,7 @@ describe('connect outcome with real Passport', () => {
         const attempt = await start();
         const error = new Error('redirect failed');
         const next = vi.fn();
-        authenticateAgentConnect(
+        await authenticateAgentConnect(
             req,
             {
                 setHeader: () => {
@@ -702,17 +758,18 @@ describe('connect outcome with real Passport', () => {
                 },
             );
             const next = vi.fn();
-            for (const state of [undefined, 'unknown']) {
+            await [undefined, 'unknown'].reduce(async (previous, state) => {
+                await previous;
                 req.query = { code: 'code', state };
-                agentConnectCallback(req, {} as Response, next);
+                await agentConnectCallback(req, {} as Response, next);
                 expect(analytics.track).toHaveBeenCalledTimes(2);
                 expect(req.session.agentConnectAttempts).toEqual({
                     [firstState]: first,
                     [secondState]: second,
                 });
-            }
+            }, Promise.resolve());
             req.query = { code: 'code', state: firstState };
-            agentConnectCallback(req, {} as Response, next);
+            await agentConnectCallback(req, {} as Response, next);
             expect(next).toHaveBeenLastCalledWith(error);
             expect(analytics.track).toHaveBeenLastCalledWith(
                 expect.objectContaining({
@@ -726,7 +783,7 @@ describe('connect outcome with real Passport', () => {
             expect(req.session.agentConnectAttempts).toEqual({
                 [secondState]: second,
             });
-            agentConnectCallback(req, {} as Response, next);
+            await agentConnectCallback(req, {} as Response, next);
             expect(analytics.track).toHaveBeenCalledTimes(3);
         },
     );
@@ -752,7 +809,7 @@ describe('connect outcome with real Passport', () => {
             );
             req.query = { code: 'code', state: secondState };
             const next = vi.fn();
-            agentConnectCallback(req, {} as Response, next);
+            await agentConnectCallback(req, {} as Response, next);
             expect(next).toHaveBeenCalledExactlyOnceWith(error);
             expect(analytics.track).toHaveBeenCalledTimes(2);
             expect(req.session.agentConnectAttempts).toEqual({
@@ -766,9 +823,11 @@ describe('connect outcome with real Passport', () => {
         await start();
         const url = new URL(await authorize());
         req.query = { code: 'code', state: url.searchParams.get('state')! };
-        passport.unuse('snowflake-ai');
+        vi.spyOn(passport, 'authenticate').mockImplementation(() => {
+            throw new Error('passport failure');
+        });
         const next = vi.fn();
-        agentConnectCallback(req, {} as Response, next);
+        await agentConnectCallback(req, {} as Response, next);
         expect(next).toHaveBeenCalledWith(expect.any(Error));
         expect(analytics.track).toHaveBeenCalledTimes(2);
         expect(req.session.agentConnectAttempts ?? {}).toEqual({});
@@ -916,5 +975,155 @@ describe('agent connect nonce store compatibility', () => {
                 ),
             );
         }
+    });
+});
+
+it('logs a redacted session-check exception once through the existing connect failure', async () => {
+    const f = setup();
+    const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
+    Object.assign(f.service, { logger });
+    const attempt = await f.start();
+    const url = new URL(await f.authorize());
+    f.req.query = {
+        code: 'auth-secret',
+        state: url.searchParams.get('state')!,
+    };
+    vi.mocked(snowflakeAiSessionCheck.check).mockRejectedValue(
+        Object.assign(
+            new TypeError(
+                'Connection failed password is abc123\nagent@example.com SELECT secret_column',
+            ),
+            { code: '390318' },
+        ),
+    );
+    expect(await f.callback()).toBe(
+        'http://localhost:4321/done?x=1&error=not_agent_session',
+    );
+    expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+        'Agent sign-in connect failed',
+        {
+            userUuid: attempt.userId,
+            organizationUuid: attempt.organizationId,
+            reason: FailureReason.SESSION_CHECK_FAILED,
+            errorClass: 'TypeError',
+            errorCode: '390318',
+            errorCategory: null,
+            errorMessage: 'Connection failed password [REDACTED]',
+        },
+    );
+    for (const mock of Object.values(logger)) {
+        for (const line of mock.mock.calls) {
+            expect(JSON.stringify(line)).not.toMatch(
+                /abc123|agent@example.com|secret_column|auth-secret|access-token|refresh-token/,
+            );
+        }
+    }
+    await f.callback();
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(f.upsert).not.toHaveBeenCalled();
+});
+
+describe('Snowflake client attempt bindings', () => {
+    it.each(['organization', 'version', 'unbound-organization'] as const)(
+        'rejects %s changes before token exchange',
+        async (change) => {
+            const {
+                req,
+                start,
+                authorize,
+                callback,
+                analytics,
+                upsert,
+                service,
+            } = setup();
+            await start();
+            const state = new URL(await authorize()).searchParams.get('state')!;
+            req.query = { code: 'code', state };
+            if (change === 'organization')
+                req.user!.organizationUuid = 'different-org';
+            else
+                vi.mocked(
+                    service.resolveSnowflakeAgentClient,
+                ).mockResolvedValue({
+                    ...snowflakeAgentClientMock,
+                    organizationUuid: defaultSessionUser.organizationUuid!,
+                    source: 'organization',
+                    clientVersion: 'new-version',
+                });
+            if (change === 'unbound-organization')
+                delete req.session.agentConnectBindings;
+            expect(await callback()).toContain('error=sign_in_failed');
+            expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
+            expect(analytics.track).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        failureReason: FailureReason.SIGN_IN_FAILED,
+                    }),
+                }),
+            );
+        },
+    );
+    it('rejects an old-pod attempt without a client binding', async () => {
+        const { req, start, authorize, callback, upsert } = setup();
+        await start();
+        const state = new URL(await authorize()).searchParams.get('state')!;
+        delete req.session.agentConnectBindings;
+        req.query = { code: 'code', state };
+        expect(await callback()).toContain('error=sign_in_failed');
+        expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
+    });
+    it('reports missing callback configuration without exchanging a code', async () => {
+        const { req, start, authorize, callback, analytics, service } = setup();
+        await start();
+        req.query = {
+            code: 'code',
+            state: new URL(await authorize()).searchParams.get('state')!,
+        };
+        vi.mocked(service.resolveSnowflakeAgentClient).mockResolvedValue(null);
+        await expect(callback()).rejects.toThrow('not set up');
+        expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+        expect(analytics.track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    failureReason: FailureReason.NOT_CONFIGURED,
+                }),
+            }),
+        );
+    });
+});
+
+it('completes an attempt with the same saved organization client', async () => {
+    const { req, service, start, authorize, callback, upsert } = setup();
+    const client = {
+        ...snowflakeAgentClientMock,
+        source: 'organization' as const,
+        organizationUuid: defaultSessionUser.organizationUuid!,
+        clientVersion: 'saved-version',
+    };
+    vi.mocked(service.resolveSnowflakeAgentClient).mockResolvedValue(client);
+    vi.mocked(
+        snowflakeAiStrategyModule.createSnowflakeAiPassportStrategy,
+    ).mockImplementation((resolved) => {
+        const strategy = createStrategy(resolved);
+        const tokenClient = (strategy as unknown as { _oauth2: TokenClient })
+            ._oauth2;
+        vi.spyOn(tokenClient, 'getOAuthAccessToken').mockImplementation(
+            (_code, _params, done) => done(null, 'access', 'refresh', {}),
+        );
+        return strategy;
+    });
+    await start();
+    const state = new URL(await authorize()).searchParams.get('state')!;
+    expect(req.session.agentConnectBindings?.[state]).toEqual({
+        organizationUuid: client.organizationUuid,
+        clientVersion: client.clientVersion,
+    });
+    req.query = { code: 'code', state };
+    expect(await callback()).not.toContain('error=');
+    expect(upsert).toHaveBeenCalledWith(req.user, 'refresh', null, {
+        organizationUuid: client.organizationUuid,
+        clientVersion: client.clientVersion,
     });
 });

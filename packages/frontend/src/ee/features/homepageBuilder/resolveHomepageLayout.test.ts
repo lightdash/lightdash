@@ -58,6 +58,7 @@ const makeBlock = (
             };
         case 'favorites':
         case 'recent':
+        case 'learn':
             return { id, type, config: { title: 't' } };
         case 'cta':
             return {

@@ -7,12 +7,20 @@ import {
     type UiStringKey,
     type UUID,
 } from '@lightdash/common';
-import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
-import { type ChartSavedAction } from '../../features/embed/events/types';
+import { type ColorSchemePreference } from '../../../theme';
+import {
+    type EmbedChartSaveDashboard,
+    type SdkFilter,
+} from '../../features/embed/EmbedDashboard/types';
+import {
+    type ChartSavedAction,
+    type DispatchEmbedEvent,
+} from '../../features/embed/events/types';
+import { type EmbedAiAgentThreadSetup } from './embedAiAgentThreadSetup';
 
 export const EMBED_KEY = 'lightdash-embed';
 
-export type EmbedTheme = 'light' | 'dark';
+export type EmbedTheme = ColorSchemePreference;
 
 export type InMemoryEmbed = {
     projectUuid?: string;
@@ -69,6 +77,11 @@ export interface EmbedContext {
     // Called after a chart is created or updated from an embedded Explore. The
     // dashboard builder uses this to update its chart editor state.
     onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
+    // The dashboard the embedded dashboard builder saves new charts into
+    chartSaveDashboard?: EmbedChartSaveDashboard;
+    // Sends an embed event to the SDK host's onEvent, or as a DOM/postMessage event
+    dispatchEmbedEvent: DispatchEmbedEvent;
+    isEmbedEventReady: boolean;
     // The chart that the user is exploring
     savedChart?: EmbedExploreChart;
     // The saved chart whose persisted custom SQL seeded this Explore. This is
@@ -82,7 +95,7 @@ export interface EmbedContext {
     dashboardUuid?: string;
     // The mode of the embed: 'sdk' when embedded via SDK (no URL sync), 'direct' when navigating directly to /embed (sync URL)
     mode: EmbedMode;
-    // Theme color scheme for the embed, set via ?theme=light|dark URL param
+    // Theme color scheme for the embed, set via ?theme=light|dark|system URL param
     theme: EmbedTheme;
     // Custom background color for the embed, set via ?backgroundColor=<css-color> URL param
     backgroundColor: string | null;
@@ -90,6 +103,10 @@ export interface EmbedContext {
     timezone: string | null;
     // SDK-rendered AI agents report thread changes here instead of postMessage
     onAiAgentThreadChange?: (change: EmbedAiAgentThreadChange) => void;
+    // Binding and context for threads the embedded agent starts
+    aiAgentThreadSetup: EmbedAiAgentThreadSetup | null;
+    // Keeps the embedded agent on its thread: content links render static
+    aiAgentNavigationDisabled: boolean;
 }
 
 export type EmbedAiAgentThreadChange = {

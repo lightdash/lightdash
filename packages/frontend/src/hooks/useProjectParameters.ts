@@ -1,7 +1,8 @@
 import { type ApiGetProjectParametersListResults } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 export interface UseProjectParametersListArgs {
     projectUuid: string;
@@ -12,14 +13,17 @@ export interface UseProjectParametersListArgs {
     pageSize?: number;
 }
 
-const getProjectParametersList = async ({
-    projectUuid,
-    search,
-    sortBy,
-    sortOrder,
-    page,
-    pageSize,
-}: UseProjectParametersListArgs): Promise<ApiGetProjectParametersListResults> => {
+const getProjectParametersList = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        search,
+        sortBy,
+        sortOrder,
+        page,
+        pageSize,
+    }: UseProjectParametersListArgs,
+): Promise<ApiGetProjectParametersListResults> => {
     const params = new URLSearchParams();
 
     if (search) params.append('search', search);
@@ -44,6 +48,7 @@ const getProjectParametersList = async ({
 export const useProjectParametersList = (
     args: UseProjectParametersListArgs,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryKey = useMemo(
         () => [
             'projectParametersList',
@@ -66,6 +71,6 @@ export const useProjectParametersList = (
 
     return useQuery({
         queryKey,
-        queryFn: () => getProjectParametersList(args),
+        queryFn: () => getProjectParametersList(lightdashApi, args),
     });
 };

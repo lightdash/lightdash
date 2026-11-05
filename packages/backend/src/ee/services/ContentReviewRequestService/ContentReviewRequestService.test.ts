@@ -5,6 +5,7 @@ import {
     ContentReviewRequestView,
     ContentType,
     DashboardTileTypes,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     ForbiddenError,
@@ -45,6 +46,7 @@ const ORG = 'org-uuid';
 const PROJECT = 'project-uuid';
 const PERSONAL_SPACE = 'personal-space-uuid';
 const SHARED_SPACE = 'shared-space-uuid';
+const NESTED_PERSONAL_SPACE = 'nested-personal-space-uuid';
 const CHART = 'chart-uuid';
 const REQUESTER = 'requester-uuid';
 const REVIEWER = 'reviewer-uuid';
@@ -199,6 +201,13 @@ const buildService = () => {
         isEnabledForUser: vi.fn().mockResolvedValue(true),
     };
     const directAccessModel = {
+        listUsers: vi
+            .fn()
+            .mockResolvedValue([
+                { userUuid: REVIEWER },
+                { userUuid: 'viewer-uuid' },
+                { userUuid: REQUESTER },
+            ]),
         upsertAccess: vi.fn().mockResolvedValue({}),
         revokeAccess: vi.fn().mockResolvedValue({}),
     };
@@ -212,6 +221,7 @@ const buildService = () => {
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+        getProjectsWithDefaultUserSpaces: vi.fn().mockResolvedValue([]),
     };
     const aiService = {
         isAmbientAiEnabled: vi.fn().mockResolvedValue(true),
@@ -237,6 +247,14 @@ const buildService = () => {
             name: 'Personal',
             slug: 'personal',
         }),
+        getDescendantSpaceUuids: vi
+            .fn()
+            .mockResolvedValue([NESTED_PERSONAL_SPACE]),
+        getSpaceBreadcrumbs: vi.fn(async (spaceUuid: string) =>
+            spaceUuid === NESTED_PERSONAL_SPACE
+                ? [{ uuid: PERSONAL_SPACE }, { uuid: NESTED_PERSONAL_SPACE }]
+                : [{ uuid: spaceUuid }],
+        ),
     };
     const spacePermissionService = {
         can: vi.fn().mockResolvedValue(true),
@@ -295,6 +313,7 @@ const buildService = () => {
         directAccessModel,
         documentService,
         groupsModel,
+        projectModel,
         savedChartService,
         spacePermissionService,
         analytics,
@@ -349,6 +368,53 @@ describe('ContentReviewRequestService', () => {
             expect(detail.targetSpaceName).toBe('Finance');
         });
 
+        test('skips space admins who cannot receive a grant instead of failing the request', async () => {
+            const {
+                service,
+                directAccessModel,
+                spacePermissionService,
+                contentReviewRequestModel,
+            } = buildService();
+            spacePermissionService.getPaginatedSpaceAccess.mockResolvedValue({
+                data: [
+                    { userUuid: REVIEWER, role: SpaceMemberRole.EDITOR },
+                    {
+                        userUuid: 'service-account-admin',
+                        role: SpaceMemberRole.ADMIN,
+                    },
+                    { userUuid: REQUESTER, role: SpaceMemberRole.ADMIN },
+                ],
+            });
+
+            await service.submit(requester, PROJECT, submitBody);
+
+            expect(directAccessModel.listUsers).toHaveBeenCalledWith({
+                organizationUuid: ORG,
+                projectUuid: PROJECT,
+            });
+            expect(directAccessModel.upsertAccess).toHaveBeenCalledTimes(1);
+            expect(directAccessModel.upsertAccess).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    principal: {
+                        type: DirectAccessPrincipalType.USER,
+                        uuid: REVIEWER,
+                    },
+                }),
+            );
+            expect(contentReviewRequestModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    grantedPrincipals: [
+                        expect.objectContaining({
+                            principal: {
+                                type: DirectAccessPrincipalType.USER,
+                                uuid: REVIEWER,
+                            },
+                        }),
+                    ],
+                }),
+            );
+        });
+
         test('routes to the reviewer group when one is configured', async () => {
             const { service, directAccessModel, contentReviewSettingsModel } =
                 buildService();
@@ -370,6 +436,118 @@ describe('ContentReviewRequestService', () => {
             );
         });
 
+        test('accepts content in a space nested under the requester personal space', async () => {
+            const { service, contentReviewRequestModel } = buildService();
+            contentReviewRequestModel.findChartLocations.mockResolvedValue([
+                { ...chartLocation, spaceUuid: NESTED_PERSONAL_SPACE },
+            ]);
+
+            await service.submit(requester, PROJECT, submitBody);
+
+            expect(contentReviewRequestModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    contentUuid: CHART,
+                    sourceSpaceUuid: PERSONAL_SPACE,
+                }),
+            );
+        });
+
+        test('rejects nested content the requester cannot edit', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                spacePermissionService,
+                directAccessModel,
+            } = buildService();
+            contentReviewRequestModel.findChartLocations.mockResolvedValue([
+                { ...chartLocation, spaceUuid: NESTED_PERSONAL_SPACE },
+            ]);
+            spacePermissionService.can.mockImplementation(
+                async (
+                    action: string,
+                    _user: SessionUser,
+                    spaceUuids: string | string[],
+                ) =>
+                    action !== 'update' ||
+                    ![spaceUuids].flat().includes(NESTED_PERSONAL_SPACE),
+            );
+
+            await expect(
+                service.submit(requester, PROJECT, submitBody),
+            ).rejects.toThrow('content you can edit');
+            expect(directAccessModel.upsertAccess).not.toHaveBeenCalled();
+            expect(contentReviewRequestModel.create).not.toHaveBeenCalled();
+        });
+
+        test('rejects a dashboard whose tile chart sits in a space the requester cannot edit', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                spacePermissionService,
+                directAccessModel,
+            } = buildService();
+            const DASHBOARD = 'dashboard-uuid';
+            contentReviewRequestModel.findDashboardLocations.mockResolvedValue([
+                {
+                    uuid: DASHBOARD,
+                    name: 'Ops board',
+                    slug: 'ops-board',
+                    spaceUuid: PERSONAL_SPACE,
+                    dashboardUuid: null,
+                    deleted: false,
+                },
+            ]);
+            contentReviewRequestModel.findChartLocations.mockResolvedValue([
+                { ...chartLocation, spaceUuid: NESTED_PERSONAL_SPACE },
+            ]);
+            dashboardModelMock.getByIdOrSlug.mockResolvedValue({
+                tiles: [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { savedChartUuid: CHART },
+                    },
+                ],
+            });
+            spacePermissionService.can.mockImplementation(
+                async (
+                    action: string,
+                    _user: SessionUser,
+                    spaceUuids: string | string[],
+                ) =>
+                    action !== 'update' ||
+                    ![spaceUuids].flat().includes(NESTED_PERSONAL_SPACE),
+            );
+
+            await expect(
+                service.submit(requester, PROJECT, {
+                    ...submitBody,
+                    contentType: ContentReviewContentType.DASHBOARD,
+                    contentUuid: DASHBOARD,
+                }),
+            ).rejects.toThrow('content you can edit');
+            expect(spacePermissionService.can).toHaveBeenCalledWith(
+                'update',
+                requester,
+                [PERSONAL_SPACE, NESTED_PERSONAL_SPACE],
+            );
+            expect(directAccessModel.upsertAccess).not.toHaveBeenCalled();
+        });
+
+        test('rejects content saved inside a dashboard rather than a space', async () => {
+            const { service, contentReviewRequestModel } = buildService();
+            contentReviewRequestModel.findChartLocations.mockResolvedValue([
+                {
+                    ...chartLocation,
+                    spaceUuid: null,
+                    dashboardUuid: 'dashboard-uuid',
+                },
+            ]);
+
+            await expect(
+                service.submit(requester, PROJECT, submitBody),
+            ).rejects.toThrow('Only content in your personal space');
+        });
+
         test('rejects content that is not in the requester personal space', async () => {
             const { service, contentReviewRequestModel } = buildService();
             contentReviewRequestModel.findChartLocations.mockResolvedValue([
@@ -381,6 +559,112 @@ describe('ContentReviewRequestService', () => {
             ).rejects.toThrow('Only content in your personal space');
         });
 
+        test('rejects the managed Default User Spaces parent as the target before granting access', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                projectModel,
+                directAccessModel,
+                contentReviewNotificationService,
+            } = buildService();
+            contentReviewRequestModel.findSpaceInfo.mockResolvedValue(
+                new Map([
+                    ...spaces,
+                    [
+                        SHARED_SPACE,
+                        {
+                            ...spaces.get(SHARED_SPACE)!,
+                            name: DEFAULT_USER_SPACES_PARENT_NAME,
+                        },
+                    ],
+                ]),
+            );
+            projectModel.getProjectsWithDefaultUserSpaces.mockResolvedValue([
+                {
+                    projectId: 1,
+                    projectUuid: PROJECT,
+                    parentSpaceUuid: SHARED_SPACE,
+                    parentPath: 'default_user_spaces',
+                },
+            ]);
+
+            await expect(
+                service.submit(requester, PROJECT, submitBody),
+            ).rejects.toThrow('Choose a shared space');
+            expect(
+                projectModel.getProjectsWithDefaultUserSpaces,
+            ).toHaveBeenCalledWith(ORG);
+            expect(directAccessModel.upsertAccess).not.toHaveBeenCalled();
+            expect(contentReviewRequestModel.create).not.toHaveBeenCalled();
+            expect(
+                contentReviewNotificationService.notifySubmitted,
+            ).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            ['default user spaces are disabled', []],
+            [
+                'the managed parent is a different space',
+                [
+                    {
+                        projectId: 1,
+                        projectUuid: PROJECT,
+                        parentSpaceUuid: 'reserved-parent',
+                        parentPath: 'default_user_spaces',
+                    },
+                ],
+            ],
+            [
+                'the managed parent belongs to another project',
+                [
+                    {
+                        projectId: 2,
+                        projectUuid: 'other-project',
+                        parentSpaceUuid: SHARED_SPACE,
+                        parentPath: 'default_user_spaces',
+                    },
+                ],
+            ],
+        ])(
+            'allows a shared target with the reserved name when %s',
+            async (_reason, managedProjects) => {
+                const { service, contentReviewRequestModel, projectModel } =
+                    buildService();
+                contentReviewRequestModel.findSpaceInfo.mockResolvedValue(
+                    new Map([
+                        ...spaces,
+                        [
+                            SHARED_SPACE,
+                            {
+                                ...spaces.get(SHARED_SPACE)!,
+                                name: DEFAULT_USER_SPACES_PARENT_NAME,
+                            },
+                        ],
+                    ]),
+                );
+                projectModel.getProjectsWithDefaultUserSpaces.mockResolvedValue(
+                    managedProjects,
+                );
+
+                await expect(
+                    service.submit(requester, PROJECT, submitBody),
+                ).resolves.toMatchObject({
+                    targetSpaceUuid: SHARED_SPACE,
+                });
+                expect(contentReviewRequestModel.create).toHaveBeenCalledOnce();
+            },
+        );
+
+        test('does not query managed parents for an ordinary shared target', async () => {
+            const { service, projectModel } = buildService();
+
+            await service.submit(requester, PROJECT, submitBody);
+
+            expect(
+                projectModel.getProjectsWithDefaultUserSpaces,
+            ).not.toHaveBeenCalled();
+        });
+
         test('rejects a personal space as the target', async () => {
             const { service } = buildService();
 
@@ -388,6 +672,32 @@ describe('ContentReviewRequestService', () => {
                 service.submit(requester, PROJECT, {
                     ...submitBody,
                     targetSpaceUuid: PERSONAL_SPACE,
+                }),
+            ).rejects.toThrow('Choose a shared space');
+        });
+
+        test('rejects a space nested under a personal space as the target', async () => {
+            const { service, contentReviewRequestModel } = buildService();
+            contentReviewRequestModel.findSpaceInfo.mockResolvedValue(
+                new Map([
+                    ...spaces,
+                    [
+                        NESTED_PERSONAL_SPACE,
+                        {
+                            uuid: NESTED_PERSONAL_SPACE,
+                            name: 'Drafts',
+                            projectUuid: PROJECT,
+                            isDefaultUserSpace: false,
+                            deleted: false,
+                        },
+                    ],
+                ]),
+            );
+
+            await expect(
+                service.submit(requester, PROJECT, {
+                    ...submitBody,
+                    targetSpaceUuid: NESTED_PERSONAL_SPACE,
                 }),
             ).rejects.toThrow('Choose a shared space');
         });
@@ -722,6 +1032,68 @@ describe('ContentReviewRequestService', () => {
                 DASHBOARD,
                 PROJECT,
                 REVIEWER,
+            );
+        });
+
+        test('a dashboard takes tile charts from nested personal spaces but not shared ones', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                savedChartService,
+                savedSqlService,
+            } = buildService();
+            const SHARED_CHART = 'shared-chart-uuid';
+            contentReviewRequestModel.getByUuid.mockResolvedValue({
+                ...pendingRequest,
+                contentType: ContentReviewContentType.DASHBOARD,
+                contentUuid: DASHBOARD,
+            });
+            contentReviewRequestModel.findDashboardLocations.mockResolvedValue([
+                { ...dashboardLocation, spaceUuid: NESTED_PERSONAL_SPACE },
+            ]);
+            contentReviewRequestModel.findChartLocations.mockResolvedValue([
+                { ...chartLocation, spaceUuid: NESTED_PERSONAL_SPACE },
+                {
+                    ...chartLocation,
+                    uuid: SHARED_CHART,
+                    spaceUuid: SHARED_SPACE,
+                },
+            ]);
+            contentReviewRequestModel.findSqlChartLocations.mockResolvedValue([
+                { ...sqlChartLocation, spaceUuid: NESTED_PERSONAL_SPACE },
+            ]);
+            dashboardModelMock.getByIdOrSlug.mockResolvedValue({
+                tiles: [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { savedChartUuid: CHART },
+                    },
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { savedChartUuid: SHARED_CHART },
+                    },
+                    {
+                        type: DashboardTileTypes.SQL_CHART,
+                        properties: { savedSqlUuid: SQL_CHART },
+                    },
+                ],
+            });
+
+            await service.approve(reviewer, PROJECT, pendingRequest.uuid, {
+                verify: false,
+                note: null,
+            });
+
+            expect(savedChartService.moveToSpace).toHaveBeenCalledTimes(1);
+            expect(savedChartService.moveToSpace).toHaveBeenCalledWith(
+                reviewer,
+                expect.objectContaining({ itemUuid: CHART }),
+                expect.anything(),
+            );
+            expect(savedSqlService.moveToSpace).toHaveBeenCalledWith(
+                reviewer,
+                expect.objectContaining({ itemUuid: SQL_CHART }),
+                expect.anything(),
             );
         });
 

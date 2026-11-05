@@ -2,6 +2,7 @@ import type { ApiError, EmbedDashboard } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { postEmbedDashboard } from './api';
 
 export const useEmbedDashboard = (
@@ -12,9 +13,11 @@ export const useEmbedDashboard = (
     // names it per request, so it must key the cache.
     dashboardUuid?: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<EmbedDashboard, ApiError>({
         queryKey: ['embed-dashboard', projectUuid, paletteUuid, dashboardUuid],
-        queryFn: () => postEmbedDashboard(projectUuid!, { paletteUuid }),
+        queryFn: () =>
+            postEmbedDashboard(lightdashApi, projectUuid!, { paletteUuid }),
         enabled: !!projectUuid && enabled,
         // Inherits the app-wide retry policy: transient NetworkErrors retry
         // with backoff; real API errors (e.g. expired JWT) surface at once.

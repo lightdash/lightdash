@@ -1,6 +1,6 @@
 /**
  * The project the learner opened the library from. Walkthroughs run in a
- * copy of the training project, and the copy is put away when they end;
+ * copy of the training project, which stays for the next one; when a tour ends
  * the learner is sent back here rather than to the training project, so
  * Learn is a detour from their own work, not a move. Kept per tab: a new
  * tab that lands straight in a copy falls back to the training project.

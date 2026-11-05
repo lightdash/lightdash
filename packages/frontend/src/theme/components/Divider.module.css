@@ -7,3 +7,8 @@
     font-size: var(--mantine-font-size-xs);
     font-weight: 500;
 }
+
+/* Vertical dividers stretch to the row; one given an explicit height centres in it instead. */
+.root[data-orientation='vertical'][style*='height'] {
+    align-self: center;
+}

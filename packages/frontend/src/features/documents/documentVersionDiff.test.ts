@@ -1,4 +1,9 @@
-import { ChartType, type DocumentChartContent } from '@lightdash/common';
+import {
+    ChartKind,
+    ChartType,
+    type DocumentSemanticChartContent,
+    type DocumentSqlChartContent,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     diffDocumentVersions,
@@ -8,8 +13,8 @@ import {
 
 const chart = (
     name: string,
-    overrides: Partial<DocumentChartContent['chart']> = {},
-): DocumentChartContent => ({
+    overrides: Partial<DocumentSemanticChartContent['chart']> = {},
+): DocumentSemanticChartContent => ({
     source: 'semantic',
     chart: {
         name,
@@ -245,5 +250,93 @@ describe('withContext', () => {
         ]);
         expect(shown.some((line) => line.kind === 'skipped')).toBe(false);
         expect(shown).toHaveLength(8);
+    });
+});
+
+describe('content from a newer release', () => {
+    const image = { source: 'image', image: { url: 'logo.png' } };
+    const block = '<data-app-embed slug="monthly-revenue">';
+    const before = {
+        markdown: [tag('c1'), tag('c2'), 'Text'].join('\n\n'),
+        charts: { c1: chart('Orders') },
+        unsupportedCharts: { c2: image },
+    };
+
+    it('pairs an unchanged unsupported chart and lists one that was added', () => {
+        const after = {
+            ...before,
+            markdown: [tag('c1'), tag('c2'), 'Text', tag('c3'), block].join(
+                '\n\n',
+            ),
+            unsupportedCharts: { c2: image, c3: { source: 'video' } },
+        };
+        const diff = diffDocumentVersions(before, after);
+        expect(diff.charts.map(({ kind, name }) => ({ kind, name }))).toEqual([
+            { kind: 'unchanged', name: 'Orders' },
+            { kind: 'unchanged', name: 'Chart from a newer version' },
+            { kind: 'added', name: 'Chart from a newer version' },
+        ]);
+        expect(diff.text).toContainEqual({ type: 'added', text: block });
+    });
+});
+
+describe('SQL charts', () => {
+    const sqlChart: DocumentSqlChartContent = {
+        source: 'sql',
+        chart: {
+            name: 'Orders by status',
+            sql: 'select status, count(*) from orders group by 1',
+            limit: 100,
+            chartKind: ChartKind.TABLE,
+            config: {
+                type: ChartKind.TABLE,
+                metadata: { version: 1 },
+                columns: {},
+                display: undefined,
+            },
+        },
+    };
+    const withSql = (chart: DocumentSqlChartContent) => ({
+        markdown: tag('c1'),
+        charts: { c1: chart },
+    });
+
+    it('names the SQL and row limit when they change', () => {
+        const diff = diffDocumentVersions(
+            withSql(sqlChart),
+            withSql({
+                ...sqlChart,
+                chart: { ...sqlChart.chart, sql: 'select 1', limit: 10 },
+            }),
+        );
+        expect(diff.charts).toEqual([
+            expect.objectContaining({
+                kind: 'changed',
+                changedParts: ['SQL', 'Row limit'],
+            }),
+        ]);
+    });
+});
+
+describe('saved chart links', () => {
+    it('shows an added and a removed link as text', () => {
+        const kept =
+            '<saved-chart uuid="a5632229-9bb1-4e73-9c57-553f0b5915f8">';
+        const removed =
+            '<saved-sql-chart uuid="4b993aca-ca6f-455b-a6aa-19c26e65c502">';
+        const added =
+            '<saved-chart uuid="1d80c2dc-db93-4ce1-a435-c67c75c8aa10" title="Live">';
+        const diff = diffDocumentVersions(
+            { markdown: ['Text', kept, removed].join('\n\n'), charts: {} },
+            { markdown: ['Text', kept, added].join('\n\n'), charts: {} },
+        );
+        expect(diff.text).toEqual(
+            expect.arrayContaining([
+                { type: 'unchanged', text: kept },
+                { type: 'removed', text: removed },
+                { type: 'added', text: added },
+            ]),
+        );
+        expect(diff.charts).toEqual([]);
     });
 });

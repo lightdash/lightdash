@@ -70,10 +70,8 @@ export const ChartIcon: FC<{
     <IconBox
         icon={getChartIcon(chartKind)}
         color={color ?? 'blue.6'}
-        style={
-            chartKind === ChartKind.HORIZONTAL_BAR
-                ? { rotate: '90deg' }
-                : undefined
+        className={
+            chartKind === ChartKind.HORIZONTAL_BAR ? classes.rotated : undefined
         }
     />
 );
@@ -158,13 +156,11 @@ export const ResourceIndicator: FC<
                         size={14}
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
+                        color={iconProps.color}
                         fill={iconProps.color}
                         fillOpacity={0.15}
                         strokeWidth={1.2}
-                        style={{
-                            color: iconProps.color,
-                            opacity: 0.65, // NOTE: If react-tabler icon is filled, then we have to override the color this way
-                        }}
+                        opacity={0.65}
                     />
                 </Tooltip>
             }

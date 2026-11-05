@@ -8,8 +8,9 @@ import {
     type JobStep,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 import { useProjectUuid } from './useProjectUuid';
 
@@ -122,6 +123,7 @@ export const TOAST_KEY_FOR_REFRESH_JOB = 'refresh-job';
 export type RefreshServerVariables = { syncContent: boolean };
 
 const refresh = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     { syncContent }: RefreshServerVariables,
 ) =>
@@ -131,7 +133,7 @@ const refresh = async (
         body: JSON.stringify({ syncContent }),
     });
 
-const getJob = async (jobUuid: string) =>
+const getJob = async (lightdashApi: LightdashApi, jobUuid: string) =>
     lightdashApi<Job>({
         method: 'GET',
         url: `/jobs/${jobUuid}`,
@@ -143,11 +145,12 @@ export const useJob = (
     onSuccess: (job: Job) => void,
     onError: (error: ApiError) => void,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useQuery<Job, ApiError>({
         queryKey: ['job', jobId],
-        queryFn: () => getJob(jobId || ''),
+        queryFn: () => getJob(lightdashApi, jobId || ''),
         enabled: !!jobId,
         refetchInterval: (data) =>
             data === undefined ||
@@ -166,13 +169,15 @@ export const useJob = (
 };
 
 export const useRefreshServer = () => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
     return useMutation<ApiRefreshResults, ApiError, RefreshServerVariables>({
         mutationKey: ['refresh', projectUuid],
-        mutationFn: (variables) => refresh(projectUuid!, variables),
+        mutationFn: (variables) =>
+            refresh(lightdashApi, projectUuid!, variables),
         onSettled: async () =>
             queryClient.setQueryData(['status', projectUuid], 'loading'),
         onSuccess: (data) => setActiveJobId(data.jobUuid),

@@ -1,7 +1,7 @@
 import {
     AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS,
     aiDeepResearchChartDefinitionSchema,
-    toolRunQueryArgsSchemaPersisted,
+    toolRunQueryExpressionResolvedArgsSchema,
     type AiDeepResearchWarehouseChart,
 } from '@lightdash/common';
 
@@ -10,7 +10,8 @@ export const resolveDeepResearchWarehouseChart = (
     queryUuid: string,
 ): { chart: AiDeepResearchWarehouseChart; description: string } | null => {
     // Persisted args may predate the current advertised contract.
-    const parsedToolArgs = toolRunQueryArgsSchemaPersisted.safeParse(toolArgs);
+    const parsedToolArgs =
+        toolRunQueryExpressionResolvedArgsSchema.safeParse(toolArgs);
     if (!parsedToolArgs.success || !parsedToolArgs.data.chartConfig) {
         return null;
     }

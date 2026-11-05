@@ -1,8 +1,10 @@
 import { type DashboardLoomTile } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { clsx } from 'clsx';
 import React, { useMemo, useState, type FC } from 'react';
 import { DashboardTileComments } from '../../features/comments';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import tileClasses from './DashboardTiles.module.css';
 import TileBase from './TileBase/index';
 import { getLoomId } from './TileForms/utils';
 
@@ -50,14 +52,11 @@ const LoomTile: FC<Props> = (props) => {
         >
             <iframe
                 title={title}
-                className="non-draggable"
+                className={clsx('non-draggable', tileClasses.loomIframe)}
                 src={`https://www.loom.com/embed/${getLoomId(url)}`}
                 frameBorder="0"
                 allowFullScreen
                 sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
-                style={{
-                    flex: 1,
-                }}
                 onLoad={() => {
                     setIsLoomLoaded(true);
                 }}

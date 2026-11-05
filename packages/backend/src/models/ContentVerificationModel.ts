@@ -37,8 +37,9 @@ export class ContentVerificationModel {
     async getByContent(
         contentType: ContentType,
         contentUuid: string,
+        trx?: Knex,
     ): Promise<ContentVerificationInfo | null> {
-        const row = await this.database(ContentVerificationTableName)
+        const row = await (trx ?? this.database)(ContentVerificationTableName)
             .leftJoin(
                 UserTableName,
                 `${ContentVerificationTableName}.verified_by_user_uuid`,
@@ -130,13 +131,14 @@ export class ContentVerificationModel {
     async unverify(
         contentType: ContentType,
         contentUuid: string,
-    ): Promise<void> {
-        await this.database(ContentVerificationTableName)
+    ): Promise<boolean> {
+        const deleted = await this.database(ContentVerificationTableName)
             .where({
                 content_type: contentType,
                 content_uuid: contentUuid,
             })
             .delete();
+        return deleted > 0;
     }
 
     async getAllForProject(

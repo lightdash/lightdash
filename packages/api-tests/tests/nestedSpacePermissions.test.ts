@@ -2,6 +2,7 @@ import {
     SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     SpaceMemberRole,
+    type Group,
     type KnexPaginatedData,
     type Space,
     type SpaceDeleteImpact,
@@ -462,6 +463,105 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             );
 
             expect(editorAccess).toBeUndefined();
+        });
+    });
+
+    describe('Breaking Inheritance with group grants', () => {
+        let admin: Awaited<ReturnType<typeof login>>;
+        let rootSpaceUuid: string | undefined;
+        let groupUuid: string | undefined;
+
+        beforeAll(async () => {
+            admin = await login();
+        });
+
+        afterEach(async () => {
+            if (rootSpaceUuid) {
+                await admin
+                    .delete(
+                        `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${rootSpaceUuid}`,
+                        { failOnStatusCode: false },
+                    )
+                    .catch(() => {});
+                rootSpaceUuid = undefined;
+            }
+            if (groupUuid) {
+                await admin
+                    .delete(`${apiUrl}/groups/${groupUuid}`, {
+                        failOnStatusCode: false,
+                    })
+                    .catch(() => {});
+                groupUuid = undefined;
+            }
+        });
+
+        const detachChildOfRootSharedWithEmptyGroup = async () => {
+            const timestamp = Date.now();
+
+            const groupResp = await admin.post<Body<Group>>(
+                `${apiUrl}/org/groups`,
+                { name: `Empty group ${timestamp}` },
+            );
+            groupUuid = groupResp.body.results.uuid;
+
+            const rootResp = await admin.post<Body<Space>>(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                { name: `Root ${timestamp}`, inheritParentPermissions: false },
+            );
+            rootSpaceUuid = rootResp.body.results.uuid;
+
+            await admin.post(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${rootSpaceUuid}/group/share`,
+                { groupUuid, spaceRole: SpaceMemberRole.VIEWER },
+            );
+
+            const childResp = await admin.post<Body<Space>>(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                {
+                    name: `Child ${timestamp}`,
+                    parentSpaceUuid: rootSpaceUuid,
+                    inheritParentPermissions: true,
+                },
+            );
+            const child = childResp.body.results;
+
+            const updateResp = await admin.patch<Body<Space>>(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
+                { name: child.name, inheritParentPermissions: false },
+            );
+            return updateResp.body.results;
+        };
+
+        it('should copy a grant to a group with no members when breaking inheritance', async () => {
+            const child = await detachChildOfRootSharedWithEmptyGroup();
+
+            expect(child.groupsAccess).toEqual([
+                expect.objectContaining({
+                    groupUuid,
+                    spaceRole: SpaceMemberRole.VIEWER,
+                }),
+            ]);
+        });
+
+        it('should grant child access to a member added to the group after breaking inheritance', async () => {
+            const child = await detachChildOfRootSharedWithEmptyGroup();
+
+            const editor = await loginAsEditor();
+            const beforeResp = await editor.get(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
+                { failOnStatusCode: false },
+            );
+            expect(beforeResp.status).toBe(403);
+
+            await admin.put(
+                `${apiUrl}/groups/${groupUuid}/members/${SEED_ORG_1_EDITOR.user_uuid}`,
+            );
+
+            const afterResp = await editor.get(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
+                { failOnStatusCode: false },
+            );
+            expect(afterResp.status).toBe(200);
         });
     });
 

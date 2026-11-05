@@ -33,7 +33,6 @@ const composerChartConfig = {
     schemaVersion: 1,
     queries: [],
     terminalNodeId: 'n1',
-    lastQueryUuid: 'query-uuid',
     vizConfig: null,
 };
 
@@ -265,6 +264,22 @@ describe('AiAgentService.updateComposerArtifactVizConfig', () => {
             artifact: {
                 ...artifact,
                 chartConfig: { source: 'sql', sql: 'select 1', limit: 500 },
+            },
+        });
+
+        await expect(
+            service.updateComposerArtifactVizConfig(owner, args),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            aiAgentModel.updateArtifactVersionChartConfig,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a v2 composer artifact', async () => {
+        const { service, aiAgentModel } = buildService({
+            artifact: {
+                ...artifact,
+                chartConfig: { ...composerChartConfig, schemaVersion: 2 },
             },
         });
 

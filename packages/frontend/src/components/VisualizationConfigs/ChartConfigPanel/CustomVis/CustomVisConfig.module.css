@@ -8,7 +8,7 @@
    placeholder gives way to what you type. */
 .editorPlaceholder {
     pointer-events: none;
-    z-index: 100;
+    z-index: var(--ld-z-sticky);
     font-family: monospace;
     margin-left: 33px;
     font-size: 12px;

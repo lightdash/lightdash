@@ -4,7 +4,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Anchor,
     Avatar,
     Badge,
@@ -22,7 +21,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
-    IconAlertCircle,
     IconDeviceFloppy,
     IconHelpCircle,
     IconRefresh,
@@ -49,6 +47,7 @@ import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { SlackChannelSelect } from '../../common/SlackChannelSelect';
 import { ProjectSelect } from './ProjectSelect';
+import { SlackMissingScopesAlert } from './SlackMissingScopesAlert';
 import { SlackSettingRow } from './SlackSettingRow';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
@@ -84,6 +83,7 @@ const formSchema = z.object({
     aiLinksOnly: z.boolean().optional(),
     aiMultiAgentChannelId: z.string().min(1, 'Channel is required').optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
+    aiMultiAgentRequireMention: z.boolean().optional(),
     unfurlsEnabled: z.boolean().optional(),
     aiAgentsEnabled: z.boolean().optional(),
     requireExplicitSlackChannelLinking: z.boolean(),
@@ -123,6 +123,7 @@ const SlackSettingsPanel: FC = () => {
             aiLinksOnly: false,
             aiMultiAgentChannelId: undefined,
             aiMultiAgentProjectUuids: null,
+            aiMultiAgentRequireMention: false,
             unfurlsEnabled: true,
             aiAgentsEnabled: true,
             requireExplicitSlackChannelLinking: false,
@@ -148,6 +149,8 @@ const SlackSettingsPanel: FC = () => {
                 slackInstallation.aiMultiAgentChannelId ?? undefined,
             aiMultiAgentProjectUuids:
                 slackInstallation.aiMultiAgentProjectUuids ?? null,
+            aiMultiAgentRequireMention:
+                slackInstallation.aiMultiAgentRequireMention ?? false,
             unfurlsEnabled: slackInstallation.unfurlsEnabled ?? true,
             aiAgentsEnabled: slackInstallation.aiAgentsEnabled ?? true,
             requireExplicitSlackChannelLinking:
@@ -474,6 +477,23 @@ const SlackSettingsPanel: FC = () => {
                                         {form.values.aiMultiAgentChannelId && (
                                             <Stack gap="xs">
                                                 <Switch
+                                                    label="Only respond when mentioned"
+                                                    description="New messages in this channel are ignored unless they @mention the Lightdash app."
+                                                    disabled={aiAgentsDisabled}
+                                                    checked={
+                                                        form.values
+                                                            .aiMultiAgentRequireMention ??
+                                                        false
+                                                    }
+                                                    onChange={(event) =>
+                                                        setFieldValue(
+                                                            'aiMultiAgentRequireMention',
+                                                            event.currentTarget
+                                                                .checked,
+                                                        )
+                                                    }
+                                                />
+                                                <Switch
                                                     label="Allow all project agents to appear"
                                                     disabled={aiAgentsDisabled}
                                                     checked={
@@ -561,22 +581,11 @@ const SlackSettingsPanel: FC = () => {
                                 </Button>
                             </Group>
 
-                            {organizationHasSlack &&
-                                !slackInstallation.hasRequiredScopes && (
-                                    <Alert
-                                        color="orange"
-                                        icon={
-                                            <MantineIcon
-                                                icon={IconAlertCircle}
-                                            />
-                                        }
-                                    >
-                                        Your Slack integration is not up to
-                                        date, you should reinstall the Slack
-                                        integration to guarantee the best user
-                                        experience.
-                                    </Alert>
-                                )}
+                            {organizationHasSlack && (
+                                <SlackMissingScopesAlert
+                                    features={slackInstallation.features}
+                                />
+                            )}
                         </Stack>
                     </form>
                 ) : (

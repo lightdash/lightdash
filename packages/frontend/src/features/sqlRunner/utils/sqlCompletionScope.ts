@@ -1,5 +1,6 @@
-import type { SqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
+import { assertUnreachable } from '@lightdash/common';
 import type { TablesBySchema } from '../hooks/useTables';
+import type { SqlEditorPreferences } from './sqlEditorPreferences';
 
 export type SqlCatalog = {
     database: string;
@@ -130,6 +131,24 @@ export const applyCasePreference = (
     if (settings?.casePreference === 'lowercase') return name.toLowerCase();
     if (settings?.casePreference === 'uppercase') return name.toUpperCase();
     return name;
+};
+
+// The path to insert for a table; the schema always stays, the database is optional
+export const tablePathSegments = (
+    catalog: Pick<SqlCatalog, 'database'>,
+    schema: string,
+    table: string,
+    qualification: SqlEditorPreferences['qualification'] | undefined,
+): string[] => {
+    switch (qualification) {
+        case 'schema':
+            return [schema, table];
+        case 'full':
+        case undefined:
+            return [catalog.database, schema, table];
+        default:
+            return assertUnreachable(qualification, 'Unknown qualification');
+    }
 };
 
 export const formatIdentifier = (

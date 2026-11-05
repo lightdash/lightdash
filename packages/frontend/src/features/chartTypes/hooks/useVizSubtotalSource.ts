@@ -2,6 +2,7 @@ import { isApiError, type ResultRow } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { fetchColumnSubtotalRows } from '../../../hooks/useAsyncCalculateTotal';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     filterRowsToParent,
     parseVizSubtotalIntent,
@@ -23,6 +24,7 @@ export const useVizSubtotalSource = ({
     sourceQueryUuid: string | undefined;
     dimensions: string[] | null;
 }): VizSubtotalSource | null => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const latestSource = useRef<VizSubtotalSource | null>(null);
     // Compared by value: a rebuilt array with the same bindings is no change.
@@ -58,7 +60,7 @@ export const useVizSubtotalSource = ({
                         subtotalDimensions,
                     ],
                     queryFn: () =>
-                        fetchColumnSubtotalRows({
+                        fetchColumnSubtotalRows(lightdashApi, {
                             projectUuid,
                             sourceQueryUuid,
                             subtotalDimensions,
@@ -81,7 +83,13 @@ export const useVizSubtotalSource = ({
             },
         };
         return current;
-    }, [projectUuid, sourceQueryUuid, boundDimensions, queryClient]);
+    }, [
+        projectUuid,
+        sourceQueryUuid,
+        boundDimensions,
+        queryClient,
+        lightdashApi,
+    ]);
     useLayoutEffect(() => {
         latestSource.current = source;
     }, [source]);

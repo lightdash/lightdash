@@ -1,9 +1,11 @@
-import {
-    FilterOperator,
-    type DashboardFilterRule,
-    type UnmetFilterRequirement,
-} from '@lightdash/common';
+import { FilterOperator, type DashboardFilterRule } from '@lightdash/common';
+import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    createDashboardTestStore,
+    type DashboardStoreTestValues,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
 import { renderHookWithProviders } from '../../../testing/testUtils';
 import { useFilterChipRequirementState } from './useFilterChipRequirementState';
 
@@ -30,19 +32,35 @@ vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
 
-const setContext = (unmetFilterRequirements: UnmetFilterRequirement[] = []) => {
-    mockDashboardContext.current = { unmetFilterRequirements };
+let storeValues: DashboardStoreTestValues = {};
+
+// Unmet requirements derive from the dashboard filters in the store
+const setDashboardDimensionFilters = (
+    dimensions: DashboardFilterRule[] = [],
+) => {
+    mockDashboardContext.current = {
+        filterableFieldsByTileUuid: undefined,
+        hiddenFilterableFieldIds: new Set<string>(),
+    };
+    storeValues = {
+        dashboardFilters: { dimensions, metrics: [], tableCalculations: [] },
+    };
 };
 
-const unmetGroupWith = (rule: DashboardFilterRule): UnmetFilterRequirement => ({
-    type: 'group',
-    groupId: 'group-1',
-    filters: [rule],
-});
-
-const renderState = (rule: DashboardFilterRule) =>
-    renderHookWithProviders(() => useFilterChipRequirementState(rule)).result
-        .current;
+const renderState = (rule: DashboardFilterRule) => {
+    const store = createDashboardTestStore(storeValues);
+    return renderHookWithProviders(
+        () => useFilterChipRequirementState(rule),
+        undefined,
+        {
+            wrapper: ({ children }: { children: ReactNode }) => (
+                <DashboardStoreTestProvider store={store}>
+                    {children}
+                </DashboardStoreTestProvider>
+            ),
+        },
+    ).result.current;
+};
 
 const SINGLE_TOOLTIP = 'Required: set a value to run this dashboard';
 const GROUP_TOOLTIP =
@@ -55,7 +73,7 @@ describe('useFilterChipRequirementState', () => {
 
     it('required without a value is unmet with the single-filter wording', () => {
         const rule = buildRule({ required: true });
-        setContext([{ type: 'single', filter: rule }]);
+        setDashboardDimensionFilters([rule]);
         const state = renderState(rule);
 
         expect(state).toEqual({
@@ -71,7 +89,7 @@ describe('useFilterChipRequirementState', () => {
             disabled: true,
             values: ['Alice'],
         });
-        setContext([{ type: 'single', filter: rule }]);
+        setDashboardDimensionFilters([rule]);
         const state = renderState(rule);
 
         expect(state.isRequirementUnmet).toBe(true);
@@ -84,7 +102,7 @@ describe('useFilterChipRequirementState', () => {
             disabled: false,
             values: ['Alice'],
         });
-        setContext([]);
+        setDashboardDimensionFilters([rule]);
         const state = renderState(rule);
 
         expect(state).toEqual({
@@ -96,7 +114,7 @@ describe('useFilterChipRequirementState', () => {
 
     it('group-only member of an unmet group is unmet with the group wording', () => {
         const rule = buildRule({ requiredGroupId: 'group-1' });
-        setContext([unmetGroupWith(rule)]);
+        setDashboardDimensionFilters([rule]);
         const state = renderState(rule);
 
         expect(state).toEqual({
@@ -108,7 +126,17 @@ describe('useFilterChipRequirementState', () => {
 
     it('group member not in any unmet group shows the icon but is met', () => {
         const rule = buildRule({ requiredGroupId: 'group-1' });
-        setContext([unmetGroupWith(buildRule({ id: 'other-filter' }))]);
+        // Another group's member is unmet; this rule's group is satisfied
+        setDashboardDimensionFilters([
+            rule,
+            buildRule({
+                id: 'group-1-member-with-value',
+                requiredGroupId: 'group-1',
+                disabled: false,
+                values: ['Alice'],
+            }),
+            buildRule({ id: 'other-filter', requiredGroupId: 'group-2' }),
+        ]);
         const state = renderState(rule);
 
         expect(state.showRequirementIcon).toBe(true);
@@ -116,7 +144,7 @@ describe('useFilterChipRequirementState', () => {
     });
 
     it('nothing required shows no requirement state at all', () => {
-        setContext();
+        setDashboardDimensionFilters();
         const state = renderState(buildRule());
 
         expect(state.showRequirementIcon).toBe(false);

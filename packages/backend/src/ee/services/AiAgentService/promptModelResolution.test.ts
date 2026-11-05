@@ -1,4 +1,8 @@
 import { type AiAgentModelConfig, type SessionUser } from '@lightdash/common';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { UserModel, type DbUserDetails } from '../../../models/UserModel';
 import { getOrgModelCatalogue, MODEL_PRESETS } from '../ai/models';
 import { AiAgentService } from './AiAgentService';
 
@@ -27,9 +31,11 @@ const pickedModel: AiAgentModelConfig = {
 const buildService = ({
     agentModelConfig,
     organizationModelConfig,
+    threadModelConfig = null,
 }: {
     agentModelConfig: AiAgentModelConfig | null;
     organizationModelConfig: AiAgentModelConfig | null;
+    threadModelConfig?: AiAgentModelConfig | null;
 }) => {
     const createPrompt = vi.fn(
         async (_args: { modelConfig: AiAgentModelConfig | null }) => promptUuid,
@@ -46,15 +52,22 @@ const buildService = ({
             createSlackThread: vi.fn(async () => threadUuid),
             createSlackPrompt: createPrompt,
             existsSlackPromptByChannelIdAndPromptTs: vi.fn(async () => false),
+            findThreadUuidBySlackChannelIdAndThreadTs: vi.fn(
+                async () => threadUuid,
+            ),
+            findThreadModelConfig: vi.fn(async () => threadModelConfig),
             getThread: vi.fn(async () => ({
                 uuid: threadUuid,
                 user: { uuid: userUuid },
+                threadContext: null,
             })),
             findThreadMessage: vi.fn(async () => ({ uuid: promptUuid })),
             getContextForPromptUuids: vi.fn(async () => new Map()),
         },
         userModel: {
-            getUserDetailsByUuid: vi.fn(async () => ({ organizationUuid })),
+            findSessionUserAndOrgByUuid: vi.fn(async () => ({
+                organizationUuid,
+            })),
         },
         aiOrganizationSettingsService: {
             getDefaultModelConfig: vi.fn(async () => organizationModelConfig),
@@ -65,6 +78,9 @@ const buildService = ({
                     modelVisibility: null,
                     keyAccessibleModelIds: null,
                 }),
+                copilotConfig: {
+                    providers: { anthropic: { apiKey: 'test-key' } },
+                },
             })),
         },
         mobilePushNotificationService: {
@@ -110,6 +126,7 @@ const sendOnEachPath = {
     ) =>
         service.createSlackPrompt({
             userUuid,
+            organizationUuid,
             projectUuid,
             slackUserId: 'slack-user',
             slackChannelId: 'slack-channel',
@@ -186,3 +203,140 @@ describe.each(Object.entries(sendOnEachPath))(
         });
     },
 );
+
+const threadModel: AiAgentModelConfig = {
+    modelProvider: 'anthropic',
+    modelName: 'thread-model',
+};
+
+const followUpOnEachPath = {
+    'web app follow-up': sendOnEachPath['follow-up'],
+    'Slack follow-up': (
+        service: AiAgentService,
+        modelConfig: AiAgentModelConfig | undefined,
+    ) =>
+        service.createSlackPrompt({
+            userUuid,
+            organizationUuid,
+            projectUuid,
+            slackUserId: 'slack-user',
+            slackChannelId: 'slack-channel',
+            slackThreadTs: '1700000000.000001',
+            prompt: 'hi',
+            promptSlackTs: '1700000000.000100',
+            agentUuid,
+            modelConfig,
+        }),
+};
+
+describe.each(Object.entries(followUpOnEachPath))(
+    'thread model on %s',
+    (_, send) => {
+        it("keeps the thread's model when the user picked another one", async () => {
+            const { service, storedModelConfig } = buildService({
+                agentModelConfig: agentModel,
+                organizationModelConfig: organizationModel,
+                threadModelConfig: threadModel,
+            });
+
+            await send(service, pickedModel);
+
+            expect(storedModelConfig()).toEqual(threadModel);
+        });
+
+        it("keeps the thread's model after the agent moved to another model", async () => {
+            const { service, storedModelConfig } = buildService({
+                agentModelConfig: agentModel,
+                organizationModelConfig: organizationModel,
+                threadModelConfig: threadModel,
+            });
+
+            await send(service, undefined);
+
+            expect(storedModelConfig()).toEqual(threadModel);
+        });
+
+        it("keeps the thread's model when it is deprecated", async () => {
+            const deprecatedModel: AiAgentModelConfig = {
+                modelProvider: 'anthropic',
+                modelName: 'claude-sonnet-5',
+            };
+            const { service, storedModelConfig } = buildService({
+                agentModelConfig: agentModel,
+                organizationModelConfig: organizationModel,
+                threadModelConfig: deprecatedModel,
+            });
+
+            await send(service, undefined);
+
+            expect(storedModelConfig()).toEqual(deprecatedModel);
+        });
+    },
+);
+
+test('Slack prompt creation keeps the installation organization for a user with two memberships', async () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const tracker = getTracker();
+    const memberships = [
+        {
+            user_uuid: userUuid,
+            organization_uuid: 'other-organization',
+            organization_id: 1,
+        },
+        {
+            user_uuid: userUuid,
+            organization_uuid: organizationUuid,
+            organization_id: 2,
+        },
+    ];
+    tracker.on
+        .select(/from "users"/)
+        .response((query) =>
+            query.bindings.includes(organizationUuid)
+                ? memberships.filter(
+                      (row) => row.organization_uuid === organizationUuid,
+                  )
+                : memberships,
+        );
+    const userModel = new UserModel({ database } as ConstructorParameters<
+        typeof UserModel
+    >[0]);
+    Object.assign(userModel, {
+        hasAuthentication: vi.fn().mockResolvedValue(true),
+        generateUserAbilityBuilder: vi.fn(async (row: DbUserDetails) => ({
+            lightdashUser: {
+                ...defaultSessionUser,
+                userUuid: row.user_uuid,
+                organizationUuid: row.organization_uuid,
+            },
+            abilityBuilder: {
+                rules: [],
+                build: () => defaultSessionUser.ability,
+            },
+        })),
+    });
+    const { service } = buildService({
+        agentModelConfig: null,
+        organizationModelConfig: null,
+    });
+    Object.assign(service, { userModel });
+    const createThread = vi.spyOn(service['aiAgentModel'], 'createSlackThread');
+    const getAgent = vi.spyOn(service['aiAgentModel'], 'getAgent');
+    const defaults = vi.spyOn(
+        service['aiOrganizationSettingsService'],
+        'getDefaultModelConfig',
+    );
+    try {
+        await sendOnEachPath['Slack prompt'](service, undefined);
+        expect(createThread).toHaveBeenCalledWith(
+            expect.objectContaining({ organizationUuid }),
+        );
+        expect(getAgent).toHaveBeenCalledWith(
+            expect.objectContaining({ organizationUuid }),
+        );
+        expect(defaults).toHaveBeenCalledWith(organizationUuid);
+    } finally {
+        tracker.reset();
+        await database.destroy();
+    }
+});

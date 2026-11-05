@@ -3,10 +3,14 @@ import {
     type ApiListRegistryChartTypesResponse,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { captureChartTypeError } from '../utils/captureChartTypeError';
 
-const getRegistryChartTypes = async (projectUuid: string) => {
+const getRegistryChartTypes = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) => {
     try {
         return await lightdashApi<ApiListRegistryChartTypesResponse['results']>(
             {
@@ -28,12 +32,14 @@ const getRegistryChartTypes = async (projectUuid: string) => {
 export const useRegistryChartTypes = (
     projectUuid: string | undefined,
     enabled: boolean,
-) =>
-    useQuery<ApiListRegistryChartTypesResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiListRegistryChartTypesResponse['results'], ApiError>({
         queryKey: ['registry-chart-types', projectUuid],
-        queryFn: () => getRegistryChartTypes(projectUuid!),
+        queryFn: () => getRegistryChartTypes(lightdashApi, projectUuid!),
         enabled: !!projectUuid && enabled,
         staleTime: 5 * 60 * 1000,
         retry: false,
         refetchOnWindowFocus: false,
     });
+};

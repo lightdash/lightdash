@@ -1,7 +1,11 @@
+import { ParameterError } from '@lightdash/common';
 import {
+    assertInferenceGeographyForRegion,
     isMultiCredentialAiProvider,
     parseCredentialConfig,
+    resolveIsDefaultOnCreate,
     toApiCredential,
+    validateCredentialConfig,
     type AiProviderCredentialResolution,
 } from './AiOrganizationProviderCredentialModel';
 
@@ -43,6 +47,106 @@ describe('parseCredentialConfig', () => {
         expect(parseCredentialConfig('not-a-config')).toBeNull();
         expect(parseCredentialConfig(null)).toBeNull();
     });
+
+    // Rows saved before geographies were configurable have no stored value and
+    // must keep parsing — they resolve to the region's default downstream.
+    it('accepts a config without an inference geography', () => {
+        expect(parseCredentialConfig(config)).toEqual(config);
+    });
+
+    it('accepts a config with an inference geography', () => {
+        const withGeography = { ...config, inferenceGeography: 'jp' };
+        expect(parseCredentialConfig(withGeography)).toEqual(withGeography);
+    });
+
+    it('rejects an unknown inference geography', () => {
+        expect(
+            parseCredentialConfig({ ...config, inferenceGeography: 'mars' }),
+        ).toBeNull();
+    });
+});
+
+describe('validateCredentialConfig', () => {
+    it('returns a complete config', () => {
+        expect(validateCredentialConfig(config)).toEqual(config);
+    });
+
+    // Request-boundary validation: bad input is the caller's 400, never a 500.
+    it('throws a ParameterError naming the field for an empty model list', () => {
+        expect(() =>
+            validateCredentialConfig({ ...config, allowedModels: [] }),
+        ).toThrow(ParameterError);
+        expect(() =>
+            validateCredentialConfig({ ...config, allowedModels: [] }),
+        ).toThrow(/allowedModels/);
+    });
+
+    it('throws a ParameterError for an empty key', () => {
+        expect(() =>
+            validateCredentialConfig({ ...config, apiKey: '' }),
+        ).toThrow(ParameterError);
+    });
+});
+
+describe('assertInferenceGeographyForRegion', () => {
+    it('allows an absent geography', () => {
+        expect(() =>
+            assertInferenceGeographyForRegion({ region: 'ap-northeast-1' }),
+        ).not.toThrow();
+    });
+
+    it('allows the narrow geography and explicit widenings for Japan', () => {
+        (['jp', 'global'] as const).forEach((inferenceGeography) => {
+            expect(() =>
+                assertInferenceGeographyForRegion({
+                    region: 'ap-northeast-1',
+                    inferenceGeography,
+                }),
+            ).not.toThrow();
+        });
+    });
+
+    // AWS documents no APAC inference profile for the current Claude
+    // generation, so a Tokyo credential widened to `apac` would pass region
+    // checks and then fail at every prompt. Offered geographies must have a
+    // profile for every model we ship.
+    it('rejects apac for Japan regions', () => {
+        expect(() =>
+            assertInferenceGeographyForRegion({
+                region: 'ap-northeast-1',
+                inferenceGeography: 'apac',
+            }),
+        ).toThrow(/not available for region ap-northeast-1/);
+    });
+
+    // Bedrock has no `jp` profile outside Japan, so a stale pairing (e.g. a
+    // region edit that keeps the stored geography) must fail at write time
+    // rather than at the organization's first prompt.
+    it('rejects a geography the region has no profile for', () => {
+        expect(() =>
+            assertInferenceGeographyForRegion({
+                region: 'us-east-1',
+                inferenceGeography: 'jp',
+            }),
+        ).toThrow(/not available for region us-east-1/);
+    });
+});
+
+describe('resolveIsDefaultOnCreate', () => {
+    it('makes the first credential the default when the caller does not decide', () => {
+        expect(resolveIsDefaultOnCreate(undefined, 0)).toBe(true);
+        expect(resolveIsDefaultOnCreate(undefined, 2)).toBe(false);
+    });
+
+    it('stores without activating on an explicit false, even for the first credential', () => {
+        expect(resolveIsDefaultOnCreate(false, 0)).toBe(false);
+        expect(resolveIsDefaultOnCreate(false, 2)).toBe(false);
+    });
+
+    it('takes over as the default on an explicit true', () => {
+        expect(resolveIsDefaultOnCreate(true, 0)).toBe(true);
+        expect(resolveIsDefaultOnCreate(true, 2)).toBe(true);
+    });
 });
 
 describe('isMultiCredentialAiProvider', () => {
@@ -73,7 +177,17 @@ describe('toApiCredential', () => {
             allowedModels: ['claude-sonnet-4-5'],
             apiKeyHint: expect.any(String),
             isDefault: true,
+            // No stored choice resolves to the region's default geography, so
+            // the API always states where inference runs.
+            inferenceGeography: 'jp',
         });
+    });
+
+    it('prefers a stored inference geography over the region default', () => {
+        expect(
+            toApiCredential(row, { ...config, inferenceGeography: 'global' })
+                ?.inferenceGeography,
+        ).toBe('global');
     });
 
     it('returns null for a provider that cannot hold multiple credentials', () => {

@@ -7,6 +7,7 @@ import {
     type ApiHomepageAsCodeListResponse,
     type ApiHomepageAsCodeUpsertResponse,
 } from '@lightdash/common';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { HOMEPAGE_CODE_RESOURCE } from './contentAsCode/projectResources';
@@ -51,7 +52,9 @@ export const downloadHomepages = async (
     }
     if (result.missingNames.length)
         throw new ParameterError(
-            `Homepages not found or unpublished: ${result.missingNames.join(', ')}`,
+            getAgentConnectionSelection() !== null
+                ? 'Some homepages were not found or are unpublished.'
+                : `Homepages not found or unpublished: ${result.missingNames.join(', ')}`,
         );
     await writeCodeResourceDocuments({
         definition: HOMEPAGE_CODE_RESOURCE,

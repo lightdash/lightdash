@@ -8,9 +8,9 @@ import {
     CommercialFeatureFlags,
     CreateUserArgs,
     CreateUserWithRole,
-    FeatureFlags,
     ForbiddenError,
     getAllScopesForRole,
+    getTrainingProjectLockedSubjects,
     getTrainingProjectScopes,
     getTrainingProjectViewerScopes,
     getUserAbilityBuilder,
@@ -41,6 +41,7 @@ import {
     ServiceAccountScope,
     SessionUser,
     UpdateUserArgs,
+    UserWarehouseCredentialPurpose,
     validatePassword,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
@@ -79,8 +80,10 @@ import {
     DbUserUpdate,
     UserTableName,
 } from '../database/entities/users';
+import { UserWarehouseCredentialsTableName } from '../database/entities/userWarehouseCredentials';
 import Logger from '../logging/logger';
 import { deprecatedHash, hashWithSecret } from '../utils/hash';
+import { getMissingUserNames } from '../utils/missingUserNames';
 import {
     CachedPatSessionUser,
     PatSessionCache,
@@ -99,6 +102,11 @@ export type CreatePasswordlessUserArgs = {
 };
 
 type CreateLocalUserArgs = CreateUserArgs | CreatePasswordlessUserArgs;
+
+type OrganizationTrainingProject = {
+    project_uuid: string;
+    created_by_user_uuid: string | null;
+};
 
 export type DbUserDetails = {
     user_id: number;
@@ -123,6 +131,14 @@ export type DbUserDetails = {
     avatar_gradient: string | null;
     avatar_content_hash: string | null;
     updated_at: Date;
+    /**
+     * The organization's shared training project, joined in by
+     * `userDetailsQueryBuilder` so building abilities needs no extra read.
+     * `null` when the organization has none; `undefined` when the row came
+     * from a query that did not select it.
+     */
+    training_project_uuid?: string | null;
+    training_project_created_by_user_uuid?: string | null;
 };
 
 export const mapDbUserDetailsToLightdashUser = (
@@ -184,6 +200,24 @@ const userDetailsQueryBuilder = (
             'organizations',
             'organization_memberships.organization_id',
             'organizations.organization_id',
+        )
+        // The org's shared training project (one per org; DISTINCT ON keeps
+        // a stray second one from duplicating the user row).
+        .leftJoin(
+            db(ProjectTableName)
+                .distinctOn('organization_id')
+                .select(
+                    'organization_id as training_organization_id',
+                    'project_uuid as training_project_uuid',
+                    'created_by_user_uuid as training_project_created_by_user_uuid',
+                )
+                // A literal, not a binding: a parameter here would renumber
+                // every placeholder after it in queries built on this one.
+                .whereRaw(`project_type = '${ProjectType.TRAINING}'`)
+                .orderBy(['organization_id', 'project_id'])
+                .as('org_training_projects'),
+            'organizations.organization_id',
+            'org_training_projects.training_organization_id',
         );
 
 type UserModelArguments = {
@@ -658,6 +692,15 @@ export class UserModel {
                 })
                 .returning('*');
 
+            if (isActive === false) {
+                await trx(UserWarehouseCredentialsTableName)
+                    .where({
+                        user_uuid: userUuid,
+                        purpose: UserWarehouseCredentialPurpose.AI,
+                    })
+                    .delete();
+            }
+
             if (email && currentEmail !== email) {
                 if (currentEmail) {
                     await deleteEmail(trx, {
@@ -871,6 +914,159 @@ export class UserModel {
                     `${membership.project_uuid}:${membership.group_uuid}`,
                 ) ?? [],
         }));
+    }
+
+    async getAgentRoleAssignments(
+        userUuid: string,
+        organizationUuid: string,
+        projectUuid: string | null,
+    ): Promise<{
+        systemRoles: (OrganizationMemberRole | ProjectMemberRole)[];
+        customRoles: { roleUuid: string; scopes: string[] }[];
+    }> {
+        const user = await userDetailsQueryBuilder(this.database)
+            .where('users.user_uuid', userUuid)
+            .andWhere('organizations.organization_uuid', organizationUuid)
+            .select('*', 'organizations.created_at as organization_created_at')
+            .first();
+        if (!user)
+            throw new ForbiddenError(
+                'Your account does not belong to this organization',
+            );
+        const [direct, groups, extraOrgRoles] = await Promise.all([
+            projectUuid === null ? [] : this.getUserProjectRoles(userUuid),
+            projectUuid === null
+                ? []
+                : this.getUserGroupProjectRoles(
+                      user.user_id,
+                      user.organization_id,
+                      userUuid,
+                  ),
+            this.getOrganizationExtraRoleUuids(
+                user.user_id,
+                user.organization_id,
+            ),
+        ]);
+        const profiles = [...direct, ...groups].filter(
+            (profile) => profile.projectUuid === projectUuid,
+        );
+        const roleUuids = [
+            ...new Set(
+                [
+                    user.role_uuid,
+                    ...extraOrgRoles,
+                    ...profiles.flatMap((profile) => [
+                        profile.roleUuid,
+                        ...(profile.extraRoleUuids ?? []),
+                    ]),
+                ].filter((roleUuid): roleUuid is string => Boolean(roleUuid)),
+            ),
+        ];
+        const scopes = await this.customRoleScopes(roleUuids);
+        return {
+            systemRoles: [
+                ...(user.role_uuid ? [] : [user.role]),
+                ...profiles
+                    .filter((profile) => !profile.roleUuid)
+                    .map((profile) => profile.role),
+            ],
+            customRoles: roleUuids.map((roleUuid) => ({
+                roleUuid,
+                scopes: scopes[roleUuid] ?? [],
+            })),
+        };
+    }
+
+    async getAgentRoleAssignmentsForProjects(
+        userUuid: string,
+        organizationUuid: string,
+        projectUuids: (string | null)[],
+    ): Promise<
+        Map<
+            string | null,
+            {
+                systemRoles: (OrganizationMemberRole | ProjectMemberRole)[];
+                customRoles: { roleUuid: string; scopes: string[] }[];
+            }
+        >
+    > {
+        const user = await userDetailsQueryBuilder(this.database)
+            .where('users.user_uuid', userUuid)
+            .andWhere('organizations.organization_uuid', organizationUuid)
+            .select('*', 'organizations.created_at as organization_created_at')
+            .first();
+        if (!user)
+            throw new ForbiddenError(
+                'Your account does not belong to this organization',
+            );
+        const [direct, groups, extraOrgRoles] = await Promise.all([
+            projectUuids.every((uuid) => uuid === null)
+                ? []
+                : this.getUserProjectRoles(userUuid),
+            projectUuids.every((uuid) => uuid === null)
+                ? []
+                : this.getUserGroupProjectRoles(
+                      user.user_id,
+                      user.organization_id,
+                      userUuid,
+                  ),
+            this.getOrganizationExtraRoleUuids(
+                user.user_id,
+                user.organization_id,
+            ),
+        ]);
+        const allProfiles = [...direct, ...groups].filter((profile) =>
+            projectUuids.includes(profile.projectUuid),
+        );
+        const roleUuids = [
+            ...new Set(
+                [
+                    user.role_uuid,
+                    ...extraOrgRoles,
+                    ...allProfiles.flatMap((profile) => [
+                        profile.roleUuid,
+                        ...(profile.extraRoleUuids ?? []),
+                    ]),
+                ].filter((roleUuid): roleUuid is string => Boolean(roleUuid)),
+            ),
+        ];
+        const scopes = await this.customRoleScopes(roleUuids);
+        return new Map(
+            projectUuids.map((projectUuid) => {
+                const profiles = allProfiles.filter(
+                    (profile) => profile.projectUuid === projectUuid,
+                );
+                const projectRoleUuids = [
+                    ...new Set(
+                        [
+                            user.role_uuid,
+                            ...extraOrgRoles,
+                            ...profiles.flatMap((profile) => [
+                                profile.roleUuid,
+                                ...(profile.extraRoleUuids ?? []),
+                            ]),
+                        ].filter((roleUuid): roleUuid is string =>
+                            Boolean(roleUuid),
+                        ),
+                    ),
+                ];
+                return [
+                    projectUuid,
+                    {
+                        systemRoles: [
+                            ...(user.role_uuid ? [] : [user.role]),
+                            ...profiles
+                                .filter((profile) => !profile.roleUuid)
+                                .map((profile) => profile.role),
+                        ],
+                        customRoles: projectRoleUuids.map((roleUuid) => ({
+                            roleUuid,
+                            scopes: scopes[roleUuid] ?? [],
+                        })),
+                    },
+                ];
+            }),
+        );
     }
 
     private async customRoleScopes(
@@ -1162,35 +1358,25 @@ export class UserModel {
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
         const isEnterprise =
             this.lightdashConfig.license.licenseKey !== undefined;
-        const [
-            customRoleScopes,
-            customRolesFlag,
-            patScopeAuthoritativeFlag,
-            learnFlag,
-        ] = await Promise.all([
-            this.customRoleScopes(customRoleUuids, trx),
-            this.featureFlagModel.get(
-                {
-                    user: lightdashUser,
-                    featureFlagId: CommercialFeatureFlags.CustomRoles,
-                },
-                { trx },
-            ),
-            this.featureFlagModel.get(
-                {
-                    user: lightdashUser,
-                    featureFlagId: CommercialFeatureFlags.PatScopeAuthoritative,
-                },
-                { trx },
-            ),
-            this.featureFlagModel.get(
-                {
-                    user: lightdashUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                },
-                { trx },
-            ),
-        ]);
+        const [customRoleScopes, customRolesFlag, patScopeAuthoritativeFlag] =
+            await Promise.all([
+                this.customRoleScopes(customRoleUuids, trx),
+                this.featureFlagModel.get(
+                    {
+                        user: lightdashUser,
+                        featureFlagId: CommercialFeatureFlags.CustomRoles,
+                    },
+                    { trx },
+                ),
+                this.featureFlagModel.get(
+                    {
+                        user: lightdashUser,
+                        featureFlagId:
+                            CommercialFeatureFlags.PatScopeAuthoritative,
+                    },
+                    { trx },
+                ),
+            ]);
 
         // Narrow empty-role resolution: only the flagged enterprise human's
         // primary org role uuid is checked for existence when it has no
@@ -1242,7 +1428,7 @@ export class UserModel {
             user.user_uuid,
             isEnterprise,
             abilityBuilder,
-            learnFlag.enabled,
+            UserModel.trainingProjectFromUserDetails(user),
             trx,
         );
 
@@ -1253,6 +1439,41 @@ export class UserModel {
     }
 
     /**
+     * The training project the user-details row carries: `null` when the
+     * org has none, `undefined` when the row did not select it (then it is
+     * read from the database).
+     */
+    private static trainingProjectFromUserDetails(
+        user: DbUserDetails,
+    ): OrganizationTrainingProject | null | undefined {
+        if (user.training_project_uuid === undefined) return undefined;
+        if (user.training_project_uuid === null) return null;
+        return {
+            project_uuid: user.training_project_uuid,
+            created_by_user_uuid:
+                user.training_project_created_by_user_uuid ?? null,
+        };
+    }
+
+    /** The organization's shared training project, if one has been provisioned. */
+    private async getOrganizationTrainingProject(
+        organizationId: number,
+        trx: Knex = this.database,
+    ): Promise<
+        | { project_uuid: string; created_by_user_uuid: string | null }
+        | undefined
+    > {
+        return trx(ProjectTableName)
+            .select<{
+                project_uuid: string;
+                created_by_user_uuid: string | null;
+            }>('project_uuid', 'created_by_user_uuid')
+            .where('organization_id', organizationId)
+            .where('project_type', ProjectType.TRAINING)
+            .first();
+    }
+
+    /**
      * The organization's training project, if one has been provisioned, plus
      * this user's own preview copies of it (made for walkthroughs). Other
      * users' copies are not included.
@@ -1260,6 +1481,7 @@ export class UserModel {
     private async getTrainingProjects(
         organizationId: number,
         userUuid: string,
+        training: OrganizationTrainingProject | undefined,
         trx: Knex = this.database,
     ): Promise<
         {
@@ -1268,14 +1490,6 @@ export class UserModel {
             createdByUserUuid: string | null;
         }[]
     > {
-        const training = await trx(ProjectTableName)
-            .select<{
-                project_uuid: string;
-                created_by_user_uuid: string | null;
-            }>('project_uuid', 'created_by_user_uuid')
-            .where('organization_id', organizationId)
-            .where('project_type', ProjectType.TRAINING)
-            .first();
         if (!training) {
             return [];
         }
@@ -1306,6 +1520,21 @@ export class UserModel {
     }
 
     /**
+     * Nobody writes to the shared training project, org admins and its
+     * assigned admin included: walkthrough copies are cloned from it, so a
+     * write there would reach every learner's next copy. Inverted rules
+     * override the org-wide `manage` an org admin already holds.
+     */
+    private static lockTrainingProject(
+        projectUuid: string,
+        builder: AbilityBuilder<MemberAbility>,
+    ): void {
+        getTrainingProjectLockedSubjects().forEach((lockedSubject) => {
+            builder.cannot('manage', lockedSubject, { projectUuid });
+        });
+    }
+
+    /**
      * The trainee layer: every member of an organization, whatever their org
      * role, gets `getTrainingProjectScopes()` on the org's training project
      * (`projects.project_type = 'TRAINING'`) and on their own preview copies
@@ -1320,22 +1549,31 @@ export class UserModel {
         userUuid: string,
         isEnterprise: boolean,
         builder: AbilityBuilder<MemberAbility>,
-        learnEnabled: boolean,
+        knownTrainingProject: OrganizationTrainingProject | null | undefined,
         trx: Knex = this.database,
     ): Promise<void> {
-        // Learn off for the org: no trainee scopes, even if a training
-        // project is left over, so switching off also closes the sandbox.
-        if (!learnEnabled) return;
+        const training =
+            knownTrainingProject === undefined
+                ? await this.getOrganizationTrainingProject(organizationId, trx)
+                : (knownTrainingProject ?? undefined);
+        // This user may not see Learn: no trainee scopes, so the sandbox is
+        // closed too. The lock still applies, so the seed cannot be edited
+        // meanwhile and then cloned once they can.
         if (
             !organizationUuid ||
             builder
                 .build()
                 .cannot('view', caslSubject('Learn', { organizationUuid }))
-        )
+        ) {
+            if (training) {
+                UserModel.lockTrainingProject(training.project_uuid, builder);
+            }
             return;
+        }
         const trainingProjects = await this.getTrainingProjects(
             organizationId,
             userUuid,
+            training,
             trx,
         );
         // The shared training project is read-only for learners; their own
@@ -1343,6 +1581,11 @@ export class UserModel {
         const viewerScopes = getTrainingProjectViewerScopes();
         const traineeScopes = getTrainingProjectScopes();
         trainingProjects.forEach((project) => {
+            // Before the viewer grants: CASL's last matching rule wins, so
+            // they re-open `view` on the locked subjects and nothing else.
+            if (project.projectType === ProjectType.TRAINING) {
+                UserModel.lockTrainingProject(project.projectUuid, builder);
+            }
             buildAbilityFromScopes(
                 {
                     projectUuid: project.projectUuid,
@@ -1616,34 +1859,28 @@ export class UserModel {
     async activateUserWithoutPassword(
         userUuid: string,
     ): Promise<LightdashUser> {
-        return this.activateInvitedUser(userUuid, {
-            firstName: '',
-            lastName: '',
-        });
+        return this.activateInvitedUser(userUuid, null);
     }
 
     private async activateInvitedUser(
         userUuid: string,
-        activateUser:
-            | ActivateUser
-            | OpenIdUser
-            | Pick<ActivateUser, 'firstName' | 'lastName'>,
+        activateUser: ActivateUser | OpenIdUser | null,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
+            const names = await UserModel.getInvitedUserNames(
+                trx,
+                userUuid,
+                activateUser,
+            );
             const [user] = await trx(UserTableName)
                 .where('user_uuid', userUuid)
                 .update<DbUserUpdate>({
-                    first_name: isOpenIdUser(activateUser)
-                        ? activateUser.openId.firstName
-                        : activateUser.firstName,
-                    last_name: isOpenIdUser(activateUser)
-                        ? activateUser.openId.lastName
-                        : activateUser.lastName,
+                    ...names,
                     updated_at: new Date(),
                 })
                 .returning('*');
 
-            if (!isOpenIdUser(activateUser) && 'password' in activateUser) {
+            if (activateUser && !isOpenIdUser(activateUser)) {
                 await UserModel.createPasswordLogin(trx, {
                     user_id: user.user_id,
                     password_hash: await bcrypt.hash(
@@ -1651,7 +1888,7 @@ export class UserModel {
                         await bcrypt.genSalt(),
                     ),
                 });
-            } else if (isOpenIdUser(activateUser)) {
+            } else if (activateUser && isOpenIdUser(activateUser)) {
                 await trx(OpenIdIdentitiesTableName)
                     .insert({
                         issuer_type: activateUser.openId.issuerType,
@@ -1664,6 +1901,42 @@ export class UserModel {
             }
         });
         return this.getUserDetailsByUuid(userUuid);
+    }
+
+    /**
+     * An invite can reach an account that already has names (a returning user),
+     * so only names typed while accepting overwrite them; an identity provider
+     * fills blanks and a one-click accept leaves them as they are.
+     */
+    private static async getInvitedUserNames(
+        trx: Transaction,
+        userUuid: string,
+        activateUser: ActivateUser | OpenIdUser | null,
+    ): Promise<Pick<DbUserUpdate, 'first_name' | 'last_name'>> {
+        if (!activateUser) {
+            return {};
+        }
+        if (!isOpenIdUser(activateUser)) {
+            return {
+                first_name: activateUser.firstName,
+                last_name: activateUser.lastName,
+            };
+        }
+        const savedNames = await trx(UserTableName)
+            .select('first_name', 'last_name')
+            .where('user_uuid', userUuid)
+            .first();
+        const missingNames = getMissingUserNames(
+            {
+                firstName: savedNames?.first_name,
+                lastName: savedNames?.last_name,
+            },
+            activateUser.openId,
+        );
+        return {
+            first_name: missingNames?.firstName,
+            last_name: missingNames?.lastName,
+        };
     }
 
     async createUser(

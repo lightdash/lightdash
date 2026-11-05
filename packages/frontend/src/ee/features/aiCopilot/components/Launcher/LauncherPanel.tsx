@@ -31,7 +31,6 @@ import {
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
 } from '../../deepResearch/types';
-import { useAiAgentModelSelection } from '../../hooks/useAiAgentModelSelection';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
 import {
@@ -48,6 +47,7 @@ import {
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
 import { useRefreshDocumentOnAgentSave } from '../../hooks/useRefreshDocumentOnAgentSave';
+import { useThreadModel } from '../../hooks/useThreadModel';
 import { openPanel } from '../../store/aiAgentLauncherSlice';
 import {
     selectThreadSqlMode,
@@ -71,6 +71,7 @@ import {
     isLauncherAutoAgent,
     type LauncherSelectedAgent,
 } from './launcherAgentSelection';
+import { LauncherAnalysisTeaser } from './LauncherAnalysisTeaser';
 import { LauncherPanelFrame } from './LauncherPanelFrame';
 import { PanelHeader } from './PanelHeader';
 import {
@@ -84,7 +85,7 @@ type Props = {
     agent: LauncherSelectedAgent;
     agents: AiAgentSummary[];
     activeThreadId: string | null;
-    style?: CSSProperties;
+    transitionStyle?: CSSProperties;
 };
 
 export const LauncherPanel: FC<Props> = ({
@@ -92,11 +93,11 @@ export const LauncherPanel: FC<Props> = ({
     agent,
     agents,
     activeThreadId,
-    style,
+    transitionStyle,
 }) => {
     if (!agent) {
         return (
-            <LauncherPanelFrame style={style}>
+            <LauncherPanelFrame transitionStyle={transitionStyle}>
                 <PanelHeader
                     projectUuid={projectUuid}
                     agent={null}
@@ -117,14 +118,14 @@ export const LauncherPanel: FC<Props> = ({
             agent={agent}
             agents={agents}
             threadId={activeThreadId}
-            style={style}
+            transitionStyle={transitionStyle}
         />
     ) : (
         <NewThreadPanel
             projectUuid={projectUuid}
             agent={agent}
             agents={agents}
-            style={style}
+            transitionStyle={transitionStyle}
         />
     );
 };
@@ -133,8 +134,8 @@ const NewThreadPanel: FC<{
     projectUuid: string;
     agent: NonNullable<LauncherSelectedAgent>;
     agents: AiAgentSummary[];
-    style?: CSSProperties;
-}> = ({ projectUuid, agent, agents, style }) => {
+    transitionStyle?: CSSProperties;
+}> = ({ projectUuid, agent, agents, transitionStyle }) => {
     const navigate = useNavigate();
     const dispatch = useAiAgentStoreDispatch();
     const pendingContext = useAiAgentStoreSelector(
@@ -329,7 +330,7 @@ const NewThreadPanel: FC<{
         : agent.description;
 
     return (
-        <LauncherPanelFrame style={style}>
+        <LauncherPanelFrame transitionStyle={transitionStyle}>
             <PanelHeader
                 projectUuid={projectUuid}
                 agent={agent}
@@ -366,6 +367,7 @@ const NewThreadPanel: FC<{
                             {description}
                         </Text>
                     )}
+                    <LauncherAnalysisTeaser projectUuid={projectUuid} />
                 </Stack>
                 {concreteAgent && (
                     <Stack px="md" pb="xs">
@@ -472,8 +474,8 @@ const ExistingThreadPanel: FC<{
     agent: AiAgentSummary;
     agents: AiAgentSummary[];
     threadId: string;
-    style?: CSSProperties;
-}> = ({ projectUuid, agent, agents, threadId, style }) => {
+    transitionStyle?: CSSProperties;
+}> = ({ projectUuid, agent, agents, threadId, transitionStyle }) => {
     const { user } = useApp();
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const navigate = useNavigate();
@@ -539,6 +541,10 @@ const ExistingThreadPanel: FC<{
             previousContext: threadContext,
             projectUuid,
             threadId,
+            boundDashboardUuid:
+                thread?.binding?.type === 'dashboard'
+                    ? thread.binding.dashboardUuid
+                    : null,
         });
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
@@ -554,19 +560,10 @@ const ExistingThreadPanel: FC<{
         () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
         [threadContext],
     );
-    const {
-        agentDefault,
-        explicitModelConfig,
-        extendedThinking,
-        handleExtendedThinkingChange,
-        handleSelectedModelKeyChange,
-        modelOptions,
-        selectedModelKey,
-        showExtendedThinking,
-    } = useAiAgentModelSelection({
+    const threadModel = useThreadModel({
         projectUuid,
         agentUuid: agent.uuid,
-        defaultModelConfig: agent.modelConfig,
+        messages: thread?.messages,
     });
 
     const handleSubmit = ({
@@ -586,7 +583,6 @@ const ExistingThreadPanel: FC<{
 
         void createAgentThreadMessage({
             prompt: message,
-            modelConfig: explicitModelConfig,
             context: curatedContext.context,
             optimisticContext: curatedContext.optimisticContext,
             enableSqlMode: sqlModeAvailable && sqlMode,
@@ -615,7 +611,6 @@ const ExistingThreadPanel: FC<{
             (
                 await createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: explicitModelConfig,
                     skipAgentResponse: true,
                 })
             ).uuid;
@@ -637,7 +632,6 @@ const ExistingThreadPanel: FC<{
             createPrompt: (question) =>
                 createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: explicitModelConfig,
                     skipAgentResponse: true,
                 }),
             startRun: startDeepResearch.mutateAsync,
@@ -662,7 +656,7 @@ const ExistingThreadPanel: FC<{
 
     if (isLoadingThread || !thread) {
         return (
-            <LauncherPanelFrame style={style}>
+            <LauncherPanelFrame transitionStyle={transitionStyle}>
                 <PanelHeader
                     projectUuid={projectUuid}
                     agent={agent}
@@ -678,7 +672,7 @@ const ExistingThreadPanel: FC<{
     }
 
     return (
-        <LauncherPanelFrame style={style}>
+        <LauncherPanelFrame transitionStyle={transitionStyle}>
             <PanelHeader
                 projectUuid={projectUuid}
                 agent={agent}
@@ -721,18 +715,10 @@ const ExistingThreadPanel: FC<{
                         agentUuid={agent.uuid}
                         fullWidth
                         threadUuid={threadId}
-                        models={modelOptions}
-                        selectedModelId={selectedModelKey}
-                        onModelChange={handleSelectedModelKeyChange}
-                        extendedThinking={
-                            showExtendedThinking ? extendedThinking : undefined
+                        threadModelName={threadModel?.name ?? null}
+                        threadModelWarning={
+                            threadModel?.deprecationWarning ?? null
                         }
-                        onExtendedThinkingChange={
-                            showExtendedThinking
-                                ? handleExtendedThinkingChange
-                                : undefined
-                        }
-                        agentDefault={agentDefault}
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]

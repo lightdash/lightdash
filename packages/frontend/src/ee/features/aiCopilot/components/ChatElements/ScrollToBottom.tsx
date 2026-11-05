@@ -1,4 +1,4 @@
-import { rem } from '@mantine/core';
+import { Box } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -10,6 +10,7 @@ import { useSearchParams } from 'react-router';
 import { CHAT_MESSAGE_PARAM, findChatAnchor } from '../../hooks/useChatBackUrl';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
+import { getPendingApprovalIds } from './ToolCalls/utils/sqlApprovalPending';
 
 const SCROLL_TO_BOTTOM_THRESHOLD = {
     streaming: 200,
@@ -183,6 +184,23 @@ const ThreadScrollToBottom = ({
         };
     }, [isStreaming, scrollToBottom]);
 
+    // The turn is paused on the user, so reveal the approval buttons even if
+    // they scrolled up. The card expands over ~260ms after the call lands.
+    const pendingApprovalKey = streamingState
+        ? getPendingApprovalIds(streamingState).join(',')
+        : '';
+    useEffect(() => {
+        if (!pendingApprovalKey) return;
+        const cancelFrame = scrollToBottom({ behavior: 'auto' });
+        const timeout = window.setTimeout(() => {
+            scrollToBottom({ behavior: 'smooth' });
+        }, 300);
+        return () => {
+            cancelFrame?.();
+            window.clearTimeout(timeout);
+        };
+    }, [pendingApprovalKey, scrollToBottom]);
+
     // Scroll to bottom when the last message gets a chart visualization
     const lastMessage = thread.data?.messages?.at(-1);
     const lastMessageViz =
@@ -200,10 +218,10 @@ const ThreadScrollToBottom = ({
     }, [lastMessageViz, scrollToBottom]);
 
     return (
-        <div
+        <Box
             ref={messagesEndRef}
             data-testid="thread-scroll-to-bottom"
-            style={{ marginTop: rem(-30) }}
+            mt={-30}
         />
     );
 };

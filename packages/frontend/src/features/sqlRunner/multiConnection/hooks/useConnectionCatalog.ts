@@ -12,7 +12,8 @@ import {
     useQueryClient,
 } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import {
     tableUnitId,
     type TableIdentity,
@@ -72,7 +73,11 @@ export const tableFieldsQueryKey = (
     identity.table,
 ];
 
-const fetchDatabases = (projectUuid: string, warehouseConnectionUuid: string) =>
+const fetchDatabases = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    warehouseConnectionUuid: string,
+) =>
     lightdashApi<WarehouseDatabaseListing>({
         url: `${connectionUrl(projectUuid, warehouseConnectionUuid)}/databases`,
         method: 'GET',
@@ -80,6 +85,7 @@ const fetchDatabases = (projectUuid: string, warehouseConnectionUuid: string) =>
     });
 
 const fetchTables = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     warehouseConnectionUuid: string,
     database: string,
@@ -94,6 +100,7 @@ const fetchTables = (
     });
 
 export const fetchTableFields = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     identity: TableIdentity,
 ) =>
@@ -113,8 +120,9 @@ export const fetchTableFields = (
 export const useSqlRunnerConnections = (
     projectUuid: string,
     enabled: boolean,
-) =>
-    useQuery<SqlRunnerWarehouseConnection[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SqlRunnerWarehouseConnection[], ApiError>({
         queryKey: sqlRunnerConnectionsQueryKey(projectUuid),
         queryFn: () =>
             lightdashApi<SqlRunnerWarehouseConnection[]>({
@@ -127,11 +135,13 @@ export const useSqlRunnerConnections = (
         refetchInterval: CONNECTION_POLL_MS,
         refetchOnWindowFocus: true,
     });
+};
 
 export const useRefreshConnectionCatalog = (
     projectUuid: string,
     warehouseConnectionUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError>(
         async () => {
@@ -165,18 +175,20 @@ export const useConnectionTableFields = ({
 }: {
     projectUuid: string;
     identity: TableIdentity | undefined;
-}) =>
-    useQuery<WarehouseTableSchema, ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<WarehouseTableSchema, ApiError>({
         queryKey: identity
             ? tableFieldsQueryKey(projectUuid, identity)
             : ['sqlRunner', 'connections', projectUuid, 'fields'],
         queryFn: () =>
             identity
-                ? fetchTableFields(projectUuid, identity)
+                ? fetchTableFields(lightdashApi, projectUuid, identity)
                 : Promise.reject(new Error('No table selected')),
         retry: false,
         enabled: !!identity,
     });
+};
 
 export type TableUnit = TableUnitKey & { warehouseConnectionUuid: string };
 
@@ -220,10 +232,12 @@ export const useConnectionDatabases = ({
     connectionIds: string[];
     enabledConnectionIds: ReadonlySet<string>;
 }): ConnectionDatabases => {
+    const lightdashApi = useLightdashApi();
     const results = useQueries({
         queries: connectionIds.map((connectionId) => ({
             queryKey: databasesQueryKey(projectUuid, connectionId),
-            queryFn: () => fetchDatabases(projectUuid, connectionId),
+            queryFn: () =>
+                fetchDatabases(lightdashApi, projectUuid, connectionId),
             retry: false,
             enabled: !!projectUuid && enabledConnectionIds.has(connectionId),
         })),
@@ -263,6 +277,7 @@ export const useTableUnits = ({
     units: TableUnit[];
     enabledUnitIds: ReadonlySet<string>;
 }): TableUnits => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     const results = useQueries({
@@ -274,6 +289,7 @@ export const useTableUnits = ({
             ),
             queryFn: () =>
                 fetchTables(
+                    lightdashApi,
                     projectUuid,
                     unit.warehouseConnectionUuid,
                     unit.database,

@@ -1,14 +1,9 @@
-import {
-    Divider,
-    rem,
-    Title,
-    useMantineTheme,
-    type MantineStyleProp,
-} from '@mantine/core';
+import { Divider, Title } from '@mantine/core';
 import type MarkdownPreview from '@uiw/react-markdown-preview';
 import type MDEditor from '@uiw/react-md-editor';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { PluggableList } from 'unified';
+import classes from './markdownUtils.module.css';
 
 export const markdownSanitizeRehypePlugins = [
     [rehypeSanitize, defaultSchema],
@@ -31,9 +26,6 @@ export const rehypeRemoveHeaderLinks: React.ComponentProps<
     }
 };
 
-const HEADER_STYLES = {
-    border: 0,
-} satisfies MantineStyleProp;
 /**
  * Component overrides for MDEditor.Markdown to match Lightdash design system.
  * Provides consistent styling for markdown headers and dividers.
@@ -43,45 +35,33 @@ export const mdEditorComponents: React.ComponentProps<
 >['components'] = {
     hr: () => <Divider color="ldGray.4" my="sm" />,
     h1: ({ children }) => (
-        <Title order={1} style={HEADER_STYLES}>
+        <Title order={1} className={classes.header}>
             {children}
         </Title>
     ),
     h2: ({ children }) => (
-        <Title order={2} style={HEADER_STYLES}>
+        <Title order={2} className={classes.header}>
             {children}
         </Title>
     ),
     h3: ({ children }) => (
-        <Title order={3} style={HEADER_STYLES}>
+        <Title order={3} className={classes.header}>
             {children}
         </Title>
     ),
     h4: ({ children }) => (
-        <Title order={4} style={HEADER_STYLES}>
+        <Title order={4} className={classes.header}>
             {children}
         </Title>
     ),
     h5: ({ children }) => (
-        <Title order={5} style={HEADER_STYLES}>
+        <Title order={5} className={classes.header}>
             {children}
         </Title>
     ),
     h6: ({ children }) => (
-        <Title order={6} style={HEADER_STYLES}>
+        <Title order={6} className={classes.header}>
             {children}
         </Title>
     ),
-};
-
-/**
- * Hook to get MDEditor.Markdown style with Mantine's theme font size.
- * @returns Style object with fontSize set to theme.fontSizes.sm
- */
-export const useMdEditorStyle = (): React.CSSProperties => {
-    const theme = useMantineTheme();
-    return {
-        fontSize: rem(theme.fontSizes.sm),
-        backgroundColor: 'transparent',
-    };
 };

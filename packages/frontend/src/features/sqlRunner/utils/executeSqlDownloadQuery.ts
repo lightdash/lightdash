@@ -1,4 +1,5 @@
 import { MAX_SAFE_INTEGER, type ParametersValuesMap } from '@lightdash/common';
+import { type LightdashApi } from '../../../api';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 
 type ExecuteSqlDownloadQueryArgs = {
@@ -9,14 +10,18 @@ type ExecuteSqlDownloadQueryArgs = {
     warehouseConnectionUuid: string | null | undefined;
 };
 
-export const executeSqlDownloadQuery = async ({
-    projectUuid,
-    sql,
-    limit,
-    parameterValues,
-    warehouseConnectionUuid,
-}: ExecuteSqlDownloadQueryArgs): Promise<string> => {
+export const executeSqlDownloadQuery = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        sql,
+        limit,
+        parameterValues,
+        warehouseConnectionUuid,
+    }: ExecuteSqlDownloadQueryArgs,
+): Promise<string> => {
     const result = await executeSqlQuery(
+        lightdashApi,
         projectUuid,
         sql,
         limit ?? MAX_SAFE_INTEGER,

@@ -1,6 +1,6 @@
+import { merge } from 'es-toolkit/compat';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
-import lodash from 'lodash';
 import * as os from 'os';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -80,13 +80,17 @@ const setConfig = async (config: Config) => {
     await writeConfigToFile(configFilePath, config);
 };
 
-const getRawConfig = async (): Promise<Config> => {
+export const getRawConfig = async (): Promise<Config> => {
     try {
         await ensureConfigFilePermissions(configFilePath);
         const contents = await fs.readFile(configFilePath, 'utf8');
         const raw = yaml.load(contents);
         return raw as Config;
     } catch (e: unknown) {
+        if (e instanceof yaml.YAMLException)
+            throw new yaml.YAMLException(
+                `Could not parse CLI configuration${e.mark ? ` at line ${e.mark.line + 1}, column ${e.mark.column + 1}` : ''}. Check the syntax of config.yaml.`,
+            );
         if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
             return {} as Config;
         }
@@ -107,9 +111,11 @@ const setAnonymousUuid = async (anonymousUuid: string): Promise<Config> => {
     return newConfig;
 };
 
-export const getConfig = async (): Promise<Config> => {
+export const getConfig = async ({
+    readOnly = false,
+}: { readOnly?: boolean } = {}): Promise<Config> => {
     let rawConfig = await getRawConfig();
-    if (rawConfig.user?.anonymousUuid === undefined) {
+    if (!readOnly && rawConfig.user?.anonymousUuid === undefined) {
         rawConfig = await setAnonymousUuid(uuidv4());
     }
     return {
@@ -229,6 +235,12 @@ export const setAnswer = async (answer: Config['answers']) => {
     const config = await getRawConfig();
     await setConfig({
         ...config,
-        answers: lodash.merge(config.answers, answer),
+        answers: merge(config.answers, answer),
     });
+};
+
+export const unsetApiKey = async (): Promise<void> => {
+    const config = await getRawConfig();
+    if (config.context) delete config.context.apiKey;
+    await setConfig(config);
 };

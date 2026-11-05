@@ -359,7 +359,7 @@ describe('validateExternalConnectionConfig', () => {
                     },
                     true,
                 ),
-            ).toThrow(/only valid for type "oauth_client_credentials"/);
+            ).toThrow(/only valid for OAuth authentication types/);
         });
     });
 

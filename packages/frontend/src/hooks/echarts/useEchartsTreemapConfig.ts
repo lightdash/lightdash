@@ -1,7 +1,11 @@
 import { buildTreemapEchartsOption } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isTreemapVisualizationConfig } from '../../components/LightdashVisualization/types';
-import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+    useVisualizationServices,
+} from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
 /**
@@ -9,15 +13,10 @@ import { useVisualizationTheme } from '../useVisualizationTheme';
  * The option itself is built by `@lightdash/visualization`.
  */
 const useEchartsTreemapConfig = (isInDashboard: boolean) => {
-    const {
-        visualizationConfig,
-        itemsMap,
-        colorPalette,
-        parameters,
-        isTouchDevice,
-        minimal,
-        resolvedTimezone,
-    } = useVisualizationContext();
+    const { isTouchDevice } = useVisualizationServices();
+    const visualizationConfig = useVisualizationConfig();
+    const { itemsMap, colorPalette, parameters, minimal, resolvedTimezone } =
+        useVisualizationInputs();
     const theme = useVisualizationTheme();
 
     const treemapConfig = isTreemapVisualizationConfig(visualizationConfig)

@@ -9,7 +9,9 @@ export const agentConnectUrl = `https://example.com/agent/connect?project=${agen
 export const agentAccess: AiAccessForUser = {
     projectUuid: agentProjectUuid,
     expiresAt: null,
+    principalName: null,
     requirementSource: 'organization',
+    source: 'agent_sign_in',
     identity: null,
     marker: null,
     warehouseConnectionUuid: null,
@@ -28,6 +30,7 @@ export const agentAccess: AiAccessForUser = {
 export const connectedAgentAccess: AiAccessForUser = {
     ...agentAccess,
     identity: 'connected_person',
+    principalName: 'charlie@acme.com',
     enabled: true,
     refusal: null,
 };

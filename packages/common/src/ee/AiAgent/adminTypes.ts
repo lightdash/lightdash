@@ -130,6 +130,8 @@ export type AiAgentThreadDumpAgent = Pick<
     | 'enableContentTools'
     | 'enableUserContext'
     | 'enableSqlMode'
+    | 'enableSqlAutoApproval'
+    | 'enableComposerQueries'
     | 'adminOnly'
     | 'version'
 >;
@@ -421,10 +423,62 @@ export type AiProviderApiKeyHints = Record<ByoAiProvider, string | null>;
 export const BEDROCK_REGIONS = [
     'ap-northeast-1',
     'ap-northeast-3',
+    'eu-central-1',
+    'eu-west-1',
     'us-east-1',
     'us-west-2',
 ] as const;
 export type BedrockRegion = (typeof BEDROCK_REGIONS)[number];
+
+/**
+ * Where Bedrock may process a request. Each value doubles as the cross-region
+ * inference profile prefix (`jp.<modelId>`, `us.<modelId>`, ...): the endpoint
+ * region only receives the request, the profile decides where inference runs.
+ * @ref https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html
+ */
+export const BEDROCK_INFERENCE_GEOGRAPHIES = [
+    'jp',
+    'us',
+    'eu',
+    'apac',
+    'global',
+] as const;
+export type BedrockInferenceGeography =
+    (typeof BEDROCK_INFERENCE_GEOGRAPHIES)[number];
+
+export const JAPAN_BEDROCK_REGIONS = [
+    'ap-northeast-1',
+    'ap-northeast-3',
+] as const;
+
+/**
+ * Geographies a credential in `region` may pin inference to, narrowest first —
+ * the first entry is the default, so a credential without an explicit choice
+ * gets the tightest residency its region supports. Wider entries are an
+ * explicit admin opt-out for model availability.
+ *
+ * Every offered geography must have a profile for EVERY model we ship on
+ * Bedrock, because validation is per-credential, not per-model. That excludes
+ * `apac` for Japan: AWS documents US, EU, JP and Global profiles for the
+ * current Claude generation (e.g. Sonnet 4.5), but no APAC profile — a Tokyo
+ * credential widened to `apac` would fail at every prompt.
+ */
+export const getBedrockInferenceGeographiesForRegion = (
+    region: string,
+): BedrockInferenceGeography[] => {
+    if ((JAPAN_BEDROCK_REGIONS as readonly string[]).includes(region)) {
+        return ['jp', 'global'];
+    }
+    if (region.startsWith('us-')) return ['us', 'global'];
+    if (region.startsWith('eu-')) return ['eu', 'global'];
+    if (region.startsWith('ap-')) return ['apac', 'global'];
+    return ['global'];
+};
+
+export const getDefaultBedrockInferenceGeography = (
+    region: string,
+): BedrockInferenceGeography =>
+    getBedrockInferenceGeographiesForRegion(region)[0];
 
 export type OrgBedrockConfig = {
     region: string;
@@ -454,6 +508,9 @@ export type AiProviderCredentialConfig = {
     apiKey: string;
     region: string;
     allowedModels: string[];
+    // Absent on rows saved before geographies were configurable; resolves to
+    // the region's default (narrowest) geography.
+    inferenceGeography?: BedrockInferenceGeography;
 };
 
 /**
@@ -468,6 +525,8 @@ export type AiProviderCredential = {
     allowedModels: string[];
     apiKeyHint: string;
     isDefault: boolean;
+    /** Effective geography — the stored choice or the region's default. */
+    inferenceGeography: BedrockInferenceGeography;
 };
 
 export type CreateAiProviderCredential = {
@@ -476,6 +535,15 @@ export type CreateAiProviderCredential = {
     region: string;
     allowedModels: string[];
     apiKey: string;
+    // Omit for the region's default (narrowest) geography.
+    inferenceGeography?: BedrockInferenceGeography;
+    /**
+     * Whether this credential becomes the organization default on creation.
+     * Omitted: the first credential becomes the default, later ones do not
+     * (legacy behavior). `true`: takes over as the default. `false`: stored
+     * without serving any AI traffic until explicitly made the default.
+     */
+    setAsDefault?: boolean;
 };
 
 /** A credential row whose ciphertext could not be read with the current secret. */
@@ -513,6 +581,7 @@ export type UpdateAiProviderCredential = {
     allowedModels?: string[];
     // Omit to keep the stored key when changing label, region or models.
     apiKey?: string;
+    inferenceGeography?: BedrockInferenceGeography;
 };
 
 // Explicit shape rather than a mapped type: TSOA cannot model
@@ -545,6 +614,10 @@ export type AiOrgModelVisibility = Partial<
     Record<ByoAiProvider, AiOrgProviderModelVisibility>
 >;
 
+export type McpProjectAccess =
+    | { mode: 'all' }
+    | { mode: 'selected'; projectUuids: string[] };
+
 export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
@@ -552,6 +625,9 @@ export type AiOrganizationSettings = {
     aiAgentMemoryEnabled: boolean;
     deepResearchLimits: AiDeepResearchLimits;
     deepResearchRawSqlEnabled: boolean;
+    // Optional for clients talking to an older server; defaults to true.
+    mcpEnabled?: boolean;
+    mcpProjectAccess?: McpProjectAccess;
     mcpContentWritesEnabled: boolean;
     mcpAgentsEnabled: boolean;
     // Customer consent for data apps to call AI at runtime (analysis, insights).
@@ -559,10 +635,11 @@ export type AiOrganizationSettings = {
     dataAppRuntimeAiEnabled?: boolean;
     // Whether viewers may carry a data-app investigation on in Ask AI.
     dataAppContinueInAskAiEnabled?: boolean;
-    // Org default for running AI analysis when a data app loads.
-    dataAppAutoAnalysisEnabled?: boolean;
     // Per-run ceilings and daily caps for AI analysis in data apps.
     dataAppAnalysisLimits?: DataAppAnalysisLimits;
+    // Org-wide guidance prepended to every AI analysis summary; app-level
+    // instructions are appended to it. Optional for old clients.
+    dataAppAnalysisDefaultInstructions?: string | null;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -594,12 +671,14 @@ export type UpdateAiOrganizationSettings = {
     aiAgentReviewsEnabled?: boolean;
     deepResearchLimits?: AiDeepResearchLimits;
     deepResearchRawSqlEnabled?: boolean;
+    mcpEnabled?: boolean;
+    mcpProjectAccess?: McpProjectAccess;
     mcpContentWritesEnabled?: boolean;
     mcpAgentsEnabled?: boolean;
     dataAppRuntimeAiEnabled?: boolean;
     dataAppContinueInAskAiEnabled?: boolean;
-    dataAppAutoAnalysisEnabled?: boolean;
     dataAppAnalysisLimits?: DataAppAnalysisLimits;
+    dataAppAnalysisDefaultInstructions?: string | null;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;
@@ -615,6 +694,8 @@ export type ApiAiOrganizationSettingsResponse = ApiSuccess<
 export type AiOrganizationRuntimeSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;
+    // Available to all members so client setup reflects organization consent.
+    mcpEnabled?: boolean;
     aiAgentsVisible: boolean;
     aiAgentMemoryEnabled: boolean;
     aiAgentReviewsEnabled: boolean;
@@ -627,8 +708,6 @@ export type AiOrganizationRuntimeSettings = {
     dataAppRuntimeAiEnabled?: boolean;
     // Whether viewers may continue a data-app investigation in Ask AI.
     dataAppContinueInAskAiEnabled?: boolean;
-    // Org default for running AI analysis when a data app loads.
-    dataAppAutoAnalysisEnabled?: boolean;
     // Org retention ceiling, surfaced so agent editors can see what caps
     // their agent-level window. Optional for backwards compatibility.
     threadRetentionHours?: number | null;

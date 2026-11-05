@@ -10,6 +10,7 @@ import {
 import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import {
+    DEFAULT_ANTHROPIC_FAST_MODEL_NAME,
     DEFAULT_GOOGLE_FAST_MODEL_NAME,
     DEFAULT_OPENAI_FAST_MODEL_NAME,
 } from '../../../../config/aiConfigSchema';
@@ -82,9 +83,9 @@ const withKeyManagement = <P extends AiProvider>(
 
 // Fast models for lightweight tasks (text generation, summaries, etc.)
 // These are cheaper and faster than default models
-const FAST_MODELS = {
+export const FAST_MODELS = {
     openai: DEFAULT_OPENAI_FAST_MODEL_NAME,
-    anthropic: 'claude-haiku-4-5',
+    anthropic: DEFAULT_ANTHROPIC_FAST_MODEL_NAME,
     google: DEFAULT_GOOGLE_FAST_MODEL_NAME,
     bedrock: 'claude-haiku-4-5',
 } satisfies Record<ModelPresetProvider, string | undefined>;
@@ -361,6 +362,38 @@ export const getOrgModelOptions = (
     catalogue.offeredPresets.map((preset) =>
         presetToModelOption(preset, defaultModel, catalogue),
     );
+
+/**
+ * An inherited organization-default model can name a provider the scoped
+ * config does not serve — a project pinned to a Bedrock credential while the
+ * organization default model points at the instance provider. An explicit
+ * agent or thread pick must fail closed in `getModelPreset`, but an inherited
+ * default was never a deliberate choice for this scope, so it falls back to
+ * the scoped config's own default model and the prompt runs inside the
+ * pinned provider.
+ */
+export const reconcileInheritedModelConfig = (
+    config: LightdashConfig['ai']['copilot'],
+    modelConfig: AiAgentModelConfig,
+): AiAgentModelConfig => {
+    if (
+        config.providers[
+            modelConfig.modelProvider as keyof typeof config.providers
+        ]
+    ) {
+        return modelConfig;
+    }
+    const fallback = getDefaultModel(config);
+    if (!fallback) return modelConfig;
+    Logger.info(
+        `Inherited default model provider "${modelConfig.modelProvider}" is not served by the resolved config, running the prompt on "${fallback.provider}/${fallback.name}"`,
+    );
+    return {
+        ...modelConfig,
+        modelProvider: fallback.provider,
+        modelName: fallback.name,
+    };
+};
 
 // The returned config is what gets recorded on the prompt, so the swap must
 // happen before the prompt is stored.

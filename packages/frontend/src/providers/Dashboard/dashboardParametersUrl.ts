@@ -3,7 +3,7 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 
 const isParameterValue = (value: unknown): value is ParameterValue => {
     if (typeof value === 'string') return true;
@@ -58,5 +58,15 @@ export const getDashboardParameterOverrides = (
     Object.fromEntries(
         Object.entries(values).filter(
             ([key, value]) => !isEqual(savedParameters[key]?.value, value),
+        ),
+    );
+
+/** With controls, a pick is an explicit choice even when it equals the first control's value */
+export const getPickedParameterOverrides = (
+    picks: Record<string, ParameterValue | null>,
+): ParametersValuesMap =>
+    Object.fromEntries(
+        Object.entries(picks).filter(
+            (entry): entry is [string, ParameterValue] => entry[1] !== null,
         ),
     );

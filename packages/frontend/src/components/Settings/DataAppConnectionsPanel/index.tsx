@@ -23,8 +23,11 @@ type Props = {
 };
 
 const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
-    const { data: connections, isLoading } =
+    const { data: allConnections, isLoading } =
         useExternalConnections(projectUuid);
+    const connections = (allConnections ?? []).filter(
+        (connection) => connection.kind !== 'live_source',
+    );
     // Deep-link support: the builder's connection picker links here with
     // `?create=1` to open the wizard straight away.
     const [searchParams, setSearchParams] = useSearchParams();
@@ -73,7 +76,7 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                 actions={addConnectionButton}
             >
                 <Stack gap="md">
-                    {isLoading || (connections && connections.length > 0) ? (
+                    {isLoading || connections.length > 0 ? (
                         <SettingsCard>
                             <Stack gap="md">
                                 {dataWarning}

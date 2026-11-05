@@ -1,6 +1,7 @@
 import Analytics from '@rudderstack/rudder-sdk-node';
 import { EventEmitter } from 'events';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import type { EmbedDashboardViewed } from '../ee/analytics';
 import { type ContentViewMetadata } from './eventStream/contentViewsStream';
 import { EventStreamSink } from './eventStream/EventStreamSink';
 import { eventStreamRegistry } from './eventStream/registry';
@@ -145,5 +146,68 @@ describe('Backend content view tracking', () => {
             view_context: 'unknown',
             is_qualifying: false,
         });
+    });
+});
+
+describe('Embedded dashboard view tracking', () => {
+    const embedPayload: EmbedDashboardViewed = {
+        event: 'embed_dashboard.viewed',
+        anonymousId: 'embed',
+        userId: 'must-not-count-the-issuer',
+        properties: {
+            organizationId: 'org',
+            projectId: 'project',
+            dashboardId: 'dashboard',
+            context: 'production',
+            canExportPagePdf: true,
+            externalId: 'external::fallback-token-identity',
+        },
+    };
+    const embedMetadata: ContentViewMetadata = {
+        ...metadata,
+        context: 'embed',
+        actorType: 'embed',
+        externalUserId: 'viewer-1',
+    };
+
+    it('captures explicit external identity only in usage metadata, without counting the issuer', () => {
+        const { analytics, writer, rudder } = setup();
+        analytics.track(embedPayload, embedMetadata);
+        expect(writer.push).toHaveBeenCalledWith(
+            'content_views',
+            expect.objectContaining({
+                event_name: 'embed_dashboard.viewed',
+                org_id: 'org',
+                user_id: null,
+                external_user_id: 'viewer-1',
+                content_type: 'dashboard',
+                content_id: 'dashboard',
+                view_context: 'embed',
+                actor_type: 'embed',
+                is_qualifying: false,
+                event_id: expect.any(String),
+            }),
+        );
+        expect(rudder.mock.calls[0][0].properties).toEqual(
+            embedPayload.properties,
+        );
+    });
+
+    it('does not invent external viewers from fallback account identities', () => {
+        const { analytics, writer } = setup();
+        analytics.track(embedPayload, {
+            ...embedMetadata,
+            externalUserId: null,
+        });
+        expect(writer.push.mock.calls[0][1].external_user_id).toBeNull();
+        expect(writer.push.mock.calls[0][1].user_id).toBeNull();
+    });
+
+    it('ignores previews and old embed events lacking usage metadata', () => {
+        const { analytics, writer, rudder } = setup();
+        analytics.track(embedPayload, { ...embedMetadata, context: 'preview' });
+        analytics.track(embedPayload);
+        expect(writer.push).not.toHaveBeenCalled();
+        expect(rudder).toHaveBeenCalledTimes(2);
     });
 });

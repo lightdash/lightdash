@@ -14,6 +14,7 @@ import type { GithubAppInstallationsModel } from '../../../models/GithubAppInsta
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { WritebackAgentAccessError } from './errors';
 
 /** The slice of the GitHub client this service needs, injected for testability. */
 export type WritebackPreviewGithubClient = Pick<
@@ -108,10 +109,12 @@ export class WritebackPreviewService extends BaseService {
         user,
         projectUuid,
         prUrl,
+        assertPublishAllowed = null,
     }: {
         user: SessionUser;
         projectUuid: string;
         prUrl: string;
+        assertPublishAllowed?: (() => Promise<void>) | null;
     }): Promise<WritebackPreviewResult | null> {
         const project = await this.projectModel.get(projectUuid);
         if (
@@ -184,6 +187,7 @@ export class WritebackPreviewService extends BaseService {
                 return null;
             }
 
+            if (assertPublishAllowed) await assertPublishAllowed();
             const preview = await this.projectService.createPreview(
                 user,
                 projectUuid,
@@ -198,6 +202,7 @@ export class WritebackPreviewService extends BaseService {
 
             const previewUrl = `${this.lightdashConfig.siteUrl}/projects/${preview.projectUuid}/home`;
 
+            if (assertPublishAllowed) await assertPublishAllowed();
             await this.githubClient.createPullRequestComment({
                 owner: parsed.owner,
                 repo: parsed.repo,
@@ -216,6 +221,7 @@ export class WritebackPreviewService extends BaseService {
                 compileJobUuid: preview.compileJobUuid,
             };
         } catch (error) {
+            if (error instanceof WritebackAgentAccessError) throw error;
             this.logger.warn(
                 `Failed to create writeback preview for ${prUrl}: ${getErrorMessage(
                     error,

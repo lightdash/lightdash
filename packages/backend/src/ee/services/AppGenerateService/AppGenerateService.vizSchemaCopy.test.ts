@@ -152,6 +152,7 @@ function buildService() {
     };
 
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: {},
@@ -198,6 +199,7 @@ function buildService() {
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
 
     vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },

@@ -1,0 +1,10 @@
+.search {
+    min-width: 0;
+    flex: 1;
+}
+
+.searchSection[data-position='right'] {
+    justify-content: flex-end;
+    align-items: center;
+    padding-inline-end: rem(6px);
+}

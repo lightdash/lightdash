@@ -7,6 +7,7 @@ import {
     WarehouseTypes,
     type AiAccessForUser,
     type OrganizationAgentIdentitySettings,
+    type OrganizationAgentIdentitySnowflakeSetup,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
 import { setTimeout } from 'node:timers/promises';
@@ -30,6 +31,7 @@ describe.skipIf(!stubUrl)(
         const people: ApiClient[] = [];
         let projectUuid: string | undefined;
         let previousSettings: OrganizationAgentIdentitySettings | undefined;
+        let previousClientExisted: boolean | undefined;
         let clearFlag = false;
 
         const completeSignIn = async (
@@ -64,7 +66,7 @@ describe.skipIf(!stubUrl)(
             >('/api/v1/health');
             expect(
                 health.body.results.auth.snowflakeAi.enabled,
-                'Snowflake AI OAuth is not enabled on the server. Configure the stub and an enterprise license to run this loop.',
+                'Snowflake agent sign-in requires an enterprise license on the server to run this loop.',
             ).toBe(true);
             admin = await login();
             const flag = await admin.get<Body<{ enabled: boolean }>>(flagUrl);
@@ -74,6 +76,21 @@ describe.skipIf(!stubUrl)(
                 ).toBe(200);
                 clearFlag = true;
             }
+            const setup = await admin.get<
+                Body<OrganizationAgentIdentitySnowflakeSetup>
+            >(`${settingsUrl}/snowflake/setup`);
+            previousClientExisted =
+                setup.body.results.client.source === 'organization';
+            expect(
+                (
+                    await admin.put(`${settingsUrl}/snowflake/client`, {
+                        accountUrl: stubUrl,
+                        clientId: 'stub-client',
+                        clientSecret: 'stub-secret',
+                    })
+                ).status,
+                `Could not ${previousClientExisted ? 'replace' : 'create'} the org client. Set SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN to the stub origin on the server.`,
+            ).toBe(200);
             const start = await admin.get('/api/v1/login/snowflake-ai', {
                 failOnStatusCode: false,
             });
@@ -81,9 +98,12 @@ describe.skipIf(!stubUrl)(
             const authorizeUrl = new URL(start.headers.get('location')!);
             expect(
                 authorizeUrl.origin,
-                `The server's Snowflake AI OAuth endpoints do not point at SNOWFLAKE_AI_STUB_URL (${stubUrl}).`,
+                `The saved Snowflake org client does not point at SNOWFLAKE_AI_STUB_URL (${stubUrl}). Save the stub client and set SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN to the same origin on the server.`,
             ).toBe(new URL(stubUrl!).origin);
             expect(authorizeUrl.pathname).toBe('/oauth/authorize');
+            expect(authorizeUrl.searchParams.get('client_id')).toBe(
+                'stub-client',
+            );
             const settings =
                 await admin.get<Body<OrganizationAgentIdentitySettings>>(
                     settingsUrl,
@@ -101,7 +121,7 @@ describe.skipIf(!stubUrl)(
                 `agent-connect-stub-${Date.now()}`,
                 {
                     type: WarehouseTypes.SNOWFLAKE,
-                    account: 'stub',
+                    account: new URL(stubUrl!).hostname,
                     accessUrl: stubUrl,
                     user: 'stub',
                     password: 'stub',
@@ -215,7 +235,7 @@ describe.skipIf(!stubUrl)(
                 'entryPoint',
                 AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
             );
-            const callTool = await openMcpSession(client, projectUuid!);
+            const callTool = await openMcpSession(client);
             const refused = await callTool('run_sql', {
                 projectUuid,
                 sql,
@@ -223,7 +243,9 @@ describe.skipIf(!stubUrl)(
             });
             expect(refused.isError).toBe(true);
             expect(mcpText(refused)).toContain(
-                getAiAccessRefusalMessage(AiAccessRefusalReason.NEEDS_SIGN_IN),
+                getAiAccessRefusalMessage(AiAccessRefusalReason.NEEDS_SIGN_IN, {
+                    projectName: null,
+                }),
             );
 
             expect(mcpText(refused)).toContain(mcpConnectUrl.href);
@@ -235,6 +257,7 @@ describe.skipIf(!stubUrl)(
                 status: 'needs_sign_in',
                 message: before.body.results.refusal!.message,
                 connectUrl: mcpConnectUrl.href,
+                settingsUrl: null,
                 expiresAt: null,
             };
             expect(connectionStatus).toMatchObject({
@@ -329,7 +352,7 @@ describe.skipIf(!stubUrl)(
                 AiAccessRefusalReason.NEEDS_SIGN_IN,
             );
             const authorizePath =
-                '/api/v1/oauth/authorize?client_id=lightdash-cli&redirect_uri=http%3A%2F%2Flocalhost%3A4321%2Fcallback&response_type=code&state=s&scope=read';
+                '/api/v1/oauth/authorize?client_id=lightdash-cli&redirect_uri=http%3A%2F%2Flocalhost%3A4321%2Fcallback&response_type=code&state=s&scope=read&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256';
             const refusedPage = await client.get<string>(authorizePath);
             expect(refusedPage.status).toBe(200);
             expect(refusedPage.body).toContain('Connect your warehouse agent');
@@ -341,83 +364,125 @@ describe.skipIf(!stubUrl)(
             expect(connectedPage.body).not.toContain('warehouse agent');
         });
 
-        it.each(['expiring-code', 'revoking-code'])(
-            'refuses SQL after connecting with %s',
+        it('refreshes successfully after the stored grant deadline', async () => {
+            const { client } = await loginWithPermissions('member', [
+                { role: 'admin', projectUuid: projectUuid! },
+            ]);
+            people.push(client);
+            const callback = await completeSignIn(
+                client,
+                '/agent-connected',
+                'expiring-code',
+            );
+            expect(callback.status).toBe(302);
+            await setTimeout(1500);
+            const callTool = await openMcpSession(client);
+            const result = await callTool('run_sql', {
+                projectUuid,
+                sql,
+                limit: 1,
+            });
+            expect(result.isError).toBeFalsy();
+            const access = await client.get<Body<AiAccessForUser>>(
+                `/api/v2/projects/${projectUuid}/ai-access/me`,
+            );
+            expect(access.body.results.refusal).toBeNull();
+            expect(
+                new Date(access.body.results.expiresAt!).getTime(),
+            ).toBeGreaterThan(Date.now() + 80 * 86400000);
+        });
+
+        it('refuses SQL when the endpoint reports a revoked grant', async () => {
+            const { client } = await loginWithPermissions('member', [
+                { role: 'admin', projectUuid: projectUuid! },
+            ]);
+            people.push(client);
+            expect(
+                (
+                    await completeSignIn(
+                        client,
+                        '/agent-connected',
+                        'revoking-code',
+                    )
+                ).status,
+            ).toBe(302);
+            const callTool = await openMcpSession(client);
+            const result = await callTool('run_sql', {
+                projectUuid,
+                sql,
+                limit: 1,
+            });
+            expect(result.isError).toBe(true);
+            expect(mcpText(result)).toContain(
+                getAiAccessRefusalMessage(
+                    AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                    {
+                        projectName: null,
+                    },
+                ),
+            );
+            expect(mcpText(result)).toContain('/agent/connect');
+        });
+
+        it.each(['unavailable-code', 'network-drop-code'])(
+            'keeps the credential and permits retry after %s',
             async (code) => {
                 const { client } = await loginWithPermissions('member', [
                     { role: 'admin', projectUuid: projectUuid! },
                 ]);
                 people.push(client);
-                const callback = await completeSignIn(
-                    client,
-                    '/agent-connected',
-                    code,
-                );
-                expect(callback.status).toBe(302);
-                expect(callback.headers.get('location')).toBe(
-                    new URL('/agent-connected', SITE_URL).href,
-                );
-                if (code === 'expiring-code') await setTimeout(1500);
-                const access = await client.get<Body<AiAccessForUser>>(
-                    `/api/v2/projects/${projectUuid}/ai-access/me`,
-                );
-                expect(access.status).toBe(200);
-                const connectUrl = new URL('/agent/connect', SITE_URL);
-                connectUrl.searchParams.set('project', projectUuid!);
-                connectUrl.searchParams.set('redirect', '/agent-connected');
-                const statusConnectUrl = new URL(connectUrl);
-                statusConnectUrl.searchParams.set(
-                    'entryPoint',
-                    AgentIdentityConnectEntryPoint.UNKNOWN,
-                );
-                const mcpConnectUrl = new URL(connectUrl);
-                mcpConnectUrl.searchParams.set(
-                    'entryPoint',
-                    AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
-                );
-                const message = getAiAccessRefusalMessage(
-                    AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                );
-                if (code === 'expiring-code') {
-                    expect(access.body.results).toMatchObject({
-                        expiresAt: null,
-                        refusal: {
-                            reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                            connectUrl: statusConnectUrl.href,
-                        },
-                    });
-                } else {
-                    expect(access.body.results).toMatchObject({
-                        identity: 'connected_person',
-                        refusal: null,
-                    });
-                    expect(
-                        new Date(access.body.results.expiresAt!).getTime(),
-                    ).toBeGreaterThan(Date.now() + 80 * 86400000);
-                }
-                const callTool = await openMcpSession(client, projectUuid!);
-                const refused = await callTool('run_sql', {
+                expect(
+                    (await completeSignIn(client, '/agent-connected', code))
+                        .status,
+                ).toBe(302);
+                const credentialsUrl = '/api/v1/user/warehouseCredentials';
+                const before =
+                    await client.get<Body<UserWarehouseCredentials[]>>(
+                        credentialsUrl,
+                    );
+                const callTool = await openMcpSession(client);
+                const failed = await callTool('run_sql', {
                     projectUuid,
                     sql,
                     limit: 1,
                 });
-                expect(refused.isError).toBe(true);
-                expect(mcpText(refused)).toContain(message);
-                expect(mcpText(refused)).toContain(mcpConnectUrl.href);
-                if (code === 'expiring-code') {
-                    expect(
-                        await callTool('connect_agent', { projectUuid }),
-                    ).toMatchObject({
-                        structuredContent: {
-                            status: 'needs_sign_in',
-                            message,
-                            connectUrl: mcpConnectUrl.href,
-                            expiresAt: null,
-                        },
-                    });
-                }
+                expect(failed.isError).toBe(true);
+                expect(mcpText(failed)).toContain('Try again in a moment.');
+                expect(mcpText(failed)).not.toContain('/agent/connect');
+                const after =
+                    await client.get<Body<UserWarehouseCredentials[]>>(
+                        credentialsUrl,
+                    );
+                expect(after.body.results).toEqual(before.body.results);
+                expect(
+                    (await callTool('run_sql', { projectUuid, sql, limit: 1 }))
+                        .isError,
+                ).toBeFalsy();
             },
         );
+
+        it('rotates single-use refresh tokens across successive queries', async () => {
+            const { client } = await loginWithPermissions('member', [
+                { role: 'admin', projectUuid: projectUuid! },
+            ]);
+            people.push(client);
+            expect(
+                (
+                    await completeSignIn(
+                        client,
+                        '/agent-connected',
+                        'single-use-code',
+                    )
+                ).status,
+            ).toBe(302);
+            const callTool = await openMcpSession(client);
+            for (let index = 0; index < 3; index += 1) {
+                expect(
+                    (await callTool('run_sql', { projectUuid, sql, limit: 1 }))
+                        .isError,
+                ).toBeFalsy();
+            }
+        });
 
         it('returns to the local client after sign-in', async () => {
             const callback = await completeSignIn(

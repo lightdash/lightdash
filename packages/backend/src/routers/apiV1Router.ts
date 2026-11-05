@@ -9,6 +9,7 @@ import {
 } from '@lightdash/warehouses';
 import express, { type Router } from 'express';
 import passport from 'passport';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthenticationIfPresent,
@@ -46,6 +47,10 @@ import {
     isOneLoginPassportStrategyAvailableToUse,
 } from '../controllers/authentication/strategies/oneLoginStrategy';
 import { chartRegistryAssetRouter } from '../ee/routers/chartRegistryAssetRouter';
+import {
+    handleGoogleLiveSourceCallback,
+    isGoogleLiveSourceCallback,
+} from '../ee/routers/googleLiveSourceCallback';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
 import { createAuditLogEvent } from '../logging/auditLog';
 import { createActorFromUser } from '../logging/caslAuditWrapper';
@@ -422,6 +427,7 @@ const authenticateDatabricks = (
 apiV1Router.get(
     '/health',
     allowApiKeyAuthenticationIfPresent,
+    requireOAuthScopeOperation('apiV1Router GET /health'),
     async (req, res, next) => {
         const skipMigrationCheck = req.query.skipMigrationCheck === 'true';
         req.services
@@ -828,6 +834,10 @@ apiV1Router.get(
 );
 
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
+    if (isGoogleLiveSourceCallback(req)) {
+        void handleGoogleLiveSourceCallback(req, res, next);
+        return;
+    }
     if (req.session.oauth?.intent === 'link') {
         passport.authenticate(
             'google',

@@ -8,9 +8,15 @@
  *    → returns results when status is 'ready'
  */
 
+import { AppStateError } from './appState';
 import type {
     AiPromptRequest,
     AiPromptResult,
+    AppStateHistoryEntry,
+    AppStateSharedEntry,
+    AppStateSnapshot,
+    AppStateTransport,
+    AppStateUserEntry,
     Column,
     DownloadResultsFileType,
     DownloadResultsLimit,
@@ -27,6 +33,7 @@ import type {
     QueryDefinition,
     QueryResult,
     Row,
+    SavedChartVisualization,
     Transport,
     UnderlyingDataOptions,
     UnderlyingDataResult,
@@ -43,6 +50,13 @@ import {
     VIZ_UNDERLYING_DATA_OPEN_PATH,
     VIZ_UNDERLYING_DATA_PATH,
     VIZ_SUBTOTALS_PATH,
+    EXPLORE_BASE_TABLE_PATH,
+    SPACE_CHARTS_PATH,
+    type ExploreBaseTableRequest,
+    type ExploreBaseTableResult,
+    type SpaceChartsRequest,
+    type SpaceChartsResult,
+    type SpaceChartSummary,
 } from './types';
 
 // Mirrors the explorer's `useInfiniteQueryResults` polling rhythm so the
@@ -88,6 +102,7 @@ type FieldMeta = {
     format?: string;
     round?: number;
     compact?: string;
+    urls?: { label: string; url: string }[];
     [key: string]: unknown;
 };
 
@@ -185,19 +200,202 @@ function buildApiFilters(
     };
 }
 
-const createFieldQualifier =
-    (table: string) =>
-    (fieldId: string): string => {
+/**
+ * Field ids are `<table>_<field>`. The table is the explore's base table,
+ * which differs from the explore name for explores defined under
+ * `meta.explores`; without it, the explore name is the best guess.
+ */
+export const createFieldQualifier = (
+    exploreName: string,
+    baseTable: string | null,
+    customDimensionIds: string[],
+) => {
+    // Custom dimensions are sent with the id the app wrote, so a selection
+    // naming one (in full or without its table prefix) must resolve to it.
+    const prefixes = [...new Set([baseTable ?? exploreName, exploreName])];
+    const customDimensionIdByName = new Map<string, string>();
+    for (const id of customDimensionIds) {
+        for (const prefix of prefixes) {
+            if (id.startsWith(`${prefix}_`)) {
+                customDimensionIdByName.set(id.slice(prefix.length + 1), id);
+            }
+        }
+    }
+    for (const id of customDimensionIds) customDimensionIdByName.set(id, id);
+
+    return (fieldId: string): string => {
+        const customDimensionId = customDimensionIdByName.get(fieldId);
+        if (customDimensionId !== undefined) return customDimensionId;
         // Dot notation: 'customers.name' -> 'customers_name'
         if (fieldId.includes('.')) {
             return fieldId.replace('.', '_');
         }
-        // Already qualified with explore name
-        if (fieldId.startsWith(`${table}_`)) {
+        if (baseTable !== null) {
+            return fieldId.startsWith(`${baseTable}_`)
+                ? fieldId
+                : `${baseTable}_${fieldId}`;
+        }
+        if (fieldId.startsWith(`${exploreName}_`)) {
             return fieldId;
         }
-        // Short name -> qualify with explore name
-        return `${table}_${fieldId}`;
+        return `${exploreName}_${fieldId}`;
+    };
+};
+
+/** Resolves an explore's base table, or `null` when it can't be learned. */
+export type ExploreBaseTableResolver = (
+    exploreName: string,
+) => Promise<string | null>;
+
+export type ApiTransportOptions = {
+    resolveExploreBaseTable: ExploreBaseTableResolver | null;
+    /** Omitted/null = the transport reports the capability unavailable. */
+    listSpaceCharts?: SpaceChartsResolver | null;
+};
+
+const toBaseTable = (value: unknown): string | null =>
+    typeof value === 'string' && value.length > 0 ? value : null;
+
+export const createApiExploreBaseTableResolver =
+    (fetchFn: FetchAdapter, projectUuid: string): ExploreBaseTableResolver =>
+    async (exploreName) => {
+        const explore = await fetchFn<{ baseTable?: unknown } | null>(
+            'GET',
+            `/api/v1/projects/${projectUuid}/explores/${encodeURIComponent(exploreName)}`,
+        );
+        return toBaseTable(explore?.baseTable);
+    };
+
+/** Asks the host (app bridge or CLI preview proxy) via its virtual route. */
+export const createHostExploreBaseTableResolver =
+    (fetchFn: FetchAdapter): ExploreBaseTableResolver =>
+    async (exploreName) => {
+        const body: ExploreBaseTableRequest = { exploreName };
+        const result = await fetchFn<Partial<ExploreBaseTableResult> | null>(
+            'POST',
+            EXPLORE_BASE_TABLE_PATH,
+            body,
+        );
+        return toBaseTable(result?.baseTable);
+    };
+
+// ---------------------------------------------------------------------------
+// Space charts (useSpaceCharts)
+// ---------------------------------------------------------------------------
+
+/** Lists the saved charts the viewer can see in a space (slug or uuid). */
+export type SpaceChartsResolver = (
+    space: string,
+) => Promise<SpaceChartsResult>;
+
+/**
+ * Thrown when the transport has the capability but the running host does not
+ * (a current SDK bundle on an older Lightdash). `useSpaceCharts` maps it to
+ * `available: false` instead of an error, so galleries hide cleanly.
+ */
+export class SpaceChartsUnsupportedError extends Error {
+    constructor() {
+        super('Space charts listing is not supported by this Lightdash host');
+        this.name = 'SpaceChartsUnsupportedError';
+    }
+}
+
+const EMPTY_SPACE_CHARTS: SpaceChartsResult = { space: null, charts: [] };
+
+const toNullableString = (value: unknown): string | null =>
+    typeof value === 'string' && value.length > 0 ? value : null;
+
+/** Normalize an untrusted body into a `SpaceChartsResult`. */
+export const normalizeSpaceChartsResult = (
+    value: unknown,
+): SpaceChartsResult => {
+    if (typeof value !== 'object' || value === null)
+        return EMPTY_SPACE_CHARTS;
+    const { space, charts } = value as { space?: unknown; charts?: unknown };
+    let spaceInfo: SpaceChartsResult['space'] = null;
+    if (typeof space === 'object' && space !== null) {
+        const { uuid, name, slug } = space as Record<string, unknown>;
+        if (
+            typeof uuid === 'string' &&
+            typeof name === 'string' &&
+            typeof slug === 'string'
+        ) {
+            spaceInfo = { uuid, name, slug };
+        }
+    }
+    const chartList: SpaceChartSummary[] = (
+        Array.isArray(charts) ? charts : []
+    ).flatMap((chart: unknown) => {
+        if (typeof chart !== 'object' || chart === null) return [];
+        const entry = chart as Record<string, unknown>;
+        if (typeof entry.uuid !== 'string' || typeof entry.name !== 'string') {
+            return [];
+        }
+        return [
+            {
+                uuid: entry.uuid,
+                name: entry.name,
+                description: toNullableString(entry.description),
+                chartKind: toNullableString(entry.chartKind),
+                slug: toNullableString(entry.slug),
+                updatedAt: toNullableString(entry.updatedAt),
+            },
+        ];
+    });
+    return { space: spaceInfo, charts: chartList };
+};
+
+/** Asks the host (app bridge or CLI preview proxy) via its virtual route. */
+export const createHostSpaceChartsResolver =
+    (fetchFn: FetchAdapter): SpaceChartsResolver =>
+    async (space) => {
+        const body: SpaceChartsRequest = { space };
+        const result = await fetchFn<unknown>('POST', SPACE_CHARTS_PATH, body);
+        return normalizeSpaceChartsResult(result);
+    };
+
+/**
+ * Resolves against the real API (local dev with a PAT): the spaces list to
+ * match the slug/uuid, then the space detail for its chart summaries — the
+ * same two calls the host makes when answering the virtual route.
+ */
+export const createApiSpaceChartsResolver =
+    (fetchFn: FetchAdapter, projectUuid: string): SpaceChartsResolver =>
+    async (space) => {
+        try {
+            const spaces = await fetchFn<unknown>(
+                'GET',
+                `/api/v1/projects/${projectUuid}/spaces`,
+            );
+            const match = (Array.isArray(spaces) ? spaces : []).find(
+                (entry: unknown) => {
+                    if (typeof entry !== 'object' || entry === null)
+                        return false;
+                    const { uuid, slug } = entry as Record<string, unknown>;
+                    return uuid === space || slug === space;
+                },
+            ) as { uuid?: unknown } | undefined;
+            if (typeof match?.uuid !== 'string') return EMPTY_SPACE_CHARTS;
+            const detail = await fetchFn<Record<string, unknown> | null>(
+                'GET',
+                `/api/v1/projects/${projectUuid}/spaces/${match.uuid}`,
+            );
+            if (typeof detail !== 'object' || detail === null)
+                return EMPTY_SPACE_CHARTS;
+            return normalizeSpaceChartsResult({
+                space: detail,
+                charts: detail.queries,
+            });
+        } catch (e) {
+            // Same face as the host route: no access answers like not found.
+            if (
+                e instanceof LightdashApiError &&
+                (e.status === 403 || e.status === 404)
+            ) {
+                return EMPTY_SPACE_CHARTS;
+            }
+            throw e;
+        }
     };
 
 function buildUnderlyingDataFilters(
@@ -250,11 +448,109 @@ function buildUnderlyingDataFilters(
 export class LightdashApiError extends Error {
     readonly status: number;
 
-    constructor(status: number, message: string) {
+    /** The API error's `data` field, when the response carried one. */
+    readonly data: unknown;
+
+    constructor(status: number, message: string, data?: unknown) {
         super(`Lightdash API error (${status}): ${message}`);
         this.name = 'LightdashApiError';
         this.status = status;
+        this.data = data;
     }
+}
+
+const toAppStateErrorFromApi = (error: unknown): AppStateError => {
+    if (error instanceof AppStateError) return error;
+    if (error instanceof LightdashApiError) {
+        const data =
+            typeof error.data === 'object' && error.data !== null
+                ? (error.data as Record<string, unknown>)
+                : {};
+        if (error.status === 409) {
+            return new AppStateError(
+                'conflict',
+                error.message,
+                (data.current as AppStateSharedEntry | null | undefined) ??
+                    null,
+            );
+        }
+        if (error.status === 403) {
+            return new AppStateError(
+                data.code === 'feature_not_enabled'
+                    ? 'feature_disabled'
+                    : 'forbidden',
+                error.message,
+            );
+        }
+        if (error.status === 400 || error.status === 422) {
+            return new AppStateError('invalid', error.message);
+        }
+        return new AppStateError('unknown', error.message);
+    }
+    return new AppStateError(
+        'unavailable',
+        error instanceof Error ? error.message : String(error),
+    );
+};
+
+/** App state over the REST endpoints, for local development with a PAT. */
+function createApiAppState(
+    projectUuid: string,
+    appUuid: string,
+    fetchFn: FetchAdapter,
+): AppStateTransport {
+    const base = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/state`;
+    const keyPath = (scope: 'user' | 'shared', key: string) =>
+        `${base}/${scope}/${encodeURIComponent(key)}`;
+    const call = async <T>(run: () => Promise<T>): Promise<T> => {
+        try {
+            return await run();
+        } catch (error) {
+            throw toAppStateErrorFromApi(error);
+        }
+    };
+    return {
+        getSnapshot: () => call(() => fetchFn<AppStateSnapshot>('GET', base)),
+        setUser: (key, value) =>
+            call(() =>
+                fetchFn<AppStateUserEntry>('PUT', keyPath('user', key), {
+                    value,
+                }),
+            ),
+        deleteUser: (key) =>
+            call(async () => {
+                await fetchFn<undefined>('DELETE', keyPath('user', key));
+            }),
+        setShared: (key, value, expectedVersion) =>
+            call(() =>
+                fetchFn<AppStateSharedEntry>('PUT', keyPath('shared', key), {
+                    value,
+                    expectedVersion,
+                }),
+            ),
+        deleteShared: (key) =>
+            call(async () => {
+                await fetchFn<undefined>('DELETE', keyPath('shared', key));
+            }),
+        getSharedHistory: (key, options) =>
+            call(async () => {
+                const params = new URLSearchParams();
+                if (options.limit !== undefined) {
+                    params.set('limit', String(options.limit));
+                }
+                if (options.beforeVersion !== undefined) {
+                    params.set('beforeVersion', String(options.beforeVersion));
+                }
+                const query = params.toString();
+                const { versions } = await fetchFn<{
+                    versions: AppStateHistoryEntry[];
+                }>(
+                    'GET',
+                    `${keyPath('shared', key)}/history${query ? `?${query}` : ''}`,
+                );
+                return versions;
+            }),
+    };
 }
 
 function createDefaultFetchAdapter(
@@ -280,13 +576,15 @@ function createDefaultFetchAdapter(
         if (!res.ok) {
             const text = await res.text();
             let message: string;
+            let data: unknown;
             try {
                 const parsed = JSON.parse(text);
                 message = parsed.error?.message ?? parsed.message ?? text;
+                data = parsed.error?.data;
             } catch {
                 message = text;
             }
-            throw new LightdashApiError(res.status, message);
+            throw new LightdashApiError(res.status, message, data);
         }
 
         const json = (await res.json()) as ApiResponse<T>;
@@ -744,10 +1042,21 @@ function mapApiRowsToQueryResult({
         const name = idToName.get(fieldId) ?? fieldId;
         const fieldMeta = fields[fieldId];
         const colMeta = columns[fieldId];
+        const urls = Array.isArray(fieldMeta?.urls)
+            ? fieldMeta.urls.filter(
+                  (u): u is { label: string; url: string } =>
+                      typeof u === 'object' &&
+                      u !== null &&
+                      typeof u.label === 'string' &&
+                      typeof u.url === 'string',
+              )
+            : [];
         return {
             name,
             label: fieldMeta?.label ?? fieldMeta?.displayName ?? name,
             type: mapColumnType(colMeta?.type ?? fieldMeta?.type ?? 'string'),
+            fieldId,
+            ...(urls.length > 0 ? { urls } : {}),
         };
     });
 
@@ -811,13 +1120,61 @@ function mapApiRowsToQueryResult({
 export function createApiTransport(
     config: LightdashClientConfig,
     adapter?: FetchAdapter,
+    options?: ApiTransportOptions,
 ): Transport {
     const fetchFn = adapter ?? createDefaultFetchAdapter(config);
+    // Custom adapters may proxy through a route allowlist without the explore
+    // endpoint, so only the default adapter looks base tables up by default.
+    // Behind a dev proxy (CLI preview) the proxy answers the host route.
+    let defaultResolver: ExploreBaseTableResolver | null = null;
+    let defaultSpaceCharts: SpaceChartsResolver | null = null;
+    if (adapter === undefined) {
+        defaultResolver = config.useProxy
+            ? createHostExploreBaseTableResolver(fetchFn)
+            : createApiExploreBaseTableResolver(fetchFn, config.projectUuid);
+        defaultSpaceCharts = config.useProxy
+            ? createHostSpaceChartsResolver(fetchFn)
+            : createApiSpaceChartsResolver(fetchFn, config.projectUuid);
+    }
+    const resolveExploreBaseTable =
+        options === undefined
+            ? defaultResolver
+            : options.resolveExploreBaseTable;
+    const listSpaceCharts =
+        options === undefined
+            ? defaultSpaceCharts
+            : (options.listSpaceCharts ?? null);
+    const baseTableByExplore = new Map<string, Promise<string | null>>();
+
+    const getFieldQualifier = async (query: QueryDefinition) => {
+        const { exploreName } = query;
+        const customDimensionIds = query.customDimensions.map((d) => d.id);
+        if (resolveExploreBaseTable === null) {
+            return createFieldQualifier(exploreName, null, customDimensionIds);
+        }
+        let baseTable = baseTableByExplore.get(exploreName);
+        if (baseTable === undefined) {
+            baseTable = resolveExploreBaseTable(exploreName)
+                .catch(() => null)
+                .then((resolved) => {
+                    // Keep only answers, so a failed lookup is retried.
+                    if (resolved === null) {
+                        baseTableByExplore.delete(exploreName);
+                    }
+                    return resolved;
+                });
+            baseTableByExplore.set(exploreName, baseTable);
+        }
+        return createFieldQualifier(
+            exploreName,
+            await baseTable,
+            customDimensionIds,
+        );
+    };
 
     return {
         async executeQuery(query: QueryDefinition): Promise<QueryResult> {
-            const table = query.exploreName;
-            const qualify = createFieldQualifier(table);
+            const qualify = await getFieldQualifier(query);
 
             const qualifiedDims = query.dimensions.map(qualify);
             const qualifiedMetrics = query.metrics.map(qualify);
@@ -1024,9 +1381,11 @@ export function createApiTransport(
                 buildChartBody(),
                 metadata,
             );
-            const { queryUuid, fields, metricQuery } =
+            const { queryUuid, fields, metricQuery, chartVisualization } =
                 execResult as AsyncQueryResponse & {
                     metricQuery?: ChartResponseMetricQuery;
+                    // Absent on hosts that predate the field.
+                    chartVisualization?: SavedChartVisualization;
                 };
 
             const { firstReadyPage, apiRows } = await pollQueryRows(
@@ -1172,6 +1531,7 @@ export function createApiTransport(
                 getUnderlyingData,
                 downloadUnderlyingData,
                 downloadResults,
+                ...(chartVisualization ? { chartVisualization } : {}),
             };
         },
 
@@ -1197,13 +1557,23 @@ export function createApiTransport(
 
         async aiPrompt(request: AiPromptRequest): Promise<AiPromptResult> {
             const { appUuid, prompt, sources, focus } = request;
-            const { text } = await fetchFn<{ text: string }>(
+            const { text, promptId } = await fetchFn<{
+                text: string;
+                promptId?: string;
+            }>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/apps/${appUuid}/analysis/prompt`,
                 { prompt, sources, ...(focus ? { focus } : {}) },
             );
-            return { text };
+            return { text, promptId: promptId ?? null };
         },
+
+        // Needs an app to attribute state to; the dev transport only has one
+        // when VITE_LIGHTDASH_APP_UUID is set. Without it the hooks stay in
+        // memory for the session.
+        appState: config.appUuid
+            ? createApiAppState(config.projectUuid, config.appUuid, fetchFn)
+            : undefined,
 
         async externalFetch(
             _alias: string,
@@ -1316,5 +1686,9 @@ export function createApiTransport(
                 intent,
             );
         },
+
+        // Left absent (not a thrower) when no resolver exists, so
+        // `useSpaceCharts().available` honestly reports the capability.
+        ...(listSpaceCharts ? { listSpaceCharts } : {}),
     };
 }

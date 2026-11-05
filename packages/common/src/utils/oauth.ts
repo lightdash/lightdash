@@ -166,7 +166,7 @@ const OAUTH_REDIRECT_TEMPLATE = `
 export const getAgentConnectErrorMessage = (code: string): string => {
     switch (code) {
         case 'not_agent_session':
-            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.';
+            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.';
         case 'no_refresh_token':
             return 'Snowflake did not return a refresh token. Try again.';
         case 'license_required':
@@ -640,8 +640,8 @@ export const generateOAuthAuthorizePage = (
                   ...params.agentConnect,
                   message:
                       params.agentConnect.reason === 'sign_in_expired'
-                          ? 'Your agent connection expired. Connect again now, or authorise and connect later from the link an AI tool shows you.'
-                          : 'Your organisation requires an agent connection for AI queries. Connect once now, or authorise and connect later from the link an AI tool shows you.',
+                          ? 'Your agent sign-in expired. Connect your agent again now, or authorise and connect later from the link your agent shows you.'
+                          : 'Your organisation requires an agent sign-in. Connect once now, or authorise and connect later from the link your agent shows you.',
                   errorMessage: params.agentConnect.error
                       ? getAgentConnectErrorMessage(params.agentConnect.error)
                       : null,

@@ -3,11 +3,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import {
+    SnowflakeSignInPopupBlockedError,
     useSnowflakeAiLoginPopup,
     useSnowflakeLoginPopup,
 } from './useSnowflake';
 
-const mocks = vi.hoisted(() => ({ siteUrl: 'https://app.example' }));
+const mocks = vi.hoisted(() => ({
+    siteUrl: 'https://app.example',
+    showToastError: vi.fn(),
+}));
 vi.mock('./health/useHealth', () => ({
     default: () => ({
         data: {
@@ -17,7 +21,7 @@ vi.mock('./health/useHealth', () => ({
     }),
 }));
 vi.mock('./toaster/useToaster', () => ({
-    default: () => ({ showToastError: vi.fn() }),
+    default: () => ({ showToastError: mocks.showToastError }),
 }));
 vi.mock('../ee/providers/Embed/useUiStrings', () => ({
     useUiStrings: () => (key: string) => key,
@@ -122,3 +126,50 @@ it.each(['https://app.example', 'https://app.example/base', ''])(
         expect(onLogin).toHaveBeenCalledOnce();
     },
 );
+
+it.each([undefined, true, false])(
+    'handles a blocked AI popup with toast option %s',
+    async (showErrorToast) => {
+        vi.mocked(window.open).mockReturnValue(null);
+        const attribution = {
+            entryPoint: AgentIdentityConnectEntryPoint.MY_AGENT_CONNECTIONS,
+            projectUuid: null,
+        };
+        const { result } = renderHook(
+            () =>
+                useSnowflakeAiLoginPopup(
+                    attribution,
+                    showErrorToast === undefined
+                        ? undefined
+                        : { showErrorToast },
+                ),
+            { wrapper: createWrapper() },
+        );
+        act(() => result.current.mutate());
+        await waitFor(() => expect(result.current.isError).toBe(true));
+        expect(result.current.error).toBeInstanceOf(
+            SnowflakeSignInPopupBlockedError,
+        );
+        expect(result.current.error?.message).toBe(
+            'Failed to open popup window',
+        );
+        expect(mocks.showToastError).toHaveBeenCalledTimes(
+            showErrorToast === false ? 0 : 1,
+        );
+        expect(closeChannel).toHaveBeenCalledOnce();
+    },
+);
+
+it('keeps the ordinary Snowflake blocked-popup toast', async () => {
+    vi.mocked(window.open).mockReturnValue(null);
+    const { result } = renderHook(
+        () => useSnowflakeLoginPopup({ onLogin: vi.fn() }),
+        { wrapper: createWrapper() },
+    );
+    act(() => result.current.mutate());
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mocks.showToastError).toHaveBeenCalledExactlyOnceWith({
+        title: 'Authentication failed',
+        subtitle: 'Failed to open popup window',
+    });
+});

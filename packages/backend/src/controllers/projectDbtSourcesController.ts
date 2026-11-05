@@ -25,6 +25,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -93,7 +94,13 @@ export class ProjectDbtSourcesController extends BaseController {
      * stripped — used to pre-fill the edit form.
      * @summary Get dbt source
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'ProjectDbtSourcesController.getProjectDbtSource',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{projectDbtSourceUuid}')
     @OperationId('GetProjectDbtSource')

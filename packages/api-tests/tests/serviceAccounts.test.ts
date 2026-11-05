@@ -1,4 +1,5 @@
 import {
+    ProjectMemberRole,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
@@ -124,6 +125,153 @@ describe('Service Accounts API', () => {
             expect(firstAccount).toHaveProperty('scopes');
         }
     });
+
+    it.each(
+        [
+            ServiceAccountScope.ORG_ADMIN,
+            ServiceAccountScope.SYSTEM_ADMIN,
+        ].flatMap((scope) =>
+            [ProjectMemberRole.VIEWER, ProjectMemberRole.ADMIN].map((role) => ({
+                scope,
+                role,
+            })),
+        ),
+    )(
+        'provisions and revokes a project $role using only a $scope bearer token',
+        async ({ scope, role }) => {
+            const parent = await createServiceAccountToken(admin, [scope]);
+            const provisioner = bearerClient(parent.token);
+            let childUuid: string | undefined;
+            try {
+                const created = await provisioner.post<
+                    Body<{ uuid: string; token: string }>
+                >(`${apiUrl}/service-accounts`, {
+                    description: `API-provisioned project ${role}`,
+                    expiresAt: inOneHour(),
+                    scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                    projectAccess: [
+                        {
+                            projectUuid: SEED_PROJECT.project_uuid,
+                            role,
+                        },
+                    ],
+                });
+                expect(created.status).toBe(201);
+                childUuid = created.body.results.uuid;
+                expect(created.body.results.token).toMatch(/^ldsvc_/);
+                const child = bearerClient(created.body.results.token);
+
+                expect(
+                    (
+                        await child.get(
+                            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+                const listed = await provisioner.get<
+                    Body<Array<{ uuid: string; projectAccessCount: number }>>
+                >(`${apiUrl}/service-accounts`);
+                expect(listed.status).toBe(200);
+                const account = listed.body.results.find(
+                    (result) => result.uuid === childUuid,
+                );
+                expect(account).toMatchObject({ projectAccessCount: 1 });
+                expect(account).not.toHaveProperty('token');
+                const grants = await provisioner.get<
+                    Body<Array<{ projectUuid: string; role: string }>>
+                >(`${apiUrl}/service-accounts/${childUuid}/projects`);
+                expect(grants.status).toBe(200);
+                expect(grants.body.results).toEqual([
+                    expect.objectContaining({
+                        projectUuid: SEED_PROJECT.project_uuid,
+                        role,
+                    }),
+                ]);
+                expect(
+                    (
+                        await child.post(`${apiUrl}/service-accounts`, {
+                            description: 'unauthorized child',
+                            expiresAt: inOneHour(),
+                            scopes: [ServiceAccountScope.SYSTEM_VIEWER],
+                        })
+                    ).status,
+                ).toBe(403);
+                expect(
+                    (
+                        await child.delete(
+                            `${apiUrl}/service-accounts/${parent.uuid}`,
+                        )
+                    ).status,
+                ).toBe(403);
+                const deleted = await provisioner.delete(
+                    `${apiUrl}/service-accounts/${childUuid}`,
+                );
+                expect(deleted.status).toBe(200);
+                expect(deleted.body).toEqual({ status: 'ok' });
+                childUuid = undefined;
+                expect((await child.get(`${apiUrl}/org/projects`)).status).toBe(
+                    401,
+                );
+            } finally {
+                if (childUuid) {
+                    await admin.delete(
+                        `${apiUrl}/service-accounts/${childUuid}`,
+                    );
+                }
+                await admin.delete(`${apiUrl}/service-accounts/${parent.uuid}`);
+            }
+        },
+    );
+
+    it.each([
+        ServiceAccountScope.SYSTEM_VIEWER,
+        ServiceAccountScope.SYSTEM_EDITOR,
+        ServiceAccountScope.SYSTEM_DEVELOPER,
+    ])('does not let a %s bearer token create accounts', async (scope) => {
+        const caller = await createServiceAccountToken(admin, [scope]);
+        try {
+            const response = await bearerClient(caller.token).post(
+                `${apiUrl}/service-accounts`,
+                {
+                    description: 'unauthorized account',
+                    expiresAt: inOneHour(),
+                    scopes: [ServiceAccountScope.SYSTEM_VIEWER],
+                },
+            );
+            expect(response.status).toBe(403);
+        } finally {
+            await admin.delete(`${apiUrl}/service-accounts/${caller.uuid}`);
+        }
+    });
+
+    it.each([undefined, 'Bearer ldsvc_invalid'])(
+        'requires valid authentication to create or delete accounts (%s)',
+        async (authorization) => {
+            const client = new ApiClient();
+            const headers: Record<string, string> = authorization
+                ? { Authorization: authorization }
+                : {};
+            const options = {
+                headers,
+                failOnStatusCode: false,
+            };
+            const created = await client.post(
+                `${apiUrl}/service-accounts`,
+                {
+                    description: 'unauthenticated account',
+                    expiresAt: inOneHour(),
+                    scopes: [ServiceAccountScope.SYSTEM_VIEWER],
+                },
+                options,
+            );
+            expect(created.status).toBe(401);
+            const deleted = await client.delete(
+                `${apiUrl}/service-accounts/00000000-0000-4000-8000-000000000000`,
+                options,
+            );
+            expect(deleted.status).toBe(401);
+        },
+    );
 
     it('Should access authorized endpoints with service account token', async () => {
         const serviceAccount = {
@@ -796,13 +944,17 @@ describe('Service Account custom-role path', () => {
         expect(orgUsers.status).toBe(403);
 
         // manage:SavedChart not in role → modifying a chart must be denied.
-        // We resolve a real chart uuid from the seed project to keep this
-        // robust across reset-db cycles.
-        const chartsResp = await admin.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
-        );
-        const someChartUuid = chartsResp.body.results[0]?.uuid;
-        if (!someChartUuid) throw new Error('No charts found in seed project');
+        // Pick a seeded chart by name: other files create and delete their own
+        // charts in parallel, so the first listed chart may be gone by now.
+        const chartsResp = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`);
+        const someChartUuid = chartsResp.body.results.find(
+            (chart) =>
+                chart.name ===
+                'How much revenue do we have per payment method?',
+        )?.uuid;
+        if (!someChartUuid) throw new Error('Seeded chart not found');
         const patchChart = await sa.patch(`${apiUrl}/saved/${someChartUuid}`, {
             name: 'should-not-apply',
         });

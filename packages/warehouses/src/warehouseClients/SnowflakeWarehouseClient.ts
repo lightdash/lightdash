@@ -775,6 +775,31 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     quotedIdentifiersIgnoreCase?: boolean;
 
     static formatQueryTag(tags: Record<string, string>): string {
+        if (
+            tags.agent_surface !== undefined &&
+            tags.agent_client !== undefined
+        ) {
+            const prioritized: Record<string, string> = {
+                agent: tags.agent ?? 'true',
+                agent_surface: tags.agent_surface,
+                agent_client: tags.agent_client,
+            };
+            for (const key of ['agent_uuid', 'ai_principal', 'user_uuid']) {
+                if (tags[key] !== undefined) prioritized[key] = tags[key];
+            }
+            for (const [key, value] of Object.entries(tags).filter(
+                ([tagKey]) => !Object.hasOwn(prioritized, tagKey),
+            )) {
+                const candidate = { ...prioritized, [key]: value };
+                if (
+                    Array.from(JSON.stringify(candidate)).length <=
+                    SnowflakeWarehouseClient.MAX_QUERY_TAG_LENGTH
+                ) {
+                    prioritized[key] = value;
+                }
+            }
+            return JSON.stringify(prioritized).replace(/'/g, "''");
+        }
         return Array.from(JSON.stringify(tags))
             .slice(0, SnowflakeWarehouseClient.MAX_QUERY_TAG_LENGTH)
             .join('')
@@ -782,6 +807,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     }
 
     private interactiveConnectionPromise?: Promise<Connection>;
+
+    private readonly agentJobControls: boolean;
 
     private readonly privateKey: string | undefined;
 
@@ -793,6 +820,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         credentials: CreateSnowflakeCredentials,
         options?: {
             agentSession?: boolean;
+            agentJobControls?: boolean;
             logger?: {
                 info: (
                     message: string,
@@ -807,6 +835,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             options,
         );
         this.logger = options?.logger;
+        this.agentJobControls = options?.agentJobControls ?? false;
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -853,6 +882,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             // See createProgrammaticAccessToken for more details
             authenticationOptions = {
                 authenticator: EXTERNAL_BROWSER_AUTHENTICATOR,
+                role: credentials.role,
             };
         } else if (
             credentials.privateKey &&
@@ -938,6 +968,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 activeRestrictedSessionScopes:
                     session.activeRestrictedSessionScopes,
             });
+        }
+        if (this.credentials.requireAgentSession || this.agentJobControls) {
             try {
                 await disableSnowflakeCachedResult(connection);
             } catch {
@@ -1052,9 +1084,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
             await Util.promisify(connection.connect.bind(connection))();
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(
+            const error = new WarehouseConnectionError(
                 `Snowflake error: ${getErrorMessage(e)}`,
             );
+            if (this.agentJobControls) error.cause = e;
+            throw error;
         }
         return connection;
     }

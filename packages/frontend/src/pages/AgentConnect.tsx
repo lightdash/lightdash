@@ -64,9 +64,9 @@ const AgentConnect = () => {
     }, [enabled, hasValidProject, siteUrl, target, project, entryPoint]);
 
     const explanation = !hasValidProject
-        ? 'This agent connection link is missing a valid project.'
+        ? 'This agent sign-in link is missing a valid project.'
         : !flag.isInitialLoading && !enabled
-          ? 'Agent connections are not enabled for your account.'
+          ? 'Agent sign-in is not available for your account.'
           : null;
 
     return (
@@ -83,9 +83,15 @@ const AgentConnect = () => {
                         action={
                             <Anchor
                                 component={Link}
-                                to="/generalSettings/myWarehouseConnections"
+                                to={
+                                    enabled
+                                        ? '/generalSettings/myAgentConnections'
+                                        : '/generalSettings/myWarehouseConnections'
+                                }
                             >
-                                My warehouse connections
+                                {enabled
+                                    ? 'My agent identity'
+                                    : 'My warehouse connections'}
                             </Anchor>
                         }
                     />

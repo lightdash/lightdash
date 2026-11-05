@@ -5,22 +5,25 @@ import {
     type GitRepo,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
-const getGithubConfig = async () =>
+const getGithubConfig = async (lightdashApi: LightdashApi) =>
     lightdashApi<GitIntegrationConfiguration>({
         url: `/github/config`,
         method: 'GET',
         body: undefined,
     });
 
-export const useGithubConfig = () => {
+export const useGithubConfig = (enabled = true) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
 
     return useQuery<GitIntegrationConfiguration, ApiError>({
         queryKey: ['github_installation'],
-        queryFn: () => getGithubConfig(),
+        queryFn: () => getGithubConfig(lightdashApi),
+        enabled,
         retry: false,
         staleTime: 5 * 60 * 1000, // 5 minutes - the installation rarely changes; install detection drives its own refetch()
         onError: ({ error }) => {
@@ -34,7 +37,7 @@ export const useGithubConfig = () => {
     });
 };
 
-const getGithubRepositories = async () =>
+const getGithubRepositories = async (lightdashApi: LightdashApi) =>
     lightdashApi<GitRepo[]>({
         url: `/github/repos/list`,
         method: 'GET',
@@ -42,11 +45,12 @@ const getGithubRepositories = async () =>
     });
 
 export const useGitHubRepositories = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
 
     return useQuery<GitRepo[], ApiError>({
         queryKey: ['github_branches'],
-        queryFn: () => getGithubRepositories(),
+        queryFn: () => getGithubRepositories(lightdashApi),
         retry: false,
         onError: ({ error }) => {
             if (error.statusCode === 404 || error.statusCode === 401) return; // Ignore missing installation errors or unauthorized in demo
@@ -60,23 +64,25 @@ export const useGitHubRepositories = () => {
 };
 export const GITHUB_USER_AUTHORIZE_URL = `/api/v1/github/user/authorize`;
 
-const getGithubUserCredential = async () =>
+const getGithubUserCredential = async (lightdashApi: LightdashApi) =>
     lightdashApi<GithubUserCredential | null>({
         url: `/github/user`,
         method: 'GET',
         body: undefined,
     });
 
-export const useGithubUserCredential = () =>
-    useQuery<GithubUserCredential | null, ApiError>({
+export const useGithubUserCredential = () => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<GithubUserCredential | null, ApiError>({
         queryKey: ['github_user_credential'],
-        queryFn: () => getGithubUserCredential(),
+        queryFn: () => getGithubUserCredential(lightdashApi),
         retry: false,
         // Linking happens in another tab; refetch when the user comes back
         refetchOnWindowFocus: true,
     });
+};
 
-const unlinkGithubUser = async () =>
+const unlinkGithubUser = async (lightdashApi: LightdashApi) =>
     lightdashApi<null>({
         url: `/github/user`,
         method: 'DELETE',
@@ -84,11 +90,12 @@ const unlinkGithubUser = async () =>
     });
 
 export const useUnlinkGithubUserMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<null, ApiError>(
         ['unlink_github_user'],
-        () => unlinkGithubUser(),
+        () => unlinkGithubUser(lightdashApi),
         {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['github_user_credential']);
@@ -108,7 +115,7 @@ export const useUnlinkGithubUserMutation = () => {
     );
 };
 
-const deleteGithubInstallation = async () =>
+const deleteGithubInstallation = async (lightdashApi: LightdashApi) =>
     lightdashApi<null>({
         url: `/github/uninstall`,
         method: 'DELETE',
@@ -116,11 +123,12 @@ const deleteGithubInstallation = async () =>
     });
 
 export const useDeleteGithubInstallationMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<null, ApiError>(
         ['delete_github_installation'],
-        () => deleteGithubInstallation(),
+        () => deleteGithubInstallation(lightdashApi),
         {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['github_branches']);

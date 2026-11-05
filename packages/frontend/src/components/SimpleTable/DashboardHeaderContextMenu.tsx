@@ -7,6 +7,10 @@ import {
 import { ActionIcon, Flex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDots } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import {
+    selectTileChartSorts,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     getSortDirectionOrder,
@@ -24,11 +28,13 @@ type Props = {
 
 const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
     const itemFieldId = getItemId(item);
-    const chartSort = useDashboardContext((c) => c.chartSort);
-    const setChartSort = useDashboardContext((c) => c.setChartSort);
+    const tileSorts = useDashboardSelector((state) =>
+        selectTileChartSorts(state, tileUuid),
+    );
+    const setTileChartSorts = useDashboardContext((c) => c.setTileChartSorts);
 
     const isSorted = (sortDirection: SortDirection) =>
-        chartSort[tileUuid]?.some(
+        tileSorts.some(
             (sorts) =>
                 sorts.fieldId === itemFieldId &&
                 sorts.descending === (sortDirection === SortDirection.DESC),
@@ -47,17 +53,13 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                         onClick={() => {
                             // Replace sortField for this tileUuid
                             // TODO update this code if you want to add multi-sorting
-                            setChartSort({
-                                ...chartSort,
-                                [tileUuid]: [
-                                    {
-                                        fieldId: itemFieldId,
-                                        descending:
-                                            sortDirection ===
-                                            SortDirection.DESC,
-                                    },
-                                ],
-                            });
+                            setTileChartSorts(tileUuid, [
+                                {
+                                    fieldId: itemFieldId,
+                                    descending:
+                                        sortDirection === SortDirection.DESC,
+                                },
+                            ]);
                         }}
                     >
                         Sort{' '}
@@ -66,18 +68,13 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                         </Text>
                     </Menu.Item>
                 ))}
-            {chartSort[tileUuid]?.some(
-                (sorts) => sorts.fieldId === itemFieldId,
-            ) && (
+            {tileSorts.some((sorts) => sorts.fieldId === itemFieldId) && (
                 <>
                     <Menu.Divider />
                     <Menu.Item
                         color={'red'}
                         onClick={() => {
-                            setChartSort({
-                                ...chartSort,
-                                [tileUuid]: [],
-                            });
+                            setTileChartSorts(tileUuid, []);
                         }}
                     >
                         Remove sort
@@ -94,20 +91,20 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
 }) => {
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
-    const chartSort = useDashboardContext((c) => c.chartSort);
+    const tileSorts = useDashboardSelector((state) =>
+        selectTileChartSorts(state, tileUuid),
+    );
 
     const iconSort = useMemo(() => {
         if (item === undefined) return undefined;
 
-        const sort = chartSort[tileUuid]?.find(
-            (s) => s.fieldId === getItemId(item),
-        );
+        const sort = tileSorts.find((s) => s.fieldId === getItemId(item));
         if (sort) {
             return getSortIcon(item, sort.descending);
         } else {
             return undefined;
         }
-    }, [item, chartSort, tileUuid]);
+    }, [item, tileSorts]);
     if (item) {
         return (
             <Flex

@@ -7,8 +7,9 @@ import {
     type ApiSuccessEmpty,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 export type ThreadFileAttachment = Extract<
     AiPromptContextItem,
@@ -23,7 +24,11 @@ export type PendingThreadFile = {
 const THREAD_FILES_BASE = '/aiAgents/thread-files';
 
 // Raw body + filename in the query string, matching the backend controller.
-const uploadThreadFileApi = (file: File, signal: AbortSignal) => {
+const uploadThreadFileApi = (
+    lightdashApi: LightdashApi,
+    file: File,
+    signal: AbortSignal,
+) => {
     const search = new URLSearchParams({ filename: file.name });
     return lightdashApi<ApiAiThreadFileResponse['results']>({
         url: `${THREAD_FILES_BASE}?${search.toString()}`,
@@ -35,7 +40,7 @@ const uploadThreadFileApi = (file: File, signal: AbortSignal) => {
     });
 };
 
-const deleteThreadFileApi = (fileUuid: string) =>
+const deleteThreadFileApi = (lightdashApi: LightdashApi, fileUuid: string) =>
     lightdashApi<ApiSuccessEmpty['results']>({
         url: `${THREAD_FILES_BASE}/${fileUuid}`,
         method: 'DELETE',
@@ -62,6 +67,7 @@ export const useThreadFileAttachment = ({
 }: {
     onReady: (attachment: ThreadFileAttachment) => void;
 }) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError, showToastError } = useToaster();
     const [pendingFiles, setPendingFiles] = useState<PendingThreadFile[]>([]);
     const pendingIdRef = useRef(0);
@@ -77,11 +83,13 @@ export const useThreadFileAttachment = ({
         return () => {
             abortController.abort();
             disposableFileUuids.forEach((fileUuid) => {
-                void deleteThreadFileApi(fileUuid).catch(() => undefined);
+                void deleteThreadFileApi(lightdashApi, fileUuid).catch(
+                    () => undefined,
+                );
             });
             disposableFileUuids.clear();
         };
-    }, []);
+    }, [lightdashApi]);
 
     const attachFile = useCallback(
         async (file: File) => {
@@ -102,7 +110,11 @@ export const useThreadFileAttachment = ({
             ]);
             const { signal } = abortControllerRef.current;
             try {
-                const uploaded = await uploadThreadFileApi(file, signal);
+                const uploaded = await uploadThreadFileApi(
+                    lightdashApi,
+                    file,
+                    signal,
+                );
                 disposableFileUuidsRef.current.add(uploaded.uuid);
                 onReadyRef.current(toAttachment(uploaded));
             } catch (error) {
@@ -127,7 +139,7 @@ export const useThreadFileAttachment = ({
                 );
             }
         },
-        [showToastApiError, showToastError],
+        [showToastApiError, showToastError, lightdashApi],
     );
 
     const attachFiles = useCallback(
@@ -141,7 +153,7 @@ export const useThreadFileAttachment = ({
         async (fileUuid: string) => {
             disposableFileUuidsRef.current.delete(fileUuid);
             try {
-                await deleteThreadFileApi(fileUuid);
+                await deleteThreadFileApi(lightdashApi, fileUuid);
             } catch (error) {
                 if (isApiError(error)) {
                     showToastApiError({
@@ -151,7 +163,7 @@ export const useThreadFileAttachment = ({
                 }
             }
         },
-        [showToastApiError],
+        [showToastApiError, lightdashApi],
     );
 
     const retainFiles = useCallback((fileUuids: string[]) => {

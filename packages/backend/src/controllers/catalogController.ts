@@ -49,6 +49,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { CatalogSearchContext } from '../models/CatalogModel/CatalogModel';
 import {
     allowApiKeyAuthentication,
@@ -873,6 +874,7 @@ export class CatalogController extends BaseController {
             suffixMessage:
                 'Superseded by saved metrics trees (`/metrics/trees/{uuidOrSlug}`).',
         }),
+        requireOAuthScopeOperation('CatalogController.getMetricsTree'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/metrics/tree')

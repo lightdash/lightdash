@@ -29,6 +29,10 @@ import { scrollToDashboardTile } from '../../../components/common/Dashboard/scro
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import { useGetResolvedComments } from '../hooks/useComments';
 import {
     countThreads,
@@ -238,7 +242,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
     const isCompact = useMatches({ base: true, sm: false });
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const openComments = useDashboardContext((c) => c.dashboardComments);
     const canCreateDashboardComments = !!useDashboardContext(
         (c) => c.dashboardCommentsCheck?.canCreateDashboardComments,

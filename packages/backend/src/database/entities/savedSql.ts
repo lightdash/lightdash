@@ -1,3 +1,4 @@
+import { type AgentIdentityClaim } from '@lightdash/common';
 import { AllVizChartConfig, ChartKind } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -68,6 +69,7 @@ export type SavedSqlTable = Knex.CompositeTableType<
 >;
 
 export type DbSavedSqlVersion = {
+    agent_identity: AgentIdentityClaim | null;
     saved_sql_version_uuid: string;
     saved_sql_uuid: string;
     created_at: Date;
@@ -86,7 +88,7 @@ export type InsertSavedSqlVersion = Pick<
     | 'config'
     | 'chart_kind'
     | 'created_by_user_uuid'
-> & {
+> & { agent_identity: AgentIdentityClaim | null } & {
     warehouse_connection_uuid?: string | null;
 };
 

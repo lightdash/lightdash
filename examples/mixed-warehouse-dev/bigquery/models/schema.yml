@@ -1,0 +1,17 @@
+version: 2
+models:
+  - name: bq_shakespeare
+    description: Public BigQuery sample. Lightdash reads the existing table; dbt never builds it.
+    columns:
+      - name: word
+        meta: { dimension: { type: string } }
+      - name: corpus
+        meta: { dimension: { type: string } }
+      - name: corpus_date
+        meta: { dimension: { type: number } }
+      - name: word_count
+        meta:
+          dimension: { type: number }
+          metrics:
+            total_words: { type: sum }
+            distinct_words: { type: count_distinct, sql: '${word}' }

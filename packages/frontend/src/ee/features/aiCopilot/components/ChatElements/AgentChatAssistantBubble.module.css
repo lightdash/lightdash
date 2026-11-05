@@ -113,14 +113,8 @@
 
 .sqlRunnerLinkButton {
     --button-bg: var(--mantine-color-body);
-    --button-hover: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-5)
-    );
-    --button-color: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-ldGray-1)
-    );
+    --button-hover: var(--mantine-color-default-hover);
+    --button-color: var(--mantine-color-ldGray-8);
     --button-bd: 1px solid var(--mantine-color-ldGray-3);
 
     box-shadow: 0 1px 2px

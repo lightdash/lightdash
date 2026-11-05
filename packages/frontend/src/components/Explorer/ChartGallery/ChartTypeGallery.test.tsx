@@ -10,15 +10,21 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { EventName } from '../../../types/Events';
 import ExplorerChartTypeGallery, {
     ChartTypeGallery,
     type ChartTypeGalleryItem,
 } from './ChartTypeGallery';
+
+const licensedAppMocks = {
+    health: { license: { hasLicenseKey: true, valid: true } },
+};
 
 const { mocks, visualizationConfig } = vi.hoisted(() => ({
     mocks: {
@@ -84,8 +90,9 @@ const BUILT_IN_LABELS = [
 
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
+vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualizations');
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
     default: vi.fn(() => ({})),
 }));
@@ -97,8 +104,8 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
         data: { enabled: featureFlags.current[flag] === true },
     }),
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({
         visualizationConfig: visualizationConfig.current,
         setChartType: mocks.setChartType,
         setCartesianType: mocks.setCartesianType,
@@ -107,8 +114,16 @@ vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
         resultsData: { rows: [{}] },
         pivotDimensions: undefined,
         itemsMap,
-    }),
-}));
+    });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () =>
+            useVisualizationContext().visualizationConfig,
+    };
+});
 vi.mock(
     '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType',
     () => ({
@@ -227,6 +242,7 @@ describe('ChartTypeGallery', () => {
         const onConfigure = vi.fn();
         renderWithProviders(
             <KeyboardSelectionHarness onConfigure={onConfigure} />,
+            licensedAppMocks,
         );
         const tile = screen.getByRole('button', { name: 'Line chart' });
 
@@ -242,6 +258,7 @@ describe('ChartTypeGallery', () => {
         const onConfigure = vi.fn();
         renderWithProviders(
             <KeyboardSelectionHarness onConfigure={onConfigure} />,
+            licensedAppMocks,
         );
 
         await userEvent.dblClick(
@@ -256,6 +273,7 @@ describe('ChartTypeGallery', () => {
             const onConfigure = vi.fn();
             renderWithProviders(
                 <KeyboardSelectionHarness onConfigure={onConfigure} />,
+                licensedAppMocks,
             );
             screen.getByRole('button', { name: 'Bar chart' }).focus();
 
@@ -265,7 +283,7 @@ describe('ChartTypeGallery', () => {
     );
 
     it('moves a single configuration button with the selected tile', async () => {
-        renderWithProviders(<KeyboardSelectionHarness />);
+        renderWithProviders(<KeyboardSelectionHarness />, licensedAppMocks);
         expect(
             screen.getAllByRole('button', { name: /^Configure/ }),
         ).toHaveLength(1);
@@ -300,6 +318,7 @@ describe('ChartTypeGallery', () => {
                     ],
                 })}
             />,
+            licensedAppMocks,
         );
 
         // Cards keep the label as the accessible name; the description lives
@@ -335,6 +354,7 @@ describe('ChartTypeGallery', () => {
                     ],
                 })}
             />,
+            licensedAppMocks,
         );
         const configure = screen.getByRole('button', {
             name: 'Configure Bar chart',
@@ -362,6 +382,7 @@ describe('ChartTypeGallery', () => {
                     ],
                 })}
             />,
+            licensedAppMocks,
         );
 
         expect(
@@ -391,6 +412,7 @@ describe('ChartTypeGallery', () => {
                     items: [{ ...galleryItem('Pie chart'), select }],
                 })}
             />,
+            licensedAppMocks,
         );
 
         await userEvent.click(
@@ -418,6 +440,7 @@ describe('ChartTypeGallery', () => {
                     ],
                 })}
             />,
+            licensedAppMocks,
         );
 
         const menuButton = screen.getByRole('button', {
@@ -453,7 +476,7 @@ describe('ChartTypeGallery', () => {
     });
 
     it('keeps keyboard focus on a card when selection rerenders it', async () => {
-        renderWithProviders(<KeyboardSelectionHarness />);
+        renderWithProviders(<KeyboardSelectionHarness />, licensedAppMocks);
         const lineChart = screen.getByRole('button', { name: 'Line chart' });
 
         lineChart.focus();
@@ -483,6 +506,7 @@ describe('ChartTypeGallery', () => {
                         ],
                     })}
                 />,
+                licensedAppMocks,
             );
 
             await userEvent.hover(
@@ -510,6 +534,7 @@ describe('ChartTypeGallery', () => {
                     ],
                 })}
             />,
+            licensedAppMocks,
         );
 
         await userEvent.hover(
@@ -526,6 +551,7 @@ describe('ChartTypeGallery', () => {
             <ChartTypeGallery
                 {...galleryProps({ items: [galleryItem('Bar chart')] })}
             />,
+            licensedAppMocks,
         );
 
         await userEvent.hover(
@@ -563,6 +589,7 @@ describe('ChartTypeGallery', () => {
                     ],
                 })}
             />,
+            licensedAppMocks,
         );
 
         await userEvent.hover(
@@ -587,6 +614,7 @@ describe('ChartTypeGallery', () => {
                     items: [galleryItem('Bar', 'Reusable ranked bars')],
                 })}
             />,
+            licensedAppMocks,
         );
 
         await userEvent.hover(screen.getByRole('button', { name: 'Bar' }));
@@ -605,6 +633,7 @@ describe('ChartTypeGallery', () => {
                     ],
                 })}
             />,
+            licensedAppMocks,
         );
 
         expect(
@@ -623,6 +652,7 @@ describe('ChartTypeGallery', () => {
                     loading: true,
                 })}
             />,
+            licensedAppMocks,
         );
 
         const notice = screen.getByRole('status');
@@ -647,6 +677,7 @@ describe('ChartTypeGallery', () => {
                     onRetry,
                 })}
             />,
+            licensedAppMocks,
         );
 
         const alert = screen.getByRole('alert');
@@ -672,6 +703,7 @@ describe('ChartTypeGallery', () => {
                     emptyMessage: 'No chart types match your search',
                 })}
             />,
+            licensedAppMocks,
         );
 
         expect(
@@ -703,6 +735,7 @@ describe('ChartTypeGallery', () => {
                         ],
                     })}
                 />,
+                licensedAppMocks,
             );
 
             expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
@@ -779,6 +812,7 @@ const renderGallery = (onConfigure = vi.fn()) => {
             {...selectedTypeProps}
             onConfigure={onConfigure}
         />,
+        licensedAppMocks,
     );
     return onConfigure;
 };
@@ -794,10 +828,9 @@ describe('ExplorerChartTypeGallery', () => {
         vi.clearAllMocks();
         vi.mocked(useEmbed).mockReturnValue({} as ReturnType<typeof useEmbed>);
         selectedTypeProps.selectedProjectType = projectChartType;
-        featureFlags.current = {
-            [FeatureFlags.EnableDataApps]: true,
-            [FeatureFlags.ChartTypeRegistry]: true,
-        };
+        // Authoring follows Chart Studio, so the data apps flag stays off.
+        featureFlags.current = { [FeatureFlags.ChartTypeRegistry]: true };
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         visualizationConfig.current = {
             chartType: ChartType.TABLE,
             chartConfig: {},
@@ -829,7 +862,7 @@ describe('ExplorerChartTypeGallery', () => {
                 embedToken: 'embed-token',
                 projectUuid: 'project-uuid',
             } as ReturnType<typeof useEmbed>);
-            vi.mocked(lightdashApi).mockImplementation(({ url }) =>
+            mockedLightdashApi.mockImplementation(({ url }) =>
                 url.startsWith('/ee/')
                     ? Promise.reject({
                           status: 'error',
@@ -848,7 +881,7 @@ describe('ExplorerChartTypeGallery', () => {
             );
             expect(screen.queryByRole('alert')).not.toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'Table' })).toBeVisible();
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 method: 'GET',
                 url: '/embed/project-uuid/visualizations?page=1&pageSize=6&sortBy=name&sortDirection=asc',
                 body: undefined,
@@ -1156,11 +1189,12 @@ describe('ExplorerChartTypeGallery', () => {
             ).not.toBeInTheDocument();
         });
 
-        it('hides the overflow menu on an official card when data apps are disabled', () => {
+        it('hides the overflow menu on an official card without Chart Studio, even with data apps on', () => {
             featureFlags.current = {
-                [FeatureFlags.EnableDataApps]: false,
+                [FeatureFlags.EnableDataApps]: true,
                 [FeatureFlags.ChartTypeRegistry]: true,
             };
+            vi.mocked(useChartStudioAvailable).mockReturnValue(false);
             renderGallery();
 
             expect(
@@ -1255,6 +1289,7 @@ describe('ExplorerChartTypeGallery', () => {
 
     it('shows only built-ins when chart types are off', () => {
         featureFlags.current = {};
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
         renderGallery();
 
         expect(
@@ -1280,6 +1315,7 @@ describe('ExplorerChartTypeGallery', () => {
                     items: [{ ...galleryItem('Bar'), disabled: true }],
                 })}
             />,
+            licensedAppMocks,
         );
 
         expect(
@@ -1336,7 +1372,7 @@ describe('ExplorerChartTypeGallery', () => {
         });
 
         it('appends and configures the off-page selection in the grid without fetching', async () => {
-            renderWithProviders(renderSelected());
+            renderWithProviders(renderSelected(), licensedAppMocks);
             expect(mocks.fetchNextPage).not.toHaveBeenCalled();
             expect(pickableLabels().at(-1)).toBe('Zebra pulse');
             const selectedGroup = screen.getByRole('group', {
@@ -1358,7 +1394,7 @@ describe('ExplorerChartTypeGallery', () => {
         });
 
         it('keeps the selection visible during search and after clearing search', async () => {
-            renderWithProviders(renderSelected());
+            renderWithProviders(renderSelected(), licensedAppMocks);
             const input = screen.getByRole('textbox', {
                 name: 'Search chart types',
             });
@@ -1381,7 +1417,7 @@ describe('ExplorerChartTypeGallery', () => {
 
         it('keeps a loaded selection in its normal grid position', () => {
             setProjectItems([selected, projectChartType]);
-            renderWithProviders(renderSelected());
+            renderWithProviders(renderSelected(), licensedAppMocks);
             expect(pickableLabels()).toEqual([
                 ...BUILT_IN_LABELS,
                 'Zebra pulse',
@@ -1391,7 +1427,10 @@ describe('ExplorerChartTypeGallery', () => {
         });
 
         it('does not duplicate the selection when its page is loaded manually', async () => {
-            const { rerender } = renderWithProviders(renderSelected());
+            const { rerender } = renderWithProviders(
+                renderSelected(),
+                licensedAppMocks,
+            );
             await userEvent.click(
                 screen.getByRole('button', {
                     name: /(?:Show .* more|Load more) chart types/,
@@ -1414,7 +1453,10 @@ describe('ExplorerChartTypeGallery', () => {
         });
 
         it('restores focus when the last page contains only the appended selection', async () => {
-            const { rerender } = renderWithProviders(renderSelected());
+            const { rerender } = renderWithProviders(
+                renderSelected(),
+                licensedAppMocks,
+            );
             const more = screen.getByRole('button', {
                 name: /(?:Show .* more|Load more) chart types/,
             });
@@ -1432,7 +1474,10 @@ describe('ExplorerChartTypeGallery', () => {
                 chartType: ChartType.TABLE,
                 chartConfig: {},
             };
-            const { rerender } = renderWithProviders(renderSelected());
+            const { rerender } = renderWithProviders(
+                renderSelected(),
+                licensedAppMocks,
+            );
             const card = screen.getByRole('button', { name: 'Event pulse' });
             card.focus();
             await userEvent.keyboard('{Enter}');
@@ -1451,7 +1496,11 @@ describe('ExplorerChartTypeGallery', () => {
         });
 
         it('focuses the first new card when paging moves the appended selection into order', async () => {
-            const { rerender } = renderWithProviders(renderSelected());
+            const { rerender } = renderWithProviders(
+                renderSelected(),
+                licensedAppMocks,
+            );
+            await screen.findByRole('button', { name: 'Event pulse' });
             await userEvent.click(
                 screen.getByRole('button', { name: 'Load more chart types' }),
             );
@@ -1476,7 +1525,10 @@ describe('ExplorerChartTypeGallery', () => {
         });
 
         it('does not display the previous selection while the new one loads', () => {
-            const { rerender } = renderWithProviders(renderSelected());
+            const { rerender } = renderWithProviders(
+                renderSelected(),
+                licensedAppMocks,
+            );
             visualizationConfig.current.chartConfig = {
                 dataAppVizUuid: 'new-selection',
             };
@@ -1521,6 +1573,7 @@ describe('ExplorerChartTypeGallery', () => {
                             },
                         },
                     }),
+                    licensedAppMocks,
                 );
                 expect(screen.getByRole('alert')).toHaveTextContent(
                     'Selected chart type is unavailable',

@@ -536,6 +536,131 @@ describe('ServiceAccountService.create with projectAccess', () => {
     });
 });
 
+describe.each(['create', 'update'] as const)(
+    'ServiceAccountService.%s project permission delegation',
+    (operation) => {
+        const call = (
+            service: ServiceAccountService,
+            user: SessionUser,
+            grant: {
+                projectUuid: string;
+                role?: ProjectMemberRole;
+                roleUuid?: string;
+            },
+        ) =>
+            operation === 'create'
+                ? service.create({
+                      ...baseCreateArgs({ projectAccess: [grant] }),
+                      user,
+                  })
+                : service.update({
+                      user,
+                      tokenUuid: 'sa-1',
+                      update: {
+                          description: 'updated',
+                          projectAccess: [grant],
+                      },
+                  });
+
+        const setup = (callerScopes: string[]) => {
+            const mocks = buildMocks();
+            mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue({
+                uuid: 'sa-1',
+                organizationUuid: ORG,
+                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+            } as AnyType);
+            mocks.serviceAccountModel.create.mockResolvedValue({
+                uuid: 'sa-1',
+            } as AnyType);
+            mocks.serviceAccountModel.update.mockResolvedValue({
+                uuid: 'sa-1',
+            } as AnyType);
+            mocks.rolesModel.getRoleWithScopesByUuid.mockImplementation(
+                async (roleUuid) =>
+                    ({
+                        roleUuid,
+                        organizationUuid: ORG,
+                        level:
+                            roleUuid === CUSTOM_ROLE
+                                ? 'project'
+                                : 'organization',
+                        scopes:
+                            roleUuid === CUSTOM_ROLE
+                                ? ['view:Dashboard']
+                                : callerScopes,
+                    }) as AnyType,
+            );
+            return { mocks, service: buildService(mocks) };
+        };
+
+        it.each([
+            { projectUuid: PROJ_A, role: ProjectMemberRole.VIEWER },
+            { projectUuid: PROJ_A, roleUuid: CUSTOM_ROLE },
+        ])(
+            'rejects uncovered project permissions before any write (%j)',
+            async (grant) => {
+                const { mocks, service } = setup([
+                    'manage:Organization',
+                    ...getServiceAccountScopePermissions(
+                        ServiceAccountScope.SYSTEM_MEMBER,
+                    ),
+                ]);
+                const caller = limitedOrgManagerUser();
+                caller.ability.update([
+                    ...caller.ability.rules,
+                    {
+                        action: 'manage',
+                        subject: 'Dashboard',
+                        conditions: { projectUuid: PROJ_B },
+                    },
+                ]);
+
+                await expect(call(service, caller, grant)).rejects.toThrow(
+                    'Cannot grant permissions exceeding your own',
+                );
+                expect(mocks.serviceAccountModel.create).not.toHaveBeenCalled();
+                expect(mocks.serviceAccountModel.update).not.toHaveBeenCalled();
+                expect(
+                    mocks.projectModel.createServiceAccountProjectAccess,
+                ).not.toHaveBeenCalled();
+                expect(
+                    mocks.projectModel.setServiceAccountProjectAccess,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([
+            { projectUuid: PROJ_A, role: ProjectMemberRole.VIEWER },
+            { projectUuid: PROJ_A, roleUuid: CUSTOM_ROLE },
+        ])(
+            'allows project permissions covered by the custom organization role (%j)',
+            async (grant) => {
+                const { service } = setup([
+                    'manage:Organization',
+                    ...getServiceAccountScopePermissions(
+                        ServiceAccountScope.SYSTEM_MEMBER,
+                    ),
+                    ...getAllScopesForRole(ProjectMemberRole.VIEWER),
+                    'view:Dashboard',
+                ]);
+                await expect(
+                    call(service, limitedOrgManagerUser(), grant),
+                ).resolves.toMatchObject({ uuid: 'sa-1' });
+            },
+        );
+
+        it('allows project admin without requiring organization-only token permissions', async () => {
+            const { service } = setup([]);
+            await expect(
+                call(service, adminUser(), {
+                    projectUuid: PROJ_A,
+                    role: ProjectMemberRole.ADMIN,
+                }),
+            ).resolves.toMatchObject({ uuid: 'sa-1' });
+        });
+    },
+);
+
 describe('ServiceAccountService.update', () => {
     const nobodyUser = (): SessionUser => {
         const builder = new AbilityBuilder<MemberAbility>(Ability);

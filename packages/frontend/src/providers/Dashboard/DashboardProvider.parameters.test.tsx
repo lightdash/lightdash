@@ -2,6 +2,13 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+    selectAppliedParameterValues,
+    selectDashboardParameters,
+    selectMissingRequiredParameters,
+    selectParameterValues,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import DashboardProvider from './DashboardProvider';
 import useDashboardContext from './useDashboardContext';
 
@@ -9,10 +16,13 @@ const mocks = vi.hoisted(() => ({
     embedMode: undefined as string | undefined,
 }));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
-    default: () => ({ mode: mocks.embedMode }),
+    default: () => ({ mode: mocks.embedMode, dispatchEmbedEvent: vi.fn() }),
 }));
-vi.mock('../../ee/features/embed/hooks/useEmbedEventEmitter', () => ({
-    useEmbedEventEmitter: () => ({ dispatchEmbedEvent: vi.fn() }),
+vi.mock('../../hooks/dashboard/useDashboardTileParameterReferences', () => ({
+    useDashboardTileParameterReferences: () => undefined,
+}));
+vi.mock('../../hooks/dashboard/useSyncParameterControls', () => ({
+    useSyncParameterControls: () => undefined,
 }));
 vi.mock('../../hooks/dashboard/useDashboard', () => ({
     useDashboardQuery: () => ({ data: undefined }),
@@ -47,6 +57,16 @@ const renderParameters = (path = '/dashboard/dashboard-uuid') =>
     renderHook(
         () => ({
             ...useDashboardContext((context) => context),
+            dashboardParameters: useDashboardSelector(
+                selectDashboardParameters,
+            ),
+            parameterValues: useDashboardSelector(selectParameterValues),
+            appliedParameterValues: useDashboardSelector(
+                selectAppliedParameterValues,
+            ),
+            missingRequiredParameters: useDashboardSelector(
+                selectMissingRequiredParameters,
+            ),
             search: useLocation().search,
         }),
         {

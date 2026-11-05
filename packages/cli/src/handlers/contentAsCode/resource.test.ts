@@ -1,7 +1,6 @@
 import {
     ChartType,
     ContentAsCodeType,
-    type AgentAsCode,
     type DocumentAsCode,
     type HomepageAsCode,
 } from '@lightdash/common';
@@ -9,6 +8,7 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { type AgentAsCodeFile } from '../aiAgentKnowledgeDocuments';
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
@@ -19,7 +19,7 @@ import { readCodeResourceFiles, writeCodeResourceDocuments } from './resource';
 
 const temporaryDirectories: string[] = [];
 
-const agent = (slug: string): AgentAsCode => ({
+const agent = (slug: string): AgentAsCodeFile => ({
     contentType: ContentAsCodeType.AI_AGENT,
     version: 1,
     agentVersion: 2,
@@ -133,7 +133,7 @@ describe('content-as-code resource files', () => {
         await fs.mkdir(path.join(basePath, 'documents'));
         await fs.writeFile(
             path.join(basePath, 'documents', 'broken.yml'),
-            'name: Broken\nslug: broken\nspaceSlug: reports\nschemaVersion: 2\nmarkdown: ""\ncharts:\n  c1: { source: video }\n',
+            'name: Broken\nslug: broken\nspaceSlug: reports\nschemaVersion: 2\nmarkdown: ""\ncharts:\n  c1: { kind: video }\n',
         );
 
         const result = await readCodeResourceFiles({
@@ -145,9 +145,31 @@ describe('content-as-code resource files', () => {
         expect(result.failures).toEqual([
             {
                 message: expect.stringMatching(
-                    /^Invalid document file ".*broken\.yml": Invalid Document content/,
+                    /^Invalid document file ".*broken\.yml": Document chart "c1" must be an object with a source/,
                 ),
             },
+        ]);
+    });
+
+    it('reads Document charts of kinds it does not know, for the server to validate', async () => {
+        const basePath = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'lightdash-document-code-'),
+        );
+        temporaryDirectories.push(basePath);
+        await fs.mkdir(path.join(basePath, 'documents'));
+        await fs.writeFile(
+            path.join(basePath, 'documents', 'future.yml'),
+            'name: Future\nslug: future\nspaceSlug: reports\nschemaVersion: 2\nmarkdown: <document-chart id="c1">\ncharts:\n  c1: { source: video, url: clip.mp4 }\n',
+        );
+
+        const result = await readCodeResourceFiles({
+            definition: DOCUMENT_CODE_RESOURCE,
+            basePath,
+        });
+
+        expect(result.failures).toEqual([]);
+        expect(result.files.map((file) => file.document.charts)).toEqual([
+            { c1: { source: 'video', url: 'clip.mp4' } },
         ]);
     });
 

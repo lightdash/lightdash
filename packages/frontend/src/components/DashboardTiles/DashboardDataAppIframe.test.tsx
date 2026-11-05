@@ -107,6 +107,16 @@ afterEach(() => {
 });
 
 describe('data app dashboard screenshot readiness', () => {
+    it('forwards iframe load to the caller', () => {
+        const onIframeLoad = vi.fn();
+        render(
+            <DashboardDataAppIframe {...props} onIframeLoad={onIframeLoad} />,
+        );
+        load();
+        expect(onIframeLoad).toHaveBeenCalledTimes(1);
+        expect(status.markTileScreenshotReady).not.toHaveBeenCalled();
+    });
+
     it('requires iframe load, SDK availability, and a full quiet window', () => {
         render(<DashboardDataAppIframe {...props} />);
         sdkReady();

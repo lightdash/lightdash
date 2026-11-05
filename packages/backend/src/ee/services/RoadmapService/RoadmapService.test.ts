@@ -11,6 +11,7 @@ import {
     UnexpectedServerError,
     type Account,
     type MemberAbility,
+    type RoadmapItem,
     type RoadmapResponse,
 } from '@lightdash/common';
 import net from 'node:net';
@@ -1006,5 +1007,320 @@ describe('RoadmapService', () => {
                 warn.mockRestore();
             },
         );
+    });
+});
+
+describe('RoadmapService shipped requests', () => {
+    const fetchMock = vi.fn();
+    const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+    const shippedItem = (
+        overrides: Partial<RoadmapItem> = {},
+    ): RoadmapItem => ({
+        ticketId: 'REQUEST-1',
+        title: 'Chart exports',
+        description: null,
+        status: RoadmapItemStatus.SHIPPED,
+        priority: RoadmapItemPriority.LOW,
+        createdAt: '2026-10-01T00:00:00Z',
+        updatedAt: '2026-10-01T00:00:00Z',
+        issueUrl: 'https://github.com/lightdash/lightdash/issues/42',
+        pullRequestUrl: 'https://github.com/lightdash/lightdash/pull/43/',
+        slackThreadUrls: [],
+        ...overrides,
+    });
+    const projectGroup = (
+        index: number,
+        ownRequestCount = 1,
+        hasDirectNeed = false,
+    ) => ({
+        project: {
+            projectId: `project-${index}`,
+            title: `Feature ${index}`,
+            description: '',
+            stage: 'completed',
+            progress: 100,
+            priority: 'Low',
+            issueStatusCounts: {
+                Backlog: 0,
+                Building: 0,
+                Shipped: 1,
+                Canceled: 0,
+            },
+            lastIssueUpdatedAt: null,
+        },
+        ownRequestCount,
+        hasDirectNeed,
+        slackThreadUrls: [],
+    });
+    const respond = (
+        groups: ReturnType<typeof projectGroup>[] = [],
+        ownItems: RoadmapItem[] = [],
+        projectItems: RoadmapItem[] = [],
+    ) => {
+        fetchMock.mockImplementation(async (input: string) => {
+            const url = new URL(input);
+            const expiresAt = new Date(Date.now() + 60_000).toISOString();
+            const response = url.pathname.endsWith('/projects')
+                ? {
+                      status: 'ok',
+                      results: {
+                          projects: groups,
+                          otherRequestCount: ownItems.length,
+                          expiresAt,
+                          pagination: {
+                              page: 1,
+                              pageSize: 100,
+                              totalResults: groups.length,
+                              totalPages: 1,
+                          },
+                      },
+                  }
+                : {
+                      ...roadmapServiceResponse,
+                      results: url.searchParams.has('projectId')
+                          ? projectItems.map((item) => ({
+                                ...item,
+                                projectId: url.searchParams.get('projectId'),
+                            }))
+                          : ownItems,
+                      expiresAt,
+                  };
+            return new Response(JSON.stringify(response), { status: 200 });
+        });
+    };
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-10-14'));
+        fetchMock.mockReset();
+        vi.clearAllMocks();
+        vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(analyticsMock, 'track');
+        respond();
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    it('returns unavailable for non-admins and missing licenses without fetching', async () => {
+        const denied = buildAccount(viewRoadmapAbility(otherOrgUuid));
+        await expect(
+            buildService().getShippedRequestedItems(denied),
+        ).resolves.toEqual({ status: 'unavailable' });
+        await expect(
+            buildService({ licenseKey: '' }).getShippedRequestedItems(account),
+        ).resolves.toEqual({ status: 'unavailable' });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('filters shipped requests, parses issue and pull numbers, and deduplicates tickets across projects', async () => {
+        respond(
+            [projectGroup(1)],
+            [
+                shippedItem(),
+                shippedItem({
+                    ticketId: 'REQUEST-2',
+                    status: RoadmapItemStatus.BUILDING,
+                }),
+                shippedItem({
+                    ticketId: 'REQUEST-3',
+                    status: RoadmapItemStatus.BACKLOG,
+                }),
+                shippedItem({
+                    ticketId: 'REQUEST-4',
+                    status: RoadmapItemStatus.CANCELED,
+                }),
+                shippedItem({
+                    ticketId: 'REQUEST-5',
+                    issueUrl: null,
+                    pullRequestUrl: null,
+                }),
+                shippedItem({
+                    ticketId: 'REQUEST-6',
+                    issueUrl: null,
+                    pullRequestUrl:
+                        'https://github.com/lightdash/lightdash/pull/44',
+                }),
+            ],
+            [
+                shippedItem(),
+                shippedItem({
+                    ticketId: 'REQUEST-7',
+                    title: 'Scheduled exports',
+                    issueUrl:
+                        'https://github.com/lightdash/lightdash/issues/45',
+                    pullRequestUrl: null,
+                }),
+            ],
+        );
+        expect(await buildService().getShippedRequestedItems(account)).toEqual({
+            status: 'ok',
+            items: [
+                { title: 'Chart exports', numbers: [42, 43] },
+                { title: 'Chart exports', numbers: [44] },
+                { title: 'Scheduled exports', numbers: [45] },
+            ],
+        });
+        expect(analyticsMock.track).not.toHaveBeenCalled();
+    });
+
+    it('bounds the project fan-out and keeps direct needs while excluding unrelated projects', async () => {
+        respond([
+            projectGroup(0, 0),
+            projectGroup(1, 0, true),
+            ...Array.from({ length: 15 }, (_, index) =>
+                projectGroup(index + 2),
+            ),
+        ]);
+        await buildService().getShippedRequestedItems(account);
+        const urls = fetchMock.mock.calls.map(([input]) => new URL(input));
+        expect(urls).toHaveLength(12);
+        expect(Object.fromEntries(urls[0].searchParams)).toEqual({
+            onlyInterested: 'true',
+            pageSize: '100',
+            page: '1',
+        });
+        expect(
+            urls
+                .filter((url) => url.searchParams.has('projectId'))
+                .map((url) => url.searchParams.get('projectId')),
+        ).toEqual(
+            Array.from({ length: 10 }, (_, index) => `project-${index + 1}`),
+        );
+        expect(
+            urls.every((url) => url.searchParams.get('pageSize') === '100'),
+        ).toBe(true);
+        expect(analyticsMock.track).not.toHaveBeenCalled();
+    });
+
+    it('caches per organization for ten minutes and rechecks each caller authorization', async () => {
+        respond([], [shippedItem()]);
+        const service = buildService();
+        const first = await service.getShippedRequestedItems(account);
+        expect(await service.getShippedRequestedItems(account)).toEqual(first);
+        const denied = buildAccount(viewRoadmapAbility(otherOrgUuid));
+        expect(await service.getShippedRequestedItems(denied)).toEqual({
+            status: 'unavailable',
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const other = {
+            ...account,
+            organization: {
+                ...account.organization,
+                organizationUuid: otherOrgUuid,
+            },
+            user: {
+                ...account.user,
+                ability: viewRoadmapAbility(otherOrgUuid),
+            },
+        } as Account;
+        await service.getShippedRequestedItems(other);
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+        vi.advanceTimersByTime(599_999);
+        await service.getShippedRequestedItems(account);
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+        vi.advanceTimersByTime(1);
+        await service.getShippedRequestedItems(account);
+        expect(fetchMock).toHaveBeenCalledTimes(6);
+    });
+
+    it('deduplicates concurrent reads for an organization', async () => {
+        const service = buildService();
+        let releaseFetch: () => void = () => {};
+        const gate = new Promise<void>((resolve) => {
+            releaseFetch = resolve;
+        });
+        const implementation = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (input: string) => {
+            await gate;
+            return implementation(input);
+        });
+        const operations = Array.from({ length: 8 }, () =>
+            service.getShippedRequestedItems(account),
+        );
+        await Promise.resolve();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        releaseFetch();
+        expect(await Promise.all(operations)).toEqual(
+            Array.from({ length: 8 }, () => ({ status: 'ok', items: [] })),
+        );
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('caches failures for ten minutes and retries after expiry', async () => {
+        const service = buildService();
+        fetchMock.mockRejectedValue(new Error('Network unavailable'));
+        const operations = Array.from({ length: 8 }, () =>
+            service.getShippedRequestedItems(account),
+        );
+        expect(await Promise.all(operations)).toEqual(
+            Array.from({ length: 8 }, () => ({ status: 'unavailable' })),
+        );
+        expect(await service.getShippedRequestedItems(account)).toEqual({
+            status: 'unavailable',
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime(600_000);
+        respond();
+        expect(await service.getShippedRequestedItems(account)).toEqual({
+            status: 'ok',
+            items: [],
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it.each([
+        401,
+        403,
+        500,
+        'invalid',
+        'json',
+        'expired',
+        'project-failure',
+    ] as const)('never throws for a %s response', async (failure) => {
+        if (typeof failure === 'number')
+            fetchMock.mockImplementation(
+                async () => new Response('Unavailable', { status: failure }),
+            );
+        else if (failure === 'invalid')
+            fetchMock.mockImplementation(async () => new Response('{}'));
+        else if (failure === 'json')
+            fetchMock.mockImplementation(async () => new Response('bad-json'));
+        else if (failure === 'expired')
+            fetchMock.mockImplementation(
+                async () =>
+                    new Response(
+                        JSON.stringify({
+                            status: 'ok',
+                            results: {
+                                projects: [],
+                                otherRequestCount: 0,
+                                pagination: {
+                                    page: 1,
+                                    pageSize: 100,
+                                    totalResults: 0,
+                                    totalPages: 0,
+                                },
+                                expiresAt: new Date(
+                                    Date.now() - 1,
+                                ).toISOString(),
+                            },
+                        }),
+                    ),
+            );
+        else {
+            respond([projectGroup(1)]);
+            const implementation = fetchMock.getMockImplementation()!;
+            fetchMock.mockImplementation(async (input: string) =>
+                new URL(input).searchParams.has('projectId')
+                    ? new Response('Unavailable', { status: 500 })
+                    : implementation(input),
+            );
+        }
+        await expect(
+            buildService().getShippedRequestedItems(account),
+        ).resolves.toEqual({ status: 'unavailable' });
+        expect(analyticsMock.track).not.toHaveBeenCalled();
     });
 });

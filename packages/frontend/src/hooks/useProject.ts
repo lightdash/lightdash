@@ -6,7 +6,10 @@ import {
     type ApiJobStartedResults,
     type ApiWarehouseConnectionTestBody,
     type WarehouseConnectionTestResults,
+    type ApiErrorDetail,
     type CreateProject,
+    type CreateProjectOptionalCredentials,
+    DbtProjectType,
     omitEmptySecrets,
     type CreateWarehouseCredentials,
     type DataTimezonePreviewRequest,
@@ -25,15 +28,17 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useLocation } from 'react-router';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
+import { type CreateProjectErrorCategory } from '../providers/Tracking/types';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import useToaster from './toaster/useToaster';
 import { getInFlightJobUuidFromError } from './useActiveCreateProjectJob';
 import useQueryError from './useQueryError';
 
-const createProject = async (data: CreateProject) =>
+const createProject = async (lightdashApi: LightdashApi, data: CreateProject) =>
     lightdashApi<ApiJobStartedResults>({
         url: `/org/projects/precompiled`,
         method: 'POST',
@@ -42,7 +47,10 @@ const createProject = async (data: CreateProject) =>
         diagnoseTransportFailures: true,
     });
 
-const createProjectWithoutCompile = async (data: CreateProject) =>
+const createProjectWithoutCompile = async (
+    lightdashApi: LightdashApi,
+    data: CreateProjectOptionalCredentials,
+) =>
     lightdashApi<ApiCreateProjectResults>({
         url: `/org/projects`,
         method: 'POST',
@@ -51,7 +59,11 @@ const createProjectWithoutCompile = async (data: CreateProject) =>
         diagnoseTransportFailures: true,
     });
 
-const updateProject = async (uuid: string, data: UpdateProject) =>
+const updateProject = async (
+    lightdashApi: LightdashApi,
+    uuid: string,
+    data: UpdateProject,
+) =>
     lightdashApi<ApiJobStartedResults>({
         url: `/projects/${uuid}`,
         method: 'PATCH',
@@ -60,30 +72,37 @@ const updateProject = async (uuid: string, data: UpdateProject) =>
         diagnoseTransportFailures: true,
     });
 
-export const getProject = async (uuid: string) =>
+export const getProject = async (lightdashApi: LightdashApi, uuid: string) =>
     lightdashApi<Project>({
         url: `/projects/${uuid}`,
         method: 'GET',
         body: undefined,
     });
 
-const postDataTimezonePreview = async (body: DataTimezonePreviewRequest) =>
+const postDataTimezonePreview = async (
+    lightdashApi: LightdashApi,
+    body: DataTimezonePreviewRequest,
+) =>
     lightdashApi<ApiDataTimezonePreviewResults>({
         url: `/projects/preview-data-timezone`,
         method: 'POST',
         body: JSON.stringify(body),
     });
 
-export const useDataTimezonePreviewMutation = () =>
-    useMutation<
+export const useDataTimezonePreviewMutation = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
         ApiDataTimezonePreviewResults,
         ApiError,
         DataTimezonePreviewRequest
     >({
-        mutationFn: postDataTimezonePreview,
+        mutationFn: (body: DataTimezonePreviewRequest) =>
+            postDataTimezonePreview(lightdashApi, body),
     });
+};
 
 const updateProjectSchedulerSettings = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     data: UpdateSchedulerSettings,
 ) =>
@@ -97,10 +116,11 @@ export const useProject = (
     id: string | undefined,
     options?: UseQueryOptions<Project, ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
     return useQuery<Project, ApiError>({
         queryKey: ['project', id],
-        queryFn: () => getProject(id || ''),
+        queryFn: () => getProject(lightdashApi, id || ''),
         enabled: !!id,
         retry: false,
         onError: (result) => setErrorResponse(result),
@@ -109,11 +129,12 @@ export const useProject = (
 };
 
 export const useUpdateMutation = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
     return useMutation<ApiJobStartedResults, ApiError, UpdateProject>(
-        (data) => updateProject(uuid, data),
+        (data) => updateProject(lightdashApi, uuid, data),
         {
             mutationKey: ['project_update', uuid],
             onSuccess: async (data) => {
@@ -137,10 +158,28 @@ export const useUpdateMutation = (uuid: string) => {
     );
 };
 
-export const useCreateMutation = (options?: {
-    quietJobToast?: boolean;
-    warehouseOnly?: boolean;
-}) => {
+const getCreateProjectErrorCategory = ({
+    name,
+    statusCode,
+}: ApiErrorDetail): CreateProjectErrorCategory => {
+    if (name === 'NetworkError') return 'network';
+    switch (statusCode) {
+        case 401:
+            return 'authentication';
+        case 403:
+            return 'permission';
+        case 404:
+            return 'not_found';
+        case 408:
+        case 504:
+            return 'timeout';
+        default:
+            return 'unknown';
+    }
+};
+
+export const useCreateMutation = (options?: { quietJobToast?: boolean }) => {
+    const lightdashApi = useLightdashApi();
     const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { showToastApiError, showToastInfo } = useToaster();
     const { track } = useTracking();
@@ -149,7 +188,7 @@ export const useCreateMutation = (options?: {
         ? 'new'
         : 'legacy';
     return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
-        (data) => createProject(data),
+        (data) => createProject(lightdashApi, data),
         {
             mutationKey: ['project_create'],
             retry: (failureCount, { error }) =>
@@ -180,7 +219,10 @@ export const useCreateMutation = (options?: {
                     properties: {
                         warehouse: data.warehouseConnection.type,
                         errorType: error.name,
-                        warehouseOnly: options?.warehouseOnly,
+                        failedStep: null,
+                        errorCategory: getCreateProjectErrorCategory(error),
+                        warehouseOnly:
+                            data.dbtConnection.type === DbtProjectType.NONE,
                         onboardingFlow,
                     },
                 });
@@ -194,27 +236,30 @@ export const useCreateMutation = (options?: {
 };
 
 export const useCreateProjectWithoutCompileMutation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
-    return useMutation<ApiCreateProjectResults, ApiError, CreateProject>(
-        (data) => createProjectWithoutCompile(data),
-        {
-            mutationKey: ['project_create_without_compile'],
-            retry: false,
-            onSuccess: async () => {
-                await queryClient.invalidateQueries(['projects']);
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: 'Failed to create project',
-                    apiError: error,
-                });
-            },
+    return useMutation<
+        ApiCreateProjectResults,
+        ApiError,
+        CreateProjectOptionalCredentials
+    >((data) => createProjectWithoutCompile(lightdashApi, data), {
+        mutationKey: ['project_create_without_compile'],
+        retry: false,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['projects']);
         },
-    );
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to create project',
+                apiError: error,
+            });
+        },
+    });
 };
 
 const updateWarehouseCredentials = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     warehouseCredentials: CreateWarehouseCredentials,
 ) =>
@@ -228,6 +273,7 @@ const updateWarehouseCredentials = async (
     });
 
 const testWarehouseConnection = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     body: ApiWarehouseConnectionTestBody,
 ) =>
@@ -240,6 +286,7 @@ const testWarehouseConnection = async (
     });
 
 export const useTestWarehouseConnectionMutation = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useMutation<
         WarehouseConnectionTestResults,
@@ -247,7 +294,7 @@ export const useTestWarehouseConnectionMutation = (uuid: string) => {
         CreateWarehouseCredentials
     >(
         (warehouseConnection) =>
-            testWarehouseConnection(uuid, {
+            testWarehouseConnection(lightdashApi, uuid, {
                 warehouseConnection: omitEmptySecrets(warehouseConnection),
             }),
         {
@@ -263,11 +310,16 @@ export const useTestWarehouseConnectionMutation = (uuid: string) => {
 };
 
 export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, CreateWarehouseCredentials>(
         (warehouseCredentials) =>
-            updateWarehouseCredentials(uuid, warehouseCredentials),
+            updateWarehouseCredentials(
+                lightdashApi,
+                uuid,
+                warehouseCredentials,
+            ),
         {
             mutationKey: ['project_warehouse_credentials_update', uuid],
             onSuccess: async () => {
@@ -286,7 +338,10 @@ export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {
     );
 };
 
-const getMostPopularAndRecentlyUpdated = async (projectUuid: string) =>
+const getMostPopularAndRecentlyUpdated = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<MostPopularAndRecentlyUpdated>({
         url: `/projects/${projectUuid}/most-popular-and-recently-updated`,
         method: 'GET',
@@ -295,17 +350,21 @@ const getMostPopularAndRecentlyUpdated = async (projectUuid: string) =>
 
 export const useMostPopularAndRecentlyUpdated = (
     projectUuid: string | undefined,
-) =>
-    useQuery<MostPopularAndRecentlyUpdated, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<MostPopularAndRecentlyUpdated, ApiError>({
         queryKey: ['most-popular-and-recently-updated', projectUuid],
-        queryFn: () => getMostPopularAndRecentlyUpdated(projectUuid!),
+        queryFn: () =>
+            getMostPopularAndRecentlyUpdated(lightdashApi, projectUuid!),
         enabled: !!projectUuid,
     });
+};
 
 export const useProjectUpdateSchedulerSettings = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, UpdateSchedulerSettings>(
-        (data) => updateProjectSchedulerSettings(uuid, data),
+        (data) => updateProjectSchedulerSettings(lightdashApi, uuid, data),
         {
             mutationKey: ['project_scheduler_settings_update', uuid],
             onSuccess: async () => {
@@ -317,6 +376,7 @@ export const useProjectUpdateSchedulerSettings = (uuid: string) => {
 };
 
 const updateQueryTimezoneSettings = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     data: UpdateQueryTimezoneSettings,
 ) =>
@@ -327,9 +387,10 @@ const updateQueryTimezoneSettings = async (
     });
 
 export const useProjectUpdateQueryTimezoneSettings = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, UpdateQueryTimezoneSettings>(
-        (data) => updateQueryTimezoneSettings(uuid, data),
+        (data) => updateQueryTimezoneSettings(lightdashApi, uuid, data),
         {
             mutationKey: ['project_query_timezone_settings_update', uuid],
             onSuccess: async () => {
@@ -339,20 +400,26 @@ export const useProjectUpdateQueryTimezoneSettings = (uuid: string) => {
     );
 };
 
-const getAgentSqlScope = async (uuid: string) =>
+const getAgentSqlScope = async (lightdashApi: LightdashApi, uuid: string) =>
     lightdashApi<AgentSqlScope | null>({
         url: `/projects/${uuid}/agentSqlScope`,
         method: 'GET',
         body: undefined,
     });
 
-export const useAgentSqlScope = (uuid: string) =>
-    useQuery<AgentSqlScope | null, ApiError>({
+export const useAgentSqlScope = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AgentSqlScope | null, ApiError>({
         queryKey: ['project_agent_sql_scope', uuid],
-        queryFn: () => getAgentSqlScope(uuid),
+        queryFn: () => getAgentSqlScope(lightdashApi, uuid),
     });
+};
 
-const updateAgentSqlScope = async (uuid: string, data: UpdateAgentSqlScope) =>
+const updateAgentSqlScope = async (
+    lightdashApi: LightdashApi,
+    uuid: string,
+    data: UpdateAgentSqlScope,
+) =>
     lightdashApi<undefined>({
         url: `/projects/${uuid}/agentSqlScope`,
         method: 'PATCH',
@@ -360,9 +427,10 @@ const updateAgentSqlScope = async (uuid: string, data: UpdateAgentSqlScope) =>
     });
 
 export const useProjectUpdateAgentSqlScope = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, UpdateAgentSqlScope>(
-        (data) => updateAgentSqlScope(uuid, data),
+        (data) => updateAgentSqlScope(lightdashApi, uuid, data),
         {
             mutationKey: ['project_agent_sql_scope_update', uuid],
             onSuccess: async () => {
@@ -377,6 +445,7 @@ export const useProjectUpdateAgentSqlScope = (uuid: string) => {
 };
 
 const updateDefaultUserSpaces = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     data: UpdateDefaultUserSpaces,
 ) =>
@@ -387,6 +456,7 @@ const updateDefaultUserSpaces = async (
     });
 
 const updateProjectColorPalette = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     colorPaletteUuid: string | null,
 ) =>
@@ -397,10 +467,12 @@ const updateProjectColorPalette = async (
     });
 
 export const useUpdateProjectColorPalette = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string | null>(
-        (colorPaletteUuid) => updateProjectColorPalette(uuid, colorPaletteUuid),
+        (colorPaletteUuid) =>
+            updateProjectColorPalette(lightdashApi, uuid, colorPaletteUuid),
         {
             mutationKey: ['project_color_palette_update', uuid],
             onSuccess: async () => {
@@ -420,10 +492,11 @@ export const useUpdateProjectColorPalette = (uuid: string) => {
 };
 
 export const useUpdateDefaultUserSpaces = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, UpdateDefaultUserSpaces>(
-        (data) => updateDefaultUserSpaces(uuid, data),
+        (data) => updateDefaultUserSpaces(lightdashApi, uuid, data),
         {
             mutationKey: ['project_default_user_spaces_update', uuid],
             onSuccess: async () => {

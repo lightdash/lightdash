@@ -70,7 +70,7 @@ export class ProjectCompileLogModel {
             )
             .where('project_compile_log.organization_uuid', organizationUuid)
             .where('project_compile_log.project_uuid', projectUuid)
-            .select(
+            .select<DbProjectCompileLog[]>(
                 'project_compile_log.*',
                 this.database.raw(
                     "CONCAT(users.first_name, ' ', users.last_name) as user_name",
@@ -100,10 +100,10 @@ export class ProjectCompileLogModel {
             sort?.direction ?? 'desc',
         );
 
-        const { pagination, data } = await KnexPaginate.paginate<
-            {},
-            DbProjectCompileLog[]
-        >(baseQuery, paginateArgs);
+        const { pagination, data } = await KnexPaginate.paginate(
+            baseQuery,
+            paginateArgs,
+        );
 
         return {
             pagination,

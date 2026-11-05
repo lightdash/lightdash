@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Group, Stack } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
-import capitalize from 'lodash/capitalize';
+import { capitalize } from 'es-toolkit/compat';
 import { startTransition, useCallback, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';

@@ -9,7 +9,6 @@ import { type Knex } from 'knex';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -40,10 +39,6 @@ type RoutedCredentials = {
         userId: string;
         isRegisteredUser: boolean;
     }) => Promise<CredentialsResult>;
-    refreshCredentials: (
-        args: CreateWarehouseCredentials,
-        userUuid: string,
-    ) => Promise<CreateWarehouseCredentials>;
 };
 
 const originalCredentials: CreatePostgresCredentials = {
@@ -378,11 +373,6 @@ describe('Credential reads by connection binding on the real schema', () => {
                 },
             },
         } as never);
-        const organizationWarehouseCredentialsModel =
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            });
         projectModel = new ProjectModel({
             database,
             lightdashConfig: lightdashConfigMock,
@@ -390,16 +380,17 @@ describe('Credential reads by connection binding on the real schema', () => {
         });
         credentialsApi = new ProjectService({
             lightdashConfig: lightdashConfigMock,
+            featureFlagModel: {
+                get: async () => ({ id: 'flag', enabled: false }),
+            },
             projectModel,
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
                 database,
                 encryptionUtil,
             }),
-            organizationWarehouseCredentialsModel,
             warehouseConnectionModel: new WarehouseConnectionModel({
                 database,
                 encryptionUtil,
-                organizationWarehouseCredentialsModel,
             }),
         } as never) as unknown as RoutedCredentials;
     }, 600000);
@@ -410,9 +401,6 @@ describe('Credential reads by connection binding on the real schema', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks();
-        vi.spyOn(credentialsApi, 'refreshCredentials').mockImplementation(
-            async (args) => args,
-        );
     });
 
     describe('a project that routes multi', () => {

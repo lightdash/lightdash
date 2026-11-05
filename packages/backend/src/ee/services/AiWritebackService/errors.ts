@@ -1,5 +1,7 @@
 import {
+    AiAccessRefusedError,
     ForbiddenError,
+    InvalidUser,
     ParameterError,
     PullRequestProvider,
     UnexpectedGitError,
@@ -53,20 +55,6 @@ export class WritebackThreadPrClosedError extends ParameterError {
 }
 
 /**
- * Thrown by the general coding agent's pre-clone size guard when a target repo
- * exceeds `codingAgentMaxRepoSizeMb`. Fails closed before any sandbox/clone with
- * an actionable message (never a `deadline_exceeded` from a giant clone). The
- * `editRepo` tool catches it (via `instanceof`) and tags `repo_too_large`.
- */
-export class RepoTooLargeError extends ParameterError {
-    constructor(repo: string, sizeMb: number, limitMb: number) {
-        super(
-            `The repository ${repo} is too large to edit (${sizeMb} MB, limit is ${limitMb} MB). Tell the user the coding agent can't clone repositories above this size.`,
-        );
-    }
-}
-
-/**
  * Thrown by the pre-side-effect checkpoint in runCodingAgent when the run row
  * went terminal (cancelled via tasks/cancel, or swept to error) while the
  * agent was working. A deliberate abort, not a failure: callers log it at
@@ -88,5 +76,28 @@ export class WritebackRunAbortedError extends Error {
 export class WritebackCredentialCleanupError extends UnexpectedGitError {
     constructor() {
         super('Could not clear Bitbucket sandbox credentials');
+    }
+}
+
+export const WRITEBACK_AGENT_ACCESS_REFUSED_MESSAGE =
+    'Agent access changed. This task stopped. Ask an admin to review agent access.';
+
+export const WRITEBACK_AGENT_ACCESS_CHECK_FAILED_MESSAGE =
+    'The access check could not run. This task stopped.';
+
+export class WritebackAgentAccessError extends Error {
+    readonly isRefusal: boolean;
+
+    constructor(readonly originalError: unknown) {
+        const isRefusal =
+            originalError instanceof AiAccessRefusedError ||
+            originalError instanceof InvalidUser;
+        super(
+            isRefusal
+                ? WRITEBACK_AGENT_ACCESS_REFUSED_MESSAGE
+                : WRITEBACK_AGENT_ACCESS_CHECK_FAILED_MESSAGE,
+        );
+        this.name = 'WritebackAgentAccessError';
+        this.isRefusal = isRefusal;
     }
 }

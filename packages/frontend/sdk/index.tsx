@@ -7,7 +7,9 @@ import './styles/sdk.css';
 import {
     assertUnreachable,
     FilterOperator,
+    getEmbedDefaultWriteSpaceUuid,
     getErrorMessage,
+    type AiThreadBinding,
     type EmbedDashboard as EmbedDashboardType,
     type LanguageMap,
     type SavedChart,
@@ -37,10 +39,19 @@ import {
     useLocation,
     useNavigate,
 } from 'react-router';
+import { createLightdashApi } from '../src/api';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { AiAgentsCoreProvider } from '../src/ee/features/aiCopilot/components/Launcher/AiAgentsCoreProvider';
 import { AgentContainerWidthContext } from '../src/ee/features/aiCopilot/hooks/useAgentMaxWidth';
-import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import {
+    type ChartSaveDestination,
+    type SdkFilter,
+} from '../src/ee/features/embed/EmbedDashboard/types';
+import {
+    LightdashEventType,
+    type LightdashEvent,
+    type LightdashEventHandler,
+} from '../src/ee/features/embed/events/types';
 import { embedContractClass } from '../src/ee/features/embed/styles/embedClassContract';
 import { useEmbedRouteNavigation } from '../src/ee/features/embed/useEmbedRouteNavigation';
 import AgentPage from '../src/ee/pages/AiAgents/AgentPage';
@@ -51,11 +62,17 @@ import EmbedAiAgentDashboard from '../src/ee/pages/EmbedAiAgentDashboard';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
+import {
+    buildEmbedHash,
+    getEmbedAiAgentThreadSetup,
+    type EmbedAiAgentThreadSetup,
+} from '../src/ee/providers/Embed/embedAiAgentThreadSetup';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import {
     type EmbedAiAgentThreadChange,
     type EmbedExploreChart,
     type EmbedExploreOptions,
+    type InMemoryEmbed,
 } from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
@@ -68,11 +85,14 @@ import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
 import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
+import { LightdashApiContext } from '../src/providers/LightdashApi/LightdashApiContext';
 import MantineProvider from '../src/providers/MantineProvider';
 import { PortalTargetContext } from '../src/providers/PortalTarget/PortalTargetContext';
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
+import { useResolvedColorScheme } from '../src/providers/useResolvedColorScheme';
+import type { ColorScheme, ColorSchemePreference } from '../src/theme/colors';
 import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
 import {
     createLightdashApiClient,
@@ -95,6 +115,7 @@ import {
 } from './errors';
 import { useLightdashAiAgentThreads, useLightdashContent } from './hooks';
 import { SDK_SCOPE_CLASS } from './styles/scope.json';
+
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
@@ -102,7 +123,7 @@ const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 type BaseProps = {
     instanceUrl: string;
     token: Promise<string> | string;
-    theme?: 'light' | 'dark';
+    theme?: ColorSchemePreference;
     styles?: {
         backgroundColor?: string;
         fontFamily?: string;
@@ -110,14 +131,20 @@ type BaseProps = {
     filters?: SdkFilter[];
     contentOverrides?: LanguageMap;
     uiOverrides?: SdkUiOverrides;
+    // Takes over "Explore from here" for saved charts. Without it, Explore
+    // opens inside the embedded component with a back button.
     onExplore?: (options: { chart: SavedChart }) => void;
     onError?: SdkErrorHandler;
+    onEvent?: LightdashEventHandler;
 };
 
 type DashboardProps = BaseProps & {
     paletteUuid?: string;
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
+    // Where "New chart" and "Save as new chart" save. Defaults to
+    // ['dashboard']; list both to let the user choose.
+    chartSaveDestinations?: ChartSaveDestination[];
 };
 
 type DashboardBuilderProps = DashboardProps & {
@@ -136,6 +163,12 @@ type AiAgentProps = Omit<
     agentUuid: string;
     onThreadChange?: (options: { threadUuid: string }) => void;
     threadUuid?: string;
+    // Applied to threads started here; an existing thread keeps its own
+    binding?: AiThreadBinding;
+    threadContext?: string;
+    // Keeps the agent on its thread: dashboard and chart links render static
+    // and "Explore from here" is hidden
+    disableNavigation?: boolean;
     // Beta: 'native' renders the agent in the host page instead of an iframe
     renderMode?: 'iframe' | 'native';
 };
@@ -272,7 +305,8 @@ const getInitialNavigation = (
     restoredChart: undefined,
 });
 
-// Saved charts go to the host; derived charts (drill-downs) render in place.
+// Saved charts go to the host's onExplore when one is provided; otherwise they
+// render in place like derived charts (drill-downs).
 // Back leaves every drill-down at once and restores the root's query.
 const useEmbedExploreNavigation = (
     onExplore: BaseProps['onExplore'],
@@ -288,8 +322,8 @@ const useEmbedExploreNavigation = (
 
     const handleExplore = useCallback(
         ({ chart, sourceChart }: EmbedExploreOptions) => {
-            if ('uuid' in chart) {
-                onExplore?.({ chart });
+            if ('uuid' in chart && onExplore) {
+                onExplore({ chart });
                 return;
             }
             setState((prev) => ({
@@ -332,18 +366,24 @@ const getAiAgentPath = ({
 
 const getAiAgentEmbedUrl = ({
     agentUuid,
+    disableNavigation,
     instanceUrl,
     projectUuid,
     targetOrigin,
     theme,
+    followSystemTheme,
+    threadSetup,
     threadUuid,
     token,
 }: {
     agentUuid: string;
+    disableNavigation: boolean;
     instanceUrl: string;
     projectUuid: string;
     targetOrigin?: string;
-    theme: AiAgentProps['theme'];
+    theme: ColorScheme | undefined;
+    followSystemTheme: boolean;
+    threadSetup: EmbedAiAgentThreadSetup | null;
     threadUuid?: string;
     token: string;
 }) => {
@@ -356,11 +396,14 @@ const getAiAgentEmbedUrl = ({
     if (theme) {
         url.searchParams.set('theme', theme);
     }
+    if (followSystemTheme) {
+        url.searchParams.set('followSystemTheme', 'true');
+    }
     if (targetOrigin) {
         url.searchParams.set('targetOrigin', targetOrigin);
     }
 
-    url.hash = token;
+    url.hash = buildEmbedHash(token, threadSetup, disableNavigation);
     return url.toString();
 };
 
@@ -392,6 +435,50 @@ const isAiAgentThreadChangedMessage = (
     'threadUuid' in data.payload &&
     typeof data.payload.threadUuid === 'string';
 
+const toAiAgentContentEvent = (data: unknown): LightdashEvent | null => {
+    if (
+        typeof data !== 'object' ||
+        data === null ||
+        !('type' in data) ||
+        !('payload' in data) ||
+        typeof data.payload !== 'object' ||
+        data.payload === null
+    ) {
+        return null;
+    }
+    const { type, payload } = data;
+    if (
+        !('action' in payload) ||
+        (payload.action !== 'created' && payload.action !== 'updated')
+    ) {
+        return null;
+    }
+    if (
+        type === `lightdash:${LightdashEventType.ChartSaved}` &&
+        'chartUuid' in payload &&
+        typeof payload.chartUuid === 'string'
+    ) {
+        return {
+            type: LightdashEventType.ChartSaved,
+            payload: { chartUuid: payload.chartUuid, action: payload.action },
+        };
+    }
+    if (
+        type === `lightdash:${LightdashEventType.DashboardSaved}` &&
+        'dashboardUuid' in payload &&
+        typeof payload.dashboardUuid === 'string'
+    ) {
+        return {
+            type: LightdashEventType.DashboardSaved,
+            payload: {
+                dashboardUuid: payload.dashboardUuid,
+                action: payload.action,
+            },
+        };
+    }
+    return null;
+};
+
 // Distinguishes this copy of the bundle from another one on the same page, so
 // instance ids never collide.
 const SDK_BUNDLE_ID = Math.random().toString(36).slice(2, 8);
@@ -399,14 +486,31 @@ const SDK_BUNDLE_ID = Math.random().toString(36).slice(2, 8);
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
-        theme?: 'light' | 'dark';
+        theme?: ColorSchemePreference;
+        token: string;
         projectUuid?: string;
         // Starts the router here and leaves routing to the children
         initialEntry?: string;
         onError?: SdkErrorHandler;
     }>
-> = ({ children, styles, theme, projectUuid, initialEntry, onError }) => {
-    const colorScheme = theme ?? 'light';
+> = ({
+    children,
+    styles,
+    theme,
+    token,
+    projectUuid,
+    initialEntry,
+    onError,
+}) => {
+    const colorSchemePreference = theme ?? 'light';
+    const colorScheme = useResolvedColorScheme(colorSchemePreference);
+    // Each SDK component sends its own token, so components with different
+    // tokens can share a page. The ref picks up token rotation.
+    const embedRef = useRef<InMemoryEmbed>({ token, projectUuid });
+    embedRef.current = { token, projectUuid };
+    const [lightdashApi] = useState(() =>
+        createLightdashApi(() => embedRef.current),
+    );
     const onErrorRef = useRef(onError);
     onErrorRef.current = onError;
     const [reportError] = useState(() =>
@@ -473,71 +577,75 @@ const SdkProviders: FC<
                 />,
                 document.body,
             )}
-            <ReactQueryProvider
-                onError={(error, key) =>
-                    reportError(toSdkRequestError(error, key))
-                }
-            >
-                <MantineProvider
-                    themeOverride={themeOverride}
-                    notificationsLimit={0}
-                    forceColorScheme={colorScheme}
-                    cssVariablesSelector={`.${instanceClass}`}
-                    getRootElement={getRootElement}
-                    syncBodyColorMode={false}
+            <LightdashApiContext.Provider value={lightdashApi}>
+                <ReactQueryProvider
+                    onError={(error, key) =>
+                        reportError(toSdkRequestError(error, key))
+                    }
                 >
-                    <div
-                        ref={rootRef}
-                        className={embedContractClass(
-                            'ld-sdk-root',
-                            SDK_SCOPE_CLASS,
-                            instanceClass,
-                        )}
+                    <MantineProvider
+                        themeOverride={themeOverride}
+                        notificationsLimit={0}
+                        forceColorScheme={colorSchemePreference}
+                        cssVariablesSelector={`.${instanceClass}`}
+                        getRootElement={getRootElement}
+                        syncBodyColorMode={false}
                     >
-                        <PortalTargetContext.Provider value={`#${portalId}`}>
-                            <ModalsProvider>
-                                <AppProvider>
-                                    <FullscreenProvider enabled={false}>
-                                        <ThirdPartyServicesProvider
-                                            enabled={false}
-                                        >
-                                            <ErrorBoundary
-                                                wrapper={{ mt: '4xl' }}
-                                                onError={(error) =>
-                                                    reportError(
-                                                        toSdkError(error, {
-                                                            fatal: true,
-                                                            kind: 'render',
-                                                        }),
-                                                    )
-                                                }
+                        <div
+                            ref={rootRef}
+                            className={embedContractClass(
+                                'ld-sdk-root',
+                                SDK_SCOPE_CLASS,
+                                instanceClass,
+                            )}
+                        >
+                            <PortalTargetContext.Provider
+                                value={`#${portalId}`}
+                            >
+                                <ModalsProvider>
+                                    <AppProvider>
+                                        <FullscreenProvider enabled={false}>
+                                            <ThirdPartyServicesProvider
+                                                enabled={false}
                                             >
-                                                <MemoryRouter
-                                                    initialEntries={[route]}
+                                                <ErrorBoundary
+                                                    wrapper={{ mt: '4xl' }}
+                                                    onError={(error) =>
+                                                        reportError(
+                                                            toSdkError(error, {
+                                                                fatal: true,
+                                                                kind: 'render',
+                                                            }),
+                                                        )
+                                                    }
                                                 >
-                                                    <TrackingProvider
-                                                        enabled={true}
+                                                    <MemoryRouter
+                                                        initialEntries={[route]}
                                                     >
-                                                        <AbilityProvider>
-                                                            <ChartColorMappingContextProvider>
-                                                                <ActiveJobProvider>
-                                                                    {
-                                                                        routedChildren
-                                                                    }
-                                                                </ActiveJobProvider>
-                                                            </ChartColorMappingContextProvider>
-                                                        </AbilityProvider>
-                                                    </TrackingProvider>
-                                                </MemoryRouter>
-                                            </ErrorBoundary>
-                                        </ThirdPartyServicesProvider>
-                                    </FullscreenProvider>
-                                </AppProvider>
-                            </ModalsProvider>
-                        </PortalTargetContext.Provider>
-                    </div>
-                </MantineProvider>
-            </ReactQueryProvider>
+                                                        <TrackingProvider
+                                                            enabled={true}
+                                                        >
+                                                            <AbilityProvider>
+                                                                <ChartColorMappingContextProvider>
+                                                                    <ActiveJobProvider>
+                                                                        {
+                                                                            routedChildren
+                                                                        }
+                                                                    </ActiveJobProvider>
+                                                                </ChartColorMappingContextProvider>
+                                                            </AbilityProvider>
+                                                        </TrackingProvider>
+                                                    </MemoryRouter>
+                                                </ErrorBoundary>
+                                            </ThirdPartyServicesProvider>
+                                        </FullscreenProvider>
+                                    </AppProvider>
+                                </ModalsProvider>
+                            </PortalTargetContext.Provider>
+                        </div>
+                    </MantineProvider>
+                </ReactQueryProvider>
+            </LightdashApiContext.Provider>
         </>
     );
 };
@@ -552,9 +660,11 @@ const Dashboard: FC<DashboardProps> = ({
     uiOverrides,
     onExplore,
     onError,
+    onEvent,
     paletteUuid,
     isEditMode,
     onEditModeChange,
+    chartSaveDestinations,
 }) => {
     const tokenContext = useEmbedTokenContext(
         instanceUrl,
@@ -570,6 +680,7 @@ const Dashboard: FC<DashboardProps> = ({
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
@@ -578,6 +689,7 @@ const Dashboard: FC<DashboardProps> = ({
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
@@ -602,6 +714,7 @@ const Dashboard: FC<DashboardProps> = ({
                         )}
                         isEditMode={isEditMode}
                         onEditModeChange={onEditModeChange}
+                        chartSaveDestinations={chartSaveDestinations}
                     />
                 )}
             </EmbedProvider>
@@ -619,8 +732,16 @@ const DashboardBuilderContent: FC<{
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
     onDashboardReady?: (dashboard: EmbedDashboardType) => void;
-}> = ({ containerStyles, isEditMode, onEditModeChange, onDashboardReady }) => {
+    chartSaveDestinations?: ChartSaveDestination[];
+}> = ({
+    containerStyles,
+    isEditMode,
+    onEditModeChange,
+    onDashboardReady,
+    chartSaveDestinations,
+}) => {
     const { content, embedToken, projectUuid, writeActions } = useEmbed();
+    const defaultWriteSpaceUuid = getEmbedDefaultWriteSpaceUuid(writeActions);
     const [dashboard, setDashboard] = useState<EmbedDashboardType>();
     const [createDashboardError, setCreateDashboardError] = useState<
         string | null
@@ -638,14 +759,14 @@ const DashboardBuilderContent: FC<{
             dashboard ||
             !embedToken ||
             !projectUuid ||
-            !writeActions?.spaceUuid
+            !defaultWriteSpaceUuid
         )
             return;
 
         hasCreatedDashboard.current = true;
         setCreateDashboardError(null);
 
-        const createKey = `${projectUuid}:${writeActions.spaceUuid}:${
+        const createKey = `${projectUuid}:${defaultWriteSpaceUuid}:${
             content?.type === 'dashboard' && 'dashboardUuid' in content
                 ? content.dashboardUuid
                 : ''
@@ -655,7 +776,7 @@ const DashboardBuilderContent: FC<{
             createDashboard({
                 name: 'Untitled dashboard',
                 description: '',
-                spaceUuid: writeActions.spaceUuid,
+                spaceUuid: defaultWriteSpaceUuid,
                 tiles: [],
                 tabs: [],
             }).then(
@@ -680,7 +801,7 @@ const DashboardBuilderContent: FC<{
         dashboard,
         embedToken,
         projectUuid,
-        writeActions?.spaceUuid,
+        defaultWriteSpaceUuid,
     ]);
 
     useEffect(() => {
@@ -708,6 +829,7 @@ const DashboardBuilderContent: FC<{
             containerStyles={containerStyles}
             isEditMode={isEditMode}
             onEditModeChange={onEditModeChange}
+            chartSaveDestinations={chartSaveDestinations}
         />
     );
 };
@@ -722,10 +844,12 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     uiOverrides,
     onExplore,
     onError,
+    onEvent,
     paletteUuid,
     isEditMode,
     onEditModeChange,
     onDashboardReady,
+    chartSaveDestinations,
 }) => {
     const tokenContext = useEmbedTokenContext(
         instanceUrl,
@@ -741,6 +865,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
@@ -749,6 +874,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
@@ -774,6 +900,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
                         isEditMode={isEditMode}
                         onEditModeChange={onEditModeChange}
                         onDashboardReady={onDashboardReady}
+                        chartSaveDestinations={chartSaveDestinations}
                     />
                 )}
             </EmbedProvider>
@@ -793,6 +920,7 @@ const Explore: FC<
     uiOverrides,
     onExplore,
     onError,
+    onEvent,
     exploreId,
     savedChart,
 }) => {
@@ -815,6 +943,7 @@ const Explore: FC<
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
@@ -823,6 +952,7 @@ const Explore: FC<
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 filters={filters}
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
@@ -915,6 +1045,7 @@ const Chart: FC<ChartProps> = ({
     uiOverrides,
     onExplore,
     onError,
+    onEvent,
     id,
     isEditMode,
 }) => {
@@ -942,6 +1073,7 @@ const Chart: FC<ChartProps> = ({
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
@@ -950,6 +1082,7 @@ const Chart: FC<ChartProps> = ({
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
                 savedQueryUuid={id}
@@ -977,11 +1110,15 @@ const Chart: FC<ChartProps> = ({
 
 const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
+    binding,
+    disableNavigation = false,
     instanceUrl,
     onError,
+    onEvent,
     onThreadChange,
     styles,
     theme,
+    threadContext,
     threadUuid,
     token: tokenOrTokenPromise,
 }) => {
@@ -992,9 +1129,41 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     );
     const instanceOrigin = new URL(instanceUrl).origin;
     const targetOrigin =
-        typeof window !== 'undefined' && onThreadChange
+        typeof window !== 'undefined' && (onThreadChange || onEvent)
             ? window.location.origin
             : undefined;
+
+    const resolvedTheme = useResolvedColorScheme(theme ?? 'light');
+    // Re-resolved only when the prop changes: a changing src reloads the
+    // iframe, and the instance follows later OS changes itself via
+    // `followSystemTheme`.
+    const [themeSnapshot, setThemeSnapshot] = useState({
+        theme,
+        resolvedTheme,
+    });
+    if (themeSnapshot.theme !== theme) {
+        setThemeSnapshot({ theme, resolvedTheme });
+    }
+    const iframeTheme: ColorScheme | undefined =
+        theme === undefined ? undefined : themeSnapshot.resolvedTheme;
+    useEffect(() => {
+        if (!tokenContext || !onEvent) {
+            return undefined;
+        }
+
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== instanceOrigin) {
+                return;
+            }
+            const contentEvent = toAiAgentContentEvent(event.data);
+            if (contentEvent) {
+                onEvent(contentEvent);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [instanceOrigin, onEvent, tokenContext]);
 
     useEffect(() => {
         if (!tokenContext || !onThreadChange) {
@@ -1026,15 +1195,22 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
         return null;
     }
 
+    const threadSetup = getEmbedAiAgentThreadSetup({ binding, threadContext });
+
     return (
         <iframe
+            // A hash-only src change doesn't reload the embed, so remount it
+            key={buildEmbedHash('', threadSetup, disableNavigation)}
             title="AI agent"
             src={getAiAgentEmbedUrl({
                 agentUuid,
+                disableNavigation,
                 instanceUrl,
                 projectUuid: tokenContext.projectUuid,
                 targetOrigin,
-                theme,
+                theme: iframeTheme,
+                followSystemTheme: theme === 'system',
+                threadSetup,
                 threadUuid,
                 token: tokenContext.token,
             })}
@@ -1078,18 +1254,24 @@ const AiAgentRouteSync: FC<{ path: string; hasThread: boolean }> = ({
 
 const NativeAiAgentLayout: FC<{
     agentUuid: string;
+    disableNavigation: boolean;
     embedToken: string;
+    threadSetup: EmbedAiAgentThreadSetup | null;
     hasThread: boolean;
+    onEvent: AiAgentProps['onEvent'];
     onThreadChange: AiAgentProps['onThreadChange'];
     path: string;
     projectUuid: string;
 }> = ({
     agentUuid,
+    disableNavigation,
     embedToken,
     hasThread,
+    onEvent,
     onThreadChange,
     path,
     projectUuid,
+    threadSetup,
 }) => {
     const {
         savedChart,
@@ -1120,7 +1302,10 @@ const NativeAiAgentLayout: FC<{
             customSqlProvenanceChartUuid={customSqlProvenanceChartUuid}
             onExplore={handleExplore}
             onBackToDashboard={handleBackToDashboard}
+            onEvent={onEvent}
             onAiAgentThreadChange={handleThreadChange}
+            aiAgentThreadSetup={threadSetup}
+            aiAgentNavigationDisabled={disableNavigation}
         >
             <AiAgentsCoreProvider>
                 <AiAgentRouteSync path={path} hasThread={hasThread} />
@@ -1130,13 +1315,26 @@ const NativeAiAgentLayout: FC<{
     );
 };
 
+const toStableThreadBinding = (
+    dashboardUuid: string | undefined,
+    chartUuid: string | undefined,
+): AiThreadBinding | undefined => {
+    if (dashboardUuid) return { type: 'dashboard', dashboardUuid };
+    if (chartUuid) return { type: 'chart', chartUuid };
+    return undefined;
+};
+
 const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
+    binding,
+    disableNavigation = false,
     instanceUrl,
     onError,
+    onEvent,
     onThreadChange,
     styles,
     theme,
+    threadContext,
     threadUuid,
     token: tokenOrTokenPromise,
 }) => {
@@ -1144,6 +1342,22 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
         instanceUrl,
         tokenOrTokenPromise,
         onError,
+    );
+    const boundDashboardUuid =
+        binding?.type === 'dashboard' ? binding.dashboardUuid : undefined;
+    const boundChartUuid =
+        binding?.type === 'chart' ? binding.chartUuid : undefined;
+    // Hosts often pass a new binding object each render
+    const threadSetup = useMemo(
+        () =>
+            getEmbedAiAgentThreadSetup({
+                binding: toStableThreadBinding(
+                    boundDashboardUuid,
+                    boundChartUuid,
+                ),
+                threadContext,
+            }),
+        [boundDashboardUuid, boundChartUuid, threadContext],
     );
     const { ref: containerRef, width: containerWidth } = useElementSize();
 
@@ -1169,6 +1383,8 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                 value={containerWidth > 0 ? containerWidth : null}
             >
                 <SdkProviders
+                    token={tokenContext.token}
+                    projectUuid={tokenContext.projectUuid}
                     initialEntry={path}
                     styles={styles}
                     theme={theme}
@@ -1180,11 +1396,14 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                             element={
                                 <NativeAiAgentLayout
                                     agentUuid={agentUuid}
+                                    disableNavigation={disableNavigation}
                                     embedToken={tokenContext.token}
                                     hasThread={threadUuid !== undefined}
+                                    onEvent={onEvent}
                                     onThreadChange={onThreadChange}
                                     path={path}
                                     projectUuid={tokenContext.projectUuid}
+                                    threadSetup={threadSetup}
                                 />
                             }
                         >
@@ -1258,6 +1477,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
     token: tokenOrTokenPromise,
     hiddenFilters,
     onError,
+    onEvent,
 }) => {
     const tokenContext = useEmbedTokenContext(
         instanceUrl,
@@ -1272,6 +1492,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
 
     return (
         <SdkProviders
+            token={tokenContext.token}
             projectUuid={tokenContext.projectUuid}
             styles={styles}
             theme={theme}
@@ -1280,6 +1501,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 onExplore={({ chart }) => setExploreChart(chart)}
                 onBackToDashboard={() => setExploreChart(undefined)}
             >
@@ -1334,7 +1556,11 @@ export {
     useLightdashContent,
 };
 export type {
+    AiThreadBinding,
+    ChartSaveDestination,
     MetricsCatalogFilter,
+    LightdashEvent,
+    LightdashEventHandler,
     SdkError,
     SdkErrorKind,
     SdkUiOverrides,

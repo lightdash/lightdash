@@ -1,5 +1,7 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AgentActorSurface,
+    buildAgentIdentityClaim,
     ContentType,
     FeatureFlags,
     ForbiddenError,
@@ -216,15 +218,6 @@ describe('DocumentService PDF export', () => {
         ).rejects.toThrow(NotFoundError);
         expect(schedulerClient.scheduleTask).not.toHaveBeenCalled();
     });
-
-    test('refuses when Documents are disabled, without queueing', async () => {
-        const { service, schedulerClient, featureFlagModel } = setup();
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
-        await expect(
-            service.scheduleExportPdf(makeAccount(), projectUuid, documentUuid),
-        ).rejects.toThrow(ForbiddenError);
-        expect(schedulerClient.scheduleTask).not.toHaveBeenCalled();
-    });
 });
 
 describe('DocumentService views', () => {
@@ -287,6 +280,82 @@ describe('DocumentService views', () => {
 
 describe('DocumentService', () => {
     describe('version history', () => {
+        test.each([true, false])(
+            'uses the viewer override over the opposite org flag for all Document DTOs (%s)',
+            async (enabled) => {
+                const { service, documentModel, featureFlagModel } = setup();
+                featureFlagModel.get.mockImplementation(
+                    async ({ featureFlagId, user: viewer }) => {
+                        const viewerEnabled =
+                            viewer?.userUuid === userUuid ? enabled : !enabled;
+                        return {
+                            enabled:
+                                featureFlagId === FeatureFlags.AgentIdentity
+                                    ? viewerEnabled
+                                    : true,
+                        };
+                    },
+                );
+                const agentIdentity = buildAgentIdentityClaim({
+                    subject: { type: 'user', uuid: userUuid },
+                    surface: AgentActorSurface.MCP,
+                    clientId: null,
+                });
+                documentModel.get.mockResolvedValue({
+                    ...document,
+                    version: { ...document.version, agentIdentity },
+                });
+                documentModel.getBySlug.mockResolvedValue({
+                    ...document,
+                    version: { ...document.version, agentIdentity },
+                });
+                documentModel.getVersion.mockResolvedValue({
+                    ...document,
+                    version: { ...document.version, agentIdentity },
+                });
+                documentModel.listVersions.mockResolvedValue({
+                    items: [
+                        { ...document.version, agentIdentity, createdBy: null },
+                    ],
+                    nextOffset: null,
+                });
+                const history = await service.listVersions(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                );
+                const historical = await service.getVersion(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                    'old-version',
+                );
+                const current = await service.getByIdOrSlug(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                );
+                const bySlug = await service.getBySlug(
+                    makeAccount(),
+                    projectUuid,
+                    document.slug,
+                );
+                for (const dto of [
+                    history.items[0],
+                    historical.version,
+                    current.version,
+                    bySlug.version,
+                ]) {
+                    if (enabled)
+                        expect(dto).toHaveProperty(
+                            'agentIdentity',
+                            agentIdentity,
+                        );
+                    else expect(dto).not.toHaveProperty('agentIdentity');
+                }
+            },
+        );
+
         test('lists versions for a reader through normal Document authorization', async () => {
             const { service, documentModel, spacePermissionService } = setup();
             await service.listVersions(
@@ -362,15 +431,6 @@ describe('DocumentService', () => {
             expect(documentModel.getVersion).not.toHaveBeenCalled();
         });
 
-        test('refuses history when Documents are disabled', async () => {
-            const { service, featureFlagModel, documentModel } = setup();
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-            await expect(
-                service.listVersions(makeAccount(), projectUuid, documentUuid),
-            ).rejects.toThrow(ForbiddenError);
-            expect(documentModel.listVersions).not.toHaveBeenCalled();
-        });
-
         test('returns the current Document with only the historical content swapped in', async () => {
             const { service, documentModel } = setup();
             documentModel.getVersion.mockResolvedValue({
@@ -389,7 +449,10 @@ describe('DocumentService', () => {
                 documentUuid,
                 historicalVersion.versionUuid,
             );
-            expect(result.version).toEqual(historicalVersion);
+            expect(result.version).toEqual({
+                ...historicalVersion,
+                agentIdentity: null,
+            });
             expect(result.name).toBe(document.name);
             expect(result.access).toEqual([]);
         });
@@ -436,15 +499,6 @@ describe('DocumentService', () => {
                 projectUuid,
                 spaceUuids: [document.spaceUuid],
             });
-        });
-
-        test('does not read space metadata when Documents are disabled', async () => {
-            const { service, featureFlagModel, spaceModel } = setup();
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-            await expect(
-                service.getAsCode(makeAccount(), projectUuid, document.slug),
-            ).rejects.toThrow(ForbiddenError);
-            expect(spaceModel.find).not.toHaveBeenCalled();
         });
 
         test('does not export a private Document without access', async () => {
@@ -509,15 +563,6 @@ describe('DocumentService', () => {
         );
     });
 
-    test('slug read identifiers cannot bypass the feature flag', async () => {
-        const { service, documentModel, featureFlagModel } = setup();
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
-        await expect(
-            service.getByIdOrSlug(makeAccount(), projectUuid, document.slug),
-        ).rejects.toThrow(ForbiddenError);
-        expect(documentModel.getBySlug).not.toHaveBeenCalled();
-    });
-
     test('slug read identifiers cannot expose inaccessible Documents', async () => {
         const { service, spacePermissionService } = setup();
         spacePermissionService.resolveAccess.mockResolvedValue(
@@ -541,15 +586,6 @@ describe('DocumentService', () => {
             userUuid,
             { type: 'document', documentUuid, spaceUuid },
         );
-    });
-
-    test('slug lookup refuses disabled Documents before resolving the slug', async () => {
-        const { service, documentModel, featureFlagModel } = setup();
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
-        await expect(
-            service.getBySlug(makeAccount(), projectUuid, document.slug),
-        ).rejects.toThrow(ForbiddenError);
-        expect(documentModel.getBySlug).not.toHaveBeenCalled();
     });
 
     test('slug lookup refuses inaccessible projects before resolving the slug', async () => {
@@ -585,19 +621,9 @@ describe('DocumentService', () => {
     });
 
     test.each(['delete', 'restore', 'permanentDelete'] as const)(
-        '%s refuses feature-off and cross-project callers before lifecycle reads',
+        '%s refuses cross-project callers before lifecycle reads',
         async (method) => {
-            const { service, featureFlagModel, documentModel } = setup();
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-            await expect(
-                service[method](
-                    makeAccount(OrganizationMemberRole.ADMIN),
-                    projectUuid,
-                    documentUuid,
-                ),
-            ).rejects.toThrow(ForbiddenError);
-            expect(documentModel.getLifecycleState).not.toHaveBeenCalled();
-            featureFlagModel.get.mockResolvedValue({ enabled: true });
+            const { service, documentModel } = setup();
             await expect(
                 service[method](
                     makeAccount(OrganizationMemberRole.MEMBER),
@@ -1033,22 +1059,6 @@ describe('DocumentService', () => {
             ).rejects.toThrow(NotFoundError);
             expect(documentModel.moveToSpace).not.toHaveBeenCalled();
         });
-
-        test('fails closed when Documents are off', async () => {
-            const { service, documentModel, featureFlagModel } = setup();
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-            await expect(
-                service.moveApprovedToSpace(
-                    makeAccount(OrganizationMemberRole.ADMIN),
-                    {
-                        projectUuid,
-                        documentUuid,
-                        targetSpaceUuid: 'destination',
-                    },
-                ),
-            ).rejects.toThrow(ForbiddenError);
-            expect(documentModel.moveToSpace).not.toHaveBeenCalled();
-        });
     });
 
     describe('document.moved', () => {
@@ -1177,34 +1187,7 @@ describe('DocumentService', () => {
             userUuid,
             { type: 'document', documentUuid, spaceUuid },
         );
-        expect(featureFlagModel.get).toHaveBeenCalledWith({
-            featureFlagId: FeatureFlags.Documents,
-            user: { userUuid, organizationUuid },
-        });
     });
-
-    test.each(['list', 'get'] as const)(
-        '%s is unavailable when Documents is disabled',
-        async (operation) => {
-            const {
-                service,
-                featureFlagModel,
-                documentModel,
-                spacePermissionService,
-            } = setup();
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-
-            const request =
-                operation === 'list'
-                    ? service.list(makeAccount(), projectUuid)
-                    : service.get(makeAccount(), projectUuid, documentUuid);
-            await expect(request).rejects.toThrow(ForbiddenError);
-            expect(documentModel.get).not.toHaveBeenCalled();
-            expect(documentModel.listSpaceUuids).not.toHaveBeenCalled();
-            expect(documentModel.list).not.toHaveBeenCalled();
-            expect(spacePermissionService.resolveAccess).not.toHaveBeenCalled();
-        },
-    );
 
     test.each(['list', 'get'] as const)(
         '%s hides projects without view permission',
@@ -1242,9 +1225,8 @@ describe('DocumentService', () => {
         expect(featureFlagModel.get).not.toHaveBeenCalled();
     });
 
-    test('uses the target project organization to evaluate the feature flag', async () => {
-        const { service, projectModel, documentModel, featureFlagModel } =
-            setup();
+    test('lists Documents in a viewable project from another organization', async () => {
+        const { service, projectModel, documentModel } = setup();
         const builder = new AbilityBuilder<MemberAbility>(Ability);
         builder.can('view', 'Project', { projectUuid: 'foreign-project' });
         projectModel.getSummary.mockResolvedValue({
@@ -1259,10 +1241,6 @@ describe('DocumentService', () => {
                 'foreign-project',
             ),
         ).resolves.toEqual({ items: [], nextOffset: null });
-        expect(featureFlagModel.get).toHaveBeenCalledWith({
-            featureFlagId: FeatureFlags.Documents,
-            user: { userUuid, organizationUuid: 'foreign-organization' },
-        });
     });
 
     test('hides a private document even from its creator without Space access', async () => {

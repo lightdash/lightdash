@@ -2,14 +2,45 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    MetricType,
+    type Metric,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    type DashboardEditTestValues,
+    type DashboardStoreTestValues,
+    seedDashboardEditState,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
+import type * as FieldColors from '../../../theme/fieldColors';
+import { getFieldColor } from '../../../utils/fieldColors';
 import GuidedFilterSetupOverlay from './GuidedFilterSetupOverlay';
+
+// jsdom does not support light-dark() colors.
+vi.mock('../../../theme/fieldColors', async (importOriginal) => {
+    const original = await importOriginal<typeof FieldColors>();
+    return {
+        ...original,
+        LD_FIELD_COLORS: {
+            ...original.LD_FIELD_COLORS,
+            dimension: {
+                ...original.LD_FIELD_COLORS.dimension,
+                color: 'rgb(0, 0, 255)',
+            },
+            metric: {
+                ...original.LD_FIELD_COLORS.metric,
+                color: 'rgb(255, 128, 0)',
+            },
+        },
+    };
+});
 
 const unmetRule: DashboardFilterRule = {
     id: 'filter-1',
@@ -48,6 +79,20 @@ vi.mock('../../../components/common/Filters/FilterInputs', () => ({
     }),
 }));
 
+let storeValues: DashboardStoreTestValues = {};
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={seedDashboardEditState(
+                createDashboardTestStore(storeValues),
+                mockDashboardContext.current as DashboardEditTestValues,
+            )}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
+
 describe('GuidedFilterSetupOverlay', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -57,19 +102,16 @@ describe('GuidedFilterSetupOverlay', () => {
             writable: true,
             value: vi.fn(),
         });
-        mockDashboardContext.current = {
-            projectUuid: 'project-1',
-            dashboard: { name: 'Sales dashboard' },
+        storeValues = {
             dashboardFilters: {
                 dimensions: [unmetRule],
                 metrics: [],
                 tableCalculations: [],
             },
-            allFilters: {
-                dimensions: [unmetRule],
-                metrics: [],
-                tableCalculations: [],
-            },
+        };
+        mockDashboardContext.current = {
+            projectUuid: 'project-1',
+            dashboard: { name: 'Sales dashboard' },
             dashboardTiles: [],
             filterableFieldsByTileUuid: {},
             hiddenFilterableFieldIds: new Set<string>(),
@@ -92,6 +134,43 @@ describe('GuidedFilterSetupOverlay', () => {
 
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(screen.queryByTestId('guided-filter-setup')).toBeNull();
+    });
+
+    it('uses the metric color for a satisfied requirement in summary and edit views', async () => {
+        const metric = {
+            name: 'revenue',
+            table: 'orders',
+            label: 'Revenue',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+        } as Metric;
+        const metricRule: DashboardFilterRule = {
+            ...unmetRule,
+            id: 'revenue-filter',
+            target: { fieldId: 'orders_revenue', tableName: 'orders' },
+            disabled: false,
+            values: [100],
+        };
+        storeValues.dashboardFilters!.metrics = [metricRule];
+        mockDashboardContext.current.allFilterableMetricsMap = {
+            orders_revenue: metric,
+        };
+
+        renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
+        const expectMetricColor = () => {
+            const icons = document.querySelectorAll(
+                '.tabler-icon-circle-check',
+            );
+            expect(icons.length).toBeGreaterThan(0);
+            icons.forEach((icon) =>
+                expect((icon as SVGElement).style.color).toBe(
+                    getFieldColor(metric),
+                ),
+            );
+        };
+        expectMetricColor();
+        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        expectMetricColor();
     });
 
     it('renders the guided setup with the unmet rule and requirement progress', () => {
@@ -152,9 +231,8 @@ describe('GuidedFilterSetupOverlay', () => {
                 metrics: [],
                 tableCalculations: [],
             };
+            storeValues = { dashboardFilters: filters };
             Object.assign(mockDashboardContext.current, {
-                dashboardFilters: filters,
-                allFilters: filters,
                 allFilterableFieldsMap: { team_name: fieldA },
                 filterableFieldsByTileUuid: {
                     'tile-a': [fieldA],
@@ -184,9 +262,8 @@ describe('GuidedFilterSetupOverlay', () => {
             metrics: [],
             tableCalculations: [],
         };
+        storeValues = { dashboardFilters: filters };
         Object.assign(mockDashboardContext.current, {
-            dashboardFilters: filters,
-            allFilters: filters,
             hiddenFilterableFieldIds: new Set(['customers_hidden']),
         });
 

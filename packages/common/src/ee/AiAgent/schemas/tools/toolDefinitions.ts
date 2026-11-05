@@ -13,7 +13,6 @@ import {
     mcpRunAiWritebackArgsSchema,
     mcpRunAiWritebackStructuredOutputSchema,
 } from '../../../aiWriteback/types';
-import { DOCUMENT_RESEARCH_SUMMARY_GUIDANCE } from '../../documentGuidance';
 import { createAgentInputSchema } from '../agentInputSchema';
 import {
     defineTool,
@@ -34,6 +33,13 @@ import {
 import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import {
+    DOCUMENT_CREATE_CONTENT_DESCRIPTION,
+    DOCUMENT_EDIT_CONTENT_DESCRIPTION,
+    documentCreateContentArgsSchema,
+    documentEditContentArgsSchema,
+    MCP_CREATE_CONTENT_DESCRIPTION,
+    MCP_EDIT_CONTENT_DESCRIPTION,
+    MCP_READ_CONTENT_DESCRIPTION,
     mcpCreateContentArgsSchema,
     mcpEditContentArgsSchema,
     mcpReadContentArgsSchema,
@@ -64,6 +70,8 @@ import {
     toolClosePullRequestOutputSchema,
 } from './toolClosePullRequestArgs';
 import {
+    MCP_TOOL_QUERY_DESCRIPTION,
+    mcpQueryStructuredOutputSchema,
     TOOL_COMPOSER_QUERIES_DESCRIPTION,
     toolComposerQueriesArgsSchema,
     toolComposerQueriesOutputSchema,
@@ -73,6 +81,11 @@ import {
     toolCreateContentArgsSchema,
     toolCreateContentOutputSchema,
 } from './toolCreateContentArgs';
+import {
+    MCP_TOOL_CREATE_CUSTOM_CHART_TYPE_DESCRIPTION,
+    mcpCreateCustomChartTypeArgsSchema,
+    mcpCustomChartTypeBuildStartedOutputSchema,
+} from './toolCreateCustomChartTypeArgs';
 import {
     TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION,
     toolCreateScheduledDeliveryArgsSchema,
@@ -114,11 +127,6 @@ import {
     toolEditProjectContextOutputSchema,
 } from './toolEditProjectContextArgs';
 import {
-    TOOL_EDIT_REPO_DESCRIPTION,
-    toolEditRepoArgsSchema,
-    toolEditRepoOutputSchema,
-} from './toolEditRepoArgs';
-import {
     TOOL_EXPLORE_REPO_DESCRIPTION,
     toolExploreRepoArgsSchema,
     toolExploreRepoOutputSchema,
@@ -138,6 +146,11 @@ import {
     toolFindCustomChartTypesArgsSchema,
     toolFindCustomChartTypesOutputSchema,
 } from './toolFindCustomChartTypesArgs';
+import {
+    MCP_TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    mcpFindCustomChartTypesArgsSchema,
+    mcpFindCustomChartTypesOutputSchema,
+} from './toolFindCustomChartTypesMcpArgs';
 import {
     TOOL_FIND_DASHBOARDS_DESCRIPTION,
     toolFindDashboardsArgsSchema,
@@ -213,6 +226,10 @@ import {
     toolGrepFieldsOutputSchema,
 } from './toolGrepFieldsArgs';
 import {
+    MCP_TOOL_ITERATE_CUSTOM_CHART_TYPE_DESCRIPTION,
+    mcpIterateCustomChartTypeArgsSchema,
+} from './toolIterateCustomChartTypeArgs';
+import {
     MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION,
     TOOL_ITERATE_DATA_APP_DESCRIPTION,
     toolIterateDataAppArgsSchema,
@@ -223,6 +240,18 @@ import {
     toolListContentArgsSchema,
     toolListContentOutputSchema,
 } from './toolListContentArgs';
+import {
+    MCP_TOOL_LIST_CUSTOM_CHART_TYPES_DESCRIPTION,
+    mcpListCustomChartTypesArgsSchema,
+    mcpListCustomChartTypesOutputSchema,
+} from './toolListCustomChartTypesMcpArgs';
+import {
+    MCP_TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+    mcpListDataAppConnectionsStructuredOutputSchema,
+    TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+    toolListDataAppConnectionsArgsSchema,
+    toolListDataAppConnectionsOutputSchema,
+} from './toolListDataAppConnectionsArgs';
 import {
     MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
     mcpListDataAppThemesStructuredOutputSchema,
@@ -340,11 +369,6 @@ import {
     toolSearchSemanticLayerOutputSchema,
 } from './toolSearchSemanticLayerArgs';
 import {
-    TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
-    toolSetupPreviewDeployArgsSchema,
-    toolSetupPreviewDeployOutputSchema,
-} from './toolSetupPreviewDeployArgs';
-import {
     TOOL_SYNC_DBT_PROJECT_DESCRIPTION,
     toolSyncDbtProjectArgsSchema,
     toolSyncDbtProjectOutputSchema,
@@ -354,6 +378,11 @@ import {
     toolUpdateUserNameArgsSchema,
     toolUpdateUserNameOutputSchema,
 } from './toolUpdateUserNameArgs';
+import {
+    TOOL_VISUALIZE_DESCRIPTION,
+    toolVisualizeArgsSchema,
+    toolVisualizeOutputSchema,
+} from './toolVisualizeArgs';
 
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
@@ -362,35 +391,24 @@ const readOnlyAnnotations: McpToolAnnotations = {
     openWorldHint: false,
 };
 
+// Every tool that writes user data declares destructiveHint so hosts ask
+// before running it; the directory review requires one of the two hints.
 const writeAnnotations: McpToolAnnotations = {
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-};
-
-const destructiveWriteAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: true,
     idempotentHint: false,
     openWorldHint: false,
 };
 
+// Only changes the session's active project or agent, never user data.
 const contextWriteAnnotations: McpToolAnnotations = {
-    readOnlyHint: false,
+    readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: true,
     openWorldHint: false,
 };
 
 const externalWriteAnnotations: McpToolAnnotations = {
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: true,
-};
-
-const destructiveExternalWriteAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: true,
     idempotentHint: false,
@@ -665,7 +683,7 @@ export const runQueryFilterExpressionToolDefinition: ToolDefinitionWithMcpOutput
     },
 });
 
-// The agent view of runQuery for runtimes without merge queries: identical
+// The agent view of runQuery (the agent cannot build merges): identical
 // contract, but a merge-shaped payload fails validation instead of being
 // stripped to the primary query by Zod. Lazy, like `.for('agent')`.
 export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<
@@ -717,6 +735,29 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const queryToolDefinition: ToolDefinitionWithMcpOutput<
+    'query',
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesOutputSchema,
+    typeof mcpQueryStructuredOutputSchema
+> = defineTool({
+    name: 'query',
+    title: 'Run composer queries',
+    description: ({ runtime }) =>
+        runtime === 'mcp'
+            ? MCP_TOOL_QUERY_DESCRIPTION
+            : TOOL_COMPOSER_QUERIES_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolComposerQueriesArgsSchema,
+    agent: { outputSchema: toolComposerQueriesOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpQueryStructuredOutputSchema,
+    },
+});
+
+/** @deprecated The composer query tool's name before `query`; kept for historical tool calls. */
 export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
     'runComposerQueries',
     typeof toolComposerQueriesArgsSchema,
@@ -726,13 +767,23 @@ export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'runComposerQueries',
     title: 'Run composer queries',
     description: TOOL_COMPOSER_QUERIES_DESCRIPTION,
-    availability: ['agent', 'mcp'],
+    availability: ['agent'],
     inputSchema: toolComposerQueriesArgsSchema,
     agent: { outputSchema: toolComposerQueriesOutputSchema },
-    mcp: {
-        name: 'run_composer_queries',
-        annotations: readOnlyAnnotations,
-    },
+});
+
+export const visualizeToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'visualize',
+    typeof toolVisualizeArgsSchema,
+    typeof toolVisualizeArgsSchema,
+    typeof toolVisualizeOutputSchema
+> = defineTool({
+    name: 'visualize',
+    title: 'Visualize',
+    description: TOOL_VISUALIZE_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolVisualizeArgsSchema,
+    agent: { outputSchema: toolVisualizeOutputSchema },
 });
 
 export const getQueryResultToolDefinition: ToolDefinitionWithMcpOutput<
@@ -954,7 +1005,7 @@ export const editContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditContentOutputSchema },
     mcp: {
         name: 'edit_content',
-        annotations: destructiveWriteAnnotations,
+        annotations: writeAnnotations,
     },
 });
 
@@ -1160,6 +1211,29 @@ export const iterateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const listDataAppConnectionsToolDefinition: ToolDefinitionWithMcpOutput<
+    'listDataAppConnections',
+    typeof toolListDataAppConnectionsArgsSchema,
+    typeof toolListDataAppConnectionsArgsSchema,
+    typeof toolListDataAppConnectionsOutputSchema,
+    typeof mcpListDataAppConnectionsStructuredOutputSchema
+> = defineTool({
+    name: 'listDataAppConnections',
+    title: 'List data app connections',
+    description: descriptionByRuntime({
+        agent: TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+        mcp: MCP_TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+    }),
+    availability: ['agent', 'mcp'],
+    inputSchema: toolListDataAppConnectionsArgsSchema,
+    agent: { outputSchema: toolListDataAppConnectionsOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema:
+            mcpListDataAppConnectionsStructuredOutputSchema,
+    },
+});
+
 export const listDataAppThemesToolDefinition: ToolDefinitionWithMcpOutput<
     'listDataAppThemes',
     typeof toolListDataAppThemesArgsSchema,
@@ -1208,20 +1282,6 @@ export const editProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolEditProjectContextArgsSchema,
     agent: { outputSchema: toolEditProjectContextOutputSchema },
-});
-
-export const editRepoToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'editRepo',
-    typeof toolEditRepoArgsSchema,
-    typeof toolEditRepoArgsSchema,
-    typeof toolEditRepoOutputSchema
-> = defineTool({
-    name: 'editRepo',
-    title: 'Edit repository',
-    description: TOOL_EDIT_REPO_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolEditRepoArgsSchema,
-    agent: { outputSchema: toolEditRepoOutputSchema },
 });
 
 export const syncDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1306,20 +1366,6 @@ export const getPullRequestDiffToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolGetPullRequestDiffArgsSchema,
     agent: { outputSchema: toolGetPullRequestDiffOutputSchema },
-});
-
-export const setupPreviewDeployToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'setupPreviewDeploy',
-    typeof toolSetupPreviewDeployArgsSchema,
-    typeof toolSetupPreviewDeployArgsSchema,
-    typeof toolSetupPreviewDeployOutputSchema
-> = defineTool({
-    name: 'setupPreviewDeploy',
-    title: 'Set up preview deploys',
-    description: TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolSetupPreviewDeployArgsSchema,
-    agent: { outputSchema: toolSetupPreviewDeployOutputSchema },
 });
 
 export const runSavedChartToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1675,6 +1721,7 @@ const connectAgentOutputSchema = z.object({
     ]),
     message: z.string(),
     connectUrl: z.string().nullable(),
+    settingsUrl: z.string().nullable(),
     expiresAt: z.string().nullable(),
 });
 
@@ -1701,43 +1748,13 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable or full project scope is desired, omit agentUuid; use set_agent for manual selection. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable, pick an agent from list_agents and pass its agentUuid explicitly; omit agentUuid when full project scope is desired. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpGetContextOutputSchema,
     },
-});
-
-/** @deprecated Use getContextToolDefinition and explicit projectUuid arguments. */
-export const setProjectToolDefinition = defineTool({
-    name: 'setProject',
-    title: 'Set project',
-    description:
-        'Set the configured project context. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) also require its projectUuid explicitly. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request and pass its returned agentUuid explicitly to subsequent scoped tools; use list_agents and set_agent only for manual override.',
-    availability: ['mcp'],
-    inputSchema: z.object({
-        projectUuid: z.string(),
-        tags: z.array(z.string()).optional(),
-    }),
-    mcp: { annotations: contextWriteAnnotations },
-});
-
-/** @deprecated Use getContextToolDefinition. */
-export const getCurrentProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'getCurrentProject',
-    typeof emptyInputSchema,
-    typeof emptyInputSchema,
-    undefined
-> = defineTool({
-    name: 'getCurrentProject',
-    title: 'Get current project (deprecated)',
-    description:
-        '@deprecated Use get_context instead. Returns legacy shared project context for older clients.',
-    availability: ['mcp'],
-    inputSchema: emptyInputSchema,
-    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const listAgentsToolDefinition = defineTool({
@@ -1762,58 +1779,13 @@ export const routeAgentToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'routeAgent',
     title: 'Route agent',
     description:
-        'Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, use list_agents and set_agent for manual selection; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.',
+        'Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, pick an agent from list_agents and pass its agentUuid explicitly; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.',
     availability: ['mcp'],
     inputSchema: routeAgentArgsSchema,
     mcp: {
-        annotations: writeAnnotations,
+        annotations: contextWriteAnnotations,
         structuredContentSchema: routeAgentStructuredOutputSchema,
     },
-});
-
-/** @deprecated Use routeAgentToolDefinition and explicit agentUuid arguments. */
-export const setAgentToolDefinition = defineTool({
-    name: 'setAgent',
-    title: 'Set agent',
-    description:
-        "Manually select an AI agent for the required projectUuid. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Pass the agentUuid explicitly to subsequent scoped tools and use this context to guide them — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
-    availability: ['mcp'],
-    inputSchema: z.object({
-        agentUuid: z.string(),
-    }),
-    mcp: { annotations: contextWriteAnnotations },
-});
-
-/** @deprecated Omit agentUuid from project-scoped tool calls. */
-export const clearAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'clearAgent',
-    typeof emptyInputSchema,
-    typeof emptyInputSchema,
-    undefined
-> = defineTool({
-    name: 'clearAgent',
-    title: 'Clear agent (deprecated)',
-    description:
-        '@deprecated Omit agentUuid from scoped tool calls instead. Clears legacy shared agent context for older clients only.',
-    availability: ['mcp'],
-    inputSchema: emptyInputSchema,
-    mcp: { annotations: contextWriteAnnotations },
-});
-
-/** @deprecated Use getContextToolDefinition or routeAgentToolDefinition. */
-export const getCurrentAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'getCurrentAgent',
-    typeof emptyInputSchema,
-    typeof emptyInputSchema,
-    undefined
-> = defineTool({
-    name: 'getCurrentAgent',
-    title: 'Get current agent (deprecated)',
-    description:
-        '@deprecated Use get_context for legacy configured context or route_agent for an explicit agent selection.',
-    availability: ['mcp'],
-    inputSchema: emptyInputSchema,
-    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const listVerifiedContentToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1844,7 +1816,7 @@ export const runAiWritebackToolDefinition: ToolDefinitionWithMcpOutput<
     availability: ['mcp'],
     inputSchema: mcpRunAiWritebackArgsSchema,
     mcp: {
-        annotations: destructiveExternalWriteAnnotations,
+        annotations: externalWriteAnnotations,
         structuredContentSchema: mcpRunAiWritebackStructuredOutputSchema,
     },
 });
@@ -1885,6 +1857,79 @@ export const getDataAppBuildStatusToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const createCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
+    'createCustomChartType',
+    typeof mcpCreateCustomChartTypeArgsSchema,
+    typeof mcpCreateCustomChartTypeArgsSchema,
+    undefined,
+    typeof mcpCustomChartTypeBuildStartedOutputSchema
+> = defineTool({
+    name: 'createCustomChartType',
+    title: 'Create custom chart type',
+    description: MCP_TOOL_CREATE_CUSTOM_CHART_TYPE_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpCreateCustomChartTypeArgsSchema,
+    mcp: {
+        annotations: writeAnnotations,
+        structuredContentSchema: mcpCustomChartTypeBuildStartedOutputSchema,
+    },
+});
+
+// MCP counterpart of findCustomChartTypes: structured output, read-only.
+export const mcpFindCustomChartTypesToolDefinition: ToolDefinitionWithMcpOutput<
+    'findCustomChartTypes',
+    typeof mcpFindCustomChartTypesArgsSchema,
+    typeof mcpFindCustomChartTypesArgsSchema,
+    undefined,
+    typeof mcpFindCustomChartTypesOutputSchema
+> = defineTool({
+    name: 'findCustomChartTypes',
+    title: 'Find custom chart types',
+    description: MCP_TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpFindCustomChartTypesArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpFindCustomChartTypesOutputSchema,
+    },
+});
+
+export const mcpListCustomChartTypesToolDefinition: ToolDefinitionWithMcpOutput<
+    'listCustomChartTypes',
+    typeof mcpListCustomChartTypesArgsSchema,
+    typeof mcpListCustomChartTypesArgsSchema,
+    undefined,
+    typeof mcpListCustomChartTypesOutputSchema
+> = defineTool({
+    name: 'listCustomChartTypes',
+    title: 'List custom chart types',
+    description: MCP_TOOL_LIST_CUSTOM_CHART_TYPES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpListCustomChartTypesArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpListCustomChartTypesOutputSchema,
+    },
+});
+
+export const iterateCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
+    'iterateCustomChartType',
+    typeof mcpIterateCustomChartTypeArgsSchema,
+    typeof mcpIterateCustomChartTypeArgsSchema,
+    undefined,
+    typeof mcpCustomChartTypeBuildStartedOutputSchema
+> = defineTool({
+    name: 'iterateCustomChartType',
+    title: 'Iterate on custom chart type',
+    description: MCP_TOOL_ITERATE_CUSTOM_CHART_TYPE_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpIterateCustomChartTypeArgsSchema,
+    mcp: {
+        annotations: writeAnnotations,
+        structuredContentSchema: mcpCustomChartTypeBuildStartedOutputSchema,
+    },
+});
+
 type AgentToolDefinitionsByName = {
     findExplores: typeof findExploresToolDefinition;
     findCustomChartTypes: typeof findCustomChartTypesToolDefinition;
@@ -1896,7 +1941,9 @@ type AgentToolDefinitionsByName = {
     generateVisualization: typeof generateVisualizationToolDefinition;
     runQuery: typeof runQueryToolDefinition;
     runSql: typeof runSqlToolDefinition;
+    query: typeof queryToolDefinition;
     runComposerQueries: typeof runComposerQueriesToolDefinition;
+    visualize: typeof visualizeToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
     grepFields: typeof grepFieldsToolDefinition;
     getMetadata: typeof getMetadataToolDefinition;
@@ -1918,16 +1965,15 @@ type AgentToolDefinitionsByName = {
     generateDataApp: typeof generateDataAppToolDefinition;
     iterateDataApp: typeof iterateDataAppToolDefinition;
     listDataAppThemes: typeof listDataAppThemesToolDefinition;
+    listDataAppConnections: typeof listDataAppConnectionsToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
-    editRepo: typeof editRepoToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
     listWorkstreams: typeof listWorkstreamsToolDefinition;
     closePullRequest: typeof closePullRequestToolDefinition;
     getPullRequestDiff: typeof getPullRequestDiffToolDefinition;
-    setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
@@ -1955,7 +2001,9 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateVisualization: generateVisualizationToolDefinition,
     runQuery: runQueryToolDefinition,
     runSql: runSqlToolDefinition,
+    query: queryToolDefinition,
     runComposerQueries: runComposerQueriesToolDefinition,
+    visualize: visualizeToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
     grepFields: grepFieldsToolDefinition,
     getMetadata: getMetadataToolDefinition,
@@ -1977,16 +2025,15 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateDataApp: generateDataAppToolDefinition,
     iterateDataApp: iterateDataAppToolDefinition,
     listDataAppThemes: listDataAppThemesToolDefinition,
+    listDataAppConnections: listDataAppConnectionsToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
-    editRepo: editRepoToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
     listWorkstreams: listWorkstreamsToolDefinition,
     closePullRequest: closePullRequestToolDefinition,
     getPullRequestDiff: getPullRequestDiffToolDefinition,
-    setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
@@ -2019,7 +2066,9 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateVisualizationToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
+    queryToolDefinition,
     runComposerQueriesToolDefinition,
+    visualizeToolDefinition,
     getQueryResultToolDefinition,
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
@@ -2043,16 +2092,15 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateDataAppToolDefinition,
     iterateDataAppToolDefinition,
     listDataAppThemesToolDefinition,
+    listDataAppConnectionsToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
-    editRepoToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,
     listWorkstreamsToolDefinition,
     closePullRequestToolDefinition,
     getPullRequestDiffToolDefinition,
-    setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,
@@ -2074,17 +2122,16 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     mcpListProjectsToolDefinition,
     getProjectInfoToolDefinition,
     getContextToolDefinition,
-    setProjectToolDefinition,
-    getCurrentProjectToolDefinition,
     listAgentsToolDefinition,
     routeAgentToolDefinition,
-    setAgentToolDefinition,
-    clearAgentToolDefinition,
-    getCurrentAgentToolDefinition,
     listVerifiedContentToolDefinition,
     runAiWritebackToolDefinition,
     getAiWritebackStatusToolDefinition,
     getDataAppBuildStatusToolDefinition,
+    createCustomChartTypeToolDefinition,
+    iterateCustomChartTypeToolDefinition,
+    mcpFindCustomChartTypesToolDefinition,
+    mcpListCustomChartTypesToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;
@@ -2099,7 +2146,7 @@ export type AgentToolDefinition = (typeof agentToolDefinitions)[number];
 export const mcpCreateContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
-    description: `Create a dashboard, chart, or Document. Documents use schema version 2: Markdown with <document-chart> tags plus the semantic/merge chart-as-code charts they reference. Returns the persisted Document with charts as short tags. A Document without a spaceSlug is personal until it is saved to a Space with edit_content. ${DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}`,
+    description: MCP_CREATE_CONTENT_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: mcpCreateContentArgsSchema,
     mcp: { name: 'create_content', annotations: writeAnnotations },
@@ -2108,8 +2155,7 @@ export const mcpCreateContentToolDefinition = defineTool({
 export const mcpReadContentToolDefinition = defineTool({
     name: 'readContent',
     title: 'Read content',
-    description:
-        'Read a dashboard, chart, data app, or Document by slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Documents return Markdown where each chart is a short tag (id, title, type, explore) plus the latest version UUID required for edits; pass chartId to read one chart in full.',
+    description: MCP_READ_CONTENT_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: mcpReadContentArgsSchema,
     mcp: { name: 'read_content', annotations: readOnlyAnnotations },
@@ -2118,11 +2164,27 @@ export const mcpReadContentToolDefinition = defineTool({
 export const mcpEditContentToolDefinition = defineTool({
     name: 'editContent',
     title: 'Edit content',
-    description:
-        'Edit dashboards and charts with RFC6902 patch. For Documents, use documentEdit: replace the Markdown (keep unchanged charts by their <document-chart id> tag alone), patch one chart by id, or update metadata, including spaceSlug to save a personal Document into a Space. Stale versions are rejected; read again and retry.',
+    description: MCP_EDIT_CONTENT_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: mcpEditContentArgsSchema,
-    mcp: { name: 'edit_content', annotations: destructiveWriteAnnotations },
+    mcp: { name: 'edit_content', annotations: writeAnnotations },
+});
+
+// Agent tools for an actor who can save Documents but not charts or dashboards.
+export const documentCreateContentToolDefinition = defineTool({
+    name: 'createContent',
+    title: 'Create content',
+    description: DOCUMENT_CREATE_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: documentCreateContentArgsSchema,
+});
+
+export const documentEditContentToolDefinition = defineTool({
+    name: 'editContent',
+    title: 'Edit content',
+    description: DOCUMENT_EDIT_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: documentEditContentArgsSchema,
 });
 
 export const mcpToolDefinitions: readonly ToolDefinitionInstance[] =

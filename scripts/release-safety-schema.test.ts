@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import Ajv from 'ajv';
+import { parseBreakingChangeDeclarationsFile } from './release-safety-declarations';
 import { buildMarker } from './gen-release-safety';
 
 const ajv = new Ajv({ strict: true, validateFormats: false });
@@ -110,5 +111,81 @@ assert.strictEqual(
         artifactSchema.properties.migrations.properties.files.items.properties,
     false,
 );
+
+const advisory = {
+    id: 'internal-operation',
+    reason: 'The flag is off by default on Cloud and self-hosted.',
+    requiredStop: false,
+    impact: {
+        kind: 'no-external-callers',
+        featureFlag: 'agent-identity',
+        covers: { rest: ['POST /x'], mcp: [] },
+    },
+};
+assert.strictEqual(
+    validateArtifact({ ...generatedArtifact, declaredAdvisories: [advisory] }),
+    true,
+    JSON.stringify(validateArtifact.errors),
+);
+for (const entry of [
+    { ...advisory, requiredStop: true },
+    {
+        ...advisory,
+        migration:
+            'packages/backend/src/database/migrations/20260819000000_break.ts',
+    },
+    { ...advisory, extra: true },
+    { ...advisory, impact: { ...advisory.impact, extra: true } },
+    {
+        ...advisory,
+        impact: {
+            ...advisory.impact,
+            firstPartyOnly:
+                'Only the Lightdash settings page calls this operation.',
+        },
+    },
+]) {
+    assert.strictEqual(
+        validateArtifact({ ...generatedArtifact, declaredAdvisories: [entry] }),
+        false,
+    );
+}
+const { declaredAdvisories: ignoredAdvisories, ...oldArtifact } =
+    generatedArtifact;
+assert.strictEqual(validateArtifact(oldArtifact), true);
+
+const validateDeclarations = ajv.compile(JSON.parse(
+    fs.readFileSync('scripts/release-safety-declarations.schema.json', 'utf-8'),
+));
+for (const [reason, expected] of [
+    ['The UI 😀 calls this API', false],
+    ['The UI 😀 calls this API.', true],
+    ['  The UI 😀 calls this API.  ', true],
+    ['The  UI 😀 calls this API', false],
+    ['The UI İ calls this API', false],
+    ['<operator-facing reason>', false],
+    ['abcdefghijklmnopqrstuvwx', false],
+] as const) {
+    for (const field of ['reason', 'firstPartyOnly'] as const) {
+        const entry = field === 'reason'
+            ? { ...advisory, reason }
+            : { ...advisory, impact: {
+                kind: advisory.impact.kind,
+                firstPartyOnly: reason,
+                covers: advisory.impact.covers,
+            } };
+        const { id, ...declaration } = entry;
+        const registry = { declarations: { [id]: declaration } };
+        const loaded = parseBreakingChangeDeclarationsFile(JSON.stringify(registry));
+        assert.strictEqual(loaded.diagnostics.length === 0, expected, `loader ${field}: ${reason}`);
+        assert.strictEqual(validateDeclarations(registry), expected, `declarations schema ${field}: ${reason}`);
+        assert.strictEqual(
+            validateArtifact({ ...generatedArtifact, declaredAdvisories: [entry] }),
+            expected,
+            `marker schema ${field}: ${reason}`,
+        );
+    }
+}
+assert.strictEqual(Array.from('The UI 😀 calls this API').length, 23);
 
 console.log('release-safety-schema: all tests passed');

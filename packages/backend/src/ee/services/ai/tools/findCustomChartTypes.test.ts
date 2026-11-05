@@ -185,7 +185,6 @@ describe('getFindCustomChartTypes execute', () => {
         expect(output.metadata).toEqual({ status: 'error' });
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(output.result).toContain('Set exactly one of `query`');
     });
@@ -204,7 +203,6 @@ describe('getFindCustomChartTypes execute', () => {
         expect(output.metadata).toEqual({ status: 'error' });
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(output.result).toContain('Error finding custom chart types.');
         expect(output.result).toContain('library unavailable');

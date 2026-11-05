@@ -1,8 +1,6 @@
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 
-export const getAiAgentMemoryPreview = (value: string) => value.slice(0, 256);
-
 export type AiAgentMemorySections = {
     memory: string;
     evidence: string | null;

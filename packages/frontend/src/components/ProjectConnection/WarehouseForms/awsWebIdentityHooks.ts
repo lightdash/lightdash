@@ -9,11 +9,12 @@ import {
     useQuery,
     type UseMutationOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
-export const useAwsWebIdentity = (enabled: boolean) =>
-    useQuery<ApiAwsWebIdentityResponse['results'], ApiError>({
+export const useAwsWebIdentity = (enabled: boolean) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAwsWebIdentityResponse['results'], ApiError>({
         queryKey: ['awsWebIdentity'],
         queryFn: () =>
             lightdashApi<ApiAwsWebIdentityResponse['results']>({
@@ -24,6 +25,7 @@ export const useAwsWebIdentity = (enabled: boolean) =>
         enabled,
         staleTime: Infinity,
     });
+};
 
 export const useCreateAwsWebIdentityAudience = (
     options: UseMutationOptions<
@@ -32,6 +34,7 @@ export const useCreateAwsWebIdentityAudience = (
         CreateAwsWebIdentityAudience
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useMutation<
         ApiAwsWebIdentityAudienceResponse['results'],

@@ -6,6 +6,7 @@ import {
     PullRequestProvider,
     resolveDbtVersion,
     SupportedDbtVersions,
+    type AiWritebackPipelineJobPayload,
     type AiWritebackStep,
     type DbtProjectConfig,
     type DbtVersionOption,
@@ -36,6 +37,31 @@ import type {
     ResolvedPrMetadata,
     StagedFileChanges,
 } from './types';
+
+export const resolveWritebackAgentPermissionsApply = (
+    payload: Pick<
+        AiWritebackPipelineJobPayload,
+        'agentPermissionsApply' | 'source'
+    >,
+): boolean => {
+    if (payload.agentPermissionsApply !== undefined)
+        return payload.agentPermissionsApply;
+    switch (payload.source) {
+        case 'mcp':
+        case 'slack':
+        case 'web':
+            return true;
+        case 'api':
+        case 'changeset':
+        case 'admin_review':
+            return false;
+        default:
+            return assertUnreachable(
+                payload.source,
+                'Unknown writeback source',
+            );
+    }
+};
 
 const DEFAULT_GITLAB_HOST_DOMAIN = 'gitlab.com';
 

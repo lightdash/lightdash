@@ -1,13 +1,10 @@
 import { ContentType, type HomepageQuickAction } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Box,
-    Button,
     Group,
     Loader,
     Menu,
-    Paper,
     Stack,
     Text,
     TextInput,
@@ -354,7 +351,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
 
     return (
         <Stack gap="xs">
-            <Group gap={8} justify="center" className={classes.editableChipRow}>
+            <Group gap={8} justify="center">
                 {block.config.actions.map((action, index) => {
                     const presentation = actionPresentation(
                         action,
@@ -363,122 +360,109 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                     // Matches the view: no agent, no Ask AI row
                     if (action.type === 'ask-ai' && !canAskAi) return null;
                     return (
-                        <Box
-                            key={actionKey(action)}
-                            className={classes.editableChip}
-                        >
-                            <span
-                                className={`${classes.quickActionChip}${
-                                    action.primary
-                                        ? ` ${classes.quickActionChipPrimary}`
-                                        : ''
-                                }`}
-                            >
-                                <MantineIcon
-                                    icon={presentation.icon}
-                                    size={14}
-                                    color={
-                                        action.primary ? 'inherit' : 'ldGray.6'
-                                    }
-                                />
-                                {presentation.title}
-                            </span>
-                            <Paper
-                                p={4}
-                                shadow="sm"
-                                className={classes.editableChipActions}
-                            >
-                                <Group gap={2} wrap="nowrap">
-                                    <Tooltip
-                                        label={
+                        <Menu key={actionKey(action)} position="bottom">
+                            <Menu.Target>
+                                <button
+                                    type="button"
+                                    aria-label={`Edit ${presentation.title}`}
+                                    className={`${classes.quickActionChip} ${
+                                        classes.editableChip
+                                    }${
+                                        action.primary
+                                            ? ` ${classes.quickActionChipPrimary}`
+                                            : ''
+                                    }`}
+                                >
+                                    <MantineIcon
+                                        icon={presentation.icon}
+                                        size={14}
+                                        color={
                                             action.primary
-                                                ? 'Primary action'
-                                                : 'Make primary'
+                                                ? 'inherit'
+                                                : 'ldGray.6'
                                         }
-                                    >
-                                        <ActionIcon
-                                            color={
+                                    />
+                                    {presentation.title}
+                                </button>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={
                                                 action.primary
-                                                    ? 'yellow'
-                                                    : 'ldGray.6'
+                                                    ? IconStarFilled
+                                                    : IconStar
                                             }
-                                            size="sm"
-                                            aria-label={`Make ${presentation.title} the primary action`}
-                                            aria-pressed={
-                                                action.primary === true
-                                            }
-                                            onClick={() =>
-                                                // Only one primary per row
-                                                setActions(
-                                                    block.config.actions.map(
-                                                        (item, i) => ({
-                                                            ...item,
-                                                            primary:
-                                                                i === index
-                                                                    ? !action.primary
-                                                                    : false,
-                                                        }),
-                                                    ),
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    action.primary
-                                                        ? IconStarFilled
-                                                        : IconStar
-                                                }
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                    <ActionIcon
-                                        size="sm"
-                                        disabled={index === 0}
-                                        aria-label={`Move ${presentation.title} earlier`}
-                                        onClick={() => move(index, -1)}
-                                    >
+                                        />
+                                    }
+                                    onClick={() =>
+                                        // Only one primary per row
+                                        setActions(
+                                            block.config.actions.map(
+                                                (item, i) => ({
+                                                    ...item,
+                                                    primary:
+                                                        i === index
+                                                            ? !action.primary
+                                                            : false,
+                                                }),
+                                            ),
+                                        )
+                                    }
+                                >
+                                    {action.primary
+                                        ? 'Remove highlight'
+                                        : 'Highlight as primary'}
+                                </Menu.Item>
+                                <Menu.Item
+                                    leftSection={
                                         <MantineIcon icon={IconArrowLeft} />
-                                    </ActionIcon>
-                                    <ActionIcon
-                                        size="sm"
-                                        disabled={
-                                            index ===
-                                            block.config.actions.length - 1
-                                        }
-                                        aria-label={`Move ${presentation.title} later`}
-                                        onClick={() => move(index, 1)}
-                                    >
+                                    }
+                                    disabled={index === 0}
+                                    onClick={() => move(index, -1)}
+                                >
+                                    Move earlier
+                                </Menu.Item>
+                                <Menu.Item
+                                    leftSection={
                                         <MantineIcon icon={IconArrowRight} />
-                                    </ActionIcon>
-                                    <ActionIcon
-                                        size="sm"
-                                        aria-label={`Remove ${presentation.title}`}
-                                        onClick={() =>
-                                            setActions(
-                                                block.config.actions.filter(
-                                                    (_, i) => i !== index,
-                                                ),
-                                            )
-                                        }
-                                    >
-                                        <MantineIcon icon={IconX} />
-                                    </ActionIcon>
-                                </Group>
-                            </Paper>
-                        </Box>
+                                    }
+                                    disabled={
+                                        index ===
+                                        block.config.actions.length - 1
+                                    }
+                                    onClick={() => move(index, 1)}
+                                >
+                                    Move later
+                                </Menu.Item>
+                                <Menu.Divider />
+                                <Menu.Item
+                                    color="red"
+                                    leftSection={<MantineIcon icon={IconX} />}
+                                    onClick={() =>
+                                        setActions(
+                                            block.config.actions.filter(
+                                                (_, i) => i !== index,
+                                            ),
+                                        )
+                                    }
+                                >
+                                    Remove
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
                     );
                 })}
-            </Group>
-            <Group gap="xs">
                 <Menu position="bottom-start">
                     <Menu.Target>
-                        <Button
-                            variant="default"
-                            size="xs"
-                            leftSection={<MantineIcon icon={IconPlus} />}
+                        <button
+                            type="button"
+                            className={`${classes.quickActionChip} ${classes.addChip}`}
                         >
-                            Add action
-                        </Button>
+                            <MantineIcon icon={IconPlus} size={14} />
+                            Add
+                        </button>
                     </Menu.Target>
                     <Menu.Dropdown>
                         {missingStatics.map((type) => (

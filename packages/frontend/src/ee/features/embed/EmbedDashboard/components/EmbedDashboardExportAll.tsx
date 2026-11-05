@@ -8,8 +8,17 @@ import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import { IconCsv, IconFileTypeXls, IconTableExport } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import {
+    selectDateZoomGranularity,
+    selectDashboardWideParameterValues,
+    selectParameterControlInputs,
+    selectTileParameterReferences,
+    useDashboardStore,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../../../../../features/dashboard/store';
+import { getDashboardExportTileParameters } from '../../../../../features/dashboard/store/parameterControls';
 import { useExportDashboardContent } from '../../../../../hooks/dashboard/useDashboard';
-import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { type EventData } from '../../../../../providers/Tracking/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
@@ -27,11 +36,12 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
     const getUiString = useUiStrings();
     const { track } = useTracking();
     const exportDashboardContentMutation = useExportDashboardContent();
-    const dashboardFilters = useDashboardContext((c) => c.allFilters);
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
+    const dashboardFilters = useDashboardAllFilters();
+    const dashboardStore = useDashboardStore();
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
+    const parameterValues = useDashboardSelector(
+        selectDashboardWideParameterValues,
     );
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
 
     if (!dashboard.canExportDashboardCsv) {
         return null;
@@ -65,6 +75,15 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
             dashboardFilters,
             dateZoomGranularity,
             parameters: parameterValues,
+            tileParameters: getDashboardExportTileParameters({
+                controlInputs: selectParameterControlInputs(
+                    dashboardStore.getState(),
+                ),
+                tileUuids: dashboard.tiles.map(({ uuid }) => uuid),
+                tileParameterReferences: selectTileParameterReferences(
+                    dashboardStore.getState(),
+                ),
+            }),
             selectedTabs: null,
         });
     };

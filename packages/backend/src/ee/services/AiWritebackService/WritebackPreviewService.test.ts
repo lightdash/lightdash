@@ -6,6 +6,7 @@ import {
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
+import { WritebackAgentAccessError } from './errors';
 import {
     WritebackPreviewService,
     type WritebackPreviewGithubClient,
@@ -217,3 +218,38 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
         expect(projectService.createPreview).not.toHaveBeenCalled();
     });
 });
+
+it.each([1, 2])(
+    'propagates an access-check failure unchanged at preview publication %s',
+    async (failAt) => {
+        const githubClient = makeGithubClient();
+        const projectService = {
+            createPreview: vi.fn().mockResolvedValue({
+                projectUuid: 'preview',
+                compileJobUuid: 'compile',
+            }),
+        };
+        const service = buildService({ githubClient, projectService });
+        const error = new WritebackAgentAccessError(
+            new Error('access check unavailable'),
+        );
+        let checks = 0;
+        const assertPublishAllowed = vi.fn(async () => {
+            checks += 1;
+            if (checks === failAt) throw error;
+        });
+        await expect(
+            service.createPreviewForPullRequest({
+                user: userWithSourceCodeAccess(true),
+                projectUuid: PROJECT,
+                prUrl: PR_URL,
+                assertPublishAllowed,
+            }),
+        ).rejects.toBe(error);
+        expect(projectService.createPreview).toHaveBeenCalledTimes(
+            failAt === 2 ? 1 : 0,
+        );
+        expect(githubClient.createPullRequestComment).not.toHaveBeenCalled();
+        expect(assertPublishAllowed).toHaveBeenCalledTimes(failAt);
+    },
+);

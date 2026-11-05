@@ -10,7 +10,7 @@ import type * as t from '@babel/types';
 
 // Bump when the extractor learns new patterns so persisted results can be
 // detected as stale and re-extracted.
-export const DATA_REFERENCE_EXTRACTOR_VERSION = 5;
+export const DATA_REFERENCE_EXTRACTOR_VERSION = 6;
 
 export type DataAppSourceFile = {
     path: string; // relative to the bundle root, forward slashes
@@ -135,6 +135,8 @@ export type DataAppDataReferences = {
     references: ExtractedDataReference[];
     parseErrors: DataReferenceParseError[];
     stats: DataReferenceStats;
+    /** Whether the app's own code wires up the AI-analysis SDK surface. */
+    usesAiAnalysis: boolean;
 };
 
 /** Version-scoped extraction persisted without the extractor version. */
@@ -144,7 +146,37 @@ export type PersistedDataAppDataReferences = Pick<
 > & {
     /** Missing on versions persisted before extractor versioning. */
     extractorVersion?: number;
+    /** Missing on versions persisted before extractor version 6. */
+    usesAiAnalysis?: boolean;
 };
+
+// AI-analysis SDK entry points and shipped insight components. A reference to
+// any of them outside the component library itself means the app wires up the
+// analysis surface.
+const AI_ANALYSIS_IDENTIFIERS =
+    /\b(useInsights|useAiPrompt|InsightsSummary|InsightMarker|insightCellProps|InvestigateMenuItem|InvestigationCard)\b/;
+
+// The template ships the insight components under src/components/insights
+// whether or not the app uses them, so the library's own files don't count
+// as usage.
+const AI_ANALYSIS_LIBRARY_PATH = /(^|\/)components\/insights\//;
+
+const SCANNABLE_SOURCE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
+
+/**
+ * True when any app-authored source file references the AI-analysis SDK
+ * (markers, summary, prompt hook). Deliberately a text scan, not an AST
+ * pass: an identifier appearing at all is the signal, resolution isn't
+ * needed, and files the parser rejects still count.
+ */
+export function detectAiAnalysisUsage(files: DataAppSourceFile[]): boolean {
+    return files.some(
+        (file) =>
+            SCANNABLE_SOURCE.test(file.path) &&
+            !AI_ANALYSIS_LIBRARY_PATH.test(file.path) &&
+            AI_ANALYSIS_IDENTIFIERS.test(file.content),
+    );
+}
 
 export function isReferenceFullyResolved(ref: ExtractedDataReference): boolean {
     return ref.unresolved.length === 0;
@@ -448,7 +480,9 @@ class DataReferenceExtractor {
      *  can inherit the query's complete result-field set. */
     private readonly latePending: (() => void)[] = [];
 
-    extract(files: DataAppSourceFile[]): DataAppDataReferences {
+    extract(
+        files: DataAppSourceFile[],
+    ): Omit<DataAppDataReferences, 'usesAiAnalysis'> {
         const parseable = files.filter((f) =>
             PARSEABLE_EXTENSIONS.some((ext) => f.path.endsWith(ext)),
         );
@@ -2731,5 +2765,8 @@ class DataReferenceExtractor {
 export function extractDataAppDataReferences(
     files: DataAppSourceFile[],
 ): DataAppDataReferences {
-    return new DataReferenceExtractor().extract(files);
+    return {
+        ...new DataReferenceExtractor().extract(files),
+        usesAiAnalysis: detectAiAnalysisUsage(files),
+    };
 }

@@ -49,7 +49,29 @@ const view = useInsights();
 // view.analyse()    ask Lightdash to (re)run the analysis
 ```
 
-Render `<InsightsSummary />` near the top of the page. It handles every status (idle, analysing, ready, error, stale) and renders nothing when unavailable. Props: `title`, `idleText`, `className`. Write your own block only when the user asks for a layout the component cannot give, and then keep every status branch.
+Render `<InsightsSummary />` near the top of the page. It handles every status (idle, analysing, ready, error, stale) and renders nothing when unavailable. Props: `title`, `idleText`, `instructions`, `analyseOnLoad`, `className`. Write your own block only when the user asks for a layout the component cannot give, and then keep every status branch.
+
+### Author instructions for the analysis
+
+When the user wants the summary written a certain way — a language or locale ("British English", "amounts in EUR"), a tone, or a line or two of domain vocabulary the model would otherwise misread ("stage labels are covenant stages") — pass it as `instructions`:
+
+```tsx
+<InsightsSummary instructions="Write in British English. Amounts are EUR. 'Stage' labels are covenant stages, not sales stages." />
+```
+
+Or equivalently `useInsights({ instructions })` in a custom block. One string per app (the last value set wins), applied to every analysis of the app, max 2000 characters — keep it to a few short sentences. It guides wording and interpretation only; it cannot grant data access or change which rows are analysed. Do not restate what the data already shows, and do not set it unless the user asked for specific guidance.
+
+The organization may also set default instructions in its settings; those apply first and the app's instructions are added after them, so keep app instructions to app-specific guidance (domain vocabulary) and leave org-wide style (language, currency) to the org default when the user says it should apply everywhere.
+
+### Analyse on load
+
+By default the analysis runs when the viewer clicks **Analyse**. When the user wants it to run on its own ("analyse as soon as it loads", "show the summary when the page opens"), set `analyseOnLoad`:
+
+```tsx
+<InsightsSummary analyseOnLoad />
+```
+
+Or equivalently `useInsights({ analyseOnLoad: true })` in a custom block. One value per app (the last value set wins). The host runs the analysis once the page's queries settle and again when the view changes; a stored analysis of the same rows is reused instead of re-run. Do not set it unless the user asked for it.
 
 Rules for the block:
 
@@ -211,6 +233,129 @@ function RevenueTakeaway() {
 - `available` is false outside a Lightdash host or when the organisation has not turned AI on for data apps. Hide the control; do not fall back to another provider.
 - Trigger `ask` from a user action, or at most once per loaded view. Never on a timer, never per row. Prompts are rate limited per viewer.
 - Prompts are capped at 2000 characters; write them as instructions to an analyst, and name the audience and the length you want.
+
+## Agent investigations on demand (`useInvestigation`)
+
+> Use this when the user wants a button or pill that sends a written instruction to the AI **agent** so it can dig into the question using other data in Lightdash — "investigate what drove this", "act on this recommendation", "analyse the drivers" — with the findings shown inside the app. `useAiPrompt` only sees rows the app already loaded; `useInvestigation` runs the same agent as an anomaly Investigate, which can query other explores (read-only) to test drivers.
+
+```tsx
+import { useInvestigation, useLightdash } from '@lightdash/query-sdk';
+
+function DriverPill({ recommendation }: { recommendation: string }) {
+    // Keep the hook result itself: `sources` needs the object useLightdash
+    // returns, not a rebuilt { data, columns, ... }.
+    const revenue = useLightdash(revenueByMonth);
+    const investigation = useInvestigation();
+
+    if (!investigation.available || revenue.loading) return null;
+
+    return (
+        <div>
+            <button
+                disabled={investigation.status === 'running'}
+                onClick={() =>
+                    investigation.investigate({
+                        instruction: recommendation,
+                        sources: [{ result: revenue, label: 'Revenue by month' }],
+                    })
+                }
+            >
+                {investigation.status === 'running'
+                    ? 'Investigating…'
+                    : 'Investigate'}
+            </button>
+            {investigation.explanation && (
+                <Markdown>{investigation.explanation}</Markdown>
+            )}
+            {investigation.partial && (
+                <p>Stopped at the query budget; findings may be incomplete.</p>
+            )}
+            {investigation.error && <p role="alert">{investigation.error}</p>}
+            {investigation.canContinue && (
+                <button onClick={investigation.continueInAskAi}>
+                    Continue in Ask AI
+                </button>
+            )}
+        </div>
+    );
+}
+```
+
+- One `useInvestigation()` per control; a re-run replaces that control's result. Several pills mean several hook instances.
+- `sources` work exactly as in `useAiPrompt`: pass the object `useLightdash` returns, with an optional `label` the agent sees as the section title. The agent starts from these rows and may run further read-only semantic-layer queries under the viewer's own access.
+- The run takes up to a couple of minutes and the explanation is **Markdown** (the anomaly `InvestigationCard`'s rendering is a good model). Show a clear running state.
+- `available` is false outside a Lightdash host, when the organisation has AI off for data apps, on hosts that predate the capability, or while the viewer has no agent to run with. Hide the control; do not fall back to `useAiPrompt` silently for "investigate" asks — tell the user the host can't run investigations.
+- Trigger `investigate` only from a viewer's click; runs share the organisation's investigation rate limits and daily caps. Instructions are capped at 2000 characters; write them as a brief to an analyst.
+
+## Saved commentary shared between viewers (`useSharedAiCommentary`)
+
+> Use this when the user wants generated commentary to be **saved** — "save the summary for the team", "everyone should see the same commentary", "let people edit the AI text", "keep the narrative with this view". It needs BOTH AI analysis and saved app state available (see the prompt's availability lines); without either, fall back to `useAiPrompt` (no saving) or plain `useSharedAppState` (no generation).
+
+`useAiPrompt` answers one viewer once; `useSharedAiCommentary` keys the answer to the current selection and stores it in shared app state, so the first viewer generates it, later viewers of the same selection read the saved text, and anyone may edit it. The edited text is what later viewers see.
+
+```tsx
+import {
+    commentarySelectionKey,
+    useLightdash,
+    useSharedAiCommentary,
+} from '@lightdash/query-sdk';
+
+function RegionCommentary({ region, period }: { region: string; period: string }) {
+    const revenue = useLightdash(revenueQuery);
+    const c = useSharedAiCommentary({
+        // Same selection => same saved commentary, for every viewer.
+        selectionKey: commentarySelectionKey('region', region, 'period', period),
+        prompt: `In three sentences, what should a sales lead know about ${region} revenue for ${period}?`,
+        sources: [{ result: revenue, label: 'Revenue' }],
+    });
+    const [draft, setDraft] = useState<string | null>(null);
+
+    if (c.meta.loading || revenue.loading) return null;
+    return (
+        <section>
+            {c.commentary ? (
+                draft === null ? (
+                    <>
+                        <p>{c.commentary.text}</p>
+                        <footer className="text-xs text-muted-foreground">
+                            {c.commentary.edited
+                                ? `Edited by ${c.meta.updatedBy?.name ?? 'a viewer'}`
+                                : 'AI-generated'}
+                        </footer>
+                        <button onClick={() => setDraft(c.commentary!.text)}>Edit</button>
+                        {c.canGenerate && (
+                            <button disabled={c.generating} onClick={() => c.generate()}>
+                                Regenerate
+                            </button>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <textarea value={draft} onChange={(e) => setDraft(e.target.value)} />
+                        <button onClick={() => { c.saveEdit(draft); setDraft(null); }}>Save</button>
+                        <button onClick={() => setDraft(null)}>Cancel</button>
+                    </>
+                )
+            ) : (
+                c.canGenerate && (
+                    <button disabled={c.generating} onClick={() => c.generate()}>
+                        {c.generating ? 'Generating…' : 'Generate commentary'}
+                    </button>
+                )
+            )}
+        </section>
+    );
+}
+```
+
+Rules:
+
+- **`selectionKey` names the selection, not the data**: build it with `commentarySelectionKey(...)` from the filter values, segment ids or tab names that define what the viewer is looking at. Never include row values or timestamps. One key per distinct selection; shared app state allows 200 keys per app, so key on controls with bounded choices (a region picker, a period), not free-text search terms.
+- `prompt`, `sources` and `focus` work exactly as in `useAiPrompt`; the generated text is saved with the prompt and a `promptId` for provenance, `edited: false`.
+- Generation replaces any saved text (the Regenerate case) — trigger it from a click, never on load. Reading saved commentary is free and works even when `canGenerate` is false, so always render saved text regardless.
+- Label the text "AI-generated" until `commentary.edited` is true; then show who edited it from `meta.updatedBy`.
+- The saved text is visible to **every** viewer of the app, including viewers whose data permissions would show them different rows. That is the point of the feature — it behaves like a comment — but do not build it over data some viewers must not see described in words.
+- Storage errors surface on `meta.error`; generation errors on `error`. Handle both like any other state.
 
 ## What the app must not do
 

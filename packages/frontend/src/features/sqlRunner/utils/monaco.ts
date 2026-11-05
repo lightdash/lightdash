@@ -212,6 +212,12 @@ export const registerCustomCompletionProvider = (
                             ? CompletionItemInsertTextRule.InsertAsSnippet
                             : undefined,
                         filterText: item.filterText ?? undefined,
+                        command: item.triggersSuggest
+                            ? {
+                                  id: 'editor.action.triggerSuggest',
+                                  title: 'Suggest',
+                              }
+                            : undefined,
                         sortText: item.sortText,
                         documentation: item.documentation ?? undefined,
                         range: {

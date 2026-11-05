@@ -94,6 +94,9 @@ vi.mock('../../hooks/useAiAgentSkills', () => ({
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
 }));
+vi.mock('../../../../../hooks/health/useHealth', () => ({
+    default: () => ({ data: undefined }),
+}));
 
 vi.mock('../../../../../features/apps/components/AppActionsMenu', () => ({
     default: () => null,
@@ -116,6 +119,12 @@ vi.mock(
 vi.mock('../../hooks/useProjectAiAgents', async (importOriginal) => ({
     ...(await importOriginal<typeof ProjectAiAgentsModule>()),
     useProjectAiAgent: () => ({ data: undefined }),
+}));
+
+// The org captures switch is read from GET /org; the picker must not be the
+// thing that fetches it here.
+vi.mock('../../../../../features/apps/hooks/useDataAppCapturesEnabled', () => ({
+    useDataAppCapturesEnabled: () => true,
 }));
 
 // eslint-disable-next-line import/first
@@ -376,6 +385,9 @@ describe('AiDataAppPreviewPanel element picker', () => {
             startStreaming({
                 threadUuid: THREAD_UUID,
                 messageUuid: 'active-message',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
         const steerRequest = nock('http://test.lightdash')

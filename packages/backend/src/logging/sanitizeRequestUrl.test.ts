@@ -1,3 +1,4 @@
+import qs from 'qs';
 import { sanitizeRequestUrl } from './winston';
 
 describe('sanitizeRequestUrl', () => {
@@ -20,4 +21,171 @@ describe('sanitizeRequestUrl', () => {
             '/api/v1/projects/project-uuid',
         );
     });
+});
+
+it('redacts whole OAuth parameter names and preserves lookalikes', () => {
+    expect(
+        sanitizeRequestUrl(
+            '/callback?code=auth-secret&state=state-secret&downloadToken=download-secret&countryCode=GB&statement=ready&CODE=again#fragment',
+        ),
+    ).toBe(
+        '/callback?code=[REDACTED]&state=[REDACTED]&downloadToken=[REDACTED]&countryCode=GB&statement=ready&CODE=[REDACTED]#fragment',
+    );
+});
+
+it.each([
+    [
+        '/callback?%63ode=auth-secret&%73tate=state-secret',
+        '/callback?%63ode=[REDACTED]&%73tate=[REDACTED]',
+    ],
+    [
+        '/callback?code=first&code=second&CoDe=third&sTaTe=fourth&%64ownloadToken=fifth',
+        '/callback?code=[REDACTED]&code=[REDACTED]&CoDe=[REDACTED]&sTaTe=[REDACTED]&%64ownloadToken=[REDACTED]',
+    ],
+    [
+        '/callback?countryCode=GB&statement=ready&zipcode=12345',
+        '/callback?countryCode=GB&statement=ready&zipcode=12345',
+    ],
+    [
+        '/callback?code&state&downloadToken&code=value=more#fragment',
+        '/callback?code&state&downloadToken&code=[REDACTED]#fragment',
+    ],
+    [
+        '/callback?%ZZcode=value&code=secret',
+        '/callback?%ZZcode=value&code=[REDACTED]',
+    ],
+    ['/callback?code=secret#fragment', '/callback?code=[REDACTED]#fragment'],
+    ['/callback#fragment?code=value', '/callback#fragment?code=value'],
+])('sanitizes decoded parameter names %#', (url, expected) => {
+    expect(sanitizeRequestUrl(url)).toBe(expected);
+});
+
+it.each([
+    'code[0]',
+    'code[]',
+    'code[a][b]',
+    '%63ode%5B0%5D',
+    'CoDe%5B%5D',
+    'state[nonce]',
+    '%73tate%5Ba%5D%5Bb%5D',
+    'downloadToken[0]',
+    '%64ownloadToken%5B%5D',
+    '[code]',
+    '%5Bcode%5D',
+    '[state][a]',
+    '[downloadToken]',
+    'co%64e',
+])('redacts bracket parameter %s', (name) => {
+    expect(sanitizeRequestUrl(`/callback?${name}=secret&state=nonce`)).toBe(
+        `/callback?${name}=[REDACTED]&state=[REDACTED]`,
+    );
+});
+
+it('removes secret values when parsed with the app query parser', () => {
+    const url =
+        '/callback?%63ode%5B0%5D=auth-secret&code[]=second-secret&state[a][b]=state-secret&downloadToken[0]=download-secret';
+    const parseQuery = (requestUrl: string) =>
+        qs.parse(requestUrl.slice(requestUrl.indexOf('?') + 1), {
+            arrayLimit: 1000,
+        });
+    expect(parseQuery(url)).toEqual({
+        code: ['auth-secret', 'second-secret'],
+        state: { a: { b: 'state-secret' } },
+        downloadToken: ['download-secret'],
+    });
+    const parsed = parseQuery(sanitizeRequestUrl(url));
+    expect(parsed).toEqual({
+        code: ['[REDACTED]', '[REDACTED]'],
+        state: { a: { b: '[REDACTED]' } },
+        downloadToken: ['[REDACTED]'],
+    });
+    expect(JSON.stringify(parsed)).not.toMatch(/secret/);
+});
+
+it('preserves dotted names that the app query parser treats as literal keys', () => {
+    const url = '/callback?code.value=ordinary&state.value=ordinary';
+    expect(
+        qs.parse(url.slice(url.indexOf('?') + 1), { arrayLimit: 1000 }),
+    ).toEqual({
+        'code.value': 'ordinary',
+        'state.value': 'ordinary',
+    });
+    expect(sanitizeRequestUrl(url)).toBe(url);
+});
+
+it.each(['access_token', 'refresh_token'])(
+    'redacts OAuth %s query parameters',
+    (name) => {
+        const names = [
+            name,
+            name.toUpperCase(),
+            name.replace('token', 'ToKeN'),
+            `%${name.charCodeAt(0).toString(16)}${name.slice(1)}`,
+            `${name}[0]`,
+            `${name}[]`,
+            `${name}[a][b]`,
+            `${name.toUpperCase()}%5B%5D`,
+            `[${name}]`,
+            `%5B${name}%5D`,
+        ];
+        const query = names.map((key) => `${key}=secret`).join('&');
+        const expected = names.map((key) => `${key}=[REDACTED]`).join('&');
+        expect(
+            sanitizeRequestUrl(`/callback?${query}&next=value#fragment`),
+        ).toBe(`/callback?${expected}&next=value#fragment`);
+        expect(
+            sanitizeRequestUrl(
+                `/callback?${name}_hint=value&${name}.value=ordinary`,
+            ),
+        ).toBe(`/callback?${name}_hint=value&${name}.value=ordinary`);
+        expect(
+            JSON.stringify(
+                qs.parse(
+                    sanitizeRequestUrl(`/callback?${query}`).split('?')[1],
+                ),
+            ),
+        ).not.toContain('secret');
+    },
+);
+
+it.each(['', '/decision', '/completion', '/decision/'])(
+    'redacts only the approval request locator in path %s',
+    (suffix) => {
+        for (const prefix of ['', '/team']) {
+            const path = `${prefix}/api/v2/user/agent-connections/requests/11111111-1111-4111-8111-111111111111${suffix}`;
+            expect(sanitizeRequestUrl(path)).toBe(
+                `${prefix}/api/v2/user/agent-connections/requests/[REDACTED]${suffix}`,
+            );
+            expect(
+                sanitizeRequestUrl(
+                    `${path}?other=hello+world&state=secret#part`,
+                ),
+            ).toBe(
+                `${prefix}/api/v2/user/agent-connections/requests/[REDACTED]${suffix}?other=hello+world&state=[REDACTED]#part`,
+            );
+        }
+    },
+);
+
+it.each([
+    'agent_request',
+    'AGENT_REQUEST',
+    '%61gent_request',
+    'agent_request[]',
+    '[agent_request]',
+])('redacts approval query locator %s', (name) => {
+    expect(
+        sanitizeRequestUrl(
+            `/api/v1/oauth/authorize?${name}=request-secret&client_id=ordinary`,
+        ),
+    ).toBe(`/api/v1/oauth/authorize?${name}=[REDACTED]&client_id=ordinary`);
+});
+
+it.each([
+    '/api/v2/user/agent-connections/requests',
+    '/api/v2/user/agent-connections/grant-uuid/status',
+    '/api/v2/user/agent-connections/requests/request-uuid/unrelated',
+    '/other?agent_request_hint=value&agent_request.value=ordinary',
+])('preserves ordinary locator lookalike %s', (url) => {
+    expect(sanitizeRequestUrl(url)).toBe(url);
 });

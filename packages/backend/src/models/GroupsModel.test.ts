@@ -21,6 +21,30 @@ describe('GroupsModel', () => {
         tracker.reset();
     });
 
+    describe('find', () => {
+        beforeEach(() => {
+            tracker.on.select(/.*/).response([]);
+        });
+
+        it.each(['asc', 'desc'] as const)(
+            'orders case-insensitively by name (%s)',
+            async (sortDirection) => {
+                await model.find({
+                    organizationUuid: 'organization-uuid',
+                    sort: { sortBy: 'name', sortDirection },
+                });
+                expect(tracker.history.select[0].sql).toContain(
+                    `order by lower("groups"."name") ${sortDirection}, "groups"."group_uuid" ${sortDirection}`,
+                );
+            },
+        );
+
+        it('keeps the default order when no sort is requested', async () => {
+            await model.find({ organizationUuid: 'organization-uuid' });
+            expect(tracker.history.select[0].sql).not.toContain('order by');
+        });
+    });
+
     it('only updates allowed project access fields', async () => {
         tracker.on.delete(ProjectGroupAccessCustomRolesTableName).response(0);
         tracker.on.update(ProjectGroupAccessTableName).responseOnce([

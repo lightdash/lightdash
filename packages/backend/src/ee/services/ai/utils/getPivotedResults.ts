@@ -1,5 +1,10 @@
 import { DuckDBInstance } from '@duckdb/node-api';
-import { PivotedResults, SortField } from '@lightdash/common';
+import {
+    formatFieldLabel,
+    type ItemsMap,
+    type PivotedResults,
+    type SortField,
+} from '@lightdash/common';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
@@ -13,17 +18,26 @@ const quoteId = (id: string) => `"${id.replace(/"/g, '""')}"`;
 
 export const getPivotedResults = async (
     rows: Record<string, unknown>[],
-    fieldsMap: Record<string, unknown>,
+    fieldsMap: ItemsMap,
     pivotFields: string[],
     metrics: string[],
+    secondaryMetrics: string[],
     sorts: SortField[],
 ): Promise<PivotedResults> => {
     const fields = Object.keys(fieldsMap);
-    const usingFields = metrics.map((metric) => `FIRST(${quoteId(metric)})`);
+    const allMetrics = [...metrics, ...secondaryMetrics];
+    const isMultiMetric = allMetrics.length > 1;
+    // Pivoted columns are named `<pivot value>`, or `<pivot value>_<metric index>` with several metrics
+    const getSuffix = (index: number) => (isMultiMetric ? `_${index}` : '');
+    const usingFields = allMetrics.map((metric, index) =>
+        isMultiMetric
+            ? `FIRST(${quoteId(metric)}) AS "${index}"`
+            : `FIRST(${quoteId(metric)})`,
+    );
 
     // Get the grouping columns (all non-pivot, non-metric fields)
     const groupByFields = fields.filter(
-        (field) => !pivotFields.includes(field) && !metrics.includes(field),
+        (field) => !pivotFields.includes(field) && !allMetrics.includes(field),
     );
 
     // After pivoting, we can only sort by:
@@ -34,30 +48,34 @@ export const getPivotedResults = async (
         groupByFields.includes(sort.fieldId),
     );
 
-    const orderByPart = validSorts.length
-        ? `ORDER BY ${validSorts
-              .map(
-                  (sort) =>
-                      `${quoteId(sort.fieldId)} ${
-                          sort.descending ? 'DESC' : 'ASC'
-                      }${getNullsFirstLast(sort)}`,
-              )
-              .join(', ')}`
-        : '';
+    // Unsorted groups keep the input order: PIVOT output order is undefined
+    const orderByPart = `ORDER BY ${[
+        ...validSorts.map(
+            (sort) =>
+                `${quoteId(sort.fieldId)} ${
+                    sort.descending ? 'DESC' : 'ASC'
+                }${getNullsFirstLast(sort)}`,
+        ),
+        '__order__',
+    ].join(', ')}`;
 
-    // Build GROUP BY clause if we have grouping fields
-    const groupByPart = groupByFields.length
-        ? `GROUP BY ${groupByFields.map(quoteId).join(', ')}`
+    // __order__ is constant per group, so grouping by it never splits a group
+    const groupByPart = `GROUP BY ${[
+        ...groupByFields.map(quoteId),
+        '__order__',
+    ].join(', ')}`;
+    const partitionPart = groupByFields.length
+        ? `PARTITION BY ${groupByFields.map(quoteId).join(', ')}`
         : '';
+    const orderedSource = `SELECT * EXCLUDE (__row__), MIN(__row__) OVER (${partitionPart}) AS __order__
+        FROM (SELECT *, ROW_NUMBER() OVER () AS __row__ FROM results_data)`;
 
     // For multiple pivot fields, create a composite key
-    let query: string;
+    let pivotOn: string;
+    let pivotSource: string;
     if (pivotFields.length === 1) {
-        query = `PIVOT results_data
-    ON ${quoteId(pivotFields[0])}
-    USING ${usingFields.join(', ')}
-    ${groupByPart}
-    ${orderByPart}`;
+        pivotOn = quoteId(pivotFields[0]);
+        pivotSource = orderedSource;
     } else {
         // Create composite key by concatenating pivot fields with ' - ' separator
         const compositeKey = pivotFields
@@ -66,14 +84,15 @@ export const getPivotedResults = async (
                     `COALESCE(CAST(${quoteId(field)} AS VARCHAR), 'NULL')`,
             )
             .join(" || ' - ' || ");
-        query = `PIVOT (
-        SELECT *, ${compositeKey} as __pivot_key__ FROM results_data
-    )
-    ON __pivot_key__
+        pivotOn = '__pivot_key__';
+        pivotSource = `SELECT *, ${compositeKey} as __pivot_key__ FROM (${orderedSource})`;
+    }
+    const query = `SELECT * EXCLUDE (__order__) FROM (
+    PIVOT (${pivotSource})
+    ON ${pivotOn}
     USING ${usingFields.join(', ')}
     ${groupByPart}
-    ${orderByPart}`;
-    }
+    ) ${orderByPart}`;
 
     const instance = await DuckDBInstance.create(':memory:');
     try {
@@ -104,11 +123,44 @@ export const getPivotedResults = async (
             // getRowObjectsJS keeps the JS value mapping the legacy duckdb client
             // produced: Date for DATE/TIMESTAMP, bigint for BIGINT, number for DOUBLE.
             const pivoted = await result.getRowObjectsJS();
-            const fieldNames = Object.keys(pivoted[0]);
-
+            const pivotedColumns = Object.keys(pivoted[0]).filter(
+                (field) => !groupByFields.includes(field),
+            );
+            const getColumns = (metricIndexes: number[]) =>
+                metricIndexes.flatMap((index) =>
+                    pivotedColumns
+                        .filter((column) => column.endsWith(getSuffix(index)))
+                        .map((column) => ({
+                            column,
+                            pivotValue: column.slice(
+                                0,
+                                column.length - getSuffix(index).length,
+                            ),
+                            metric: allMetrics[index],
+                        })),
+                );
+            const columns = getColumns(metrics.map((_, index) => index));
+            const secondaryColumns = getColumns(
+                secondaryMetrics.map((_, index) => metrics.length + index),
+            );
             return {
                 results: pivoted,
-                metrics: fieldNames.filter((field) => !fields.includes(field)),
+                metrics: columns.map(({ column }) => column),
+                secondaryMetrics: secondaryColumns.map(({ column }) => column),
+                // Mirrors the app: pivot value, prefixed with the metric when several are plotted
+                labels: Object.fromEntries(
+                    [...columns, ...secondaryColumns].map(
+                        ({ column, pivotValue, metric }) => [
+                            column,
+                            isMultiMetric
+                                ? `[${pivotValue}] ${formatFieldLabel(
+                                      metric,
+                                      fieldsMap,
+                                  )}`
+                                : pivotValue,
+                        ],
+                    ),
+                ),
             };
         } finally {
             // Never let a close failure replace the in-flight error

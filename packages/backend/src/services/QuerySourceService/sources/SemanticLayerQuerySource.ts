@@ -7,6 +7,7 @@ import {
     metricQueryOfSemanticNode,
     ParameterError,
     QuerySourceType,
+    type FeatureFlags,
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type QuerySourceSchemaColumn,
@@ -40,6 +41,8 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
     };
 
     readonly supportsPivot = true;
+
+    readonly requiredFeatureFlags: FeatureFlags[] = [];
 
     private readonly asyncQueryService: AsyncQueryService;
 
@@ -153,7 +156,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             metricQuery,
             context,
             querySurface,
-            parameters,
+            parameters: { ...parameters, ...sourceQuery.parameters },
             userAttributeOverrides,
             invalidateCache,
             pivotConfiguration: pivotConfiguration ?? undefined,

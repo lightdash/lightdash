@@ -1,6 +1,10 @@
 import { getErrorMessage, ParseError } from '@lightdash/common';
 import execa from 'execa';
 import path from 'path';
+import {
+    getAgentConnectionChildEnvironment,
+    getAgentConnectionSelection,
+} from '../../credentials';
 import { loadDbtTarget } from '../../dbt/profile';
 import GlobalState from '../../globalState';
 
@@ -8,10 +12,17 @@ const DBT_CLOUD_TARGET_NAME_REGEX = /Target name\s+(\w+)/;
 
 const getDbtCloudTargetName = async (): Promise<string> => {
     try {
-        const { all } = await execa('dbt', ['environment', 'show'], {
-            all: true,
-            stdio: ['pipe', 'pipe', 'pipe'],
-        });
+        const { all } = await (getAgentConnectionSelection() !== null
+            ? execa('dbt', ['environment', 'show'], {
+                  all: true,
+                  stdio: ['pipe', 'pipe', 'pipe'],
+                  extendEnv: false,
+                  env: await getAgentConnectionChildEnvironment({}),
+              })
+            : execa('dbt', ['environment', 'show'], {
+                  all: true,
+                  stdio: ['pipe', 'pipe', 'pipe'],
+              }));
         const logs = all || '';
         const targetName = logs.match(DBT_CLOUD_TARGET_NAME_REGEX);
         if (targetName === null || targetName.length === 0) {

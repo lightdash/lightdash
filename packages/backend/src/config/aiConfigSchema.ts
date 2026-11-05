@@ -1,9 +1,10 @@
 import { z } from 'zod';
 
-export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-6-sol';
+export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-6.1-sol';
 export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 export const DEFAULT_OPENAI_FAST_MODEL_NAME = 'gpt-6-luna';
 export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-5-5';
+export const DEFAULT_ANTHROPIC_FAST_MODEL_NAME = 'claude-haiku-5-5';
 export const DEFAULT_GOOGLE_MODEL_NAME = 'gemini-3.8-flash';
 export const DEFAULT_GOOGLE_FAST_MODEL_NAME = 'gemini-3.5-flash-lite';
 export const DEFAULT_VERTEX_MODEL_NAME = 'gemini-3.8-flash';
@@ -66,6 +67,7 @@ export const aiCopilotConfigSchema = z
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
                     zeroDataRetention: z.boolean().default(false),
+                    useChatCompletions: z.boolean().default(false),
                     customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
                 })
@@ -77,10 +79,15 @@ export const aiCopilotConfigSchema = z
                     apiVersion: z.string(),
                     deploymentName: z.string(),
                     deploymentSupportsReasoning: z.boolean().default(false),
+                    reasoningEffort: z
+                        .enum(['none', 'minimal', 'low', 'medium', 'high'])
+                        .nullable()
+                        .default(null),
                     embeddingDeploymentName: z
                         .string()
                         .default(DEFAULT_AZURE_EMBEDDING_MODEL),
                     useDeploymentBasedUrls: z.boolean().default(true),
+                    useChatCompletions: z.boolean().default(false),
                     customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
                 })
@@ -154,6 +161,7 @@ export const aiCopilotConfigSchema = z
                         baseUrl: z.string().optional(),
                         claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
+                        maxOutputTokens: z.number().int().positive().optional(),
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),
@@ -172,6 +180,7 @@ export const aiCopilotConfigSchema = z
                         baseUrl: z.string().optional(),
                         claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
+                        maxOutputTokens: z.number().int().positive().optional(),
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),
@@ -188,6 +197,7 @@ export const aiCopilotConfigSchema = z
                         baseUrl: z.string().optional(),
                         claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
+                        maxOutputTokens: z.number().int().positive().optional(),
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),

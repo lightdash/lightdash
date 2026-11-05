@@ -21,6 +21,7 @@ import {
     CHART_RESULTS_ERROR_NAME,
     useQueryRetryConfig,
 } from '../../../hooks/useQueryRetry';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     getDashboardSqlChartPivotChartData,
     getEmbedDashboardSqlChartPivotChartData,
@@ -44,11 +45,15 @@ type SavedSqlChartDashboardCommonArgs = SavedSqlChartBaseArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
+    /** Keys the app's per-tile resolution leaves to the chart; set with the controls on */
+    excludedParameterKeys?: string[];
 };
 
 type SavedSqlChartRegisteredDashboardArgs = SavedSqlChartDashboardCommonArgs & {
     dashboardUuid: string;
     isEmbed?: false;
+    /** Skips the results cache, set by the dashboard refresh */
+    invalidateCache?: boolean;
 };
 
 // Embed callers don't pass dashboardUuid — the JWT carries it server-side.
@@ -92,6 +97,7 @@ type UseSavedSqlChartResults = {
 export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
+    const lightdashApi = useLightdashApi();
     const retryConfig = useQueryRetryConfig();
 
     const { savedSqlUuid, slug, projectUuid, context, parameters } = args;
@@ -117,12 +123,12 @@ export const useSavedSqlChartResults = (
         ],
         async () => {
             if (isEmbedDashboardArgs(args)) {
-                return fetchEmbedDashboardSqlChartTile({
+                return fetchEmbedDashboardSqlChartTile(lightdashApi, {
                     projectUuid: projectUuid!,
                     tileUuid: args.tileUuid,
                 });
             }
-            return fetchSavedSqlChart({
+            return fetchSavedSqlChart(lightdashApi, {
                 projectUuid: projectUuid!,
                 uuid: savedSqlUuid,
                 slug,
@@ -141,7 +147,13 @@ export const useSavedSqlChartResults = (
         UseSavedSqlChartResults,
         Partial<ApiError>
     >(
-        ['savedSqlChartResults', savedSqlUuid ?? slug, args], // keep uuid/slug in the key to facilitate cache invalidation
+        // uuid/slug eases cache invalidation; lastUpdatedAt reruns results after a chart edit
+        [
+            'savedSqlChartResults',
+            savedSqlUuid ?? slug,
+            args,
+            chartQuery.data?.lastUpdatedAt,
+        ],
         async () => {
             try {
                 // Safe to assume these are defined because of the enabled flag
@@ -150,32 +162,42 @@ export const useSavedSqlChartResults = (
                 let pivotResult;
                 if (isEmbedDashboardArgs(args)) {
                     pivotResult = await getEmbedDashboardSqlChartPivotChartData(
+                        lightdashApi,
                         {
                             projectUuid: projectUuid!,
                             tileUuid: args.tileUuid,
                             dashboardFilters: args.dashboardFilters,
                             dashboardSorts: args.dashboardSorts,
                             parameters,
+                            excludedParameterKeys: args.excludedParameterKeys,
                         },
                     );
                 } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
-                    pivotResult = await getDashboardSqlChartPivotChartData({
-                        projectUuid: projectUuid!,
-                        dashboardUuid: args.dashboardUuid,
-                        tileUuid: args.tileUuid,
-                        dashboardFilters: args.dashboardFilters,
-                        dashboardSorts: args.dashboardSorts,
-                        savedSqlUuid,
-                        context: args.context as QueryExecutionContext,
-                        parameters,
-                    });
+                    pivotResult = await getDashboardSqlChartPivotChartData(
+                        lightdashApi,
+                        {
+                            projectUuid: projectUuid!,
+                            dashboardUuid: args.dashboardUuid,
+                            tileUuid: args.tileUuid,
+                            dashboardFilters: args.dashboardFilters,
+                            dashboardSorts: args.dashboardSorts,
+                            savedSqlUuid,
+                            context: args.context as QueryExecutionContext,
+                            parameters,
+                            excludedParameterKeys: args.excludedParameterKeys,
+                            invalidateCache: args.invalidateCache,
+                        },
+                    );
                 } else {
-                    pivotResult = await getSqlChartPivotChartData({
-                        projectUuid: projectUuid!,
-                        savedSqlUuid: chart.savedSqlUuid,
-                        context: context as QueryExecutionContext,
-                        parameters,
-                    });
+                    pivotResult = await getSqlChartPivotChartData(
+                        lightdashApi,
+                        {
+                            projectUuid: projectUuid!,
+                            savedSqlUuid: chart.savedSqlUuid,
+                            context: context as QueryExecutionContext,
+                            parameters,
+                        },
+                    );
                 }
                 const { originalColumns, ...pivotChartData } = pivotResult;
 
@@ -234,8 +256,10 @@ export const useSavedSqlChartResults = (
             }
         },
         {
+            // Waiting for a chart refetch avoids running results under a stale key
             enabled:
                 !!chartQuery.data &&
+                !chartQuery.isFetching &&
                 !chartQuery.isError &&
                 !!projectUuid &&
                 (embedDashboard || !!savedSqlUuid || !!slug),
@@ -263,16 +287,22 @@ export const useSavedSqlChartResults = (
                 let queryForDownload;
                 if (isEmbedDashboardArgs(args)) {
                     queryForDownload =
-                        await getEmbedDashboardSqlChartPivotChartData({
-                            projectUuid: projectUuid!,
-                            tileUuid: args.tileUuid,
-                            dashboardFilters: args.dashboardFilters,
-                            dashboardSorts: args.dashboardSorts,
-                            limit: limit ?? MAX_SAFE_INTEGER,
-                            parameters,
-                        });
+                        await getEmbedDashboardSqlChartPivotChartData(
+                            lightdashApi,
+                            {
+                                projectUuid: projectUuid!,
+                                tileUuid: args.tileUuid,
+                                dashboardFilters: args.dashboardFilters,
+                                dashboardSorts: args.dashboardSorts,
+                                limit: limit ?? MAX_SAFE_INTEGER,
+                                parameters,
+                                excludedParameterKeys:
+                                    args.excludedParameterKeys,
+                            },
+                        );
                 } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
                     queryForDownload = await getDashboardSqlChartPivotChartData(
+                        lightdashApi,
                         {
                             projectUuid: projectUuid!,
                             dashboardUuid: args.dashboardUuid,
@@ -283,16 +313,20 @@ export const useSavedSqlChartResults = (
                             context: args.context as QueryExecutionContext,
                             limit: limit ?? MAX_SAFE_INTEGER,
                             parameters,
+                            excludedParameterKeys: args.excludedParameterKeys,
                         },
                     );
                 } else {
-                    queryForDownload = await getSqlChartPivotChartData({
-                        projectUuid: projectUuid!,
-                        savedSqlUuid: chartQuery.data.savedSqlUuid,
-                        context: context as QueryExecutionContext,
-                        limit: limit ?? MAX_SAFE_INTEGER,
-                        parameters,
-                    });
+                    queryForDownload = await getSqlChartPivotChartData(
+                        lightdashApi,
+                        {
+                            projectUuid: projectUuid!,
+                            savedSqlUuid: chartQuery.data.savedSqlUuid,
+                            context: context as QueryExecutionContext,
+                            limit: limit ?? MAX_SAFE_INTEGER,
+                            parameters,
+                        },
+                    );
                 }
                 queryUuidToDownload = queryForDownload.queryUuid;
             }
@@ -307,6 +341,7 @@ export const useSavedSqlChartResults = (
             projectUuid,
             savedSqlUuid,
             parameters,
+            lightdashApi,
         ],
     );
 

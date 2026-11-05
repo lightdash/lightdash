@@ -74,6 +74,7 @@ export type AppThumbnailClientArgs = {
 export type AppThumbnailCaptureSkipReason =
     | 'no_headless_browser'
     | 'feature_flag_off'
+    | 'captures_disabled'
     | 'app_not_found'
     | 'custom_chart_type'
     | 'version_not_ready'
@@ -237,6 +238,28 @@ export class AppThumbnailClient {
         this.featureFlagModel = featureFlagModel;
     }
 
+    private async effectiveSettings(organizationUuid: string) {
+        return resolveEffectiveOrganizationSettings(
+            await this.organizationSettingsModel.get(organizationUuid),
+            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+        );
+    }
+
+    /**
+     * The org's effective "allow screenshots and attachments in data app
+     * builds" switch: the org setting capped by `LIGHTDASH_APP_CAPTURES_ENABLED`.
+     * Every capture of a running app — prompt-bar screenshots, file
+     * attachments, manual and automatic thumbnails, the Slack build-outcome
+     * image — checks this before it runs.
+     */
+    async areCapturesEnabled(organizationUuid: string): Promise<boolean> {
+        // Resolved to a boolean by the resolver; the type stays nullable.
+        return (
+            (await this.effectiveSettings(organizationUuid))
+                .dataAppCapturesEnabled !== false
+        );
+    }
+
     /** Whether to enqueue a capture when a version of this app becomes ready. */
     async shouldCaptureAutomatically(
         app: Pick<ThumbnailApp, 'organizationUuid' | 'isCustomChartType'>,
@@ -245,10 +268,8 @@ export class AppThumbnailClient {
         if (!(await this.isAutomaticCaptureFlagOn(app.organizationUuid))) {
             return false;
         }
-        const settings = resolveEffectiveOrganizationSettings(
-            await this.organizationSettingsModel.get(app.organizationUuid),
-            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
-        );
+        // Resolved against the captures switch: off while captures are off.
+        const settings = await this.effectiveSettings(app.organizationUuid);
         return settings.dataAppAutomaticThumbnailsEnabled !== false;
     }
 
@@ -268,6 +289,11 @@ export class AppThumbnailClient {
             if (skipReason) return { status: 'skipped', reason: skipReason };
             if (!(await this.isAutomaticCaptureFlagOn(app.organizationUuid))) {
                 return { status: 'skipped', reason: 'feature_flag_off' };
+            }
+            // Re-checked at run time: the switch may have flipped since the
+            // job was enqueued.
+            if (!(await this.areCapturesEnabled(app.organizationUuid))) {
+                return { status: 'skipped', reason: 'captures_disabled' };
             }
 
             const version = await this.findVersion(ref.appUuid, ref.version);

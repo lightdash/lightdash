@@ -7,6 +7,9 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useScreenshotReadiness } from '../../features/dashboard/store';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import DashboardTileStatusProvider, {
     type DashboardTileStatusProviderProps,
 } from './DashboardTileStatusProvider';
@@ -20,10 +23,8 @@ vi.mock('../App/useApp', () => ({
     default: () => ({ health: { data: undefined } }),
 }));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
-    default: () => ({ embedToken: undefined }),
-}));
-vi.mock('../../ee/features/embed/hooks/useEmbedEventEmitter', () => ({
-    useEmbedEventEmitter: () => ({
+    default: () => ({
+        embedToken: undefined,
         dispatchEmbedEvent: vi.fn(),
         isEmbedEventReady: false,
     }),
@@ -55,15 +56,25 @@ const renderStatus = (
     props: Omit<DashboardTileStatusProviderProps, 'children'>,
     path = '/minimal/dashboard/dashboard-uuid',
 ) =>
-    renderHook(() => useDashboardTileStatusContext((context) => context), {
-        wrapper: ({ children }: { children: ReactNode }) => (
-            <MemoryRouter initialEntries={[path]}>
-                <DashboardTileStatusProvider {...props}>
-                    {children}
-                </DashboardTileStatusProvider>
-            </MemoryRouter>
-        ),
-    });
+    renderHook(
+        () => ({
+            ...useDashboardTileStatusContext((context) => context),
+            ...useScreenshotReadiness(),
+        }),
+        {
+            wrapper: ({ children }: { children: ReactNode }) => (
+                <MemoryRouter initialEntries={[path]}>
+                    <DashboardStoreTestProvider
+                        store={createDashboardTestStore()}
+                    >
+                        <DashboardTileStatusProvider {...props}>
+                            {children}
+                        </DashboardTileStatusProvider>
+                    </DashboardStoreTestProvider>
+                </MemoryRouter>
+            ),
+        },
+    );
 
 afterEach(cleanup);
 

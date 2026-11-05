@@ -1,6 +1,10 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { DEFAULT_OPENAI_BASE_URL } from '../../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import {
+    getReasoningProviderOptions,
+    withChatCompletionsDefaults,
+} from './chatCompletions';
 import { ModelPreset } from './presets';
 import { AiModel, ProviderOptionsMap } from './types';
 
@@ -20,19 +24,23 @@ export const getOpenaiGptmodel = (
     });
     const { supportsReasoning, modelId } = preset;
 
-    const model = openai(modelId);
+    const model = config.useChatCompletions
+        ? withChatCompletionsDefaults(openai.chat(modelId))
+        : openai(modelId);
     const extendedReasoningEnabled =
         options?.enableReasoning === true && supportsReasoning;
     const { reasoningEffort: presetReasoningEffort, ...presetProviderOptions } =
         preset.providerOptions ?? {};
     const reasoningProviderOptions = supportsReasoning
         ? ({
-              reasoningEffort:
-                  presetReasoningEffort ??
-                  (extendedReasoningEnabled ? 'medium' : 'low'),
-              ...(extendedReasoningEnabled && {
-                  // Request a summary so extended reasoning reaches the client.
-                  reasoningSummary: 'auto',
+              ...getReasoningProviderOptions({
+                  useChatCompletions: config.useChatCompletions,
+                  responsesEffort: extendedReasoningEnabled ? 'medium' : 'low',
+                  includeSummary: extendedReasoningEnabled,
+              }),
+              // Presets pin the effort their model accepts (gpt-5-mini rejects 'none').
+              ...(presetReasoningEffort && {
+                  reasoningEffort: presetReasoningEffort,
               }),
           } satisfies ProviderOptionsMap[typeof PROVIDER])
         : undefined;
@@ -50,8 +58,10 @@ export const getOpenaiGptmodel = (
                 ...reasoningProviderOptions,
                 // OpenAI Zero Data Retention (ZDR) organizations do not persist
                 // reasoning IDs; return encrypted content for stateless follow-ups.
+                // Chat Completions is stateless already and rejects `include`.
                 ...(config.zeroDataRetention &&
-                    supportsReasoning && {
+                    supportsReasoning &&
+                    !config.useChatCompletions && {
                         store: false,
                         include: ['reasoning.encrypted_content'],
                     }),

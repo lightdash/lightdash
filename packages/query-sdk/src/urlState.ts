@@ -183,6 +183,12 @@ function getSharedStore(): UrlStateStore {
     return sharedStore;
 }
 
+/** Write one key into the shared URL state map (used by `useAppState`'s
+ *  `url` option so a remembered control also lands in the shareable link). */
+export function setUrlStateKey(key: string, value: unknown): void {
+    getSharedStore().setKey(key, value);
+}
+
 /**
  * `useState`-shaped hook whose value round-trips through the page URL:
  *

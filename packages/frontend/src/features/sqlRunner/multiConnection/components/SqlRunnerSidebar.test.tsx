@@ -15,7 +15,7 @@ import {
     vi,
     type Mock,
 } from 'vitest';
-import { lightdashApi } from '../../../../api';
+import { sharedLightdashApi } from '../../../../api';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { Sidebar } from '../../components/Sidebar';
 import { store } from '../../store';
@@ -23,9 +23,7 @@ import { resetState, setProjectUuid } from '../../store/sqlRunnerSlice';
 import { SqlRunnerConnectionScope } from './SqlRunnerConnectionScope';
 import { SqlRunnerSidebar } from './SqlRunnerSidebar';
 
-vi.mock('../../../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../../../api');
 
 vi.mock('../../components/Sidebar', () => ({
     Sidebar: vi.fn(() => <div data-testid="main-sidebar" />),
@@ -55,7 +53,7 @@ vi.mock('../../../../components/DataViz/VisualizationConfigPanel', () => ({
     VisualizationConfigPanel: () => null,
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 const projectUuid = 'project-uuid';
 const connectionsUrl = `/projects/${projectUuid}/sqlRunner/connections`;
 

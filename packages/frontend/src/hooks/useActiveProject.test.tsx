@@ -3,9 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('./user/useAccount', () => ({
     useAccount: () => ({ data: { user: { userUuid: 'user-1' } } }),

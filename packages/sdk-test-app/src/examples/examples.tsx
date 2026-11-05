@@ -5,10 +5,12 @@ import { ChartExamplePage } from './ChartExamplePage';
 import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { ErrorHandlingExamplePage } from './ErrorHandlingExamplePage';
+import { ExploreFromHereExamplePage } from './ExploreFromHereExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { HostStylesExamplePage } from './HostStylesExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
 import { MetricsCatalogExamplePage } from './MetricsCatalogExamplePage';
+import { MultipleEmbedsExamplePage } from './MultipleEmbedsExamplePage';
 import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
 import { ThemeExamplePage } from './ThemeExamplePage';
 import { TokenRotationExamplePage } from './TokenRotationExamplePage';
@@ -50,6 +52,16 @@ export const examples: ExampleDefinition[] = [
             'Embed a single saved chart in view or edit mode and drill down without leaving the host app.',
         sourcePath: 'packages/sdk-test-app/src/examples/ChartExamplePage.tsx',
         component: ChartExamplePage,
+    },
+    {
+        slug: 'explore-from-here',
+        path: '/examples/explore-from-here',
+        title: 'Explore from here demo',
+        description:
+            'Open a saved dashboard tile in Explore inside the embed, or hand it to the host with onExplore.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/ExploreFromHereExamplePage.tsx',
+        component: ExploreFromHereExamplePage,
     },
     {
         slug: 'content-catalog',
@@ -104,7 +116,7 @@ export const examples: ExampleDefinition[] = [
         path: '/examples/theme',
         title: 'Theme demo',
         description:
-            'Switch the embedded dashboard between light and dark mode via the `theme` prop.',
+            'Switch the embedded dashboard between light, dark and the OS scheme via the `theme` prop.',
         sourcePath: 'packages/sdk-test-app/src/examples/ThemeExamplePage.tsx',
         component: ThemeExamplePage,
     },
@@ -137,6 +149,16 @@ export const examples: ExampleDefinition[] = [
         sourcePath:
             'packages/sdk-test-app/src/examples/HostStylesExamplePage.tsx',
         component: HostStylesExamplePage,
+    },
+    {
+        slug: 'multiple-embeds',
+        path: '/examples/multiple-embeds',
+        title: 'Multiple embeds demo',
+        description:
+            'A dashboard and a chart on the same page, each embedded with its own token.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/MultipleEmbedsExamplePage.tsx',
+        component: MultipleEmbedsExamplePage,
     },
     // Future examples:
     // {

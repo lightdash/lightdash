@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AgentActorSurface,
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AI_DEEP_RESEARCH_EVIDENCE_MAX_QUERIES,
     AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
@@ -30,8 +31,8 @@ import {
     QueryHistoryStatus,
     QuerySurface,
     sleep,
-    toolRunQueryArgsSchemaPersisted,
-    toolRunQueryArgsSchemaTransformed,
+    toolRunQueryExpressionResolvedArgsSchema,
+    toolRunQueryExpressionResolvedArgsSchemaTransformed,
     UnexpectedServerError,
     type Account,
     type AiAgentToolResult,
@@ -56,6 +57,8 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type DocumentChartContent,
     type PivotConfiguration,
+    type QueryHistory,
+    type QueryResultReader,
     type SessionUser,
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
@@ -64,6 +67,11 @@ import { fromSession } from '../../../auth/account';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { type UserModel } from '../../../models/UserModel';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+    type AgentExecutionContext,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { type DocumentService } from '../../../services/DocumentService/DocumentService';
@@ -97,6 +105,7 @@ import { toDeepResearchDocument } from './toDeepResearchDocument';
 import {
     isDeepResearchEvidenceQueryTool,
     isDeepResearchRawSqlTool,
+    isDeepResearchWarehouseMcpTool,
 } from './toolClassification';
 
 const MAX_EVENT_PAGE_SIZE = 100;
@@ -142,9 +151,10 @@ const toDocumentChart = (
     entry: AiDeepResearchChartData,
     candidate: { description: string; toolArgs: unknown },
 ): DocumentChartContent | null => {
-    const queryTool = toolRunQueryArgsSchemaTransformed.safeParse(
-        candidate.toolArgs,
-    );
+    const queryTool =
+        toolRunQueryExpressionResolvedArgsSchemaTransformed.safeParse(
+            candidate.toolArgs,
+        );
     if (!queryTool.success || queryTool.data.mergeConfig) {
         return null;
     }
@@ -279,6 +289,28 @@ const getQueryUuidFromMetadata = (metadata: unknown): string | null =>
     typeof metadata.queryUuid === 'string'
         ? metadata.queryUuid
         : null;
+const getArtifactVersionUuidFromMetadata = (metadata: unknown): string | null =>
+    metadata !== null &&
+    typeof metadata === 'object' &&
+    'artifactVersionUuid' in metadata &&
+    typeof metadata.artifactVersionUuid === 'string'
+        ? metadata.artifactVersionUuid
+        : null;
+/** The call's resolved args when its artifact holds them, else its raw args. */
+const getRunQueryToolArgs = (
+    resolvedArgsByVersion: ReadonlyMap<string, unknown>,
+    toolCall: { toolArgs: unknown },
+    toolResult: AiAgentToolResult | null,
+): unknown => {
+    const versionUuid = toolResult
+        ? getArtifactVersionUuidFromMetadata(toolResult.metadata)
+        : null;
+    const resolvedArgs =
+        versionUuid === null
+            ? undefined
+            : resolvedArgsByVersion.get(versionUuid);
+    return resolvedArgs ?? toolCall.toolArgs;
+};
 const isChartConfigCompatible = (
     chart: AiDeepResearchWarehouseChart,
     metricQuery: {
@@ -377,6 +409,7 @@ type Dependencies = {
         | 'findThreadOwnership'
         | 'findToolResultsByToolCallIds'
         | 'findWebAppPrompt'
+        | 'getArtifactVersionsByUuids'
         | 'getToolCallsAndResultsForPrompt'
     >;
     aiAgentService: Pick<
@@ -909,14 +942,6 @@ export class AiDeepResearchService extends BaseService {
         if (!(await this.aiAgentService.getIsCopilotEnabled(args.user))) {
             throw new ForbiddenError('AI Copilot is not enabled');
         }
-        // Deep Research output is a Document, so it needs Documents enabled.
-        const documentsFlag = await this.featureFlagService.get({
-            user: args.user,
-            featureFlagId: FeatureFlags.Documents,
-        });
-        if (!documentsFlag.enabled) {
-            throw new ForbiddenError('Documents are not enabled');
-        }
         // Checked once here; the run's later steps are never interrupted.
         await this.aiAgentService.assertAgentCreditsAvailable(args.user, {
             projectUuid: args.projectUuid,
@@ -1193,20 +1218,33 @@ export class AiDeepResearchService extends BaseService {
             args.aiDeepResearchRunUuid,
         );
         const chart = await this.getRunChart(run, args.chartKey);
+        const scope = await this.getRunExecutionScope(
+            args.account,
+            args.user,
+            run,
+        );
         const prompt = await this.aiAgentModel.findWebAppPrompt(
             run.prompt_uuid,
         );
-
-        const query = await this.asyncQueryService.executeAsyncMetricQuery({
-            account: args.account,
-            projectUuid: args.projectUuid,
-            metricQuery: chart.metricQuery,
-            context: QueryExecutionContext.AI,
-            querySurface: prompt
-                ? querySurfaceFromPrompt(prompt)
-                : QuerySurface.APP,
-            pivotConfiguration: this.getChartPivotConfiguration(chart),
-        });
+        const query = await agentExecutionContext.run(scope, () =>
+            this.asyncQueryService.executeAsyncMetricQuery({
+                account: args.account,
+                projectUuid: args.projectUuid,
+                metricQuery: chart.metricQuery,
+                context: QueryExecutionContext.AI,
+                querySurface: prompt
+                    ? querySurfaceFromPrompt(prompt)
+                    : QuerySurface.APP,
+                pivotConfiguration: this.getChartPivotConfiguration(chart),
+            }),
+        );
+        if (scope.agentIdentityEnabled)
+            await this.asyncQueryService.bindQueryToResearchRun(
+                args.account,
+                args.projectUuid,
+                query.queryUuid,
+                run.ai_deep_research_run_uuid,
+            );
 
         return {
             source: 'semantic',
@@ -1227,6 +1265,112 @@ export class AiDeepResearchService extends BaseService {
                 description: null,
             },
         };
+    }
+
+    private async getRunExecutionScope(
+        account: Account,
+        user: SessionUser,
+        run: DbAiDeepResearchRun,
+        identityEnabled?: boolean,
+    ) {
+        const agentIdentityEnabled =
+            identityEnabled ??
+            (
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                })
+            ).enabled;
+        if (agentIdentityEnabled) {
+            const prompt = await this.aiAgentModel.findWebAppPrompt(
+                run.prompt_uuid,
+            );
+            if (
+                account.user.id !== run.created_by_user_uuid ||
+                user.userUuid !== run.created_by_user_uuid ||
+                account.organization.organizationUuid !==
+                    run.organization_uuid ||
+                prompt?.promptUuid !== run.prompt_uuid ||
+                prompt?.createdByUserUuid !== run.created_by_user_uuid ||
+                prompt.agentUuid !== run.agent_uuid ||
+                prompt.projectUuid !== run.project_uuid ||
+                prompt.organizationUuid !== run.organization_uuid ||
+                prompt.threadUuid !== run.ai_thread_uuid
+            ) {
+                throw new ForbiddenError(
+                    'Deep Research chart owner is unavailable',
+                );
+            }
+        }
+        return createAgentExecutionContext({
+            account,
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+            agentUuid: run.agent_uuid,
+            agentIdentityEnabled,
+        });
+    }
+
+    async getChartQueryResults(args: {
+        account: Account;
+        user: SessionUser;
+        projectUuid: string;
+        aiDeepResearchRunUuid: string;
+        queryUuid: string;
+        page?: number;
+        pageSize?: number;
+    }) {
+        const { enabled } = await this.featureFlagService.get({
+            user: args.user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        let reader: QueryResultReader = {
+            kind: 'person',
+            authMethod: args.account.authentication.type,
+        };
+        if (enabled) {
+            const history = await this.queryHistoryModel.getByQueryUuid(
+                args.queryUuid,
+            );
+            if (
+                !history ||
+                history.projectUuid !== args.projectUuid ||
+                history.organizationUuid !== args.user.organizationUuid ||
+                history.requestParameters.resultResearchRunUuid !==
+                    args.aiDeepResearchRunUuid
+            )
+                throw new NotFoundError(
+                    'Deep Research chart results are unavailable',
+                );
+            const run = await this.aiDeepResearchRunModel.findByUuidScoped({
+                aiDeepResearchRunUuid: args.aiDeepResearchRunUuid,
+                organizationUuid: args.user.organizationUuid!,
+                projectUuid: args.projectUuid,
+            });
+            if (!run) throw new NotFoundError('Deep Research run not found');
+            if (run.created_by_user_uuid === args.account.user.id) {
+                await this.assertCurrentRunAccess(args.user, run);
+                const scope = await this.getRunExecutionScope(
+                    args.account,
+                    args.user,
+                    run,
+                );
+                if (scope.agentIdentityEnabled && scope.claim)
+                    reader = {
+                        kind: 'agent',
+                        claim: scope.claim,
+                        authMethod: args.account.authentication.type,
+                    };
+            }
+        }
+        return this.asyncQueryService.getAsyncQueryResults({
+            account: args.account,
+            projectUuid: args.projectUuid,
+            queryUuid: args.queryUuid,
+            page: args.page,
+            pageSize: args.pageSize,
+            reader,
+        });
     }
 
     // Grouped charts expect server-pivoted results, matching the chat viz path.
@@ -1690,7 +1834,7 @@ export class AiDeepResearchService extends BaseService {
             ...currentCharts.entries(),
         ]);
         const sourceEvidence = sourceRun
-            ? await this.buildEvidencePack(sourceRun, 1)
+            ? await this.buildEvidencePack(sourceRun, 1, run)
             : null;
         const trustedQueryUuids = new Set([
             ...runQueryUuids,
@@ -1796,35 +1940,70 @@ export class AiDeepResearchService extends BaseService {
                 run.prompt_uuid,
                 { includeSubagentToolCalls: true },
             );
+        const chartCalls = provenance.filter(
+            ({ toolCall, toolResult }) =>
+                toolCall.toolName === 'generateVisualization' &&
+                toolResult !== null &&
+                getQueryUuidFromMetadata(toolResult.metadata) !== null &&
+                (toolCall.parentToolCallId === null ||
+                    toolCall.parentToolCallId.startsWith(
+                        `deep-research:${run.ai_deep_research_run_uuid}:`,
+                    )),
+        );
+        const resolvedArgsByVersion =
+            await this.getResolvedArgsByArtifactVersion(chartCalls);
 
         return new Map(
-            provenance.flatMap(({ toolCall, toolResult }) => {
+            chartCalls.flatMap(({ toolCall, toolResult }) => {
                 const queryUuid = toolResult
                     ? getQueryUuidFromMetadata(toolResult.metadata)
                     : null;
-                if (
-                    toolCall.toolName !== 'generateVisualization' ||
-                    queryUuid === null ||
-                    (toolCall.parentToolCallId !== null &&
-                        !toolCall.parentToolCallId.startsWith(
-                            `deep-research:${run.ai_deep_research_run_uuid}:`,
-                        ))
-                ) {
+                if (queryUuid === null) {
                     return [];
                 }
+                const toolArgs = getRunQueryToolArgs(
+                    resolvedArgsByVersion,
+                    toolCall,
+                    toolResult,
+                );
                 const resolved = resolveDeepResearchWarehouseChart(
-                    toolCall.toolArgs,
+                    toolArgs,
                     queryUuid,
                 );
                 return resolved
-                    ? [
-                          [
-                              queryUuid,
-                              { ...resolved, toolArgs: toolCall.toolArgs },
-                          ] as const,
-                      ]
+                    ? [[queryUuid, { ...resolved, toolArgs }] as const]
                     : [];
             }),
+        );
+    }
+
+    /**
+     * With filter expressions on, a call stores the model's expression DSL;
+     * its artifact version holds the resolved args the chart parsers accept.
+     */
+    private async getResolvedArgsByArtifactVersion(
+        calls: Array<{ toolResult: AiAgentToolResult | null }>,
+    ): Promise<Map<string, unknown>> {
+        const versionUuids = [
+            ...new Set(
+                calls.flatMap(({ toolResult }) => {
+                    const versionUuid = toolResult
+                        ? getArtifactVersionUuidFromMetadata(
+                              toolResult.metadata,
+                          )
+                        : null;
+                    return versionUuid ? [versionUuid] : [];
+                }),
+            ),
+        ];
+        const versions =
+            await this.aiAgentModel.getArtifactVersionsByUuids(versionUuids);
+        return new Map(
+            versions.flatMap(({ artifactVersionUuid, chartConfig }) =>
+                'config' in chartConfig
+                    ? [[artifactVersionUuid, chartConfig.config] as const]
+                    : [],
+            ),
         );
     }
 
@@ -1844,7 +2023,56 @@ export class AiDeepResearchService extends BaseService {
     async buildEvidencePack(
         run: DbAiDeepResearchRun,
         depth = 0,
+        sourceForRun?: DbAiDeepResearchRun,
     ): Promise<AiDeepResearchEvidenceBuildResult> {
+        const { enabled } = await this.featureFlagService.get({
+            user: {
+                userUuid: run.created_by_user_uuid,
+                organizationUuid: run.organization_uuid,
+            },
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        let evidenceExecution: {
+            account: Account;
+            scope: AgentExecutionContext;
+        } | null = null;
+        if (enabled) {
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                run.created_by_user_uuid,
+                run.organization_uuid,
+            );
+            const account = fromSession(user);
+            const scope = await this.getRunExecutionScope(
+                account,
+                user,
+                run,
+                enabled,
+            );
+            evidenceExecution = { account, scope };
+            if (sourceForRun)
+                this.assertSourceRunAssociation(sourceForRun, run);
+            const storedRun =
+                await this.aiDeepResearchRunModel.findByPromptScoped({
+                    promptUuid: run.prompt_uuid,
+                    organizationUuid: run.organization_uuid,
+                    projectUuid: run.project_uuid,
+                    createdByUserUuid: run.created_by_user_uuid,
+                });
+            const project = await this.projectModel.getSummary(
+                run.project_uuid,
+            );
+            if (
+                storedRun?.ai_deep_research_run_uuid !==
+                    run.ai_deep_research_run_uuid ||
+                storedRun.agent_uuid !== run.agent_uuid ||
+                storedRun.ai_thread_uuid !== run.ai_thread_uuid ||
+                project.organizationUuid !== run.organization_uuid
+            )
+                throw new ForbiddenError(
+                    'Deep Research evidence is unavailable',
+                );
+            await this.assertCurrentRunAccess(user, run);
+        }
         const timezone =
             (await this.projectModel.getQueryTimezone(run.project_uuid)) ??
             'UTC';
@@ -1884,6 +2112,8 @@ export class AiDeepResearchService extends BaseService {
         const evidenceQueryCalls = runProvenance.filter(({ toolCall }) =>
             isDeepResearchEvidenceQueryTool(toolCall.toolName),
         );
+        const resolvedArgsByVersion =
+            await this.getResolvedArgsByArtifactVersion(evidenceQueryCalls);
         const executions = evidenceQueryCalls.flatMap(
             ({ toolCall, toolResult }) => {
                 const queryUuid = toolResult
@@ -1894,7 +2124,11 @@ export class AiDeepResearchService extends BaseService {
                           {
                               queryUuid,
                               toolName: toolCall.toolName,
-                              toolArgs: toolCall.toolArgs,
+                              toolArgs: getRunQueryToolArgs(
+                                  resolvedArgsByVersion,
+                                  toolCall,
+                                  toolResult,
+                              ),
                           },
                       ]
                     : [];
@@ -1910,7 +2144,7 @@ export class AiDeepResearchService extends BaseService {
 
         const queryResults = await Promise.all(
             uniqueExecutions.map((execution) =>
-                this.buildEvidenceQuery(run, execution),
+                this.buildEvidenceQuery(run, execution, evidenceExecution),
             ),
         );
 
@@ -1932,7 +2166,7 @@ export class AiDeepResearchService extends BaseService {
                 run.resume_from_run_uuid,
             );
             if (sourceRun) {
-                const source = await this.buildEvidencePack(sourceRun, 1);
+                const source = await this.buildEvidencePack(sourceRun, 1, run);
                 evidencePack = {
                     question: run.prompt,
                     generatedAt: currentPack.generatedAt,
@@ -1952,6 +2186,51 @@ export class AiDeepResearchService extends BaseService {
         return { evidencePack, hasEvidenceBuildFailures };
     }
 
+    private assertSourceRunAssociation(
+        run: DbAiDeepResearchRun,
+        source: DbAiDeepResearchRun,
+    ) {
+        if (
+            source.ai_deep_research_run_uuid !== run.resume_from_run_uuid ||
+            source.created_by_user_uuid !== run.created_by_user_uuid ||
+            source.organization_uuid !== run.organization_uuid ||
+            source.project_uuid !== run.project_uuid ||
+            source.agent_uuid !== run.agent_uuid ||
+            source.ai_thread_uuid !== run.ai_thread_uuid
+        )
+            throw new ForbiddenError(
+                'Deep Research source evidence is unavailable',
+            );
+    }
+
+    private getEvidenceReader(
+        run: DbAiDeepResearchRun,
+        history: QueryHistory,
+        toolName: string,
+        scope: AgentExecutionContext,
+    ): QueryResultReader {
+        if (!scope.agentIdentityEnabled)
+            return { kind: 'person', authMethod: 'session' };
+        if (isDeepResearchWarehouseMcpTool(toolName))
+            throw new ForbiddenError(
+                'Deep Research MCP evidence is unavailable',
+            );
+        const binding = history.requestParameters.resultResearchRunUuid;
+        if (
+            (binding !== undefined &&
+                binding !== run.ai_deep_research_run_uuid) ||
+            (run.completed_at !== null && history.createdAt > run.completed_at)
+        )
+            throw new ForbiddenError(
+                'Deep Research evidence belongs to another run',
+            );
+        if (!scope.claim)
+            throw new ForbiddenError(
+                'Deep Research evidence owner is unavailable',
+            );
+        return { kind: 'agent', claim: scope.claim, authMethod: 'session' };
+    }
+
     private async buildEvidenceQuery(
         run: DbAiDeepResearchRun,
         {
@@ -1959,6 +2238,7 @@ export class AiDeepResearchService extends BaseService {
             toolName,
             toolArgs,
         }: { queryUuid: string; toolName: string; toolArgs: unknown },
+        execution: { account: Account; scope: AgentExecutionContext } | null,
     ): Promise<AiDeepResearchEvidenceQuery | null> {
         try {
             const queryHistory =
@@ -1986,12 +2266,26 @@ export class AiDeepResearchService extends BaseService {
                 return null;
             }
 
-            const user = await this.userModel.findSessionUserAndOrgByUuid(
-                run.created_by_user_uuid,
-                run.organization_uuid,
-            );
+            const account =
+                execution?.account ??
+                fromSession(
+                    await this.userModel.findSessionUserAndOrgByUuid(
+                        run.created_by_user_uuid,
+                        run.organization_uuid,
+                    ),
+                );
             const page = await this.asyncQueryService.getRawAsyncQueryResults({
-                account: fromSession(user),
+                account,
+                ...(execution
+                    ? {
+                          reader: this.getEvidenceReader(
+                              run,
+                              queryHistory,
+                              toolName,
+                              execution.scope,
+                          ),
+                      }
+                    : {}),
                 projectUuid: run.project_uuid,
                 queryUuid,
                 maxRows: AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
@@ -2040,7 +2334,7 @@ export class AiDeepResearchService extends BaseService {
 
             // Persisted args may predate the current advertised contract.
             const parsedArgs =
-                toolRunQueryArgsSchemaPersisted.safeParse(toolArgs);
+                toolRunQueryExpressionResolvedArgsSchema.safeParse(toolArgs);
             const resolvedChart = resolveDeepResearchWarehouseChart(
                 toolArgs,
                 queryUuid,

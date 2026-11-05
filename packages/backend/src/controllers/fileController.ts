@@ -13,6 +13,7 @@ import {
 import express from 'express';
 import path from 'path';
 import { pipeline } from 'stream/promises';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { getSafeContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { allowApiKeyAuthentication } from './authentication';
 import { BaseController } from './baseController';
@@ -55,7 +56,10 @@ export class FileController extends BaseController {
      * @summary Get file
      * @param fileId the persistent file nanoid
      */
-    @Middlewares([optionallyAuthenticateDownload])
+    @Middlewares([
+        optionallyAuthenticateDownload,
+        requireOAuthScopeOperation('FileController.getFile'),
+    ])
     @Get('{fileId}')
     @OperationId('getFile')
     async getFile(

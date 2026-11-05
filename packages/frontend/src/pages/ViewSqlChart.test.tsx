@@ -1,6 +1,8 @@
 import { ChartKind } from '@lightdash/common';
 import { Button, MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'fs';
+import path from 'path';
 import { type PropsWithChildren, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
@@ -47,6 +49,9 @@ vi.mock(
 );
 vi.mock('../components/DataViz/visualizations/Table', () => ({
     Table: () => 'Cached results',
+}));
+vi.mock('../components/DataViz/visualizations/ChartView', () => ({
+    default: () => <div data-testid="chart-view" />,
 }));
 
 describe('SQL viewer access loss', () => {
@@ -111,4 +116,57 @@ describe('SQL viewer access loss', () => {
             ).not.toBeInTheDocument();
         },
     );
+});
+
+describe('SQL chart view layout', () => {
+    it('frames the chart with pane classes that the shared stylesheet defines', () => {
+        vi.mocked(useSavedSqlChartResults).mockReturnValue({
+            chartQuery: {
+                data: {
+                    sql: 'select 1',
+                    config: { type: ChartKind.LINE },
+                    name: 'Chart',
+                },
+                isLoading: false,
+                error: null,
+            },
+            chartResultsQuery: {
+                data: { chartSpec: {} },
+                isLoading: false,
+            },
+            getDownloadQueryUuid: vi.fn(),
+        } as unknown as ReturnType<typeof useSavedSqlChartResults>);
+        render(
+            <MantineProvider>
+                <ViewSqlChartPage />
+            </MantineProvider>,
+        );
+
+        // The chart only gets a height when every ancestor between it and the
+        // page is a flex column from ContentPanel.module.css. Vitest hands
+        // out a scoped name (`_key_hash`) for any key a CSS module is asked
+        // for, whether or not the stylesheet defines it, so the keys are
+        // recovered here and checked against the stylesheet on disk.
+        const contentPanelStyles = readFileSync(
+            path.join(
+                __dirname,
+                '../features/sqlRunner/components/ContentPanel.module.css',
+            ),
+            'utf8',
+        );
+        const body = screen.getByTestId('chart-view').closest('[data-padded]');
+        expect(body).not.toBeNull();
+        const pane = body!.parentElement!;
+        for (const element of [pane, body!]) {
+            const moduleKeys = Array.from(element.classList)
+                .filter((className) => !/^(m_|mantine-)/.test(className))
+                .map((className) =>
+                    className.replace(/^_?(.+?)(?:_[0-9a-f]+)?$/, '$1'),
+                );
+            expect(moduleKeys).not.toHaveLength(0);
+            for (const key of moduleKeys) {
+                expect(contentPanelStyles).toMatch(new RegExp(`\\.${key}\\b`));
+            }
+        }
+    });
 });

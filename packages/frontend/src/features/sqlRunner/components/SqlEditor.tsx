@@ -1,7 +1,6 @@
 import { Box, Center, Loader } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import debounce from 'lodash/debounce';
-import isEmpty from 'lodash/isEmpty';
+import { debounce, isEmpty } from 'es-toolkit/compat';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { type TourEditable } from '../../../components/common/GuidedTour/GuidedTour';
@@ -17,7 +16,6 @@ import '../../../styles/monaco.css';
 import { useParameters } from '../../../hooks/parameters/useParameters';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
-import { useSqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
 import {
     useTableFields,
     type WarehouseTableField,
@@ -34,6 +32,7 @@ import {
     registerMonacoLanguage,
 } from '../utils/monaco';
 import { getSqlFunctions } from '../utils/sqlCompletion/vocabulary';
+import { inferSqlEditorPreferences } from '../utils/sqlEditorPreferences';
 import styles from './SqlEditor.module.css';
 
 // monaco highlight character
@@ -158,7 +157,16 @@ export const SqlEditorView: FC<
         (state) => state.sqlRunner.warehouseConnectionType,
     );
 
-    const [settings] = useSqlEditorPreferences(warehouseConnectionType);
+    // Derived from the query text, so suggestions match how the user writes identifiers
+    const { quotePreference, casePreference, qualification } = useMemo(
+        () =>
+            inferSqlEditorPreferences(sql, quoteChar, warehouseConnectionType),
+        [sql, quoteChar, warehouseConnectionType],
+    );
+    const settings = useMemo(
+        () => ({ quotePreference, casePreference, qualification }),
+        [quotePreference, casePreference, qualification],
+    );
 
     // Fetch all available parameters for the project
     const { data: availableParameters } = useParameters(projectUuid, undefined);
@@ -212,6 +220,21 @@ export const SqlEditorView: FC<
                     onSubmit(currentSql ?? '');
                 },
             );
+            // Runs just the highlighted text, or everything when nothing is selected
+            editorObj.addCommand(
+                monacoObj.KeyMod.CtrlCmd |
+                    monacoObj.KeyMod.Shift |
+                    monacoObj.KeyCode.Enter,
+                () => {
+                    if (!onSubmit) return;
+                    const selection = editorObj.getSelection();
+                    const selected =
+                        selection && !selection.isEmpty()
+                            ? editorObj.getModel()?.getValueInRange(selection)
+                            : undefined;
+                    onSubmit(selected?.trim() || editorObj.getValue());
+                },
+            );
 
             // When creating a new sql query, focus the editor so the user can start typing immediately
             editorObj.focus();
@@ -252,6 +275,10 @@ export const SqlEditorView: FC<
                     parameters: availableParameters ?? {},
                     functions: getSqlFunctions(warehouseConnectionType),
                     settings,
+                    activeTable:
+                        currentTable && currentSchema
+                            ? { table: currentTable, schema: currentSchema }
+                            : null,
                 },
             );
             completionProviderRef.current = provider;
@@ -293,24 +320,55 @@ export const SqlEditorView: FC<
                 char: highlightText.start.char + 1,
             };
         }
-        const range = new monaco.Range(
-            highlightText.start.line,
-            highlightText.start.char,
-            highlightText.end.line,
-            highlightText.end.char,
-        );
-        const newDecorations = [
+        const model = editorRef.current.getModel();
+        const word = model?.getWordAtPosition({
+            lineNumber: highlightText.start.line,
+            column: highlightText.start.char,
+        });
+        // Tint the whole line, squiggle the offending token (or the reported span)
+        const spanRange = word
+            ? new monaco.Range(
+                  highlightText.start.line,
+                  word.startColumn,
+                  highlightText.start.line,
+                  word.endColumn,
+              )
+            : new monaco.Range(
+                  highlightText.start.line,
+                  highlightText.start.char,
+                  highlightText.end.line,
+                  highlightText.end.char,
+              );
+        decorationsCollectionRef.current.set([
             {
-                range,
-                options: {
-                    inlineClassName: 'editorError',
-                },
+                range: new monaco.Range(
+                    highlightText.start.line,
+                    1,
+                    highlightText.start.line,
+                    1,
+                ),
+                options: { isWholeLine: true, className: 'editorErrorLine' },
             },
-        ];
-
-        // Update decorations using the decorations collection
-        decorationsCollectionRef.current.set(newDecorations);
+            {
+                range: spanRange,
+                options: { inlineClassName: 'editorErrorSquiggle' },
+            },
+        ]);
     }, [sql, monaco, highlightText]);
+
+    const revealRequest = useAppSelector(
+        (state) => state.sqlRunner.editorRevealRequest,
+    );
+    useEffect(() => {
+        if (!revealRequest || !editorRef.current) return;
+        const position = {
+            lineNumber: revealRequest.line,
+            column: revealRequest.char,
+        };
+        editorRef.current.setPosition(position);
+        editorRef.current.revealLineInCenter(position.lineNumber);
+        editorRef.current.focus();
+    }, [revealRequest]);
 
     const debouncedSetSql = useMemo(
         () =>
@@ -363,7 +421,7 @@ export const SqlEditorView: FC<
             data-tour-look="1"
             data-tour-after='[data-tour-nav="new-sql-runner"]'
             data-tour-label="Write a query, then run it"
-            data-tour-docs="explore/sql-runner.mdx#getting-started-with-the-sql-runner:p3:1"
+            data-tour-docs="explore/sql-runner.mdx#getting-started-with-the-sql-runner:p5:1"
         >
             <Editor
                 className={styles.editor}

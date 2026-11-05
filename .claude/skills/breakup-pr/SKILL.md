@@ -3,7 +3,7 @@ name: breakup-pr
 metadata:
   internal: true
 description: |
-  Break up a large PR into vertical feature slices delivered incrementally via Graphite stacked PRs.
+  Break up a large PR into vertical feature slices delivered incrementally as stacked PRs via `gh stack`.
   All verticals share a single feature flag so the entire feature ships atomically.
   Use when: splitting a large PR, breaking up a diff, vertical slicing, incremental delivery,
   phased rollout, or when a PR is too large to review.
@@ -25,7 +25,7 @@ arguments: pr-url
 
 # Break Up PR into Vertical Feature Slices
 
-You are splitting a large PR into **vertical feature slices** — each slice is an independently mergeable, CI-green stacked PR delivered via **Graphite** (see the `graphite` skill for gt commands).
+You are splitting a large PR into **vertical feature slices** — each slice is an independently mergeable, CI-green stacked PR delivered via `gh stack` (see the `/gh-stack` skill for commands).
 
 All slices are gated behind a **single shared feature flag** so the feature ships atomically when the flag is enabled.
 
@@ -148,8 +148,8 @@ Wait for user confirmation before proceeding.
 For each slice, follow this pattern:
 
 1. **Checkout the right position in the stack:**
-   - First slice: `gt co main` then start
-   - Subsequent slices: stay on previous branch (gt will stack automatically)
+   - First slice: `git switch main && git pull`, then `gh stack init <branch>`
+   - Subsequent slices: from the previous slice's branch, `gh stack add <branch>`
 
 2. **Make the changes for this slice only**
 
@@ -189,23 +189,23 @@ For each slice, follow this pattern:
    pnpm -F <package> test  # or test:dev:nowatch for backend
    ```
 
-5. **Create the branch and submit:**
+5. **Commit and push:**
    ```bash
    git add <specific-files>
-   gt c --no-interactive -m 'feat: <description>'
-   gt s --no-interactive
+   git commit -m 'feat: <description>'
+   gh stack push
    ```
 
 ### Step 5: Submit the Stack
 
 After all slices are implemented:
 ```bash
-gt s --stack --no-interactive
+gh stack submit --auto
 ```
 
 Verify the stack looks correct:
 ```bash
-gt log
+gh stack view --json
 ```
 
 ## Feature Flag Placement Guide
@@ -243,8 +243,8 @@ gt log
 
 ## Completion Criteria
 
-- All slices are submitted as a Graphite stack
+- All slices are submitted as a `gh stack`
 - Each PR passes lint, typecheck, and tests independently
 - All new behavior is gated behind the single shared feature flag
 - Working tree is clean
-- Stack is visible via `gt log`
+- Stack is visible via `gh stack view --json`

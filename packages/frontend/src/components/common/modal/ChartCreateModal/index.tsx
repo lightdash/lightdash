@@ -1,9 +1,11 @@
 import {
     type CreateSavedChartVersion,
+    type EmbedWritableSpace,
     type SavedChart,
 } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { type EmbedChartSaveDashboard } from '../../../../ee/features/embed/EmbedDashboard/types';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import { useContentAuthoringEnabled } from '../../../../hooks/useContentAuthoringEnabled';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
@@ -35,7 +37,9 @@ interface ChartCreateModalProps extends Pick<
     isSaveAs?: boolean;
     redirectOnSuccess?: boolean;
     showViewChartAction?: boolean;
-    forcedSpaceUuid?: string;
+    restrictedSpaces?: EmbedWritableSpace[];
+    /** The embedded dashboard builder's dashboard and the destinations it offers. */
+    embedDashboard?: EmbedChartSaveDashboard;
     /** Chart-level palette chosen before the first save. */
     colorPaletteUuid?: string | null;
 }
@@ -56,7 +60,8 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     isSaveAs = false,
     redirectOnSuccess = true,
     showViewChartAction = true,
-    forcedSpaceUuid,
+    restrictedSpaces,
+    embedDashboard,
     colorPaletteUuid,
 }) => {
     const authoringEnabled = useContentAuthoringEnabled();
@@ -90,6 +95,11 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     }, [opened, getEditingDashboardInfo]);
 
     const saveMode = useMemo(() => {
+        if (embedDashboard) {
+            return embedDashboard.destinations.includes('space')
+                ? SaveMode.DEFAULT
+                : SaveMode.TO_DASHBOARD;
+        }
         if (forceSpaceOrDashboardChoice) {
             return SaveMode.DEFAULT;
         }
@@ -97,7 +107,11 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             return SaveMode.TO_DASHBOARD;
         }
         return SaveMode.DEFAULT;
-    }, [editingDashboardInfo, forceSpaceOrDashboardChoice]);
+    }, [editingDashboardInfo, embedDashboard, forceSpaceOrDashboardChoice]);
+
+    const targetDashboard = embedDashboard
+        ? { name: embedDashboard.name, dashboardUuid: embedDashboard.uuid }
+        : editingDashboardInfo;
 
     const projectUuid = useProjectUuid();
 
@@ -106,10 +120,10 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             return 'Save as new chart';
         }
         if (saveMode === SaveMode.TO_DASHBOARD) {
-            return `Save chart to "${editingDashboardInfo.name}"`;
+            return `Save chart to "${targetDashboard.name}"`;
         }
         return 'Save chart';
-    }, [saveMode, editingDashboardInfo, isSaveAs]);
+    }, [saveMode, targetDashboard.name, isSaveAs]);
 
     const originatingDashboard =
         isSaveAs &&
@@ -135,10 +149,11 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             {saveMode === SaveMode.TO_DASHBOARD && (
                 <SaveToDashboard
                     projectUuid={projectUuid}
-                    dashboardName={editingDashboardInfo.name}
-                    dashboardUuid={editingDashboardInfo.dashboardUuid}
+                    dashboardName={targetDashboard.name}
+                    dashboardUuid={targetDashboard.dashboardUuid}
                     savedData={savedData}
                     colorPaletteUuid={colorPaletteUuid}
+                    onConfirm={onConfirm}
                     onClose={onClose}
                     defaults={chartMetadata}
                 />
@@ -152,7 +167,12 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     onConfirm={onConfirm}
                     onClose={onClose}
                     defaultSpaceUuid={spaceUuid}
-                    forcedSpaceUuid={forcedSpaceUuid}
+                    restrictedSpaces={restrictedSpaces}
+                    restrictedDashboard={
+                        embedDashboard?.destinations.includes('dashboard')
+                            ? embedDashboard
+                            : undefined
+                    }
                     dashboardInfoFromSavedData={{
                         dashboardName: savedData.dashboardName ?? null,
                         dashboardUuid: savedData.dashboardUuid ?? null,

@@ -5,9 +5,8 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_DISCOVER_REPOS_DESCRIPTION = [
-    'List the GitHub repositories this Lightdash organization can read through its connected GitHub App installation.',
-    'Use this to find a repository to inspect with `exploreRepo` — including repositories other than the dbt project (Lightdash itself, an upstream service, infra, CI config) — instead of asking the user to connect the GitHub MCP.',
-    'Returns each repository as owner/repo with its default branch and whether it is private. Read-only.',
+    "List the repositories `exploreRepo` can read: this project's repository and, on GitHub, the ones the user can access through their linked account.",
+    'Use it to find a repository other than the dbt project, such as an upstream service, infrastructure or CI configuration, before reading it with `exploreRepo`.',
 ].join(' ');
 
 export const toolDiscoverReposArgsSchema = z.object({});
@@ -25,7 +24,7 @@ export const toolDiscoverReposStructuredContentSchema = z.object({
             }),
         )
         .describe(
-            'Repositories readable through the connected GitHub App installation; pass `owner/repo` as the exploreRepo `target`. Empty when none are accessible.',
+            'Repositories `exploreRepo` can read; pass `owner/repo` as its `target`. Empty when none are accessible.',
         ),
 });
 

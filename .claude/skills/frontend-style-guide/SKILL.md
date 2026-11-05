@@ -10,15 +10,15 @@ allowed-tools: Read, Edit, Write, Glob, Grep
 
 Apply these rules when working on any frontend component in `packages/frontend/`.
 
-## Mantine 8
+## Mantine 9
 
-The app runs on Mantine 8 (`@mantine/core`), with the theme in `src/theme/`.
+The app runs on Mantine 9 (`@mantine/core`), with the theme in `src/theme/`.
 
 ## Design principles
 
 The theme is neutral and quiet, in the spirit of shadcn, Radix and Kumo: one ink accent, flat surfaces, soft borders, a tight type scale. Most of what "looks right" comes from using the defaults. Check each rule before you add a colour, a shadow or a size.
 
-1. **One accent, and it is ink.** The primary action on a surface is the theme primary (near-black in light, near-white in dark). Never colour a Button or ActionIcon `blue`, `dark`, `indigo` or `ldDark` for emphasis. Colour on a control means state: `red` destructive, `yellow` warning, `teal` "copied", `orange` favourite, `green` only for the existing verify/merge actions. Indigo belongs to AI surfaces. Links are the only blue text.
+1. **One accent, and it is ink.** The primary action on a surface is the theme primary (near-black in light, near-white in dark). Never colour a Button or ActionIcon `blue`, `dark`, `indigo` or `ldDark` for emphasis. Colour on a control means state: `red` destructive, `yellow` warning, `teal` "copied", `orange` favourite, `green` marks verified state (the check icon, badges) and the existing merge actions, never a verify button fill. Indigo belongs to AI surfaces. Links are the only blue text.
 2. **Hierarchy comes from variant, not colour.** `filled` is the one primary action per card, header or modal footer. `default` (bordered) is secondary. `light` is a tertiary or toggle-like action ("Add filter"). `subtle` is for icon buttons and inline actions; it is the ActionIcon default. If a surface has two filled buttons, one of them is wrong.
 3. **Surfaces are flat.** Paper and Card are bordered with no shadow and a 12px radius by default; shadows only on floating layers (Menu and Popover `md`, Modal `lg`). Do not pass `withBorder`, `shadow` or `radius` to restate that. Empty or placeholder sections use `<Paper variant="dotted">`.
 4. **Neutrals are tokens, never hand-picked pairs.** `--mantine-color-body` (surface), `--ld-color-page` (canvas), `default-border`, `default-hover`, `text`, `dimmed`, `placeholder`. `ldGray.N` already resolves per scheme (0 canvas, 1 muted fill, 2 border, 3 strong border, 5 tertiary text, 6 = dimmed, 7 label, 9 text), so `light-dark(ldGray-x, ldDark-y)` and `@mixin dark` blocks for neutrals are always a smell. Secondary text is `c="dimmed"`.
@@ -43,7 +43,7 @@ When creating/updating components:
 - [ ] Use inline-style component props for styling when available (and follow <=3 props rule)
 - [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
 - [ ] No "Lightdash" meaning "this app" in error messages, or in labels of embed-reachable components (see `docs/white-label-copy.md`)
-- [ ] No Lightdash branding or docs links in embeds: gate them with `useIsEmbedded()` (see "Embeds are white-label" in `packages/frontend/CLAUDE.md`)
+- [ ] No Lightdash branding or docs links in embeds: gate them with `useIsEmbedded()` (see "Embeds are white-label" in `packages/frontend/AGENTS.md`)
 - [ ] Theme values ('md', 'lg', 'xl', or 'ldGray.1', 'ldGray.2', 'ldDark.1', 'ldDark.2', etc) instead of magic numbers
 - [ ] When using mantine colors in css modules, always use the theme awared variables:
     - `--mantine-color-${color}-text`: for text on filled background
@@ -278,10 +278,10 @@ const { monaco, ace } = useEditorTheme();
 const isDark = useComputedColorScheme('light') === 'dark';
 ```
 
-## Use the clsx utility exported by @mantine/core
+## Use the clsx utility from the clsx package
 
 ```tsx
-import { clsx } from '@mantine/core';
+import { clsx } from 'clsx';
 
 const MyComponent = () => {
     return (

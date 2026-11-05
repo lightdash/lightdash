@@ -3,6 +3,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import { toDbtTarget } from '../dbt/targets';
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 
@@ -14,15 +15,19 @@ describe('DbtGithubProjectAdapter', () => {
             githubRepository: 'org/repo',
             githubBranch: 'main',
             projectDirectorySubPath: '/',
-            warehouseCredentials: {
-                type: WarehouseTypes.POSTGRES,
-                host: 'localhost',
-                port: 5432,
-                user: 'postgres',
-                password: 'password',
-                dbname: 'postgres',
-                schema: 'public',
-            } as CreateWarehouseCredentials,
+            explicitCredentials: false,
+            dbtTarget: toDbtTarget(
+                {
+                    type: WarehouseTypes.POSTGRES,
+                    host: 'localhost',
+                    port: 5432,
+                    user: 'postgres',
+                    password: 'password',
+                    dbname: 'postgres',
+                    schema: 'public',
+                } as CreateWarehouseCredentials,
+                { explicitCredentials: false },
+            ),
             targetName: undefined,
             environment: undefined,
             environmentVariableAllowlist: [],

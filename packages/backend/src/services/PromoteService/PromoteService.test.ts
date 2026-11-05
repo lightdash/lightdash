@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AgentActorSurface,
     ChartType,
     DashboardTileTypes,
     OrganizationMemberRole,
@@ -10,15 +11,23 @@ import {
     type PromotionChanges,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
+import { EventEmitter } from 'node:events';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromSession } from '../../auth/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
+import * as auditLogger from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type OnContentVersionCreated } from '../../models/OnContentVersionCreated';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../AiAccessService/agentExecutionContext';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { PromoteService } from './PromoteService';
 import {
@@ -72,7 +81,65 @@ const warehouseConnectionModel = {
     ),
 };
 
-const chartTransaction = {} as Knex.Transaction;
+const chartTransaction = new EventEmitter() as unknown as Knex.Transaction;
+const runChartTransaction = async <T>(
+    callback: (transaction: Knex.Transaction) => Promise<T>,
+    failCommit = false,
+): Promise<T> => {
+    let commit!: () => void;
+    let rollback!: (error: unknown) => void;
+    chartTransaction.executionPromise = new Promise<unknown[]>(
+        (resolve, reject) => {
+            commit = () => resolve([]);
+            rollback = reject;
+        },
+    );
+    void chartTransaction.executionPromise.catch(() => {});
+    try {
+        const result = await callback(chartTransaction);
+        if (failCommit) throw new Error('commit failed');
+        chartTransaction.emit('query', { sql: 'COMMIT;' });
+        commit();
+        await chartTransaction.executionPromise;
+        return result;
+    } catch (error) {
+        rollback(error);
+        throw error;
+    }
+};
+
+const runVersionCallback = async (
+    onVersionCreated: OnContentVersionCreated | undefined,
+    versionUuid: string,
+    objectUuid: string,
+    trx?: Knex.Transaction,
+): Promise<void> => {
+    if (trx) await onVersionCreated?.(trx, versionUuid, objectUuid);
+    else
+        await runChartTransaction(async (transaction) => {
+            await onVersionCreated?.(transaction, versionUuid, objectUuid);
+        });
+};
+
+const createChart = async (...args: Parameters<SavedChartModel['create']>) => {
+    await runVersionCallback(
+        args[4],
+        'chart-version-uuid',
+        existingUpstreamChart.chart!.uuid,
+    );
+    return existingUpstreamChart.chart;
+};
+const createChartVersion = async (
+    ...args: Parameters<SavedChartModel['createVersion']>
+) => {
+    await runVersionCallback(
+        args[6],
+        'chart-version-uuid',
+        args[0],
+        args[3] as Knex.Transaction | undefined,
+    );
+    return existingUpstreamChart.chart;
+};
 
 const savedChartModel = {
     getSummary: vi.fn(async () => ({
@@ -80,13 +147,13 @@ const savedChartModel = {
     })),
     get: vi.fn(async () => promotedChart.chart),
     find: vi.fn(async () => [existingUpstreamChart.chart]),
-    create: vi.fn(async () => existingUpstreamChart.chart),
-    createVersion: vi.fn(async () => existingUpstreamChart.chart),
+    create: vi.fn(createChart),
+    createVersion: vi.fn(createChartVersion),
     updateInTransaction: vi.fn(async () => undefined),
     renameSlug: vi.fn(async () => undefined),
     transaction: vi.fn(
         async (callback: (transaction: Knex.Transaction) => Promise<unknown>) =>
-            callback(chartTransaction),
+            runChartTransaction(callback),
     ),
 };
 
@@ -101,12 +168,10 @@ beforeEach(() => {
     savedChartModel.find
         .mockReset()
         .mockResolvedValue([existingUpstreamChart.chart]);
-    savedChartModel.create
-        .mockReset()
-        .mockResolvedValue(existingUpstreamChart.chart);
+    savedChartModel.create.mockReset().mockImplementation(createChart);
     savedChartModel.createVersion
         .mockReset()
-        .mockResolvedValue(existingUpstreamChart.chart);
+        .mockImplementation(createChartVersion);
     savedChartModel.updateInTransaction
         .mockReset()
         .mockResolvedValue(undefined);
@@ -116,22 +181,36 @@ beforeEach(() => {
         .mockImplementation(
             async (
                 callback: (transaction: Knex.Transaction) => Promise<unknown>,
-            ) => callback(chartTransaction),
+            ) => runChartTransaction(callback),
         );
 });
 
 const savedSqlModel = {
     getByUuid: vi.fn(async () => promotedSqlChart),
     find: vi.fn(async () => []),
-    create: vi.fn(async () => ({
-        savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
-        slug: existingUpstreamSqlChart.slug,
-        savedSqlVersionUuid: 'saved-sql-version-uuid',
-    })),
-    update: vi.fn(async () => ({
-        savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
-        savedSqlVersionUuid: 'saved-sql-version-uuid',
-    })),
+    create: vi.fn(async (...args: Parameters<SavedSqlModel['create']>) => {
+        await runVersionCallback(
+            args[6],
+            'saved-sql-version-uuid',
+            existingUpstreamSqlChart.savedSqlUuid,
+        );
+        return {
+            savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
+            slug: existingUpstreamSqlChart.slug,
+            savedSqlVersionUuid: 'saved-sql-version-uuid',
+        };
+    }),
+    update: vi.fn(async (...args: Parameters<SavedSqlModel['update']>) => {
+        await runVersionCallback(
+            args[3],
+            'saved-sql-version-uuid',
+            existingUpstreamSqlChart.savedSqlUuid,
+        );
+        return {
+            savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
+            savedSqlVersionUuid: 'saved-sql-version-uuid',
+        };
+    }),
 };
 
 const spaceModel = {
@@ -146,12 +225,29 @@ const spaceModel = {
     isRootSpace: vi.fn(async () => true),
 };
 const dashboardModel = {
-    create: vi.fn(async () => existingUpstreamDashboard.dashboard),
+    create: vi.fn(async (...args: Parameters<DashboardModel['create']>) => {
+        await runVersionCallback(
+            args[5],
+            'dashboard-version-uuid',
+            existingUpstreamDashboard.dashboard!.uuid,
+        );
+        return existingUpstreamDashboard.dashboard;
+    }),
     getByIdOrSlug: vi.fn(async () => promotedDashboardWithSqlTile.dashboard),
     find: vi.fn(async () => []),
     renameSlug: vi.fn(async () => undefined),
     update: vi.fn(async () => undefined),
-    addVersion: vi.fn(async () => existingUpstreamDashboard.dashboard!),
+    addVersion: vi.fn(
+        async (...args: Parameters<DashboardModel['addVersion']>) => {
+            await runVersionCallback(
+                args[6],
+                'dashboard-version-uuid',
+                args[0],
+                args[4],
+            );
+            return existingUpstreamDashboard.dashboard!;
+        },
+    ),
 };
 const spacePermissionService = {
     resolveAccess: vi.fn(async () => ({
@@ -183,8 +279,11 @@ const userWithPromotePermissions = userWithAbilities([
     { subject: 'Space', action: ['create', 'manage'] },
 ]);
 
+const agentActionLogModel = { insert: vi.fn().mockResolvedValue(undefined) };
+
 describe('PromoteService chart changes', () => {
     const service = new PromoteService({
+        agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
 
         analytics: analyticsMock,
@@ -454,6 +553,7 @@ describe('PromoteService chart changes', () => {
 
 describe('PromoteService dashboard changes', () => {
     const service = new PromoteService({
+        agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
 
         analytics: analyticsMock,
@@ -526,12 +626,15 @@ describe('PromoteService dashboard changes', () => {
 
         await service.updateDashboard(user, changes);
 
-        expect(dashboardModel.renameSlug).toHaveBeenCalledWith({
-            projectUuid: existingUpstreamDashboard.projectUuid,
-            dashboardUuid: existingUpstreamDashboard.dashboard!.uuid,
-            from: promotedDashboard.dashboard.slug,
-            to: 'renamed-dashboard',
-        });
+        expect(dashboardModel.renameSlug).toHaveBeenCalledWith(
+            {
+                projectUuid: existingUpstreamDashboard.projectUuid,
+                dashboardUuid: existingUpstreamDashboard.dashboard!.uuid,
+                from: promotedDashboard.dashboard.slug,
+                to: 'renamed-dashboard',
+            },
+            chartTransaction,
+        );
         expect(dashboardModel.create).not.toHaveBeenCalled();
     });
 
@@ -937,6 +1040,7 @@ describe('PromoteService dashboard changes', () => {
 
 describe('PromoteService promoting and mutating changes', () => {
     const service = new PromoteService({
+        agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
 
         analytics: analyticsMock,
@@ -1317,6 +1421,9 @@ describe('PromoteService promoting and mutating changes', () => {
             expect.objectContaining({ slug: 'renamed-chart' }),
             user,
             chartTransaction,
+            undefined,
+            null,
+            expect.any(Function),
         );
     });
 
@@ -1515,6 +1622,10 @@ describe('PromoteService promoting and mutating changes', () => {
                 config: promotedSqlChart.config,
                 slug: promotedSqlChart.slug,
             },
+            undefined,
+            { slugMode: 'exact' },
+            null,
+            expect.any(Function),
         );
 
         const sqlTile = newChanges.dashboards[0].data.tiles.find(
@@ -1549,6 +1660,7 @@ describe('PromoteService promoting and mutating changes', () => {
             async () => [
                 {
                     saved_sql_uuid: existingUpstreamSqlChart.savedSqlUuid,
+                    agent_identity: null,
                     name: 'old sql chart title',
                     description: promotedSqlChart.description,
                     slug: existingUpstreamSqlChart.slug,
@@ -1610,22 +1722,27 @@ describe('PromoteService promoting and mutating changes', () => {
 
         expect(savedSqlModel.create).toHaveBeenCalledTimes(0);
         expect(savedSqlModel.update).toHaveBeenCalledTimes(1);
-        expect(savedSqlModel.update).toHaveBeenCalledWith({
-            userUuid: user.userUuid,
-            savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
-            sqlChart: {
-                unversionedData: {
-                    name: 'new sql chart title',
-                    description: promotedSqlChart.description,
-                    spaceUuid: existingUpstreamDashboard.space?.uuid,
-                },
-                versionedData: {
-                    sql: promotedSqlChart.sql,
-                    limit: promotedSqlChart.limit,
-                    config: promotedSqlChart.config,
+        expect(savedSqlModel.update).toHaveBeenCalledWith(
+            {
+                userUuid: user.userUuid,
+                savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
+                sqlChart: {
+                    unversionedData: {
+                        name: 'new sql chart title',
+                        description: promotedSqlChart.description,
+                        spaceUuid: existingUpstreamDashboard.space?.uuid,
+                    },
+                    versionedData: {
+                        sql: promotedSqlChart.sql,
+                        limit: promotedSqlChart.limit,
+                        config: promotedSqlChart.config,
+                    },
                 },
             },
-        });
+            undefined,
+            null,
+            expect.any(Function),
+        );
 
         const sqlTile = newChanges.dashboards[0].data.tiles.find(
             (tile) => tile.type === DashboardTileTypes.SQL_CHART,
@@ -1990,6 +2107,9 @@ describe('PromoteService promoting and mutating changes', () => {
                     warehouseConnectionUuid:
                         targetFinance.warehouseConnectionUuid,
                 },
+                { slugMode: 'exact' },
+                null,
+                expect.any(Function),
             );
         });
 
@@ -2006,6 +2126,9 @@ describe('PromoteService promoting and mutating changes', () => {
                 targetProjectUuid,
                 expect.objectContaining({ slug: promotedSqlChart.slug }),
                 { kind: 'connection', warehouseConnectionUuid: null },
+                { slugMode: 'exact' },
+                null,
+                expect.any(Function),
             );
         });
 
@@ -2017,6 +2140,10 @@ describe('PromoteService promoting and mutating changes', () => {
                 expect.any(String),
                 targetProjectUuid,
                 expect.objectContaining({ slug: promotedSqlChart.slug }),
+                undefined,
+                { slugMode: 'exact' },
+                null,
+                expect.any(Function),
             );
         });
 
@@ -2209,6 +2336,7 @@ describe('PromoteService data app promotion', () => {
     };
 
     const baseArgs = {
+        agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
@@ -2405,5 +2533,397 @@ describe('PromoteService data app promotion', () => {
                 ? chartConfig.config?.dataAppVizVersion
                 : undefined,
         ).toBe(3);
+    });
+});
+
+describe('agent content writes', () => {
+    const service = new PromoteService({
+        agentActionLogModel,
+        lightdashConfig: lightdashConfigMock,
+        analytics: analyticsMock,
+        projectModel: projectModel as unknown as ProjectModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
+        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
+        warehouseConnectionModel: warehouseConnectionModel as never,
+        getDocumentService: () => ({}) as never,
+        appModel: {} as never,
+    });
+    afterEach(() => vi.restoreAllMocks());
+    test.each([
+        [AgentActorSurface.MCP, true],
+        [AgentActorSurface.IN_APP_AGENT, true],
+        [AgentActorSurface.SLACK_AGENT, true],
+        [AgentActorSurface.IN_APP_AGENT, false],
+        [null, true],
+    ] as const)(
+        '%s enabled=%s attributes every committed version once',
+        async (surface, enabled) => {
+            const log = vi
+                .spyOn(auditLogger, 'logAuditEvent')
+                .mockImplementation(() => {});
+            const scope = createAgentExecutionContext({
+                account: fromSession(user),
+                surface: surface ?? AgentActorSurface.IN_APP_AGENT,
+                clientId: 'trusted-client',
+                agentUuid: 'agent',
+                agentIdentityEnabled: enabled,
+            });
+            const expectedClaim = surface && enabled ? scope.claim : null;
+            agentActionLogModel.insert.mockClear();
+            const run = async () => {
+                const changes = await service.getChartChanges(
+                    promotedChart,
+                    missingUpstreamChart,
+                );
+                await service.upsertCharts(user, changes);
+                expect(savedChartModel.create).toHaveBeenLastCalledWith(
+                    expect.any(String),
+                    user.userUuid,
+                    expect.any(Object),
+                    expectedClaim,
+                    expect.any(Function),
+                );
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    expectedClaim ? 1 : 0,
+                );
+                if (expectedClaim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: expectedClaim,
+                            version_uuid: 'chart-version-uuid',
+                            outcome: 'allowed',
+                            policy_layer: null,
+                            reason_code: null,
+                        }),
+                        chartTransaction,
+                    );
+                agentActionLogModel.insert.mockClear();
+                expect(log).toHaveBeenCalledTimes(expectedClaim ? 1 : 0);
+                log.mockClear();
+                const dashboardChanges: PromotionChanges = {
+                    charts: [],
+                    spaces: [],
+                    dashboards: [
+                        {
+                            action: PromotionAction.CREATE,
+                            data: {
+                                ...promotedDashboard.dashboard,
+                                spaceSlug: 'reports',
+                                spacePath: 'reports',
+                            },
+                        },
+                    ],
+                };
+                await service.getOrCreateDashboard(user, dashboardChanges);
+                expect(dashboardModel.create).toHaveBeenLastCalledWith(
+                    expect.any(String),
+                    expect.any(Object),
+                    user,
+                    expect.any(String),
+                    expectedClaim,
+                    expect.any(Function),
+                );
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    expectedClaim ? 1 : 0,
+                );
+                if (expectedClaim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: expectedClaim,
+                            outcome: 'allowed',
+                            policy_layer: null,
+                            reason_code: null,
+                        }),
+                        chartTransaction,
+                    );
+                agentActionLogModel.insert.mockClear();
+                expect(log).toHaveBeenCalledTimes(expectedClaim ? 1 : 0);
+                log.mockClear();
+                await service.upsertSqlCharts(
+                    user,
+                    {
+                        charts: [],
+                        dashboards: [],
+                        spaces: [
+                            {
+                                action: PromotionAction.NO_CHANGES,
+                                data: upstreamSpace!,
+                            },
+                        ],
+                    },
+                    [
+                        {
+                            action: PromotionAction.CREATE,
+                            data: {
+                                uuid: promotedSqlChart.savedSqlUuid,
+                                oldUuid: promotedSqlChart.savedSqlUuid,
+                                projectUuid:
+                                    promotedSqlChart.project.projectUuid,
+                                slug: promotedSqlChart.slug,
+                                spacePath: upstreamSpace!.path,
+                                spaceSlug: upstreamSpace!.slug,
+                                unversionedData: {
+                                    name: 'SQL',
+                                    description: '',
+                                    spaceUuid: upstreamSpace!.uuid,
+                                },
+                                versionedData: {
+                                    sql: 'select 1',
+                                    limit: 10,
+                                    config: promotedSqlChart.config,
+                                },
+                            },
+                        },
+                    ],
+                );
+                expect(savedSqlModel.create).toHaveBeenLastCalledWith(
+                    user.userUuid,
+                    expect.any(String),
+                    expect.any(Object),
+                    undefined,
+                    { slugMode: 'exact' },
+                    expectedClaim,
+                    expect.any(Function),
+                );
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    expectedClaim ? 1 : 0,
+                );
+                if (expectedClaim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: expectedClaim,
+                            outcome: 'allowed',
+                            policy_layer: null,
+                            reason_code: null,
+                        }),
+                        chartTransaction,
+                    );
+                agentActionLogModel.insert.mockClear();
+                expect(log).toHaveBeenCalledTimes(expectedClaim ? 1 : 0);
+                if (expectedClaim)
+                    expect(log).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            status: 'allowed',
+                            resource: expect.objectContaining({
+                                metadata: {
+                                    event: 'agent_content.write',
+                                    objectType: 'sql_chart',
+                                    objectUuid:
+                                        existingUpstreamSqlChart.savedSqlUuid,
+                                    versionUuid: 'saved-sql-version-uuid',
+                                    action: 'create',
+                                    surface,
+                                    clientId: expectedClaim.act.client_id,
+                                    agentUuid: expectedClaim.act.agent_uuid,
+                                    personUuid: user.userUuid,
+                                    subjectType: 'user',
+                                    policyLayer: null,
+                                    reasonCode: null,
+                                },
+                            }),
+                        }),
+                    );
+            };
+            if (surface) await agentExecutionContext.run(scope, run);
+            else await run();
+        },
+    );
+    test.each([
+        [AgentActorSurface.MCP, true],
+        [AgentActorSurface.IN_APP_AGENT, true],
+        [AgentActorSurface.SLACK_AGENT, true],
+        [AgentActorSurface.IN_APP_AGENT, false],
+        [null, true],
+    ] as const)(
+        '%s enabled=%s attributes chart, dashboard and SQL updates',
+        async (surface, enabled) => {
+            const scope = createAgentExecutionContext({
+                account: fromSession(user),
+                surface: surface ?? AgentActorSurface.IN_APP_AGENT,
+                clientId: 'trusted-client',
+                agentUuid: 'agent',
+                agentIdentityEnabled: enabled,
+            });
+            const claim = surface && enabled ? scope.claim : null;
+            const log = vi
+                .spyOn(auditLogger, 'logAuditEvent')
+                .mockImplementation(() => {});
+            agentActionLogModel.insert.mockClear();
+            const run = async () => {
+                await service.upsertCharts(user, {
+                    spaces: [],
+                    dashboards: [],
+                    charts: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: {
+                                ...promotedChart.chart,
+                                oldUuid: 'old-chart',
+                                spaceSlug: 'reports',
+                                spacePath: 'reports',
+                            },
+                        },
+                    ],
+                });
+                expect(savedChartModel.createVersion).toHaveBeenLastCalledWith(
+                    expect.any(String),
+                    expect.any(Object),
+                    user,
+                    chartTransaction,
+                    undefined,
+                    claim,
+                    expect.any(Function),
+                );
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    claim ? 1 : 0,
+                );
+                expect(log).toHaveBeenCalledTimes(claim ? 1 : 0);
+                if (claim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            version_uuid: 'chart-version-uuid',
+                            agent_identity: claim,
+                            action: 'update',
+                        }),
+                        chartTransaction,
+                    );
+                agentActionLogModel.insert.mockClear();
+                log.mockClear();
+                await service.updateDashboard(user, {
+                    spaces: [],
+                    charts: [],
+                    dashboards: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: {
+                                ...promotedDashboard.dashboard,
+                                spaceSlug: 'reports',
+                                spacePath: 'reports',
+                            },
+                        },
+                    ],
+                });
+                expect(dashboardModel.addVersion).toHaveBeenLastCalledWith(
+                    expect.any(String),
+                    expect.any(Object),
+                    user,
+                    expect.any(String),
+                    undefined,
+                    claim,
+                    expect.any(Function),
+                );
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    claim ? 1 : 0,
+                );
+                expect(log).toHaveBeenCalledTimes(claim ? 1 : 0);
+                agentActionLogModel.insert.mockClear();
+                log.mockClear();
+                await service.upsertSqlCharts(
+                    user,
+                    {
+                        charts: [],
+                        dashboards: [],
+                        spaces: [
+                            {
+                                action: PromotionAction.NO_CHANGES,
+                                data: upstreamSpace!,
+                            },
+                        ],
+                    },
+                    [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: {
+                                uuid: promotedSqlChart.savedSqlUuid,
+                                oldUuid: promotedSqlChart.savedSqlUuid,
+                                projectUuid:
+                                    promotedSqlChart.project.projectUuid,
+                                slug: promotedSqlChart.slug,
+                                spacePath: upstreamSpace!.path,
+                                spaceSlug: upstreamSpace!.slug,
+                                unversionedData: {
+                                    name: 'SQL',
+                                    description: '',
+                                    spaceUuid: upstreamSpace!.uuid,
+                                },
+                                versionedData: {
+                                    sql: 'select 2',
+                                    limit: 10,
+                                    config: promotedSqlChart.config,
+                                },
+                            },
+                        },
+                    ],
+                );
+                expect(savedSqlModel.update).toHaveBeenLastCalledWith(
+                    expect.any(Object),
+                    undefined,
+                    claim,
+                    expect.any(Function),
+                );
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    claim ? 1 : 0,
+                );
+                expect(log).toHaveBeenCalledTimes(claim ? 1 : 0);
+                if (claim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: claim,
+                            action: 'update',
+                            outcome: 'allowed',
+                        }),
+                        chartTransaction,
+                    );
+            };
+            if (surface) await agentExecutionContext.run(scope, run);
+            else await run();
+        },
+    );
+    test('does not audit a chart version when the outer transaction rolls back', async () => {
+        agentActionLogModel.insert.mockClear();
+        const log = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => {});
+        savedChartModel.transaction.mockImplementationOnce((callback) =>
+            runChartTransaction(async (trx) => {
+                await callback(trx);
+                expect(log).not.toHaveBeenCalled();
+                expect(agentActionLogModel.insert).toHaveBeenCalledWith(
+                    expect.any(Object),
+                    trx,
+                );
+            }, true),
+        );
+        const scope = createAgentExecutionContext({
+            account: fromSession(user),
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+            agentUuid: 'agent',
+            agentIdentityEnabled: true,
+        });
+        await expect(
+            agentExecutionContext.run(scope, () =>
+                service.upsertCharts(user, {
+                    spaces: [],
+                    dashboards: [],
+                    charts: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: {
+                                ...promotedChart.chart,
+                                oldUuid: 'old-chart',
+                                spaceSlug: 'reports',
+                                spacePath: 'reports',
+                            },
+                        },
+                    ],
+                }),
+            ),
+        ).rejects.toThrow('commit failed');
+        expect(log).not.toHaveBeenCalled();
     });
 });

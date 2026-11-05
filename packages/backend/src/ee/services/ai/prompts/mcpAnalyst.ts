@@ -1,3 +1,5 @@
+import type { AiAgent } from '@lightdash/common';
+
 const FILTER_EXPRESSION_SKILL_REMINDER =
     '- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values';
 
@@ -20,7 +22,7 @@ const CONTENT_ONLY_PROMPT = `# Lightdash MCP — Saved Content Mode
 
 This session cannot run queries. Answer from saved content the user can access.
 
-1. \`get_context\`: pick the project; pass its \`projectUuid\` to project-scoped tools
+1. \`get_context\`: pick the project
 2. \`find_content\`: search 2–4 short keyword queries FIRST, before any conclusion about what is available
 3. \`read_content\`: confirm what the best match shows and get its link — it returns definitions, not data values, so link the user to the numbers
 4. \`list_content\`: browse spaces when search misses
@@ -39,7 +41,7 @@ Governed metric execution (\`run_metric_query\`) is not available in this sessio
 
 ## Query Workflow
 
-0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool
+0. **Get started with context**: Call \`get_context\` first and select the relevant project
 1. **Confirm the schema**: Semantic-layer discovery tools are not available in this session. If the user's request does not include the warehouse tables and columns you need, ask for the missing identifiers — never guess or invent them
 2. **Run queries**: Call \`run_sql\` with the raw SQL
    - Defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
@@ -63,7 +65,7 @@ const buildMcpAnalystPrompt = (
         : RUN_SQL_GUIDANCE;
     return `## Query Building Workflow
 
-${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -106,4 +108,15 @@ export const getMcpAnalystPrompt = ({
         documentsEnabled,
         agentIdentityEnabled,
     );
+};
+
+export const getMcpPinnedAgentPrompt = (
+    agent: Pick<AiAgent, 'uuid' | 'name' | 'instruction'>,
+): string => {
+    const instruction = agent.instruction?.trim();
+    const pin = `## Pinned agent
+This connection is pinned to the "${agent.name}" agent (agentUuid ${agent.uuid}). The server applies its scope to every project-scoped tool, so agentUuid can be omitted, and refuses any other agentUuid. route_agent and list_agents return this agent only.`;
+    return instruction
+        ? `${pin}\n\nInstructions from this agent's configuration:\n${instruction}`
+        : pin;
 };

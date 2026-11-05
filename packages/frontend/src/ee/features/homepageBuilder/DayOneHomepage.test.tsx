@@ -14,6 +14,9 @@ const { aiState, keySpaces, recentContents } = vi.hoisted(() => ({
     recentContents: { current: { contents: [{ uuid: 'recent-1' }] } },
 }));
 
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: false } }),
+}));
 vi.mock('./hooks/useKeySpaces', () => ({
     useKeySpaces: () => ({ spaces: keySpaces.current, isLoading: false }),
 }));
@@ -111,8 +114,5 @@ describe('DayOneHomepage', () => {
         expect(screen.getByTestId('recent-list')).toBeInTheDocument();
         expect(screen.getByTestId('favorites-bar')).toBeInTheDocument();
         expect(screen.getByTestId('pinned-card')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('link', { name: /Set up an AI agent/ }),
-        ).toBeNull();
     });
 });

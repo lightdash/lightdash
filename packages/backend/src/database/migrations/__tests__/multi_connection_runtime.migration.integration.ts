@@ -34,7 +34,6 @@ import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { JobModel } from '../../../models/JobModel/JobModel';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
@@ -93,10 +92,6 @@ type CredentialsResult = CreateWarehouseCredentials & {
 };
 
 type SqlBuildingInternals = {
-    refreshCredentials: (
-        args: CreateWarehouseCredentials,
-        userUuid: string,
-    ) => Promise<CreateWarehouseCredentials>;
     getUserAttributes: () => Promise<unknown>;
     getExplore: (
         account: unknown,
@@ -112,10 +107,6 @@ type RuntimeInternals = {
         isRegisteredUser: boolean;
         binding: ConnectionBinding;
     }) => Promise<CredentialsResult>;
-    refreshCredentials: (
-        args: CreateWarehouseCredentials,
-        userUuid: string,
-    ) => Promise<CreateWarehouseCredentials>;
     getUserAttributes: () => Promise<unknown>;
     prepareSqlChartAsyncQueryArgs: (args: {
         account: ReturnType<typeof fromSession>;
@@ -144,7 +135,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
     let savedSqlModel: SavedSqlModel;
     let queryHistoryModel: QueryHistoryModel;
     let userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
-    let organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 
     const encrypt = (value: unknown) =>
         encryptionUtil.encrypt(JSON.stringify(value));
@@ -197,15 +187,9 @@ describe('Multi runtime identity wiring on the real schema', () => {
             database,
             encryptionUtil,
         });
-        organizationWarehouseCredentialsModel =
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            });
         warehouseConnectionModel = new WarehouseConnectionModel({
             database,
             encryptionUtil,
-            organizationWarehouseCredentialsModel,
         });
         warehouseConnectionCompileModel = new WarehouseConnectionCompileModel({
             database,
@@ -359,6 +343,9 @@ describe('Multi runtime identity wiring on the real schema', () => {
 
     const serviceArgs = () => ({
         lightdashConfig: lightdashConfigMock,
+        featureFlagModel: {
+            get: async () => ({ id: 'flag', enabled: false }),
+        },
         analytics: { track: vi.fn() },
         projectModel,
         projectDbtSourcesModel,
@@ -366,15 +353,11 @@ describe('Multi runtime identity wiring on the real schema', () => {
         warehouseConnectionCompileModel,
         warehouseConnectionIdentityModel: identityModel,
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
     });
 
     const runtimeService = () => {
         const service = new AsyncQueryService(serviceArgs() as never);
         const internals = service as unknown as RuntimeInternals;
-        vi.spyOn(internals, 'refreshCredentials').mockImplementation(
-            async (args) => args,
-        );
         vi.spyOn(internals, 'getUserAttributes').mockResolvedValue({
             userAttributes: {},
             intrinsicUserAttributes: {},
@@ -2145,9 +2128,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 projectParametersModel: { find: async () => [] },
             } as never);
             const internals = service as unknown as SqlBuildingInternals;
-            vi.spyOn(internals, 'refreshCredentials').mockImplementation(
-                async (args) => args,
-            );
             vi.spyOn(internals, 'getUserAttributes').mockResolvedValue({
                 userAttributes: {},
                 intrinsicUserAttributes: {},

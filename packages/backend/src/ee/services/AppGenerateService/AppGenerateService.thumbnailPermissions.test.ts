@@ -132,6 +132,7 @@ const buildScenario = () => {
     const { storage, download } = createInMemoryAppThumbnailStorage();
 
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: { appRuntime: {} } as never,
         analytics: { track: () => undefined } as never,
@@ -179,6 +180,7 @@ const buildScenario = () => {
         chartRegistryClient: {} as never,
         contentVerificationModel: {} as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
 
     const upload = (user: SessionUser, appUuid: string, image: Buffer) =>
         service.uploadThumbnail(

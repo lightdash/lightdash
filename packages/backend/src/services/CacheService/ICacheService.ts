@@ -1,4 +1,4 @@
-import { LightdashUser } from '@lightdash/common';
+import { LightdashUser, type QueryResultProducer } from '@lightdash/common';
 import { CacheHitCacheResult } from './types';
 
 export type CacheServiceUser = Pick<
@@ -20,5 +20,7 @@ export interface ICacheService {
         projectUuid: string,
         cacheKey: string,
         user: CacheServiceUser,
+        requesterProducer?: QueryResultProducer | null,
+        identityEnabled?: boolean,
     ) => Promise<CacheHitCacheResult | null>;
 }

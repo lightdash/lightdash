@@ -1,10 +1,10 @@
 import {
-    CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import { CachedWarehouse } from '../types';
 import { DEFAULT_BITBUCKET_HOST_DOMAIN } from '../utils/credentialDestination';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
@@ -16,7 +16,8 @@ type Args = {
     repository: string;
     branch: string;
     projectDirectorySubPath: string;
-    warehouseCredentials: CreateWarehouseCredentials;
+    dbtTarget: DbtTargetResult;
+    explicitCredentials: boolean;
     hostDomain?: string;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
@@ -38,7 +39,8 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         personalAccessToken,
         repository,
         projectDirectorySubPath,
-        warehouseCredentials,
+        dbtTarget,
+        explicitCredentials,
         hostDomain,
         targetName,
         environment,
@@ -58,7 +60,8 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
             remoteRepositoryUrl,
             repository,
             projectDirectorySubPath,
-            warehouseCredentials,
+            dbtTarget,
+            explicitCredentials,
             targetName,
             environment,
             environmentVariableAllowlist,

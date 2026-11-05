@@ -106,3 +106,27 @@ describe('buildAutopilotTools', () => {
         });
     });
 });
+
+it('does not convert cancellation into a recoverable tool error or run queued tools', async () => {
+    const controller = new AbortController();
+    const blocked = new Error('Blocked');
+    const handler = vi.fn(async () => {
+        controller.abort(blocked);
+        throw blocked;
+    });
+    const tools = buildAutopilotTools({
+        definitions: autopilotToolDefinitions,
+        executeTool: handler,
+        onSlackSummary: vi.fn(),
+    });
+    const options = { ...toolCallOptions, abortSignal: controller.signal };
+    const results = await Promise.allSettled([
+        tools.get_recent_actions.execute!({}, options),
+        tools.get_stale_charts.execute!({}, options),
+    ]);
+    expect(results).toEqual([
+        { status: 'rejected', reason: blocked },
+        { status: 'rejected', reason: blocked },
+    ]);
+    expect(handler).toHaveBeenCalledTimes(1);
+});

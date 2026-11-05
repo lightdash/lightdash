@@ -1,6 +1,7 @@
 import { NotFoundError, UnexpectedGitError } from '@lightdash/common';
 import { Octokit } from '@octokit/rest';
 import {
+    createFile,
     getLastCommit,
     getRepoTree,
     isGithubRateLimitError,
@@ -12,13 +13,17 @@ vi.mock('@octokit/rest');
 const mockGetTree = vi.fn();
 const mockSearchCode = vi.fn();
 const mockListCommits = vi.fn();
+const mockCreateOrUpdateFileContents = vi.fn();
 (Octokit as unknown as import('vitest').Mock).mockImplementation(
     // eslint-disable-next-line prefer-arrow-callback
     function MockOctokit() {
         return {
             rest: {
                 git: { getTree: mockGetTree },
-                repos: { listCommits: mockListCommits },
+                repos: {
+                    listCommits: mockListCommits,
+                    createOrUpdateFileContents: mockCreateOrUpdateFileContents,
+                },
                 search: { code: mockSearchCode },
             },
             hook: { after: vi.fn(), error: vi.fn() },
@@ -86,6 +91,39 @@ describe('isGithubRateLimitError', () => {
         expect(isGithubRateLimitError(new Error('socket hang up'))).toBe(false);
         expect(isGithubRateLimitError(null)).toBe(false);
         expect(isGithubRateLimitError(undefined)).toBe(false);
+    });
+});
+
+describe('createFile', () => {
+    beforeEach(() => {
+        mockCreateOrUpdateFileContents.mockReset().mockResolvedValue({});
+    });
+
+    const args = {
+        owner: 'acme',
+        repo: 'jaffle',
+        fileName: 'lightdash/apps/weekly/src/font.woff2',
+        branch: 'main',
+        message: 'Add font',
+        token: 't',
+    };
+
+    it('sends text encoded for GitHub, and a base64 file as it is', async () => {
+        await createFile({ ...args, content: 'version: 2\n' });
+        await createFile({
+            ...args,
+            content: 'd09GMgABAAAA',
+            encoding: 'base64',
+        });
+
+        expect(
+            mockCreateOrUpdateFileContents.mock.calls.map(
+                ([call]) => call.content,
+            ),
+        ).toEqual([
+            Buffer.from('version: 2\n').toString('base64'),
+            'd09GMgABAAAA',
+        ]);
     });
 });
 

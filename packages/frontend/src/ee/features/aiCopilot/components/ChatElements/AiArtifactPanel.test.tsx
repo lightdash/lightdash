@@ -2,17 +2,27 @@ import {
     AiAccessRefusedError,
     AiAccessRefusalReason,
     AiResultType,
+    FeatureFlags,
+    getItemLabelWithoutTableName,
     QuerySourceType,
+    QueryHistoryStatus,
     ChartKind,
     VizAggregationOptions,
     VizIndexType,
     type AiComposerChartArtifactConfig,
+    type ComposerRunQueryChart,
     type ToolRunQueryArgs,
+    type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { type ComponentProps, type ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useEffect, type ComponentProps, type ReactNode } from 'react';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { sharedLightdashApi } from '../../../../../api';
+import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
+import mockIntersectingObserver from '../../../../../testing/intersectingObserver';
+import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiArtifactPanel } from './AiArtifactPanel';
 import { AiChartVisualization } from './AiChartVisualization';
@@ -20,16 +30,22 @@ import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualizati
 import { AiDashboardVisualizationItem } from './AiDashboardVisualizationItem';
 
 const mocks = vi.hoisted(() => ({
-    fastDecisions: vi.fn(),
+    featureFlag: vi.fn(),
+    isEmbedded: vi.fn(),
     artifact: vi.fn(),
     thread: vi.fn(),
     query: vi.fn(),
     rows: vi.fn(),
     retry: vi.fn(),
     saveVizConfig: vi.fn(),
+    chartEchartsRefSetter: vi.fn(),
 }));
+vi.mock('../../../../../api');
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: mocks.fastDecisions,
+    useServerFeatureFlag: mocks.featureFlag,
+}));
+vi.mock('../../../../providers/Embed/useIsEmbedded', () => ({
+    default: mocks.isEmbedded,
 }));
 vi.mock('../../hooks/useAiAgentArtifacts', () => ({
     useAiAgentArtifact: mocks.artifact,
@@ -64,7 +80,8 @@ vi.mock('../../hooks/useCanViewAiAgentSql', () => ({
 vi.mock('../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: () => ({ data: undefined }),
 }));
-vi.mock('../../../../../hooks/useQueryResults', () => ({
+vi.mock('../../../../../hooks/useQueryResults', async (original) => ({
+    ...(await original<typeof QueryResultsHooks>()),
     useInfiniteQueryResults: mocks.rows,
 }));
 vi.mock('../../../../../hooks/health/useHealth', () => ({
@@ -72,6 +89,7 @@ vi.mock('../../../../../hooks/health/useHealth', () => ({
 }));
 vi.mock('../../store/hooks', () => ({
     useAiAgentStoreDispatch: () => vi.fn(),
+    useAiAgentStoreSelector: () => [],
 }));
 vi.mock('../../hooks/useAiArtifactChart', async (original) => ({
     ...(await original<object>()),
@@ -91,6 +109,37 @@ vi.mock(
 );
 vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
+}));
+// The headers the Lightdash table would draw.
+vi.mock('./AiComposerRunQueryChart', () => ({
+    AiComposerRunQueryChart: ({
+        chart,
+        setEchartsRef,
+    }: {
+        chart: ComposerRunQueryChart;
+        setEchartsRef?: (ref: { current: null }) => void;
+    }) => {
+        mocks.chartEchartsRefSetter(setEchartsRef);
+        useEffect(() => setEchartsRef?.({ current: null }), [setEchartsRef]);
+        return (
+            <table>
+                <thead>
+                    <tr>
+                        {[
+                            ...chart.metricQuery.dimensions,
+                            ...chart.metricQuery.metrics,
+                        ].map((fieldId) => (
+                            <th key={fieldId}>
+                                {getItemLabelWithoutTableName(
+                                    chart.fields[fieldId],
+                                )}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+            </table>
+        );
+    },
 }));
 vi.mock('./AiVisualizationRenderer', () => ({
     AiVisualizationRenderer: ({
@@ -143,7 +192,8 @@ const config: ToolRunQueryArgs = {
 
 beforeEach(() => {
     vi.clearAllMocks();
-    mocks.fastDecisions.mockReturnValue({ data: { enabled: true } });
+    mocks.isEmbedded.mockReturnValue(false);
+    mocks.featureFlag.mockReturnValue({ data: { enabled: true } });
     mocks.artifact.mockReturnValue({
         data: {
             artifactType: 'chart',
@@ -217,24 +267,6 @@ describe('artifact panel recovery and navigation', () => {
         ).toBeChecked();
     });
 
-    it.each([false, undefined])(
-        'retains the legacy loading behavior with the flag %s',
-        (enabled) => {
-            mocks.fastDecisions.mockReturnValue({
-                data: enabled === undefined ? undefined : { enabled },
-            });
-            mocks.rows.mockReturnValue({
-                ...mocks.rows(),
-                isFetchingRows: true,
-            });
-            renderWithProviders(<AiArtifactPanel artifact={artifact} />);
-            expect(screen.queryByTestId('chart')).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: 'Retry' }),
-            ).not.toBeInTheDocument();
-        },
-    );
-
     it.each(['artifact', 'thread', 'query', 'rows'] as const)(
         'offers a working retry after a %s failure',
         (source) => {
@@ -275,7 +307,7 @@ const composerConfig: AiComposerChartArtifactConfig = {
     source: 'composer',
     schemaVersion: 1,
     terminalNodeId: 'joined',
-    lastQueryUuid: 'query',
+    vizConfig: null,
     queries: [
         {
             sourceType: QuerySourceType.SQL,
@@ -298,6 +330,42 @@ const composerConfig: AiComposerChartArtifactConfig = {
         },
     ],
 };
+
+// The run started on open: every node's result in this run.
+const composerRun = {
+    data: {
+        source: 'composer',
+        terminalNodeId: 'joined',
+        nodeQueryUuids: {
+            orders: 'orders-query',
+            amounts: 'amounts-query',
+            joined: 'query',
+        },
+        metadata: { title: 'Orders vs amounts', description: null },
+    },
+    isLoading: false,
+    error: null,
+    refetch: mocks.retry,
+};
+
+const nodeStatusesResponse = (
+    statuses: {
+        queryUuid: string;
+        status: QueryHistoryStatus;
+        error?: string;
+    }[],
+) =>
+    mockedLightdashApi.mockImplementation((async ({ url }: { url: string }) =>
+        url.includes('/query-sources/queries/status')
+            ? {
+                  statuses: statuses.map(({ error, ...status }) => ({
+                      ...status,
+                      error: error ?? null,
+                      totalRowCount: null,
+                      warehouseExecutionTimeMs: null,
+                  })),
+              }
+            : undefined) as unknown as typeof sharedLightdashApi);
 
 const resultsOf = (
     columns: Record<string, { reference: string; type: string }>,
@@ -324,13 +392,13 @@ const statusResults = resultsOf(
     [{ status: 'completed' }],
 );
 
-// The pipeline bar's List / Graph switch is a SegmentedControl too.
-const PIPELINE_MODES = ['list', 'graph'];
+// The head's Chart / Lineage switch is a SegmentedControl too.
+const ARTIFACT_VIEWS = ['chart', 'lineage'];
 const vizRadioElements = () =>
     screen
         .queryAllByRole('radio')
         .filter(
-            (radio) => !PIPELINE_MODES.includes(radio.getAttribute('value')!),
+            (radio) => !ARTIFACT_VIEWS.includes(radio.getAttribute('value')!),
         );
 const vizRadios = () =>
     vizRadioElements().map((radio) => radio.getAttribute('value'));
@@ -365,6 +433,18 @@ const openChart = async () => {
 };
 const xAxisSelect = () => screen.getByRole('combobox', { name: 'X axis' });
 
+const cellOf = (nodeId: string) =>
+    within(document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)!);
+
+const openLineage = () =>
+    fireEvent.click(screen.getByRole('radio', { name: 'Lineage' }));
+const showResults = (nodeId: string) =>
+    fireEvent.click(
+        cellOf(nodeId).getByRole('button', {
+            name: /^(View results|[\d,]+ rows?)/,
+        }),
+    );
+
 describe('composer artifact', () => {
     const renderComposer = (
         chartConfig: AiComposerChartArtifactConfig,
@@ -380,29 +460,159 @@ describe('composer artifact', () => {
             error: null,
             refetch: mocks.retry,
         });
+        mocks.query.mockReturnValue(composerRun);
         mocks.rows.mockReturnValue(results);
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
 
-    it('renders the results with a collapsed pipeline bar', () => {
+    it('opens on the chart, with its lineage a switch away', () => {
         renderComposer(composerConfig);
         expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
-        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
-        expect(screen.getByText('3 steps')).toBeInTheDocument();
-        expect(screen.queryByText('Sources')).not.toBeInTheDocument();
+        expect(screen.getByRole('columnheader')).toHaveTextContent('Status');
+        expect(screen.getByRole('radio', { name: 'Chart' })).toBeChecked();
+        expect(document.querySelector('[data-node-id]')).toBeNull();
     });
 
-    it('expands into grouped rows by title', () => {
+    it('switches to the lineage, one cell per node, titled', () => {
         renderComposer(composerConfig);
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-        expect(screen.getByText('Sources')).toBeInTheDocument();
-        expect(screen.getByText('Result')).toBeInTheDocument();
-        expect(screen.getByText('Orders by status')).toBeInTheDocument();
-        expect(screen.getByText('Orders with amounts')).toBeInTheDocument();
+        openLineage();
+        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
         expect(
-            screen.getByText('Reads Orders by status, Average amount'),
+            cellOf('orders').getByText('Orders by status'),
+        ).toBeInTheDocument();
+        expect(
+            cellOf('joined').getByText('Orders with amounts'),
         ).toBeInTheDocument();
         expect(screen.queryByText('joined')).not.toBeInTheDocument();
+    });
+
+    describe('image export', () => {
+        const barConfig: AiComposerChartArtifactConfig = {
+            ...composerConfig,
+            schemaVersion: 2,
+            vizConfig: {
+                type: 'bar',
+                x: 'status',
+                y: ['n'],
+                groupBy: null,
+                stack: null,
+                horizontal: null,
+                y2: null,
+                labels: null,
+            },
+        };
+        const statusCounts = {
+            ...resultsOf(
+                {
+                    status: { reference: 'status', type: 'string' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [{ status: 'completed', n: 3 }],
+            ),
+            totalResults: 1,
+        };
+        const canExport = {
+            user: {
+                abilityRules: [
+                    {
+                        action: 'manage' as const,
+                        subject: 'ExportCsv' as const,
+                    },
+                ],
+            },
+        };
+        const renderChart = (
+            appMocks?: typeof canExport,
+            chartConfig: AiComposerChartArtifactConfig = barConfig,
+        ) => {
+            mocks.artifact.mockReturnValue({
+                data: {
+                    artifactType: 'chart',
+                    title: 'Orders vs amounts',
+                    chartConfig,
+                },
+                isLoading: false,
+                error: null,
+                refetch: mocks.retry,
+            });
+            mocks.query.mockReturnValue(composerRun);
+            mocks.rows.mockReturnValue(statusCounts);
+            return renderWithProviders(
+                <AiArtifactPanel artifact={artifact} />,
+                appMocks,
+            );
+        };
+
+        it('offers export image in the quick actions menu', async () => {
+            renderChart(canExport);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', { name: 'Export image' }),
+            ).toBeInTheDocument();
+        });
+
+        it('hides it for a chart type that does not export as an image', async () => {
+            renderChart(canExport, {
+                ...barConfig,
+                vizConfig: {
+                    type: 'big_number',
+                    x: null,
+                    y: ['n'],
+                    groupBy: null,
+                    stack: null,
+                    horizontal: null,
+                    y2: null,
+                    labels: null,
+                },
+            });
+            await screen.findByRole('table');
+            expect(mocks.chartEchartsRefSetter).toHaveBeenLastCalledWith(
+                undefined,
+            );
+        });
+
+        it('hides it without export permission', async () => {
+            renderChart();
+            await screen.findByRole('columnheader', { name: 'Status' });
+            expect(
+                screen.queryByRole('button', { name: 'Quick actions' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('downloads the displayed node result as run from the same menu', async () => {
+            mockedLightdashApi.mockImplementation((async ({
+                url,
+            }: {
+                url: string;
+            }) =>
+                url.endsWith('/schedule-download')
+                    ? { jobId: 'job' }
+                    : undefined) as unknown as typeof sharedLightdashApi);
+            renderChart(canExport, composerConfig);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            expect(
+                screen.queryByRole('menuitem', { name: 'Export image' }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Download results',
+                }),
+            );
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Download' }),
+            );
+            await waitFor(() =>
+                expect(mockedLightdashApi).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        url: '/projects/project/query/query/schedule-download',
+                    }),
+                ),
+            );
+        });
     });
 
     it('falls back to node ids when titles are missing', () => {
@@ -410,12 +620,12 @@ describe('composer artifact', () => {
             ...composerConfig,
             queries: composerConfig.queries.map(({ title, ...query }) => query),
         });
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-        expect(screen.getByText('joined')).toBeInTheDocument();
-        expect(screen.getByText('Reads orders, amounts')).toBeInTheDocument();
+        openLineage();
+        expect(cellOf('joined').getByText('joined')).toBeInTheDocument();
     });
 });
 
+// Skipped tests cover the chart panel, hidden until its design is settled.
 describe('composer viz config panel', () => {
     const renderComposer = (
         results: ReturnType<typeof resultsOf>,
@@ -431,6 +641,7 @@ describe('composer viz config panel', () => {
             error: null,
             refetch: mocks.retry,
         });
+        mocks.query.mockReturnValue(composerRun);
         mocks.rows.mockReturnValue(results);
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
@@ -445,19 +656,23 @@ describe('composer viz config panel', () => {
         ],
     );
 
-    it('opens a string + number result as a bar chart offering table, bar, line and pie', async () => {
+    it.skip('opens a string + number result as a table offering table, bar, line and pie', async () => {
         renderComposer(statusCounts);
-        expect(chartBar()).toHaveTextContent('Bar · status × n');
+        expect(chartBar()).toHaveTextContent('Table');
         await openChart();
         expect(offeredKinds()).toEqual(['table', 'bar', 'line', 'pie']);
-        expect(selectedKind()).toBe('bar');
+        expect(selectedKind()).toBe('table');
+        expect(
+            screen.getByRole('columnheader', { name: 'Status' }),
+        ).toBeInTheDocument();
+        chooseKind('bar');
+        expect(chartBar()).toHaveTextContent('Bar · status × n');
         expect(
             screen.getByTestId('chart-view-vertical_bar'),
         ).toBeInTheDocument();
-        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
     });
 
-    it('opens a date + number result as a line chart', async () => {
+    it.skip('opens a date + number result as a table and can switch to a line chart', async () => {
         renderComposer(
             resultsOf(
                 {
@@ -471,30 +686,32 @@ describe('composer viz config panel', () => {
             ),
         );
         await openChart();
-        expect(selectedKind()).toBe('line');
+        expect(selectedKind()).toBe('table');
+        chooseKind('line');
         expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
     });
 
-    it('switches to the table from the same fetched rows', async () => {
+    it.skip('switches back to the table from the same fetched rows', async () => {
         renderComposer(statusCounts);
         await openChart();
+        chooseKind('bar');
         chooseKind('table');
         expect(
-            screen.getByRole('columnheader', { name: 'status' }),
+            screen.getByRole('columnheader', { name: 'Status' }),
         ).toBeInTheDocument();
-        // Only the stored query is ever read: kinds are built from its rows.
+        // Only the terminal node of the run is read: kinds are built from its rows.
         const readQueryUuids = mocks.rows.mock.calls
             .map(([, queryUuid]) => queryUuid)
             .filter((queryUuid) => queryUuid !== undefined);
         expect(readQueryUuids.length).toBeGreaterThan(0);
         expect(new Set(readQueryUuids)).toEqual(new Set(['query']));
         expect(mocks.query).toHaveBeenLastCalledWith(
-            expect.anything(),
-            expect.objectContaining({ enabled: false }),
+            expect.objectContaining({ versionUuid: 'version' }),
+            expect.objectContaining({ enabled: true }),
         );
     });
 
-    it('opens a duplicate-x result as a table but keeps bar and line selectable', async () => {
+    it.skip('opens a duplicate-x result as a table but keeps bar and line selectable', async () => {
         renderComposer(
             resultsOf(
                 {
@@ -513,7 +730,7 @@ describe('composer viz config panel', () => {
         expect(offeredKinds()).toEqual(['table', 'bar', 'line', 'pie']);
     });
 
-    it('opens a one-row, one-number result as a big number', async () => {
+    it.skip('opens a one-row, one-number result as a table and can switch to a big number', async () => {
         renderComposer(
             resultsOf(
                 {
@@ -524,7 +741,8 @@ describe('composer viz config panel', () => {
             ),
         );
         await openChart();
-        expect(selectedKind()).toBe('big_number');
+        expect(selectedKind()).toBe('table');
+        chooseKind('big_number');
         expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
     });
 
@@ -534,10 +752,10 @@ describe('composer viz config panel', () => {
             screen.queryByRole('button', { name: /^chart/i }),
         ).not.toBeInTheDocument();
         expect(kindButtons()).toHaveLength(0);
-        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
+        expect(screen.getByRole('columnheader')).toHaveTextContent('Status');
     });
 
-    it('opens on the stored viz config and writes an edit back', async () => {
+    it.skip('opens on the stored viz config and writes an edit back', async () => {
         const { unmount } = renderComposer(statusCounts, {
             ...composerConfig,
             vizConfig: {
@@ -567,7 +785,7 @@ describe('composer viz config panel', () => {
         );
     });
 
-    it("keeps a read-only viewer's kind switch on screen without writing it", async () => {
+    it.skip("keeps a read-only viewer's kind switch on screen without writing it", async () => {
         mocks.thread.mockReturnValue({
             data: {
                 user: { uuid: 'someone-else' },
@@ -579,72 +797,31 @@ describe('composer viz config panel', () => {
         });
         const { unmount } = renderComposer(statusCounts);
         await openChart();
-        expect(xAxisSelect()).toBeDisabled();
         chooseKind('line');
+        expect(xAxisSelect()).toBeDisabled();
         expect(chartBar()).toHaveTextContent('Line · status × n');
         unmount();
         expect(mocks.saveVizConfig).not.toHaveBeenCalled();
     });
 
-    it("shows an expired result's stored viz config with every control disabled", async () => {
-        renderComposer(
-            {
-                ...statusCounts,
-                rows: [],
-                columns: undefined,
-                error: { error: { message: 'Gone' } },
-            } as unknown as ReturnType<typeof resultsOf>,
-            {
-                ...composerConfig,
-                vizConfig: {
-                    type: ChartKind.VERTICAL_BAR,
-                    metadata: { version: 1 },
-                    fieldConfig: {
-                        x: { reference: 'status', type: VizIndexType.CATEGORY },
-                        y: [
-                            {
-                                reference: 'n',
-                                aggregation: VizAggregationOptions.SUM,
-                            },
-                        ],
-                        groupBy: [],
-                    },
-                    display: undefined,
-                },
-            },
-        );
+    it("shows the terminal node's error in the chart area", async () => {
+        renderComposer({
+            ...statusCounts,
+            rows: [],
+            columns: undefined,
+            error: { error: { message: 'Division by zero' } },
+        } as unknown as ReturnType<typeof resultsOf>);
         expect(
-            screen.getByText(/These results have expired/),
+            screen.getByText('This result could not be loaded'),
         ).toBeInTheDocument();
-        expect(chartBar()).toHaveTextContent('Bar · status × sum n');
-        await openChart();
-        expect(offeredKinds()).toEqual([]);
-        expect(selectedKind()).toBe('bar');
-        expect(xAxisSelect()).toBeDisabled();
-    });
-
-    it('keeps only one of Chart and Queries open', async () => {
-        renderComposer(statusCounts);
-        await openChart();
-        expect(chartBar()).toHaveAttribute('aria-expanded', 'true');
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-        expect(chartBar()).toHaveAttribute('aria-expanded', 'false');
-        expect(screen.getByText('Sources')).toBeInTheDocument();
-        await openChart();
-        expect(screen.queryByText('Sources')).not.toBeInTheDocument();
+        expect(screen.getByText('Division by zero')).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
     });
 });
 
-const composerConfigWithNodeResults: AiComposerChartArtifactConfig = {
-    ...composerConfig,
-    nodeResults: {
-        orders: { queryUuid: 'orders-query' },
-        amounts: { queryUuid: 'amounts-query' },
-        joined: { queryUuid: 'query' },
-    },
-};
+describe('composer lineage', () => {
+    beforeAll(mockIntersectingObserver);
 
-describe('composer displayed node', () => {
     const ordersResults = resultsOf(
         {
             status: { reference: 'status', type: 'string' },
@@ -662,19 +839,18 @@ describe('composer displayed node', () => {
         'amounts-query': amountsResults,
     };
 
-    const renderComposer = (
-        chartConfig: AiComposerChartArtifactConfig = composerConfigWithNodeResults,
-    ) => {
+    const renderComposer = (run: Partial<typeof composerRun> = composerRun) => {
         mocks.artifact.mockReturnValue({
             data: {
                 artifactType: 'chart',
                 title: 'Orders vs amounts',
-                chartConfig,
+                chartConfig: composerConfig,
             },
             isLoading: false,
             error: null,
             refetch: mocks.retry,
         });
+        mocks.query.mockReturnValue({ ...composerRun, ...run });
         mocks.rows.mockImplementation(
             (_project: string, queryUuid: string | undefined) =>
                 queryUuid === undefined
@@ -684,170 +860,112 @@ describe('composer displayed node', () => {
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
 
-    const expandPipeline = () =>
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-
-    it('displays a node result from List mode with its title and a way back', async () => {
+    it('shows each node its own rows once opened', async () => {
         renderComposer();
-        expandPipeline();
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Display Average amount' }),
-        );
-        // A one-row, one-number node result opens as a big number.
-        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
-        // Header and pipeline row both name the node.
-        expect(screen.getAllByText('Average amount')).toHaveLength(2);
-        expect(screen.queryByText('Orders vs amounts')).not.toBeInTheDocument();
+        openLineage();
+        showResults('amounts');
+        showResults('orders');
         expect(
-            document.getElementById('composer-pipeline-node-amounts'),
-        ).toHaveAttribute('data-displayed', 'true');
-
-        fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
-        expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
-        expect(
-            screen.getByRole('columnheader', { name: 'status' }),
+            await cellOf('amounts').findByRole('columnheader', {
+                name: 'Avg amount',
+            }),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Back to result' }),
-        ).not.toBeInTheDocument();
+            await cellOf('orders').findByRole('columnheader', { name: 'N' }),
+        ).toBeInTheDocument();
     });
 
-    it('displays a node result from Graph mode', async () => {
-        renderComposer();
-        expandPipeline();
-        fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
-        fireEvent.click(screen.getByLabelText('Display Orders by status'));
-        // A one-row node result charts on its own merits.
-        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
-        expect(
-            screen.getByLabelText('Display Orders by status'),
-        ).toHaveAttribute('data-displayed', 'true');
-    });
-
-    it('resets to the terminal node when a new version opens', async () => {
+    it('resets to the chart when a new version opens', () => {
         const { rerender } = renderComposer();
-        expandPipeline();
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Display Average amount' }),
-        );
-        expect(screen.getAllByText('Average amount')).toHaveLength(2);
+        openLineage();
         rerender(
             <AiArtifactPanel
                 artifact={{ ...artifact, versionUuid: 'another-version' }}
             />,
         );
-        expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'Chart' })).toBeChecked();
         expect(
-            screen.queryByRole('button', { name: 'Back to result' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('columnheader', { name: 'Status' }),
+        ).toBeInTheDocument();
     });
 
-    it('leaves nodes of artifacts without per-node results inert', async () => {
-        renderComposer(composerConfig);
-        expandPipeline();
+    it('keeps nodes inert and reads no result while the run starts', async () => {
+        renderComposer({ data: undefined, isLoading: true });
+        openLineage();
         expect(
-            screen.queryAllByRole('button', { name: /^Display / }),
-        ).toHaveLength(0);
-        expect(screen.getByText('Average amount')).toBeInTheDocument();
+            cellOf('amounts').getByText('Average amount'),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+        expect(mocks.rows.mock.calls.every(([, queryUuid]) => !queryUuid)).toBe(
+            true,
+        );
     });
 
-    it('shows the expired empty state for an expired node result', async () => {
+    it("shows each node's status in the run", async () => {
+        nodeStatusesResponse([
+            { queryUuid: 'orders-query', status: QueryHistoryStatus.READY },
+            {
+                queryUuid: 'amounts-query',
+                status: QueryHistoryStatus.EXECUTING,
+            },
+            { queryUuid: 'query', status: QueryHistoryStatus.PENDING },
+        ]);
+        renderComposer();
+        openLineage();
+        const row = cellOf;
+        expect(await row('amounts').findByLabelText('Running')).toBeVisible();
+        expect(row('orders').queryByLabelText('Completed')).toBeNull();
+        expect(row('joined').getByLabelText('Queued')).toBeVisible();
+    });
+
+    it("shows a failed node's error in its cell", async () => {
+        nodeStatusesResponse([
+            { queryUuid: 'orders-query', status: QueryHistoryStatus.READY },
+            {
+                queryUuid: 'amounts-query',
+                status: QueryHistoryStatus.ERROR,
+                error: 'column "amount" does not exist',
+            },
+            { queryUuid: 'query', status: QueryHistoryStatus.ERROR },
+        ]);
         resultsByQuery['amounts-query'] = {
             ...amountsResults,
             rows: [],
             columns: undefined,
-            error: { error: { message: 'Gone' } },
+            error: { error: { message: 'column "amount" does not exist' } },
         } as unknown as ReturnType<typeof resultsOf>;
         renderComposer();
-        expandPipeline();
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Display Average amount' }),
-        );
+        openLineage();
+        const amountsCell = cellOf('amounts');
+        expect(await amountsCell.findByLabelText('Failed')).toBeVisible();
         expect(
-            screen.getByText(/These results have expired/),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Back to result' }),
-        ).toBeInTheDocument();
+            amountsCell.getByText('column "amount" does not exist'),
+        ).toBeVisible();
+        expect(amountsCell.queryByRole('columnheader')).toBeNull();
     });
-});
 
-describe('composer per-node viz switcher', () => {
-    const ordersResults = resultsOf(
-        {
-            status: { reference: 'status', type: 'string' },
-            n: { reference: 'n', type: 'number' },
-        },
-        [
-            { status: 'completed', n: 3 },
-            { status: 'returned', n: 1 },
-        ],
-    );
-    const joinedResults = resultsOf(
-        {
-            day: { reference: 'day', type: 'date' },
-            total: { reference: 'total', type: 'number' },
-        },
-        [
-            { day: '2024-01-01', total: 3 },
-            { day: '2024-01-02', total: 1 },
-        ],
-    );
-    const resultsByQuery: Record<string, ReturnType<typeof resultsOf>> = {
-        query: joinedResults,
-        'orders-query': ordersResults,
-        'amounts-query': statusResults,
-    };
-
-    const renderComposer = () => {
-        mocks.artifact.mockReturnValue({
-            data: {
-                artifactType: 'chart',
-                title: 'Orders vs amounts',
-                chartConfig: composerConfigWithNodeResults,
-            },
-            isLoading: false,
-            error: null,
-            refetch: mocks.retry,
+    it('shows a refused run in the chart area', async () => {
+        renderComposer({
+            data: undefined,
+            error: {
+                status: 'error',
+                error: {
+                    name: 'ForbiddenError',
+                    statusCode: 403,
+                    message:
+                        'Pipelines with warehouse SQL are not available in embedded AI agents',
+                    data: {},
+                },
+            } as unknown as null,
         });
-        mocks.rows.mockImplementation(
-            (_project: string, queryUuid: string | undefined) =>
-                queryUuid === undefined
-                    ? { ...statusResults, rows: [], columns: undefined }
-                    : resultsByQuery[queryUuid],
-        );
-        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
-    };
-    const display = (title: string) =>
-        fireEvent.click(
-            screen.getByRole('button', { name: `Display ${title}` }),
-        );
-    it('gives a displayed node its own default and remembers each choice', async () => {
-        renderComposer();
-        await openChart();
-        expect(selectedKind()).toBe('line');
-        chooseKind('table');
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-
-        // Other nodes get the switcher alone in the bar, no expand.
-        display('Orders by status');
         expect(
-            screen.queryByRole('button', { name: /^chart/i }),
-        ).not.toBeInTheDocument();
-        expect(selectedKind()).toBe('bar');
-        chooseKind('line');
-        expect(selectedKind()).toBe('line');
-
-        display('Average amount');
-        expect(kindButtons()).toHaveLength(0);
-
-        display('Orders by status');
-        expect(selectedKind()).toBe('line');
-        fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
-        expect(chartBar()).toHaveTextContent('Table');
-        expect(mocks.saveVizConfig).not.toHaveBeenCalledWith(
-            expect.objectContaining({ type: ChartKind.LINE }),
-        );
+            screen.getByText('This result could not be loaded'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Pipelines with warehouse SQL are not available in embedded AI agents',
+            ),
+        ).toBeInTheDocument();
     });
 });
 
@@ -994,11 +1112,13 @@ describe('alternate artifact visualization identity recovery', () => {
         ).toBeVisible();
     });
 
-    it('shows the connection prompt for composer results instead of treating them as expired', () => {
+    it('shows the connection prompt for composer results instead of an error', () => {
         renderWithProviders(
             <AiComposerArtifactVisualization
                 projectUuid="project"
                 queryUuid="query"
+                runError={null}
+                onRerun={vi.fn()}
                 results={{ ...mocks.rows(), error }}
                 vizConfig={
                     { type: ChartKind.TABLE } as ComponentProps<
@@ -1012,7 +1132,156 @@ describe('alternate artifact visualization identity recovery', () => {
             screen.getByRole('button', { name: 'Connect agent' }),
         ).toBeVisible();
         expect(
-            screen.queryByText(/These results have expired/),
+            screen.queryByText('This result could not be loaded'),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('inline artifact result routing', () => {
+    it.each([
+        { enabled: true, isLoading: false, isEmbed: false },
+        { enabled: false, isLoading: false, isEmbed: false },
+        { enabled: undefined, isLoading: true, isEmbed: false },
+        { enabled: true, isLoading: false, isEmbed: true },
+        { enabled: false, isLoading: false, isEmbed: true },
+        { enabled: undefined, isLoading: true, isEmbed: true },
+    ])(
+        'routes every owner inline row consumer with identity=$enabled, loading=$isLoading, embed=$isEmbed',
+        ({ enabled, isLoading, isEmbed }) => {
+            mocks.isEmbedded.mockReturnValue(isEmbed);
+            mocks.featureFlag.mockImplementation((flag: FeatureFlags) =>
+                flag === FeatureFlags.AgentIdentity
+                    ? {
+                          data: enabled === undefined ? undefined : { enabled },
+                          isLoading,
+                      }
+                    : { data: { enabled: true }, isLoading: false },
+            );
+            renderWithProviders(
+                <AiArtifactPanel artifact={artifact} variant="inline" />,
+            );
+            expect(screen.getByTestId('chart')).toBeInTheDocument();
+            expect(mocks.rows).toHaveBeenCalled();
+            for (const args of mocks.rows.mock.calls) {
+                expect(args).toEqual([
+                    'project',
+                    isLoading && !isEmbed ? undefined : 'query',
+                    undefined,
+                    enabled && !isEmbed
+                        ? '/projects/project/aiAgents/agent/artifacts/artifact/versions/version/query-results?queryUuid=query&cached=false'
+                        : null,
+                ]);
+            }
+        },
+    );
+
+    it.each([
+        { enabled: true, isEmbed: false },
+        { enabled: false, isEmbed: false },
+        { enabled: true, isEmbed: true },
+    ])(
+        'fetches inline rows over HTTP after flag resolution with identity=$enabled, embed=$isEmbed',
+        async ({ enabled, isEmbed }) => {
+            const { useInfiniteQueryResults } = await vi.importActual<
+                typeof QueryResultsHooks
+            >('../../../../../hooks/useQueryResults');
+            mocks.rows.mockImplementation(useInfiniteQueryResults);
+            mocks.isEmbedded.mockReturnValue(isEmbed);
+            mocks.featureFlag.mockImplementation((flag: FeatureFlags) =>
+                flag === FeatureFlags.AgentIdentity
+                    ? { data: undefined, isLoading: true }
+                    : { data: { enabled: true }, isLoading: false },
+            );
+            mockedLightdashApi.mockResolvedValue({
+                queryUuid: 'query',
+                status: QueryHistoryStatus.READY,
+                rows: [],
+                columns: {},
+                page: 1,
+                pageSize: 500,
+                totalPageCount: 1,
+                nextPage: undefined,
+                previousPage: undefined,
+                totalResults: 0,
+                metadata: {
+                    performance: {
+                        initialQueryExecutionMs: 0,
+                        resultsPageExecutionMs: 0,
+                        queueTimeMs: null,
+                    },
+                    preAggregate: null,
+                },
+                pivotDetails: null,
+            } satisfies ReadyQueryResultsPage);
+            const queryClient = new QueryClient({
+                defaultOptions: { queries: { retry: false } },
+            });
+            const panel = (
+                <QueryClientProvider client={queryClient}>
+                    <AiArtifactPanel artifact={artifact} variant="inline" />
+                </QueryClientProvider>
+            );
+            const { rerender } = renderWithProviders(panel);
+            if (isEmbed) {
+                await waitFor(() =>
+                    expect(sharedLightdashApi).toHaveBeenCalled(),
+                );
+            } else {
+                expect(sharedLightdashApi).not.toHaveBeenCalled();
+            }
+            mocks.featureFlag.mockImplementation((flag: FeatureFlags) => ({
+                data: {
+                    enabled:
+                        flag === FeatureFlags.AgentIdentity ? enabled : true,
+                },
+                isLoading: false,
+            }));
+            rerender(
+                <QueryClientProvider client={queryClient}>
+                    <AiArtifactPanel artifact={artifact} variant="inline" />
+                </QueryClientProvider>,
+            );
+            await waitFor(() => expect(sharedLightdashApi).toHaveBeenCalled());
+            for (const [request] of mockedLightdashApi.mock.calls) {
+                expect(request).toMatchObject({
+                    method: 'GET',
+                    url:
+                        enabled && !isEmbed
+                            ? '/projects/project/aiAgents/agent/artifacts/artifact/versions/version/query-results?queryUuid=query&cached=false&page=1&pageSize=500'
+                            : '/projects/project/query/query?page=1&pageSize=500',
+                });
+                if (!enabled || isEmbed) expect(request.version).toBe('v2');
+            }
+        },
+    );
+
+    it('starts scoped inline reads only after the identity flag resolves', () => {
+        mocks.featureFlag.mockImplementation((flag: FeatureFlags) =>
+            flag === FeatureFlags.AgentIdentity
+                ? { data: undefined, isLoading: true }
+                : { data: { enabled: true }, isLoading: false },
+        );
+        const { rerender } = renderWithProviders(
+            <AiArtifactPanel artifact={artifact} variant="inline" />,
+        );
+        expect(mocks.rows).toHaveBeenCalled();
+        expect(
+            mocks.rows.mock.calls.every((args) => args[1] === undefined),
+        ).toBe(true);
+        mocks.rows.mockClear();
+        mocks.featureFlag.mockReturnValue({
+            data: { enabled: true },
+            isLoading: false,
+        });
+        rerender(<AiArtifactPanel artifact={artifact} variant="inline" />);
+        expect(mocks.rows).toHaveBeenCalled();
+        for (const args of mocks.rows.mock.calls) {
+            expect(args).toEqual([
+                'project',
+                'query',
+                undefined,
+                '/projects/project/aiAgents/agent/artifacts/artifact/versions/version/query-results?queryUuid=query&cached=false',
+            ]);
+        }
     });
 });

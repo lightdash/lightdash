@@ -5,7 +5,12 @@ import {
     GoogleLanguageModelOptions,
 } from '@ai-sdk/google';
 import { OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
-import { JSONValue, LanguageModel, type CallSettings } from 'ai';
+import {
+    JSONValue,
+    LanguageModel,
+    type LanguageModelCallOptions,
+    type RequestOptions,
+} from 'ai';
 import { AiKeyManagement } from '../../../../analytics/aiUsage';
 import { AiCopilotConfigSchemaType } from '../../../../config/aiConfigSchema';
 import { AiCallAttribution } from '../utils/aiCallTelemetry';
@@ -27,7 +32,7 @@ export type ProviderOptionsMap = {
 
 export type AiModel<P extends AiProvider> = {
     model: Exclude<LanguageModel, string>;
-    callOptions: CallSettings;
+    callOptions: LanguageModelCallOptions & Omit<RequestOptions, 'timeout'>;
     providerOptions:
         | {
               [K in P]: ProviderOptionsMap[K];
@@ -41,7 +46,7 @@ export type AiModel<P extends AiProvider> = {
  */
 export type GeneratorModelOptions = {
     model: LanguageModel;
-    callOptions?: CallSettings;
+    callOptions?: LanguageModelCallOptions & Omit<RequestOptions, 'timeout'>;
     providerOptions?: Record<string, Record<string, JSONValue>>;
     // Attribution stamped on the AI-call span (org/project/user). Set at the
     // construction point where that context is in scope; read via

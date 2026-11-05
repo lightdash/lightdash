@@ -53,6 +53,8 @@ const threadWithAssistantStatus = (status: AiAgentMessageAssistant['status']) =>
         pinnedAt: null,
         battleProfile: null,
         liveStatus: null,
+        binding: null,
+        threadContext: null,
         firstMessage: { uuid: 'message-1', message: 'Question' },
         user: { uuid: 'user-1', name: 'User' },
         compactions: [],
@@ -77,6 +79,7 @@ const threadWithAssistantStatus = (status: AiAgentMessageAssistant['status']) =>
                 tokenUsage: null,
                 responseTiming: null,
                 jevDecision: null,
+                loadout: null,
             },
         ],
     }) satisfies NonNullable<Parameters<typeof usePendingThreadRefetch>[0]>;

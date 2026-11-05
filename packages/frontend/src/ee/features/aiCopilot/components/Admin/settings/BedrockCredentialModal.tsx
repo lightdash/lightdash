@@ -1,10 +1,14 @@
 import {
     BEDROCK_REGIONS,
+    getBedrockInferenceGeographiesForRegion,
+    getDefaultBedrockInferenceGeography,
     type AiModelOption,
     type AiProviderCredential,
+    type BedrockInferenceGeography,
 } from '@lightdash/common';
 import {
     Button,
+    Checkbox,
     MultiSelect,
     PasswordInput,
     Select,
@@ -17,22 +21,26 @@ import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
 import MantineModal from '../../../../../../components/common/MantineModal';
+import { BEDROCK_GEOGRAPHY_LABELS } from './bedrockGeographyLabels';
 
 const REGION_LABELS: Record<(typeof BEDROCK_REGIONS)[number], string> = {
     'ap-northeast-1': 'Asia Pacific (Tokyo)',
     'ap-northeast-3': 'Asia Pacific (Osaka)',
+    'eu-central-1': 'Europe (Frankfurt)',
+    'eu-west-1': 'Europe (Ireland)',
     'us-east-1': 'US East (N. Virginia)',
     'us-west-2': 'US West (Oregon)',
 };
 
-// Japan routes to `jp` inference profiles, which stay in Tokyo and Osaka. US
-// regions route to `us` profiles, which may serve from any US region.
-const localityNote = (region: string | null): string | null => {
-    if (region === null) return null;
-    if (region === 'ap-northeast-1' || region === 'ap-northeast-3') {
-        return 'Requests stay in Japan (Tokyo and Osaka inference profiles).';
-    }
-    return 'Requests may be served by any US region.';
+// The geography, not the region, decides where inference runs — the region
+// only receives the request. Said next to the control so a compliance review
+// can read the guarantee off the screen.
+const GEOGRAPHY_NOTES: Record<BedrockInferenceGeography, string> = {
+    jp: 'Requests stay in Japan (Tokyo and Osaka inference profiles).',
+    us: 'Requests may be served by any US region.',
+    eu: 'Requests may be served by any European region.',
+    apac: 'Requests may be served by any Asia-Pacific region, across countries.',
+    global: 'Requests may be served by any supported region worldwide.',
 };
 
 export type BedrockCredentialFormValues = {
@@ -40,6 +48,9 @@ export type BedrockCredentialFormValues = {
     region: string;
     allowedModels: string[];
     apiKey?: string;
+    inferenceGeography: BedrockInferenceGeography;
+    /** Only meaningful when creating; edit and replace keep the stored status. */
+    setAsDefault?: boolean;
 };
 
 type Props = {
@@ -51,6 +62,12 @@ type Props = {
      * field must be re-entered even though the credential already exists.
      */
     isReplacement?: boolean;
+    /**
+     * Whether a default already serves the organization (a default credential
+     * or the legacy blob). Decides the initial state of the set-as-default
+     * choice when creating.
+     */
+    defaultExists: boolean;
     models: AiModelOption[];
     isSaving: boolean;
     onClose: () => void;
@@ -61,17 +78,22 @@ export const BedrockCredentialModal: FC<Props> = ({
     opened,
     credential,
     isReplacement = false,
+    defaultExists,
     models,
     isSaving,
     onClose,
     onSave,
 }) => {
+    const isCreating = !credential && !isReplacement;
     const form = useForm({
         initialValues: {
             label: credential?.label ?? '',
             apiKey: '',
             region: credential?.region ?? null,
             allowedModels: credential?.allowedModels ?? [],
+            inferenceGeography: (credential?.inferenceGeography ??
+                null) as BedrockInferenceGeography | null,
+            setAsDefault: !defaultExists,
         },
         validate: zodResolver(
             z.object({
@@ -92,7 +114,15 @@ export const BedrockCredentialModal: FC<Props> = ({
         ),
     });
 
-    const locality = localityNote(form.values.region);
+    const geographyOptions =
+        form.values.region === null
+            ? []
+            : getBedrockInferenceGeographiesForRegion(form.values.region);
+    const effectiveGeography =
+        form.values.inferenceGeography ??
+        (form.values.region
+            ? getDefaultBedrockInferenceGeography(form.values.region)
+            : null);
 
     return (
         <MantineModal
@@ -106,34 +136,43 @@ export const BedrockCredentialModal: FC<Props> = ({
                       : 'Add Bedrock credential'
             }
             actions={
-                <>
-                    <Button variant="default" onClick={onClose}>
-                        Cancel
-                    </Button>
-                    <Button
-                        type="submit"
-                        form="bedrock-credential-form"
-                        loading={isSaving}
-                    >
-                        {isReplacement
-                            ? 'Replace credential'
-                            : credential
-                              ? 'Save'
-                              : 'Add credential'}
-                    </Button>
-                </>
+                // MantineModal renders its own Cancel; only the submit goes here.
+                <Button
+                    type="submit"
+                    form="bedrock-credential-form"
+                    loading={isSaving}
+                >
+                    {isReplacement
+                        ? 'Replace credential'
+                        : credential
+                          ? 'Save'
+                          : 'Add credential'}
+                </Button>
             }
         >
             <form
                 id="bedrock-credential-form"
                 onSubmit={form.onSubmit(
-                    ({ label, apiKey, region, allowedModels }) => {
+                    ({
+                        label,
+                        apiKey,
+                        region,
+                        allowedModels,
+                        inferenceGeography,
+                        setAsDefault,
+                    }) => {
                         if (region === null) return;
                         onSave({
                             label: label.trim(),
                             region,
                             allowedModels,
+                            // Always sent explicitly so what was reviewed is
+                            // what is stored, never an implied default.
+                            inferenceGeography:
+                                inferenceGeography ??
+                                getDefaultBedrockInferenceGeography(region),
                             ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+                            ...(isCreating ? { setAsDefault } : {}),
                         });
                     },
                 )}
@@ -160,10 +199,43 @@ export const BedrockCredentialModal: FC<Props> = ({
                             label: `${REGION_LABELS[value]} — ${value}`,
                         }))}
                         {...form.getInputProps('region')}
+                        onChange={(value) => {
+                            form.setFieldValue('region', value);
+                            // The old geography may not exist in the new
+                            // region; reset to its narrowest.
+                            form.setFieldValue(
+                                'inferenceGeography',
+                                value
+                                    ? getDefaultBedrockInferenceGeography(value)
+                                    : null,
+                            );
+                        }}
                     />
-                    {locality && (
+
+                    <Select
+                        label="Inference geography"
+                        description="Where Amazon Bedrock may process requests — the region above only receives them."
+                        placeholder={
+                            form.values.region === null
+                                ? 'Select a region first'
+                                : undefined
+                        }
+                        disabled={form.values.region === null}
+                        data={geographyOptions.map((geography) => ({
+                            value: geography,
+                            label: BEDROCK_GEOGRAPHY_LABELS[geography],
+                        }))}
+                        value={effectiveGeography}
+                        onChange={(value) =>
+                            form.setFieldValue(
+                                'inferenceGeography',
+                                value as BedrockInferenceGeography | null,
+                            )
+                        }
+                    />
+                    {effectiveGeography && (
                         <Text c="dimmed" fz="xs">
-                            {locality}
+                            {GEOGRAPHY_NOTES[effectiveGeography]}
                         </Text>
                     )}
 
@@ -197,6 +269,20 @@ export const BedrockCredentialModal: FC<Props> = ({
                         }))}
                         {...form.getInputProps('allowedModels')}
                     />
+
+                    {isCreating && (
+                        <Checkbox
+                            label="Set as organization default"
+                            description={
+                                form.values.setAsDefault
+                                    ? 'Serves everything without a project-level selection as soon as it is saved.'
+                                    : 'Stored without serving any AI traffic until a project selects it or it is made the default.'
+                            }
+                            {...form.getInputProps('setAsDefault', {
+                                type: 'checkbox',
+                            })}
+                        />
+                    )}
                 </Stack>
             </form>
         </MantineModal>

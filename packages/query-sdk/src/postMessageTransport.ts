@@ -9,11 +9,25 @@
  * mapping) stays in the SDK's apiTransport.
  */
 
-import { createApiTransport, type FetchAdapter } from './apiTransport';
+import {
+    createApiTransport,
+    createHostExploreBaseTableResolver,
+    createHostSpaceChartsResolver,
+    SpaceChartsUnsupportedError,
+    type FetchAdapter,
+} from './apiTransport';
+import { AppStateError } from './appState';
 import { mountDeliveryRender } from './deliveryRender';
-import { mountHostContext } from './hostContext';
+import { mountHostContext, waitForHostContext } from './hostContext';
 import { announceSdkManifest } from './manifest';
+import { mountRuntimeErrorObserver } from './runtimeErrors';
 import type {
+    AppStateErrorPayload,
+    AppStateHistoryEntry,
+    AppStateSharedEntry,
+    AppStateSnapshot,
+    AppStateTransport,
+    AppStateUserEntry,
     ExternalFetchMethod,
     ExternalFetchOptions,
     ExternalFetchResult,
@@ -91,7 +105,10 @@ export type SdkGsheetExportColumn = {
     type?: SdkGsheetExportColumnType;
 };
 
-export type SdkGsheetExportRow = Record<string, string | number | boolean | null>;
+export type SdkGsheetExportRow = Record<
+    string,
+    string | number | boolean | null
+>;
 
 /**
  * Iframe → parent. The parent host (useAppSdkBridge) runs the Google OAuth
@@ -135,6 +152,33 @@ export type SdkExternalFetchResponse = {
     id: string;
     result?: ExternalFetchResult;
     error?: string;
+};
+
+export type SdkAppStateOp =
+    | 'get'
+    | 'set-user'
+    | 'delete-user'
+    | 'set-shared'
+    | 'delete-shared'
+    | 'history';
+
+/** Iframe → parent. The host calls the app state endpoints as the viewer. */
+export type SdkAppStateRequest = {
+    type: 'lightdash:sdk:app-state';
+    id: string;
+    op: SdkAppStateOp;
+    key?: string;
+    value?: unknown;
+    expectedVersion?: number | null;
+    limit?: number;
+    beforeVersion?: number;
+};
+
+export type SdkAppStateResponse = {
+    type: 'lightdash:sdk:app-state-response';
+    id: string;
+    result?: unknown;
+    error?: AppStateErrorPayload;
 };
 
 // ---------------------------------------------------------------------------
@@ -183,7 +227,11 @@ function createPostMessageFetchAdapter(config: {
         // The UUID ids already make spoofing hard — this closes the gap cheaply.
         if (event.source !== targetWindow) return;
         const { data } = event;
-        if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
+        if (
+            !data ||
+            typeof data !== 'object' ||
+            typeof data.type !== 'string'
+        ) {
             return;
         }
 
@@ -223,7 +271,11 @@ function createPostMessageFetchAdapter(config: {
         return new Promise<T>((resolve, reject) => {
             const timer = setTimeout(() => {
                 pending.delete(id);
-                reject(new Error(`SDK fetch timed out after ${timeoutMs}ms: ${method} ${path}`));
+                reject(
+                    new Error(
+                        `SDK fetch timed out after ${timeoutMs}ms: ${method} ${path}`,
+                    ),
+                );
             }, timeoutMs);
 
             pending.set(id, {
@@ -289,7 +341,11 @@ function createPostMessageExternalFetch(config: {
         // The UUID ids already make spoofing hard — this closes the gap cheaply.
         if (event.source !== targetWindow) return;
         const { data } = event;
-        if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
+        if (
+            !data ||
+            typeof data !== 'object' ||
+            typeof data.type !== 'string'
+        ) {
             return;
         }
 
@@ -354,6 +410,116 @@ function createPostMessageExternalFetch(config: {
     };
 }
 
+type PendingAppState = {
+    resolve: (value: unknown) => void;
+    reject: (reason: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+};
+
+/**
+ * App state over the parent window: each call posts a request and resolves
+ * the matching response by id, with the same readiness gate and timeout
+ * discipline as the other channels.
+ */
+export function createPostMessageAppState(config: {
+    targetWindow: Window;
+    timeoutMs?: number;
+}): AppStateTransport {
+    const { targetWindow, timeoutMs = DEFAULT_TIMEOUT_MS } = config;
+    const pending = new Map<string, PendingAppState>();
+
+    let ready = false;
+    let readyResolve: (() => void) | null = null;
+    const readyPromise = new Promise<void>((resolve) => {
+        readyResolve = () => {
+            ready = true;
+            resolve();
+        };
+    });
+    const readyTimer = setTimeout(() => {
+        readyResolve?.();
+    }, READY_TIMEOUT_MS);
+
+    window.addEventListener('message', (event: MessageEvent) => {
+        if (event.source !== targetWindow) return;
+        const { data } = event;
+        if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
+            return;
+        }
+        if (data.type === 'lightdash:sdk:ready' && !ready) {
+            clearTimeout(readyTimer);
+            readyResolve?.();
+            readyResolve = null;
+            return;
+        }
+        if (data.type === 'lightdash:sdk:app-state-response') {
+            const msg = data as SdkAppStateResponse;
+            const req = pending.get(msg.id);
+            if (!req) return;
+            clearTimeout(req.timer);
+            pending.delete(msg.id);
+            if (msg.error) {
+                req.reject(AppStateError.fromPayload(msg.error));
+            } else {
+                req.resolve(msg.result);
+            }
+        }
+    });
+
+    const send = async <T>(
+        request: Omit<SdkAppStateRequest, 'type' | 'id'>,
+    ): Promise<T> => {
+        await readyPromise;
+        const id = createRequestId();
+        return new Promise<T>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                pending.delete(id);
+                reject(
+                    new AppStateError(
+                        'unavailable',
+                        `App state ${request.op} timed out after ${timeoutMs}ms`,
+                    ),
+                );
+            }, timeoutMs);
+            pending.set(id, {
+                resolve: (value) => resolve(value as T),
+                reject,
+                timer,
+            });
+            const message: SdkAppStateRequest = {
+                type: 'lightdash:sdk:app-state',
+                id,
+                ...request,
+            };
+            targetWindow.postMessage(message, '*');
+        });
+    };
+
+    return {
+        getSnapshot: () => send<AppStateSnapshot>({ op: 'get' }),
+        setUser: (key, value) =>
+            send<AppStateUserEntry>({ op: 'set-user', key, value }),
+        deleteUser: (key) => send<void>({ op: 'delete-user', key }),
+        setShared: (key, value, expectedVersion) =>
+            send<AppStateSharedEntry>({
+                op: 'set-shared',
+                key,
+                value,
+                expectedVersion,
+            }),
+        deleteShared: (key) => send<void>({ op: 'delete-shared', key }),
+        getSharedHistory: (key, options) =>
+            send<AppStateHistoryEntry[]>({
+                op: 'history',
+                key,
+                ...(options.limit !== undefined ? { limit: options.limit } : {}),
+                ...(options.beforeVersion !== undefined
+                    ? { beforeVersion: options.beforeVersion }
+                    : {}),
+            }),
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Transport factory
 // ---------------------------------------------------------------------------
@@ -376,6 +542,7 @@ export function createPostMessageTransport(
 ): Transport {
     // Report this bundle's SDK capabilities so the host can offer upgrades.
     announceSdkManifest(config.targetWindow);
+    mountRuntimeErrorObserver(config.targetWindow);
     // Listen for the delivery/preview capture flag riding on the same
     // `lightdash:sdk:ready` handshake — see `useDeliveryRender()`.
     mountDeliveryRender(config.targetWindow);
@@ -387,8 +554,27 @@ export function createPostMessageTransport(
     const httpTransport = createApiTransport(
         { apiKey: '', baseUrl: '', projectUuid: config.projectUuid },
         adapter,
+        {
+            resolveExploreBaseTable:
+                createHostExploreBaseTableResolver(adapter),
+            // Negotiated on the ready handshake: only hosts that announce
+            // `spaceCharts: true` answer the virtual route. On an older host
+            // the typed rejection makes `useSpaceCharts` report
+            // `available: false` instead of surfacing a blocked-route error.
+            listSpaceCharts: async (space) => {
+                const host = await waitForHostContext(READY_TIMEOUT_MS);
+                if (!host.spaceCharts) {
+                    throw new SpaceChartsUnsupportedError();
+                }
+                return createHostSpaceChartsResolver(adapter)(space);
+            },
+        },
     );
     const externalFetch = createPostMessageExternalFetch({
+        targetWindow: config.targetWindow,
+        timeoutMs: config.timeoutMs,
+    });
+    const appState = createPostMessageAppState({
         targetWindow: config.targetWindow,
         timeoutMs: config.timeoutMs,
     });
@@ -398,5 +584,7 @@ export function createPostMessageTransport(
         // proxy + allowlist, which deliberately does NOT include the EE
         // endpoint. Override it with the dedicated external-fetch channel.
         externalFetch,
+        // Same for app state: the host knows the app and calls the endpoints.
+        appState,
     };
 }

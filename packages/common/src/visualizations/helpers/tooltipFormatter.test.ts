@@ -6,13 +6,309 @@ import {
     type ItemsMap,
     type Metric,
 } from '../../types/field';
+import { type ParametersValuesMap } from '../../types/parameters';
 import { VizAggregationOptions, type EChartsSeries } from '../types';
 import {
+    buildCartesianTooltipFormatter,
     createStack100TooltipFormatter,
     findPivotColumnFromSeriesRef,
     transformToPercentageStacking,
     translatePivotRef,
 } from './tooltipFormatter';
+
+describe('buildCartesianTooltipFormatter with a table calculation x-axis', () => {
+    const itemsMap: ItemsMap = {
+        row_num: {
+            name: 'row_num',
+            displayName: 'Row Num',
+            sql: 'ROW_NUMBER() OVER ()',
+        },
+        orders_total_amount: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            name: 'total_amount',
+            label: 'Total order amount',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: '${TABLE}.amount',
+            hidden: false,
+            formatOptions: {
+                type: CustomFormatType.CURRENCY,
+                currency: Format.USD,
+            },
+        },
+    };
+    const params: Parameters<
+        ReturnType<typeof buildCartesianTooltipFormatter>
+    >[0] = [
+        {
+            $vars: ['seriesName', 'name', 'value'],
+            componentType: 'series',
+            componentSubType: 'bar',
+            componentIndex: 0,
+            seriesType: 'bar',
+            seriesIndex: 0,
+            seriesName: 'Total order amount',
+            name: '1',
+            dataIndex: 0,
+            data: { row_num: 1, orders_total_amount: 32 },
+            value: { row_num: 1, orders_total_amount: 32 },
+            dimensionNames: ['row_num', 'orders_total_amount'],
+            encode: { x: [0], y: [1] },
+            axisId: 'x',
+            axisIndex: 0,
+            axisType: 'category',
+            axisValue: 1,
+            axisValueLabel: '1',
+        },
+    ];
+
+    it.each([undefined, '- Total orders: ${orders_total_amount}'])(
+        'preserves the header and metric rows with template %s',
+        (tooltipHtmlTemplate) => {
+            const formatter = buildCartesianTooltipFormatter({
+                itemsMap,
+                stackValue: undefined,
+                flipAxes: false,
+                xFieldId: 'row_num',
+                tooltipHtmlTemplate,
+            });
+
+            const html = formatter(params, '', () => {});
+
+            expect(html).toContain('1');
+            expect(html).toContain('Total order amount');
+            expect(html).toContain('$32.00');
+            if (tooltipHtmlTemplate) {
+                expect(html).toContain('- Total orders: $32.00');
+                expect(html).not.toContain('${orders_total_amount}');
+            } else {
+                expect(html).not.toContain('- Total orders:');
+            }
+        },
+    );
+});
+
+describe('buildCartesianTooltipFormatter custom pivot references', () => {
+    const metricId = 'orders_total_amount';
+    const pivotColumnName = 'orders_total_amount_any_region';
+    const itemsMap = {
+        row_num: {
+            name: 'row_num',
+            displayName: 'Row Num',
+            sql: 'ROW_NUMBER() OVER ()',
+        },
+        [metricId]: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            name: 'total_amount',
+            label: 'Total order amount',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: '${TABLE}.amount',
+            hidden: false,
+            formatOptions: {
+                type: CustomFormatType.CURRENCY,
+                currency: Format.USD,
+            },
+        },
+    } satisfies ItemsMap;
+
+    describe.each(['dataset', 'tuple'] as const)('%s mode', (dataMode) => {
+        const renderTooltip = (
+            pivotValue: string,
+            template: string,
+            extraValues: Record<string, unknown> = {},
+            formatting?: { format: string; parameters: ParametersValuesMap },
+        ) => {
+            const row = { row_num: 1, [pivotColumnName]: 1234, ...extraValues };
+            const value = dataMode === 'tuple' ? [1, 1234] : row;
+            const formatter = buildCartesianTooltipFormatter({
+                itemsMap: formatting
+                    ? {
+                          ...itemsMap,
+                          [metricId]: {
+                              ...itemsMap[metricId],
+                              format: formatting.format,
+                          },
+                      }
+                    : itemsMap,
+                parameters: formatting?.parameters,
+                stackValue: dataMode === 'tuple' ? 'stack' : undefined,
+                flipAxes: false,
+                xFieldId: 'row_num',
+                tooltipHtmlTemplate: template,
+                rows: [row],
+                pivotValuesColumnsMap: {
+                    [pivotColumnName]: {
+                        referenceField: metricId,
+                        pivotColumnName,
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                referenceField: 'orders_region',
+                                value: pivotValue,
+                                formatted: pivotValue,
+                            },
+                        ],
+                    },
+                },
+            });
+
+            return formatter(
+                [
+                    {
+                        $vars: ['seriesName', 'name', 'value'],
+                        componentType: 'series',
+                        componentSubType: 'bar',
+                        componentIndex: 0,
+                        seriesType: 'bar',
+                        seriesIndex: 0,
+                        seriesName: 'Total order amount',
+                        name: '1',
+                        dataIndex: 0,
+                        data: value,
+                        value,
+                        dimensionNames: ['row_num', pivotColumnName],
+                        encode: { x: [0], y: [1] },
+                        axisId: 'x',
+                        axisIndex: 0,
+                        axisType: 'category',
+                        axisValue: 1,
+                        axisValueLabel: '1',
+                    },
+                ],
+                '',
+                () => {},
+            );
+        };
+
+        it.each([
+            'Region A & B',
+            'Region A < B',
+            'Region <b>B</b>',
+            'Region <img src=x>',
+            'Region A &amp; B',
+            'Region "B"',
+            'Region B',
+        ])(
+            'resolves raw pivot value %s and repeated references',
+            (pivotValue) => {
+                const ref = `\${${metricId}.orders_region.${pivotValue}}`;
+                const html = renderTooltip(
+                    pivotValue,
+                    `<b>First: ${ref}</b> & Second: ${ref}; missing: \${unknown}`,
+                );
+
+                expect(html).toContain(
+                    '<b>First: $1,234.00</b> &amp; Second: $1,234.00; missing: ',
+                );
+                expect(html).not.toContain('${');
+            },
+        );
+
+        it.each([
+            ['A & B', 'A &amp; B'],
+            ['A < B', 'A &lt; B'],
+            ['&amp;', '&amp;'],
+            ['&lt;b&gt;bold&lt;/b&gt;', '&lt;b&gt;bold&lt;/b&gt;'],
+            ['<b>bold</b>', '<b>bold</b>'],
+            [
+                '<span style="color:red">red</span>',
+                '<span style="color:red">red</span>',
+            ],
+        ])(
+            'preserves interpolated text and allowed markup %s',
+            (value, expected) => {
+                const html = renderTooltip('Region B', '<p>${value}</p>', {
+                    value,
+                });
+
+                expect(html).toContain(`<p>${expected}</p>`);
+            },
+        );
+
+        it.each([
+            [0, '0'],
+            [null, '∅'],
+            [false, 'false'],
+            ['', ''],
+        ])('preserves interpolated scalar %s', (value, expected) => {
+            const html = renderTooltip('Region B', '<p>${value}</p>', {
+                value,
+            });
+
+            expect(html).toContain(`<p>${expected}</p>`);
+        });
+
+        it('preserves interpolated values in safe attributes', () => {
+            const html = renderTooltip(
+                'Region B',
+                '<a target="${target}" href="${url}">${value}</a>',
+                {
+                    target: '_blank',
+                    url: 'https://example.com/?a=1&b=2',
+                    value: 'Open & inspect',
+                },
+            );
+
+            expect(html).toContain(
+                '<a target="_blank" href="https://example.com/?a=1&amp;b=2">Open &amp; inspect</a>',
+            );
+        });
+
+        it.each([
+            ['USD', '$1,234.00'],
+            ['EUR', '€1,234.00'],
+        ])(
+            'preserves parameter-driven formatting for %s',
+            (currency, expected) => {
+                const html = renderTooltip(
+                    'Region B',
+                    '<b>${orders_total_amount.orders_region.Region B}</b>',
+                    {},
+                    {
+                        format: '${ld.parameters.currency=="USD"?"$":"€"}0,0.00',
+                        parameters: { currency },
+                    },
+                );
+
+                expect(html).toContain(`<b>${expected}</b>`);
+            },
+        );
+
+        it('keeps unsafe template HTML out of the tooltip', () => {
+            const html = renderTooltip(
+                'Region A & B',
+                // eslint-disable-next-line no-script-url
+                '<script>alert(1)</script><b onclick="alert(2)">Total: ${orders_total_amount.orders_region.Region A & B}</b><a href="javascript:alert(3)">Link</a>',
+            );
+
+            expect(html).toContain('<b>Total: $1,234.00</b><a>Link</a>');
+            expect(html).not.toMatch(/script|onclick|javascript|alert/);
+        });
+
+        it.each([
+            [
+                'https://example.com/?a=1&b=2',
+                '<a href="https://example.com/?a=1&amp;b=2">Link</a>',
+            ],
+            // eslint-disable-next-line no-script-url
+            ['javascript:alert(1)', '<a>Link</a>'],
+        ])('sanitizes interpolated link %s', (url, expectedLink) => {
+            const html = renderTooltip(
+                'Region B',
+                '<a href="${url}">Link</a>',
+                {
+                    url,
+                },
+            );
+
+            expect(html).toContain(expectedLink);
+            expect(html).not.toMatch(/javascript:/);
+        });
+    });
+});
 
 describe('translatePivotRef', () => {
     const pivotValuesColumnsMap = {

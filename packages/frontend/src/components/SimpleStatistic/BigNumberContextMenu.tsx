@@ -2,8 +2,9 @@ import { type ResultValue } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
-import mapValues from 'lodash/mapValues';
+import { mapValues } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
+import { MergeSourceGate } from '../../features/mergeQuery/components/MergeSourceGate';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -13,7 +14,10 @@ import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 type BigNumberContextMenuProps = {
@@ -27,8 +31,8 @@ const BigNumberContextMenu: FC<
 > = ({ children, isMinimal = false, canDrillInto, canViewUnderlyingData }) => {
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
-    const { resultsData, visualizationConfig, itemsMap } =
-        useVisualizationContext();
+    const { resultsData, itemsMap } = useVisualizationInputs();
+    const visualizationConfig = useVisualizationConfig();
     // Always fail silently - parent component controls when this menu is rendered
     const metricQueryData = useMetricQueryDataContext(true);
 
@@ -110,7 +114,6 @@ const BigNumberContextMenu: FC<
             position="bottom"
             closeOnItemClick
             closeOnEscape
-            radius={0}
             offset={-2}
         >
             <Menu.Target>{children}</Menu.Target>
@@ -133,15 +136,19 @@ const BigNumberContextMenu: FC<
                 )}
 
                 {!isMinimal && item && value && canDrillInto && (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconArrowBarToDown} />}
-                        onClick={handleOpenDrillIntoModal}
-                    >
-                        Drill into{' '}
-                        <Text span fw="bold" fz="sm">
-                            {value.formatted}
-                        </Text>
-                    </Menu.Item>
+                    <MergeSourceGate item={item}>
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconArrowBarToDown} />
+                            }
+                            onClick={handleOpenDrillIntoModal}
+                        >
+                            Drill into{' '}
+                            <Text span fw="bold" fz="sm">
+                                {value.formatted}
+                            </Text>
+                        </Menu.Item>
+                    </MergeSourceGate>
                 )}
             </Menu.Dropdown>
         </Menu>

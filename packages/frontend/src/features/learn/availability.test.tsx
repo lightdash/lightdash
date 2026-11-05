@@ -30,6 +30,7 @@ vi.mock('../../ee/features/aiCopilot/hooks/useAiOrganizationSettings', () => ({
 }));
 
 import { useLearnAvailability } from './availability';
+import { buildLearnCatalogue } from './catalogue';
 
 describe('useLearnAvailability sandbox gate', () => {
     beforeEach(() => {
@@ -76,27 +77,6 @@ describe('useLearnAvailability sandbox gate', () => {
     });
 });
 
-describe('useLearnAvailability documents gate', () => {
-    beforeEach(() => {
-        state.flags = [];
-        state.health = {
-            learnSandbox: { enabled: false },
-            softDelete: { enabled: false },
-        };
-    });
-
-    it('is closed while the documents flag is off', () => {
-        const { result } = renderHook(() => useLearnAvailability());
-        expect(result.current.isGateOpen('documents')).toBe(false);
-    });
-
-    it('opens with the documents flag', () => {
-        state.flags = ['documents'];
-        const { result } = renderHook(() => useLearnAvailability());
-        expect(result.current.isGateOpen('documents')).toBe(true);
-    });
-});
-
 describe('useLearnAvailability content-as-code gate', () => {
     beforeEach(() => {
         state.flags = [];
@@ -129,5 +109,59 @@ describe('useLearnAvailability content-as-code gate', () => {
         };
         const { result } = renderHook(() => useLearnAvailability());
         expect(result.current.isGateOpen('contentAsCode')).toBe(true);
+    });
+});
+
+describe('useLearnAvailability licence gates', () => {
+    const licenceGates = [
+        'enterprise',
+        'dataApps',
+        'aiAgents',
+        'contentAsCode',
+    ] as const;
+
+    beforeEach(() => {
+        state.flags = [];
+    });
+
+    it('hides only licence modules without a licence', () => {
+        state.health = {
+            learnSandbox: { enabled: true },
+            softDelete: { enabled: false },
+        };
+        const { result } = renderHook(() => useLearnAvailability());
+        const catalogue = buildLearnCatalogue();
+        const open = catalogue.filter(result.current.isOpen);
+
+        licenceGates.forEach((gate) =>
+            expect({ gate, open: result.current.isGateOpen(gate) }).toEqual({
+                gate,
+                open: false,
+            }),
+        );
+        expect(open.some((module) => module.gate === null)).toBe(true);
+        expect(open.some((module) => module.gate === 'sandbox')).toBe(true);
+        expect(
+            open.filter(
+                (module) =>
+                    module.gate !== null &&
+                    (licenceGates as readonly string[]).includes(module.gate),
+            ),
+        ).toEqual([]);
+    });
+
+    it('opens Enterprise modules with a licence, and data apps with their flag', () => {
+        state.health = {
+            learnSandbox: { enabled: true },
+            license: { hasLicenseKey: true },
+            softDelete: { enabled: false },
+        };
+        const { result, rerender } = renderHook(() => useLearnAvailability());
+        expect(result.current.isGateOpen('enterprise')).toBe(true);
+        expect(result.current.isGateOpen('dataApps')).toBe(false);
+
+        state.flags = ['enable-data-apps'];
+        rerender();
+        expect(result.current.isGateOpen('dataApps')).toBe(true);
     });
 });

@@ -1,6 +1,7 @@
 import {
     parseDocumentContent,
     type DocumentChartContent,
+    type SemanticChartAsCode,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { toDeepResearchDocument } from './toDeepResearchDocument';
@@ -25,7 +26,7 @@ const chart = (name: string): DocumentChartContent => ({
         },
         chartConfig: { type: 'table' },
         tableConfig: { columnOrder: [] },
-    } as unknown as DocumentChartContent['chart'],
+    } as unknown as SemanticChartAsCode,
 });
 
 const REPORT = `# Revenue grew in spikes

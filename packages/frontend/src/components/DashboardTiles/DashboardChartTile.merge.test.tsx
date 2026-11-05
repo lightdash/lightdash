@@ -10,6 +10,7 @@ import {
     MetricType,
     QueryHistoryStatus,
     SupportedDbtAdapter,
+    WarehouseTypes,
     type ApiExploreResults,
     type CompiledDimension,
     type CompiledMetric,
@@ -32,8 +33,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
+import { toDashboardParameters } from '../../providers/Dashboard/dashboardParametersUrl';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { GenericDashboardChartTile } from './DashboardChartTile';
+
+mockedLightdashApi.mockImplementation(() => new Promise(() => {}));
 
 const exportMocks = vi.hoisted(() => ({
     parameters: {} as Record<string, string | string[]>,
@@ -61,9 +68,7 @@ vi.mock('../../providers/Ability/useAbilityContext', () => ({
 }));
 
 // The tile is rendered with its data already resolved; nothing may reach the network.
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(() => new Promise(() => {})),
-}));
+vi.mock('../../api');
 vi.mock('@shopify/react-web-worker', () => ({
     createWorkerFactory: () => () => ({}),
     useWorker: () => ({}),
@@ -90,31 +95,16 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
             projectUuid: 'project-uuid',
             hasTileComments: () => false,
             dashboardCommentsCheck: undefined,
-            dashboardFilters: {
-                dimensions: [],
-                metrics: [],
-                tableCalculations: [],
-            },
-            dashboardTemporaryFilters: {
-                dimensions: [],
-                metrics: [],
-                tableCalculations: [],
-            },
             dashboardTiles: [],
             dashboardTabs: [],
             dashboardCustomMetrics: [],
-            parameterDefinitions: {},
-            parameterValues: exportMocks.parameters,
-            appliedParameterValues: exportMocks.appliedParameters,
             tilesWithDateZoomApplied: new Set<string>(),
             dateZoomGranularity: undefined,
             dateZoomConfig: undefined,
-            chartSort: {},
             addDimensionDashboardFilter: () => {},
             setDashboardTiles: () => {},
-            setChartSort: () => {},
+            setTileChartSorts: () => {},
             haveTilesChanged: false,
-            haveFiltersChanged: false,
         }),
     ),
 }));
@@ -173,6 +163,11 @@ const compiledMetric = (
 
 const ordersExplore: ApiExploreResults = {
     warehouseConnectionUuid: null,
+    warehouseConnection: {
+        warehouseConnectionUuid: null,
+        warehouseType: WarehouseTypes.POSTGRES,
+        startOfWeek: null,
+    },
     name: 'orders',
     label: 'Orders',
     tags: [],
@@ -403,32 +398,42 @@ const renderTile = (
     tileProps: Partial<ComponentProps<typeof GenericDashboardChartTile>> = {},
 ) =>
     renderWithProviders(
-        <MemoryRouter
-            initialEntries={[
-                '/projects/project-uuid/dashboards/dashboard-uuid/view',
-            ]}
+        <DashboardStoreTestProvider
+            // Applied values are the saved values under the current ones
+            store={createDashboardTestStore({
+                parameterValues: exportMocks.parameters,
+                savedParameters: toDashboardParameters(
+                    exportMocks.appliedParameters,
+                ),
+            })}
         >
-            <Routes>
-                <Route
-                    path="/projects/:projectUuid/dashboards/:dashboardUuid/view"
-                    element={
-                        <ChartColorMappingContextProvider>
-                            <GenericDashboardChartTile
-                                tile={tile}
-                                isEditMode={false}
-                                isLoading={false}
-                                error={null}
-                                dashboardChartReadyQuery={readyQuery}
-                                resultsData={resultsData}
-                                onDelete={() => {}}
-                                onEdit={() => {}}
-                                {...tileProps}
-                            />
-                        </ChartColorMappingContextProvider>
-                    }
-                />
-            </Routes>
-        </MemoryRouter>,
+            <MemoryRouter
+                initialEntries={[
+                    '/projects/project-uuid/dashboards/dashboard-uuid/view',
+                ]}
+            >
+                <Routes>
+                    <Route
+                        path="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                        element={
+                            <ChartColorMappingContextProvider>
+                                <GenericDashboardChartTile
+                                    tile={tile}
+                                    isEditMode={false}
+                                    isLoading={false}
+                                    error={null}
+                                    dashboardChartReadyQuery={readyQuery}
+                                    resultsData={resultsData}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                    {...tileProps}
+                                />
+                            </ChartColorMappingContextProvider>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>
+        </DashboardStoreTestProvider>,
         { user: { abilityRules: [{ action: 'manage', subject: 'all' }] } },
     );
 
@@ -608,6 +613,20 @@ describe('DashboardChartTile embedded "Explore from here"', () => {
 
         expect(explored).toBe(chart);
     });
+
+    it('opens the Explore with the parameter values the tile ran with', async () => {
+        const explored = await exploreFromMinimalTile({
+            ...plainChartQuery,
+            chart: { ...plainChartQuery.chart, parameters: { region: 'EU' } },
+            executeQueryResponse: {
+                ...plainChartQuery.executeQueryResponse,
+                usedParametersValues: { region: 'UK' },
+                parameterReferences: ['region'],
+            },
+        });
+
+        expect(explored.parameters).toEqual({ region: 'UK' });
+    });
 });
 
 describe('DashboardChartTile Google Sheets export', () => {
@@ -639,7 +658,7 @@ describe('DashboardChartTile Google Sheets export', () => {
         await waitFor(() => {
             expect(gsheetMocks.uploadGsheet).toHaveBeenCalledTimes(1);
         });
-        expect(gsheetMocks.uploadGsheet.mock.calls[0][0].parameters).toEqual({
+        expect(gsheetMocks.uploadGsheet.mock.calls[0][1].parameters).toEqual({
             region: 'EU',
         });
     });

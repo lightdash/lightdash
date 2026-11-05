@@ -142,6 +142,7 @@ const makeMockSpace = (): FindContentResult => ({
     childSpaceCount: 1,
     appCount: 0,
     directAccess: true,
+    canEdit: true,
     verification: null,
     space: {
         uuid: 'space-uuid-1',
@@ -776,6 +777,7 @@ describe('getFindContent', () => {
                 childSpaceCount: 1,
                 appCount: 0,
                 directAccess: true,
+                canEdit: true,
                 space: {
                     uuid: 'space-uuid-1',
                     name: 'Marketing',
@@ -906,7 +908,6 @@ describe('getFindContent', () => {
             expect(output.result).toContain('search index unavailable');
             expect(output.structuredContent).toEqual({
                 error: output.result,
-                refusal: null,
             });
         });
     });
@@ -1053,7 +1054,6 @@ describe('getGetDashboardCharts', () => {
         expect(output.result).toContain('Dashboard not found');
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(
             toolGetDashboardChartsOutputSchema.safeParse(output).success,

@@ -19,6 +19,7 @@ import { ThreadRetentionNotice } from '../ee/features/aiCopilot/components/Threa
 import { store } from '../ee/features/aiCopilot/store';
 import { createQueryClient } from '../providers/ReactQuery/createQueryClient';
 import TrackingProvider from '../providers/Tracking/TrackingProvider';
+import mockHealthResponse from '../testing/__mocks__/api/healthResponse.mock';
 import { mockUserResponse } from '../testing/__mocks__/api/userResponse.mock';
 import AppProviderMock from '../testing/__mocks__/providers/AppProvider.mock';
 
@@ -131,12 +132,16 @@ const storyQueryClient = createQueryClient({
 
 [
     FeatureFlags.ExternalSources,
-    FeatureFlags.MultiSourceQuery,
     FeatureFlags.ComposeSqlRunner,
     FeatureFlags.AiThreadRetention,
-    FeatureFlags.AiAgentFastDecisions,
 ].forEach((flag) => {
     storyQueryClient.setQueryData(['feature-flag', flag], enabledFlag(flag));
+});
+
+const health = mockHealthResponse();
+storyQueryClient.setQueryData(['health'], {
+    ...health,
+    ai: { ...health.ai, fastDecisionsEnabled: true },
 });
 
 storyQueryClient.setQueryData(

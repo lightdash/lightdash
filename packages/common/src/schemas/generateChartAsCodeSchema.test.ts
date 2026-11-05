@@ -1,6 +1,7 @@
 import {
     buildChartAsCodeSchema,
     convertOpenApiToDraft07,
+    type JsonObject,
 } from './generateChartAsCodeSchema';
 
 describe('generateChartAsCodeSchema', () => {
@@ -57,6 +58,14 @@ describe('generateChartAsCodeSchema', () => {
         const swagger = {
             components: {
                 schemas: {
+                    SqlChartAsCode: {
+                        type: 'object',
+                        required: ['sql', 'version'],
+                        properties: {
+                            sql: { type: 'string' },
+                            version: { type: 'number' },
+                        },
+                    },
                     ChartAsCode: {
                         allOf: [
                             {
@@ -124,7 +133,9 @@ describe('generateChartAsCodeSchema', () => {
             },
         };
 
-        const schema = buildChartAsCodeSchema(swagger);
+        const schema = (
+            buildChartAsCodeSchema(swagger).$defs as Record<string, JsonObject>
+        ).ChartAsCode;
 
         expect(schema.additionalProperties).toBe(false);
 
@@ -170,6 +181,14 @@ describe('generateChartAsCodeSchema', () => {
         const swagger = {
             components: {
                 schemas: {
+                    SqlChartAsCode: {
+                        type: 'object',
+                        required: ['sql', 'version'],
+                        properties: {
+                            sql: { type: 'string' },
+                            version: { type: 'number' },
+                        },
+                    },
                     ChartAsCode: {
                         allOf: [
                             {
@@ -198,11 +217,53 @@ describe('generateChartAsCodeSchema', () => {
             },
         };
 
-        const schema = buildChartAsCodeSchema(swagger);
+        const schema = (
+            buildChartAsCodeSchema(swagger).$defs as Record<string, JsonObject>
+        ).ChartAsCode;
 
         const { chartConfig } = schema.properties as Record<string, unknown>;
         expect(chartConfig).toEqual({
             $ref: '#/$defs/ChartConfig',
+        });
+    });
+
+    test('buildChartAsCodeSchema picks the SQL chart or semantic layer chart shape with if/then/else', () => {
+        const swagger = {
+            components: {
+                schemas: {
+                    SqlChartAsCode: {
+                        type: 'object',
+                        required: ['sql', 'version'],
+                        properties: {
+                            sql: { type: 'string' },
+                            version: { type: 'number' },
+                        },
+                    },
+                    ChartAsCode: {
+                        type: 'object',
+                        required: ['tableName'],
+                        properties: {
+                            tableName: { type: 'string' },
+                        },
+                    },
+                },
+            },
+        };
+
+        const schema = buildChartAsCodeSchema(swagger);
+        const defs = schema.$defs as Record<string, JsonObject>;
+
+        expect(schema.then).toEqual({ $ref: '#/$defs/SqlChartAsCode' });
+        expect(schema.else).toEqual({ $ref: '#/$defs/ChartAsCode' });
+        expect(schema.properties).toBeUndefined();
+        expect(defs.SqlChartAsCode).toMatchObject({
+            additionalProperties: false,
+            required: ['sql', 'version'],
+            properties: { version: { type: 'number', const: 1 } },
+        });
+        expect(defs.ChartAsCode).toMatchObject({
+            additionalProperties: false,
+            required: ['tableName'],
         });
     });
 });

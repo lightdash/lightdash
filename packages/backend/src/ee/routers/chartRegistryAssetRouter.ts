@@ -1,4 +1,5 @@
 import express from 'express';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -17,6 +18,7 @@ export const chartRegistryAssetRouter = express.Router();
 chartRegistryAssetRouter.get(
     '/assets',
     allowApiKeyAuthentication,
+    requireOAuthScopeOperation('chartRegistryAssetRouter GET /assets'),
     isAuthenticated,
     async (req, res, next) => {
         try {

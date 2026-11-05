@@ -2,22 +2,16 @@ import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
     createDashboardFilterRuleFromSqlColumn,
-    DimensionType,
-    FilterType,
-    getFilterTypeFromItem,
-    getFilterTypeFromItemType,
     getItemId,
     isDashboardDataAppTileType,
     isField,
     isFilterableField,
-    matchFieldByType,
-    matchFieldByTypeAndName,
-    matchFieldExact,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
+    type FilterType,
     type ResultColumn,
 } from '@lightdash/common';
 import {
@@ -29,30 +23,45 @@ import {
     Stack,
     Tabs,
     Text,
-    Select,
     Tooltip,
     type PopoverProps,
 } from '@mantine/core';
 import { IconInfoCircle, IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { flushSync } from 'react-dom';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectSqlChartTilesMetadata,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
+import SqlColumnSelect from './SqlColumnSelect';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import {
+    getDefaultField,
     getFilterRuleRevertableObject,
+    getFilterRuleFilterType,
+    getFilterRuleWithDisabledState,
+    getUniqueSqlColumns,
     hasFilterValueSet,
     hasSavedFilterValueChanged,
     isFilterEnabled,
+    isLockedRequiredMissingValue,
 } from './utils';
 
 interface Props {
@@ -69,19 +78,9 @@ interface Props {
     isCreatingNew?: boolean;
     isTemporary?: boolean;
     onSave: (value: DashboardFilterRule) => void;
+    onDraftChange?: (value: DashboardFilterRule | undefined) => void;
     onEditRequirementRules?: () => void;
 }
-
-const getDefaultField = (
-    fields: DashboardFilterableField[],
-    selectedField: DashboardFilterableField,
-) => {
-    return (
-        fields.find(matchFieldExact(selectedField)) ??
-        fields.find(matchFieldByTypeAndName(selectedField)) ??
-        fields.find(matchFieldByType(selectedField))
-    );
-};
 
 const FilterConfiguration: FC<Props> = ({
     isEditMode,
@@ -97,6 +96,7 @@ const FilterConfiguration: FC<Props> = ({
     defaultFilterRule,
     popoverProps,
     onSave,
+    onDraftChange,
     onEditRequirementRules,
 }) => {
     const getUiString = useUiStrings();
@@ -112,6 +112,10 @@ const FilterConfiguration: FC<Props> = ({
     const draftFilterRuleRef = useRef(draftFilterRule);
     draftFilterRuleRef.current = draftFilterRule;
 
+    useEffect(() => {
+        onDraftChange?.(draftFilterRule);
+    }, [draftFilterRule, onDraftChange]);
+
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
 
@@ -122,12 +126,16 @@ const FilterConfiguration: FC<Props> = ({
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
         if (newField && isField(newField) && isFilterableField(newField)) {
+            const newRule = createDashboardFilterRuleFromField({
+                field: newField,
+                availableTileFilters,
+                isTemporary: isCreatingTemporary,
+            });
+            // A viewer's new filter with no value reads "any value"
             setDraftFilterRule(
-                createDashboardFilterRuleFromField({
-                    field: newField,
-                    availableTileFilters,
-                    isTemporary: isCreatingTemporary,
-                }),
+                isCreatingTemporary
+                    ? getFilterRuleWithDisabledState(newRule, false)
+                    : newRule,
             );
 
             setSelectedField(newField);
@@ -163,49 +171,19 @@ const FilterConfiguration: FC<Props> = ({
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
-            setDraftFilterRule(() => {
-                // When a disabled filter has a value set, it should be enabled by setting it to false
-                const isNewFilterDisabled =
-                    newFilterRule.disabled && !hasFilterValueSet(newFilterRule);
-
-                // In view mode: if values cleared and not required, set to "any value"
-                const shouldDisableInViewMode =
-                    !isEditMode &&
-                    !newFilterRule.required &&
-                    !hasFilterValueSet(newFilterRule);
-
-                // In edit mode a required filter without a value is valueless
-                // by definition (dashboard save normalizes it to disabled),
-                // so it must not block Apply by demanding a default value
-                const isRequiredWithoutValue =
-                    isEditMode &&
-                    (!!newFilterRule.required ||
-                        !!newFilterRule.requiredGroupId) &&
-                    !hasFilterValueSet(newFilterRule);
-
-                return {
-                    ...newFilterRule,
-                    disabled:
-                        isNewFilterDisabled ||
-                        shouldDisableInViewMode ||
-                        isRequiredWithoutValue,
-                };
-            });
+            setDraftFilterRule(() =>
+                getFilterRuleWithDisabledState(newFilterRule, isEditMode),
+            );
         },
         [setDraftFilterRule, isEditMode],
     );
-    const sqlChartTilesMetadata = useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
     );
-    const columnsOptions = useMemo(() => {
-        const allColumns = Object.values(sqlChartTilesMetadata).flatMap(
-            (tileMetadata) => tileMetadata.columns,
-        );
-        const uniqueColumnsMap = new Map(
-            allColumns.map((column) => [column.reference, column]),
-        );
-        return Array.from(uniqueColumnsMap.values());
-    }, [sqlChartTilesMetadata]);
+    const columnsOptions = useMemo(
+        () => getUniqueSqlColumns(sqlChartTilesMetadata),
+        [sqlChartTilesMetadata],
+    );
 
     const handleChangeColumn = useCallback(
         (newColumn: ResultColumn) => {
@@ -220,40 +198,29 @@ const FilterConfiguration: FC<Props> = ({
                 ),
             );
 
+            const newRule = createDashboardFilterRuleFromSqlColumn({
+                column: newColumn,
+                availableTileColumns: allTileColumns,
+                isTemporary: isCreatingTemporary,
+            });
             setDraftFilterRule(
-                createDashboardFilterRuleFromSqlColumn({
-                    column: newColumn,
-                    availableTileColumns: allTileColumns,
-                    isTemporary: isCreatingTemporary,
-                }),
+                isCreatingTemporary
+                    ? getFilterRuleWithDisabledState(newRule, false)
+                    : newRule,
             );
         },
         [isCreatingNew, isEditMode, sqlChartTilesMetadata],
     );
 
-    const filterType: FilterType = useMemo(() => {
-        if (selectedField) {
-            return getFilterTypeFromItem(selectedField);
-        }
-
-        if (draftFilterRule?.target.fieldId) {
-            const selectedColumn = columnsOptions.find(
-                (column) => column.reference === draftFilterRule.target.fieldId,
-            );
-            return getFilterTypeFromItemType(
-                selectedColumn?.type ??
-                    draftFilterRule.target.fallbackType ??
-                    DimensionType.STRING,
-            );
-        }
-
-        return FilterType.STRING;
-    }, [
-        columnsOptions,
-        draftFilterRule?.target.fallbackType,
-        draftFilterRule?.target.fieldId,
-        selectedField,
-    ]);
+    const filterType: FilterType = useMemo(
+        () =>
+            getFilterRuleFilterType(
+                selectedField,
+                columnsOptions,
+                draftFilterRule,
+            ),
+        [columnsOptions, draftFilterRule, selectedField],
+    );
 
     const handleChangeTileConfiguration = useCallback(
         (
@@ -397,19 +364,13 @@ const FilterConfiguration: FC<Props> = ({
         if (ruleToSave) onSave(ruleToSave);
     }, [onSave]);
 
-    const isApplyDisabled = !isFilterEnabled(
-        draftFilterRule,
-        isEditMode,
-        isCreatingNew,
-    );
+    const isApplyDisabled = !isFilterEnabled(draftFilterRule);
 
-    const isLockedRequiredMissingValue =
-        !!draftFilterRule?.lockedTabUuids?.length &&
-        !!draftFilterRule?.required &&
-        !hasFilterValueSet(draftFilterRule);
+    const isLockedRequiredMissing =
+        isLockedRequiredMissingValue(draftFilterRule);
 
     const applyDisabledTooltipLabel = getUiString(
-        isLockedRequiredMissingValue
+        isLockedRequiredMissing
             ? 'filters.config.applyLockedRequiredTooltip'
             : 'filters.config.applyRequiredTooltip',
     );
@@ -486,43 +447,11 @@ const FilterConfiguration: FC<Props> = ({
                                     popoverProps={inlinePopoverProps}
                                 />
                             ) : (
-                                <Select
-                                    allowDeselect={false}
-                                    size="xs"
-                                    label={
-                                        <Text fw={500} fz="sm">
-                                            {getUiString(
-                                                'filters.config.selectColumn',
-                                            )}{' '}
-                                            <Text c="red" span>
-                                                *
-                                            </Text>{' '}
-                                        </Text>
-                                    }
-                                    placeholder={getUiString(
-                                        'filters.config.searchColumnPlaceholder',
-                                    )}
-                                    comboboxProps={{
-                                        withinPortal:
-                                            inlinePopoverProps.withinPortal,
-                                    }}
-                                    onDropdownOpen={inlinePopoverProps.onOpen}
-                                    onDropdownClose={inlinePopoverProps.onClose}
+                                <SqlColumnSelect
+                                    columns={columnsOptions}
                                     value={draftFilterRule?.target.fieldId}
-                                    data={columnsOptions.map(
-                                        ({ reference }) => reference,
-                                    )}
-                                    onChange={(newValue) => {
-                                        if (!newValue) return;
-                                        const selectedColumn =
-                                            columnsOptions.find(
-                                                (column) =>
-                                                    column.reference ===
-                                                    newValue,
-                                            );
-                                        if (!selectedColumn) return;
-                                        handleChangeColumn(selectedColumn);
-                                    }}
+                                    popoverProps={inlinePopoverProps}
+                                    onChange={handleChangeColumn}
                                 />
                             )
                         ) : selectedField ? (
@@ -661,13 +590,13 @@ const FilterConfiguration: FC<Props> = ({
 
                 <Tooltip
                     label={applyDisabledTooltipLabel}
-                    disabled={!isApplyDisabled && !isLockedRequiredMissingValue}
+                    disabled={!isApplyDisabled && !isLockedRequiredMissing}
                 >
                     <Box>
                         <Button
                             size="xs"
                             disabled={
-                                isApplyDisabled || isLockedRequiredMissingValue
+                                isApplyDisabled || isLockedRequiredMissing
                             }
                             // We use onMouseDown instead of onClick: when an
                             // inline dropdown (Select/MultiSelect) is open,

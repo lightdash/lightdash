@@ -22,6 +22,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -108,7 +109,13 @@ export class PreAggregateController extends BaseController {
      * Audit pre-aggregate hit/miss coverage with runtime filter overrides
      * @summary Run dashboard pre-aggregate audit
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'PreAggregateController.runDashboardPreAggregateAudit',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/dashboards/{dashboardUuidOrSlug}/audit')
     @OperationId('runDashboardPreAggregateAudit')

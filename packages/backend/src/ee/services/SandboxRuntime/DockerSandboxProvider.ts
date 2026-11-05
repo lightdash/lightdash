@@ -3,11 +3,16 @@ import type { Container } from 'dockerode';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { posix } from 'node:path';
 import { Writable } from 'node:stream';
-import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import {
+    SandboxCommandError,
+    SandboxOutputLimitError,
+    SandboxTimeoutError,
+} from './errors';
 import { createGitOverCommands, shQuote } from './gitOverCommands';
 import { type SnapshotStore } from './SnapshotStore';
 import {
     type CommandResult,
+    type FileReadOptions,
     type PersistOptions,
     type RunOptions,
     type SandboxCapabilities,
@@ -62,6 +67,7 @@ class DockerSandboxHandle implements SandboxHandle {
             stdin?: Buffer;
             onStdout?: (chunk: Buffer) => void;
             onStderr?: (chunk: Buffer) => void;
+            maxOutputBytes?: number;
         },
     ): Promise<CollectResult> {
         const exec = await this.container.exec({
@@ -81,17 +87,41 @@ class DockerSandboxHandle implements SandboxHandle {
 
         const stdoutChunks: Buffer[] = [];
         const stderrChunks: Buffer[] = [];
+        let outputBytes = 0;
+        let exceededLimit = false;
+        const collect = (
+            chunk: Buffer,
+            chunks: Buffer[],
+            callback?: (value: Buffer) => void,
+        ) => {
+            if (exceededLimit) return;
+            outputBytes += chunk.byteLength;
+            if (
+                opts.maxOutputBytes !== undefined &&
+                outputBytes > opts.maxOutputBytes
+            ) {
+                exceededLimit = true;
+                stream.destroy(
+                    new SandboxOutputLimitError(opts.maxOutputBytes),
+                );
+                return;
+            }
+            chunks.push(chunk);
+            callback?.(chunk);
+        };
+        const completion = new Promise<void>((resolve, reject) => {
+            stream.on('end', resolve);
+            stream.on('error', reject);
+        });
         const stdoutSink = new Writable({
             write: (chunk: Buffer, _enc, cb) => {
-                stdoutChunks.push(chunk);
-                opts.onStdout?.(chunk);
+                collect(chunk, stdoutChunks, opts.onStdout);
                 cb();
             },
         });
         const stderrSink = new Writable({
             write: (chunk: Buffer, _enc, cb) => {
-                stderrChunks.push(chunk);
-                opts.onStderr?.(chunk);
+                collect(chunk, stderrChunks, opts.onStderr);
                 cb();
             },
         });
@@ -100,11 +130,6 @@ class DockerSandboxHandle implements SandboxHandle {
         if (opts.stdin !== undefined) {
             stream.end(opts.stdin);
         }
-
-        const completion = new Promise<void>((resolve, reject) => {
-            stream.on('end', resolve);
-            stream.on('error', reject);
-        });
 
         if (opts.timeoutMs && opts.timeoutMs > 0) {
             let timer: NodeJS.Timeout;
@@ -119,9 +144,12 @@ class DockerSandboxHandle implements SandboxHandle {
                     opts.timeoutMs,
                 );
             });
-            await Promise.race([completion, timeout]).finally(() =>
-                clearTimeout(timer),
-            );
+            await Promise.race([completion, timeout])
+                .catch((error) => {
+                    stream.destroy();
+                    throw error;
+                })
+                .finally(() => clearTimeout(timer));
         } else {
             await completion;
         }
@@ -143,6 +171,7 @@ class DockerSandboxHandle implements SandboxHandle {
                 cwd: options?.cwd,
                 envs: options?.envs,
                 timeoutMs: options?.timeoutMs,
+                maxOutputBytes: options?.maxOutputBytes,
                 onStdout: options?.onStdout
                     ? (chunk) => options.onStdout!(chunk.toString('utf8'))
                     : undefined,
@@ -160,7 +189,14 @@ class DockerSandboxHandle implements SandboxHandle {
     };
 
     readonly files = {
-        read: async (path: string): Promise<string> => {
+        read: async (
+            path: string,
+            options?: FileReadOptions,
+        ): Promise<string> => {
+            if (options)
+                return (await this.files.readBytes(path, options)).toString(
+                    'utf8',
+                );
             const result = await this.execCollect(['cat', path], {});
             if (result.exitCode !== 0) {
                 throw new SandboxCommandError(
@@ -171,8 +207,13 @@ class DockerSandboxHandle implements SandboxHandle {
             }
             return result.stdout.toString('utf8');
         },
-        readBytes: async (path: string): Promise<Buffer> => {
-            const result = await this.execCollect(['cat', path], {});
+        readBytes: async (
+            path: string,
+            options?: FileReadOptions,
+        ): Promise<Buffer> => {
+            const result = await this.execCollect(['cat', path], {
+                maxOutputBytes: options?.maxBytes,
+            });
             if (result.exitCode !== 0) {
                 throw new SandboxCommandError(
                     result.exitCode,
@@ -264,6 +305,11 @@ export class DockerSandboxProvider implements SandboxProvider {
             Tty: false,
             Labels: { [SANDBOX_LABEL]: 'data-app' },
             Env: toEnvList(spec.envs),
+            // Docker has no per-host allowlist: an empty allowlist is honoured
+            // as no network at all; anything else keeps the default bridge.
+            HostConfig: {
+                NetworkMode: spec.egress.allow.length === 0 ? 'none' : 'bridge',
+            },
         });
         await container.start();
         this.logger.info(

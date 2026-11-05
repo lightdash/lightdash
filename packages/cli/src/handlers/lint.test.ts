@@ -170,20 +170,41 @@ describe('lintHandler', () => {
         expect(lintOutput).toContain("Missing required property 'version'");
     });
 
-    test('accepts structurally recognized SQL charts selected for upload', async () => {
+    const sqlChartYaml = (overrides: { omit?: string[] } = {}) =>
+        [
+            'name: Orders by status',
+            'description: null',
+            'slug: orders-by-status',
+            'spaceSlug: shared',
+            'sql: SELECT status, COUNT(*) AS orders FROM orders GROUP BY 1',
+            'limit: 500',
+            'chartKind: table',
+            'version: 1',
+            'config:',
+            '  metadata:',
+            '    version: 1',
+            '  type: table',
+            '  columns: {}',
+            '  display: {}',
+        ]
+            .filter(
+                (line) =>
+                    !(overrides.omit ?? []).some((key) =>
+                        line.startsWith(`${key}:`),
+                    ),
+            )
+            .join('\n');
+
+    test('accepts SQL charts selected for upload', async () => {
         const chartsDir = path.join(tempDir, 'charts');
         await fs.mkdir(chartsDir);
         await fs.writeFile(
             path.join(tempDir, 'sql-chart.yml'),
-            [
-                'contentType: sql_chart',
-                'name: Loose SQL chart',
-                'sql: SELECT 1',
-            ].join('\n'),
+            ['contentType: sql_chart', sqlChartYaml()].join('\n'),
         );
         await fs.writeFile(
             path.join(chartsDir, 'sql-chart.yml'),
-            ['name: Folder SQL chart', 'sql: SELECT 1'].join('\n'),
+            sqlChartYaml(),
         );
 
         await lintHandler({ path: tempDir, format: 'cli' });
@@ -192,6 +213,43 @@ describe('lintHandler', () => {
         expect(output.join('\n')).toContain(
             'All Lightdash Code files are valid!',
         );
+    });
+
+    test('validates SQL charts against the SQL chart schema', async () => {
+        const chartsDir = path.join(tempDir, 'charts');
+        await fs.mkdir(chartsDir);
+        await fs.writeFile(
+            path.join(chartsDir, 'missing-sql.yml'),
+            ['contentType: sql_chart', sqlChartYaml({ omit: ['sql'] })].join(
+                '\n',
+            ),
+        );
+
+        await expect(
+            lintHandler({ path: tempDir, format: 'cli' }),
+        ).rejects.toThrow('process.exit');
+        expect(process.exit).toHaveBeenCalledWith(2);
+        const lintOutput = output.join('\n');
+
+        expect(lintOutput).toContain('missing-sql.yml');
+        expect(lintOutput).toContain("Missing required property 'sql'");
+        expect(lintOutput).not.toContain('tableName');
+        expect(lintOutput).not.toContain('metricQuery');
+        expect(lintOutput).not.toContain('must match');
+    });
+
+    test('rejects a SQL chart missing fields upload needs', async () => {
+        const chartsDir = path.join(tempDir, 'charts');
+        await fs.mkdir(chartsDir);
+        await fs.writeFile(
+            path.join(chartsDir, 'missing-limit.yml'),
+            sqlChartYaml({ omit: ['limit'] }),
+        );
+
+        const lintOutput = await expectLintFailure();
+
+        expect(lintOutput).toContain('missing-limit.yml');
+        expect(lintOutput).toContain("Missing required property 'limit'");
     });
 
     test('ignores loose YAML files upload would not select', async () => {

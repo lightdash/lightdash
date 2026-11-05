@@ -1,13 +1,25 @@
+import { getConfig } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import {
     getAgentAccess,
+    isUsingSharedAgentAccount,
     resolveAgentProject,
     type AgentOptions,
 } from './agentAccess';
 
 export const agentStatusHandler = async (
-    options: AgentOptions,
+    options: AgentOptions & { name?: string; json?: boolean },
 ): Promise<void> => {
+    if (options.name !== undefined || getAgentConnectionSelection() !== null) {
+        const { agentConnectionStatusHandler } =
+            await import('./agentConnectionStatus');
+        return agentConnectionStatusHandler(options);
+    }
+    if (options.json === true)
+        throw new Error(
+            '--json is only available for an agent connection. Use it with --name <slot>.',
+        );
     GlobalState.setVerbose(options.verbose);
     const access = await getAgentAccess(
         await resolveAgentProject(options.project),
@@ -18,8 +30,14 @@ export const agentStatusHandler = async (
         );
         return;
     }
+    if (isUsingSharedAgentAccount(access)) {
+        console.error(
+            'The CLI runs as you until agent connect issues an agent credential.',
+        );
+        return;
+    }
     if (access.requirementSource === null) {
-        console.error('Agent connection not required for this project');
+        console.error('Agent sign-in is not required for this project');
         return;
     }
     if (access.refusal?.action === 'sign_in') {
@@ -27,6 +45,15 @@ export const agentStatusHandler = async (
         if (access.refusal.connectUrl) console.error(access.refusal.connectUrl);
     } else {
         console.error(access.refusal?.message ?? 'Agent not connected');
+        if (access.refusal?.settingsUrl) {
+            const config = await getConfig();
+            const serverUrl = config.context?.serverUrl;
+            console.error(
+                serverUrl
+                    ? new URL(access.refusal.settingsUrl, serverUrl).href
+                    : access.refusal.settingsUrl,
+            );
+        }
     }
     process.exitCode = 1;
 };

@@ -1,0 +1,132 @@
+import {
+    getItemId,
+    getParameterControlSetter,
+    type DashboardParameterControl,
+    type LightdashProjectParameter,
+    type DashboardFieldTarget,
+    type DashboardFilterableField,
+    type DashboardFilterRule,
+    type DashboardTile,
+} from '@lightdash/common';
+import { getFieldCandidates } from './fieldCandidates';
+import {
+    doesTileOfferField,
+    getFilterFields,
+    canTileTakeFilter,
+    type FieldsByTile,
+} from './peers';
+
+const toTarget = (
+    fieldId: string,
+    tableName: string,
+): DashboardFieldTarget => ({
+    fieldId,
+    tableName,
+});
+
+// Fields of a new tile a filter could use: its other fields first (a field
+// left by a deleted tile is not one), else any of exactly the target's type
+export const getLinkCandidates = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    tiles: DashboardTile[] | undefined,
+    fieldsByTile: FieldsByTile,
+    fieldsMap: Record<string, DashboardFilterableField>,
+): DashboardFieldTarget[] => {
+    // A SQL column is not a field: it matches no field of a chart tile
+    if (rule.target.isSqlColumn) return [];
+    if (!canTileTakeFilter(tile, fieldsByTile)) return [];
+    if (rule.tileTargets?.[tile.uuid] !== undefined) return [];
+    if (doesTileOfferField(tile, rule.target.fieldId, fieldsByTile)) return [];
+
+    const tileFields = fieldsByTile?.[tile.uuid] ?? [];
+    const peerIds = new Set(getFilterFields(rule, tiles));
+    const peers = tileFields.filter((field) => peerIds.has(getItemId(field)));
+    if (peers.length > 0) {
+        return dedupe(peers.map((f) => toTarget(getItemId(f), f.table)));
+    }
+
+    const targetField = fieldsMap[rule.target.fieldId];
+    if (!targetField) return [];
+    return dedupe(
+        getFieldCandidates(tileFields, [], targetField).map((f) =>
+            toTarget(getItemId(f), f.table),
+        ),
+    );
+};
+
+// Chosen up front only on an exact match: one of the filter's own fields, or
+// a field under the filter field's label. Anything else starts not filtered
+export const getLinkDefault = (
+    rule: DashboardFilterRule,
+    candidates: DashboardFieldTarget[],
+    tiles: DashboardTile[] | undefined,
+    fieldsMap: Record<string, DashboardFilterableField>,
+): string | null => {
+    const ownIds = new Set(getFilterFields(rule, tiles));
+    const label = fieldsMap[rule.target.fieldId]?.label;
+    const matches = candidates.filter(
+        ({ fieldId }) =>
+            ownIds.has(fieldId) ||
+            (label !== undefined && fieldsMap[fieldId]?.label === label),
+    );
+    return matches.length === 1 ? matches[0].fieldId : null;
+};
+
+const dedupe = (targets: DashboardFieldTarget[]): DashboardFieldTarget[] =>
+    targets.filter(
+        (target, index) =>
+            targets.findIndex((t) => t.fieldId === target.fieldId) === index,
+    );
+
+export const getLinkKey = (tileUuid: string, ruleId: string): string =>
+    `${tileUuid}|${ruleId}`;
+
+/** A new tile's unassigned key and the existing controls that can take it. */
+export type ParameterLinkPrompt = {
+    key: string;
+    label: string;
+    controlIds: string[];
+};
+
+export const getParameterLinkPrompts = ({
+    tileUuid,
+    controls,
+    tileParameterReferences,
+    definitions,
+}: {
+    tileUuid: string;
+    controls: DashboardParameterControl[];
+    tileParameterReferences: Record<string, string[]>;
+    definitions: Record<string, LightdashProjectParameter>;
+}): ParameterLinkPrompt[] =>
+    [...new Set(tileParameterReferences[tileUuid] ?? [])].flatMap((key) => {
+        const definition = definitions[key];
+        if (
+            !definition ||
+            getParameterControlSetter(
+                controls,
+                key,
+                tileUuid,
+                Object.keys(definitions),
+            )
+        )
+            return [];
+        const holders = controls.filter(({ parameters }) =>
+            Object.hasOwn(parameters, key),
+        );
+        if (
+            holders.some(
+                ({ parameters }) =>
+                    parameters[key] === 'all' || 'except' in parameters[key],
+            )
+        )
+            return [];
+        return [
+            {
+                key,
+                label: definition.label || key,
+                controlIds: holders.map(({ id }) => id),
+            },
+        ];
+    });

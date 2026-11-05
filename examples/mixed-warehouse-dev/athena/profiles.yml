@@ -1,0 +1,11 @@
+athena_dev:
+  target: dev
+  outputs:
+    dev:
+      type: athena
+      region_name: "{{ env_var('ATHENA_REGION', 'ap-southeast-1') }}"
+      s3_staging_dir: "{{ env_var('ATHENA_S3_STAGING_DIR', 's3://example-bucket/results/') }}"
+      work_group: "{{ env_var('ATHENA_WORKGROUP', 'example-workgroup') }}"
+      database: awsdatacatalog
+      schema: athena_spike
+      threads: 1

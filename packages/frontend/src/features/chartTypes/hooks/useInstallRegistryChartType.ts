@@ -3,8 +3,9 @@ import {
     type ApiInstallRegistryChartTypeResponse,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { captureChartTypeError } from '../utils/captureChartTypeError';
 
 type InstallRegistryChartTypeParams = {
@@ -17,11 +18,14 @@ type InstallRegistryChartTypeParams = {
 type InstallRegistryChartTypeResult =
     ApiInstallRegistryChartTypeResponse['results'];
 
-const installRegistryChartType = ({
-    projectUuid,
-    chartSlug,
-    upgradeConsumingCharts,
-}: InstallRegistryChartTypeParams) =>
+const installRegistryChartType = (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        chartSlug,
+        upgradeConsumingCharts,
+    }: InstallRegistryChartTypeParams,
+) =>
     lightdashApi<InstallRegistryChartTypeResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/registry/charts/${chartSlug}/install`,
@@ -31,6 +35,7 @@ const installRegistryChartType = ({
     });
 
 export const useInstallRegistryChartType = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -38,7 +43,8 @@ export const useInstallRegistryChartType = () => {
         ApiError,
         InstallRegistryChartTypeParams
     >({
-        mutationFn: installRegistryChartType,
+        mutationFn: (args: InstallRegistryChartTypeParams) =>
+            installRegistryChartType(lightdashApi, args),
         onSuccess: (result, { projectUuid }) => {
             void queryClient.invalidateQueries({
                 queryKey: ['registry-chart-types', projectUuid],
@@ -96,11 +102,14 @@ type UpgradeAllRegistryChartTypesResult = {
 
 // Sequential so one failure doesn't abort the rest, and so the server isn't
 // asked to pull every artifact at once.
-const upgradeAllRegistryChartTypes = async ({
-    projectUuid,
-    charts,
-    upgradeConsumingCharts,
-}: UpgradeAllRegistryChartTypesParams): Promise<UpgradeAllRegistryChartTypesResult> => {
+const upgradeAllRegistryChartTypes = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        charts,
+        upgradeConsumingCharts,
+    }: UpgradeAllRegistryChartTypesParams,
+): Promise<UpgradeAllRegistryChartTypesResult> => {
     const result: UpgradeAllRegistryChartTypesResult = {
         upgradedCount: 0,
         upgradedChartCount: 0,
@@ -109,7 +118,7 @@ const upgradeAllRegistryChartTypes = async ({
     for (const chart of charts) {
         try {
             // eslint-disable-next-line no-await-in-loop
-            const installed = await installRegistryChartType({
+            const installed = await installRegistryChartType(lightdashApi, {
                 projectUuid,
                 chartSlug: chart.slug,
                 upgradeConsumingCharts,
@@ -124,6 +133,7 @@ const upgradeAllRegistryChartTypes = async ({
 };
 
 export const useUpgradeAllRegistryChartTypes = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
@@ -131,7 +141,8 @@ export const useUpgradeAllRegistryChartTypes = () => {
         ApiError,
         UpgradeAllRegistryChartTypesParams
     >({
-        mutationFn: upgradeAllRegistryChartTypes,
+        mutationFn: (args: UpgradeAllRegistryChartTypesParams) =>
+            upgradeAllRegistryChartTypes(lightdashApi, args),
         onSuccess: (result, { projectUuid }) => {
             void queryClient.invalidateQueries({
                 queryKey: ['registry-chart-types', projectUuid],

@@ -21,7 +21,6 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import barStyles from '../composerPipeline/AiComposerPipelinePanel.module.css';
 import styles from './AiComposerVizConfigPanel.module.css';
 import { AiComposerVizFieldRows } from './AiComposerVizFieldRows';
 import { AiComposerVizKindSwitcher } from './AiComposerVizKindSwitcher';
@@ -90,16 +89,16 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
     const kind = getComposerVizKind(value);
     const isOpen = mode === 'expandable' && expanded;
     const heading = (
-        <Text component="span" className={barStyles.heading}>
+        <Text component="span" className={styles.heading}>
             Chart
         </Text>
     );
 
     const bar =
         mode === 'expandable' ? (
-            <Box className={barStyles.bar}>
+            <Box className={styles.bar}>
                 <UnstyledButton
-                    className={barStyles.barToggle}
+                    className={styles.barToggle}
                     onClick={() => onExpandedChange(!expanded)}
                     aria-expanded={isOpen}
                 >
@@ -108,8 +107,8 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
                         size={11}
                         stroke={1.6}
                         className={clsx(
-                            barStyles.chevron,
-                            isOpen && barStyles.chevronOpen,
+                            styles.chevron,
+                            isOpen && styles.chevronOpen,
                         )}
                     />
                     {heading}
@@ -118,7 +117,7 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
                 </UnstyledButton>
             </Box>
         ) : (
-            <Box className={clsx(barStyles.bar, styles.staticBar)}>
+            <Box className={clsx(styles.bar, styles.staticBar)}>
                 {heading}
                 <Box className={styles.spacer} />
                 {mode === 'switcher' ? (

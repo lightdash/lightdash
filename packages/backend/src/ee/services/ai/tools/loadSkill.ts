@@ -1,5 +1,5 @@
 import { loadSkillToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
+import { tool, type ModelMessage } from 'ai';
 import type { AiAgentSkill } from '../skills/types';
 import { LoadAgentSkillFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -32,7 +32,98 @@ ${formatResourceList(
 
 const toolDefinition = loadSkillToolDefinition.for('agent');
 
-export const getLoadSkill = ({ loadSkill }: { loadSkill: LoadAgentSkillFn }) =>
+const loadedSkillKey = (name: string, resourceName: string | null): string =>
+    resourceName
+        ? `${name.trim().toLowerCase()}/${resourceName.trim().toLowerCase()}`
+        : name.trim().toLowerCase();
+
+const toolResultText = (output: unknown): string | null => {
+    if (!output || typeof output !== 'object' || !('type' in output)) {
+        return null;
+    }
+    const { type } = output;
+    const value = 'value' in output ? output.value : null;
+    if (type === 'text' && typeof value === 'string') return value;
+    if (type !== 'json') return null;
+    if (typeof value === 'string') return value;
+    // Fast-decision replays wrap the text as `{ result, status }`.
+    return value &&
+        typeof value === 'object' &&
+        'result' in value &&
+        typeof value.result === 'string'
+        ? value.result
+        : null;
+};
+
+/**
+ * Skills and resources whose full text is still in the history the model
+ * sees. Compaction trims the history first, so a compacted copy no longer
+ * counts and the next call loads it again.
+ */
+export const getLoadedSkillKeys = (
+    messageHistory: ModelMessage[],
+): Set<string> => {
+    const requested = new Map<string, string>();
+    for (const message of messageHistory) {
+        if (
+            message.role === 'assistant' &&
+            typeof message.content !== 'string'
+        ) {
+            for (const part of message.content) {
+                if (
+                    part.type === 'tool-call' &&
+                    part.toolName === 'loadSkill'
+                ) {
+                    const input = part.input as {
+                        name?: unknown;
+                        resourceName?: unknown;
+                    } | null;
+                    if (input && typeof input.name === 'string') {
+                        requested.set(
+                            part.toolCallId,
+                            loadedSkillKey(
+                                input.name,
+                                typeof input.resourceName === 'string'
+                                    ? input.resourceName
+                                    : null,
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+    }
+    const servedKeys = messageHistory.flatMap((message) =>
+        message.role === 'tool'
+            ? message.content.flatMap((part) => {
+                  const key =
+                      part.type === 'tool-result'
+                          ? requested.get(part.toolCallId)
+                          : undefined;
+                  const text =
+                      part.type === 'tool-result'
+                          ? toolResultText(part.output)
+                          : null;
+                  return key &&
+                      text &&
+                      (text.startsWith('# Skill: ') ||
+                          text.startsWith('# Resource: '))
+                      ? [key]
+                      : [];
+              })
+            : [],
+    );
+    return new Set(servedKeys);
+};
+
+export const getLoadSkill = ({
+    loadSkill,
+    loadedSkillKeys = new Set<string>(),
+}: {
+    loadSkill: LoadAgentSkillFn;
+    /** Mutated as the run loads skills, so one run never serves the same text twice. */
+    loadedSkillKeys?: Set<string>;
+}) =>
     tool({
         ...toolDefinition,
         execute: async ({ name, resourceName, arguments: argumentsText }) => {
@@ -81,6 +172,26 @@ ${formatResourceList(
                         };
                     }
 
+                    const resourceKey = loadedSkillKey(
+                        skill.name,
+                        resource.name,
+                    );
+                    if (loadedSkillKeys.has(resourceKey)) {
+                        return {
+                            result: `Resource "${resource.name}" of skill "${skill.name}" is already loaded earlier in this thread; follow that loadSkill result.`,
+                            metadata: {
+                                status: 'success' as const,
+                                skill: skill.metadata,
+                            },
+                            structuredContent: {
+                                kind: 'already_loaded' as const,
+                                skill: skill.name,
+                                resource: resource.name,
+                            },
+                        };
+                    }
+                    loadedSkillKeys.add(resourceKey);
+
                     return {
                         result: `# Resource: ${resource.name}
 
@@ -101,6 +212,23 @@ ${resource.content.trim()}`,
                         },
                     };
                 }
+
+                const skillKey = loadedSkillKey(skill.name, null);
+                if (loadedSkillKeys.has(skillKey)) {
+                    return {
+                        result: `Skill "${skill.name}" is already loaded earlier in this thread; follow that loadSkill result and call loadSkill only for its resources.`,
+                        metadata: {
+                            status: 'success' as const,
+                            skill: skill.metadata,
+                        },
+                        structuredContent: {
+                            kind: 'already_loaded' as const,
+                            skill: skill.name,
+                            resource: null,
+                        },
+                    };
+                }
+                loadedSkillKeys.add(skillKey);
 
                 return {
                     result: formatSkillResult(skill),

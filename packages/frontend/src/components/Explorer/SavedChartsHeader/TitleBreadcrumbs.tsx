@@ -17,11 +17,7 @@ type Props = {
 
 const MAX_WIDTH_TITLE_PX = 160;
 
-const SlashDivider = () => (
-    <Text span c="ldGray.8">
-        /
-    </Text>
-);
+const SlashDivider = () => <Text span>/</Text>;
 
 export const TitleBreadCrumbs: FC<Props> = ({
     projectUuid,

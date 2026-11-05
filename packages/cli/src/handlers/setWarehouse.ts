@@ -1,5 +1,6 @@
 import { AuthorizationError } from '@lightdash/common';
 import inquirer from 'inquirer';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -37,6 +38,7 @@ const resolveProjectUuid = async (projectOption?: string): Promise<string> => {
 export const setWarehouseHandler = async (
     options: SetWarehouseHandlerOptions,
 ) => {
+    assertAgentCommandAllowed('set-warehouse');
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 

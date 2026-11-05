@@ -4,9 +4,10 @@ import {
     type ApiUpdateAppResponse,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type UpdateAppParams = {
     projectUuid: string;
@@ -15,11 +16,10 @@ type UpdateAppParams = {
 
 type UpdateAppResult = ApiUpdateAppResponse['results'];
 
-const updateApp = async ({
-    projectUuid,
-    appUuid,
-    ...body
-}: UpdateAppParams): Promise<UpdateAppResult> => {
+const updateApp = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, appUuid, ...body }: UpdateAppParams,
+): Promise<UpdateAppResult> => {
     const data = await lightdashApi<UpdateAppResult>({
         method: 'PATCH',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}`,
@@ -32,11 +32,12 @@ export const useUpdateApp = (options?: {
     resourceLabel?: string;
     appUuidOrSlug?: string;
 }) => {
+    const lightdashApi = useLightdashApi();
     const resourceLabel = options?.resourceLabel ?? 'App';
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<UpdateAppResult, ApiError, UpdateAppParams>({
-        mutationFn: updateApp,
+        mutationFn: (args: UpdateAppParams) => updateApp(lightdashApi, args),
         onSuccess: (_data, variables) => {
             const identifiers = new Set(
                 [variables.appUuid, options?.appUuidOrSlug].filter(

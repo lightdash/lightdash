@@ -7,7 +7,7 @@ import {
     type GaugeSection,
 } from '@lightdash/common';
 import { type EChartsOption, type GaugeSeriesOption } from 'echarts';
-import toNumber from 'lodash/toNumber';
+import { toNumber } from 'es-toolkit/compat';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
 import { type VisualizationContextInput } from '../types';

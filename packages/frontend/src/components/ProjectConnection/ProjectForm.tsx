@@ -1,8 +1,6 @@
-import { ProjectType, DbtProjectType, FeatureFlags } from '@lightdash/common';
-import { TextInput, Flex, Stack, Text, Title, Avatar } from '@mantine/core';
+import { ProjectType, DbtProjectType, WarehouseTypes } from '@lightdash/common';
+import { TextInput, Flex, Stack, Title, Avatar, Box } from '@mantine/core';
 import { type FC } from 'react';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
 import LightdashLogo from '../../svgs/logo-icon.svg';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
@@ -16,29 +14,21 @@ import { useProjectFormContext } from './useProjectFormContext';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
+// These warehouses only read the schema when running dbt
+const DBT_ONLY_SCHEMA_WAREHOUSES = new Set<WarehouseTypes>([
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.REDSHIFT,
+    WarehouseTypes.BIGQUERY,
+]);
+
 interface Props {
     showGeneralSettings: boolean;
     disabled: boolean;
     defaultType?: DbtProjectType;
     isProjectUpdate?: boolean;
     warehouseOnly?: boolean;
+    dbtTypePicker?: 'select' | 'tiles';
 }
-
-const WarehouseIpHint: FC = () => {
-    const { health } = useApp();
-    const egressIpNoticeFlag = useServerFeatureFlag(
-        FeatureFlags.EgressIpNotice,
-    );
-    if (egressIpNoticeFlag.data?.enabled !== false) return null;
-    if (!health.data?.staticIp) return null;
-
-    return (
-        <Text c="gray">
-            If you need to add our IP address to your database's allow-list, use{' '}
-            <b>{health.data.staticIp}</b>
-        </Text>
-    );
-};
 
 export const ProjectForm: FC<Props> = ({
     showGeneralSettings,
@@ -46,6 +36,7 @@ export const ProjectForm: FC<Props> = ({
     defaultType,
     isProjectUpdate,
     warehouseOnly = false,
+    dbtTypePicker = 'select',
 }) => {
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
@@ -58,7 +49,7 @@ export const ProjectForm: FC<Props> = ({
     return (
         <Stack gap="xl">
             {showGeneralSettings && (
-                <SettingsGridCard>
+                <SettingsGridCard data-connection-card>
                     <div>
                         <Title order={5}>General settings</Title>
                     </div>
@@ -75,7 +66,10 @@ export const ProjectForm: FC<Props> = ({
                 </SettingsGridCard>
             )}
 
-            <SettingsGridCard p={warehouseOnly ? 'xl' : 'md'}>
+            <SettingsGridCard
+                p={warehouseOnly ? 'xl' : 'md'}
+                data-connection-card
+            >
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
                     <Flex align="center" gap={2}>
@@ -86,31 +80,33 @@ export const ProjectForm: FC<Props> = ({
                             top="2px"
                         />
                     </Flex>
-
-                    <WarehouseIpHint />
                 </div>
 
                 <div>
                     <WarehouseSettingsForm
+                        allowMixedWarehouseTypes={false}
                         disabled={disabled}
                         isProjectUpdate={isProjectUpdate}
                     >
-                        {(warehouseOnly || isNative) &&
-                            warehouse &&
-                            !form.values
-                                .organizationWarehouseCredentialsUuid && (
+                        {(warehouseOnly || isNative) && warehouse && (
+                            <Box
+                                data-dbt-only-schema={DBT_ONLY_SCHEMA_WAREHOUSES.has(
+                                    warehouse,
+                                )}
+                            >
                                 <WarehouseSchemaInput
                                     warehouseType={warehouse}
                                     disabled={disabled}
                                     warehouseOnly
                                 />
-                            )}
+                            </Box>
+                        )}
                     </WarehouseSettingsForm>
                 </div>
             </SettingsGridCard>
 
             {!warehouseOnly && (
-                <SettingsGridCard>
+                <SettingsGridCard data-connection-card="dbt">
                     <div>
                         <Avatar
                             size="md"
@@ -132,6 +128,7 @@ export const ProjectForm: FC<Props> = ({
                         <DbtSettingsForm
                             disabled={disabled}
                             defaultType={defaultType}
+                            typePicker={dbtTypePicker}
                         />
                     </div>
                 </SettingsGridCard>

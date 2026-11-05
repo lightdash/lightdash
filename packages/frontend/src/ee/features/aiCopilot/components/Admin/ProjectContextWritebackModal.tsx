@@ -120,11 +120,11 @@ export const ProjectContextWritebackModal: FC<
                     ) : (
                         <>
                             <Loader size="md" color="gray" />
-                            <Text fw={500} c="ldGray.7">
+                            <Text fw={500} c="dimmed">
                                 {tracked?.prWritebackMessage ??
                                     'Opening pull request…'}
                             </Text>
-                            <Text fz="sm" c="ldGray.5">
+                            <Text fz="sm" c="dimmed">
                                 Runs in the background, safe to close.
                             </Text>
                         </>

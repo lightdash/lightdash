@@ -1,8 +1,9 @@
 import { type ApiError, type EnableLearnResults } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
-const enableLearn = async () =>
+const enableLearn = async (lightdashApi: LightdashApi) =>
     lightdashApi<EnableLearnResults>({
         url: `/org/training-project`,
         method: 'POST',
@@ -16,15 +17,19 @@ const enableLearn = async () =>
  * both are refetched before the library renders.
  */
 export const useEnableLearn = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
-    return useMutation<EnableLearnResults, ApiError>(enableLearn, {
-        mutationKey: ['enable_learn'],
-        onSuccess: async () => {
-            await Promise.all([
-                queryClient.invalidateQueries(['projects']),
-                queryClient.invalidateQueries(['user']),
-                queryClient.invalidateQueries(['account']),
-            ]);
+    return useMutation<EnableLearnResults, ApiError>(
+        () => enableLearn(lightdashApi),
+        {
+            mutationKey: ['enable_learn'],
+            onSuccess: async () => {
+                await Promise.all([
+                    queryClient.invalidateQueries(['projects']),
+                    queryClient.invalidateQueries(['user']),
+                    queryClient.invalidateQueries(['account']),
+                ]);
+            },
         },
-    });
+    );
 };

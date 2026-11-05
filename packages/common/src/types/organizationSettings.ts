@@ -97,9 +97,20 @@ export type OrganizationSettings = {
     /**
      * Whether a data app version gets a thumbnail captured automatically when
      * it becomes ready. On unless the org turned it off, so `null` (or no
-     * stored row) resolves to `true`.
+     * stored row) resolves to `true`. Always resolved to `false` while
+     * {@link OrganizationSettings.dataAppCapturesEnabled} is off.
      */
     dataAppAutomaticThumbnailsEnabled: boolean | null;
+    /**
+     * Whether images of a running data app, and files, may be captured or
+     * attached anywhere in the data app builder: prompt-bar screenshots, file
+     * attachments sent to the coding agent, manual and automatic thumbnails,
+     * and the Slack build-outcome image. Inherits and is capped by the
+     * instance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can
+     * turn captures off, never back on past the env. `null` inherits it.
+     * Always resolved to an effective boolean in API responses.
+     */
+    dataAppCapturesEnabled: boolean | null;
 };
 
 export const DEFAULT_INVITE_LINK_EXPIRATION_DAYS = 3;
@@ -273,20 +284,17 @@ export type OrganizationSettingsInstanceDefaults = {
     scheduledDeliveryExpirationSeconds: number;
     queryLimit: number;
     csvCellsLimit: number;
+    /** `LIGHTDASH_APP_CAPTURES_ENABLED`; the ceiling for the org setting. */
+    dataAppCapturesEnabled: boolean;
 };
 
-/**
- * The single source of truth for resolving a stored (raw) org settings record
- * against the instance defaults: an explicit per-org value wins; a value that's
- * `null`, or simply absent (an unset column / no row at all), falls back to the
- * instance default. Used by the backend for both the API response (so the
- * frontend just displays the effective value) and the login flow, so the two
- * can never drift.
- */
-export const resolveEffectiveOrganizationSettings = (
+const resolveEffectiveOrganizationSettingsFields = (
     raw: Partial<OrganizationSettings>,
     instanceDefaults: OrganizationSettingsInstanceDefaults,
-): OrganizationSettings => ({
+): Omit<
+    OrganizationSettings,
+    'dataAppCapturesEnabled' | 'dataAppAutomaticThumbnailsEnabled'
+> => ({
     oidcLinkingEnabled:
         raw.oidcLinkingEnabled ?? instanceDefaults.enableOidcLinking,
     oidcToEmailLinkingEnabled:
@@ -317,7 +325,30 @@ export const resolveEffectiveOrganizationSettings = (
     queryLimit: raw.queryLimit ?? instanceDefaults.queryLimit,
     csvCellsLimit: raw.csvCellsLimit ?? instanceDefaults.csvCellsLimit,
     corsAllowedDomains: raw.corsAllowedDomains ?? [],
-    // On by default — no instance default, so an unset value resolves to true.
-    dataAppAutomaticThumbnailsEnabled:
-        raw.dataAppAutomaticThumbnailsEnabled ?? true,
 });
+
+/**
+ * The single source of truth for resolving a stored (raw) org settings record
+ * against the instance defaults: an explicit per-org value wins; a value that's
+ * `null`, or simply absent (an unset column / no row at all), falls back to the
+ * instance default. Used by the backend for both the API response (so the
+ * frontend just displays the effective value) and the login flow, so the two
+ * can never drift.
+ */
+export const resolveEffectiveOrganizationSettings = (
+    raw: Partial<OrganizationSettings>,
+    instanceDefaults: OrganizationSettingsInstanceDefaults,
+): OrganizationSettings => {
+    // The env is a ceiling: an org may turn captures off, never on past it.
+    const dataAppCapturesEnabled =
+        instanceDefaults.dataAppCapturesEnabled &&
+        (raw.dataAppCapturesEnabled ?? true);
+    return {
+        ...resolveEffectiveOrganizationSettingsFields(raw, instanceDefaults),
+        dataAppCapturesEnabled,
+        // Automatic thumbnails are a capture, so they follow the switch.
+        dataAppAutomaticThumbnailsEnabled:
+            dataAppCapturesEnabled &&
+            (raw.dataAppAutomaticThumbnailsEnabled ?? true),
+    };
+};

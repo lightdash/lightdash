@@ -97,6 +97,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Lets the host rasterize the app to an image for thumbnails and scheduled deliveries.',
     },
     {
+        key: 'pdf-export',
+        appliesTo: ['data_app'],
+        label: 'Scheduled PDF export',
+        description:
+            'Lets scheduled deliveries send the same PDF the app’s Download PDF button produces.',
+        wiring: "Register the Download PDF builder with `registerPdfExport` from `@/lib/pdfExport`, resolving to `pdf.output('blob')`; without it scheduled PDF deliveries of the app fail.",
+    },
+    {
         key: 'external-fetch',
         appliesTo: ['data_app', 'chart_type'],
         label: 'External data fetch',
@@ -116,6 +124,13 @@ export const SDK_FEATURES: SdkFeature[] = [
         label: 'Shareable URL state',
         description:
             'Sync in-app state to the page URL so app views can be shared and restored.',
+    },
+    {
+        key: 'app-state',
+        appliesTo: ['data_app'],
+        label: 'Saved app state',
+        description:
+            'Remember what each person entered and keep values every viewer shares, with a change history, stored by Lightdash so they survive reloads and devices.',
     },
     {
         key: 'viz-context',
@@ -212,6 +227,22 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Wire the template\'s shipped components from src/components/insights (InsightsSummary at the top of the page; InsightMarker as both dot and activeDot, or insightCellProps on bar Cells, on every query-bound chart; InvestigateMenuItem in every point menu; InvestigationCard under the chart). A short ask such as "add AI analysis" gets the whole set. They sit on useInsights() and render nothing when the host has no analysis.',
     },
     {
+        key: 'analysis-instructions',
+        appliesTo: ['data_app'],
+        label: 'AI analysis instructions',
+        description:
+            'Author-written guidance for the AI analysis — language and formatting rules (e.g. British English, amounts in EUR) and a line or two of domain vocabulary — applied to every summary the app shows.',
+        wiring: "Pass the guidance where the app renders its view-level analysis: useInsights({ instructions: '<guidance>' }), or the instructions prop on the shipped InsightsSummary component. One string per app; keep it to a few short sentences.",
+    },
+    {
+        key: 'analysis-on-load',
+        appliesTo: ['data_app'],
+        label: 'AI analysis on load',
+        description:
+            'Run the AI analysis as soon as the app loads, without the viewer clicking Analyse. A stored analysis of the same rows is reused.',
+        wiring: 'Only when the user asks for it: set the analyseOnLoad prop on the shipped InsightsSummary component, or useInsights({ analyseOnLoad: true }) in a custom block. One value per app.',
+    },
+    {
         key: 'ai-prompt',
         appliesTo: ['data_app'],
         label: 'AI prompts',
@@ -259,6 +290,30 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Reflows the layout for narrow and short tiles, such as a dashboard on a phone, so values stay readable and nothing scrolls sideways.',
         wiring: 'Rework the layout to the "Fitting the frame" section of the reusable-visualization skill. A chart type built on an older template first needs the frame runtime added to its own files, as described under viz-responsive-layout in the sdk-features skill: the VizFrame marker in src/main.jsx and the html[data-viz-frame] rules in src/index.css. Then size type, padding and gaps in rem or Tailwind classes instead of px, make rows of items wrap with a minimum item width that keeps values on one line (capped just under half the frame), remove any scroll regions of the chart\'s own so only the frame scrolls, and make a title or table header row sticky.',
     },
+    {
+        key: 'instruction-investigations',
+        appliesTo: ['data_app'],
+        label: 'AI investigations on demand',
+        description:
+            'Let a button send an author-written brief to the AI agent, which investigates using the semantic layer beyond the data on the page and shows its findings inside the app.',
+        wiring: "Call useInvestigation() per control; on click, investigate({ instruction: '<author-written brief>', sources: [{ result, label }] }) where result is the object useLightdash returns (keep a reference to it when destructuring). Render status/explanation/partial from the hook, offer continueInAskAi() when canContinue, and hide the control when available is false. Unlike useAiPrompt the agent can query other explores, so use it for 'investigate why' actions, not row explanations.",
+    },
+    {
+        key: 'field-links',
+        appliesTo: ['data_app'],
+        label: 'Field links',
+        description:
+            "Result columns carry the semantic layer's url link patterns, so values with configured links render as links, matching dashboards.",
+        wiring: 'In cell renderers (tables, underlying-data dialogs), call resolveColumnUrls({ column, row, columns, format }) and render the value as a link when it returns entries, styled visibly as a link.',
+    },
+    {
+        key: 'space-charts',
+        appliesTo: ['data_app'],
+        label: 'List charts in a space',
+        description:
+            'List the saved charts in a Lightdash space at runtime, so chart galleries update as charts are saved — limited to spaces the viewer can already access.',
+        wiring: "Call useSpaceCharts('<space slug or uuid>') where the app needs the list, render from its charts array (uuid, name, description, chartKind), and pass chart.uuid to savedChart(...) to show one. Check available first — it stays false on hosts without the capability.",
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);
@@ -274,6 +329,13 @@ export const SDK_FIXES: SdkFix[] = [
         label: 'Table calculation results',
         description:
             'Includes table calculation values and formatted results in data app tables and charts instead of showing them as missing.',
+        appliesTo: ['data_app'],
+    },
+    {
+        key: 'renamed-explore-field-ids',
+        label: 'Field names on custom explores',
+        description:
+            'Queries on explores defined under meta.explores use the right field names instead of failing with an unknown field id error.',
         appliesTo: ['data_app'],
     },
 ];

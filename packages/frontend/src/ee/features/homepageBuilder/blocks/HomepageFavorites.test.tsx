@@ -15,6 +15,7 @@ import {
 } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { MemoryRouter, useLocation } from 'react-router';
+import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import { useHomepageFavorites } from '../hooks/useHomepageFavorites';
 import { ContentCard } from './ContentCard';
 import { RecentList } from './RecentBlock';
@@ -25,7 +26,7 @@ const mocks = vi.hoisted(() => ({
     content: null as SummaryContent | null,
     otherContent: null as SummaryContent | null,
 }));
-vi.mock('../../../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../../../api');
 vi.mock('../../../../hooks/useProjectRoute', () => ({
     useProjectUrlIdentifier: () => 'project',
 }));
@@ -114,7 +115,7 @@ describe('homepage list favorites', () => {
         mocks.otherContent = null;
         mocks.content = contentFor(ContentType.DATA_APP);
         mocks.errorToast.mockClear();
-        mocks.api
+        mockedLightdashApi
             .mockReset()
             .mockImplementation(({ method }: { method: string }) => {
                 if (method === 'GET')
@@ -182,11 +183,11 @@ describe('homepage list favorites', () => {
                 })[1],
             );
             expect(
-                mocks.api.mock.calls.filter(
+                mockedLightdashApi.mock.calls.filter(
                     ([request]) => request.method === 'PATCH',
                 ),
             ).toHaveLength(1);
-            expect(mocks.api).toHaveBeenCalledWith(
+            expect(mockedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({
                     method: 'PATCH',
                     body: JSON.stringify({
@@ -213,7 +214,7 @@ describe('homepage list favorites', () => {
             );
             await waitFor(() =>
                 expect(
-                    mocks.api.mock.calls.filter(
+                    mockedLightdashApi.mock.calls.filter(
                         ([request]) => request.method === 'PATCH',
                     ),
                 ).toHaveLength(2),
@@ -277,7 +278,7 @@ describe('homepage list favorites', () => {
         ];
         let finishRefresh: () => void = () => {};
         let finishOther: () => void = () => {};
-        mocks.api.mockImplementation(({ method, body }) => {
+        mockedLightdashApi.mockImplementation(({ method, body }) => {
             if (method === 'GET') return Promise.resolve(favorites);
             return new Promise((resolve) => {
                 const finish = () => resolve({ isFavorite: false });
@@ -304,11 +305,11 @@ describe('homepage list favorites', () => {
         ).not.toBeNull();
         expect(other.querySelector('.tabler-icon-star-filled')).not.toBeNull();
         expect(
-            mocks.api.mock.calls.filter(([r]) => r.method === 'PATCH'),
+            mockedLightdashApi.mock.calls.filter(([r]) => r.method === 'PATCH'),
         ).toHaveLength(1);
 
         // A slow background GET must keep the item pending and old stars visible.
-        mocks.api.mockImplementation(({ method }) => {
+        mockedLightdashApi.mockImplementation(({ method }) => {
             if (method === 'GET')
                 return new Promise((resolve) => {
                     finishRefresh = () =>
@@ -327,14 +328,14 @@ describe('homepage list favorites', () => {
         fireEvent.click(other);
         await waitFor(() => expect(other).toBeDisabled());
         expect(
-            mocks.api.mock.calls.filter(([r]) => r.method === 'PATCH'),
+            mockedLightdashApi.mock.calls.filter(([r]) => r.method === 'PATCH'),
         ).toHaveLength(2);
         await act(async () => finishRefresh());
         await waitFor(() => expect(sales[0]).toBeEnabled());
         expect(sales[0]).toHaveAccessibleName('Add Sales to favorites');
         expect(other).toBeDisabled();
         expect(other).toHaveAccessibleName('Remove Other from favorites');
-        mocks.api.mockImplementation(() => Promise.resolve([]));
+        mockedLightdashApi.mockImplementation(() => Promise.resolve([]));
         await act(async () => finishOther());
         await waitFor(() => expect(other).toBeEnabled());
         expect(other).toHaveAccessibleName('Add Other to favorites');

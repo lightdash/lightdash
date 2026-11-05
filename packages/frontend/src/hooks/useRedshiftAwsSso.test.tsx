@@ -17,9 +17,7 @@ import {
 } from 'vitest';
 import { useRedshiftAwsSsoLoginPopup } from './useRedshiftAwsSso';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('./toaster/useToaster', () => ({
     default: () => ({
@@ -27,9 +25,9 @@ vi.mock('./toaster/useToaster', () => ({
     }),
 }));
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 function createWrapper() {
     const queryClient = new QueryClient({

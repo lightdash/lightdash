@@ -1,12 +1,10 @@
 import { QueryHistoryStatus } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { fetchColumnSubtotalRows } from './useAsyncCalculateTotal';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 vi.mock('../features/queryRunner/executeQuery', () => ({
     pollForResults: vi.fn(),
 }));
@@ -17,7 +15,7 @@ vi.mock('./useProject', () => ({
     useProject: vi.fn(),
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 const mockPoll = vi.mocked(pollForResults);
 
 const ARGS = {
@@ -55,10 +53,9 @@ describe('fetchColumnSubtotalRows', () => {
             });
         mockPoll.mockResolvedValue(polled(QueryHistoryStatus.READY));
 
-        await expect(fetchColumnSubtotalRows(ARGS)).resolves.toEqual([
-            row('Portugal', '10.5'),
-            row('Spain', '7'),
-        ]);
+        await expect(
+            fetchColumnSubtotalRows(sharedLightdashApi, ARGS),
+        ).resolves.toEqual([row('Portugal', '10.5'), row('Spain', '7')]);
 
         const [start, firstPage, secondPage] = mockApi.mock.calls.map(
             ([request]) => request,
@@ -73,6 +70,7 @@ describe('fetchColumnSubtotalRows', () => {
             subtotalDimensions: ['orders_country'],
         });
         expect(mockPoll).toHaveBeenCalledWith(
+            expect.anything(),
             'project-uuid',
             'subtotal-query-uuid',
         );
@@ -96,7 +94,9 @@ describe('fetchColumnSubtotalRows', () => {
         };
         mockApi.mockRejectedValueOnce(refused);
 
-        await expect(fetchColumnSubtotalRows(ARGS)).rejects.toBe(refused);
+        await expect(
+            fetchColumnSubtotalRows(sharedLightdashApi, ARGS),
+        ).rejects.toBe(refused);
         expect(mockPoll).not.toHaveBeenCalled();
     });
 
@@ -112,7 +112,9 @@ describe('fetchColumnSubtotalRows', () => {
         };
         mockApi.mockRejectedValueOnce(forbidden);
 
-        await expect(fetchColumnSubtotalRows(ARGS)).rejects.toBe(forbidden);
+        await expect(
+            fetchColumnSubtotalRows(sharedLightdashApi, ARGS),
+        ).rejects.toBe(forbidden);
     });
 
     it('surfaces the query error when the subtotal query fails', async () => {
@@ -121,17 +123,17 @@ describe('fetchColumnSubtotalRows', () => {
             polled(QueryHistoryStatus.ERROR, 'Warehouse timeout'),
         );
 
-        await expect(fetchColumnSubtotalRows(ARGS)).rejects.toThrow(
-            'Warehouse timeout',
-        );
+        await expect(
+            fetchColumnSubtotalRows(sharedLightdashApi, ARGS),
+        ).rejects.toThrow('Warehouse timeout');
     });
 
     it('rejects a query that stops in a non-ready status', async () => {
         mockApi.mockResolvedValueOnce({ queryUuid: 'subtotal-query-uuid' });
         mockPoll.mockResolvedValue(polled(QueryHistoryStatus.CANCELLED));
 
-        await expect(fetchColumnSubtotalRows(ARGS)).rejects.toThrow(
-            'Unexpected query status while polling subtotals',
-        );
+        await expect(
+            fetchColumnSubtotalRows(sharedLightdashApi, ARGS),
+        ).rejects.toThrow('Unexpected query status while polling subtotals');
     });
 });

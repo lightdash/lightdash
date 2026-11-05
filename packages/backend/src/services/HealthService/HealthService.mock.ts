@@ -7,6 +7,7 @@ import {
 
 export const BaseResponse: HealthState = {
     healthy: true,
+    hasManagedAnalytics: false,
     requiresMigration: false,
     migrationWarnings: undefined,
     license: {
@@ -23,6 +24,7 @@ export const BaseResponse: HealthState = {
     },
     isAuthenticated: false,
     requiresOrgRegistration: false,
+    instanceBrand: null,
     localDbtEnabled: true,
     defaultProject: undefined,
     siteUrl: 'https://test.lightdash.cloud',
@@ -38,6 +40,8 @@ export const BaseResponse: HealthState = {
     hasGitlab: false,
     hasJira: true,
     hasLinear: true,
+    hasPostHogOAuth: false,
+    hasGoogleLiveSources: false,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {
@@ -112,6 +116,7 @@ export const BaseResponse: HealthState = {
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
+        maxConcurrentTileQueries: null,
         disableSentryTracking: false,
     },
     rudder: {
@@ -133,8 +138,6 @@ export const BaseResponse: HealthState = {
         overrideColorPaletteName: undefined,
     },
     hasBrandfetch: false,
-    isServiceAccountEnabled: false,
-    isOrganizationWarehouseCredentialsEnabled: false,
     isAthenaWarehouseIamRoleAuthEnabled: false,
     isSaveCredentialsFormEnabled: false,
     isCustomRolesEnabled: false,
@@ -144,6 +147,7 @@ export const BaseResponse: HealthState = {
         analyticsDashboardUuid: undefined,
         isAmbientAiEnabled: false,
         threadDumpEnabled: false,
+        fastDecisionsEnabled: false,
     },
     echarts6: {
         enabled: false,
@@ -164,9 +168,14 @@ export const BaseResponse: HealthState = {
     preAggregates: {
         enabled: false,
     },
+    externalSources: {
+        engineAvailable: true,
+    },
     dataApps: {
         previewOrigin: null,
         sampleDataEnabled: true,
+        capturesEnabled: true,
+        runtimeAvailable: false,
     },
 };
 

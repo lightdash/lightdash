@@ -45,6 +45,29 @@ agent asks rather than guessing. Slack-started threads have no composer, so
 this is their only path to a theme.
 _Avoid_: theme picker (for the tool), design list
 
+**Bound dashboard**:
+The dashboard a thread is tied to for its whole life, set when the thread is
+created through the API. The agent may only change that dashboard and charts
+saved in it. Shown at the top of the thread as the linked dashboard; the
+launcher never pins a different dashboard into a bound thread. Per thread,
+unlike pinned context, which is per prompt.
+_Avoid_: pinned dashboard (for the binding), thread dashboard, scoped dashboard
+
+**Bound chart**:
+The saved chart a thread is tied to for its whole life, set when the thread is
+created through the API. The agent may only edit that chart and schedule its
+deliveries; it cannot create saved content. Shown at the top of the thread as
+the linked chart. Per thread, unlike pinned context, which is per prompt.
+_Avoid_: pinned chart (for the binding), thread chart, scoped chart
+
+**Thread context**:
+Free text given when a thread is created through the API, such as a summary of
+an earlier conversation. The agent reads it on every turn; it never appears as
+a chat message. It may hold internal notes, so the API returns it only to
+viewers with `view:AiAgentThreadContext` (organization and project admins by
+default; never embed viewers). Shown collapsed at the top of the thread.
+_Avoid_: context (unqualified), initial prompt, system prompt
+
 **Mention**:
 Attaching content to a prompt by typing `@` and picking it from search, the
 current page, or the tiles of a pinned dashboard. A mention is one way to
@@ -77,8 +100,8 @@ only; nothing is persisted.
 _Avoid_: subscription, poll registration, tracked build
 
 **Agent default**:
-The model picker entry that drops an explicit model pick so the composer
-follows the agent's current model again. Shown as selected whenever no pick is
+The model picker entry that drops an explicit model pick so new threads
+follow the agent's current model again. Shown as selected whenever no pick is
 stored for that agent in this browser. See
 [ai-agent-model-resolution.md](../ai-agent-model-resolution.md) for the
 resolution order.
@@ -87,11 +110,12 @@ auto
 
 **Skill**:
 A named unit of guidance the AI agent can follow: a description, a markdown
-body, and optional resource files. Built-in skills ship with Lightdash;
-custom skills are authored by an organization and enabled on an agent one by
-one. A skill reaches the model two ways: the agent loads it when a request
-matches its description, or a user invokes it directly with a slash command
-and optional arguments.
+body, and optional resource files. Built-in skills ship with Lightdash and
+are declared by the add-on whose tools they explain, so a loadout lists only
+the built-in skills of its add-ons; custom skills are authored by an
+organization and enabled on an agent one by one. A skill reaches the model
+two ways: the agent loads it when a request matches its description, or a
+user invokes it directly with a slash command and optional arguments.
 _Avoid_: command (for the unit), prompt template, action, macro
 
 **Skill proposal**:
@@ -101,6 +125,69 @@ correct answers. It carries a drafted skill (name, description, instructions)
 and lands in triage, where "Create skill" opens the skill editor prefilled
 and resolves the card on save.
 _Avoid_: skill suggestion, auto-skill, skill finding
+
+**Loadout**:
+The resolved bundle one AI agent run gets: a base, the add-ons that apply,
+and the tool names and prompt sections they declare. Resolved once per run
+from the agent's settings, feature flags and execution mode; it is the single
+answer to "what can this agent do", recorded per thread, and the unit the
+contract snapshots pin.
+_Avoid_: mode (already execution mode), profile, preset, toolset, capability
+(already agent permissions in agent identity)
+
+**Base**:
+The mutually exclusive core of a loadout. It owns the query path and the
+tools every run of that kind gets: classic, composer, no data access, deep
+research worker, deep research coordinator. Exactly one base per loadout;
+bases never combine, and each lists which add-ons it accepts.
+_Avoid_: core, default loadout, agent type
+
+**Add-on**:
+An additive, independent unit a base accepts into a loadout: a condition on
+the agent's arguments, the tools it contributes, and at most one prompt
+section. Add-ons compose by union; no two add-ons contribute the same tool,
+and no add-on removes anything.
+_Avoid_: capability, feature, extension, module
+
+**Intent gate**:
+With Jev on, the server picks a turn type at the start of each turn and
+withholds the tools and prompt sections that do not fit it; the agent gets
+them back with `loadAgentTools`. It never adds a tool.
+_Avoid_: overlay, filter
+
+**Tool allowlist**:
+A per-thread cap on the loadout, such as a data app investigation thread. It
+never adds a tool.
+_Avoid_: overlay, filter
+
+**SQL chart**:
+A chart saved from raw warehouse SQL rather than from an explore. Lives
+alongside semantic-layer charts in content as code (type `sql_chart`) and on
+dashboards as a SQL chart tile. The AI agent may run SQL in a thread, and
+may save a SQL chart only after the user approves that SQL for publication,
+unless the thread has approved SQL once and for all.
+_Avoid_: SQL Runner chart, saved SQL, raw SQL chart
+
+## Warehouse tables
+
+**Base table**:
+The Lightdash table an explore starts from, named after its model. Other
+tables reach the explore as joined tables. A base table name is not a
+warehouse table name.
+_Avoid_: source table, main table, model table
+
+**Warehouse table**:
+The relation in the warehouse that a Lightdash table reads, written
+`database.schema.table`. It can differ from the model name (dbt aliases,
+`sql_from`); a table whose `sql_from` is SQL has no single warehouse table.
+_Avoid_: physical table, raw table, relation (in copy)
+
+**Partition column**:
+The column a warehouse table is divided on, usually a date. A query that
+filters it directly reads only the matching partitions; one that does not
+reads, and on BigQuery bills, the whole table. Ingestion-time partitioned
+BigQuery tables use the pseudo-column `_PARTITIONTIME`.
+_Avoid_: partition key, partition field, date partition
 
 ## MCP servers
 

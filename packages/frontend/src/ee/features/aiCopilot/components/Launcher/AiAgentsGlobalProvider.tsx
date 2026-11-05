@@ -6,12 +6,14 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import { useLocation, useMatches } from 'react-router';
+import { useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { CreateIssueModalHost } from '../CreateIssue/CreateIssueModalHost';
 import { AiAgentBuildWatcher } from './AiAgentBuildWatcher';
 import { AiAgentsCoreProvider } from './AiAgentsCoreProvider';
+import { AiAgentSqlApprovalWatcher } from './AiAgentSqlApprovalWatcher';
 import { launcherSession } from './launcherSession';
+import { useIsLauncherHidden } from './useIsLauncherHidden';
 import { useIsLauncherMounted } from './useIsLauncherMounted';
 
 const AiAgentsLauncher = lazy(() =>
@@ -37,12 +39,7 @@ const AiAgentsLauncherGate: FC = () => {
 // the last non-agent URL without loading the launcher bundle.
 const AiAgentsLauncherSessionTracker: FC = () => {
     const { pathname, search } = useLocation();
-    const matches = useMatches();
-    const isHidden = matches.some(
-        (m) =>
-            (m.handle as { hideAILauncher?: boolean } | undefined)
-                ?.hideAILauncher,
-    );
+    const isHidden = useIsLauncherHidden();
 
     useEffect(() => {
         if (isHidden) return;
@@ -59,6 +56,7 @@ export const AiAgentsGlobalProvider: FC<PropsWithChildren> = ({ children }) => (
         <Sentry.ErrorBoundary fallback={<></>}>
             <AiAgentsLauncherSessionTracker />
             <AiAgentBuildWatcher />
+            <AiAgentSqlApprovalWatcher />
             <AiAgentsLauncherGate />
             <CreateIssueModalHost />
         </Sentry.ErrorBoundary>

@@ -1,10 +1,7 @@
 import type { VisualizationTheme } from '../theme';
 
-export const LEGEND_INTERACTION_HINT =
-    'Click to toggle visibility. Double click to isolate';
-
-/** The tooltip shown while hovering a legend item, explaining click and double click. */
-export const getLegendDoubleClickTooltip = (theme: VisualizationTheme) => ({
+/** Tooltip style for legend items whose labels can be truncated. */
+export const getLegendLabelTooltipStyle = (theme: VisualizationTheme) => ({
     show: true,
     backgroundColor: theme.background,
     borderColor: theme.neutral[3],
@@ -17,9 +14,8 @@ export const getLegendDoubleClickTooltip = (theme: VisualizationTheme) => ({
     },
     padding: [4, theme.tooltipPadding],
     extraCssText: `box-shadow: ${theme.tooltipShadow};`,
-    formatter: () => LEGEND_INTERACTION_HINT,
 });
 
-export type LegendDoubleClickTooltip = ReturnType<
-    typeof getLegendDoubleClickTooltip
+export type LegendLabelTooltipStyle = ReturnType<
+    typeof getLegendLabelTooltipStyle
 >;

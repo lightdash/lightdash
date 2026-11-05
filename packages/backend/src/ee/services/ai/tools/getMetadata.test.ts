@@ -555,6 +555,74 @@ describe('fast source details', () => {
     });
 });
 
+describe('getMetadata warehouse tables', () => {
+    const exploreWithJoins = () => {
+        const explore = makeExplore({});
+        explore.tables.orders.sqlTable =
+            '`example-project`.`analytics`.`fact_orders`';
+        explore.tables.users = {
+            ...explore.tables.orders,
+            name: 'users',
+            sqlTable: '"analytics"."public"."dim_customer"',
+        };
+        explore.tables.trips = {
+            ...explore.tables.orders,
+            name: 'trips',
+            sqlTable: '(select * from raw.trips where valid)',
+        };
+        explore.joinedTables = ['users', 'trips'].map((table) => ({
+            table,
+            sqlOn: '',
+            compiledSqlOn: '',
+        }));
+        return explore;
+    };
+
+    it('shows the warehouse table behind the base and joined tables', async () => {
+        const output = await execute(exploreWithJoins(), [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(output.result).toContain(
+            '  base table: orders\n  warehouse table: example-project.analytics.fact_orders\n',
+        );
+        expect(output.result).toContain(
+            ': users (analytics.public.dim_customer), trips (custom SQL source)',
+        );
+        expect(output.structuredContent).toMatchObject({
+            explores: [
+                {
+                    warehouseTables: [
+                        {
+                            table: 'orders',
+                            warehouseTable:
+                                'example-project.analytics.fact_orders',
+                        },
+                        {
+                            table: 'users',
+                            warehouseTable: 'analytics.public.dim_customer',
+                        },
+                        { table: 'trips', warehouseTable: null },
+                    ],
+                },
+            ],
+        });
+    });
+
+    it('labels a base table read from custom SQL', async () => {
+        const explore = makeExplore({});
+        explore.tables.orders.sqlTable = 'SELECT 1 AS id';
+
+        const output = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(output.result).toContain(
+            '  warehouse table: none (custom SQL source)',
+        );
+    });
+});
+
 describe('getMetadata structured output', () => {
     it('returns structuredContent that carries the facts rendered in the text', async () => {
         const explore = makeExplore({ fieldDescription: 'Order status' });
@@ -583,6 +651,9 @@ describe('getMetadata structured output', () => {
                     hint: null,
                     baseTable: 'orders',
                     joinedTables: [],
+                    warehouseTables: [
+                        { table: 'orders', warehouseTable: 'orders' },
+                    ],
                     requiredFilters: [],
                     parameters: [],
                     baseDimensions: { count: 1, fieldIds: ['orders_status'] },

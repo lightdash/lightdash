@@ -4,17 +4,33 @@ import {
     type FeatureFlagModel,
 } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 
-export const assertChartTypesEnabled = async (
+/** Chart types are usable wherever Chart Studio is available, the chart type library is on, or data apps are on. */
+export const chartTypesEnabledFor = async (
     featureFlagModel: Pick<FeatureFlagModel, 'get'>,
+    chartStudioAvailable: boolean,
     user: FeatureFlagLogicArgs['user'],
-): Promise<void> => {
+): Promise<boolean> => {
+    if (chartStudioAvailable) return true;
     const enabled = async (featureFlagId: FeatureFlags) =>
         (await featureFlagModel.get({ user, featureFlagId })).enabled;
-
-    const allowed =
+    return (
         (await enabled(FeatureFlags.EnableDataApps)) ||
-        (await enabled(FeatureFlags.ChartTypeRegistry));
-    if (!allowed) {
+        enabled(FeatureFlags.ChartTypeRegistry)
+    );
+};
+
+export const assertChartTypesEnabled = async (
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>,
+    chartStudioAvailable: boolean,
+    user: FeatureFlagLogicArgs['user'],
+): Promise<void> => {
+    if (
+        !(await chartTypesEnabledFor(
+            featureFlagModel,
+            chartStudioAvailable,
+            user,
+        ))
+    ) {
         throw new ForbiddenError('Chart types are not enabled');
     }
 };

@@ -1,16 +1,15 @@
 import { z } from 'zod';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
-export const TOOL_READ_CONTENT_DESCRIPTION =
-    'Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.';
+export const READ_CONTENT_SHARED_DESCRIPTION =
+    'Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code.';
+
+export const TOOL_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart or data app as JSON by its slug. ${READ_CONTENT_SHARED_DESCRIPTION}`;
 
 export const toolReadContentArgsSchema = z.object({
-    slug: z
-        .string()
-        .min(1)
-        .describe('Slug of the dashboard, chart, or data app to read.'),
+    slug: z.string().min(1).describe('Slug of the content to read.'),
     type: z
-        .enum(['dashboard', 'chart', 'data_app'])
+        .enum(['dashboard', 'chart', 'sql_chart', 'data_app'])
         .describe('Type of Lightdash content to read.'),
 });
 
@@ -45,6 +44,12 @@ export const toolReadContentStructuredContentSchema = z.discriminatedUnion(
             type: z.literal('chart'),
             content: contentJsonSchema.describe(
                 'Chart as code JSON, exactly as shown in `result`.',
+            ),
+        }),
+        readContentBaseSchema.extend({
+            type: z.literal('sql_chart'),
+            content: contentJsonSchema.describe(
+                'SQL chart as code JSON, exactly as shown in `result`.',
             ),
         }),
         readContentBaseSchema.extend({
@@ -85,6 +90,7 @@ export type ReadContentType = ToolReadContentArgs['type'];
 export const READ_CONTENT_TYPE_LABELS: Record<ReadContentType, string> = {
     dashboard: 'dashboard',
     chart: 'chart',
+    sql_chart: 'SQL chart',
     data_app: 'data app',
 };
 export type ToolReadContentStructuredContent = z.infer<

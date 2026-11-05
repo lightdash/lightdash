@@ -1,8 +1,20 @@
 // Must stay first: loads the warehouses duckdb runtime before getPivotedResults,
 // so reintroducing a second duckdb runtime turns these tests red.
 import '@lightdash/warehouses';
-import { SortField } from '@lightdash/common';
+import {
+    AiResultType,
+    DimensionType,
+    FieldType,
+    getSlackAiEchartsConfig,
+    MetricType,
+    type ItemsMap,
+    type SortField,
+    type ToolRunQueryArgsTransformed,
+} from '@lightdash/common';
 import { getPivotedResults } from './getPivotedResults';
+
+const stubFieldsMap = (...fieldIds: string[]) =>
+    Object.fromEntries(fieldIds.map((id) => [id, {}])) as unknown as ItemsMap;
 
 describe('getPivotedResults', () => {
     it('should pivot rows with a single pivot field', async () => {
@@ -12,7 +24,7 @@ describe('getPivotedResults', () => {
             { region: 'EU', quarter: 'Q1', revenue: 150 },
             { region: 'EU', quarter: 'Q2', revenue: 250 },
         ];
-        const fieldsMap = { region: {}, quarter: {}, revenue: {} };
+        const fieldsMap = stubFieldsMap('region', 'quarter', 'revenue');
         const pivotFields = ['quarter'];
         const metrics = ['revenue'];
         const sorts: SortField[] = [];
@@ -22,11 +34,14 @@ describe('getPivotedResults', () => {
             fieldsMap,
             pivotFields,
             metrics,
+            [],
             sorts,
         );
 
         expect(result.results).toHaveLength(2);
         expect(result.metrics).toEqual(expect.arrayContaining(['Q1', 'Q2']));
+        expect(result.secondaryMetrics).toEqual([]);
+        expect(result.labels).toEqual({ Q1: 'Q1', Q2: 'Q2' });
         // Each row should have region + pivoted quarter columns
         for (const row of result.results) {
             expect(row).toHaveProperty('region');
@@ -41,12 +56,7 @@ describe('getPivotedResults', () => {
             { region: 'US', year: '2024', quarter: 'Q2', revenue: 200 },
             { region: 'EU', year: '2024', quarter: 'Q1', revenue: 150 },
         ];
-        const fieldsMap = {
-            region: {},
-            year: {},
-            quarter: {},
-            revenue: {},
-        };
+        const fieldsMap = stubFieldsMap('region', 'year', 'quarter', 'revenue');
         const pivotFields = ['year', 'quarter'];
         const metrics = ['revenue'];
         const sorts: SortField[] = [];
@@ -56,6 +66,7 @@ describe('getPivotedResults', () => {
             fieldsMap,
             pivotFields,
             metrics,
+            [],
             sorts,
         );
 
@@ -69,13 +80,14 @@ describe('getPivotedResults', () => {
             { category: "it's a test", segment: 'B', value: 20 },
             { category: 'normal', segment: 'A', value: 30 },
         ];
-        const fieldsMap = { category: {}, segment: {}, value: {} };
+        const fieldsMap = stubFieldsMap('category', 'segment', 'value');
 
         const result = await getPivotedResults(
             rows,
             fieldsMap,
             ['segment'],
             ['value'],
+            [],
             [],
         );
 
@@ -94,13 +106,14 @@ describe('getPivotedResults', () => {
             { region: 'US', quarter: 'Q1', revenue: null },
             { region: null, quarter: 'Q2', revenue: 200 },
         ];
-        const fieldsMap = { region: {}, quarter: {}, revenue: {} };
+        const fieldsMap = stubFieldsMap('region', 'quarter', 'revenue');
 
         const result = await getPivotedResults(
             rows,
             fieldsMap,
             ['quarter'],
             ['revenue'],
+            [],
             [],
         );
 
@@ -122,13 +135,14 @@ describe('getPivotedResults', () => {
             { region: 'US', quarter: 'Q2', revenue: 200 },
             { region: 'EU', quarter: 'Q2', revenue: 250 },
         ];
-        const fieldsMap = { region: {}, quarter: {}, revenue: {} };
+        const fieldsMap = stubFieldsMap('region', 'quarter', 'revenue');
 
         const result = await getPivotedResults(
             rows,
             fieldsMap,
             ['quarter'],
             ['revenue'],
+            [],
             [{ fieldId: 'region', descending: true }],
         );
 
@@ -142,13 +156,14 @@ describe('getPivotedResults', () => {
             { order_month: '2024-01-01', status: 'shipped', order_count: 5 },
             { order_month: '2024-02-01', status: 'placed', order_count: 7 },
         ];
-        const fieldsMap = { order_month: {}, status: {}, order_count: {} };
+        const fieldsMap = stubFieldsMap('order_month', 'status', 'order_count');
 
         const result = await getPivotedResults(
             rows,
             fieldsMap,
             ['status'],
             ['order_count'],
+            [],
             [{ fieldId: 'order_month', descending: false }],
         );
 
@@ -186,14 +201,14 @@ describe('getPivotedResults', () => {
                 note: null,
             },
         ];
-        const fieldsMap = {
-            day: {},
-            status: {},
-            count: {},
-            ratio: {},
-            flag: {},
-            note: {},
-        };
+        const fieldsMap = stubFieldsMap(
+            'day',
+            'status',
+            'count',
+            'ratio',
+            'flag',
+            'note',
+        );
 
         const result = await getPivotedResults(
             rows,
@@ -201,30 +216,31 @@ describe('getPivotedResults', () => {
             ['status'],
             ['count', 'ratio', 'flag', 'note'],
             [],
+            [],
         );
 
         const [row] = result.results;
         // Column order is DuckDB's: group-by columns first, then one block per pivot value
         expect(Object.keys(row)).toEqual([
             'day',
-            'placed_"first"(count)',
-            'placed_"first"(ratio)',
-            'placed_"first"(flag)',
-            'placed_"first"(note)',
-            'shipped_"first"(count)',
-            'shipped_"first"(ratio)',
-            'shipped_"first"(flag)',
-            'shipped_"first"(note)',
+            'placed_0',
+            'placed_1',
+            'placed_2',
+            'placed_3',
+            'shipped_0',
+            'shipped_1',
+            'shipped_2',
+            'shipped_3',
         ]);
         // DATE -> Date, BIGINT -> bigint, DOUBLE -> number, BOOLEAN -> boolean,
         // VARCHAR -> string, SQL NULL -> null
         expect(row.day).toEqual(new Date('2024-01-01T00:00:00.000Z'));
-        expect(row['placed_"first"(count)']).toBe(100n);
-        expect(row['placed_"first"(ratio)']).toBe(12.5);
-        expect(row['placed_"first"(flag)']).toBe(true);
-        expect(row['placed_"first"(note)']).toBe('a');
-        expect(row['shipped_"first"(flag)']).toBe(false);
-        expect(row['shipped_"first"(note)']).toBeNull();
+        expect(row.placed_0).toBe(100n);
+        expect(row.placed_1).toBe(12.5);
+        expect(row.placed_2).toBe(true);
+        expect(row.placed_3).toBe('a');
+        expect(row.shipped_2).toBe(false);
+        expect(row.shipped_3).toBeNull();
     });
 
     it('should convert ISO-8601 dimension strings to Date', async () => {
@@ -240,13 +256,14 @@ describe('getPivotedResults', () => {
                 revenue: 200,
             },
         ];
-        const fieldsMap = { ts: {}, status: {}, revenue: {} };
+        const fieldsMap = stubFieldsMap('ts', 'status', 'revenue');
 
         const result = await getPivotedResults(
             rows,
             fieldsMap,
             ['status'],
             ['revenue'],
+            [],
             [],
         );
 
@@ -262,7 +279,7 @@ describe('getPivotedResults', () => {
             { region: 'US', quarter: 'Q1', revenue: 100 },
             { region: 'US', quarter: 'Q2', revenue: 200 },
         ];
-        const fieldsMap = { region: {}, quarter: {}, revenue: {} };
+        const fieldsMap = stubFieldsMap('region', 'quarter', 'revenue');
         const maliciousMetric =
             "revenue) FROM results_data; SELECT read_text('/etc/hosts') --";
 
@@ -272,6 +289,7 @@ describe('getPivotedResults', () => {
                 fieldsMap,
                 ['quarter'],
                 [maliciousMetric],
+                [],
                 [],
             ),
         ).rejects.toThrow();
@@ -284,13 +302,14 @@ describe('getPivotedResults', () => {
             { [oddId]: 'US', quarter: 'Q2', revenue: 200 },
             { [oddId]: 'EU', quarter: 'Q1', revenue: 150 },
         ];
-        const fieldsMap = { [oddId]: {}, quarter: {}, revenue: {} };
+        const fieldsMap = stubFieldsMap(oddId, 'quarter', 'revenue');
 
         const result = await getPivotedResults(
             rows,
             fieldsMap,
             ['quarter'],
             ['revenue'],
+            [],
             [{ fieldId: oddId, descending: true }],
         );
 
@@ -303,13 +322,14 @@ describe('getPivotedResults', () => {
             { region: 'US', quarter: 'Q1', revenue: 100 },
             { region: null, quarter: 'Q1', revenue: 150 },
         ];
-        const fieldsMap = { region: {}, quarter: {}, revenue: {} };
+        const fieldsMap = stubFieldsMap('region', 'quarter', 'revenue');
 
         const nullsFirst = await getPivotedResults(
             rows,
             fieldsMap,
             ['quarter'],
             ['revenue'],
+            [],
             [{ fieldId: 'region', descending: false, nullsFirst: true }],
         );
         expect(nullsFirst.results.map((row) => row.region)).toEqual([
@@ -322,6 +342,7 @@ describe('getPivotedResults', () => {
             fieldsMap,
             ['quarter'],
             ['revenue'],
+            [],
             [{ fieldId: 'region', descending: false, nullsFirst: false }],
         );
         expect(nullsLast.results.map((row) => row.region)).toEqual([
@@ -329,4 +350,119 @@ describe('getPivotedResults', () => {
             null,
         ]);
     });
+});
+
+describe('getPivotedResults secondary axis', () => {
+    const fieldsMap = Object.fromEntries(
+        [
+            [
+                'order_date',
+                'Order date',
+                FieldType.DIMENSION,
+                DimensionType.DATE,
+            ],
+            ['status', 'Status', FieldType.DIMENSION, DimensionType.STRING],
+            ['count', 'Count', FieldType.METRIC, MetricType.COUNT],
+            ['revenue', 'Revenue', FieldType.METRIC, MetricType.SUM],
+        ].map(([name, label, fieldType, type]) => [
+            `orders_${name}`,
+            { fieldType, type, name, label, table: 'orders', sql: '' },
+        ]),
+    ) as unknown as ItemsMap;
+    const row = (date: string, status: string, count: number) => ({
+        orders_order_date: date,
+        orders_status: status,
+        orders_count: count,
+        orders_revenue: count * 10,
+    });
+    const rows = [
+        row('2024-01-01', 'placed', 3),
+        row('2024-01-01', 'shipped', 5),
+        row('2024-02-01', 'placed', 7),
+    ];
+    const sorts = [{ fieldId: 'orders_order_date', descending: false }];
+
+    it('pivots the secondary metric per group, one row per x in input order', async () => {
+        const result = await getPivotedResults(
+            [row('2024-02-01', 'placed', 7), ...rows.slice(0, 2)],
+            fieldsMap,
+            ['orders_status'],
+            ['orders_count'],
+            ['orders_revenue'],
+            [],
+        );
+
+        expect(result.metrics).toEqual(['placed_0', 'shipped_0']);
+        expect(result.secondaryMetrics).toEqual(['placed_1', 'shipped_1']);
+        expect(result.labels).toEqual({
+            placed_0: '[placed] Count',
+            shipped_0: '[shipped] Count',
+            placed_1: '[placed] Revenue',
+            shipped_1: '[shipped] Revenue',
+        });
+        expect(result.results).toEqual([
+            {
+                orders_order_date: new Date('2024-02-01T00:00:00.000Z'),
+                placed_0: 7n,
+                placed_1: 70n,
+                shipped_0: null,
+                shipped_1: null,
+            },
+            {
+                orders_order_date: new Date('2024-01-01T00:00:00.000Z'),
+                placed_0: 3n,
+                placed_1: 30n,
+                shipped_0: 5n,
+                shipped_1: 50n,
+            },
+        ]);
+    });
+
+    it.each(['bar', 'line'] as const)(
+        'draws the Slack %s chart secondary series per group',
+        async (defaultVizType) => {
+            const tool = {
+                title: 'Orders',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_order_date', 'orders_status'],
+                    metrics: ['orders_count', 'orders_revenue'],
+                    sorts,
+                },
+                chartConfig: {
+                    defaultVizType,
+                    xAxisDimension: 'orders_order_date',
+                    yAxisMetrics: ['orders_count'],
+                    groupBy: ['orders_status'],
+                    stackBars: true,
+                    secondaryYAxisMetric: 'orders_revenue',
+                },
+            } as unknown as ToolRunQueryArgsTransformed;
+
+            const option = await getSlackAiEchartsConfig({
+                toolArgs: { type: AiResultType.QUERY_RESULT, tool },
+                queryResults: { rows, fields: fieldsMap },
+                getPivotedResults,
+            });
+
+            expect(
+                (
+                    option?.series as {
+                        name: string;
+                        yAxisIndex: number;
+                        encode: { y: string };
+                    }[]
+                ).map(({ name, yAxisIndex, encode }) => [
+                    name,
+                    yAxisIndex,
+                    encode.y,
+                ]),
+            ).toEqual([
+                ['[placed] Count', 0, 'placed_0'],
+                ['[shipped] Count', 0, 'shipped_0'],
+                ['[placed] Revenue', 1, 'placed_1'],
+                ['[shipped] Revenue', 1, 'shipped_1'],
+            ]);
+        },
+    );
 });

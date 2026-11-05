@@ -6,6 +6,7 @@ import {
     type ApiUserDashboardsSummaryResponse,
     type ApiUserSchedulersSummaryResponse,
     type KnexPaginateArgs,
+    type OrganizationMemberSort,
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
@@ -16,20 +17,25 @@ import {
 } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { useMemo } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 type OrganizationUser =
     ApiOrganizationMemberProfiles['results']['data'][number];
 
-const getOrganizationUsersQuery = async (params?: {
-    includeGroups?: number;
-    paginateArgs?: KnexPaginateArgs;
-    searchQuery?: string;
-    projectUuid?: string;
-    googleOidcOnly?: boolean;
-}) => {
+const getOrganizationUsersQuery = async (
+    lightdashApi: LightdashApi,
+    params?: {
+        includeGroups?: number;
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        projectUuid?: string;
+        googleOidcOnly?: boolean;
+        sort?: OrganizationMemberSort;
+    },
+) => {
     const urlParams = new URLSearchParams({
         ...(params?.paginateArgs
             ? {
@@ -45,6 +51,12 @@ const getOrganizationUsersQuery = async (params?: {
         ...(params?.googleOidcOnly
             ? { googleOidcOnly: String(params.googleOidcOnly) }
             : {}),
+        ...(params?.sort
+            ? {
+                  sortBy: params.sort.sortBy,
+                  sortDirection: params.sort.sortDirection,
+              }
+            : {}),
     }).toString();
 
     return lightdashApi<ApiOrganizationMemberProfiles['results']>({
@@ -54,7 +66,7 @@ const getOrganizationUsersQuery = async (params?: {
     });
 };
 
-const deleteUserQuery = async (id: string) =>
+const deleteUserQuery = async (lightdashApi: LightdashApi, id: string) =>
     lightdashApi<null>({
         url: `/org/user/${id}`,
         method: 'DELETE',
@@ -68,6 +80,8 @@ export const useOrganizationUsers = (params?: {
     enabled?: boolean;
     paginateArgs?: KnexPaginateArgs;
 }) => {
+    const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useQuery<ApiOrganizationMemberProfiles['results']['data'], ApiError>(
         {
@@ -78,7 +92,7 @@ export const useOrganizationUsers = (params?: {
             ],
             queryFn: async () => {
                 return (
-                    await getOrganizationUsersQuery({
+                    await getOrganizationUsersQuery(lightdashApi, {
                         includeGroups: params?.includeGroups,
                         searchQuery: params?.searchInput,
                         projectUuid: params?.projectUuid,
@@ -123,18 +137,22 @@ export const useInfiniteOrganizationUsers = (
         pageSize,
         projectUuid,
         googleOidcOnly,
+        sort,
     }: {
         searchInput?: string;
         includeGroups?: number;
         projectUuid?: string;
         pageSize: number;
         googleOidcOnly?: boolean;
+        sort?: OrganizationMemberSort;
     },
     infinityQueryOpts: UseInfiniteQueryOptions<
         ApiOrganizationMemberProfiles['results'],
         ApiError
     > = {},
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useInfiniteQuery<ApiOrganizationMemberProfiles['results'], ApiError>(
         {
@@ -145,9 +163,10 @@ export const useInfiniteOrganizationUsers = (
                 searchInput,
                 projectUuid,
                 googleOidcOnly,
+                sort,
             ],
             queryFn: ({ pageParam }) => {
-                return getOrganizationUsersQuery({
+                return getOrganizationUsersQuery(lightdashApi, {
                     includeGroups,
                     paginateArgs: {
                         pageSize: pageSize,
@@ -156,6 +175,7 @@ export const useInfiniteOrganizationUsers = (
                     searchQuery: searchInput,
                     projectUuid,
                     googleOidcOnly,
+                    sort,
                 });
             },
             onError: (result) => setErrorResponse(result),
@@ -173,26 +193,34 @@ export const useInfiniteOrganizationUsers = (
 };
 
 export const useDeleteOrganizationUserMutation = () => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<null, ApiError, string>(deleteUserQuery, {
-        mutationKey: ['organization_users_delete'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['organization_users']);
-            showToastSuccess({
-                title: `Success! User was deleted.`,
-            });
+    return useMutation<null, ApiError, string>(
+        (id: string) => deleteUserQuery(lightdashApi, id),
+        {
+            mutationKey: ['organization_users_delete'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['organization_users']);
+                showToastSuccess({
+                    title: `Success! User was deleted.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to delete user`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to delete user`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
-const getUserSchedulersSummaryQuery = async (userUuid: string) =>
+const getUserSchedulersSummaryQuery = async (
+    lightdashApi: LightdashApi,
+    userUuid: string,
+) =>
     lightdashApi<ApiUserSchedulersSummaryResponse['results']>({
         url: `/org/user/${userUuid}/schedulers-summary`,
         method: 'GET',
@@ -203,29 +231,37 @@ export const useUserSchedulersSummary = (
     userUuid: string,
     enabled: boolean = true,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useQuery<ApiUserSchedulersSummaryResponse['results'], ApiError>({
         queryKey: ['user_schedulers_summary', userUuid],
-        queryFn: () => getUserSchedulersSummaryQuery(userUuid),
+        queryFn: () => getUserSchedulersSummaryQuery(lightdashApi, userUuid),
         onError: (result) => setErrorResponse(result),
         enabled,
     });
 };
 
-const reassignUserSchedulersQuery = async ({
-    userUuid,
-    newOwnerUserUuid,
-}: {
-    userUuid: string;
-    newOwnerUserUuid: string;
-}) =>
+const reassignUserSchedulersQuery = async (
+    lightdashApi: LightdashApi,
+    {
+        userUuid,
+        newOwnerUserUuid,
+    }: {
+        userUuid: string;
+        newOwnerUserUuid: string;
+    },
+) =>
     lightdashApi<ApiReassignUserSchedulersResponse['results']>({
         url: `/org/user/${userUuid}/reassign-schedulers`,
         method: 'PATCH',
         body: JSON.stringify({ newOwnerUserUuid }),
     });
 
-const getUserDashboardsSummaryQuery = async (userUuid: string) =>
+const getUserDashboardsSummaryQuery = async (
+    lightdashApi: LightdashApi,
+    userUuid: string,
+) =>
     // prettier-ignore
     lightdashApi<ApiUserDashboardsSummaryResponse['results']>({ // pragma: allowlist secret
         url: `/org/user/${userUuid}/dashboards-summary`,
@@ -237,22 +273,27 @@ export const useUserDashboardsSummary = (
     userUuid: string,
     enabled: boolean = true,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const setErrorResponse = useQueryError();
     return useQuery<ApiUserDashboardsSummaryResponse['results'], ApiError>({
         queryKey: ['user_dashboards_summary', userUuid],
-        queryFn: () => getUserDashboardsSummaryQuery(userUuid),
+        queryFn: () => getUserDashboardsSummaryQuery(lightdashApi, userUuid),
         onError: (result) => setErrorResponse(result),
         enabled,
     });
 };
 
-const reassignUserDashboardsQuery = async ({
-    userUuid,
-    newOwnerUserUuid,
-}: {
-    userUuid: string;
-    newOwnerUserUuid: string;
-}) =>
+const reassignUserDashboardsQuery = async (
+    lightdashApi: LightdashApi,
+    {
+        userUuid,
+        newOwnerUserUuid,
+    }: {
+        userUuid: string;
+        newOwnerUserUuid: string;
+    },
+) =>
     // prettier-ignore
     lightdashApi<ApiReassignUserDashboardsResponse['results']>({ // pragma: allowlist secret
         url: `/org/user/${userUuid}/reassign-dashboards`,
@@ -261,49 +302,61 @@ const reassignUserDashboardsQuery = async ({
     });
 
 export const useReassignUserDashboardsMutation = () => {
+    const lightdashApi = useLightdashApi();
+
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiReassignUserDashboardsResponse['results'],
         ApiError,
         { userUuid: string; newOwnerUserUuid: string }
-    >(reassignUserDashboardsQuery, {
-        mutationKey: ['reassign_user_dashboards'],
-        onSuccess: async (data) => {
-            showToastSuccess({
-                title: `Success! ${data.reassignedCount} ${
-                    data.reassignedCount === 1 ? 'dashboard' : 'dashboards'
-                } transferred.`,
-            });
+    >(
+        (args: { userUuid: string; newOwnerUserUuid: string }) =>
+            reassignUserDashboardsQuery(lightdashApi, args),
+        {
+            mutationKey: ['reassign_user_dashboards'],
+            onSuccess: async (data) => {
+                showToastSuccess({
+                    title: `Success! ${data.reassignedCount} ${
+                        data.reassignedCount === 1 ? 'dashboard' : 'dashboards'
+                    } transferred.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to transfer dashboards`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to transfer dashboards`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useReassignUserSchedulersMutation = () => {
+    const lightdashApi = useLightdashApi();
+
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiReassignUserSchedulersResponse['results'],
         ApiError,
         { userUuid: string; newOwnerUserUuid: string }
-    >(reassignUserSchedulersQuery, {
-        mutationKey: ['reassign_user_schedulers'],
-        onSuccess: async (data) => {
-            showToastSuccess({
-                title: `Success! ${data.reassignedCount} scheduled ${
-                    data.reassignedCount === 1 ? 'delivery' : 'deliveries'
-                } reassigned.`,
-            });
+    >(
+        (args: { userUuid: string; newOwnerUserUuid: string }) =>
+            reassignUserSchedulersQuery(lightdashApi, args),
+        {
+            mutationKey: ['reassign_user_schedulers'],
+            onSuccess: async (data) => {
+                showToastSuccess({
+                    title: `Success! ${data.reassignedCount} scheduled ${
+                        data.reassignedCount === 1 ? 'delivery' : 'deliveries'
+                    } reassigned.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to reassign scheduled deliveries`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to reassign scheduled deliveries`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };

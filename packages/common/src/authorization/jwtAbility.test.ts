@@ -143,7 +143,7 @@ describe('Embedded dashboard abilities', () => {
                 ),
             ).toBe(true);
 
-            // Export abilities should default to false
+            // Export abilities default to false, except page PDF
             expect(
                 ability.can(
                     'export',
@@ -159,15 +159,17 @@ describe('Embedded dashboard abilities', () => {
                     subject('Dashboard', {
                         type: 'pdf',
                         organizationUuid: organization.organizationUuid,
+                        metadata: { dashboardUuid },
                     }),
                 ),
-            ).toBe(false);
+            ).toBe(true);
             expect(
                 ability.can(
                     'export',
                     subject('Dashboard', {
                         type: 'images',
                         organizationUuid: organization.organizationUuid,
+                        metadata: { dashboardUuid },
                     }),
                 ),
             ).toBe(false);
@@ -337,6 +339,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'pdf',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(true);
@@ -357,9 +360,52 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'pdf',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(false);
+            });
+
+            it('should scope PDF export to the token dashboard', () => {
+                const embedUser = createEmbedJwt({
+                    content: { canExportPagePdf: true },
+                });
+                const ability = defineAbilityForEmbedUser(
+                    embedUser,
+                    dashboardUuid,
+                );
+
+                expect(
+                    ability.can(
+                        'export',
+                        subject('Dashboard', {
+                            type: 'pdf',
+                            organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid: 'other-dashboard' },
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should let PDF exporters poll their own export jobs', () => {
+                const embedUser = createEmbedJwt({
+                    content: { canExportPagePdf: true },
+                });
+                const ability = defineAbilityForEmbedUser(
+                    embedUser,
+                    dashboardUuid,
+                );
+
+                expect(
+                    ability.can(
+                        'view',
+                        subject('JobStatus', {
+                            organizationUuid: organization.organizationUuid,
+                            projectUuid: embed.projectUuid,
+                            createdByUserUuid: 'external-id-1',
+                        }),
+                    ),
+                ).toBe(true);
             });
         });
 
@@ -379,6 +425,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'images',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(true);
@@ -399,9 +446,52 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'images',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(false);
+            });
+
+            it('should scope images export to the token dashboard', () => {
+                const embedUser = createEmbedJwt({
+                    content: { canExportImages: true },
+                });
+                const ability = defineAbilityForEmbedUser(
+                    embedUser,
+                    dashboardUuid,
+                );
+
+                expect(
+                    ability.can(
+                        'export',
+                        subject('Dashboard', {
+                            type: 'images',
+                            organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid: 'other-dashboard' },
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should let image exporters poll their own export jobs', () => {
+                const embedUser = createEmbedJwt({
+                    content: { canExportImages: true, canExportPagePdf: false },
+                });
+                const ability = defineAbilityForEmbedUser(
+                    embedUser,
+                    dashboardUuid,
+                );
+
+                expect(
+                    ability.can(
+                        'view',
+                        subject('JobStatus', {
+                            organizationUuid: organization.organizationUuid,
+                            projectUuid: embed.projectUuid,
+                            createdByUserUuid: 'external-id-1',
+                        }),
+                    ),
+                ).toBe(true);
             });
         });
 
@@ -434,6 +524,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'pdf',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(true);
@@ -443,6 +534,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'images',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(true);
@@ -478,6 +570,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'pdf',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(true);
@@ -487,6 +580,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'images',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(false);
@@ -520,6 +614,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'pdf',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(false);
@@ -529,6 +624,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'images',
                             organizationUuid: organization.organizationUuid,
+                            metadata: { dashboardUuid },
                         }),
                     ),
                 ).toBe(false);

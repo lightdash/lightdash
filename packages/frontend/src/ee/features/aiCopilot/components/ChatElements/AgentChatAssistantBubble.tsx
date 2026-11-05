@@ -6,14 +6,12 @@ import {
     isToolEditDbtProjectResult,
     isToolEditRepoResult,
     isToolDataAppBuildResult,
-    isToolSetupPreviewDeployResult,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Box,
     Button,
     Code,
@@ -46,6 +44,9 @@ import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon'
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
+import useApp from '../../../../../providers/App/useApp';
+import useTracking from '../../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../../types/Events';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import {
     useRetryAiAgentThreadMessageMutation,
@@ -66,7 +67,6 @@ import {
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import { useBattleMessage } from '../Battle/BattleMessageContext';
-import { isJevTurn } from '../Battle/jevDecision';
 import { JevDecisionIndicator } from '../Battle/JevDecisionIndicator';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
@@ -74,6 +74,7 @@ import { AiAccessCallout } from './AiAccessCallout';
 import { getAiAccessRefusal } from './aiAccessRefusal';
 import { AiArtifactInline } from './AiArtifactInline';
 import AiDocumentCards from './AiDocumentCards';
+import { AiSnowflakeReauthenticationCallout } from './AiSnowflakeReauthenticationCallout';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import {
@@ -91,23 +92,22 @@ import {
     MessageSourcesGrid,
     MessageSourcesToggle,
 } from './MessageMemorySources';
-import { MessageModelIndicator } from './MessageModelIndicator';
 import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
+import { requiresSnowflakeReauthentication } from './requiresSnowflakeReauthentication';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import {
     LiveActivityCard,
-    ReasoningHistoryRow,
     type LiveActivityToolGroup,
 } from './ToolCalls/LiveActivityCard';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
 import {
-    getComposerQueryNodes,
-    isWarehouseSqlNode,
-} from './ToolCalls/utils/composerQueryNodes';
+    getPendingApprovalIds,
+    requiresSqlApproval,
+} from './ToolCalls/utils/sqlApprovalPending';
 import {
     appendToolCallToActivityGroup,
     canAppendToolCallToActivityGroup,
@@ -124,27 +124,6 @@ type ToolGroup = ToolCallActivityGroup & {
 };
 type TextSegment = { kind: 'text'; text: string; idx: number };
 type StreamSegment = TextSegment | ToolGroup;
-
-// runSql always gates on approval; composer only when it has warehouse SQL nodes.
-const requiresSqlApproval = (toolName: string, toolArgs: unknown): boolean =>
-    toolName === 'runSql' ||
-    (toolName === 'runComposerQueries' &&
-        getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode));
-
-// Complete args, no result, no decision: the tool is waiting on the user.
-const getPendingApprovalIds = (
-    parts: StreamPart[],
-    decidedToolCallIds: string[],
-): string[] =>
-    parts.flatMap((part) =>
-        part.type !== 'text' &&
-        !part.toolResult &&
-        part.isArgsPartial !== true &&
-        !decidedToolCallIds.includes(part.toolCallId) &&
-        requiresSqlApproval(part.toolName, part.toolArgs)
-            ? [part.toolCallId]
-            : [],
-    );
 
 const segmentStreamParts = (parts: StreamPart[]): StreamSegment[] => {
     const segments: StreamSegment[] = [];
@@ -384,7 +363,9 @@ const AssistantBubbleContent: FC<{
     );
     const { mutate: handleRetry } = useRetryAiAgentThreadMessageMutation();
 
-    const isPending = message.status === 'pending';
+    const isPending =
+        message.status === 'pending' &&
+        streamingState?.connection.status !== 'refused';
     const hasError = message.status === 'error';
     const isRecovering = streamingState?.connection.status === 'recovering';
     const streamingError =
@@ -428,11 +409,14 @@ const AssistantBubbleContent: FC<{
     // keep it as a fallback to avoid flashing an empty bubble (and a spurious
     // "No response" notice) until the persisted text arrives.
     const streamedContent = streamingState?.content ?? '';
+    // A presented composer chart with no prose is a complete answer.
+    const hasArtifacts = !!message.artifacts?.length;
     const hasNoResponse =
         !isStreaming &&
         !streamingError &&
         !message.message &&
         !streamedContent &&
+        !hasArtifacts &&
         !isPending &&
         !message.interrupted;
     const shouldShowRetry = hasError || hasNoResponse || !!streamingError;
@@ -476,42 +460,20 @@ const AssistantBubbleContent: FC<{
     //     We re-shape to the structured `metadata` the card expects.
     const editDbtProjectResult: {
         metadata: ToolEditDbtProjectOutput['metadata'];
-        // setupPreviewDeploy reuses this card but its PR only adds the preview
-        // workflow — it never previews itself, so the card hides the preview
-        // affordance when this is true.
-        isPreviewDeploySetup: boolean;
     } | null = (() => {
-        // setupPreviewDeploy shares editDbtProject's output shape and the
-        // same PR-button card, so resolve either tool's result here.
         const writebackResult = message.toolResults.find(
             isToolEditDbtProjectResult,
         );
-        if (writebackResult)
-            return {
-                metadata: writebackResult.metadata,
-                isPreviewDeploySetup: false,
-            };
-        const setupResult = message.toolResults.find(
-            isToolSetupPreviewDeployResult,
-        );
-        if (setupResult)
-            return {
-                metadata: setupResult.metadata,
-                isPreviewDeploySetup: true,
-            };
+        if (writebackResult) return { metadata: writebackResult.metadata };
 
         const livePart = findLiveToolPart(streamingState?.parts, [
             'editDbtProject',
-            'setupPreviewDeploy',
         ]);
         const liveOutput = livePart?.toolResult as
             | ToolEditDbtProjectOutput
             | undefined;
         if (!liveOutput?.metadata) return null;
-        return {
-            metadata: liveOutput.metadata,
-            isPreviewDeploySetup: livePart?.toolName === 'setupPreviewDeploy',
-        };
+        return { metadata: liveOutput.metadata };
     })();
 
     // General coding-agent (editRepo) PR card metadata — resolved the same way
@@ -545,6 +507,9 @@ const AssistantBubbleContent: FC<{
         FeatureFlags.AgentIdentity,
     );
     const aiAccessRefusal = [
+        streamingState?.connection.status === 'refused'
+            ? streamingState.connection.refusal
+            : null,
         ...(streamingState?.parts ?? []).flatMap((part) =>
             part.type === 'toolCall'
                 ? [getAiAccessRefusal(part.toolResult)]
@@ -553,30 +518,37 @@ const AssistantBubbleContent: FC<{
         ...message.toolResults.map(getAiAccessRefusal),
     ].find((refusal) => refusal !== null);
 
+    const showSnowflakeReauthentication =
+        (streamingState?.parts ?? []).some(
+            (part) =>
+                part.type === 'toolCall' &&
+                requiresSnowflakeReauthentication(part.toolResult),
+        ) || message.toolResults.some(requiresSnowflakeReauthentication);
+
+    const showAccessRefusal =
+        agentIdentityFlag?.enabled === true && !!aiAccessRefusal;
+
     return (
         <>
-            {agentIdentityFlag?.enabled === true && aiAccessRefusal && (
+            {showSnowflakeReauthentication && (
+                <AiSnowflakeReauthenticationCallout />
+            )}
+            {showAccessRefusal && aiAccessRefusal && (
                 <AiAccessCallout
                     projectUuid={projectUuid}
                     refusal={aiAccessRefusal}
                     variant="inline"
                 />
             )}
-            {shouldShowRetry && (
-                <Paper variant="dotted" radius="md" pr="md" bg="ldGray.0">
-                    <Group gap="xs" align="center" justify="space-between">
-                        <Alert
-                            icon={
-                                <MantineIcon
-                                    icon={IconExclamationCircle}
-                                    color="gray"
-                                    size="md"
-                                />
-                            }
-                            color="ldGray.0"
-                            variant="outline"
-                            w="80%"
-                        >
+            {shouldShowRetry && !showAccessRefusal && (
+                <Paper withBorder radius="md" p="sm" bg="ldGray.0">
+                    <Group gap="sm" wrap="nowrap" justify="space-between">
+                        <Group gap="sm" wrap="nowrap" align="flex-start">
+                            <MantineIcon
+                                icon={IconExclamationCircle}
+                                color="ldGray.6"
+                                size="md"
+                            />
                             <Stack gap={4}>
                                 <Text size="sm" fw={500} c="dimmed">
                                     {noticeTitle}
@@ -585,7 +557,7 @@ const AssistantBubbleContent: FC<{
                                     {noticeMessage}
                                 </Text>
                             </Stack>
-                        </Alert>
+                        </Group>
                         {/* Retry re-runs the thread's latest prompt, so only
                             offer it on the message it would actually re-run */}
                         {isLastMessage && (
@@ -646,10 +618,7 @@ const AssistantBubbleContent: FC<{
                             display: s.display,
                         }));
                     const pendingApprovalIds = streamingState
-                        ? getPendingApprovalIds(
-                              streamingState.parts,
-                              streamingState.decidedToolCallIds,
-                          )
+                        ? getPendingApprovalIds(streamingState)
                         : [];
                     const textSegments = segments.filter(
                         (s): s is Extract<typeof s, { kind: 'text' }> =>
@@ -720,45 +689,35 @@ const AssistantBubbleContent: FC<{
                         >
                             {/* Activity card sits ABOVE the rolling preview /
                              *  final answer so tool work reads top-to-bottom:
-                             *  what was done → the answer. After streaming we
-                             *  fold reasoning into the activity card so the
-                             *  answer remains the focal point. SQL approvals
-                             *  drop into the card's body, auto-expanded. */}
-                            {(() => {
-                                const reasoningTexts = toReasoningTexts(
-                                    !isStreaming
-                                        ? message.reasoning
-                                        : undefined,
-                                    isStreaming
-                                        ? streamingState?.reasoning
-                                        : undefined,
-                                );
-                                return reasoningTexts.length > 0 ? (
-                                    <ReasoningHistoryRow
-                                        texts={reasoningTexts}
-                                        isLive={isStreaming}
-                                    />
-                                ) : null;
-                            })()}
-                            {liveToolGroups.length > 0 && (
-                                <LiveActivityCard
-                                    toolGroups={liveToolGroups}
-                                    isLive={isStreaming}
-                                    toolResults={message.toolResults}
-                                    toolCalls={message.toolCalls}
-                                    mcpServers={mcpServers}
-                                    stepProgressMessages={
-                                        streamingState?.stepProgressMessages ??
-                                        []
-                                    }
-                                    approval={{
-                                        projectUuid,
-                                        agentUuid,
-                                        threadUuid: message.threadUuid,
-                                        pendingToolCallIds: pendingApprovalIds,
-                                    }}
-                                />
-                            )}
+                             *  what was done → the answer. Reasoning is the
+                             *  card's first item. SQL approvals drop into the
+                             *  card's body, auto-expanded. */}
+                            <LiveActivityCard
+                                toolGroups={liveToolGroups}
+                                isLive={isStreaming}
+                                reasoning={{
+                                    texts: toReasoningTexts(
+                                        message.reasoning,
+                                        streamingState?.reasoning,
+                                    ),
+                                    isLive: isStreaming,
+                                }}
+                                toolResults={message.toolResults}
+                                toolCalls={message.toolCalls}
+                                mcpServers={mcpServers}
+                                stepProgressMessages={
+                                    streamingState?.stepProgressMessages ?? []
+                                }
+                                approval={{
+                                    projectUuid,
+                                    agentUuid,
+                                    threadUuid: message.threadUuid,
+                                    pendingToolCallIds: pendingApprovalIds,
+                                    decidedToolCallIds:
+                                        streamingState?.decidedToolCallIds ??
+                                        [],
+                                }}
+                            />
                             {latestTextSeg ? (
                                 <Box
                                     className={styles.streamPart}
@@ -767,7 +726,7 @@ const AssistantBubbleContent: FC<{
                                     data-tour-scope="create:AiAgentThread"
                                     data-tour-result="1"
                                     data-tour-label="Read the answer"
-                                    data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
+                                    data-tour-docs="agents.mdx#intro:2"
                                 >
                                     {finalAnswerMd}
                                 </Box>
@@ -805,28 +764,27 @@ const AssistantBubbleContent: FC<{
                     agentUuid,
                     threadUuid: message.threadUuid,
                     pendingToolCallIds: getPendingPersistedApprovalIds(message),
+                    decidedToolCallIds: [],
                 };
                 return (
                     <>
-                        {persistedToolGroups.length > 0 && (
-                            <LiveActivityCard
-                                toolGroups={persistedToolGroups}
-                                isLive={isStreaming || isPending}
-                                toolResults={message.toolResults}
-                                toolCalls={message.toolCalls}
-                                mcpServers={mcpServers}
-                                approval={persistedApproval}
-                            />
-                        )}
-                        {message.reasoning && message.reasoning.length > 0 && (
-                            <ReasoningHistoryRow
-                                texts={toReasoningTexts(
+                        <LiveActivityCard
+                            toolGroups={persistedToolGroups}
+                            isLive={isStreaming || isPending}
+                            toolResults={message.toolResults}
+                            toolCalls={message.toolCalls}
+                            mcpServers={mcpServers}
+                            approval={persistedApproval}
+                            reasoning={{
+                                texts: toReasoningTexts(
                                     message.reasoning,
-                                    undefined,
-                                )}
-                                isLive={false}
-                            />
-                        )}
+                                    shouldUseStreamParts
+                                        ? streamingState?.reasoning
+                                        : undefined,
+                                ),
+                                isLive: isStreaming,
+                            }}
+                        />
                         {messageContent.length > 0 ? (
                             <Box
                                 // Walkthrough: the answer in words (persisted).
@@ -834,7 +792,7 @@ const AssistantBubbleContent: FC<{
                                 data-tour-scope="create:AiAgentThread"
                                 data-tour-result="1"
                                 data-tour-label="Read the answer"
-                                data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
+                                data-tour-docs="agents.mdx#intro:2"
                             >
                                 <AiMarkdown
                                     className={styles.persistedAnswer}
@@ -909,18 +867,12 @@ const AssistantBubbleContent: FC<{
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}
                     projectUuid={projectUuid}
-                    isPreviewDeploySetup={
-                        editDbtProjectResult.isPreviewDeploySetup
-                    }
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
                 />
             )}
             {editRepoMetadata && (
-                <AiEditRepoToolCall
-                    metadata={editRepoMetadata}
-                    projectUuid={projectUuid}
-                />
+                <AiEditRepoToolCall metadata={editRepoMetadata} />
             )}
             {dataAppBuild && (
                 <AiDataAppBuildCard
@@ -1000,12 +952,43 @@ export const AssistantBubble: FC<Props> = memo(
         const [sourcesExpanded, { toggle: toggleSources }] =
             useDisclosure(false);
 
+        const { track } = useTracking();
+        const { user } = useApp();
+        const responseEventProperties = useMemo(
+            () => ({
+                organizationId: user.data?.organizationUuid,
+                projectId: projectUuid,
+                agentUuid,
+                threadUuid: message.threadUuid,
+                messageUuid: message.uuid,
+            }),
+            [
+                user.data?.organizationUuid,
+                projectUuid,
+                agentUuid,
+                message.threadUuid,
+                message.uuid,
+            ],
+        );
+
         const handleUpvote = useCallback(() => {
             updateFeedbackMutation.mutate({
                 messageUuid: message.uuid,
                 humanScore: upVoted ? 0 : 1,
             });
-        }, [updateFeedbackMutation, message.uuid, upVoted]);
+            if (!upVoted) {
+                track({
+                    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED,
+                    properties: { ...responseEventProperties, rating: 'up' },
+                });
+            }
+        }, [
+            updateFeedbackMutation,
+            message.uuid,
+            upVoted,
+            track,
+            responseEventProperties,
+        ]);
 
         const handleDownvote = useCallback(() => {
             if (downVoted) {
@@ -1018,9 +1001,20 @@ export const AssistantBubble: FC<Props> = memo(
                     messageUuid: message.uuid,
                     humanScore: -1,
                 });
+                track({
+                    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED,
+                    properties: { ...responseEventProperties, rating: 'down' },
+                });
                 openPopover();
             }
-        }, [updateFeedbackMutation, message.uuid, downVoted, openPopover]);
+        }, [
+            updateFeedbackMutation,
+            message.uuid,
+            downVoted,
+            openPopover,
+            track,
+            responseEventProperties,
+        ]);
 
         const handleSubmitFeedback = useCallback(() => {
             if (feedbackText.trim().length !== 0) {
@@ -1029,17 +1023,34 @@ export const AssistantBubble: FC<Props> = memo(
                     humanScore: -1,
                     humanFeedback: feedbackText.trim(),
                 });
+                track({
+                    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_COMMENT_SUBMITTED,
+                    properties: responseEventProperties,
+                });
             }
             closePopover();
             setFeedbackText('');
-        }, [updateFeedbackMutation, message.uuid, feedbackText, closePopover]);
+        }, [
+            updateFeedbackMutation,
+            message.uuid,
+            feedbackText,
+            closePopover,
+            track,
+            responseEventProperties,
+        ]);
 
         const handleCancelFeedback = useCallback(() => {
             closePopover();
             setFeedbackText('');
         }, [closePopover]);
 
-        const isPending = message.status === 'pending';
+        const threadStreamingState = useAiAgentThreadStreamQuery(
+            message.threadUuid,
+        );
+        const isRefused =
+            threadStreamingState?.messageUuid === message.uuid &&
+            threadStreamingState.connection.status === 'refused';
+        const isPending = message.status === 'pending' && !isRefused;
         const isLoading =
             useAiAgentThreadMessageStreaming(
                 message.threadUuid,
@@ -1074,10 +1085,6 @@ export const AssistantBubble: FC<Props> = memo(
                 w="100%"
                 gap="xs"
                 bg={isActive ? 'ldGray.0' : 'transparent'}
-                style={{
-                    overflow: 'unset',
-                    borderStartStartRadius: '0px',
-                }}
                 data-message-id={`assistant-${message.uuid}`}
                 // Walkthrough result marker for create:AiAgentThread: the
                 // agent's answer is where sending a question lands, so no
@@ -1086,9 +1093,9 @@ export const AssistantBubble: FC<Props> = memo(
                 data-tour-step="1"
                 data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
                 data-tour-label="Ask the agent a question"
-                data-tour-docs="agents.mdx#intro:1"
+                data-tour-docs="agents.mdx#intro:2"
                 data-tour-return="none"
-                data-tour-resultdocs="agents.mdx#intro:3"
+                data-tour-resultdocs="agents/data-access.mdx#user-attributes-and-permissions"
                 data-tour-busy='[data-tour-anchor="ai-working"]'
             >
                 <AssistantBubbleContent
@@ -1123,7 +1130,7 @@ export const AssistantBubble: FC<Props> = memo(
                                       data-tour-scope="create:AiAgentThread"
                                       data-tour-result="2"
                                       data-tour-label="The chart the agent built"
-                                      data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:li2"
+                                      data-tour-docs="agents/use-ai-agents.mdx#query-and-visualizations-constraints:p4"
                                   >
                                       <AiArtifactButton
                                           onClick={() => {
@@ -1196,6 +1203,12 @@ export const AssistantBubble: FC<Props> = memo(
                             value={message.message ?? ''}
                             color="ldGray.9"
                             aria-label="copy"
+                            onCopy={() =>
+                                track({
+                                    name: EventName.AI_AGENT_RESPONSE_COPIED,
+                                    properties: responseEventProperties,
+                                })
+                            }
                         />
 
                         {(!hasRating || upVoted) && (
@@ -1302,7 +1315,13 @@ export const AssistantBubble: FC<Props> = memo(
                                 <ActionIcon
                                     color="ldGray.9"
                                     aria-label="Add to evaluation set"
-                                    onClick={() => onAddToEvals(message.uuid)}
+                                    onClick={() => {
+                                        track({
+                                            name: EventName.AI_AGENT_RESPONSE_ADD_TO_EVALS_CLICKED,
+                                            properties: responseEventProperties,
+                                        });
+                                        onAddToEvals(message.uuid);
+                                    }}
                                 >
                                     <MantineIcon icon={IconTestPipe} />
                                 </ActionIcon>
@@ -1313,7 +1332,13 @@ export const AssistantBubble: FC<Props> = memo(
                             <ActionIcon
                                 color="ldGray.9"
                                 aria-label="Debug information"
-                                onClick={openDrawer}
+                                onClick={() => {
+                                    track({
+                                        name: EventName.AI_AGENT_RESPONSE_DEBUG_OPENED,
+                                        properties: responseEventProperties,
+                                    });
+                                    openDrawer();
+                                }}
                             >
                                 <MantineIcon icon={IconBug} />
                             </ActionIcon>
@@ -1326,40 +1351,32 @@ export const AssistantBubble: FC<Props> = memo(
                                 onToggle={toggleSources}
                             />
                         )}
-                        {!(
-                            battle.isBattle &&
-                            message.jevDecision &&
-                            isJevTurn(message.jevDecision)
-                        ) && (
-                            <MessageModelIndicator
-                                projectUuid={projectUuid}
-                                agentUuid={agentUuid}
-                                modelConfig={message.modelConfig}
-                            />
-                        )}
                         {battle.isBattle && message.jevDecision && (
                             <JevDecisionIndicator
                                 decision={message.jevDecision}
-                                name={battle.decisionName}
                             />
                         )}
-                        <MessageTimingIndicator
-                            responseTiming={message.responseTiming}
-                            isWinner={battle.isWinner}
-                            tokens={
-                                battle.isBattle && message.tokenUsage
-                                    ? {
-                                          agent: message.tokenUsage.totalTokens,
-                                          decisionName: battle.decisionName,
-                                          decisions:
-                                              (message.tokenUsage
-                                                  .decisionInputTokens ?? 0) +
-                                              (message.tokenUsage
-                                                  .decisionOutputTokens ?? 0),
-                                      }
-                                    : null
-                            }
-                        />
+                        {canViewDebugInfo && (
+                            <MessageTimingIndicator
+                                responseTiming={message.responseTiming}
+                                isWinner={battle.isWinner}
+                                tokens={
+                                    battle.isBattle && message.tokenUsage
+                                        ? {
+                                              agent: message.tokenUsage
+                                                  .totalTokens,
+                                              jev:
+                                                  (message.tokenUsage
+                                                      .decisionInputTokens ??
+                                                      0) +
+                                                  (message.tokenUsage
+                                                      .decisionOutputTokens ??
+                                                      0),
+                                          }
+                                        : null
+                                }
+                            />
+                        )}
                     </Group>
                 )}
 

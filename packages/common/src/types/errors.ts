@@ -2,6 +2,7 @@ import {
     AI_ACCESS_REFUSED_CODE,
     getAiAccessRefusalAction,
     getAiAccessRefusalMessage,
+    getAiAccessRefusalSettingsUrl,
     type AiAccessRefusal,
     type AiAccessRefusalReason,
 } from './aiPrincipal';
@@ -9,6 +10,7 @@ import {
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
 import type { SharedSignInExpiry } from './sharedSignIn';
+import type { WarehousePhaseTimings, WarehouseQueryPhase } from './warehouse';
 
 type LightdashErrorData = {
     /**
@@ -65,10 +67,12 @@ export class ForbiddenError extends LightdashError {
     }
 }
 
+export const FEATURE_NOT_ENABLED_CODE = 'feature_not_enabled';
+
 export class FeatureNotEnabledError extends ForbiddenError {
     constructor(featureFlagId: string) {
         super('This feature is not enabled for your organisation.', {
-            code: 'feature_not_enabled',
+            code: FEATURE_NOT_ENABLED_CODE,
             featureFlagId,
         });
         this.name = 'FeatureNotEnabledError';
@@ -78,24 +82,73 @@ export class FeatureNotEnabledError extends ForbiddenError {
 export class AiAccessRefusedError extends ForbiddenError {
     readonly refusal: AiAccessRefusal;
 
+    readonly inheritedFromProjectUuid: string | null;
+
     constructor(
         reason: AiAccessRefusalReason,
         options: {
             message?: string;
             settingsUrl?: string | null;
             connectUrl?: string | null;
+            inheritedFromProjectUuid?: string | null;
+            requiredCapabilities?: AiAccessRefusal['requiredCapabilities'];
+            blockers?: AiAccessRefusal['blockers'];
+            blockersComplete?: boolean;
+            explanationUrl?: string;
+            capability?: AiAccessRefusal['capability'];
+            policyLayer?: AiAccessRefusal['policyLayer'];
+            operation?: string;
+            policyVersion?: number;
+            projectUuid?: string | null;
         } = {},
     ) {
         const refusal: AiAccessRefusal = {
             code: AI_ACCESS_REFUSED_CODE,
             reason,
-            message: options.message ?? getAiAccessRefusalMessage(reason),
+            message:
+                options.message ??
+                getAiAccessRefusalMessage(reason, { projectName: null }),
             action: getAiAccessRefusalAction(reason),
-            settingsUrl: options.settingsUrl ?? null,
+            settingsUrl:
+                options.settingsUrl === undefined
+                    ? getAiAccessRefusalSettingsUrl(
+                          reason,
+                          options.projectUuid ?? null,
+                      )
+                    : options.settingsUrl,
             connectUrl: options.connectUrl ?? null,
+            ...(options.requiredCapabilities === undefined
+                ? {}
+                : { requiredCapabilities: options.requiredCapabilities }),
+            ...(options.blockers === undefined
+                ? {}
+                : { blockers: options.blockers }),
+            ...(options.blockersComplete === undefined
+                ? {}
+                : { blockersComplete: options.blockersComplete }),
+            ...(options.explanationUrl === undefined
+                ? {}
+                : { explanationUrl: options.explanationUrl }),
+            ...(options.capability === undefined
+                ? {}
+                : { capability: options.capability }),
+            ...(options.policyLayer === undefined
+                ? {}
+                : { policyLayer: options.policyLayer }),
+            ...(options.operation === undefined
+                ? {}
+                : { operation: options.operation }),
+            ...(options.policyVersion === undefined
+                ? {}
+                : { policyVersion: options.policyVersion }),
+            ...(options.projectUuid === undefined
+                ? {}
+                : { projectUuid: options.projectUuid }),
         };
         super(refusal.message, refusal);
         this.refusal = refusal;
+        this.inheritedFromProjectUuid =
+            options.inheritedFromProjectUuid ?? null;
     }
 }
 
@@ -356,6 +409,10 @@ export class DbtError extends LightdashError {
     }
 }
 
+export class DbtModelTextError extends ParseError {}
+
+export class DbtManifestTextError extends DbtError {}
+
 export class NotFoundError extends LightdashError {
     constructor(message: string, data: Record<string, AnyType> = {}) {
         super({
@@ -430,6 +487,39 @@ export class WarehouseQueryError extends LightdashError {
             message,
             name: 'WarehouseQueryError',
             statusCode: 400,
+            data,
+        });
+    }
+}
+
+export type WarehouseQueryTimeoutDetails = {
+    step: WarehouseQueryPhase;
+    stepElapsedMs: number;
+    completedStepTimingsMs: WarehousePhaseTimings;
+    rowsFetched: number;
+    backendPid: number | null;
+};
+
+/**
+ * The client gave up because the warehouse never reported back, as opposed
+ * to the warehouse cancelling the query itself.
+ */
+export class WarehouseQueryTimeoutError extends WarehouseQueryError {
+    constructor(message: string, details: WarehouseQueryTimeoutDetails) {
+        super(message, details);
+        this.name = 'WarehouseQueryTimeoutError';
+    }
+}
+
+export class QueryCostEstimateExceededError extends LightdashError {
+    constructor(
+        message: string,
+        data: { estimatedBytes: number; limitBytes: number },
+    ) {
+        super({
+            message,
+            name: 'QueryCostEstimateExceededError',
+            statusCode: 422,
             data,
         });
     }
@@ -846,7 +936,10 @@ export class AiAgentValidatorError extends LightdashError {
     }
 }
 
-export type WarehouseTokenErrorData = { sharedSignIn?: SharedSignInExpiry };
+export type WarehouseTokenErrorData = {
+    sharedSignIn?: SharedSignInExpiry;
+    requiresUserReauthentication?: true;
+};
 
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI

@@ -35,7 +35,7 @@ const OnboardingPanel: FC<Props> = ({ projectUrlIdentifier, userName }) => {
             <Title order={3}>
                 {`Welcome${userName ? ', ' + userName : ' to Lightdash'}! 👋`}
             </Title>
-            <Text c="ldGray.7">
+            <Text c="dimmed">
                 You&apos;re ready to start exploring. Here&apos;s what you can
                 do with Lightdash:
             </Text>

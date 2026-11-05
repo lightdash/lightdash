@@ -4,8 +4,10 @@ describeContentAsCodeSchemaContract({
     resource: 'virtual_view',
     modelSchema: 'Explore',
     documentSchema: 'VirtualViewAsCode',
+    serverMetadataFields: ['dbtModelIdentity'],
     skippedModelFields: [
         'aiHint',
+        'apiSource',
         'baseTable',
         'caseSensitive',
         'customMeta',

@@ -233,6 +233,18 @@ describe('S3BaseClient', () => {
         expect(s3Mocks.state.capturedProviders).toBeUndefined();
     });
 
+    it('skips response checksum validation so GetObject bodies are not wrapped', () => {
+        // With the SDK default (WHEN_SUPPORTED) AWS S3 returns a checksum
+        // header and the SDK wraps the body in a ChecksumStream. Destroying
+        // that wrapper leaves the HTTP socket open, which leaks keep-alive
+        // sockets on every early-terminated read
+        const clientConfig = buildS3ClientConfig(baseConfig);
+
+        expect(clientConfig.responseChecksumValidation).toEqual(
+            'WHEN_REQUIRED',
+        );
+    });
+
     describe('gcp_oauth auth mode', () => {
         const gcpConfig = {
             ...baseConfig,

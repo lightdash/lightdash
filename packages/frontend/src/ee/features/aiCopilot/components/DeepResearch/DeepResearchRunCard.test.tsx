@@ -48,7 +48,7 @@ describe('DeepResearchRunCard', () => {
         ['queued', 'Queued'],
         ['running', 'Running'],
     ] as const)(
-        'renders the %s active state with one beta label and without fake progress',
+        'renders the %s active state without a beta label or fake progress',
         (status, label) => {
             renderRunCard(
                 <DeepResearchRunCard
@@ -64,7 +64,7 @@ describe('DeepResearchRunCard', () => {
             );
 
             expect(screen.getByText(label)).toBeInTheDocument();
-            expect(screen.getAllByText('Beta')).toHaveLength(1);
+            expect(screen.queryByText('Beta')).not.toBeInTheDocument();
             expect(screen.getByText(/leave this page/i)).toBeInTheDocument();
             expect(screen.queryByText(/%/)).not.toBeInTheDocument();
             expect(

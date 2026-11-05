@@ -1,6 +1,10 @@
 import { type DashboardFilterRule } from '@lightdash/common';
 import { useCallback } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+} from '../../dashboard/store';
 
 /**
  * Immediately applies a partial update to a saved dashboard filter
@@ -13,7 +17,7 @@ export const useUpdateDashboardFilterRule = (options?: {
     isEditMode?: boolean;
 }) => {
     const isEditMode = options?.isEditMode ?? true;
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const updateDimensionDashboardFilter = useDashboardContext(
         (c) => c.updateDimensionDashboardFilter,
     );

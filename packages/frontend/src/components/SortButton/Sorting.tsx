@@ -34,6 +34,7 @@ import {
 } from '../../utils/pivotSortIdentity';
 import MantineIcon from '../common/MantineIcon';
 import { DraggablePortalHandler } from '../VisualizationConfigs/TreemapConfig/DraggablePortalHandler';
+import classes from './Sorting.module.css';
 import SortItem from './SortItem';
 
 type IdentityWithItem = {
@@ -242,7 +243,7 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                     color="ldGray.5"
                                     opacity={0.9}
                                     icon={IconGripVertical}
-                                    style={{ cursor: 'grab' }}
+                                    className={classes.grabHandle}
                                 />
                             )}
                             <Text fz="xs">then by</Text>

@@ -16,8 +16,10 @@ import {
     type FC,
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
+import { createLightdashApi } from '../../../api';
 import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
+import { LightdashApiContext } from '../../../providers/LightdashApi/LightdashApiContext';
 import {
     getFromInMemoryStorage,
     setToInMemoryStorage,
@@ -27,9 +29,14 @@ import { getEmbedBackDestination } from '../../features/embed/embedNavigation';
 import {
     LightdashEventType,
     type ChartSavedAction,
+    type LightdashEventHandler,
 } from '../../features/embed/events/types';
-import { useEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
+import { useCreateEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
 import EmbedProviderContext from './context';
+import {
+    parseEmbedHash,
+    type EmbedAiAgentThreadSetup,
+} from './embedAiAgentThreadSetup';
 import { parseEmbedThemeParams } from './parseEmbedThemeParams';
 import { parseEmbedTimezoneParam } from './parseEmbedTimezoneParam';
 import {
@@ -56,12 +63,14 @@ type Props = {
     ) => void;
     // Defaults to the destination implied by the token's content type
     backDestination?: EmbedBackDestination;
-    onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
+    onEvent?: LightdashEventHandler;
     savedChart?: EmbedExploreChart;
     customSqlProvenanceChartUuid?: UUID;
     savedQueryUuid?: string;
     appUuid?: string;
     onAiAgentThreadChange?: (change: EmbedAiAgentThreadChange) => void;
+    aiAgentThreadSetup?: EmbedAiAgentThreadSetup | null;
+    aiAgentNavigationDisabled?: boolean;
 };
 
 const decodeEmbedJwtPayload = (
@@ -87,7 +96,7 @@ const decodeEmbedJwtPayload = (
     }
 };
 
-const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
+const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
     children,
     embedToken: encodedToken,
     filters,
@@ -98,23 +107,33 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     onExplore,
     onBackToDashboard,
     backDestination,
-    onChartSaved,
+    onEvent,
     savedChart,
     customSqlProvenanceChartUuid,
     savedQueryUuid,
     appUuid,
     onAiAgentThreadChange,
+    aiAgentThreadSetup: aiAgentThreadSetupFromProps,
+    aiAgentNavigationDisabled: aiAgentNavigationDisabledFromProps,
 }) => {
-    const embedToken = encodedToken || window.location.hash.replace('#', '');
+    const embedToken =
+        encodedToken || parseEmbedHash(window.location.hash).token;
     const params = useParams();
     const projectUuid = projectUuidFromProps || params.projectUuid;
     // Only the AI-agent dashboard route carries this param.
     const dashboardUuid = params.agentDashboardUuid;
 
+    const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
+
     // Synced during render, not in an effect: direct embeds strip the token hash
     // on first render, and the empty prop that follows must not wipe the store.
-    const storedEmbed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    // SDK components scope requests per instance instead (see SdkProviders).
+    const storedEmbed =
+        mode === 'direct'
+            ? getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)
+            : undefined;
     if (
+        mode === 'direct' &&
         embedToken &&
         (storedEmbed?.token !== embedToken ||
             storedEmbed?.projectUuid !== projectUuid ||
@@ -142,14 +161,29 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const [embedTimezone] = useState(() =>
         encodedToken ? null : parseEmbedTimezoneParam(),
     );
-    const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    // Read once, before the hash is stripped; SDK embeds pass it as a prop
+    const [embedHashOptions] = useState(() =>
+        encodedToken ? null : parseEmbedHash(window.location.hash),
+    );
+    const aiAgentThreadSetup =
+        aiAgentThreadSetupFromProps ??
+        embedHashOptions?.aiAgentThreadSetup ??
+        null;
+    const aiAgentNavigationDisabled =
+        aiAgentNavigationDisabledFromProps ??
+        embedHashOptions?.aiAgentNavigationDisabled ??
+        false;
+    const embed =
+        mode === 'direct'
+            ? getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)
+            : undefined;
     const { data: account, isLoading } = useAccount();
     const ability = useAbilityContext();
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
-    const { dispatchEmbedEvent } = useEmbedEventEmitter();
-    const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
+    const { dispatchEmbedEvent, isEmbedEventReady } =
+        useCreateEmbedEventEmitter(mode, onEvent);
     const tokenFromStorageOrProps = embedToken || embed?.token;
     const embedWriteContext =
         account && 'embedWriteContext' in account
@@ -161,16 +195,12 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     );
     const handleChartSaved = useCallback(
         (chart: SavedChart, action: ChartSavedAction) => {
-            onChartSaved?.(chart, action);
-
-            if (mode === 'direct') {
-                dispatchEmbedEvent(LightdashEventType.ChartSaved, {
-                    chartUuid: chart.uuid,
-                    action,
-                });
-            }
+            dispatchEmbedEvent(LightdashEventType.ChartSaved, {
+                chartUuid: chart.uuid,
+                action,
+            });
         },
-        [dispatchEmbedEvent, mode, onChartSaved],
+        [dispatchEmbedEvent],
     );
 
     // Remove the token from the URL.
@@ -228,6 +258,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             languageMap: contentOverrides,
             onExplore,
             onChartSaved: handleChartSaved,
+            dispatchEmbedEvent,
+            isEmbedEventReady,
             savedChart,
             customSqlProvenanceChartUuid,
             savedQueryUuid,
@@ -244,6 +276,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             backgroundColor: embedThemeParams.backgroundColor,
             timezone: embedTimezone,
             onAiAgentThreadChange,
+            aiAgentThreadSetup,
+            aiAgentNavigationDisabled,
         };
     }, [
         embed?.projectUuid,
@@ -258,6 +292,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         uiOverrides,
         onExplore,
         handleChartSaved,
+        dispatchEmbedEvent,
+        isEmbedEventReady,
         savedChart,
         customSqlProvenanceChartUuid,
         savedQueryUuid,
@@ -270,6 +306,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         embedThemeParams.backgroundColor,
         embedTimezone,
         onAiAgentThreadChange,
+        aiAgentThreadSetup,
+        aiAgentNavigationDisabled,
     ]);
 
     return (
@@ -278,5 +316,40 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         </EmbedProviderContext.Provider>
     );
 };
+
+// SDK requests carry this component's token and the dashboard an AI-agent
+// embed is viewing; the ref picks up token rotation and navigation.
+const SdkLightdashApiProvider: FC<
+    React.PropsWithChildren<{ embedToken: string; projectUuid?: string }>
+> = ({ children, embedToken, projectUuid: projectUuidFromProps }) => {
+    const params = useParams();
+    const embed: InMemoryEmbed = {
+        token: embedToken,
+        projectUuid: projectUuidFromProps || params.projectUuid,
+        dashboardUuid: params.agentDashboardUuid,
+    };
+    const embedRef = useRef(embed);
+    embedRef.current = embed;
+    const [lightdashApi] = useState(() =>
+        createLightdashApi(() => embedRef.current),
+    );
+    return (
+        <LightdashApiContext.Provider value={lightdashApi}>
+            {children}
+        </LightdashApiContext.Provider>
+    );
+};
+
+const EmbedProvider: FC<React.PropsWithChildren<Props>> = (props) =>
+    props.embedToken ? (
+        <SdkLightdashApiProvider
+            embedToken={props.embedToken}
+            projectUuid={props.projectUuid}
+        >
+            <EmbedProviderContent {...props} />
+        </SdkLightdashApiProvider>
+    ) : (
+        <EmbedProviderContent {...props} />
+    );
 
 export default EmbedProvider;

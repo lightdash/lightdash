@@ -49,7 +49,10 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
     props: FilterInputsProps<T>,
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
-    const { startOfWeek } = useFiltersContext();
+    const { startOfWeek: contextStartOfWeek } = useFiltersContext();
+    const startOfWeek =
+        (isDimension(field) ? field.filterStartOfWeek : undefined) ??
+        contextStartOfWeek;
     const getUiString = useUiStrings();
 
     const isTimestamp =
@@ -369,7 +372,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 
                     <FilterUnitOfTimeAutoComplete
                         disabled={disabled}
-                        style={{ flexShrink: 1, flexGrow: 3 }}
+                        className={classes.unitOfTime}
                         isTimestamp={isTimestamp}
                         minUnitOfTime={
                             isDimension(field) && field.timeInterval

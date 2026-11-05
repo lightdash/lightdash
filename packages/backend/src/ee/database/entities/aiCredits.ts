@@ -79,8 +79,6 @@ export type DbAiCreditHold = {
     ai_credit_hold_uuid: string;
     organization_uuid: string;
     user_uuid: string | null;
-    // Superseded by the contract columns; kept until the entitlements table is dropped.
-    ai_credit_entitlement_uuid: string | null;
     ai_credit_contract_uuid: string | null;
     window_start: Date | null;
     // Numeric columns arrive as strings through the pg driver.
@@ -98,7 +96,6 @@ export type DbAiCreditHoldInsert = Omit<
     | 'ai_credit_hold_uuid'
     | 'placed_at'
     | 'released_at'
-    | 'ai_credit_entitlement_uuid'
     | 'exhausted_allowance_credits'
 > & { exhausted_allowance_credits: number | null };
 

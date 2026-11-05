@@ -1,5 +1,6 @@
 import { getErrorMessage } from '@lightdash/common';
 import { createHash, randomUUID } from 'crypto';
+import * as fsSync from 'fs';
 import * as fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -8,6 +9,7 @@ import Logger from '../logging/logger';
 export const DBT_PARTIAL_PARSE_FILE = 'partial_parse.msgpack';
 
 const BASELINE_EXTENSION = '.msgpack';
+const DIGEST_EXTENSION = '.external_nodes.sha256';
 
 export const DBT_PARTIAL_PARSE_BASELINE_ROOT = path.join(
     os.tmpdir(),
@@ -21,6 +23,39 @@ export const DBT_PARTIAL_PARSE_BASELINE_LIMITS = {
 };
 
 type BaselineLimits = typeof DBT_PARTIAL_PARSE_BASELINE_LIMITS;
+
+export const getDbtPartialParseBaselineLimits = (
+    diskBudgetBytes = Number(process.env.DBT_SOURCE_FETCH_DISK_BUDGET_BYTES),
+): BaselineLimits => ({
+    ...DBT_PARTIAL_PARSE_BASELINE_LIMITS,
+    maxBytes:
+        Number.isFinite(diskBudgetBytes) && diskBudgetBytes > 0
+            ? Math.min(
+                  DBT_PARTIAL_PARSE_BASELINE_LIMITS.maxBytes,
+                  Math.floor(diskBudgetBytes / 4),
+              )
+            : DBT_PARTIAL_PARSE_BASELINE_LIMITS.maxBytes,
+});
+
+export const getDbtPartialParseBaselineSize = (
+    root = DBT_PARTIAL_PARSE_BASELINE_ROOT,
+): number => {
+    const walk = (directory: string): number =>
+        fsSync
+            .readdirSync(directory, { withFileTypes: true })
+            .reduce((bytes, entry) => {
+                const filename = path.join(directory, entry.name);
+                if (entry.isDirectory()) return bytes + walk(filename);
+                return entry.isFile()
+                    ? bytes + fsSync.statSync(filename).size
+                    : bytes;
+            }, 0);
+    try {
+        return walk(root);
+    } catch {
+        return 0;
+    }
+};
 
 /**
  * One baseline per project and dbt source. `dbtSourceUuid` is null for the
@@ -73,10 +108,10 @@ export const seedDbtPartialParse = async (
 export const pruneDbtPartialParseBaselines = async (
     root: string,
     now: number,
-    limits: BaselineLimits = DBT_PARTIAL_PARSE_BASELINE_LIMITS,
+    limits: BaselineLimits = getDbtPartialParseBaselineLimits(),
 ): Promise<void> => {
     const names = await fs.readdir(root);
-    const entries = (
+    const files = (
         await Promise.all(
             names.map(async (name) => {
                 const filePath = path.join(root, name);
@@ -84,7 +119,6 @@ export const pruneDbtPartialParseBaselines = async (
                     const stats = await fs.stat(filePath);
                     return {
                         filePath,
-                        isBaseline: name.endsWith(BASELINE_EXTENSION),
                         size: stats.size,
                         mtimeMs: stats.mtimeMs,
                     };
@@ -94,6 +128,27 @@ export const pruneDbtPartialParseBaselines = async (
             }),
         )
     ).filter((entry) => entry !== null);
+    const byPath = new Map(files.map((entry) => [entry.filePath, entry]));
+    const entries = files
+        .filter(
+            (entry) =>
+                !entry.filePath.endsWith(DIGEST_EXTENSION) ||
+                !byPath.has(entry.filePath.slice(0, -DIGEST_EXTENSION.length)),
+        )
+        .map((entry) => {
+            const isBaseline = entry.filePath.endsWith(BASELINE_EXTENSION);
+            const sidecar = isBaseline
+                ? byPath.get(`${entry.filePath}${DIGEST_EXTENSION}`)
+                : undefined;
+            return {
+                ...entry,
+                isBaseline,
+                size: entry.size + (sidecar?.size ?? 0),
+                paths: sidecar
+                    ? [entry.filePath, sidecar.filePath]
+                    : [entry.filePath],
+            };
+        });
 
     const expired = entries.filter((entry) =>
         entry.isBaseline
@@ -110,8 +165,8 @@ export const pruneDbtPartialParseBaselines = async (
     });
 
     await Promise.all(
-        [...expired, ...overLimit].map((entry) =>
-            fs.rm(entry.filePath, { force: true }),
+        [...expired, ...overLimit].flatMap((entry) =>
+            entry.paths.map((filePath) => fs.rm(filePath, { force: true })),
         ),
     );
 };
@@ -125,7 +180,7 @@ export const pruneDbtPartialParseBaselines = async (
 export const saveDbtPartialParse = async (
     baselinePath: string,
     targetDirectory: string,
-    limits: BaselineLimits = DBT_PARTIAL_PARSE_BASELINE_LIMITS,
+    limits: BaselineLimits = getDbtPartialParseBaselineLimits(),
 ): Promise<void> => {
     const root = path.dirname(baselinePath);
     const temporaryPath = `${baselinePath}.${randomUUID()}.tmp`;

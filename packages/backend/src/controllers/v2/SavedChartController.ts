@@ -2,15 +2,18 @@ import {
     assertRegisteredAccount,
     SchedulerRunStatus,
     type ApiErrorPayload,
+    type ApiResultsCacheInvalidationResponse,
     type ApiSavedChartPaginatedSchedulersResponse,
     type ApiSchedulerRunsResponse,
     type KnexPaginateArgs,
+    type UUID,
 } from '@lightdash/common';
 import {
     Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Query,
     Request,
     Response,
@@ -20,6 +23,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     parseEnumList,
     parseWhitelistedList,
@@ -27,6 +31,7 @@ import {
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../authentication/middlewares';
 import { BaseController } from '../baseController';
 import { VALID_SCHEDULER_RUN_DESTINATIONS } from '../schedulerConstants';
@@ -46,7 +51,13 @@ export class SavedChartControllerV2 extends BaseController {
      * @param formats comma-separated list of scheduler formats to include
      * @param includeLatestRun include the most recent run for each scheduler
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'SavedChartControllerV2.getSavedChartSchedulers',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
     @OperationId('getSavedChartSchedulers')
@@ -151,6 +162,37 @@ export class SavedChartControllerV2 extends BaseController {
                     searchQuery,
                     sort,
                     filters,
+                ),
+        };
+    }
+
+    /**
+     * Invalidate the cached results of this chart for every user. Covers the chart wherever it is viewed, including dashboards and embeds.
+     * Queries that share a cache key are invalidated too, and the next run
+     * queries the warehouse. Requires project admin access.
+     * @summary Invalidate chart results cache
+     * @param chartUuid The uuid of the chart
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Invalidated')
+    @Post('/results-cache/invalidate')
+    @OperationId('invalidateChartResultsCache')
+    async invalidateResultsCache(
+        @Path() chartUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheInvalidationResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAsyncQueryService()
+                .invalidateSavedChartResultsCache(
+                    toSessionUser(req.account),
+                    chartUuid,
                 ),
         };
     }

@@ -37,7 +37,14 @@ export const contentHealthSql = `(WITH views AS (
     FROM ${contentReachSql} reach
     GROUP BY org_id, project_id, content_type, content_id
 ), queries AS (
-    SELECT * FROM query_events
+    SELECT * FROM query_events q
+    -- Projects outside the current inventory cannot contribute to this view.
+    -- Filter before deduplication to avoid retaining their query history, while
+    -- keeping every event in each remaining (org, project, query_id) identity.
+    WHERE EXISTS (
+        SELECT 1 FROM lightdash_content i
+        WHERE i.org_id = q.org_id AND i.project_id = q.project_id
+    )
     QUALIFY query_id IS NULL OR ROW_NUMBER() OVER (
         PARTITION BY org_id, project_id, query_id ORDER BY event_ts DESC
     ) = 1
@@ -48,8 +55,18 @@ export const contentHealthSql = `(WITH views AS (
         COUNT(q.warehouse_execution_time_ms)::BIGINT AS queries_with_execution_time
     FROM lightdash_content i JOIN queries q
         ON i.org_id = q.org_id AND i.project_id = q.project_id
-        AND ((i.content_type IN ('saved_chart', 'sql_chart') AND i.content_id = q.chart_id)
-          OR (i.content_type = 'dashboard' AND i.content_id = q.dashboard_id))
+        AND i.content_id = q.chart_id
+    WHERE i.content_type IN ('saved_chart', 'sql_chart')
+    GROUP BY i.org_id, i.project_id, i.content_type, i.content_id
+    UNION ALL
+    SELECT i.org_id, i.project_id, i.content_type, i.content_id,
+        COUNT(*)::BIGINT AS observed_queries, MAX(q.event_ts) AS last_query_at,
+        SUM(q.warehouse_execution_time_ms)::BIGINT AS warehouse_execution_time_ms,
+        COUNT(q.warehouse_execution_time_ms)::BIGINT AS queries_with_execution_time
+    FROM lightdash_content i JOIN queries q
+        ON i.org_id = q.org_id AND i.project_id = q.project_id
+        AND i.content_id = q.dashboard_id
+    WHERE i.content_type = 'dashboard'
     GROUP BY i.org_id, i.project_id, i.content_type, i.content_id
 ), app_loads AS (
     SELECT org_id, project_id, app_id,

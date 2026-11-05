@@ -15,7 +15,21 @@ import {
     MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
     MODEL_WITH_METRIC,
 } from '@lightdash/common/src/compiler/translator.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { preAggregatePostProcessor } from './postProcessor';
+
+const preAggregatesConfig = { enabled: false };
+vi.mock('../../config/lightdashConfig', () => ({
+    get lightdashConfig() {
+        return {
+            ...lightdashConfigMock,
+            preAggregates: {
+                ...lightdashConfigMock.preAggregates,
+                ...preAggregatesConfig,
+            },
+        };
+    },
+}));
 
 describe('pre-aggregates metadata parsing', () => {
     it('attaches parsed pre-aggregates to explore', async () => {
@@ -152,14 +166,12 @@ describe('pre-aggregates metadata parsing', () => {
 });
 
 describe('pre-aggregate virtual explore generation', () => {
-    const previousFlagValue = process.env.PRE_AGGREGATES_ENABLED;
-
     afterEach(() => {
-        process.env.PRE_AGGREGATES_ENABLED = previousFlagValue;
+        preAggregatesConfig.enabled = false;
     });
 
     it('generates an internal pre-aggregate explore when enabled', async () => {
-        process.env.PRE_AGGREGATES_ENABLED = 'true';
+        preAggregatesConfig.enabled = true;
 
         const explores = await convertExplores(
             [
@@ -209,7 +221,7 @@ describe('pre-aggregate virtual explore generation', () => {
     });
 
     it('generates an internal pre-aggregate explore for average metrics without warnings', async () => {
-        process.env.PRE_AGGREGATES_ENABLED = 'true';
+        preAggregatesConfig.enabled = true;
 
         const explores = await convertExplores(
             [
@@ -259,7 +271,7 @@ describe('pre-aggregate virtual explore generation', () => {
     });
 
     it('does not generate pre-aggregate explores for additional explores', async () => {
-        process.env.PRE_AGGREGATES_ENABLED = 'true';
+        preAggregatesConfig.enabled = true;
 
         const explores = await convertExplores(
             [
@@ -325,7 +337,7 @@ describe('pre-aggregate virtual explore generation', () => {
     });
 
     it('keeps the base explore when pre-aggregate generation fails', async () => {
-        process.env.PRE_AGGREGATES_ENABLED = 'true';
+        preAggregatesConfig.enabled = true;
 
         const explores = await convertExplores(
             [
@@ -361,7 +373,7 @@ describe('pre-aggregate virtual explore generation', () => {
     });
 
     it('accepts non-additive metric definitions without warnings', async () => {
-        process.env.PRE_AGGREGATES_ENABLED = 'true';
+        preAggregatesConfig.enabled = true;
 
         const explores = await convertExplores(
             [
@@ -396,7 +408,7 @@ describe('pre-aggregate virtual explore generation', () => {
     });
 
     it('keeps only successfully generated pre-aggregates on the base explore', async () => {
-        process.env.PRE_AGGREGATES_ENABLED = 'true';
+        preAggregatesConfig.enabled = true;
 
         const explores = await convertExplores(
             [

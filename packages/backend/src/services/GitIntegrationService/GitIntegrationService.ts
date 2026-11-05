@@ -517,11 +517,16 @@ Affected charts:
 
     private async getWarehouseSqlBuilder(
         projectUuid: UUID,
+        tableName: string,
     ): Promise<WarehouseSqlBuilder> {
+        const explore = await this.getExploreContainingTable(
+            projectUuid,
+            tableName,
+        );
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForBinding(
+            await this.projectModel.getWarehouseConnectionForBinding(
                 projectUuid,
-                { kind: 'original' },
+                { kind: 'explore', exploreName: explore.name },
             );
         return warehouseSqlBuilderFromType(
             credentials.type,
@@ -543,13 +548,35 @@ Affected charts:
                     writebacks.items.filter(ofModel(model)),
                 );
         }
-        const warehouseSqlBuilder =
-            await this.getWarehouseSqlBuilder(projectUuid);
-        return (editor, model) =>
-            editor.addCustomDimensions(
+        const builders = new Map(
+            await Promise.all(
+                [
+                    ...new Set(
+                        writebacks.items.map((item) => item.column.model),
+                    ),
+                ].map(
+                    async (model) =>
+                        [
+                            model,
+                            await this.getWarehouseSqlBuilder(
+                                projectUuid,
+                                model,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+        return (editor, model) => {
+            const builder = builders.get(model);
+            if (!builder)
+                throw new ParameterError(
+                    `No warehouse connection found for model "${model}".`,
+                );
+            return editor.addCustomDimensions(
                 writebacks.items.filter(ofModel(model)),
-                warehouseSqlBuilder,
+                builder,
             );
+        };
     }
 
     private async prepareFileUpdates(
@@ -1009,8 +1036,6 @@ Affected charts:
             projectUuid,
             yamlQuoteChar,
         );
-        const warehouseSqlBuilder =
-            await this.getWarehouseSqlBuilder(projectUuid);
         const writebacks = await this.createColumnResolver(projectUuid)(
             customDimensions,
             resolveCustomDimensionWritebackColumn,
@@ -1020,7 +1045,26 @@ Affected charts:
             [...new Set(writebacks.map((item) => item.column.model))],
         );
         const definitions: Record<string, unknown> = {};
+        const builders = new Map(
+            await Promise.all(
+                [...files.keys()].map(
+                    async (model) =>
+                        [
+                            model,
+                            await this.getWarehouseSqlBuilder(
+                                projectUuid,
+                                model,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
         files.forEach((file, model) => {
+            const warehouseSqlBuilder = builders.get(model);
+            if (!warehouseSqlBuilder)
+                throw new ParameterError(
+                    `No warehouse connection found for model "${model}".`,
+                );
             writebacks
                 .filter((item) => item.column.model === model)
                 .forEach((item) => {
@@ -1582,250 +1626,6 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         return branches.map((branch) => branch.name);
     }
 
-    /**
-     * Get the YAML file for an explore's base table
-     * @deprecated Only used by the deprecated explore files endpoint; use getFileOrDirectory instead.
-     */
-    async getFileForExplore(
-        user: SessionUser,
-        projectUuid: string,
-        exploreName: string,
-    ): Promise<{ content: string; sha: string; filePath: string }> {
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    metadata: { exploreName },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const explore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            exploreName,
-        );
-
-        if (!explore.ymlPath) {
-            throw new ParameterError(
-                'Your project needs to be compiled before accessing model files. Please refresh your project to fix this issue.',
-            );
-        }
-
-        const { owner, repo, branch, path, type, hostDomain } =
-            await this.getProjectRepo(projectUuid);
-
-        const gitProps = await this.getGitProps(user, projectUuid, '"');
-
-        const fullPath = GitIntegrationService.removeExtraSlashes(
-            `${path}/${explore.ymlPath}`,
-        );
-
-        const getFileContent =
-            type === DbtProjectType.GITHUB
-                ? GithubClient.getFileContent
-                : GitlabClient.getFileContent;
-
-        const { content, sha } = await getFileContent({
-            fileName: fullPath,
-            owner,
-            repo,
-            branch,
-            installationId: gitProps.installationId,
-            token: gitProps.token,
-            hostDomain,
-        });
-
-        this.analytics.track({
-            event: 'source_code.viewed',
-            userId: user.userUuid,
-            properties: {
-                organizationId: user.organizationUuid!,
-                projectId: projectUuid,
-                exploreName,
-                filePath: fullPath,
-                fileSize: content.length,
-                gitProvider: type,
-            },
-        });
-
-        return { content, sha, filePath: fullPath };
-    }
-
-    /**
-     * Get the file path for an explore's YAML file (without fetching content)
-     * Used for deep-linking to the source code editor
-     */
-    async getFilePathForExplore(
-        user: SessionUser,
-        projectUuid: string,
-        exploreName: string,
-    ): Promise<{ filePath: string }> {
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    metadata: { exploreName },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const explore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            exploreName,
-        );
-
-        if (!explore.ymlPath) {
-            throw new ParameterError(
-                'Your project needs to be compiled before accessing model files. Please refresh your project to fix this issue.',
-            );
-        }
-
-        const { path } = await this.getProjectRepo(projectUuid);
-
-        const fullPath = GitIntegrationService.removeExtraSlashes(
-            `${path}/${explore.ymlPath}`,
-        );
-
-        return { filePath: fullPath };
-    }
-
-    /**
-     * Create a pull request with arbitrary file changes
-     * @deprecated Only used by the deprecated file-change PR endpoint; use createPullRequestFromBranch instead.
-     */
-    async createPullRequestWithFileChange(
-        user: SessionUser,
-        projectUuid: string,
-        filePath: string,
-        newContent: string,
-        originalSha: string,
-        prTitle: string,
-        prDescription: string,
-    ): Promise<PullRequestCreated> {
-        const auditedAbility = this.createAuditedAbility(user);
-        // PR creates its own feature branch, so always allow (isProtectedBranch: false)
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    isProtectedBranch: false,
-                    metadata: { filePath, originalSha },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const gitProps = await this.getGitProps(user, projectUuid, '"');
-
-        // 1. Create branch
-        await GitIntegrationService.createBranch(gitProps);
-
-        Logger.debug(
-            `Updating file ${filePath} on branch ${gitProps.branch} in ${gitProps.owner}/${gitProps.repo}`,
-        );
-
-        // 2. Update file on new branch
-        const updateFile =
-            gitProps.type === DbtProjectType.GITHUB
-                ? GithubClient.updateFile
-                : GitlabClient.updateFile;
-
-        await updateFile({
-            owner: gitProps.owner,
-            repo: gitProps.repo,
-            fileName: filePath,
-            content: newContent,
-            fileSha: originalSha,
-            branch: gitProps.branch,
-            installationId: gitProps.installationId,
-            token: gitProps.token,
-            hostDomain: gitProps.hostDomain,
-            message: `Update ${filePath}`,
-        });
-
-        Logger.debug(
-            `Creating pull request from branch ${gitProps.branch} to ${gitProps.mainBranch}`,
-        );
-
-        // 3. Create PR
-        const createPullRequest =
-            gitProps.type === DbtProjectType.GITHUB
-                ? GithubClient.createPullRequest
-                : GitlabClient.createPullRequest;
-
-        const fullDescription = `${prDescription}
-
-Triggered by user ${user.firstName} ${user.lastName} (${user.email})
-
-🤖 Created with Lightdash`;
-
-        const pullRequest = await createPullRequest({
-            ...gitProps,
-            title: prTitle,
-            body: fullDescription,
-            head: gitProps.branch,
-            base: gitProps.mainBranch,
-        });
-
-        Logger.debug(
-            `Successfully created pull request #${pullRequest.number} in ${gitProps.owner}/${gitProps.repo}`,
-        );
-
-        // Keep backwards compatible event for existing analytics
-        this.analytics.track({
-            event: 'write_back.created',
-            userId: user.userUuid,
-            properties: {
-                name: filePath,
-                projectId: projectUuid,
-                organizationId: user.organizationUuid!,
-                context: QueryExecutionContext.EXPLORE,
-            },
-        });
-
-        // New event with additional details
-        this.analytics.track({
-            event: 'source_code.pull_request_created',
-            userId: user.userUuid,
-            properties: {
-                organizationId: user.organizationUuid!,
-                projectId: projectUuid,
-                filePath,
-                fileSize: newContent.length,
-                gitProvider: gitProps.type,
-            },
-        });
-
-        await this.recordPullRequest({
-            user,
-            projectUuid,
-            type: gitProps.type,
-            owner: gitProps.owner,
-            repo: gitProps.repo,
-            prNumber: pullRequest.number,
-            prUrl: pullRequest.html_url,
-            source: PullRequestSource.SOURCE_EDITOR,
-        });
-
-        return {
-            prTitle: pullRequest.title,
-            prUrl: pullRequest.html_url,
-        };
-    }
-
     async getBitbucketCredentials(
         user: SessionUser,
         projectUuid: string,
@@ -2089,6 +1889,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         content: string,
         sha?: string,
         message?: string,
+        encoding?: 'base64',
     ): Promise<{ sha: string; path: string }> {
         const auditedAbility = this.createAuditedAbility(user);
         const protectedBranch = await this.getProtectedBranch(projectUuid);
@@ -2129,6 +1930,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 repo: creds.repo,
                 fileName: path,
                 content,
+                encoding,
                 fileSha: sha,
                 branch,
                 message: commitMessage,
@@ -2161,6 +1963,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             repo: creds.repo,
             fileName: path,
             content,
+            encoding,
             branch,
             message: commitMessage,
             installationId: creds.installationId,

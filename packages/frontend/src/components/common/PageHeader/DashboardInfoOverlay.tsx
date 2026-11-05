@@ -20,6 +20,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import ManagedFromRepositoryRow from '../../../features/contentAsCode/components/ManagedFromRepositoryRow';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import MantineIcon from '../MantineIcon';
@@ -110,6 +111,15 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                         )}
                     </CopyButton>
                 </InfoRow>
+
+                {dashboard.managedFromRepository && (
+                    <ManagedFromRepositoryRow
+                        projectUuid={projectUuid}
+                        contentType="dashboard"
+                        slug={dashboard.slug}
+                        source={dashboard.managedFromRepository}
+                    />
+                )}
             </Stack>
         </Stack>
     );

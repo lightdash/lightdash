@@ -20,6 +20,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -77,6 +78,29 @@ export class OnboardingAgentController extends BaseController {
         return {
             status: 'ok',
             results: await this.getOnboardingAgentService().getActiveRun(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Get the most recent agent onboarding run for a project, finished or not.
+     * @summary Get latest agent onboarding run
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/latest')
+    @OperationId('getLatestAgentOnboardingRun')
+    async getLatestRun(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiAgentOnboardingActiveRunResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getOnboardingAgentService().getLatestRun(
                 toSessionUser(req.account),
                 projectUuid,
             ),
@@ -143,6 +167,7 @@ export class OnboardingAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('OnboardingAgentController.cancelRun'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentOnboardingRunUuid}/cancel')

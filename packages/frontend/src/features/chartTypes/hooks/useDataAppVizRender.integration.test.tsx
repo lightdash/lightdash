@@ -3,13 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
 } from './useDataAppVizRender';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 
 const metadata = (version: number): DataAppVizRenderMetadata => ({
     state: 'ready',
@@ -36,8 +36,8 @@ describe('custom chart version refresh', () => {
     beforeEach(() => {
         serverVersion = 1;
         denyToken = false;
-        vi.mocked(lightdashApi).mockReset();
-        vi.mocked(lightdashApi).mockImplementation(({ url }) => {
+        mockedLightdashApi.mockReset();
+        mockedLightdashApi.mockImplementation(({ url }) => {
             if (url.endsWith('/render-metadata')) {
                 return Promise.resolve(metadata(serverVersion));
             }
@@ -184,9 +184,7 @@ describe('custom chart version refresh', () => {
             expect(result.current.renderMetadata.isFetching).toBe(false);
         });
         expect(result.current.renderMetadata.data).toEqual(metadata(1));
-        expect(
-            vi.mocked(lightdashApi).mock.calls.map(([{ url }]) => url),
-        ).toEqual([
+        expect(mockedLightdashApi.mock.calls.map(([{ url }]) => url)).toEqual([
             expect.stringContaining('/render-metadata'),
             expect.stringContaining('/versions/1/preview-token'),
             expect.stringContaining('/versions/1/preview-token'),

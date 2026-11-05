@@ -1,11 +1,17 @@
+import { projectMergedManifest } from '../dbt/projectMergedManifest';
 import {
     convertColumnMetric,
     convertModelMetric,
     convertToAiHints,
     flattenAiHints,
+    getDbtManifestPackageNames,
     getEffectiveFieldAiHints,
+    getExternalModelNodesFromManifest,
+    getModelInventoryFromManifest,
     getModelsFromManifest,
+    isExternalDbtNode,
     patchPathParts,
+    stripExternalDbtNodes,
     type DbtManifest,
 } from './dbt';
 import { DimensionType, MetricType } from './field';
@@ -442,5 +448,203 @@ describe('patchPathParts', () => {
             project: 'my_project',
             path: 'models/weird://name.yml',
         });
+    });
+});
+
+describe('external dbt model nodes', () => {
+    const stub = {
+        ...baseModel,
+        name: 'external',
+        unique_id: 'model.shared.external',
+        path: '',
+        original_file_path: '',
+    };
+    const local = {
+        ...baseModel,
+        name: 'local',
+        unique_id: 'model.test.local',
+        depends_on: { nodes: [stub.unique_id], macros: [] },
+    };
+    const manifest = makeManifest({
+        [stub.unique_id]: stub,
+        [local.unique_id]: local,
+    });
+
+    it('recognizes only nodes with both paths empty as external', () => {
+        expect(isExternalDbtNode(stub)).toBe(true);
+        expect(isExternalDbtNode({ ...stub, path: 'model.sql' })).toBe(false);
+        expect(
+            isExternalDbtNode({
+                ...stub,
+                original_file_path: 'models/model.sql',
+            }),
+        ).toBe(false);
+        expect(
+            getModelsFromManifest(manifest).map((node) => node.unique_id),
+        ).toEqual([local.unique_id]);
+    });
+    it('exports real models including ephemeral models, keeps only dependencies on exported models and preserves relation and version fields', () => {
+        const ephemeral = {
+            ...local,
+            name: 'ephemeral',
+            alias: undefined,
+            version: 2,
+            latest_version: 3,
+            access: 'public',
+            config: { materialized: 'ephemeral' },
+            depends_on: {
+                nodes: [local.unique_id, 'seed.test.raw', stub.unique_id],
+                macros: [],
+            },
+        };
+        const nodes = getExternalModelNodesFromManifest(
+            makeManifest({
+                stub,
+                local,
+                ephemeral,
+                seed: { ...local, resource_type: 'seed' },
+            }),
+        );
+        expect(nodes).toEqual([
+            {
+                name: 'local',
+                package_name: 'test',
+                identifier: 'model',
+                schema: 'public',
+                database: 'db',
+                relation_name: baseModel.relation_name,
+                version: null,
+                latest_version: null,
+                access: null,
+                depends_on_nodes: [],
+            },
+            {
+                name: 'ephemeral',
+                package_name: 'test',
+                identifier: 'ephemeral',
+                schema: 'public',
+                database: 'db',
+                relation_name: baseModel.relation_name,
+                version: 2,
+                latest_version: 3,
+                access: 'public',
+                depends_on_nodes: [local.unique_id],
+            },
+        ]);
+        expect(
+            getExternalModelNodesFromManifest(
+                makeManifest({
+                    minimal: {
+                        ...local,
+                        database: undefined,
+                        relation_name: undefined,
+                        depends_on: undefined,
+                    },
+                }),
+            )[0],
+        ).toMatchObject({
+            database: null,
+            relation_name: null,
+            depends_on_nodes: [],
+        });
+    });
+    it('keeps disabled inventory and source completeness through manifest projection', () => {
+        const full = {
+            ...manifest,
+            lightdash_model_inventory_complete: false,
+            nodes: {
+                [local.unique_id]: {
+                    ...local,
+                    lightdash_model_inventory_complete: true,
+                    version: 2,
+                    latest_version: 2,
+                },
+            },
+            disabled: {
+                disabled: [
+                    {
+                        ...local,
+                        name: 'dim_calendar',
+                        lightdash_source_name: 'analytics',
+                    },
+                    { ...stub, name: 'dim_stub' },
+                ],
+            },
+        };
+        const projected = projectMergedManifest(full);
+        expect(getModelInventoryFromManifest(projected)).toEqual(
+            getModelInventoryFromManifest(full),
+        );
+        expect(
+            getModelInventoryFromManifest(projected).map((node) => node.name),
+        ).toContain('dim_calendar');
+        expect(
+            getModelInventoryFromManifest(projected).map((node) => node.name),
+        ).not.toContain('dim_stub');
+        expect(projected.lightdash_model_inventory_complete).toBe(false);
+        expect(projected.nodes[local.unique_id]).toMatchObject({
+            version: 2,
+            latest_version: 2,
+        });
+        expect(
+            projected.nodes[local.unique_id].lightdash_model_inventory_complete,
+        ).toBe(true);
+    });
+    it('strips stubs without changing dependencies or mutating the input', () => {
+        const stripped = stripExternalDbtNodes(manifest);
+        expect(stripped.nodes).toEqual({ [local.unique_id]: local });
+        expect(manifest.nodes).toHaveProperty(stub.unique_id);
+        expect(local.depends_on.nodes).toEqual([stub.unique_id]);
+    });
+    it('includes the metadata project name and distinct model packages', () => {
+        expect(
+            getDbtManifestPackageNames({
+                ...manifest,
+                metadata: { ...manifest.metadata, project_name: 'analytics' },
+            }),
+        ).toEqual(['analytics', 'test']);
+        expect(
+            getDbtManifestPackageNames({
+                ...manifest,
+                metadata: { ...manifest.metadata, project_name: 'test' },
+            }),
+        ).toEqual(['test']);
+    });
+    it('includes every non-external model package without metadata.project_name', () => {
+        expect(
+            getDbtManifestPackageNames(
+                makeManifest({
+                    root: local,
+                    first: { ...local, package_name: 'dependency' },
+                    second: {
+                        ...local,
+                        name: 'second',
+                        package_name: 'dependency',
+                    },
+                    stub: { ...stub, package_name: 'upstream' },
+                    seed: {
+                        ...local,
+                        resource_type: 'seed',
+                        package_name: 'seed_package',
+                    },
+                    test: {
+                        ...local,
+                        resource_type: 'test',
+                        package_name: 'test_package',
+                    },
+                }),
+            ),
+        ).toEqual(['test', 'dependency']);
+    });
+    it('returns an empty list without metadata.project_name or non-external models', () => {
+        expect(getDbtManifestPackageNames(makeManifest({}))).toEqual([]);
+        expect(
+            getDbtManifestPackageNames(
+                makeManifest({
+                    stub,
+                    seed: { ...local, resource_type: 'seed' },
+                }),
+            ),
+        ).toEqual([]);
     });
 });

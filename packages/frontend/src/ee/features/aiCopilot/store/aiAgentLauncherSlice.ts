@@ -45,8 +45,12 @@ export type DashboardRefreshRequest = {
 
 type LauncherMode = 'collapsed' | 'panel-open';
 
+/** Which surface the open panel shows: agent chat, or the AI analysis view. */
+export type LauncherView = 'chat' | 'analysis';
+
 export interface AiAgentLauncherState {
     mode: LauncherMode;
+    view: LauncherView;
     activeThreadId: string | null;
     activeAgentUuid: LauncherActiveAgentUuid | null;
     pendingContext: LauncherPendingContext | null;
@@ -58,6 +62,7 @@ export interface AiAgentLauncherState {
 
 const initialState: AiAgentLauncherState = {
     mode: 'collapsed',
+    view: 'chat',
     activeThreadId: null,
     activeAgentUuid: null,
     pendingContext: null,
@@ -80,9 +85,16 @@ export const aiAgentLauncherSlice = createSlice({
             }>,
         ) => {
             state.mode = 'panel-open';
+            state.view = 'chat';
             state.activeThreadId = action.payload.threadId;
             state.activeAgentUuid = action.payload.agentUuid;
             state.pendingContext = action.payload.pendingContext ?? null;
+        },
+        // Panel showing AI analysis of the current view; the adapter that
+        // feeds it lives outside the store (launcherAnalysisAdapter).
+        openAnalysisPanel: (state) => {
+            state.mode = 'panel-open';
+            state.view = 'analysis';
         },
         openDefaultAgentPanel: (
             state,
@@ -91,6 +103,7 @@ export const aiAgentLauncherSlice = createSlice({
             }>,
         ) => {
             state.mode = 'panel-open';
+            state.view = 'chat';
             state.activeThreadId = null;
             state.activeAgentUuid = null;
             state.pendingContext = action.payload.pendingContext ?? null;
@@ -106,6 +119,7 @@ export const aiAgentLauncherSlice = createSlice({
         },
         resetActivePanel: (state) => {
             state.mode = 'collapsed';
+            state.view = 'chat';
             state.activeThreadId = null;
             state.activeAgentUuid = null;
             state.pendingContext = null;
@@ -118,6 +132,7 @@ export const aiAgentLauncherSlice = createSlice({
         ) => {
             if (state.activeThreadId === action.payload.threadId) {
                 state.mode = 'collapsed';
+                state.view = 'chat';
                 state.activeThreadId = null;
                 state.activeAgentUuid = null;
                 state.pendingContext = null;
@@ -159,6 +174,7 @@ export const aiAgentLauncherSlice = createSlice({
 
 export const {
     openPanel,
+    openAnalysisPanel,
     openDefaultAgentPanel,
     setActiveAgent,
     closePanel,

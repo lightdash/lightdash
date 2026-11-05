@@ -1,5 +1,6 @@
 import {
     DbtModelNode,
+    getExternalModelNodesFromManifest,
     MetricFlowAggregation,
     MetricType,
     translateMetricFlowMetrics,
@@ -13,7 +14,10 @@ import {
     mapDbtCloudSemanticModels,
 } from './DbtMetadataApiClient';
 
-vi.mock('graphql-request');
+vi.mock('graphql-request', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('graphql-request')>()),
+    GraphQLClient: vi.fn(),
+}));
 
 const makeNode = (overrides: Record<string, unknown> = {}) => ({
     resourceType: 'model',
@@ -67,18 +71,79 @@ const makeApiResponse = (adapterType: string, nodes: unknown[]) => ({
     },
 });
 
-const createClient = () =>
+const createClient = (tags?: string[]) =>
     new DbtMetadataApiClient({
         environmentId: '123',
         bearerToken: 'test-token',
         discoveryApiEndpoint: undefined,
-        tags: undefined,
+        tags,
     });
 
 describe('DbtMetadataApiClient', () => {
     beforeEach(() => {
         vi.resetAllMocks();
     });
+
+    it.each([{ tags: undefined }, { tags: ['published'] }])(
+        'keeps applied-state inventory incomplete with tags %j',
+        async ({ tags }) => {
+            const mockRequest = vi
+                .fn()
+                .mockResolvedValue(makeApiResponse('postgres', [makeNode()]));
+            vi.mocked(GraphQLClient).mockImplementation(
+                function MockGraphQLClient(this: GraphQLClient) {
+                    this.request = mockRequest;
+                    return this;
+                },
+            );
+            const result = await createClient(tags).getDbtManifest();
+            expect(result.manifest.lightdash_model_inventory_complete).toBe(
+                false,
+            );
+            expect(result.manifest.disabled).toBeUndefined();
+            expect(mockRequest.mock.calls[0][0]).toContain('applied');
+            expect(mockRequest.mock.calls[0][1].filter).toEqual({
+                lastRunStatus: 'success',
+                tags,
+            });
+        },
+    );
+
+    it.each([
+        { version: 2, latestVersion: 3, access: 'private' },
+        { version: '2', latestVersion: '3', access: 'public' },
+        { version: undefined, latestVersion: undefined, access: undefined },
+    ])(
+        'preserves model version and access fields for external nodes: %j',
+        async (fields) => {
+            const mockRequest = vi
+                .fn()
+                .mockResolvedValue(
+                    makeApiResponse('postgres', [makeNode(fields)]),
+                );
+            vi.mocked(GraphQLClient).mockImplementation(
+                function MockGraphQLClient(this: GraphQLClient) {
+                    this.request = mockRequest;
+                    return this;
+                },
+            );
+            const result = await createClient().getDbtManifest();
+            expect(result.manifest.lightdash_model_inventory_complete).toBe(
+                false,
+            );
+            const expected = {
+                version: fields.version ?? null,
+                latest_version: fields.latestVersion ?? null,
+                access: fields.access ?? null,
+            };
+            expect(
+                result.manifest.nodes['model.project.pull_requests'],
+            ).toMatchObject(expected);
+            expect(getExternalModelNodesFromManifest(result.manifest)).toEqual([
+                expect.objectContaining(expected),
+            ]);
+        },
+    );
 
     describe('Snowflake identifier casing', () => {
         it('should uppercase database, schema, alias, and relation_name for Snowflake', async () => {

@@ -6,6 +6,7 @@ import {
     type TilePreAggregateAuditHit,
     type TilePreAggregateAuditMiss,
 } from '@lightdash/common';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -228,6 +229,7 @@ async function runAll(args: {
 export const preAggregateAuditHandler = async (
     options: PreAggregateAuditOptions,
 ): Promise<void> => {
+    assertAgentCommandAllowed('pre-aggregate-audit');
     GlobalState.debug(
         `pre-aggregate-audit options: ${JSON.stringify(options)}`,
     );

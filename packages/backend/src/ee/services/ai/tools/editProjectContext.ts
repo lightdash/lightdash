@@ -41,7 +41,7 @@ const renderResult = ({
     const verb = prAction === 'updated' ? 'Updated' : 'Opened';
     return `${verb} a pull request that ${
         op === 'update' ? 'updates' : 'adds'
-    } a project context entry. A "View pull request" button is shown to the user, so do NOT include the pull request URL in your reply — summarise the entry you wrote ("${content}") and that it now applies to this project's context.`;
+    } a project context entry. The user sees a "View pull request" button, so summarise the entry you wrote ("${content}") without the pull request URL, and say it applies to this project's context once the pull request is merged.`;
 };
 
 const toolDefinition = editProjectContextToolDefinition.for('agent');

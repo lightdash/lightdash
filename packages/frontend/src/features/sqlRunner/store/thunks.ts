@@ -9,6 +9,7 @@ import {
 import type * as rtk from '@reduxjs/toolkit';
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { type RootState } from '.';
+import { sharedLightdashApi } from '../../../api';
 import {
     selectChartDisplayByKind,
     selectChartFieldConfigByKind,
@@ -16,7 +17,10 @@ import {
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
+import {
+    cancelAsyncQuery,
+    executeSqlQuery,
+} from '../../queryRunner/executeQuery';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
 
@@ -27,6 +31,9 @@ import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
  * @param projectUuid - The project uuid to run the query on
  * @returns The results and the results runner
  */
+const isAbortError = (error: unknown): boolean =>
+    error instanceof DOMException && error.name === 'AbortError';
+
 export const runSqlQuery = createAsyncThunk<
     ResultsAndColumns & { warehouseConnectionUuid: string | null | undefined },
     {
@@ -40,7 +47,7 @@ export const runSqlQuery = createAsyncThunk<
     'sqlRunner/runSqlQuery',
     async (
         { sql, limit, projectUuid, parameterValues },
-        { rejectWithValue, getState },
+        { rejectWithValue, getState, signal },
     ) => {
         const connectionRoute = (getState() as RootState).sqlRunner
             .connectionRoute ?? { route: 'pending' };
@@ -68,15 +75,30 @@ export const runSqlQuery = createAsyncThunk<
         try {
             // SQL Runner is edit-only — always skip cache, matching explore edit mode.
             const results = await executeSqlQuery(
+                sharedLightdashApi,
                 projectUuid,
                 sql,
                 limit,
                 parameterValues,
                 true,
                 warehouseConnectionUuid,
+                {
+                    signal,
+                    onQueryStarted: (queryUuid) => {
+                        // Aborting the thunk also tells the warehouse to stop
+                        signal.addEventListener('abort', () => {
+                            void cancelAsyncQuery(
+                                sharedLightdashApi,
+                                projectUuid,
+                                queryUuid,
+                            );
+                        });
+                    },
+                },
             );
             return { ...results, warehouseConnectionUuid };
         } catch (error) {
+            if (isAbortError(error)) throw error;
             reportSharedSignInQueryFailure(projectUuid, error);
             if (isApiError(error)) {
                 return rejectWithValue(error.error);

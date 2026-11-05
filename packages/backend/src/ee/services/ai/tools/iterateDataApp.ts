@@ -12,6 +12,7 @@ import type {
 } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import { withBuildWarnings } from '../utils/withBuildWarnings';
 
 type Dependencies = {
     iterateDataApp: IterateDataAppFn;
@@ -32,7 +33,14 @@ export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async (
-            { appSlug, prompt, dashboardSlug, chartSlugs, themeSlug },
+            {
+                appSlug,
+                prompt,
+                dashboardSlug,
+                chartSlugs,
+                themeSlug,
+                externalConnectionSlugs,
+            },
             { toolCallId },
         ): Promise<
             | ExecuteStructuredToolResult<
@@ -42,12 +50,13 @@ export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
             | ExecuteToolErrorResult<ErrorMetadata>
         > => {
             try {
-                const { appUuid, version } = await iterateDataApp({
+                const { appUuid, version, warnings } = await iterateDataApp({
                     appSlug,
                     prompt,
                     dashboardSlug,
                     chartSlugs,
                     themeSlug,
+                    externalConnectionSlugs,
                     toolCallId,
                 });
                 const started = {
@@ -57,9 +66,12 @@ export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
                 };
 
                 return {
-                    result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
+                    result: withBuildWarnings(
+                        'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
+                        warnings,
+                    ),
                     metadata: started,
-                    structuredContent: { status: 'pending' },
+                    structuredContent: { status: 'pending', warnings },
                 };
             } catch (error) {
                 return {

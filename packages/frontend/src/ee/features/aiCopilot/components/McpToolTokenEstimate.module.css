@@ -39,8 +39,7 @@
 }
 
 .toolRow {
-    border-top: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-5));
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 .toolLabel {

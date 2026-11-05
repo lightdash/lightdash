@@ -122,8 +122,6 @@ export default class NatsWorkerApp {
         this.eventStreamWriter = createEventStreamWriter(
             this.lightdashConfig,
             this.prometheusMetrics,
-            // eslint-disable-next-line no-use-before-define -- The background flush runs after model initialization.
-            () => models.getFeatureFlagModel(),
         );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
@@ -147,6 +145,12 @@ export default class NatsWorkerApp {
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
+            {
+                logRollbacks:
+                    this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
+            },
         );
 
         const utils = new UtilRepository({

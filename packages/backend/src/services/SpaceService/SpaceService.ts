@@ -4,7 +4,6 @@ import {
     ApiSpaceServiceAccountCandidatesResponse,
     BulkActionable,
     CreateSpace,
-    FeatureFlags,
     ForbiddenError,
     getHighestSpaceRole,
     NotFoundError,
@@ -36,6 +35,10 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel, type CascadedDocument } from '../../models/SpaceModel';
+import {
+    assertHumanManagedMutation,
+    getManagedAgentPolicy,
+} from '../AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../BaseService';
 import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -390,6 +393,8 @@ export class SpaceService
             inheritParentPermissions = false;
         }
 
+        await this.assertHumanAccessMutation(user, organizationUuid);
+
         const newSpace = await this.spaceModel.createSpace(
             {
                 name: space.name,
@@ -458,7 +463,36 @@ export class SpaceService
             }
         }
 
-        const { inheritParentPermissions } = updateSpace;
+        if (
+            (updateSpace.inheritParentPermissions !== undefined &&
+                updateSpace.inheritParentPermissions !==
+                    space.inheritParentPermissions) ||
+            (updateSpace.projectMemberAccessRole !== undefined &&
+                updateSpace.projectMemberAccessRole !==
+                    space.projectMemberAccessRole)
+        ) {
+            await this.assertHumanAccessMutation(user, space.organizationUuid);
+        }
+
+        const spaceUpdate = {
+            ...updateSpace,
+            inheritParentPermissions: updateSpace.inheritParentPermissions,
+        };
+        if (
+            (updateSpace.inheritParentPermissions !== undefined ||
+                updateSpace.projectMemberAccessRole !== undefined) &&
+            (await getManagedAgentPolicy({
+                organizationUuid: space.organizationUuid,
+                ability: user.ability,
+                oauth: false,
+                database: this.spaceModel.database,
+                featureFlagModel: this.featureFlagModel,
+            })) !== null
+        ) {
+            delete spaceUpdate.inheritParentPermissions;
+            delete spaceUpdate.projectMemberAccessRole;
+        }
+        const { inheritParentPermissions } = spaceUpdate;
 
         // When switching from inherit to not-inherit, copy inherited permissions
         // as direct access entries so users don't lose access.
@@ -502,15 +536,12 @@ export class SpaceService
             }
             await this.spaceModel.updateWithCopiedPermissions(
                 spaceUuid,
-                { ...updateSpace, inheritParentPermissions },
+                spaceUpdate,
                 userAccessEntries,
                 groupAccessEntries,
             );
         } else {
-            await this.spaceModel.update(spaceUuid, {
-                ...updateSpace,
-                inheritParentPermissions,
-            });
+            await this.spaceModel.update(spaceUuid, spaceUpdate);
         }
 
         const updatedSpace = await this.assembleFullSpace(spaceUuid, user);
@@ -538,6 +569,19 @@ export class SpaceService
         });
 
         return updatedSpace;
+    }
+
+    private async assertHumanAccessMutation(
+        user: SessionUser,
+        organizationUuid: string | undefined,
+    ): Promise<void> {
+        await assertHumanManagedMutation({
+            organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.spaceModel.database,
+            featureFlagModel: this.featureFlagModel,
+        });
     }
 
     private async hasAccess(
@@ -622,6 +666,10 @@ export class SpaceService
                     targetSpaceUuid: targetSpaceUuid ?? undefined,
                 },
             );
+        }
+
+        if (space.inheritParentPermissions) {
+            await this.assertHumanAccessMutation(user, space.organizationUuid);
         }
 
         await this.spaceModel.moveToSpace(
@@ -819,25 +867,18 @@ export class SpaceService
         ]);
 
         const allCharts = [...charts, ...sqlCharts];
-        const { enabled: documentsEnabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.Documents,
-        });
-        const contexts = documentsEnabled
-            ? await this.spacePermissionService.resolveAccessBatch(
-                  user.userUuid,
-                  allUuids.map((uuid) => ({ type: 'space', spaceUuid: uuid })),
-              )
-            : [];
+        const contexts = await this.spacePermissionService.resolveAccessBatch(
+            user.userUuid,
+            allUuids.map((uuid) => ({ type: 'space', spaceUuid: uuid })),
+        );
         const ability = this.createAuditedAbility(user);
         const documentSpaceUuids = contexts.flatMap(({ target, context }) =>
             context && ability.can('view', subject('Document', context))
                 ? [target.spaceUuid]
                 : [],
         );
-        const documents = documentsEnabled
-            ? await this.spaceModel.getDocumentsInSpaces(documentSpaceUuids)
-            : [];
+        const documents =
+            await this.spaceModel.getDocumentsInSpaces(documentSpaceUuids);
         const documentCounts = new Map<string, number>();
         documents.forEach(({ spaceUuid: documentSpaceUuid }) => {
             documentCounts.set(
@@ -1102,6 +1143,8 @@ export class SpaceService
             true,
         );
 
+        await this.assertHumanAccessMutation(user, user.organizationUuid);
+
         await this.spaceModel.addSpaceAccess(
             spaceUuid,
             shareWithUserUuid,
@@ -1120,6 +1163,8 @@ export class SpaceService
             throw new ForbiddenError();
         }
 
+        await this.assertHumanAccessMutation(user, user.organizationUuid);
+
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
     }
 
@@ -1134,6 +1179,8 @@ export class SpaceService
         ) {
             throw new ForbiddenError();
         }
+
+        await this.assertHumanAccessMutation(user, user.organizationUuid);
 
         await this.spaceModel.addSpaceGroupAccess(
             spaceUuid,
@@ -1152,6 +1199,8 @@ export class SpaceService
         ) {
             throw new ForbiddenError();
         }
+
+        await this.assertHumanAccessMutation(user, user.organizationUuid);
 
         await this.spaceModel.removeSpaceGroupAccess(
             spaceUuid,

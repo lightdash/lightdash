@@ -1,6 +1,14 @@
-import { DbtError, SupportedDbtVersions } from '@lightdash/common';
+import {
+    DbtError,
+    SupportedDbtVersions,
+    type DbtRawModelNode,
+    type WarehouseClient,
+} from '@lightdash/common';
 import execa from 'execa';
 import * as fs from 'fs/promises';
+import path from 'path';
+import { DbtBaseProjectAdapter } from '../projectAdapters/dbtBaseProjectAdapter';
+import { DbtGitProjectAdapter } from '../projectAdapters/dbtGitProjectAdapter';
 import { DbtCliClient } from './dbtCliClient';
 import {
     cliArgs as cliArgsWithoutVersion,
@@ -15,8 +23,14 @@ import {
 const execaMock = execa as unknown as import('vitest').Mock;
 
 vi.mock('fs/promises', () => ({
+    access: vi.fn(),
+    copyFile: vi.fn(),
+    chmod: vi.fn(),
+    rename: vi.fn(),
+    readdir: vi.fn(),
     readFile: vi.fn(),
     writeFile: vi.fn(),
+    mkdir: vi.fn(),
     mkdtemp: vi.fn(),
     rm: vi.fn(),
 }));
@@ -41,6 +55,7 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             const dbtExec = client.getDbtExec();
 
             await expect(client.installDeps()).resolves.toEqual(undefined);
+            expect(execaMock.mock.calls[0][2]).not.toHaveProperty('detached');
             await expect(execaMock).toHaveBeenCalledTimes(1);
             await expect(execaMock).toHaveBeenCalledWith(
                 dbtExec,
@@ -132,6 +147,32 @@ describe('DbtCliClient environment', () => {
         expect(options).toMatchObject({ extendEnv: false });
     });
 
+    it('runs dbt from the project directory', async () => {
+        await new DbtCliClient(cliArgs).installDeps();
+        const [, , options] = execaMock.mock.calls[0];
+
+        expect(options).toMatchObject({ cwd: cliArgs.dbtProjectDirectory });
+    });
+
+    it('resolves relative directories before changing the cwd', async () => {
+        await new DbtCliClient({
+            ...cliArgs,
+            dbtProjectDirectory: 'relative/project',
+            dbtProfilesDirectory: 'relative/profiles',
+        }).installDeps();
+        const [, args, options] = execaMock.mock.calls[0];
+
+        expect(options).toMatchObject({
+            cwd: path.resolve('relative/project'),
+        });
+        expect(args).toEqual(
+            expect.arrayContaining([
+                path.resolve('relative/project'),
+                path.resolve('relative/profiles'),
+            ]),
+        );
+    });
+
     it('does not hand backend secrets to dbt', async () => {
         vi.stubEnv('LIGHTDASH_SECRET', 'not-for-dbt');
         vi.stubEnv('PATH', '/usr/local/bin');
@@ -157,6 +198,33 @@ describe('DbtCliClient environment', () => {
         expect((options as { env: Record<string, string> }).env).toMatchObject({
             UTILS_PII_SALT: 'machine-owned-salt',
         });
+    });
+
+    it('keeps explicit credentials while removing inherited and allowlisted host credentials', async () => {
+        vi.stubEnv('AWS_ACCESS_KEY_ID', 'host-key');
+        vi.stubEnv('AWS_SECRET_ACCESS_KEY', 'host-secret');
+        vi.stubEnv('GOOGLE_APPLICATION_CREDENTIALS', '/host/adc.json');
+        await new DbtCliClient({
+            ...cliArgs,
+            explicitCredentials: true,
+            environmentVariableAllowlist: ['GOOGLE_APPLICATION_CREDENTIALS'],
+            environment: {
+                AWS_ACCESS_KEY_ID: 'target-key',
+                AWS_SECRET_ACCESS_KEY: 'target-secret',
+                PROJECT_SETTING: 'explicit',
+            },
+        }).installDeps();
+        const [, , options] = execaMock.mock.calls[0];
+        const { env } = options as { env: Record<string, string> };
+        expect(env).toMatchObject({
+            AWS_ACCESS_KEY_ID: 'target-key',
+            AWS_SECRET_ACCESS_KEY: 'target-secret',
+            PROJECT_SETTING: 'explicit',
+        });
+        expect(env).not.toHaveProperty('GOOGLE_APPLICATION_CREDENTIALS');
+        expect(process.env.GOOGLE_APPLICATION_CREDENTIALS).toBe(
+            '/host/adc.json',
+        );
     });
 
     it('passes the scoped git config to dbt without exposing a token', async () => {
@@ -197,4 +265,188 @@ describe('DbtCliClient environment', () => {
             DBT_TARGET_PATH: '/tmp/dbt_target_test',
         });
     });
+});
+
+describe('DbtCliClient independent manifests', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        vi.mocked(fs.mkdtemp).mockResolvedValue('/tmp/dbt_target_test');
+        execaMock.mockResolvedValue({
+            stdout: '{"unique_id":"model.shared.orders"}\n{"unique_id":"model.analytics.orders"}',
+            all: '',
+        });
+        vi.mocked(fs.readFile).mockResolvedValue(
+            JSON.stringify({
+                ...manifestMock,
+                nodes: {
+                    'model.shared.orders': {
+                        resource_type: 'model',
+                        path: '',
+                        original_file_path: '',
+                    } as DbtRawModelNode,
+                    'model.analytics.orders': {
+                        resource_type: 'model',
+                        path: 'orders.sql',
+                        original_file_path: 'models/orders.sql',
+                    } as DbtRawModelNode,
+                },
+            }),
+        );
+    });
+    it('does not create a plugin without external nodes', async () => {
+        await new DbtCliClient({
+            ...cliArgsWithoutVersion,
+            dbtVersion: SupportedDbtVersions.V1_5,
+        }).getDbtManifest({});
+        expect(fs.writeFile).not.toHaveBeenCalled();
+        expect(execaMock.mock.calls[0][2].env).not.toHaveProperty('PYTHONPATH');
+    });
+});
+
+describe.each(['local', 'git'] as const)('%s connection test', (source) => {
+    let sequence: string[];
+    let client: DbtCliClient;
+    let adapter: DbtBaseProjectAdapter;
+    let refresh: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+        sequence = [];
+        client = new DbtCliClient({
+            ...cliArgsWithoutVersion,
+            dbtProjectDirectory: '/checkout/missing-project',
+            dbtVersion: SupportedDbtVersions.V1_9,
+        });
+        vi.mocked(fs.access).mockImplementation(async () => {
+            sequence.push('directory');
+        });
+        vi.mocked(fs.mkdtemp).mockResolvedValue(
+            '/tmp/dbt_target_test' as never,
+        );
+        vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(manifestMock));
+        execaMock.mockImplementation(async (_executable, args: string[]) => {
+            sequence.push(
+                args.find((arg) => ['deps', 'parse', 'ls'].includes(arg))!,
+            );
+            return cliMockImplementation.success();
+        });
+        const warehouseClient = {
+            test: vi.fn(async () => {
+                sequence.push('warehouse');
+            }),
+        } as unknown as WarehouseClient;
+        refresh = vi.fn(async () => {
+            sequence.push('refresh');
+        });
+        adapter = new DbtBaseProjectAdapter(
+            client,
+            warehouseClient,
+            { warehouseCatalog: undefined, onWarehouseCatalogChange: vi.fn() },
+            SupportedDbtVersions.V1_9,
+        );
+        if (source === 'git') {
+            Object.setPrototypeOf(adapter, DbtGitProjectAdapter.prototype);
+            Object.defineProperty(adapter, '_refreshRepo', { value: refresh });
+        }
+    });
+
+    it('checks the directory, installs dependencies, parses, then tests the warehouse without a feature flag', async () => {
+        await adapter.test();
+        expect(sequence).toEqual([
+            ...(source === 'git' ? ['refresh'] : []),
+            'directory',
+            'deps',
+            'parse',
+            'warehouse',
+        ]);
+    });
+
+    it('installs dependencies once across test and getDbtManifest', async () => {
+        await adapter.test();
+        expect(sequence.filter((step) => step === 'deps')).toHaveLength(1);
+        await adapter.getDbtManifest();
+        expect(sequence.filter((step) => step === 'deps')).toHaveLength(1);
+        expect(sequence.at(-1)).toBe('ls');
+        expect(refresh).toHaveBeenCalledTimes(source === 'git' ? 1 : 0);
+    });
+
+    it('does not reuse an aborted preparation and rejects an already-aborted caller', async () => {
+        const controller = new AbortController();
+        const reason = new Error('leaf_a interrupted');
+        const install = vi
+            .spyOn(client, 'installDeps')
+            .mockImplementationOnce(async (signal) => {
+                controller.abort(reason);
+                throw signal!.reason;
+            })
+            .mockResolvedValue(undefined);
+        await expect(
+            adapter.prepareDbtSource({ signal: controller.signal }),
+        ).rejects.toBe(reason);
+        await expect(
+            adapter.prepareDbtSource({ signal: controller.signal }),
+        ).rejects.toBe(reason);
+        expect(install).toHaveBeenCalledTimes(1);
+        await adapter.prepareDbtSource({
+            signal: new AbortController().signal,
+        });
+        expect(install).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects a missing project subdirectory before installing dependencies', async () => {
+        vi.mocked(fs.access).mockImplementation(async () => {
+            sequence.push('directory');
+            throw new Error('ENOENT');
+        });
+        execaMock.mockRejectedValue(new Error('deps failed'));
+        await expect(adapter.test()).rejects.toThrow(
+            'dbt project directory not found: /missing-project',
+        );
+        expect(sequence).toEqual([
+            ...(source === 'git' ? ['refresh'] : []),
+            'directory',
+        ]);
+        expect(execaMock).not.toHaveBeenCalled();
+        expect(adapter.warehouseClient.test).not.toHaveBeenCalled();
+    });
+});
+
+describe('independent source partial parsing', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        vi.mocked(fs.mkdtemp).mockResolvedValue(
+            '/tmp/dbt_target_digest' as never,
+        );
+        execaMock.mockImplementation(cliMockImplementation.success);
+    });
+    it.each([null, '/tmp/baseline.msgpack'])(
+        'does not read or write the digest or invalidate partial parsing without external nodes (baseline %s)',
+        async (baseline) => {
+            vi.mocked(fs.readdir).mockResolvedValue([]);
+            vi.mocked(fs.readFile).mockResolvedValue(
+                JSON.stringify(manifestMock),
+            );
+            const client = new DbtCliClient({
+                ...cliArgsWithoutVersion,
+                dbtVersion: SupportedDbtVersions.V1_9,
+                partialParseBaselinePath: baseline,
+            });
+            await client.getDbtManifest({});
+            expect(
+                vi
+                    .mocked(fs.readFile)
+                    .mock.calls.some(([filename]) =>
+                        String(filename).endsWith('external_nodes.sha256'),
+                    ),
+            ).toBe(false);
+            expect(
+                vi
+                    .mocked(fs.writeFile)
+                    .mock.calls.some(([filename]) =>
+                        String(filename).endsWith('external_nodes.sha256'),
+                    ),
+            ).toBe(false);
+            expect(fs.rm).not.toHaveBeenCalled();
+        },
+    );
 });

@@ -81,14 +81,14 @@ describe('AiDeepResearchSettingsPage', () => {
         mutationState.current.isLoading = false;
     });
 
-    it('labels the settings page as beta exactly once', () => {
+    it('does not label the settings page as beta', () => {
         renderWithProviders(
             <MemoryRouter>
                 <AiDeepResearchSettingsPage />
             </MemoryRouter>,
         );
 
-        expect(screen.getAllByText('Beta')).toHaveLength(1);
+        expect(screen.queryByText('Beta')).not.toBeInTheDocument();
     });
 
     it('saves all limits with a single update button', async () => {
@@ -99,7 +99,7 @@ describe('AiDeepResearchSettingsPage', () => {
             </MemoryRouter>,
         );
 
-        const updateButton = screen.getByRole('button', { name: 'Update' });
+        const updateButton = screen.getByRole('button', { name: 'Save' });
         expect(updateButton).toBeDisabled();
 
         fireEvent.change(
@@ -151,7 +151,7 @@ describe('AiDeepResearchSettingsPage', () => {
         await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
         expect(stepsInput).toHaveValue('16');
-        expect(screen.getByRole('button', { name: 'Update' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
         expect(updateSettings).not.toHaveBeenCalled();
     });
 

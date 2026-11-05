@@ -56,6 +56,21 @@ describe('getAiCallTelemetry', () => {
         });
     });
 
+    it('exports the agent loadout to telemetry providers', () => {
+        const { telemetry } = getAiCallTelemetry({
+            functionId: 'streamAgentResponse',
+            feature: 'agent',
+            keyManagement: null,
+            extra: { loadoutBase: 'composer', loadoutAddOns: 'mcp,skills' },
+        });
+
+        expect(telemetry.includeRuntimeContext).toEqual({
+            feature: true,
+            loadoutBase: true,
+            loadoutAddOns: true,
+        });
+    });
+
     it('exports an extra key when its name is allow-listed', () => {
         // generateAgentSuggestions attributes org/project/agent only via extra,
         // so this pass-through is load-bearing, not an oversight.

@@ -20,7 +20,6 @@ type GridTileProps = Pick<
     React.ComponentProps<typeof TileBase>,
     'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > & {
-    index: number;
     tabs?: DashboardTab[];
     onAddTiles: (
         tiles: IDashboard['tiles'][number][],

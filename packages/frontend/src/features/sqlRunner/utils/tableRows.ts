@@ -10,7 +10,34 @@ export type SchemaTables = NonNullable<TablesBySchema>[number] & {
     database: string;
 };
 
+export type TableRef = {
+    database: string;
+    schema: string;
+    table: string;
+};
+
 export type TableRow =
+    | {
+          type: 'section';
+          id: string;
+          label: string;
+      }
+    | {
+          type: 'recent';
+          id: string;
+          database: string;
+          schema: string;
+          table: string;
+          partitionColumn: PartitionColumn | undefined;
+          tableType: WarehouseTableType | undefined;
+      }
+    | {
+          type: 'group';
+          id: string;
+          label: string;
+          isExpanded: boolean;
+          schemaCount: number;
+      }
     | {
           type: 'schema';
           id: string;
@@ -19,6 +46,7 @@ export type TableRow =
           databaseLabel: string | null;
           isExpanded: boolean;
           tableCount: number;
+          depth: number;
       }
     | {
           type: 'table';
@@ -28,9 +56,21 @@ export type TableRow =
           table: string;
           partitionColumn: PartitionColumn | undefined;
           tableType: WarehouseTableType | undefined;
+          depth: number;
       };
 
 export type TableTypeFilter = 'tables' | 'views';
+
+export const MIN_TABLE_SEARCH_LENGTH = 2;
+
+export const DEV_SCHEMAS_GROUP_ID = 'group:dev-schemas';
+const DEV_SCHEMAS_GROUP_LABEL = 'dev & pr schemas';
+
+// dbt Cloud CI schemas pile up fast and are rarely what someone is looking for
+const DEV_SCHEMA_PATTERN = /^dbt_cloud_pr_/i;
+
+export const isDevSchema = (schema: string): boolean =>
+    DEV_SCHEMA_PATTERN.test(schema);
 
 const isView = (tableType: WarehouseTableType | undefined) =>
     tableType === WarehouseTableType.VIEW ||
@@ -57,6 +97,9 @@ export const catalogHasViews = (tablesBySchema: SchemaTables[]): boolean =>
     tablesBySchema.some(({ tables }) =>
         Object.values(tables).some(({ tableType }) => isView(tableType)),
     );
+
+export const catalogHasDevSchemas = (tablesBySchema: SchemaTables[]): boolean =>
+    tablesBySchema.some(({ schema }) => isDevSchema(String(schema)));
 
 const searchTableNames = (tableNames: string[], search: string): string[] => {
     if (!search) return tableNames;
@@ -117,7 +160,49 @@ export const isActiveSchema = (
     schema === active.activeSchema &&
     (active.activeDatabase === undefined || database === active.activeDatabase);
 
-// Flattens the schema tree into the rows the virtualized list renders
+const buildSchemaRows = (
+    schemaTables: SchemaTables,
+    isExpanded: boolean,
+    showDatabase: boolean,
+    depth: number,
+): TableRow[] => {
+    const { database, schema, tables } = schemaTables;
+    const schemaName = String(schema);
+    const tableNames = Object.keys(tables);
+    const header: TableRow = {
+        type: 'schema',
+        id: `schema:${database}.${schemaName}`,
+        database,
+        schema: schemaName,
+        databaseLabel: showDatabase && database !== '' ? database : null,
+        isExpanded,
+        tableCount: tableNames.length,
+        depth,
+    };
+    if (!isExpanded) return [header];
+    return [
+        header,
+        ...tableNames.map(
+            (table): TableRow => ({
+                type: 'table',
+                id: `table:${database}.${schemaName}.${table}`,
+                database,
+                schema: schemaName,
+                table,
+                partitionColumn: tables[table].partitionColumn,
+                tableType: tables[table].tableType,
+                depth,
+            }),
+        ),
+    ];
+};
+
+export type DevSchemaGrouping = {
+    isGroupExpanded: boolean;
+};
+
+// Flattens the schema tree into the rows the virtualized list renders.
+// With grouping on, dev schemas collapse into one node after the others.
 export const buildTableRows = (
     tablesBySchema: SchemaTables[],
     isSchemaExpanded: (
@@ -125,35 +210,85 @@ export const buildTableRows = (
         schemaTables: SchemaTables,
     ) => boolean,
     showDatabase: boolean,
-): TableRow[] =>
-    tablesBySchema.flatMap((schemaTables) => {
-        const { database, schema, tables } = schemaTables;
-        const schemaName = String(schema);
-        const id = `schema:${database}.${schemaName}`;
-        const tableNames = Object.keys(tables);
-        const isExpanded = isSchemaExpanded(id, schemaTables);
-        const header: TableRow = {
-            type: 'schema',
-            id,
-            database,
-            schema: schemaName,
-            databaseLabel: showDatabase && database !== '' ? database : null,
-            isExpanded,
-            tableCount: tableNames.length,
-        };
-        if (!isExpanded) return [header];
-        return [
-            header,
-            ...tableNames.map(
-                (table): TableRow => ({
-                    type: 'table',
-                    id: `table:${database}.${schemaName}.${table}`,
-                    database,
-                    schema: schemaName,
-                    table,
-                    partitionColumn: tables[table].partitionColumn,
-                    tableType: tables[table].tableType,
-                }),
+    grouping: DevSchemaGrouping | null = null,
+): TableRow[] => {
+    const rowsFor = (schemaTables: SchemaTables, depth: number) =>
+        buildSchemaRows(
+            schemaTables,
+            isSchemaExpanded(
+                `schema:${schemaTables.database}.${String(
+                    schemaTables.schema,
+                )}`,
+                schemaTables,
             ),
+            showDatabase,
+            depth,
+        );
+
+    if (grouping === null) {
+        return tablesBySchema.flatMap((schemaTables) =>
+            rowsFor(schemaTables, 0),
+        );
+    }
+
+    const devSchemas = tablesBySchema.filter(({ schema }) =>
+        isDevSchema(String(schema)),
+    );
+    if (devSchemas.length === 0) {
+        return tablesBySchema.flatMap((schemaTables) =>
+            rowsFor(schemaTables, 0),
+        );
+    }
+    const mainSchemas = tablesBySchema.filter(
+        ({ schema }) => !isDevSchema(String(schema)),
+    );
+    const group: TableRow = {
+        type: 'group',
+        id: DEV_SCHEMAS_GROUP_ID,
+        label: DEV_SCHEMAS_GROUP_LABEL,
+        isExpanded: grouping.isGroupExpanded,
+        schemaCount: devSchemas.length,
+    };
+    return [
+        ...mainSchemas.flatMap((schemaTables) => rowsFor(schemaTables, 0)),
+        group,
+        ...(grouping.isGroupExpanded
+            ? devSchemas.flatMap((schemaTables) => rowsFor(schemaTables, 1))
+            : []),
+    ];
+};
+
+export const RECENT_SECTION_ID = 'section:recent';
+export const ALL_SCHEMAS_SECTION_ID = 'section:all-schemas';
+
+// Recent tables that still exist in the catalog, headed by their own section
+export const buildRecentRows = (
+    recentTables: TableRef[],
+    tablesBySchema: SchemaTables[],
+): TableRow[] => {
+    const rows = recentTables.flatMap((ref): TableRow[] => {
+        const schemaTables = tablesBySchema.find(
+            ({ database, schema }) =>
+                database === ref.database && String(schema) === ref.schema,
+        );
+        const table = schemaTables?.tables[ref.table];
+        if (!table) return [];
+        return [
+            {
+                type: 'recent',
+                id: `recent:${ref.database}.${ref.schema}.${ref.table}`,
+                database: ref.database,
+                schema: ref.schema,
+                table: ref.table,
+                partitionColumn: table.partitionColumn,
+                tableType: table.tableType,
+            },
         ];
     });
+    if (rows.length === 0) return [];
+    return [
+        { type: 'section', id: RECENT_SECTION_ID, label: 'Recent' },
+        ...rows,
+        { type: 'section', id: ALL_SCHEMAS_SECTION_ID, label: 'All schemas' },
+    ];
+};

@@ -298,6 +298,7 @@ export const getMaxOpenConnections = (maxOpenConnections?: number): number =>
 
 export type ClickhouseWarehouseClientOptions = {
     agentSession?: boolean;
+    agentJobControls?: boolean;
     /** Upper bound of concurrent queries sharing this client; sizes the HTTP socket pool. */
     maxOpenConnections?: number;
 };
@@ -326,6 +327,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             password: credentials.password,
             database: credentials.schema, // In clickhouse schema = database
             request_timeout: (credentials.timeoutSeconds || 30) * 1000,
+            ...(options?.agentJobControls
+                ? { clickhouse_settings: { use_query_cache: 0 as const } }
+                : {}),
             max_open_connections: getMaxOpenConnections(
                 options?.maxOpenConnections,
             ),
@@ -447,7 +451,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 stream.on('error', reject);
             });
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            const translatedError = new WarehouseQueryError(getErrorMessage(e));
+            translatedError.cause = e;
+            throw translatedError;
         }
     }
 
@@ -482,7 +488,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 },
             );
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            const translatedError = new WarehouseQueryError(getErrorMessage(e));
+            translatedError.cause = e;
+            throw translatedError;
         }
 
         return catalogToSchema(results);
@@ -582,7 +590,11 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 format: 'JSON',
             });
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(getErrorMessage(e));
+            const translatedError = new WarehouseConnectionError(
+                getErrorMessage(e),
+            );
+            translatedError.cause = e;
+            throw translatedError;
         }
     }
 }

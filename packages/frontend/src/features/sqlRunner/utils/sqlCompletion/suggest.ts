@@ -1,12 +1,13 @@
 import { type ParameterValue } from '@lightdash/common';
-import type { SqlEditorPreferences } from '../../hooks/useSqlEditorPreferences';
 import type { WarehouseTableFieldWithContext } from '../../hooks/useTableFields';
 import {
     applyCasePreference,
     formatIdentifier,
     getCatalogScopeSuggestions,
+    tablePathSegments,
     type SqlCatalog,
 } from '../sqlCompletionScope';
+import type { SqlEditorPreferences } from '../sqlEditorPreferences';
 import type { CompletionContext, TableReference } from './analyze';
 import type { SqlFunction } from './vocabulary';
 
@@ -34,6 +35,8 @@ export type SqlSuggestion = {
     sortText: string;
     // 1-based columns on the cursor line to replace
     range: { startColumn: number; endColumn: number };
+    // Reopen the suggestion list right after inserting
+    triggersSuggest: boolean;
 };
 
 export type SqlParameters = Record<
@@ -48,6 +51,8 @@ export type SqlSuggestionData = {
     parameters: SqlParameters;
     functions: SqlFunction[];
     settings: SqlEditorPreferences | undefined;
+    // Table selected in the sidebar, whose columns are already loaded
+    activeTable: { schema: string; table: string } | null;
 };
 
 export type SqlSuggestionInput = {
@@ -189,6 +194,7 @@ const getParameterSuggestions = (
             filterText: null,
             sortText: `${isRelevant ? '0' : defaultSortGroup}${name}`,
             range,
+            triggersSuggest: false,
         };
     });
 };
@@ -253,6 +259,7 @@ export const getSqlSuggestions = ({
             kind,
             isSnippet: false,
             sortText,
+            triggersSuggest: false,
         };
         if (prefix.isQuotedPath) {
             const insertText = segments
@@ -334,8 +341,82 @@ export const getSqlSuggestions = ({
                       filterText: null,
                       sortText: `${sortGroup}${String(index).padStart(3, '0')}`,
                       range: wordRange,
+                      triggersSuggest: false,
                   }),
               );
+
+    // Statement starters, from bare SELECT up to every column of the sidebar table
+    const selectSnippets = (): SqlSuggestion[] => {
+        if (prefix.openQuoteStart !== null) return [];
+        const select = matchKeywordCase('SELECT', prefix.partial);
+        const from = matchKeywordCase('FROM', prefix.partial);
+        const snippet = (
+            label: string,
+            insertText: string,
+            index: number,
+            documentation: string | null,
+            triggersSuggest: boolean,
+        ): SqlSuggestion => ({
+            label,
+            detail: null,
+            description: 'snippet',
+            documentation,
+            kind: 'keyword',
+            insertText,
+            isSnippet: false,
+            filterText: select,
+            sortText: `0000~${index}`,
+            range: wordRange,
+            triggersSuggest,
+        });
+        const items = [
+            snippet(`${select} *`, `${select} *`, 1, null, false),
+            snippet(
+                `${select} * ${from}`,
+                `${select} * ${from} `,
+                2,
+                null,
+                true,
+            ),
+        ];
+        const active = data.activeTable;
+        const catalog = data.catalog;
+        if (!active || !catalog) return items;
+        const columns = data.fields.filter(
+            (field) =>
+                field.table === active.table && field.schema === active.schema,
+        );
+        if (columns.length === 0) return items;
+        const path = tablePathSegments(
+            catalog,
+            active.schema,
+            active.table,
+            settings?.qualification,
+        )
+            .map((segment) => formatIdentifier(segment, quoteChar, settings))
+            .join('.');
+        const names = columns.map((column) =>
+            formatIdentifier(column.name, quoteChar, settings),
+        );
+        const preview = columns
+            .slice(0, 3)
+            .map((column) => column.name)
+            .join(', ');
+        const body =
+            names.length > 3
+                ? `${select}\n    ${names.join(',\n    ')}\n${from} ${path}`
+                : `${select} ${names.join(', ')} ${from} ${path}`;
+        return [
+            ...items,
+            snippet(
+                `${select} ${preview}${columns.length > 3 ? ', …' : ''} ${from} ${active.table}`,
+                body,
+                3,
+                `All ${columns.length} columns of ${active.table}`,
+                false,
+            ),
+        ];
+    };
 
     const catalogItems = (schemas: string[], catalogTables: string[]) => [
         ...schemas.map((schema) =>
@@ -384,7 +465,12 @@ export const getSqlSuggestions = ({
 
     switch (expectation.kind) {
         case 'keyword':
-            return keywordItems(expectation.keywords, '0');
+            return [
+                ...keywordItems(expectation.keywords, '0'),
+                ...(expectation.keywords.includes('SELECT')
+                    ? selectSnippets()
+                    : []),
+            ];
         case 'table': {
             const cteItems = ctes.map((cte) =>
                 identifier({
@@ -398,19 +484,31 @@ export const getSqlSuggestions = ({
             );
             const catalog = data.catalog;
             const schemas = catalog?.tablesBySchema ?? [];
+            const active = data.activeTable;
             // Bare labels keep fuzzy matching on the name; the full path is inserted
             const tableItems = schemas.flatMap(({ schema, tables: t }) =>
-                Object.keys(t).map((table) =>
-                    identifier({
+                Object.keys(t).map((table) => {
+                    // The sidebar table sorts with CTEs so it tops the list
+                    const isActive =
+                        active?.schema === schema.toString() &&
+                        active.table === table;
+                    return identifier({
                         label: table,
-                        description: schema.toString(),
+                        description: isActive
+                            ? `${schema.toString()} · selected`
+                            : schema.toString(),
                         documentation: `${catalog!.database}.${schema.toString()}.${table}`,
                         kind: 'table',
-                        segments: [catalog!.database, schema.toString(), table],
-                        sortText: `1${table}`,
+                        segments: tablePathSegments(
+                            catalog!,
+                            schema.toString(),
+                            table,
+                            settings?.qualification,
+                        ),
+                        sortText: isActive ? `0${table}` : `1${table}`,
                         isTerminal: true,
-                    }),
-                ),
+                    });
+                }),
             );
             const schemaItems = schemas.map(({ schema }) =>
                 identifier({
@@ -492,6 +590,7 @@ export const getSqlSuggestions = ({
                               filterText: null,
                               sortText: `3${fn.name}`,
                               range: wordRange,
+                              triggersSuggest: false,
                           };
                       });
             return [

@@ -1,0 +1,25 @@
+.card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    color: var(--mantine-color-text);
+    text-decoration: none;
+
+    &:hover {
+        background-color: var(--mantine-color-default-hover);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--mantine-color-text);
+        outline-offset: 2px;
+    }
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+}
+
+.footer {
+    border-top: 1px solid var(--mantine-color-default-border);
+}

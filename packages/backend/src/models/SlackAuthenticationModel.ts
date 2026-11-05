@@ -5,8 +5,8 @@ import {
     SlackSettings,
 } from '@lightdash/common';
 import { Installation, InstallationQuery } from '@slack/bolt';
+import { isNil } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isNil from 'lodash/isNil';
 import {
     DbSlackAuthTokens,
     SlackAuthTokensTableName,
@@ -148,7 +148,12 @@ export class SlackAuthenticationModel {
 
     async getInstallationFromOrganizationUuid(
         organizationUuid: string,
-    ): Promise<Omit<SlackSettings, 'hasRequiredScopes'> | undefined> {
+    ): Promise<
+        | (Omit<SlackSettings, 'hasRequiredScopes' | 'features'> & {
+              appId: string | null;
+          })
+        | undefined
+    > {
         const [row] = await this.database(SlackAuthTokensTableName)
             .leftJoin(
                 'organizations',
@@ -161,6 +166,7 @@ export class SlackAuthenticationModel {
         if (row === undefined) return undefined;
 
         return {
+            appId: row.installation?.appId ?? null,
             createdAt: row.created_at,
             slackTeamName: row.installation?.team?.name || 'Slack',
             organizationUuid: row.organization_uuid,

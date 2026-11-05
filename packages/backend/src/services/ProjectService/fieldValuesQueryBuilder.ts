@@ -12,6 +12,7 @@ import {
     NotFoundError,
     ParameterError,
     searchFilterAutocompleteValues,
+    type Account,
     type AndFilterGroup,
     type CompiledDimension,
     type Dimension,
@@ -23,27 +24,44 @@ import {
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
-import { getFilteredExplore } from '../UserAttributesService/UserAttributeUtils';
+import {
+    auditAndFilterExplore,
+    auditFieldAttributeAccess,
+} from '../UserAttributesService/userAttributeAudit';
 
 const FIELD_VALUES_FORBIDDEN_MESSAGE =
     'You do not have permission to search values for this field';
 
 /** Dimensions visible to the caller after user-attribute filtering; a gated
  *  base table surfaces as ForbiddenError rather than AuthorizationError. */
-const getVisibleDimensionMap = (
+const getVisibleDimensionsForField = (
+    account: Account,
+    projectUuid: string,
     explore: Explore,
     userAttributes: UserAttributeValueMap,
+    fieldId: string,
 ): Record<string, CompiledDimension> => {
+    let visibleExplore: Explore;
     try {
-        return getDimensionMapFromTables(
-            getFilteredExplore(explore, userAttributes).tables,
-        );
+        visibleExplore = auditAndFilterExplore({
+            account,
+            projectUuid,
+            explore,
+            userAttributes,
+        });
     } catch (e) {
         if (e instanceof AuthorizationError) {
             throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);
         }
         throw e;
     }
+    auditFieldAttributeAccess({
+        account,
+        projectUuid,
+        explore: visibleExplore,
+        fieldIds: [fieldId],
+    });
+    return getDimensionMapFromTables(visibleExplore.tables);
 };
 
 type ExploreResolver = {
@@ -92,6 +110,7 @@ const remapJoinAliasFieldId = (
         : fieldId;
 
 export async function getFieldValuesMetricQuery({
+    account,
     projectUuid,
     table,
     initialFieldId,
@@ -103,6 +122,7 @@ export async function getFieldValuesMetricQuery({
     userAttributes,
     authorizeInitialExplore,
 }: {
+    account: Account;
     projectUuid: string;
     table: string;
     initialFieldId: string;
@@ -183,9 +203,12 @@ export async function getFieldValuesMetricQuery({
 
     // Attribute-gated tables/dimensions must not be enumerable, including
     // through curated (static) values.
-    let visibleDimensions = getVisibleDimensionMap(
+    let visibleDimensions = getVisibleDimensionsForField(
+        account,
+        projectUuid,
         initialExplore,
         userAttributes,
+        fieldId,
     );
     if (!(fieldId in visibleDimensions)) {
         throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);
@@ -247,9 +270,12 @@ export async function getFieldValuesMetricQuery({
                 `Filter autocomplete options source must be a dimension, but ${fieldId} is a ${sourceField.type}`,
             );
         }
-        visibleDimensions = getVisibleDimensionMap(
+        visibleDimensions = getVisibleDimensionsForField(
+            account,
+            projectUuid,
             sourceExplore,
             userAttributes,
+            fieldId,
         );
         if (!(fieldId in visibleDimensions)) {
             throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);

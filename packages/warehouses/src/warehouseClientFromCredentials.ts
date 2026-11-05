@@ -9,7 +9,10 @@ import {
     AthenaWarehouseClient,
     type AthenaWarehouseClientOptions,
 } from './warehouseClients/AthenaWarehouseClient';
-import { BigqueryWarehouseClient } from './warehouseClients/BigqueryWarehouseClient';
+import {
+    BigqueryWarehouseClient,
+    type BigqueryWarehouseClientOptions,
+} from './warehouseClients/BigqueryWarehouseClient';
 import {
     ClickhouseWarehouseClient,
     type ClickhouseWarehouseClientOptions,
@@ -26,8 +29,10 @@ import { TrinoWarehouseClient } from './warehouseClients/TrinoWarehouseClient';
 
 export type WarehouseClientOptions = DuckdbWarehouseClientOptions &
     ClickhouseWarehouseClientOptions &
-    AthenaWarehouseClientOptions & {
+    AthenaWarehouseClientOptions &
+    BigqueryWarehouseClientOptions & {
         agentSession?: boolean;
+        agentJobControls?: boolean;
     };
 
 export const warehouseClientFromCredentials = (

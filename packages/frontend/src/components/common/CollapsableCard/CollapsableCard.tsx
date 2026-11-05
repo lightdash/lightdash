@@ -1,4 +1,4 @@
-import { Button, Card, Flex, Group, Title, Tooltip } from '@mantine/core';
+import { Box, Button, Card, Flex, Group, Title, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, type FC, type MouseEvent, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';
@@ -59,12 +59,8 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
             p={minimal ? 0 : 'xxs'}
             shadow={minimal ? undefined : 'subtle'}
             unstyled={minimal}
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'visible',
-                ...(shouldExpand ? { flex: 1 } : undefined),
-            }}
+            flex={shouldExpand ? 1 : undefined}
+            className={classes.card}
             {...tourProps}
         >
             {!hideHeading && (
@@ -151,37 +147,17 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
             {isOpen && (
                 <Flex
                     direction="column"
-                    style={shouldExpand ? { minHeight, flex: 1 } : undefined}
+                    mih={shouldExpand ? minHeight : undefined}
+                    flex={shouldExpand ? 1 : undefined}
                 >
                     {isVisualizationCard ? (
-                        <div
-                            style={{
-                                position: 'relative',
-                                width: '100%',
-                                height: '100%',
-                            }}
-                        >
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    left: 0,
-                                    right: 0,
-                                    top: 0,
-                                    bottom: 0,
-                                    overflow: 'hidden',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        height: minimal
-                                            ? 0
-                                            : COLLAPSIBLE_CARD_GAP_SIZE,
-                                        minHeight: minimal
-                                            ? 0
-                                            : COLLAPSIBLE_CARD_GAP_SIZE,
-                                    }}
+                        <div className={classes.visualizationWrapper}>
+                            <div className={classes.visualizationContent}>
+                                <Box
+                                    h={minimal ? 0 : COLLAPSIBLE_CARD_GAP_SIZE}
+                                    mih={
+                                        minimal ? 0 : COLLAPSIBLE_CARD_GAP_SIZE
+                                    }
                                 />
                                 {children}
                             </div>

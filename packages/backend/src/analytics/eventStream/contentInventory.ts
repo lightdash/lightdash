@@ -9,6 +9,7 @@ export const contentInventoryColumns: CompactedStreamColumn[] = [
         'content_type',
         'content_id',
         'content_name',
+        'content_url',
         'space_id',
         'space_name',
         'owner_id',

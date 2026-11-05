@@ -1,0 +1,291 @@
+import {
+    NotFoundError,
+    ProjectType,
+    type CreateWarehouseCredentials,
+    type ProjectSummary,
+} from '@lightdash/common';
+import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import {
+    hasSameWarehouseCredentialDestination,
+    hasSameWarehouseCredentialDestinationAndTransport,
+} from '../../utils/credentialDestination';
+
+export type AiServiceAccountSlotDependencies = {
+    aiServiceAccountCredentialsModel: Pick<
+        AiServiceAccountCredentialsModel,
+        'getSecrets' | 'getSlot'
+    >;
+    projectModel: Pick<
+        ProjectModel,
+        'getSummary' | 'getWarehouseCredentialsForBinding'
+    >;
+    warehouseConnectionModel: Pick<
+        WarehouseConnectionModel,
+        'getProject' | 'get' | 'list' | 'getCredentials'
+    >;
+};
+
+type Input = {
+    projectUuid: string;
+    connection: string | null;
+    configuration: CreateWarehouseCredentials;
+};
+type Resolution<T> = {
+    configuration: CreateWarehouseCredentials;
+    slot: T;
+    sourceProjectUuid: string;
+    sourceConnection: string | null;
+    inherited: boolean;
+};
+
+export class AiServiceAccountSlotResolutionError extends Error {
+    constructor(readonly inheritedFromProjectUuid: string | null) {
+        super('The saved shared agent account credentials could not be read.');
+    }
+}
+
+export class AiServiceAccountDestinationMismatchError extends AiServiceAccountSlotResolutionError {
+    constructor(parentProjectUuid: string) {
+        super(parentProjectUuid);
+        this.message =
+            'The preview connection does not point at the same warehouse as its parent project, so the parent shared agent account cannot be used.';
+    }
+}
+
+export class AiServiceAccountTransportMismatchError extends AiServiceAccountSlotResolutionError {
+    constructor(parentProjectUuid: string) {
+        super(parentProjectUuid);
+        this.message =
+            'The preview connection transport settings differ from its parent project, so the parent shared agent account cannot be used.';
+    }
+}
+
+export class AiServiceAccountParentConnectionUnreadableError extends AiServiceAccountSlotResolutionError {
+    constructor(parentProjectUuid: string) {
+        super(parentProjectUuid);
+        this.message =
+            'The parent warehouse connection could not be read, so the parent shared agent account cannot be used.';
+    }
+}
+
+export class AiServiceAccountSlotResolver {
+    constructor(private readonly deps: AiServiceAccountSlotDependencies) {}
+
+    private async normalize(input: Input): Promise<Input> {
+        if (input.connection === null) return input;
+        const project = await this.deps.warehouseConnectionModel.getProject(
+            input.projectUuid,
+        );
+        const connection = await this.deps.warehouseConnectionModel.get(
+            project,
+            input.connection,
+        );
+        return {
+            ...input,
+            connection: connection.isOriginal ? null : input.connection,
+        };
+    }
+
+    private async requireSameDestination(
+        child: Input,
+        parent: Input,
+    ): Promise<void> {
+        const loadCredentials = async ({ projectUuid, connection }: Input) =>
+            connection === null
+                ? this.deps.projectModel.getWarehouseCredentialsForBinding(
+                      projectUuid,
+                      { kind: 'connection', warehouseConnectionUuid: null },
+                  )
+                : this.deps.warehouseConnectionModel.getCredentials(
+                      await this.deps.warehouseConnectionModel.getProject(
+                          projectUuid,
+                      ),
+                      connection,
+                  );
+        let parentCredentials: CreateWarehouseCredentials;
+        try {
+            parentCredentials = await loadCredentials(parent);
+        } catch (error) {
+            if (error instanceof NotFoundError) throw error;
+            throw new AiServiceAccountParentConnectionUnreadableError(
+                parent.projectUuid,
+            );
+        }
+        if (
+            !hasSameWarehouseCredentialDestination(
+                child.configuration,
+                parentCredentials,
+            )
+        )
+            throw new AiServiceAccountDestinationMismatchError(
+                parent.projectUuid,
+            );
+        if (
+            !hasSameWarehouseCredentialDestinationAndTransport(
+                child.configuration,
+                parentCredentials,
+            )
+        )
+            throw new AiServiceAccountTransportMismatchError(
+                parent.projectUuid,
+            );
+    }
+
+    private async parent(
+        input: Input,
+        project: ProjectSummary,
+    ): Promise<Input | null> {
+        const parentUuid = project.upstreamProjectUuid ?? null;
+        if (
+            project.type !== ProjectType.PREVIEW ||
+            parentUuid === null ||
+            parentUuid === input.projectUuid
+        )
+            return null;
+        try {
+            const parent = await this.deps.projectModel.getSummary(parentUuid);
+            if (parent.organizationUuid !== project.organizationUuid)
+                return null;
+            if (input.connection === null) {
+                const parentInput = {
+                    projectUuid: parentUuid,
+                    connection: null,
+                    configuration: input.configuration,
+                };
+                await this.requireSameDestination(input, parentInput);
+                return parentInput;
+            }
+            const childConnection =
+                await this.deps.warehouseConnectionModel.get(
+                    await this.deps.warehouseConnectionModel.getProject(
+                        input.projectUuid,
+                    ),
+                    input.connection,
+                );
+            const connections = await this.deps.warehouseConnectionModel.list(
+                await this.deps.warehouseConnectionModel.getProject(parentUuid),
+            );
+            const matching = connections.find(
+                (connection) =>
+                    !connection.isOriginal &&
+                    connection.name === childConnection.name &&
+                    connection.warehouseType === childConnection.warehouseType,
+            );
+            if (!matching) return null;
+            const parentInput = {
+                projectUuid: parentUuid,
+                connection: matching.warehouseConnectionUuid,
+                configuration: input.configuration,
+            };
+            await this.requireSameDestination(input, parentInput);
+            return parentInput;
+        } catch (error) {
+            if (error instanceof NotFoundError) return null;
+            throw error;
+        }
+    }
+
+    private async read<T>(
+        input: Input,
+        inherited: boolean,
+        load: (input: Input) => Promise<T | null>,
+    ): Promise<Resolution<T> | null> {
+        let slot: T | null;
+        try {
+            slot = await load(input);
+        } catch {
+            throw new AiServiceAccountSlotResolutionError(
+                inherited ? input.projectUuid : null,
+            );
+        }
+        return slot === null
+            ? null
+            : {
+                  slot,
+                  configuration: input.configuration,
+                  sourceProjectUuid: input.projectUuid,
+                  sourceConnection: input.connection,
+                  inherited,
+              };
+    }
+
+    private async resolveWith<T>(
+        input: Input,
+        load: (input: Input) => Promise<T | null>,
+    ): Promise<Resolution<T> | null> {
+        const normalized = await this.normalize(input);
+        let project: ProjectSummary;
+        try {
+            project = await this.deps.projectModel.getSummary(
+                input.projectUuid,
+            );
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) throw error;
+            const own = await this.read(normalized, false, load);
+            if (own !== null) return own;
+            throw error;
+        }
+        if (
+            project.type === ProjectType.PREVIEW &&
+            project.upstreamProjectUuid
+        ) {
+            const parent = await this.parent(normalized, project);
+            return parent === null ? null : this.read(parent, true, load);
+        }
+        return this.read(normalized, false, load);
+    }
+
+    async resolve(input: Input) {
+        return this.resolveWith(input, ({ projectUuid, connection }) =>
+            this.deps.aiServiceAccountCredentialsModel.getSecrets(
+                projectUuid,
+                connection,
+                true,
+            ),
+        );
+    }
+
+    async resolveMetadata(input: Input) {
+        return this.resolveWith(input, ({ projectUuid, connection }) =>
+            this.deps.aiServiceAccountCredentialsModel.getSlot(
+                projectUuid,
+                connection,
+            ),
+        );
+    }
+
+    async resolveParent(input: Input) {
+        const normalized = await this.normalize(input);
+        const project = await this.deps.projectModel.getSummary(
+            input.projectUuid,
+        );
+        const parent = await this.parent(normalized, project);
+        return parent === null
+            ? null
+            : this.read(parent, true, ({ projectUuid, connection }) =>
+                  this.deps.aiServiceAccountCredentialsModel.getSecrets(
+                      projectUuid,
+                      connection,
+                      true,
+                  ),
+              );
+    }
+
+    async resolveParentMetadata(input: Input) {
+        const normalized = await this.normalize(input);
+        const project = await this.deps.projectModel.getSummary(
+            input.projectUuid,
+        );
+        const parent = await this.parent(normalized, project);
+        return parent === null
+            ? null
+            : this.read(parent, true, ({ projectUuid, connection }) =>
+                  this.deps.aiServiceAccountCredentialsModel.getSlot(
+                      projectUuid,
+                      connection,
+                  ),
+              );
+    }
+}

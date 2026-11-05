@@ -6,9 +6,11 @@ import {
     type SummaryContent,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const getContentByUuids = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     uuids: string[],
     contentTypes?: ContentType[],
@@ -31,8 +33,9 @@ export const useCollectionContent = (
     projectUuid: string,
     uuids: string[],
     contentTypes?: ContentType[],
-) =>
-    useQuery<SummaryContent[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SummaryContent[], ApiError>({
         enabled: uuids.length > 0,
         queryKey: [
             'homepage_collection_content',
@@ -42,6 +45,7 @@ export const useCollectionContent = (
         ],
         queryFn: async () => {
             const results = await getContentByUuids(
+                lightdashApi,
                 projectUuid,
                 uuids,
                 contentTypes,
@@ -52,6 +56,7 @@ export const useCollectionContent = (
             return uuids.flatMap((uuid) => byUuid.get(uuid) ?? []);
         },
     });
+};
 
 const DOCUMENT_CONTENT_TYPES = [ContentType.DOCUMENT];
 

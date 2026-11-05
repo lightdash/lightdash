@@ -4,10 +4,12 @@ import {
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const reassignSchedulerOwner = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ReassignSchedulerOwnerRequest,
 ) =>
@@ -18,6 +20,7 @@ const reassignSchedulerOwner = async (
     });
 
 export const useSchedulerReassignOwnerMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -25,7 +28,7 @@ export const useSchedulerReassignOwnerMutation = (projectUuid: string) => {
         SchedulerAndTargets[],
         ApiError,
         ReassignSchedulerOwnerRequest
-    >((data) => reassignSchedulerOwner(projectUuid, data), {
+    >((data) => reassignSchedulerOwner(lightdashApi, projectUuid, data), {
         mutationKey: ['reassign_scheduler_owner'],
         onSuccess: async (_, variables) => {
             await queryClient.invalidateQueries(['paginatedSchedulers']);

@@ -1,6 +1,5 @@
 import {
     defineUserAbility,
-    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     type DocumentSearchResult,
@@ -39,13 +38,15 @@ const document: DocumentSearchResult = {
     search_rank: 100,
 };
 
-const setup = ({ enabled = true, granted = true } = {}) => {
+const setup = ({ granted = true } = {}) => {
     const projectModel = {
         getSummary: vi
             .fn()
             .mockResolvedValue({ projectUuid, organizationUuid }),
     };
-    const featureFlagModel = { get: vi.fn().mockResolvedValue({ enabled }) };
+    const featureFlagModel = {
+        get: vi.fn().mockResolvedValue({ enabled: true }),
+    };
     const resolveAccessBatch = vi.fn().mockResolvedValue([
         {
             context: {
@@ -123,13 +124,8 @@ const setup = ({ enabled = true, granted = true } = {}) => {
 
 describe('Document global search authorization', () => {
     it('returns direct-granted Documents without space access using canonical authorization', async () => {
-        const {
-            service,
-            searchModel,
-            resolveAccessBatch,
-            featureFlagModel,
-            documentModel,
-        } = setup();
+        const { service, searchModel, resolveAccessBatch, documentModel } =
+            setup();
         const results = await service.getSearchResults(
             user,
             projectUuid,
@@ -152,33 +148,14 @@ describe('Document global search authorization', () => {
                 spaceUuid: document.spaceUuid,
             },
         ]);
-        expect(featureFlagModel.get).toHaveBeenCalledWith({
-            featureFlagId: FeatureFlags.Documents,
-            user: { userUuid, organizationUuid },
-        });
     });
 
-    it.each([
-        { enabled: false, granted: true },
-        { enabled: true, granted: false },
-    ])(
-        'hides Documents when flag/access disallows them: %j',
-        async (options) => {
-            const { service } = setup(options);
-            expect(
-                (await service.getSearchResults(user, projectUuid, 'Weekly'))
-                    .documents,
-            ).toEqual([]);
-        },
-    );
-
-    it('skips Document permission resolution when the feature is disabled', async () => {
-        const { service, documentModel, resolveAccessBatch } = setup({
-            enabled: false,
-        });
-        await service.getSearchResults(user, projectUuid, 'Weekly');
-        expect(documentModel.listSummariesByUuid).not.toHaveBeenCalled();
-        expect(resolveAccessBatch).not.toHaveBeenCalled();
+    it('hides Documents when access disallows them', async () => {
+        const { service } = setup({ granted: false });
+        expect(
+            (await service.getSearchResults(user, projectUuid, 'Weekly'))
+                .documents,
+        ).toEqual([]);
     });
 
     it('skips Document authorization when search returns no candidates', async () => {

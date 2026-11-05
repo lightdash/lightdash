@@ -58,19 +58,29 @@ export type DbtNode = {
     resource_type: string;
     config?: DbtNodeConfig;
     lightdash_source_name?: string;
+    lightdash_model_inventory_complete?: boolean;
     lightdash_source_uuid?: string;
 };
 export type DbtRawModelNode = Omit<
     CompiledModelNode,
-    'resource_type' | 'compiled' | 'language'
+    'resource_type' | 'compiled' | 'language' | 'refs'
 > & {
     resource_type: 'model' | 'seed';
+    refs?: {
+        name: string;
+        package: string | null;
+        version: string | number | null;
+    }[];
+    version?: string | number | null;
+    latest_version?: string | number | null;
+    access?: string | null;
     compiled?: boolean;
     language?: string;
     columns: { [name: string]: DbtModelColumn };
     config?: CompiledModelNode['config'] & { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
     lightdash_source_name?: string;
+    lightdash_model_inventory_complete?: boolean;
     lightdash_source_uuid?: string;
 };
 export type DbtModelNode = DbtRawModelNode & {
@@ -157,6 +167,7 @@ export type DbtPreAggregateDef = {
     max_rows?: number;
     refresh?: {
         cron?: string;
+        on_change?: boolean;
     };
     materialization_role?: {
         email: string;
@@ -525,6 +536,8 @@ export type DbtDoc = {
 
 export interface DbtManifest {
     nodes: Record<string, DbtNode>;
+    disabled?: Record<string, DbtRawModelNode[]>;
+    lightdash_model_inventory_complete?: boolean;
     metadata: DbtRawManifestMetadata;
     /**
      * dbt MetricFlow metrics (dbt >= 1.6). Translated into Lightdash metrics
@@ -545,6 +558,7 @@ export interface DbtManifest {
 }
 
 export interface DbtRawManifestMetadata {
+    project_name?: string;
     dbt_schema_version: string;
     generated_at: string;
     adapter_type: string;
@@ -945,13 +959,117 @@ export type DbtExposure = {
     tags?: string[];
 };
 
+export const isExternalDbtNode = (
+    node: Pick<DbtRawModelNode, 'path' | 'original_file_path'>,
+): boolean => !node.path && !node.original_file_path;
+
+export type DbtExternalModelNode = {
+    name: string;
+    package_name: string;
+    identifier: string;
+    schema: string;
+    database: string | null;
+    relation_name: string | null;
+    version: string | number | null;
+    latest_version: string | number | null;
+    access: string | null;
+    depends_on_nodes: string[];
+};
+
+export const getExternalModelNodesFromManifest = (
+    manifest: DbtManifest,
+): DbtExternalModelNode[] => {
+    const models = Object.values(manifest.nodes)
+        .filter((node) => node.resource_type === 'model')
+        .map((node) => node as DbtRawModelNode)
+        .filter((node) => !isExternalDbtNode(node));
+    const modelIds = new Set(models.map((node) => node.unique_id));
+    return models.map((node) => ({
+        name: node.name,
+        package_name: node.package_name,
+        identifier: node.alias ?? node.name,
+        schema: node.schema,
+        database: node.database ?? null,
+        relation_name: node.relation_name ?? null,
+        version: node.version ?? null,
+        latest_version: node.latest_version ?? null,
+        access: node.access ?? null,
+        depends_on_nodes: (node.depends_on?.nodes ?? []).filter((id) =>
+            modelIds.has(id),
+        ),
+    }));
+};
+
+export const stripExternalDbtNodes = (manifest: DbtManifest): DbtManifest => ({
+    ...manifest,
+    nodes: Object.fromEntries(
+        Object.entries(manifest.nodes).filter(
+            ([, node]) =>
+                (node.resource_type !== 'model' &&
+                    node.resource_type !== 'seed') ||
+                !isExternalDbtNode(node as DbtRawModelNode),
+        ),
+    ),
+});
+
+export const getDbtManifestPackageNames = (manifest: DbtManifest): string[] => {
+    const packageNames = new Set<string>();
+    if (manifest.metadata.project_name != null)
+        packageNames.add(manifest.metadata.project_name);
+    Object.values(manifest.nodes).forEach((node) => {
+        if (
+            node.resource_type === 'model' &&
+            !isExternalDbtNode(node as DbtRawModelNode)
+        ) {
+            packageNames.add((node as DbtRawModelNode).package_name);
+        }
+    });
+    return [...packageNames];
+};
+
+export type ModelInventoryEntry = Pick<
+    DbtRawModelNode,
+    | 'name'
+    | 'package_name'
+    | 'lightdash_source_name'
+    | 'version'
+    | 'latest_version'
+>;
+
+export const getModelInventoryFromManifest = (
+    manifest: DbtManifest,
+): ModelInventoryEntry[] =>
+    [
+        ...Object.values(manifest.nodes),
+        ...Object.values(manifest.disabled ?? {}).flat(),
+    ]
+        .filter((node) => ['model', 'seed'].includes(node.resource_type))
+        .map((node) => node as DbtRawModelNode)
+        .filter((node) => !isExternalDbtNode(node))
+        .map(
+            ({
+                name,
+                package_name,
+                lightdash_source_name,
+                version,
+                latest_version,
+            }) => ({
+                name,
+                package_name,
+                lightdash_source_name,
+                version,
+                latest_version,
+            }),
+        );
+
 export const getModelsFromManifest = (
     manifest: DbtManifest,
 ): DbtModelNode[] => {
     const models = Object.values(manifest.nodes).filter(
         (node) =>
             ['model', 'seed'].includes(node.resource_type) &&
-            node.config?.materialized !== 'ephemeral',
+            node.config?.materialized !== 'ephemeral' &&
+            !isExternalDbtNode(node as DbtRawModelNode),
     ) as DbtRawModelNode[];
 
     if (!isSupportedDbtAdapter(manifest.metadata)) {

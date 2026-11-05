@@ -1,4 +1,5 @@
 import type {
+    AgentIdentityClaim,
     AuthType,
     DuckdbExecutionSpec,
     ItemsMap,
@@ -12,11 +13,13 @@ import type {
     QueryHistory,
     QueryHistoryStatus,
     ResultColumns,
+    WarehouseExecutionStats,
     WarehouseQueryMetadata,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type DbQueryHistory = {
+    agent_identity: AgentIdentityClaim | null;
     warehouse_connection_uuid?: string | null;
     query_uuid: string;
     created_at: Date;
@@ -30,6 +33,7 @@ export type DbQueryHistory = {
     compiled_sql: string;
     warehouse_query_id: string | null;
     warehouse_query_metadata: WarehouseQueryMetadata | null;
+    warehouse_execution_stats: WarehouseExecutionStats | null;
     metric_query: MetricQuery;
     fields: ItemsMap;
     request_parameters: QueryHistory['requestParameters'];
@@ -40,6 +44,8 @@ export type DbQueryHistory = {
     errored_at: Date | null;
     status: QueryHistoryStatus;
     cache_key: string;
+    cache_generation: number; // project results_cache_generation the results belong to
+    cache_invalidated_at: Date | null; // set when a chart or dashboard cache is cleared
     pivot_configuration: PivotConfiguration | null;
     pivot_values_columns: Record<string, PivotValuesColumn> | null;
     pivot_total_column_count: number | null;
@@ -58,9 +64,10 @@ export type DbQueryHistory = {
 
 export type DbQueryHistoryIn = Omit<
     DbQueryHistory,
-    'query_uuid' | 'created_at' | 'created_by_actor_type'
+    'query_uuid' | 'created_at' | 'created_by_actor_type' | 'agent_identity'
 > & {
     created_by_actor_type: AuthType;
+    agent_identity?: AgentIdentityClaim;
     warehouse_connection_uuid?: string | null;
 };
 
@@ -76,6 +83,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'total_row_count'
         | 'warehouse_query_id'
         | 'warehouse_query_metadata'
+        | 'warehouse_execution_stats'
         | 'default_page_size'
         | 'pivot_configuration'
         | 'pivot_values_columns'
@@ -89,6 +97,8 @@ export type DbQueryHistoryUpdate = Partial<
         | 'pre_aggregate_compiled_sql'
         | 'pre_aggregate_execution'
         | 'cache_key'
+        | 'cache_generation'
+        | 'cache_invalidated_at'
         | 'pre_aggregate_fallback_reason'
         | 'processing_started_at'
         | 'duckdb_execution'

@@ -40,6 +40,7 @@ const results = (rows: number) => ({
     fileUrl: `/results-${rows}`,
     results: Array.from({ length: rows }, (_, index) => ({ id: index })),
     columns: [{ reference: 'id' }],
+    durationMs: null,
 });
 
 const run = () =>
@@ -90,12 +91,14 @@ describe('SQL runner runs on the active connection', () => {
         await run();
 
         expect(executeSqlQuery).toHaveBeenCalledWith(
+            expect.anything(),
             'project-uuid',
             'select 1',
             10,
             {},
             true,
             'finance-uuid',
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
         expect(store.getState().sqlRunner.sqlRows).toHaveLength(1);
     });
@@ -108,7 +111,7 @@ describe('SQL runner runs on the active connection', () => {
 
         await run();
 
-        expect(vi.mocked(executeSqlQuery).mock.calls[0][5]).toBeNull();
+        expect(vi.mocked(executeSqlQuery).mock.calls[0][6]).toBeNull();
     });
 
     it("sends main's request with no connection in a single project", async () => {
@@ -118,12 +121,14 @@ describe('SQL runner runs on the active connection', () => {
         await run();
 
         expect(executeSqlQuery).toHaveBeenCalledWith(
+            expect.anything(),
             'project-uuid',
             'select 1',
             10,
             {},
             true,
             undefined,
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
     });
 
@@ -210,6 +215,7 @@ describe('SQL runner runs on the active connection', () => {
             expect(
                 vi.mocked(getPivotQueryFunctionForSqlQuery),
             ).toHaveBeenLastCalledWith(
+                expect.anything(),
                 expect.objectContaining({ warehouseConnectionUuid: expected }),
             );
         },

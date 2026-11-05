@@ -1,6 +1,7 @@
 import {
     BYO_AI_PROVIDERS,
     FeatureFlags,
+    getDefaultBedrockInferenceGeography,
     MissingConfigError,
     type AiOrgModelVisibility,
     type ByoAiApiKeyProvider,
@@ -23,6 +24,10 @@ import {
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
 import {
+    resolveAiDecisionClient,
+    type AiDecisionClient,
+} from './decisions/AiDecisionClient';
+import {
     getAvailableModels,
     getFastModelForAccessibleKey,
     getOrgModelCatalogue,
@@ -42,8 +47,6 @@ export type CopilotConfig = AiCopilotConfigSchemaType;
 export type ResolvedCopilotConfig = CopilotConfig & {
     byoProviders: ByoAiProvider[];
 };
-
-const JAPAN_BEDROCK_REGIONS: string[] = ['ap-northeast-1', 'ap-northeast-3'];
 
 // Review turns run on a fast Anthropic model; a BYO Anthropic key must be able
 // to serve it for reviews to run on the org's own key instead of being paused.
@@ -142,7 +145,8 @@ export const overlayOrgProviderApiKeys = (
     // It is also the one provider an org can bring without the instance running
     // it: the org supplies the region, so there is nothing to overlay onto.
     if (orgKeys.bedrock) {
-        const { apiKey, region, allowedModels } = orgKeys.bedrock;
+        const { apiKey, region, allowedModels, inferenceGeography } =
+            orgKeys.bedrock;
         return {
             ...config,
             defaultProvider: 'bedrock',
@@ -151,12 +155,15 @@ export const overlayOrgProviderApiKeys = (
                 bedrock: {
                     apiKey,
                     region,
-                    // Japan pins `jp`: the region-derived `apac` default may
-                    // serve from Sydney or Mumbai, which defeats the point of
-                    // choosing Tokyo or Osaka.
-                    ...(JAPAN_BEDROCK_REGIONS.includes(region)
-                        ? { inferenceProfilePrefix: 'jp' }
-                        : {}),
+                    // The profile, not the region, decides where inference
+                    // runs. Default to the narrowest geography the region
+                    // supports (Japan pins `jp`: the region-derived `apac`
+                    // profile may serve from Sydney or Mumbai, which defeats
+                    // the point of choosing Tokyo or Osaka); a stored
+                    // geography is the admin's explicit choice.
+                    inferenceProfilePrefix:
+                        inferenceGeography ??
+                        getDefaultBedrockInferenceGeography(region),
                     modelName: allowedModels[0],
                     availableModels: allowedModels,
                     embeddingModelName: DEFAULT_BEDROCK_EMBEDDING_MODEL,
@@ -756,16 +763,56 @@ export class OrgAiCopilotConfigResolver {
     }
 
     /**
-     * True when the org routes AI through its own Bedrock config. Auxiliary AI
-     * that can only run on the instance provider is skipped for these orgs: the
-     * point of choosing a Bedrock region is that content does not leave it.
+     * True when the org, or the project's pinned credential, brings any of its
+     * own provider keys. Instance-only AI such as external decisions is skipped
+     * for these orgs: BYOK content never leaves the org's chosen provider.
      */
-    async isOrgBedrockRouted(
+    async isOrgOnOwnProviderKeys(
         organizationUuid: string | null | undefined,
+        projectUuid: string | null,
     ): Promise<boolean> {
         if (!organizationUuid) return false;
         const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
-            projectUuid: null,
+            projectUuid,
+        });
+        return BYO_AI_PROVIDERS.some((provider) => orgKeys?.[provider]);
+    }
+
+    /**
+     * The instance decision client for an organization, or undefined when
+     * decisions must not run for it: no instance key, or the org brings its
+     * own provider keys. The one gate every decision call site goes through.
+     */
+    async getDecisionClient(
+        organizationUuid: string | null | undefined,
+        projectUuid: string | null,
+    ): Promise<AiDecisionClient | undefined> {
+        const client = resolveAiDecisionClient(
+            this.lightdashConfig.ai?.decisions,
+        );
+        if (!client) return undefined;
+        if (await this.isOrgOnOwnProviderKeys(organizationUuid, projectUuid)) {
+            return undefined;
+        }
+        return client;
+    }
+
+    /**
+     * True when the org, or the project's pinned credential, routes AI through
+     * its own Bedrock config. Auxiliary AI that can only run on the instance
+     * provider is skipped for these orgs: the point of choosing a Bedrock
+     * region is that content does not leave it. `projectUuid` is required for
+     * the same reason as in `AiConfigScope`: a credential can serve a project
+     * without being the organization default, so a caller must state that it
+     * has no project rather than silently checking only the org default.
+     */
+    async isOrgBedrockRouted(
+        organizationUuid: string | null | undefined,
+        projectUuid: string | null,
+    ): Promise<boolean> {
+        if (!organizationUuid) return false;
+        const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
+            projectUuid,
         });
         return Boolean(orgKeys?.bedrock);
     }

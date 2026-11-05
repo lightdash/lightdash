@@ -36,12 +36,15 @@ type GitlabBranchParams = GitlabApiParams & {
 
 type GitlabUpdateFileParams = GitlabFileParams & {
     content: string;
+    /** `base64` when `content` is the file's bytes encoded, for a binary file; text otherwise. */
+    encoding?: 'base64';
     fileSha?: string;
     message: string;
 };
 
 type GitlabCreateFileParams = GitlabFileParams & {
     content: string;
+    encoding?: 'base64';
     message: string;
 };
 
@@ -247,6 +250,7 @@ export const checkFileDoesNotExist = async ({
 export const createFile = async ({
     fileName,
     content,
+    encoding,
     message,
     owner,
     repo,
@@ -266,7 +270,10 @@ export const createFile = async ({
         method: 'POST',
         body: JSON.stringify({
             branch,
-            content: Buffer.from(content, 'utf-8').toString('base64'),
+            content:
+                encoding === 'base64'
+                    ? content
+                    : Buffer.from(content, 'utf-8').toString('base64'),
             commit_message: message,
             encoding: 'base64',
         }),
@@ -276,6 +283,7 @@ export const createFile = async ({
 export const updateFile = async ({
     fileName,
     content,
+    encoding,
     fileSha,
     message,
     owner,
@@ -294,7 +302,10 @@ export const updateFile = async ({
 
     const body: Record<string, string | number> = {
         branch,
-        content: Buffer.from(content, 'utf-8').toString('base64'),
+        content:
+            encoding === 'base64'
+                ? content
+                : Buffer.from(content, 'utf-8').toString('base64'),
         commit_message: message,
         encoding: 'base64',
     };
@@ -471,25 +482,6 @@ const GITLAB_BRANCHES_PER_PAGE = 100;
 // `x-next-page` from a misbehaving (e.g. self-hosted) GitLab can't spin
 // forever. Real repos are well under this; same defensive pattern as the tree.
 const MAX_BRANCH_PAGES = 100;
-
-/**
- * Repository size in MB for the pre-clone size guard (R9), from the project's
- * `statistics.repository_size` (bytes). Returns null when statistics aren't
- * exposed (the token lacks the needed access, or the field is absent) — the
- * caller then can't enforce the guard and falls back to the clone timeout.
- */
-export const getRepositorySizeMb = async ({
-    owner,
-    repo,
-    token,
-    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: GitlabApiParams): Promise<number | null> => {
-    const projectId = getProjectId(owner, repo);
-    const url = getApiUrl(hostDomain, `/projects/${projectId}?statistics=true`);
-    const project = await makeGitlabRequest(url, token);
-    const bytes = project?.statistics?.repository_size;
-    return typeof bytes === 'number' ? Math.round(bytes / (1024 * 1024)) : null;
-};
 
 export const closeMergeRequest = async ({
     owner,

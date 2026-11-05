@@ -1,4 +1,4 @@
-# Current content, user and agent dimensions
+# Current content, user, agent and project dimensions
 
 The existing `compactUsageEvents` Graphile job refreshes dimension snapshots
 after processing event partitions, daily at 00:30 UTC. It also refreshes on days
@@ -12,26 +12,44 @@ Each organization has one current Parquet object per dimension:
 | `dim=charts/charts.parquet`                    | org_id, chart_id, name, slug, chart_kind, space_name, is_deleted |
 | `dim=dashboards/dashboards.parquet`            | org_id, dashboard_id, name, slug, space_name, is_deleted         |
 | `dim=agents/agents.parquet`                    | org_id, agent_id, name                                           |
-| `dim=users/users.parquet`                      | org_id, user_id, name                                            |
+| `dim=users/users.parquet`                      | org_id, user_id, name, email                                     |
+| `dim=projects/projects.parquet`                | org_id, project_id, name                                         |
 
 Charts include saved metric and SQL charts, including charts owned by a
 dashboard. Soft-deleted content remains identifiable through `is_deleted`;
 hard-deleted or unknown content resolves to NULL. Users are active, non-internal
 members of the source organization. Removed, inactive, internal, unnamed and
 unknown users display `Unknown user`, with the original event User ID available
-for disambiguation. No email addresses or historical identities are exported.
+for disambiguation. **User email** is a separate, nullable field containing only
+the current primary email (`emails.is_primary = true`). Alternate addresses are
+excluded. Users without a primary email remain in the snapshot with NULL email;
+removed or unmatched users are not assigned an email from their events.
+
+The People adoption Explore also exposes **User email** from its current
+organization-membership snapshot, retaining its existing eligibility rules.
+Email is metadata, not an event field: it does not change event files, compaction
+or summary grouping. Existing snapshots without the column return NULL until the
+next successful metadata refresh. Changing the primary email is reflected by that
+refresh; no historical event rebuild is required.
 
 Names reflect current source values after the next successful refresh, including
 when querying older event partitions. Event files are not rewritten. This is
-current metadata, not an audit of names at event time.
+current metadata, not an audit of names or email addresses at event time.
+
+Email uses the same [managed analytics permissions](access.md) as other
+organization-wide metadata. Grant access only to users and service accounts
+trusted to see that information.
 
 ## Export and failure behavior
 
 The exporter reads at most 1,000 rows per Postgres page, ordered by an indexed
 key, with no OFFSET. Each page releases its connection before file IO. Postgres
 projects an explicit JSON field allowlist. Backpressure streams these rows to
-a private temporary file; it does not collect an organization or ID set in
-Node memory. Organizations and dimensions are processed sequentially.
+a private temporary file rather than collecting all exported rows in memory.
+If a chart page times out, the exporter resolves the organization's project IDs
+and retries that page once with explicit IDs to improve the query plan, retaining
+the ownership check. Subsequent pages use that plan; another timeout fails the
+snapshot normally. Organizations and dimensions are processed sequentially.
 Pagination cursors restart on every run; they do not select only new or changed
 records.
 The source queries live in
@@ -67,7 +85,7 @@ worker scratch-space cleanup and storage lifecycle configuration.
 ## Read path and rollout
 
 Query Events exposes Charts, Dashboards and Users as optional many-to-one LEFT
-JOINs on organization plus entity ID. AI Usage joins Users and Agents; Data App
+JOINs on organization plus entity ID. AI Usage joins Users, Agents and Projects; Data App
 Events and Export Events join Users. Export Events also joins Charts and Dashboards
 through its Query Events metadata, so exports can be grouped by content names.
 Every lookup declares a composite primary key on organization and entity ID.
@@ -86,22 +104,29 @@ After deployment, click **Sync content** as an organization admin to compile the
 new fields in an existing project before updating managed sample dashboards.
 Re-running `POST /api/v1/org/analytics-project` also refreshes the models while
 preserving the project and saved content. New projects include them immediately.
-Existing authorization and feature-flag checks apply. No database migration or
+Existing authorization and deployment availability checks apply. No database migration or
 new configuration is required.
 
 The first dimension refresh does not have to finish before creating or updating
 an analytics project, provided supported event files already exist:
 
-| Storage state | Create or recompile project | Query using User name |
-| --- | --- | --- |
-| Event files exist; users snapshot is missing | Succeeds | Preserves events and displays `Unknown user` |
-| Event files and users snapshot exist | Succeeds | Resolves current names for matching users |
+| Storage state                                               | Create or recompile project                  | Query using User name                               |
+| ----------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------- |
+| Event files exist; users snapshot is missing                | Succeeds                                     | Preserves events and displays `Unknown user`        |
+| Event files and users snapshot exist                        | Succeeds                                     | Resolves current names for matching users           |
 | No supported event files, even if dimension snapshots exist | Returns the existing no-analytics-data error | Wait for daily event processing before provisioning |
 
 Restoring or publishing a missing users snapshot makes names available to new
 queries without recreating the project. Cached results may still show the old
 values. **Sync content** compiles models and updates managed content definitions;
 it does not refresh snapshots or verify that event data is available.
+
+Built-in person tables display a nonblank name, then a nonblank primary email,
+then `User <ID>` (or `No user recorded` when no identifier was captured). Name
+and email remain separate Explore fields. The AI token attribution table keeps
+embedded viewers labeled `Embedded viewers`; email is not inferred for external
+identities. After the metadata refresh makes email available, **Sync content**
+updates these managed tables. Custom charts and copies are not rewritten.
 
 To use the join in Explore, select **Query Events → Total queries** and
 **Users → User name**. Add **User ID** to distinguish people with identical
@@ -113,8 +138,16 @@ display `Unknown agent` without dropping events or changing totals. Only
 `org_id`, `agent_id` and `name` are exported; instructions and configuration are
 excluded.
 
-Project, space and group lookup tables are not part of this implementation;
-charts and dashboards include a `space_name` attribute.
+AI Usage also exposes **Project name** from the current `projects` snapshot.
+The snapshot exports only `org_id`, `project_id` and `name`, including projects
+with no saved content, through the same bounded organization-scoped refresh.
+Names update on the next successful refresh. Missing snapshots and deleted,
+unknown or null project IDs display `Unknown project` without dropping events
+or changing token totals. Project IDs remain available to distinguish projects
+with identical names.
+
+Space and group lookup tables are not part of this implementation; charts and
+dashboards include a `space_name` attribute.
 
 ## Local verification
 

@@ -16,6 +16,7 @@ import {
     mergeConfigSchema,
     mergeSourceQueryConfigSchema,
     queryConfigBaseSchema,
+    rejectAgentMergeConfig,
 } from '../tools/toolRunQueryArgs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
@@ -112,19 +113,23 @@ export const filterExpressionInputSchema = z
 export const filterExpressionsSchema = z
     .object({
         dimensions: filterExpressionInputSchema
-            .nullable()
+            .nullish()
+            .default(null)
             .describe('Flat filter expression for dimension fields.'),
         metrics: filterExpressionInputSchema
-            .nullable()
+            .nullish()
+            .default(null)
             .describe('Flat filter expression for metric fields.'),
         tableCalculations: filterExpressionInputSchema
-            .nullable()
+            .nullish()
+            .default(null)
             .describe('Flat filter expression for table calculations.'),
     })
     .strict()
     .describe(
         'Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.',
-    );
+    )
+    .meta({ id: 'FilterExpressions' });
 
 export const aggregationCustomMetricExpressionSchema =
     aggregationCustomMetricSchema.extend({
@@ -143,7 +148,8 @@ export const customMetricExpressionBaseSchema = z.discriminatedUnion('kind', [
 export const customMetricsExpressionSchema = z
     .array(customMetricExpressionBaseSchema)
     .nullable()
-    .describe(customMetricsSchema.description ?? '');
+    .describe(customMetricsSchema.description ?? '')
+    .meta({ id: 'CustomMetricsExpression' });
 
 export const queryConfigExpressionSchemaV2 = queryConfigBaseSchema.extend({
     customMetrics: customMetricsExpressionSchema,
@@ -219,23 +225,7 @@ export const toolRunQueryExpressionArgsSchema = createToolSchema()
     .build();
 
 export const toolRunQueryExpressionArgsSchemaV2RejectingMerge = z.preprocess(
-    (raw, context) => {
-        if (
-            raw !== null &&
-            typeof raw === 'object' &&
-            'mergeConfig' in raw &&
-            raw.mergeConfig !== null &&
-            raw.mergeConfig !== undefined
-        ) {
-            context.addIssue({
-                code: 'custom',
-                path: ['mergeConfig'],
-                message: 'Merge queries are not enabled for this organization.',
-            });
-            return z.NEVER;
-        }
-        return raw;
-    },
+    rejectAgentMergeConfig,
     toolRunQueryExpressionArgsSchemaV2FormulaOnly,
 );
 

@@ -87,8 +87,8 @@ vi.mock('../../../providers/Ability/useAbilityContext', () => ({
         },
     }),
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({
         chartRef: { current: { getEchartsInstance: mocks.getChartInstance } },
         visualizationConfig: {
             chartType: mocks.chartType,
@@ -102,8 +102,17 @@ vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
         pivotDimensions: undefined,
         chartConfig: {},
         columnOrder: [],
-    }),
-}));
+    });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () =>
+            useVisualizationContext().visualizationConfig,
+        useEditedChartConfig: () => useVisualizationContext().chartConfig,
+    };
+});
 
 vi.mock('./ChartDownloadOptions', () => ({
     default: ({ getChartInstance }: { getChartInstance: () => unknown }) => (

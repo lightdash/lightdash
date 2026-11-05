@@ -30,7 +30,7 @@ describe('AgentConnected', () => {
     it.each([
         [
             'not_agent_session',
-            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.',
+            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.',
         ],
         [
             'no_refresh_token',
@@ -48,8 +48,8 @@ describe('AgentConnected', () => {
         expect(screen.getByText(reason)).toBeInTheDocument();
         expect(
             screen.getByRole('link', {
-                name: 'Try again from My warehouse connections',
+                name: 'Try again from My agent identity',
             }),
-        ).toHaveAttribute('href', '/generalSettings/myWarehouseConnections');
+        ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
     });
 });

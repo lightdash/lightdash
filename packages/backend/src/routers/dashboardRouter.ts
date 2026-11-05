@@ -1,5 +1,6 @@
 import { assertRegisteredAccount } from '@lightdash/common';
 import express, { type Router } from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -57,27 +58,10 @@ dashboardRouter.get(
     },
 );
 
-dashboardRouter.get(
-    '/:dashboardUuid/views',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        req.services
-            .getAnalyticsService()
-            .getDashboardViews(req.params.dashboardUuid)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
-    },
-);
-
 dashboardRouter.patch(
     '/:dashboardUuidOrSlug',
     allowApiKeyAuthentication,
+    requireOAuthScopeOperation('dashboardRouter PATCH /:dashboardUuidOrSlug'),
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -140,6 +124,7 @@ dashboardRouter.delete(
 dashboardRouter.post(
     '/availableFilters',
     allowApiKeyAuthentication,
+    requireOAuthScopeOperation('dashboardRouter POST /availableFilters'),
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -160,6 +145,7 @@ dashboardRouter.post(
 dashboardRouter.post(
     '/:dashboardUuid/export',
     allowApiKeyAuthentication,
+    requireOAuthScopeOperation('dashboardRouter POST /:dashboardUuid/export'),
     isAuthenticated,
     async (req, res, next) => {
         try {

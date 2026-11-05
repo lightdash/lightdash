@@ -353,6 +353,14 @@ async function main() {
             expiresIn: '24h',
         });
         const embedUrl = `${LIGHTDASH_URL}/embed/${projectUuid}#${dashboardToken}`;
+        const exploreFromHereEmbedUrl = `${LIGHTDASH_URL}/embed/${projectUuid}#${jwt.sign(
+            {
+                ...dashboardPayload,
+                content: { ...dashboardPayload.content, canExplore: true },
+            },
+            rawSecret,
+            { expiresIn: '24h' },
+        )}`;
         const aiAgentPayload = aiAgent
             ? {
                   content: {
@@ -557,6 +565,25 @@ async function main() {
                       { expiresIn: '24h' },
                   )}`
                 : null;
+        const { spaceUuid: _defaultSpaceUuid, ...dashboardWriteActor } =
+            dashboardPayload.writeActions;
+        const multiWriteSpacesEmbedUrl =
+            sourceSpaces.length > 0
+                ? `${LIGHTDASH_URL}/embed/${projectUuid}#${jwt.sign(
+                      {
+                          ...dashboardPayload,
+                          writeActions: {
+                              ...dashboardWriteActor,
+                              writeSpaceUuids: [
+                                  spaceUuid,
+                                  sourceSpaces[0].space_uuid,
+                              ],
+                          },
+                      },
+                      rawSecret,
+                      { expiresIn: '24h' },
+                  )}`
+                : null;
 
         console.log(
             JSON.stringify(
@@ -567,12 +594,14 @@ async function main() {
                     aiAgentUuid: aiAgent?.ai_agent_uuid ?? null,
                     aiAgentName: aiAgent?.name ?? null,
                     embedUrl,
+                    exploreFromHereEmbedUrl,
                     aiAgentEmbedUrl,
                     metricsCatalogEmbedUrl,
                     metricsCatalogNoSqlEmbedUrl,
                     chartEmbedUrl,
                     chartNoSqlEmbedUrl,
                     sourceSpacesEmbedUrl,
+                    multiWriteSpacesEmbedUrl,
                     aiAgentPermissionEmbedUrls,
                 },
                 null,
@@ -582,6 +611,9 @@ async function main() {
 
         console.log(`\nAdd to packages/sdk-test-app/.env.local:`);
         console.log(`VITE_EMBED_URL="${embedUrl}"`);
+        console.log(
+            `VITE_EXPLORE_FROM_HERE_EMBED_URL="${exploreFromHereEmbedUrl}"`,
+        );
         console.log(
             `VITE_METRICS_CATALOG_EMBED_URL="${metricsCatalogEmbedUrl}"`,
         );

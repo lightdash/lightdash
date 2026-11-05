@@ -128,18 +128,19 @@ const FavoritesSection: FC<{
     title: string;
     isInteractive: boolean;
     emptyText: string | null;
-}> = ({ projectUuid, title, isInteractive, emptyText }) => (
+    centered: boolean;
+}> = ({ projectUuid, title, isInteractive, emptyText, centered }) => (
     <Stack gap={0}>
         <BlockHeader
             icon={IconStar}
             title={title}
             pill="Only you see this"
-            centered
+            centered={centered}
         />
         <FavoritePills
             projectUuid={projectUuid}
             isInteractive={isInteractive}
-            justify="center"
+            justify={centered ? 'center' : 'flex-start'}
             emptyText={emptyText}
         />
     </Stack>
@@ -163,6 +164,7 @@ export const PersonalFavoritesBar: FC<{ projectUuid: string }> = ({
                 title="My favorites"
                 isInteractive
                 emptyText={null}
+                centered
             />
         </div>
     );
@@ -178,7 +180,8 @@ export const FavoritesBlockView: FC<BlockComponentProps> = ({
             projectUuid={projectUuid}
             title={block.config.title}
             isInteractive
-            emptyText="Star content to keep it here — each person sees their own favorites."
+            emptyText="Star content to keep it here."
+            centered={false}
         />
     );
 };
@@ -186,6 +189,7 @@ export const FavoritesBlockView: FC<BlockComponentProps> = ({
 export const FavoritesBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
+    onChange,
 }) => {
     if (block.type !== 'favorites') return null;
     return (
@@ -193,19 +197,17 @@ export const FavoritesBlockBuild: FC<BuildComponentProps> = ({
             <BlockHeader
                 icon={IconStar}
                 title={block.config.title}
-                pill="Personal per viewer"
-                centered
+                pill="Each viewer sees their own"
+                onTitleChange={(title) =>
+                    onChange({ ...block, config: { ...block.config, title } })
+                }
             />
             <FavoritePills
                 projectUuid={projectUuid}
                 isInteractive={false}
-                justify="center"
-                emptyText="Empty until this viewer stars something — each person sees their own favorites here."
+                justify="flex-start"
+                emptyText="Starred content shows up here."
             />
-            <div className={classes.buildHint}>
-                Showing your favorites as a sample — every viewer sees their
-                own.
-            </div>
         </Stack>
     );
 };

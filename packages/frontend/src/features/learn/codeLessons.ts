@@ -63,7 +63,7 @@ export const CONTENT_AS_CODE_LESSONS: ContentAsCodeLesson[] = [
         scope: 'view:ContentAsCode',
         title: 'Download a chart as code',
         chart: 'revenue-by-payment-method',
-        intro: `${PAGE}#disposable-editing-recommended:1`,
+        intro: `${PAGE}#disposable-editing:1`,
         download: {
             command: DOWNLOAD,
             docs: [
@@ -76,7 +76,7 @@ export const CONTENT_AS_CODE_LESSONS: ContentAsCodeLesson[] = [
             // charts and dashboards" would misdescribe a one-chart download.
             outputDocs: `${PAGE}#specify-a-download-path:p2:1`,
         },
-        resultDocs: `${PAGE}#disposable-editing-recommended:2`,
+        resultDocs: `${PAGE}#disposable-editing:2`,
     },
     {
         scope: 'create:ContentAsCode',
@@ -105,7 +105,7 @@ export const CONTENT_AS_CODE_LESSONS: ContentAsCodeLesson[] = [
             outputDocs: `${PAGE}#lightdash-upload:1`,
         },
         // What the learner has just done from end to end.
-        resultDocs: `${PAGE}#disposable-editing-recommended:1-2`,
+        resultDocs: `${PAGE}#disposable-editing:1-2`,
     },
 ];
 

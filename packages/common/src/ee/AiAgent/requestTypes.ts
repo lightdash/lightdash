@@ -37,7 +37,7 @@ export type AiChartRuntimeOverrides = {
 
 export type AiDashboardFilterRule = Omit<
     DashboardFilterRule,
-    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId'
+    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId' | 'sectionId'
 >;
 
 export type AiDashboardFilters = {
@@ -123,6 +123,7 @@ export const AI_THREAD_CREATED_FROM = [
     'evals',
     'scheduler',
     'data_app',
+    'dashboard_analysis',
 ] as const;
 export type AiThreadCreatedFrom = (typeof AI_THREAD_CREATED_FROM)[number];
 
@@ -137,6 +138,7 @@ export const AI_WEB_APP_THREAD_CREATED_FROM = [
     'evals',
     'scheduler',
     'data_app',
+    'dashboard_analysis',
 ] as const satisfies readonly AiThreadCreatedFrom[];
 export type AiWebAppThreadCreatedFrom =
     (typeof AI_WEB_APP_THREAD_CREATED_FROM)[number];
@@ -197,12 +199,36 @@ export type CreateWebAppThread = {
     userUuid: string;
     createdFrom: AiWebAppThreadCreatedFrom;
     agentUuid: string | null;
-    embedSpaceUuid?: string | null;
+    // Every write space of the embed token; the first one is used for attribution.
+    embedSpaceUuids?: string[];
     battleProfile?: AiAgentBattleProfile | null;
+    binding?: AiThreadBinding | null;
+    threadContext?: string | null;
 };
 
-/** `fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions. */
-export type AiAgentBattleProfile = 'fast' | 'baseline' | 'luna';
+/**
+ * `fast` is the JEV path, `baseline` has no fast decisions.
+ * `classic` and `composer` force the agent's query path.
+ */
+export type AiAgentBattleProfile =
+    | 'fast'
+    | 'baseline'
+    /** @deprecated Accepted for older clients and treated as `baseline`. */
+    | 'luna'
+    | 'classic'
+    | 'composer';
+
+/** The exclusive core of an agent run's loadout. */
+export type AiAgentLoadoutBase =
+    | 'classic'
+    | 'composer'
+    | 'no_data_access'
+    | 'deep_research_worker'
+    | 'deep_research_coordinator';
+
+export type AiAgentPromptLoadout = {
+    base: AiAgentLoadoutBase;
+};
 
 export type AiPrompt = {
     organizationUuid: string;
@@ -328,6 +354,14 @@ export type AiPromptContextItemInput =
           loc: string;
       }
     | {
+          // A composer pipeline node the user pointed at in a chart artifact
+          // version; node ids are thread-scoped. The server snapshots its title.
+          type: 'composer_node';
+          artifactUuid: string;
+          versionUuid: string;
+          nodeId: string;
+      }
+    | {
           // A thread restore: the new version and the ready one it copies.
           // System-only, never user-attached.
           type: 'data_app_restore';
@@ -364,6 +398,22 @@ export type AiPromptContextItemInput =
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
+
+/** Resource a thread is bound to for its whole life. Same shape as the matching pinned context item. */
+export type AiThreadBinding =
+    | {
+          type: 'dashboard';
+          dashboardUuid: string;
+      }
+    | {
+          type: 'chart';
+          chartUuid: string;
+      };
+
+/** A thread binding as read back, with the resource name. `displayName` is null once the resource is deleted. */
+export type AiThreadBindingSummary = AiThreadBinding & {
+    displayName: string | null;
+};
 
 // The concrete change a writeback applies — one card concept, two payloads.
 export type AiPromptProposedChangePayload =
@@ -472,6 +522,13 @@ export type AiPromptContextItem =
           displayName: string | null;
       }
     | {
+          type: 'composer_node';
+          artifactUuid: string;
+          versionUuid: string;
+          nodeId: string;
+          title: string;
+      }
+    | {
           type: 'data_app_restore';
           appUuid: string;
           version: number;
@@ -553,6 +610,7 @@ export type UpdateSlackResponseTs = {
 
 export type SlackPromptJobPayload = TraceTaskBase & {
     slackPromptUuid: string;
+    slackAppId?: string | null;
 };
 
 export type AiAgentEvalRunJobPayload = TraceTaskBase & {

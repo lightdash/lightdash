@@ -11,9 +11,7 @@ const scope: SqlScope = { schemas: ['jaffle'] };
 const catalogScope: SqlScope = { schemas: ['jaffle'], catalogs: ['prod'] };
 
 const kinds = (sql: string, s: SqlScope = scope) =>
-    findSqlScopeViolations(sql, s, { hyphenatedIdentifiers: true }).map(
-        (v) => v.kind,
-    );
+    findSqlScopeViolations(sql, s).map((v) => v.kind);
 
 describe('findSqlScopeViolations', () => {
     describe('when no scope is configured', () => {
@@ -45,7 +43,6 @@ describe('findSqlScopeViolations', () => {
             const [violation] = findSqlScopeViolations(
                 'SELECT * FROM jaffle_old.stale_orders',
                 scope,
-                { hyphenatedIdentifiers: true },
             );
             expect(violation).toEqual({
                 kind: 'schema',
@@ -108,7 +105,6 @@ describe('findSqlScopeViolations', () => {
                         schemas: ['analytics_reporting'],
                         catalogs: ['other-project'],
                     },
-                    { hyphenatedIdentifiers: true },
                 ),
             ).toEqual([
                 {
@@ -124,7 +120,6 @@ describe('findSqlScopeViolations', () => {
                 findSqlScopeViolations(
                     'SELECT * FROM `my-project-123456.raw.orders`',
                     { schemas: ['analytics_reporting'] },
-                    { hyphenatedIdentifiers: true },
                 ),
             ).toEqual([
                 {
@@ -150,7 +145,6 @@ describe('findSqlScopeViolations', () => {
                 findSqlScopeViolations(
                     'SELECT * FROM `my-project-123456.analytics_reporting.orders` JOIN `other-project.analytics_reporting.orders` ON TRUE',
                     bigQueryScope,
-                    { hyphenatedIdentifiers: true },
                 ),
             ).toEqual([
                 {
@@ -192,16 +186,6 @@ describe('findSqlScopeViolations', () => {
             expect(
                 kinds('SELECT * FROM my-project.ds.fn(1)', bigQueryScope),
             ).toEqual([]);
-        });
-
-        it('preserves the old lexer when the kill switch is off', () => {
-            expect(
-                findSqlScopeViolations(
-                    'SELECT * FROM `my-project-123456.analytics_reporting.orders`',
-                    bigQueryScope,
-                    { hyphenatedIdentifiers: false },
-                ),
-            ).toEqual([{ kind: 'unqualified', reference: '`my' }]);
         });
 
         it('allows an allowed catalog and schema', () => {
@@ -419,9 +403,7 @@ describe('isSchemaInScope', () => {
 describe('formatSqlScopeError', () => {
     it('names the offending schema and the allowed schemas', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scope, {
-                hyphenatedIdentifiers: true,
-            }),
+            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scope),
             scope,
         );
         expect(message).toContain('jaffle_old');
@@ -430,9 +412,7 @@ describe('formatSqlScopeError', () => {
 
     it('tells the agent not to retry or silently substitute a table', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scope, {
-                hyphenatedIdentifiers: true,
-            }),
+            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scope),
             scope,
         );
         expect(message).toContain('Do NOT retry');
@@ -441,9 +421,7 @@ describe('formatSqlScopeError', () => {
 
     it('explains how to fix an unqualified reference', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM orders', scope, {
-                hyphenatedIdentifiers: true,
-            }),
+            findSqlScopeViolations('SELECT * FROM orders', scope),
             scope,
         );
         expect(message).toContain('not schema-qualified');
@@ -451,11 +429,7 @@ describe('formatSqlScopeError', () => {
 
     it('explains how to fix a catalog-unqualified reference', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations(
-                'SELECT * FROM jaffle.orders',
-                catalogScope,
-                { hyphenatedIdentifiers: true },
-            ),
+            findSqlScopeViolations('SELECT * FROM jaffle.orders', catalogScope),
             catalogScope,
         );
         expect(message).toContain('catalog.schema.table');
@@ -464,9 +438,7 @@ describe('formatSqlScopeError', () => {
 
     it('explains how to fix a comma join', () => {
         const message = formatSqlScopeError(
-            findSqlScopeViolations('SELECT * FROM jaffle.a, jaffle.b', scope, {
-                hyphenatedIdentifiers: true,
-            }),
+            findSqlScopeViolations('SELECT * FROM jaffle.a, jaffle.b', scope),
             scope,
         );
         expect(message).toContain('explicit JOIN');
@@ -579,7 +551,6 @@ describe('denied schemas and catalogs', () => {
         const [violation] = findSqlScopeViolations(
             'SELECT * FROM jaffle_old.x',
             denyOnly,
-            { hyphenatedIdentifiers: true },
         );
         expect(violation).toEqual({
             kind: 'denied_schema',
@@ -650,11 +621,7 @@ describe('formatSqlScopeError with deny lists', () => {
             deniedSchemas: ['jaffle_old'],
         };
         const message = formatSqlScopeError(
-            findSqlScopeViolations(
-                'SELECT * FROM jaffle_old.x',
-                scopeWithDeny,
-                { hyphenatedIdentifiers: true },
-            ),
+            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scopeWithDeny),
             scopeWithDeny,
         );
         expect(message).toContain('excluded');
@@ -667,11 +634,7 @@ describe('formatSqlScopeError with deny lists', () => {
             deniedSchemas: ['jaffle_old'],
         };
         const message = formatSqlScopeError(
-            findSqlScopeViolations(
-                'SELECT * FROM jaffle_old.x',
-                scopeWithDeny,
-                { hyphenatedIdentifiers: true },
-            ),
+            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scopeWithDeny),
             scopeWithDeny,
         );
         expect(message).not.toContain('Allowed schemas:');

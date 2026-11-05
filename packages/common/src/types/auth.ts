@@ -3,6 +3,7 @@ import {
     type DashboardFilterInteractivityOptions,
     type ParameterInteractivityOptions,
 } from '../ee';
+import { type AgentConnectionGrant } from './agentConnectionGrants';
 import { ForbiddenError } from './errors';
 import { type Organization } from './organization';
 import {
@@ -51,12 +52,25 @@ export type ServiceAccountAuth = {
     serviceAccountDescription: string;
 };
 
+export type OAuthAgentConnectionGrant = Pick<
+    AgentConnectionGrant,
+    | 'grantUuid'
+    | 'approvedProjectUuids'
+    | 'approvedCapabilities'
+    | 'expiresAt'
+    | 'clientId'
+    | 'resource'
+    | 'resourceConstraints'
+    | 'grantContractVersion'
+> & { revision: number };
+
 export type OauthAuth = {
     type: 'oauth';
     source: string; // The oauth token
     token: string;
     clientId: string;
     scopes: string[];
+    agentConnectionGrant: OAuthAgentConnectionGrant | null;
     expiresAt?: number;
     resource?: URL;
 };
@@ -174,6 +188,8 @@ export type SessionAccount = BaseAccountWithHelpers & {
     user: LightdashSessionUser;
 };
 
+export type EmbedWritableSpace = { uuid: string; name: string };
+
 /**
  * Account for anonymous users with JWT authentication (embeds)
  */
@@ -185,6 +201,8 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
         canUpdateDashboard: boolean;
         canUpdateSavedChart: boolean;
         canCreateSavedChart: boolean;
+        /** Write spaces the actor can create saved charts in, in token order. */
+        writableSpaces: EmbedWritableSpace[];
         canUseAiAgent: boolean;
         aiAgentErrorMessage?: string;
     };

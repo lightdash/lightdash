@@ -7,26 +7,34 @@ import { AiSqlModal } from './AiSqlModal';
 
 interface ViewSqlButtonProps {
     sql?: string;
+    isFormatted?: boolean;
 }
 
-export const ViewSqlButton: FC<ViewSqlButtonProps> = memo(({ sql }) => {
-    const [opened, { open, close }] = useDisclosure(false);
+export const ViewSqlButton: FC<ViewSqlButtonProps> = memo(
+    ({ sql, isFormatted = false }) => {
+        const [opened, { open, close }] = useDisclosure(false);
 
-    if (!sql) return null;
+        if (!sql) return null;
 
-    return (
-        <>
-            <Tooltip label="View SQL" position="top">
-                <ActionIcon
-                    size="sm"
-                    color="ldGray.9"
-                    aria-label="View SQL"
-                    onClick={open}
-                >
-                    <MantineIcon icon={IconEye} />
-                </ActionIcon>
-            </Tooltip>
-            <AiSqlModal opened={opened} onClose={close} sql={sql} />
-        </>
-    );
-});
+        return (
+            <>
+                <Tooltip label="View SQL" position="top">
+                    <ActionIcon
+                        size="sm"
+                        color="ldGray.9"
+                        aria-label="View SQL"
+                        onClick={open}
+                    >
+                        <MantineIcon icon={IconEye} />
+                    </ActionIcon>
+                </Tooltip>
+                <AiSqlModal
+                    opened={opened}
+                    onClose={close}
+                    sql={sql}
+                    isFormatted={isFormatted}
+                />
+            </>
+        );
+    },
+);

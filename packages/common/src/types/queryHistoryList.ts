@@ -27,6 +27,7 @@ export const QUERY_TRIGGER_BY_CONTEXT: Record<
     [QueryExecutionContext.EXPLORE]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.SQL_RUNNER]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.COMPOSE_SQL_RUNNER]: QueryTrigger.INTERACTIVE,
+    [QueryExecutionContext.PYTHON_RUNNER]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MULTI_SOURCE_QUERY]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.CHART]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.CHART_HISTORY]: QueryTrigger.INTERACTIVE,
@@ -43,6 +44,7 @@ export const QUERY_TRIGGER_BY_CONTEXT: Record<
     [QueryExecutionContext.MCP_RUN_METRIC_QUERY]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MCP_RUN_SQL]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MCP_SEARCH_FIELD_VALUES]: QueryTrigger.INTERACTIVE,
+    [QueryExecutionContext.MCP_QUERY]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.DASHBOARD]: QueryTrigger.APPS,
     // Metric cards render themselves on load — homepage KPI blocks and the
     // metrics catalog, not a person hitting run.

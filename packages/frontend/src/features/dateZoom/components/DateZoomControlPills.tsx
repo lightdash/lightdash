@@ -28,7 +28,14 @@ import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectAvailableCustomGranularities,
+    selectControlGranularities,
+    useDashboardDateZoomConfig,
+    useDashboardDateZoomGranularities,
+    useDashboardSelector,
+    useDefaultDateZoomGranularity,
+} from '../../dashboard/store';
 import { getGranularityLabel } from '../utils';
 import styles from './DateZoom.module.css';
 import { DateZoomControlConfig } from './DateZoomControlConfig';
@@ -39,23 +46,19 @@ type Props = {
 
 export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
     const getUiString = useUiStrings();
-    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
+    const dateZoomConfig = useDashboardDateZoomConfig();
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
-    const controlGranularities = useDashboardContext(
-        (c) => c.controlGranularities,
+    const controlGranularities = useDashboardSelector(
+        selectControlGranularities,
     );
     const setControlGranularity = useDashboardContext(
         (c) => c.setControlGranularity,
     );
-    const availableCustomGranularities = useDashboardTileStatusContext(
-        (c) => c.availableCustomGranularities,
+    const availableCustomGranularities = useDashboardSelector(
+        selectAvailableCustomGranularities,
     );
-    const dateZoomGranularities = useDashboardContext(
-        (c) => c.dateZoomGranularities,
-    );
-    const defaultDateZoomGranularity = useDashboardContext(
-        (c) => c.defaultDateZoomGranularity,
-    );
+    const dateZoomGranularities = useDashboardDateZoomGranularities();
+    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
 
     // A control offers only the dashboard's enabled granularities, split into
     // standard and custom (customs sorted by label).

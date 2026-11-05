@@ -49,7 +49,7 @@ const cx = (...classNames: Array<false | null | string | undefined>) =>
 
 type SanitizedMantineProps<TElement extends HTMLElement> = Omit<
     ContentTableMantineProps<TElement>,
-    'ref' | 'styles' | 'sx'
+    'ref' | 'styles'
 > & {
     className?: string;
     style?: CSSProperties;
@@ -67,38 +67,14 @@ const assignRef = <TElement,>(
     ref.current = value;
 };
 
-const sxToStyle = (sx: unknown): CSSProperties => {
-    if (!sx || typeof sx !== 'object' || Array.isArray(sx)) {
-        return {};
-    }
-
-    return Object.fromEntries(
-        Object.entries(sx).filter(([key, value]) => {
-            if (/[&: >.[#@]/.test(key)) return false;
-            return (
-                value === undefined ||
-                typeof value === 'string' ||
-                typeof value === 'number'
-            );
-        }),
-    ) as CSSProperties;
-};
-
 const sanitizeMantineProps = <TElement extends HTMLElement>(
     props?: ContentTableMantineProps<TElement>,
-    options?: { includeSxStyle?: boolean },
 ): SanitizedMantineProps<TElement> => {
     if (!props) {
         return {};
     }
-    const { ref: _ref, styles: _styles, sx, style, ...rest } = props;
-    return {
-        ...rest,
-        style: {
-            ...(options?.includeSxStyle ? sxToStyle(sx) : {}),
-            ...style,
-        },
-    } as SanitizedMantineProps<TElement>;
+    const { ref: _ref, styles: _styles, ...rest } = props;
+    return rest as SanitizedMantineProps<TElement>;
 };
 
 const mergeMantineProps = <TElement extends HTMLElement>(
@@ -173,17 +149,12 @@ const DISPLAY_COLUMN_IDS = new Set([
 ]);
 const ROW_SELECT_COLUMN_ID = 'content-table-row-select';
 
-const getRowSelectCellStyle = (columnId: string): CSSProperties | undefined =>
-    columnId === ROW_SELECT_COLUMN_ID
-        ? {
-              paddingLeft: 0,
-              paddingRight: 0,
-              textAlign: 'center',
-          }
-        : undefined;
-
 const isRowSelectColumn = (columnId: string) =>
     columnId === ROW_SELECT_COLUMN_ID;
+
+// Applied after caller props so a caller's px cannot pad the checkbox column.
+const getRowSelectCellProps = (columnId: string) =>
+    isRowSelectColumn(columnId) ? ({ px: 0, ta: 'center' } as const) : {};
 
 const getSkeletonRowHeight = <TData extends RowData>(
     table: ContentTableInstance<TData>,
@@ -306,7 +277,9 @@ const HeaderCell = <TData extends RowData>({
     return (
         <Table.Th
             {...headCellProps}
+            {...getRowSelectCellProps(header.column.id)}
             data-align={contentAlign}
+            data-resizing={isResizing || undefined}
             aria-sort={
                 sortState === 'asc'
                     ? 'ascending'
@@ -319,11 +292,7 @@ const HeaderCell = <TData extends RowData>({
                 isRowSelectColumn(header.column.id) && classes.rowSelectCell,
                 headCellProps.className,
             )}
-            style={{
-                width: getColumnSizeVar('header', header.id),
-                ...headCellProps.style,
-                ...getRowSelectCellStyle(header.column.id),
-            }}
+            w={getColumnSizeVar('header', header.id)}
         >
             {canSort ? (
                 <UnstyledButton
@@ -343,10 +312,7 @@ const HeaderCell = <TData extends RowData>({
 
             {canResize ? (
                 <Box
-                    className={cx(
-                        classes.resizeHandle,
-                        isResizing && classes.resizeHandleResizing,
-                    )}
+                    className={classes.resizeHandle}
                     onDoubleClick={() => header.column.resetSize()}
                     onMouseDown={header.getResizeHandler()}
                     onTouchStart={header.getResizeHandler()}
@@ -379,16 +345,13 @@ const FooterCell = <TData extends RowData>({
     return (
         <Table.Th
             {...footerCellProps}
+            {...getRowSelectCellProps(header.column.id)}
             className={cx(
                 classes.footerCell,
                 isRowSelectColumn(header.column.id) && classes.rowSelectCell,
                 footerCellProps.className,
             )}
-            style={{
-                width: getColumnSizeVar('header', header.id),
-                ...footerCellProps.style,
-                ...getRowSelectCellStyle(header.column.id),
-            }}
+            w={getColumnSizeVar('header', header.id)}
         >
             {footerContent}
         </Table.Th>
@@ -412,16 +375,14 @@ const SkeletonRows = <TData extends RowData>({
             {columns.map((column, columnIndex) => (
                 <Table.Td
                     key={column.id}
+                    {...getRowSelectCellProps(column.id)}
                     className={cx(
                         classes.bodyCell,
                         classes.skeletonCell,
                         isRowSelectColumn(column.id) && classes.rowSelectCell,
                     )}
-                    style={{
-                        height: skeletonRowHeight,
-                        width: getColumnSizeVar('col', column.id),
-                        ...getRowSelectCellStyle(column.id),
-                    }}
+                    h={skeletonRowHeight}
+                    w={getColumnSizeVar('col', column.id)}
                 >
                     <div className={classes.skeletonStack}>
                         <Skeleton
@@ -488,13 +449,7 @@ const BodyRows = <TData extends RowData>({
                         table,
                     }),
                 );
-                const rowCellStyle: CSSProperties | undefined =
-                    rowProps.style?.backgroundColor !== undefined
-                        ? { backgroundColor: rowProps.style.backgroundColor }
-                        : undefined;
                 const isLastDataRow = row === rows[rows.length - 1];
-                const lastDataRowCellStyle: CSSProperties | undefined =
-                    isLastDataRow ? { borderBottom: 0 } : undefined;
 
                 return (
                     <Table.Tr
@@ -539,6 +494,7 @@ const BodyRows = <TData extends RowData>({
                             return (
                                 <Table.Td
                                     {...cellProps}
+                                    {...getRowSelectCellProps(cell.column.id)}
                                     key={cell.id}
                                     className={cx(
                                         classes.bodyCell,
@@ -546,18 +502,7 @@ const BodyRows = <TData extends RowData>({
                                             classes.rowSelectCell,
                                         cellProps.className,
                                     )}
-                                    style={{
-                                        width: getColumnSizeVar(
-                                            'col',
-                                            cell.column.id,
-                                        ),
-                                        ...rowCellStyle,
-                                        ...cellProps.style,
-                                        ...lastDataRowCellStyle,
-                                        ...getRowSelectCellStyle(
-                                            cell.column.id,
-                                        ),
-                                    }}
+                                    w={getColumnSizeVar('col', cell.column.id)}
                                 >
                                     {options.enableEditing &&
                                     columnDef?.Edit &&
@@ -773,20 +718,15 @@ export const ContentTable = <TData extends RowData>({
         [containerRef, options.mantineTableContainerProps?.ref],
     );
 
-    const paperProps = sanitizeMantineProps(options.mantinePaperProps, {
-        includeSxStyle: true,
-    });
+    const paperProps = sanitizeMantineProps(options.mantinePaperProps);
     const containerProps = sanitizeMantineProps(
         options.mantineTableContainerProps,
-        { includeSxStyle: true },
     );
-    const tableProps = sanitizeMantineProps(
+    // Column borders are drawn by this module, not by Mantine's data attribute.
+    const { withColumnBorders, ...tableProps } = sanitizeMantineProps(
         options.mantineTableProps,
     ) as SanitizedMantineProps<HTMLTableElement> &
-        Omit<
-            NonNullable<typeof options.mantineTableProps>,
-            'ref' | 'styles' | 'sx'
-        >;
+        Omit<NonNullable<typeof options.mantineTableProps>, 'ref' | 'styles'>;
     const headRowProps = sanitizeMantineProps(options.mantineTableHeadRowProps);
     const headProps = sanitizeMantineProps(options.mantineTableHeadProps);
     const bodyProps = sanitizeMantineProps(options.mantineTableBodyProps);
@@ -847,6 +787,7 @@ export const ContentTable = <TData extends RowData>({
                     isEmpty && classes.containerEmpty,
                     containerProps.className,
                 )}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={{
                     ...columnSizeVars,
                     ...containerProps.style,
@@ -854,28 +795,23 @@ export const ContentTable = <TData extends RowData>({
             >
                 <Table
                     {...tableProps}
+                    data-resizing={isResizingColumn || undefined}
                     className={cx(
                         classes.table,
                         isEmpty && classes.tableEmpty,
                         tableProps.highlightOnHover === true &&
                             classes.highlightOnHover,
-                        tableProps.withColumnBorders === true &&
-                            classes.columnBorders,
-                        isResizingColumn && classes.columnResizing,
+                        withColumnBorders === true && classes.columnBorders,
                         tableProps.className,
                     )}
-                    style={{
-                        minWidth: table.getTotalSize(),
-                        ...tableProps.style,
-                    }}
+                    miw={table.getTotalSize()}
                 >
                     <colgroup>
                         {visibleColumns.map((column) => (
-                            <col
+                            <Box
+                                component="col"
                                 key={column.id}
-                                style={{
-                                    width: getColumnSizeVar('col', column.id),
-                                }}
+                                w={getColumnSizeVar('col', column.id)}
                             />
                         ))}
                     </colgroup>
@@ -887,7 +823,6 @@ export const ContentTable = <TData extends RowData>({
                                 : classes.head,
                             headProps.className,
                         )}
-                        style={headProps.style}
                     >
                         {table.getHeaderGroups().map((headerGroup) => (
                             <Table.Tr
@@ -917,11 +852,7 @@ export const ContentTable = <TData extends RowData>({
                                 <Table.Td
                                     className={classes.fillerCell}
                                     colSpan={visibleColumns.length}
-                                    style={{
-                                        border: 0,
-                                        height: paddingTop,
-                                        padding: 0,
-                                    }}
+                                    h={paddingTop}
                                 />
                             </Table.Tr>
                         ) : null}
@@ -961,11 +892,7 @@ export const ContentTable = <TData extends RowData>({
                                 <Table.Td
                                     className={classes.fillerCell}
                                     colSpan={visibleColumns.length}
-                                    style={{
-                                        border: 0,
-                                        height: paddingBottom,
-                                        padding: 0,
-                                    }}
+                                    h={paddingBottom}
                                 />
                             </Table.Tr>
                         ) : null}

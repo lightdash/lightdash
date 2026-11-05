@@ -1,19 +1,26 @@
 import {
     AI_AGENT_APPLICATION_NAME,
     AI_AGENT_SESSION_SETTING,
-    AnyType,
     CreateRedshiftCredentials,
+    getErrorMessage,
     getWarehouseTableType,
     RedshiftAuthenticationType,
     SupportedDbtAdapter,
     WarehouseCatalog,
+    WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
 } from '@lightdash/common';
 import * as fs from 'fs';
 import path from 'path';
-import { PoolConfig } from 'pg';
-import { PostgresClient, PostgresSqlBuilder } from './PostgresWarehouseClient';
+import * as pg from 'pg';
+import { PoolClient, PoolConfig } from 'pg';
+import {
+    PostgresClient,
+    PostgresSqlBuilder,
+    type PostgresQueryAttempt,
+    type PostgresStreamQueryOptions,
+} from './PostgresWarehouseClient';
 import { mintRedshiftIamCredentials } from './redshiftIamCredentials';
 
 // Refresh minted credentials this long before the AWS-reported expiry so an
@@ -21,6 +28,38 @@ import { mintRedshiftIamCredentials } from './redshiftIamCredentials';
 const CREDENTIALS_REFRESH_BUFFER_MS = 60 * 1000;
 // Fallback lifetime when AWS returns no expiry — under the 15-min minimum.
 const CREDENTIALS_FALLBACK_LIFETIME_MS = 14 * 60 * 1000;
+
+// Tile queries on a healthy workgroup return a first row well within this.
+const STALL_CHECK_DELAY_MS = 30 * 1000;
+const MAX_STALL_RETRIES = 2;
+// The lookup may itself have to wake a paused workgroup (~15s measured, up
+// to 90s reported), so it needs longer than a warm system-view query.
+const STALL_LOOKUP_TIMEOUT_MS = 60 * 1000;
+
+// The lookup must see its own running query, otherwise an empty result for
+// the stalled session proves nothing and we keep waiting.
+const STALL_LOOKUP_SQL = `
+    SELECT
+        (SELECT COUNT(*) FROM sys_query_history
+            WHERE session_id = pg_backend_pid()
+                AND TRIM(status) = 'running') AS own_running,
+        (SELECT COUNT(*) FROM sys_query_history
+            WHERE session_id = $1
+                AND start_time > DATEADD(minute, -15, GETDATE())
+                AND (TRIM(status) IN ('planning', 'queued', 'running', 'returning')
+                    OR TRIM(query_type) NOT IN ('UTILITY', 'COMMAND'))) AS stalled_session_records
+`;
+
+type StallVerdict =
+    | { stalled: true; reason: 'session_setup' | 'no_query_record' }
+    | {
+          stalled: false;
+          reason:
+              | 'not_connected'
+              | 'query_recorded'
+              | 'lookup_not_visible'
+              | 'lookup_failed';
+      };
 
 const AMAZON_CA_BUNDLE = [
     fs.readFileSync(path.resolve(__dirname, './ca-bundle-aws-redshift.crt')),
@@ -51,6 +90,11 @@ const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
     }
 };
 
+export type RedshiftLogger = {
+    info?: (message: string, metadata?: Record<string, unknown>) => void;
+    warn?: (message: string, metadata?: Record<string, unknown>) => void;
+};
+
 export class RedshiftSqlBuilder extends PostgresSqlBuilder {
     type = WarehouseTypes.REDSHIFT;
 
@@ -62,13 +106,21 @@ export class RedshiftSqlBuilder extends PostgresSqlBuilder {
 export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCredentials> {
     private readonly ssl: PoolConfig['ssl'];
 
+    private readonly agentJobControls: boolean;
+
+    private readonly logger: RedshiftLogger | undefined;
+
     private cachedIamPoolConfig:
         | { config: PoolConfig; expiresAt: number }
         | undefined;
 
     constructor(
         credentials: CreateRedshiftCredentials,
-        options?: { agentSession?: boolean },
+        options?: {
+            agentSession?: boolean;
+            agentJobControls?: boolean;
+            logger?: RedshiftLogger;
+        },
     ) {
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);
@@ -98,8 +150,25 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
             options,
         );
         this.ssl = ssl;
+        this.agentJobControls = options?.agentJobControls ?? false;
+        this.logger = options?.logger;
         // Override the sqlBuilder with RedshiftSqlBuilder
         this.sqlBuilder = new RedshiftSqlBuilder(credentials.startOfWeek);
+    }
+
+    private log(
+        level: 'info' | 'warn',
+        message: string,
+        metadata: Record<string, unknown>,
+    ): void {
+        const target = this.logger ?? console;
+        (target[level] ?? console[level]).call(target, message, metadata);
+    }
+
+    protected async prepareSession(client: PoolClient): Promise<void> {
+        if (this.agentJobControls) {
+            await client.query('SET enable_result_cache_for_session TO off');
+        }
     }
 
     protected getAgentSessionStatement(): string {
@@ -125,11 +194,7 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
     async streamQuery(
         sql: string,
         streamCallback: (data: WarehouseResults) => void | Promise<void>,
-        options: {
-            values?: AnyType[];
-            tags?: Record<string, string>;
-            timezone?: string;
-        },
+        options: PostgresStreamQueryOptions,
     ): Promise<void> {
         if (
             this.credentials.authenticationType ===
@@ -139,7 +204,144 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         ) {
             this.config = await this.resolveIamPoolConfig();
         }
-        return super.streamQuery(sql, streamCallback, options);
+        if (!options.recoverStalledQuery) {
+            return super.streamQuery(sql, streamCallback, options);
+        }
+        return this.streamQueryRecoveringStalls(sql, streamCallback, options);
+    }
+
+    // A stalled attempt has streamed no rows, so retrying with the same
+    // callback is safe. The last attempt runs unwatched, leaving the
+    // statement timeout as the final backstop.
+    private async streamQueryRecoveringStalls(
+        sql: string,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
+        options: PostgresStreamQueryOptions,
+    ): Promise<void> {
+        const queryUuid = options.tags?.query_uuid ?? null;
+        const startedAt = Date.now();
+        for (let retry = 0; retry < MAX_STALL_RETRIES; retry += 1) {
+            const stallError = new WarehouseQueryError(
+                'Warehouse query stalled before reaching the warehouse',
+            );
+            let attempt: PostgresQueryAttempt | undefined;
+            let settled = false;
+            const stallCheck = setTimeout(() => {
+                if (!attempt || attempt.hasReceivedRow()) return;
+                const watched = attempt;
+                const lookupStart = Date.now();
+                void this.getStallVerdict(watched).then((verdict) => {
+                    if (settled) return;
+                    const metadata = {
+                        queryUuid,
+                        pid: watched.getBackendPid(),
+                        reason: verdict.reason,
+                        retry,
+                        maxRetries: MAX_STALL_RETRIES,
+                        stallCheckDelayMs: STALL_CHECK_DELAY_MS,
+                        lookupMs: Date.now() - lookupStart,
+                        elapsedMs: Date.now() - startedAt,
+                    };
+                    if (verdict.stalled && watched.abort(stallError)) {
+                        this.log(
+                            'warn',
+                            'Redshift query stalled with no first row, retrying on a new connection',
+                            metadata,
+                        );
+                    } else {
+                        this.log(
+                            'info',
+                            'Redshift query has no first row yet, still waiting',
+                            metadata,
+                        );
+                    }
+                });
+            }, STALL_CHECK_DELAY_MS);
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.streamQueryAttempt(
+                    sql,
+                    streamCallback,
+                    options,
+                    (started) => {
+                        attempt = started;
+                    },
+                );
+                if (retry > 0) {
+                    this.log(
+                        'info',
+                        'Redshift query recovered after stall retry',
+                        {
+                            queryUuid,
+                            retry,
+                            elapsedMs: Date.now() - startedAt,
+                        },
+                    );
+                }
+                return;
+            } catch (error) {
+                if (error !== stallError) throw error;
+            } finally {
+                settled = true;
+                clearTimeout(stallCheck);
+            }
+        }
+        this.log(
+            'warn',
+            'Redshift query stalled on every retry, running the final attempt unwatched',
+            {
+                queryUuid,
+                retries: MAX_STALL_RETRIES,
+                elapsedMs: Date.now() - startedAt,
+            },
+        );
+        await this.streamQueryAttempt(sql, streamCallback, options, null);
+    }
+
+    private async getStallVerdict(
+        attempt: PostgresQueryAttempt,
+    ): Promise<StallVerdict> {
+        const pid = attempt.getBackendPid();
+        if (pid === null) return { stalled: false, reason: 'not_connected' };
+        // Still on the session SETs, so the real query was never sent
+        if (!attempt.hasSentQuery()) {
+            return { stalled: true, reason: 'session_setup' };
+        }
+
+        let client: pg.Client | undefined;
+        try {
+            // Same user as the stalled query: non-superusers only see their own history
+            client = new pg.Client({
+                ...this.config,
+                connectionTimeoutMillis: STALL_LOOKUP_TIMEOUT_MS,
+                query_timeout: STALL_LOOKUP_TIMEOUT_MS,
+            });
+            client.on('error', (error) => {
+                this.log('warn', 'Redshift stall lookup connection error', {
+                    pid,
+                    error: getErrorMessage(error),
+                });
+            });
+            await client.connect();
+            const { rows } = await client.query<{
+                own_running: number | bigint;
+                stalled_session_records: number | bigint;
+            }>(STALL_LOOKUP_SQL, [pid]);
+            if (!rows[0] || Number(rows[0].own_running) === 0) {
+                return { stalled: false, reason: 'lookup_not_visible' };
+            }
+            return Number(rows[0].stalled_session_records) === 0
+                ? { stalled: true, reason: 'no_query_record' }
+                : { stalled: false, reason: 'query_recorded' };
+        } catch (error) {
+            this.log('warn', 'Redshift stall lookup failed', {
+                pid,
+                error: getErrorMessage(error),
+            });
+            return { stalled: false, reason: 'lookup_failed' };
+        } finally {
+            await client?.end().catch(() => undefined);
+        }
     }
 
     // SVV_ALL_* are grant-filtered catalog views; SVV_TABLES and SVV_COLUMNS are

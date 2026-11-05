@@ -10,6 +10,7 @@ import {
     type AnyType,
     type CartesianChartConfig,
     type ChartAsCode,
+    type DataAppCode,
     type DataAppManifest,
     type Series,
     type SpaceAsCode,
@@ -18,7 +19,9 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { vi } from 'vitest';
+import { slotFixture } from '../agentConnections/fixtures';
 import { LightdashAnalytics } from '../analytics/analytics';
+import { getConfig, setAnswer } from '../config';
 import GlobalState from '../globalState';
 import {
     getDataAppUploadFilter,
@@ -34,9 +37,16 @@ import {
     getExternalConnectionSecretEnvVar,
     testHelpers,
     uploadHandler,
+    withoutManifestAccess,
     type DownloadHandlerOptions,
 } from './download';
 import { logUploadChanges } from './spacesAsCode';
+
+const selected = vi.hoisted(() => ({ credential: vi.fn() }));
+vi.mock('../credentials', async (original) => ({
+    ...(await original<typeof import('../credentials')>()),
+    resolveCredential: selected.credential,
+}));
 
 vi.mock('../analytics/analytics', () => ({
     LightdashAnalytics: {
@@ -99,6 +109,7 @@ const {
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
+    writeSpaceContent,
     writeSpaceFiles,
 } = testHelpers;
 
@@ -258,6 +269,45 @@ describe('hasContentFilters', () => {
                 }),
             ),
         ).toBe(false);
+    });
+});
+
+describe('withoutManifestAccess', () => {
+    const bundle = (manifestOverrides: Record<string, unknown>) =>
+        ({
+            manifest: {
+                codeVersion: 1,
+                appUuid: 'app-uuid-1',
+                projectUuid: 'proj-uuid-1',
+                version: 1,
+                name: 'App',
+                description: '',
+                template: null,
+                downloadedAt: '2026-06-25T00:00:00.000Z',
+                ...manifestOverrides,
+            },
+            files: [{ path: 'src/index.tsx', contentBase64: '' }],
+        }) as unknown as DataAppCode;
+
+    it('drops the access block and leaves everything else in place', () => {
+        const withAccess = bundle({
+            slug: 'sales-app',
+            access: {
+                users: [{ email: 'a@example.com', role: 'editor' }],
+                groups: [],
+            },
+        });
+        const result = withoutManifestAccess(withAccess);
+        expect(result.manifest).not.toHaveProperty('access');
+        expect(result.manifest.slug).toBe('sales-app');
+        expect(result.files).toBe(withAccess.files);
+        // The input is not mutated.
+        expect(withAccess.manifest.access).toBeDefined();
+    });
+
+    it('returns a bundle without an access block unchanged', () => {
+        const plain = bundle({ slug: 'sales-app' });
+        expect(withoutManifestAccess(plain)).toBe(plain);
     });
 });
 
@@ -2671,5 +2721,145 @@ describe('parseContentFilters', () => {
                 'https://app.lightdash.cloud/projects/jaffle-shop/dashboards/sales-overview/view/tabs/some-tab',
             ]),
         ).toBe('?ids=daily-sales&ids=monthly-revenue&ids=sales-overview');
+    });
+});
+
+it('downloads with an agent credential and never saves the metadata notice preference', async () => {
+    vi.clearAllMocks();
+    const directory = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'agent-download-'),
+    );
+    vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'work');
+    vi.spyOn(
+        await import('./dbt/apiClient'),
+        'checkLightdashVersion',
+    ).mockResolvedValueOnce(undefined);
+    const slot = slotFixture();
+    selected.credential.mockResolvedValue({
+        kind: 'agent_connection',
+        token: 'agent',
+        slot,
+    });
+    const config = { user: {}, context: { serverUrl: 'https://example.com' } };
+    vi.mocked(getConfig).mockResolvedValue(config);
+    vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+        if (url.startsWith('/api/v1/health'))
+            return { version: '2.0.0' } as never;
+        if (url === '/api/v1/projects/11111111-1111-4111-8111-111111111111')
+            return {
+                projectUuid: '11111111-1111-4111-8111-111111111111',
+                name: 'Project',
+            } as never;
+        throw new Error(`Unexpected request ${url}`);
+    });
+    try {
+        await downloadHandler(
+            makeDownloadHandlerOptions({
+                project: '11111111-1111-4111-8111-111111111111',
+                path: directory,
+            }),
+        );
+        expect(setAnswer).not.toHaveBeenCalled();
+        expect(selected.credential).toHaveBeenCalled();
+        expect(await fs.readdir(directory)).toContain(
+            '.lightdash-metadata.json',
+        );
+        expect(
+            vi.mocked(lightdashApi).mock.calls.map(([props]) => props.url),
+        ).toEqual(['/api/v1/projects/11111111-1111-4111-8111-111111111111']);
+    } finally {
+        vi.unstubAllEnvs();
+        await fs.rm(directory, { recursive: true, force: true });
+    }
+});
+
+describe('writeSpaceContent', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        vi.spyOn(GlobalState, 'debug').mockImplementation(() => undefined);
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'download-test-'));
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    const chart = (slug: string): ChartAsCode =>
+        ({
+            slug,
+            name: slug,
+            spaceSlug: 'finance',
+            chartConfig: { type: ChartType.TABLE, config: {} },
+        }) as unknown as ChartAsCode;
+
+    it('skips a chart whose slug does not fit in a file name and keeps downloading the rest', async () => {
+        const longSlug = `${'orders-by-'.repeat(28)}customer`;
+        const info = vi
+            .spyOn(console, 'info')
+            .mockImplementation(() => undefined);
+
+        const entries = await writeSpaceContent({
+            projectName: 'project',
+            spaceSlug: 'finance',
+            folder: 'charts',
+            contentType: 'chart',
+            contentInSpace: [
+                { item: chart('orders'), index: 0 },
+                { item: chart(longSlug), index: 1 },
+                { item: chart('revenue'), index: 2 },
+            ],
+            contentAsCode: { charts: [] } as never,
+            customPath: tmpDir,
+            languageMap: false,
+            folderScheme: 'flat',
+            stripPivotSeries: false,
+        });
+
+        expect(longSlug.length).toBeGreaterThan(255);
+        expect(entries.map(({ slug }) => slug)).toEqual(['orders', 'revenue']);
+        expect((await fs.readdir(path.join(tmpDir, 'charts'))).sort()).toEqual([
+            'orders.yml',
+            'revenue.yml',
+        ]);
+        expect(info).toHaveBeenCalledWith(
+            expect.stringContaining(
+                `lightdash slug-update --type chart --from "${longSlug}"`,
+            ),
+        );
+    });
+
+    it('accounts for the language map suffix when deciding whether a slug fits', async () => {
+        const slug = 'a'.repeat(245);
+        vi.spyOn(console, 'info').mockImplementation(() => undefined);
+
+        const withoutMap = await writeSpaceContent({
+            projectName: 'project',
+            spaceSlug: 'finance',
+            folder: 'charts',
+            contentType: 'chart',
+            contentInSpace: [{ item: chart(slug), index: 0 }],
+            contentAsCode: { charts: [] } as never,
+            customPath: tmpDir,
+            languageMap: false,
+            folderScheme: 'flat',
+            stripPivotSeries: false,
+        });
+        const withMap = await writeSpaceContent({
+            projectName: 'project',
+            spaceSlug: 'finance',
+            folder: 'charts',
+            contentType: 'chart',
+            contentInSpace: [{ item: chart(slug), index: 0 }],
+            contentAsCode: { charts: [], languageMap: [{}] } as never,
+            customPath: tmpDir,
+            languageMap: true,
+            folderScheme: 'flat',
+            stripPivotSeries: false,
+        });
+
+        expect(withoutMap).toHaveLength(1);
+        expect(withMap).toHaveLength(0);
     });
 });

@@ -56,7 +56,7 @@ import {
     assertStagedPathsAllowed,
     collectDiffStat,
     commitLocal,
-    resolveDbtProjectPaths,
+    resolveConnectionPaths,
     stageChanges,
 } from './sandboxGit';
 
@@ -243,9 +243,12 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
+            assertStagedChangesAllowed: args.assertStagedChangesAllowed,
+            assertPublishAllowed: args.assertPublishAllowed,
         });
 
         setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         const mr = await createPullRequest({
             owner: connection.owner,
             repo: connection.repo,
@@ -283,9 +286,12 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
+            assertStagedChangesAllowed: args.assertStagedChangesAllowed,
+            assertPublishAllowed: args.assertPublishAllowed,
         });
 
         setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         await updateMergeRequest({
             owner: connection.owner,
             repo: connection.repo,
@@ -421,6 +427,8 @@ export class GitlabProvider implements GitProvider {
         title,
         user,
         setStage,
+        assertStagedChangesAllowed,
+        assertPublishAllowed,
     }: {
         sandbox: SandboxHandle;
         connection: GitlabConnection;
@@ -429,14 +437,17 @@ export class GitlabProvider implements GitProvider {
         title: string;
         user: SessionUser;
         setStage: SetStage;
+        assertStagedChangesAllowed: (() => Promise<void>) | null;
+        assertPublishAllowed: (() => Promise<void>) | null;
     }): Promise<LandedCommit> {
         setStage('commit');
-        const projectPaths = await resolveDbtProjectPaths(
+        const paths = await resolveConnectionPaths(
             sandbox,
-            connection.projectSubPath,
+            connection,
             this.logger,
         );
-        await stageChanges(sandbox, projectPaths, this.logger);
+        await stageChanges(sandbox, paths, this.logger);
+        await assertStagedChangesAllowed?.();
         // Host-side denied-path gate (GitLab pushes via git, so check the staged
         // paths here rather than in collectFileChanges). Reject the whole commit
         // before any commit or push reaches the remote.
@@ -448,6 +459,7 @@ export class GitlabProvider implements GitProvider {
         await commitLocal(sandbox, message, installation.commitAuthor);
 
         setStage('push');
+        if (assertPublishAllowed) await assertPublishAllowed();
         await sandbox.git.push(CWD, {
             remote: 'origin',
             branch,

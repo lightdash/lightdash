@@ -16,12 +16,13 @@ export interface ContentAsCodeSchemaContract {
     documentSchema: string;
     skippedModelFields: readonly string[];
     documentOnlyFields: readonly string[];
+    serverMetadataFields?: readonly string[];
 }
 
 const schemas = swagger.components.schemas as Record<string, OpenApiSchema>;
 const schemaReferencePrefix = '#/components/schemas/';
 
-const getSchemaFields = (schemaName: string): string[] => {
+export const getSchemaFields = (schemaName: string): string[] => {
     const visited = new Set<string>();
 
     const visit = (schema: OpenApiSchema): Set<string> => {
@@ -69,10 +70,22 @@ export const assertContentAsCodeSchemaContract = ({
     documentSchema,
     skippedModelFields,
     documentOnlyFields,
+    serverMetadataFields = [],
 }: ContentAsCodeSchemaContract): void => {
     const modelFields = getSchemaFields(modelSchema);
     const documentFields = getSchemaFields(documentSchema);
-    const currentSkippedFields = difference(modelFields, documentFields);
+    const exportedMetadata = documentFields.filter((field) =>
+        serverMetadataFields.includes(field),
+    );
+    if (exportedMetadata.length > 0) {
+        throw new Error(
+            `[content-as-code:${resource}] Server metadata must not be imported or exported by ${documentSchema}:\n${formatFields(exportedMetadata)}`,
+        );
+    }
+    const currentSkippedFields = difference(
+        difference(modelFields, documentFields),
+        serverMetadataFields,
+    );
     const currentDocumentOnlyFields = difference(documentFields, modelFields);
 
     const uncoveredFields = difference(

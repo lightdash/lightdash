@@ -21,8 +21,15 @@ const setup = (enabled: boolean) => {
         type: WarehouseTypes.POSTGRES,
     }));
     const service = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         analytics: analyticsMock,
         featureFlagModel: flags,
+        organizationAgentIdentityRulesModel: {
+            get: vi.fn(async () => ({
+                source: 'marked_person',
+                required: false,
+            })),
+        },
         projectModel: {
             getSummary: vi.fn(async () => ({
                 organizationUuid: account.organization.organizationUuid,

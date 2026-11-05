@@ -1,12 +1,18 @@
 import { Ability } from '@casl/ability';
-import { type PossibleAbilities } from '@lightdash/common';
+import {
+    AgentActorSurface,
+    buildAgentIdentityClaim,
+    type ChartVersionSummary,
+    type PossibleAbilities,
+} from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { AbilityContext } from '../../providers/Ability/context';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import {
     manageChartRule,
     mockSavedChartResponse,
@@ -14,7 +20,7 @@ import {
 import { renderWithProviders } from '../../testing/testUtils';
 import ChartHistoryPanel from './ChartHistoryPanel';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 
 // The Explorer is out of scope here; a probe exposes what the preview session
 // was built from, so the test can see the version's own palette and parameters.
@@ -52,6 +58,13 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
     }),
 }));
 
+const flags = vi.hoisted(() => ({ enabled: false }));
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: flags }),
+}));
+
+let identity: ChartVersionSummary['agentIdentity'];
+
 const chart = mockSavedChartResponse();
 
 // The version differs from the chart as it is now: its own palette and
@@ -64,6 +77,7 @@ const versionChart = mockSavedChartResponse({
 const restoredChart = { ...chart, name: 'Revenue (restored)' };
 
 const versionOf = (versionUuid: string, createdAt: string) => ({
+    agentIdentity: identity,
     chartUuid: chart.uuid,
     versionUuid,
     createdAt: new Date(createdAt),
@@ -98,7 +112,9 @@ const renderPanel = (
 
 describe('ChartHistoryPanel', () => {
     beforeEach(() => {
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        identity = undefined;
+        flags.enabled = false;
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (method === 'GET' && url === '/saved/chart-uuid/history') {
                 return {
                     history: [
@@ -129,7 +145,7 @@ describe('ChartHistoryPanel', () => {
                 return restoredChart;
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
     });
 
     it('restores an older version, warns about unsaved edits, and hands back the saved chart', async () => {
@@ -159,7 +175,7 @@ describe('ChartHistoryPanel', () => {
         await waitFor(() =>
             expect(onRestored).toHaveBeenCalledWith(restoredChart),
         );
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 method: 'POST',
                 url: '/saved/chart-uuid/rollback/older-version',
@@ -200,7 +216,7 @@ describe('ChartHistoryPanel', () => {
 
     it('shows a retryable error when the selected version cannot be loaded', async () => {
         let previewAttempts = 0;
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (method === 'GET' && url === '/saved/chart-uuid/history') {
                 return {
                     history: [
@@ -228,7 +244,7 @@ describe('ChartHistoryPanel', () => {
                 };
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
 
         const user = userEvent.setup();
         renderPanel();
@@ -247,7 +263,7 @@ describe('ChartHistoryPanel', () => {
     });
 
     it('shows a loading state while the selected version is loading', async () => {
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (method === 'GET' && url === '/saved/chart-uuid/history') {
                 return {
                     history: [
@@ -262,7 +278,7 @@ describe('ChartHistoryPanel', () => {
                 return new Promise(() => {});
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
 
         renderPanel();
 
@@ -286,4 +302,111 @@ describe('ChartHistoryPanel', () => {
         expect(await screen.findAllByText(/Updated by:/)).toHaveLength(2);
         expect(screen.queryByRole('contentinfo')).toBeNull();
     });
+    it.each([true, false])(
+        'renders agent attribution in the page/modal host (footer=%s)',
+        async (withSidebarFooter) => {
+            flags.enabled = true;
+            identity = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'user-uuid' },
+                surface: AgentActorSurface.MCP,
+                clientId: null,
+            });
+            const user = userEvent.setup();
+            renderPanel({ withSidebarFooter });
+            await user.click(
+                await screen.findByRole('button', { name: 'Versions' }),
+            );
+            expect(
+                await screen.findAllByText(
+                    'Changed by an agent for Ada Lovelace · MCP',
+                ),
+            ).toHaveLength(2);
+        },
+    );
+
+    it('keeps the original description DOM when the flag is off', async () => {
+        identity = buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'user-uuid' },
+            surface: AgentActorSurface.MCP,
+            clientId: null,
+        });
+        const user = userEvent.setup();
+        const { unmount } = renderPanel();
+        await user.click(
+            await screen.findByRole('button', { name: 'Versions' }),
+        );
+        const original = (
+            await screen.findAllByText('Updated by: Ada Lovelace')
+        )[0].outerHTML;
+        unmount();
+        identity = null;
+        flags.enabled = true;
+        renderPanel();
+        await user.click(
+            await screen.findByRole('button', { name: 'Versions' }),
+        );
+        expect(
+            (await screen.findAllByText('Updated by: Ada Lovelace'))[0]
+                .outerHTML,
+        ).toBe(original);
+    });
+    it.each([
+        {
+            surface: AgentActorSurface.IN_APP_AGENT,
+            subject: 'person',
+            label: 'In-app agent',
+            person: 'Ada Lovelace',
+        },
+        {
+            surface: AgentActorSurface.SLACK_AGENT,
+            subject: 'person',
+            label: 'Slack agent',
+            person: 'Ada Lovelace',
+        },
+        {
+            surface: AgentActorSurface.MCP,
+            subject: 'service_account',
+            label: 'MCP',
+            person: 'a service account',
+        },
+        {
+            surface: AgentActorSurface.MCP,
+            subject: 'unknown',
+            label: 'MCP',
+            person: 'an unknown person',
+        },
+        {
+            surface: AgentActorSurface.MCP,
+            subject: 'legacy',
+            label: 'MCP',
+            person: 'Ada Lovelace',
+        },
+    ])(
+        'renders $surface attribution for $subject',
+        async ({ surface, subject, label, person }) => {
+            flags.enabled = true;
+            identity = buildAgentIdentityClaim({
+                subject: {
+                    type:
+                        subject === 'service_account'
+                            ? 'service_account'
+                            : 'user',
+                    uuid: subject === 'unknown' ? 'deleted-user' : 'user-uuid',
+                },
+                surface,
+                clientId: null,
+            });
+            if (subject === 'legacy')
+                Reflect.deleteProperty(identity.act, 'agent_uuid');
+            renderPanel();
+            await userEvent
+                .setup()
+                .click(await screen.findByRole('button', { name: 'Versions' }));
+            expect(
+                await screen.findAllByText(
+                    `Changed by an agent for ${person} · ${label}`,
+                ),
+            ).toHaveLength(2);
+        },
+    );
 });

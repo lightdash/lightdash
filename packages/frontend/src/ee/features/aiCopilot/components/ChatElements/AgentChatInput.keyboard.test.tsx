@@ -204,7 +204,7 @@ describe('AgentChatInput keyboard handling', () => {
             access.isError = true;
             const { onSubmit } = renderInput(withModels);
             expect(
-                screen.getByText(/We could not check your agent connection/),
+                screen.getByText(/Could not check your agent identity/),
             ).toBeVisible();
             expect(
                 screen.getByRole('button', { name: 'Try again' }),

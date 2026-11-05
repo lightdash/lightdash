@@ -25,7 +25,7 @@ const appRow: DbApp = {
     sandbox_id: null,
     template: null,
     icon: null,
-    auto_analysis: 'inherit',
+    add_analysis_dismissed_at: null,
     design_uuid: null,
     upstream_app_uuid: null,
     registry_slug: null,
@@ -453,5 +453,51 @@ describe('AppModel preview persistence', () => {
             JSON.stringify(preview),
         );
         expect(result.viz_preview).toEqual(preview);
+    });
+});
+
+describe('AppModel.failOrphanedPendingVersions', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new AppModel({ database });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('errors pending versions past the threshold that have no live job', async () => {
+        tracker.on.any(/UPDATE app_versions/).response({ rowCount: 2 });
+
+        const count = await model.failOrphanedPendingVersions('10 minutes');
+
+        expect(count).toBe(2);
+        const [query] = tracker.history.any;
+        expect(query.sql).toMatch(/status = 'pending'/);
+        expect(query.sql).toMatch(
+            /COALESCE\(v\.status_updated_at, v\.created_at\)/,
+        );
+        expect(query.sql).toMatch(/NOT EXISTS/);
+        expect(query.sql).toMatch(/graphile_worker\.jobs/);
+        expect(query.sql).toMatch(
+            /task_identifier IN \('appGeneratePipeline', 'appBuildFromSource'\)/,
+        );
+        expect(query.sql).toMatch(
+            /\(j\.payload->>'appUuid'\)::uuid = v\.app_id/,
+        );
+        expect(query.sql).toMatch(
+            /\(j\.payload->>'version'\)::int = v\.version/,
+        );
+        // A locked job is live even on its final attempt (attempts is bumped at lock time)
+        expect(query.sql).toMatch(
+            /\(j\.locked_at IS NOT NULL OR j\.attempts < j\.max_attempts\)/,
+        );
+        expect(query.bindings).toEqual([
+            'No build job was queued for this version; released by the stale-version sweep.',
+            'Build never started',
+            '10 minutes',
+        ]);
     });
 });

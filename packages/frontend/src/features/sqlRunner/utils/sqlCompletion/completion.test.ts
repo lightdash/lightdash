@@ -40,10 +40,12 @@ const run = (
         quoteChar = '`',
         triggerCharacter = null,
         settings,
+        activeTable = null,
     }: {
         quoteChar?: string;
         triggerCharacter?: string | null;
         settings?: SqlSuggestionData['settings'];
+        activeTable?: SqlSuggestionData['activeTable'];
     } = {},
 ) => {
     const offset = sqlWithCursor.indexOf('|');
@@ -64,6 +66,7 @@ const run = (
             parameters: { region: { label: 'Region' } },
             functions: getSqlFunctions(undefined),
             settings,
+            activeTable,
         },
     });
     // Monaco shows items by sortText for an empty prefix
@@ -93,20 +96,105 @@ const run = (
 };
 
 describe('statement start', () => {
-    it('only suggests statement keywords', () => {
+    it('suggests statement keywords and SELECT starters', () => {
         const { labels } = run('SE|');
-        expect(labels).toEqual(['SELECT', 'WITH']);
+        expect(labels).toEqual(['SELECT', 'SELECT *', 'SELECT * FROM', 'WITH']);
     });
 
     it('matches the case the user is typing', () => {
-        expect(run('se|').labels).toEqual(['select', 'with']);
+        expect(run('se|').labels).toEqual([
+            'select',
+            'select *',
+            'select * from',
+            'with',
+        ]);
     });
 
     it('starts a new statement after a semicolon', () => {
         expect(run('SELECT 1 FROM silver.orders;\nSE|').labels).toEqual([
             'SELECT',
+            'SELECT *',
+            'SELECT * FROM',
             'WITH',
         ]);
+    });
+
+    it('puts the sidebar table first after FROM', () => {
+        const { items, find } = run('SELECT amount FROM |', {
+            activeTable: { schema: 'gold', table: 'revenue' },
+        });
+        const tableLabels = items
+            .filter((item) => item.kind === 'table')
+            .map((item) => item.label);
+        expect(tableLabels[0]).toBe('revenue');
+        expect(find('revenue').description).toBe('gold · selected');
+        expect(find('orders').description).toBe('silver');
+    });
+
+    it('reopens the list after SELECT * FROM so a table can be picked', () => {
+        const { find, apply } = run('SE|');
+        const starter = find('SELECT * FROM');
+        expect(starter.triggersSuggest).toBe(true);
+        expect(apply(starter)).toBe('SELECT * FROM ');
+    });
+
+    it('offers every column of the sidebar table as a starter', () => {
+        const { find, apply } = run('se|', {
+            activeTable: { schema: 'silver', table: 'orders' },
+            settings: {
+                quotePreference: 'never',
+                casePreference: 'preserve',
+                qualification: 'schema',
+            },
+        });
+        const starter = find(
+            'select order_id, customer_id, amount from orders',
+        );
+        expect(starter.documentation).toBe('All 3 columns of orders');
+        expect(apply(starter)).toBe(
+            'select order_id, customer_id, amount from silver.orders',
+        );
+    });
+
+    it('lists more than three columns one per line', () => {
+        const { items, apply } = run('SE|', {
+            activeTable: { schema: 'silver', table: 'customers' },
+            settings: {
+                quotePreference: 'always',
+                casePreference: 'preserve',
+                qualification: 'schema',
+            },
+        });
+        const starter = items.find((item) =>
+            item.label.startsWith('SELECT customer_id'),
+        );
+        expect(starter?.label).toBe('SELECT customer_id, name FROM customers');
+        expect(apply(starter!)).toBe(
+            'SELECT `customer_id`, `name` FROM `silver`.`customers`',
+        );
+    });
+});
+
+describe('qualification', () => {
+    const unquoted = {
+        quotePreference: 'never' as const,
+        casePreference: 'preserve' as const,
+        qualification: 'schema' as const,
+    };
+
+    it('inserts schema.table by default', () => {
+        const { find, apply } = run('SELECT * FROM |', { settings: unquoted });
+        expect(apply(find('orders'))).toBe('SELECT * FROM silver.orders');
+        expect(apply(find('revenue'))).toBe('SELECT * FROM gold.revenue');
+    });
+
+    it('inserts the full path when the query uses it', () => {
+        const { find, apply } = run('SELECT * FROM |', {
+            settings: { ...unquoted, qualification: 'full' },
+        });
+        expect(apply(find('orders'))).toBe(
+            'SELECT * FROM analytics.silver.orders',
+        );
     });
 });
 
@@ -188,6 +276,7 @@ describe('table position', () => {
             settings: {
                 quotePreference: 'always',
                 casePreference: 'uppercase',
+                qualification: 'full',
             },
         });
         expect(apply(find('orders'))).toBe(
@@ -195,7 +284,11 @@ describe('table position', () => {
         );
         const unquoted = run('SELECT * FROM |', {
             quoteChar: '"',
-            settings: { quotePreference: 'never', casePreference: 'lowercase' },
+            settings: {
+                quotePreference: 'never',
+                casePreference: 'lowercase',
+                qualification: 'full',
+            },
         });
         expect(unquoted.apply(unquoted.find('orders'))).toBe(
             'SELECT * FROM analytics.silver.orders',

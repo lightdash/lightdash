@@ -2,16 +2,13 @@ import {
     parseMergeDefinitionReference,
     parseSavedMergeDefinition,
 } from '@lightdash/common';
-import {
-    DEFAULT_ADDITIONAL_SOURCE_ID,
-    MAX_MERGE_SOURCES,
-    PRIMARY_SOURCE_ID,
-} from '../constants';
+import { getNextMergeSourceId, PRIMARY_SOURCE_ID } from '../constants';
+import { type MergeEditorSource } from './context';
 import { type MergeUrlState } from './mergeUrlState';
 
 /**
  * Turns a chart's stored merge back into editable state. The editor
- * addresses the chart's query and the other query by fixed handles; the
+ * addresses the chart's query and the other queries by stable handles; the
  * names they run under ride along so the saved chart's column ids hold.
  *
  * The runtime boundary accepts unknown because an already-open browser can
@@ -21,51 +18,54 @@ import { type MergeUrlState } from './mergeUrlState';
 export const restoreSavedMerge = (value: unknown): MergeUrlState | null => {
     const merge = parseSavedMergeDefinition(value);
     if (!merge) return null;
-    const queries = Object.entries(merge.queries);
-    // Persistence is N-shaped; the current editor's product limit stays
-    // explicit here rather than leaking positional A/B state through callers.
-    if (queries.length + 1 > MAX_MERGE_SOURCES) return null;
-    const [[name, query]] = queries;
-    const handle = DEFAULT_ADDITIONAL_SOURCE_ID;
-
+    const additionalSources: MergeEditorSource[] = [];
+    const repeatValuesSourceIds: string[] = merge.chartRepeats
+        ? [PRIMARY_SOURCE_ID]
+        : [];
+    Object.entries(merge.queries).forEach(([name, query]) => {
+        const id = getNextMergeSourceId(additionalSources);
+        if (query.repeat) repeatValuesSourceIds.push(id);
+        additionalSources.push({
+            id,
+            name,
+            exploreName: query.explore,
+            dimensions: query.dimensions,
+            metrics: query.metrics,
+            filters: query.filters ?? {},
+            additionalMetrics: query.additionalMetrics,
+            customDimensions: query.customDimensions,
+            tableCalculations: query.tableCalculations,
+            metricOverrides: query.metricOverrides,
+            dimensionOverrides: query.dimensionOverrides,
+            timezone: query.timezone,
+        });
+    });
     return {
         focus: { kind: 'source', sourceId: PRIMARY_SOURCE_ID },
         primarySourceName: merge.chartAs ?? null,
-        additionalSources: [
-            {
-                id: handle,
-                name,
-                exploreName: query.explore,
-                dimensions: query.dimensions,
-                metrics: query.metrics,
-                filters: query.filters ?? {},
-                additionalMetrics: query.additionalMetrics,
-                customDimensions: query.customDimensions,
-            },
-        ],
+        additionalSources,
         joinParts: Object.entries(merge.keys).map(
             ([chartFieldId, references]) => {
                 const keyName = merge.keyNames?.[chartFieldId];
-                const reference = references.find(
-                    (candidate) =>
-                        parseMergeDefinitionReference(candidate).query === name,
-                );
+                const parsed = references.map(parseMergeDefinitionReference);
                 return {
                     ...(keyName ? { name: keyName } : {}),
                     fieldIdBySourceId: {
                         [PRIMARY_SOURCE_ID]: chartFieldId,
-                        [handle]: reference
-                            ? parseMergeDefinitionReference(reference).fieldId
-                            : null,
+                        ...Object.fromEntries(
+                            additionalSources.map((source) => [
+                                source.id,
+                                parsed.find(
+                                    ({ query }) => query === source.name,
+                                )?.fieldId ?? null,
+                            ]),
+                        ),
                     },
                 };
             },
         ),
         joinType: merge.join,
-        repeatValuesSourceIds: [
-            ...(merge.chartRepeats ? [PRIMARY_SOURCE_ID] : []),
-            ...(query.repeat ? [handle] : []),
-        ],
+        repeatValuesSourceIds,
         tableCalculations: merge.tableCalculations ?? [],
     };
 };

@@ -1,4 +1,11 @@
-import { QueryHistoryStatus, type QueryHistory } from '@lightdash/common';
+import {
+    AgentActorSurface,
+    buildAgentIdentityClaim,
+    QueryExecutionContext,
+    QueryHistoryStatus,
+    type AgentIdentityClaim,
+    type QueryHistory,
+} from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
@@ -33,6 +40,89 @@ describe('QueryHistoryModel connection attribution', () => {
 });
 
 describe('QueryHistoryModel', () => {
+    test.each([
+        {
+            excludeAgentProduced: true,
+            personCredential: undefined,
+            expectedFile: 'person.jsonl',
+        },
+        {
+            excludeAgentProduced: true,
+            personCredential: null,
+            expectedFile: 'person.jsonl',
+        },
+        {
+            excludeAgentProduced: false,
+            personCredential: undefined,
+            expectedFile: 'agent.jsonl',
+        },
+    ])(
+        'selects $expectedFile with agent exclusion $excludeAgentProduced and person credential $personCredential',
+        async ({ excludeAgentProduced, personCredential, expectedFile }) => {
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const tracker = getTracker();
+            tracker.reset();
+            const rows = [
+                {
+                    created_at: new Date('2026-10-09T12:00:00Z'),
+                    results_file_name: 'agent.jsonl',
+                    request_parameters: { aiSignInCredentialUuid: 'agent' },
+                },
+                {
+                    created_at: new Date('2026-10-09T11:00:00Z'),
+                    results_file_name: 'person.jsonl',
+                    request_parameters: {
+                        aiSignInCredentialUuid: personCredential,
+                    },
+                },
+            ];
+            tracker.on
+                .select('query_history')
+                .response(
+                    ({ sql }) =>
+                        rows
+                            .filter(
+                                (row) =>
+                                    !sql.includes(
+                                        "request_parameters->>'aiSignInCredentialUuid' is null",
+                                    ) ||
+                                    row.request_parameters
+                                        .aiSignInCredentialUuid == null,
+                            )
+                            .sort(
+                                (a, b) =>
+                                    b.created_at.getTime() -
+                                    a.created_at.getTime(),
+                            )[0],
+                );
+            try {
+                const model = new QueryHistoryModel({ database });
+                await expect(
+                    model.findMostRecentByCacheKey('shared-key', 'project', {
+                        excludeAgentProduced,
+                    }),
+                ).resolves.toMatchObject({ resultsFileName: expectedFile });
+                expect(tracker.history.select).toHaveLength(1);
+                const query = tracker.history.select[0];
+                expect(query.bindings).toEqual([
+                    'shared-key',
+                    'project',
+                    'project',
+                    1,
+                ]);
+                expect(query.sql).toContain('order by "created_at" desc limit');
+                expect(
+                    query.sql.includes(
+                        "request_parameters->>'aiSignInCredentialUuid' is null",
+                    ),
+                ).toBe(excludeAgentProduced);
+            } finally {
+                tracker.reset();
+                await database.destroy();
+            }
+        },
+    );
+
     test('records the actual agent credential in the existing request metadata', async () => {
         const database = knex({ client: MockClient, dialect: 'pg' });
         const tracker = getTracker();
@@ -450,5 +540,498 @@ describe('QueryHistoryModel polling cancellation', () => {
             }),
         ).rejects.toMatchObject({ name: 'AbortError' });
         expect(get).toHaveBeenCalledOnce();
+    });
+});
+
+describe('QueryHistoryModel agent identity', () => {
+    const claim = {
+        sub: 'user:person',
+        subject: { type: 'user', uuid: 'person' },
+        act: {
+            sub: 'in_app_agent:lightdash-chat',
+            surface: 'in_app_agent',
+            client_id: 'lightdash-chat',
+        },
+    } as AgentIdentityClaim;
+    const claimCases = [
+        claim,
+        { ...claim, act: { ...claim.act, agent_uuid: null } },
+        { ...claim, act: { ...claim.act, agent_uuid: 'agent-uuid' } },
+        null,
+        undefined,
+    ];
+    test.each(claimCases)(
+        'persists only a supplied claim (%j)',
+        async (agentIdentity) => {
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const tracker = getTracker();
+            tracker.reset();
+            tracker.on
+                .insert('query_history')
+                .response([{ query_uuid: 'query' }]);
+            try {
+                await new QueryHistoryModel({ database }).create(
+                    buildAccount(),
+                    {
+                        organizationUuid: 'org',
+                        projectUuid: 'project',
+                        context: QueryExecutionContext.AI,
+                        compiledSql: 'SELECT 1',
+                        metricQuery: {} as QueryHistory['metricQuery'],
+                        fields: {},
+                        requestParameters:
+                            {} as QueryHistory['requestParameters'],
+                        usedParameters: null,
+                        cacheKey: 'cache',
+                        pivotConfiguration: null,
+                        originalColumns: null,
+                        agentIdentity,
+                    },
+                );
+                expect(tracker.history.insert).toHaveLength(1);
+                expect(tracker.history.select).toHaveLength(0);
+                expect(
+                    tracker.history.insert[0].sql.includes('"agent_identity"'),
+                ).toBe(agentIdentity != null);
+                if (agentIdentity)
+                    expect(tracker.history.insert[0].bindings).toContainEqual(
+                        JSON.stringify(agentIdentity),
+                    );
+            } finally {
+                tracker.reset();
+                await database.destroy();
+            }
+        },
+    );
+    test.each(claimCases)(
+        'reads a stored claim or explicit null (%j)',
+        async (agentIdentity) => {
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const tracker = getTracker();
+            tracker.reset();
+            tracker.on.select('query_history').response({
+                query_uuid: 'query',
+                created_by_user_uuid: buildAccount().user.id,
+                agent_identity: agentIdentity,
+            });
+            try {
+                const row = await new QueryHistoryModel({ database }).get(
+                    'query',
+                    'project',
+                    buildAccount(),
+                );
+                expect(row.agentIdentity).toEqual(agentIdentity ?? null);
+            } finally {
+                tracker.reset();
+                await database.destroy();
+            }
+        },
+    );
+});
+
+test.each(
+    [
+        { act: null },
+        {},
+        { act: { agent_connection_grant: { grantUuid: 'partial' } } },
+    ].flatMap((claim) =>
+        [
+            { resultProducer: null, other: 1 },
+            { resultProducer: { version: 1 }, other: 1 },
+            { resultProducer: { agentIdentity: claim }, other: 1 },
+        ].map((parameters) => ({ claim, parameters })),
+    ),
+)(
+    'returns legacy claims and parameters unchanged: %j',
+    async ({ claim, parameters }) => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        try {
+            tracker.on.select('query_history').response({
+                query_uuid: 'query',
+                created_by_user_uuid: buildAccount().user.id,
+                agent_identity: claim,
+                request_parameters: parameters,
+            });
+            const row = await new QueryHistoryModel({ database }).get(
+                'query',
+                'project',
+                buildAccount(),
+            );
+            expect(JSON.stringify(row.agentIdentity)).toBe(
+                JSON.stringify(claim),
+            );
+            expect(JSON.stringify(row.requestParameters)).toBe(
+                JSON.stringify(parameters),
+            );
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    },
+);
+
+test('a first-party claim and its cache identity match main exactly', () => {
+    const claim = buildAgentIdentityClaim({
+        subject: { type: 'user', uuid: 'person' },
+        surface: AgentActorSurface.IN_APP_AGENT,
+        clientId: 'lightdash-chat',
+    });
+    const expected =
+        '{"sub":"user:person","subject":{"type":"user","uuid":"person"},"act":{"sub":"in_app_agent:lightdash-chat","surface":"in_app_agent","client_id":"lightdash-chat","agent_uuid":null}}';
+    expect(JSON.stringify(claim)).toBe(expected);
+    const producer = { version: 1, agentIdentity: claim } as never;
+    const identity = `{"organizationUuid":"org","producer":{"version":1,"agentIdentity":${
+        expected
+    }}}`;
+    expect(JSON.stringify({ organizationUuid: 'org', producer })).toBe(
+        identity,
+    );
+    expect(
+        QueryHistoryModel.getCacheKey('project', {
+            sql: 'SELECT 1',
+            userUuid: null,
+            resultIdentity: { organizationUuid: 'org', producer },
+        }),
+    ).toBe(
+        createHash('sha256')
+            .update(`v3.project.SELECT 1.result-identity-v1:${identity}`)
+            .digest('hex'),
+    );
+});
+
+describe('result identity cache partition', () => {
+    const identifiers = { sql: 'SELECT 1', userUuid: 'user', timezone: 'UTC' };
+    const producer = {
+        version: 1 as const,
+        warehouseConnectionUuid: 'connection',
+        credentialOwner: {
+            kind: 'person' as const,
+            userUuid: 'user',
+            userWarehouseCredentialsUuid: 'credential',
+        },
+        agentIdentity: null,
+    };
+    test('keeps the legacy key without identity and separates credential owners, replacements and organisations', () => {
+        const key = (organizationUuid: string, current = producer) =>
+            QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                resultIdentity: { organizationUuid, producer: current },
+            });
+        const legacy = QueryHistoryModel.getCacheKey('project', identifiers);
+        expect(
+            QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                resultIdentity: null,
+            }),
+        ).toBe(legacy);
+        expect(
+            new Set([
+                legacy,
+                key('org'),
+                key('other-org'),
+                key('org', {
+                    ...producer,
+                    credentialOwner: {
+                        ...producer.credentialOwner,
+                        userUuid: 'other',
+                    },
+                }),
+                key('org', {
+                    ...producer,
+                    credentialOwner: {
+                        ...producer.credentialOwner,
+                        userWarehouseCredentialsUuid: 'replacement',
+                    },
+                }),
+                key('org', { ...producer, warehouseConnectionUuid: 'other' }),
+            ]).size,
+        ).toBe(6);
+    });
+    test('records provenance for a registered or embedded creator without losing project scope', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.update('query_history').response(1);
+        try {
+            const model = new QueryHistoryModel({ database });
+            await model.recordResultProducer(
+                'query',
+                'project',
+                'creator',
+                producer,
+            );
+            expect(tracker.history.update).toHaveLength(1);
+            const [{ sql, bindings }] = tracker.history.update;
+            expect(sql.replace(/\$\d+/g, '?')).toContain(
+                '"query_uuid" = ? and "project_uuid" = ? and (created_by_user_uuid::text = ? or "created_by_account" = ?)',
+            );
+            expect(bindings).toEqual([
+                JSON.stringify(producer),
+                'query',
+                'project',
+                'creator',
+                'creator',
+            ]);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+    test('excludes every agent claim and returns the original producer', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.select('query_history').response(({ sql }) => {
+            expect(sql).toContain('"agent_identity" is null');
+            expect(sql).toContain(
+                "request_parameters->>'aiSignInCredentialUuid' is null",
+            );
+            return { request_parameters: { resultProducer: producer } };
+        });
+        try {
+            const model = new QueryHistoryModel({ database });
+            const candidate = await model.findMostRecentByCacheKey(
+                'cache',
+                'project',
+                { excludeAgentProduced: true, excludeAgentClaims: true },
+            );
+            expect(candidate?.resultProducer).toEqual(producer);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});
+
+describe('connection history filtering', () => {
+    test('filters every count query by grant and revision before aggregation', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.select('query_history').response([]);
+        try {
+            await new QueryHistoryModel({ database }).getUserHistoryCounts(
+                'project',
+                'user',
+                {},
+                { grantUuid: 'grant-a', revision: 7 },
+            );
+            expect(tracker.history.select).toHaveLength(2);
+            for (const query of tracker.history.select) {
+                expect(query.sql).toContain('agent_connection_grant');
+                expect(query.bindings).toContain('grant-a');
+                expect(query.bindings).toContain('7');
+            }
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});
+
+test.each([null, { grantUuid: 'grant-a', revision: 7 }])(
+    'filters the page and pagination count at the database for %s',
+    async (connection) => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on
+            .any(({ sql }) => sql.includes('WITH count_cte AS'))
+            .response({ rows: [{ count: '0' }] });
+        tracker.on.select('query_history').response([]);
+        try {
+            const result = await new QueryHistoryModel({
+                database,
+            }).findUserHistory(
+                'project',
+                'user',
+                {},
+                { page: 2, pageSize: 10 },
+                connection,
+            );
+            const queries = tracker.history.all;
+            expect(result.pagination?.totalResults).toBe(0);
+            expect(queries).toHaveLength(2);
+            for (const query of queries) {
+                expect(query.sql.includes('agent_connection_grant')).toBe(
+                    connection !== null,
+                );
+                if (connection) {
+                    expect(query.bindings).toContain('grant-a');
+                    expect(query.bindings).toContain('7');
+                }
+            }
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    },
+);
+
+describe('claimed connection errors', () => {
+    test('terminalises by claimed row without a surviving user or another history read', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.update('query_history').response(1);
+        try {
+            const model = new QueryHistoryModel({ database });
+            await model.updateClaimedQueryToError('query', 'subject deleted');
+            const query = tracker.history.update[0];
+            expect(query.sql).not.toContain('created_by_user_uuid');
+            expect(query.sql).toContain('"status" =');
+            expect(query.bindings).toContain(QueryHistoryStatus.EXECUTING);
+            expect(query.bindings).toContain(QueryHistoryStatus.ERROR);
+            expect(tracker.history.select).toHaveLength(0);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});
+
+describe('status transition guards', () => {
+    const runUpdate = async (
+        write: (model: QueryHistoryModel) => Promise<unknown>,
+    ) => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.any(/update "?query_history"?/i).response(1);
+        try {
+            await write(new QueryHistoryModel({ database }));
+            return tracker.history.all[0];
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    };
+    const account = buildAccount();
+
+    test('only writes ready from pending or executing', async () => {
+        const query = await runUpdate((model) =>
+            model.update(
+                'query',
+                'project',
+                { status: QueryHistoryStatus.READY },
+                account,
+            ),
+        );
+        expect(query.sql).toContain('"status" in (');
+        expect(query.bindings.slice(-2)).toEqual([
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.EXECUTING,
+        ]);
+    });
+
+    test('only cancels a running query', async () => {
+        const query = await runUpdate((model) =>
+            model.update(
+                'query',
+                'project',
+                { status: QueryHistoryStatus.CANCELLED },
+                account,
+            ),
+        );
+        expect(query.sql).toContain('"status" in (');
+        expect(query.bindings.slice(-3)).toEqual([
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.QUEUED,
+            QueryHistoryStatus.EXECUTING,
+        ]);
+    });
+
+    test('never overwrites a cancelled query with an error', async () => {
+        const query = await runUpdate((model) =>
+            model.updateStatusToError('query', 'project', 'failed', account),
+        );
+        expect(query.sql).toContain('not "status" =');
+        expect(query.bindings.at(-1)).toBe(QueryHistoryStatus.CANCELLED);
+    });
+
+    test('never records a DuckDB refusal over a cancelled query', async () => {
+        const query = await runUpdate((model) =>
+            model.recordDuckdbRefusal(
+                'query',
+                'project',
+                { kind: 'row_cap' },
+                'refused',
+                account,
+            ),
+        );
+        expect(query.sql).toMatch(/AND status <> \$7$/);
+        expect(query.bindings.at(-1)).toBe(QueryHistoryStatus.CANCELLED);
+    });
+
+    test('leaves other updates unguarded', async () => {
+        const query = await runUpdate((model) =>
+            model.update('query', 'project', { cache_key: 'key' }, account),
+        );
+        expect(query.sql).not.toContain('"status"');
+    });
+});
+
+describe('cancelRunningQueriesReadOnlyBy', () => {
+    test('checks and cancels in one guarded, account-scoped write', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.any(/update "?query_history"?/i).response([]);
+        const account = buildAccount();
+        try {
+            await new QueryHistoryModel({
+                database,
+            }).cancelRunningQueriesReadOnlyBy(
+                ['leg'],
+                'project',
+                'consumer',
+                account,
+            );
+            expect(tracker.history.all).toHaveLength(1);
+            const [{ sql, bindings }] = tracker.history.all;
+            expect(sql).toMatch(
+                /^with "legs" as \(select .* for update\) update "query_history" set "status" = \$\d+ from "legs" where/,
+            );
+            expect(sql).toContain('"query"."created_by_user_uuid" = ');
+            expect(sql).toContain(
+                'not exists (select 1 from "query_history" as "reader"',
+            );
+            expect(bindings).toEqual(
+                expect.arrayContaining([
+                    QueryHistoryStatus.CANCELLED,
+                    'leg',
+                    'project',
+                    'consumer',
+                    account.user.id,
+                ]),
+            );
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
+    test('writes nothing without legs', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        try {
+            expect(
+                await new QueryHistoryModel({
+                    database,
+                }).cancelRunningQueriesReadOnlyBy(
+                    [],
+                    'project',
+                    'consumer',
+                    buildAccount(),
+                ),
+            ).toEqual([]);
+            expect(tracker.history.all).toHaveLength(0);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
     });
 });

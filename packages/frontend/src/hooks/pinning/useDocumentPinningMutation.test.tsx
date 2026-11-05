@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { useDocumentPinningMutation } from './useDocumentPinningMutation';
 
 const mocks = vi.hoisted(() => ({
@@ -8,7 +9,7 @@ const mocks = vi.hoisted(() => ({
     success: vi.fn(),
     error: vi.fn(),
 }));
-vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../api');
 vi.mock('../toaster/useToaster', () => ({
     default: () => ({
         showToastSuccess: mocks.success,
@@ -44,7 +45,7 @@ it.each([true, false])(
         [...keys, ...unaffectedKeys].forEach((key) =>
             client.setQueryData(key, { stalePin: true }),
         );
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             projectUuid: 'project',
             pinnedListUuid: 'list',
             spaceUuid: 'space',
@@ -63,7 +64,7 @@ it.each([true, false])(
                 documentUuid: 'document',
             });
         });
-        expect(mocks.api).toHaveBeenCalledWith({
+        expect(mockedLightdashApi).toHaveBeenCalledWith({
             url: '/projects/project/documents/document/pinning',
             method: 'PATCH',
             body: '{}',

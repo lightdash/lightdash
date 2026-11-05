@@ -1,12 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
+import { detectAnalysisAnomalies, lookupAnalysis } from '../../analysis/api';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
-import { detectDataAppAnomalies, lookupDataAppAnalysis } from './api';
 import { useDataAppAnalysis } from './useDataAppAnalysis';
 
-vi.mock('./api', () => ({
-    detectDataAppAnomalies: vi.fn(),
-    investigateDataAppAnomaly: vi.fn(),
-    lookupDataAppAnalysis: vi.fn(),
+vi.mock('../../analysis/api', () => ({
+    detectAnalysisAnomalies: vi.fn(),
+    investigateAnalysisAnomaly: vi.fn(),
+    lookupAnalysis: vi.fn(),
 }));
 
 const readyQuery: QueryEvent = {
@@ -31,8 +31,7 @@ const readyQuery: QueryEvent = {
 
 const analysis = (appUuid: string) => ({
     analysisId: `analysis-${appUuid}`,
-    appUuid,
-    appVersion: 1,
+    target: { kind: 'app' as const, appUuid, appVersion: 1 },
     sources: [{ queryUuid: 'q-1', label: 'Orders' }],
     generatedAt: new Date(),
     headline: `Headline for ${appUuid}`,
@@ -40,6 +39,7 @@ const analysis = (appUuid: string) => ({
     anomalies: [],
     limitations: [],
     dataAsOf: null,
+    investigations: [],
 });
 
 const render = (autoAnalyse = false) =>
@@ -65,10 +65,11 @@ describe('useDataAppAnalysis', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.useFakeTimers();
-        vi.mocked(detectDataAppAnomalies).mockImplementation(
-            async ({ appUuid }) => analysis(appUuid),
+        vi.mocked(detectAnalysisAnomalies).mockImplementation(
+            async (_lightdashApi, { target }) =>
+                analysis(target.kind === 'app' ? target.appUuid : ''),
         );
-        vi.mocked(lookupDataAppAnalysis).mockResolvedValue(null);
+        vi.mocked(lookupAnalysis).mockResolvedValue(null);
     });
     afterEach(() => {
         vi.useRealTimers();
@@ -88,18 +89,67 @@ describe('useDataAppAnalysis', () => {
             { initialProps: { enabled: false } },
         );
         await settle();
-        expect(lookupDataAppAnalysis).not.toHaveBeenCalled();
-        expect(detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(lookupAnalysis).not.toHaveBeenCalled();
+        expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
 
         rerender({ enabled: true });
         await settle();
-        expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
-        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends instructions with lookup and detect, and re-looks-up when they change', async () => {
+        const { result, rerender } = renderHook(
+            ({ instructions }: { instructions: string | null }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries: [readyQuery],
+                    mountedQueryUuids: null,
+                    enabled: true,
+                    instructions,
+                }),
+            { initialProps: { instructions: 'Use British English.' } },
+        );
+        await settle();
+        expect(lookupAnalysis).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                instructions: 'Use British English.',
+            }),
+        );
+        await act(async () => {
+            await result.current.analyse();
+        });
+        expect(detectAnalysisAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                instructions: 'Use British English.',
+            }),
+        );
+        expect(result.current.state.status).toBe('ready');
+        if (result.current.state.status === 'ready') {
+            expect(result.current.state.stale).toBe(false);
+        }
+
+        // Changed instructions: a stored analysis of identical rows under the
+        // old guidance must not be reused — the view is stale and looked up anew.
+        rerender({ instructions: 'Amounts are EUR.' });
+        expect(result.current.state.status).toBe('ready');
+        if (result.current.state.status === 'ready') {
+            expect(result.current.state.stale).toBe(true);
+        }
+        await settle();
+        expect(lookupAnalysis).toHaveBeenLastCalledWith(
+            expect.anything(),
+            expect.objectContaining({ instructions: 'Amounts are EUR.' }),
+        );
+        expect(lookupAnalysis).toHaveBeenCalledTimes(2);
     });
 
     it('drops a lookup response that arrives after the view changed', async () => {
         const resolvers: ((v: unknown) => void)[] = [];
-        vi.mocked(lookupDataAppAnalysis).mockImplementation(
+        vi.mocked(lookupAnalysis).mockImplementation(
             () =>
                 new Promise((resolve) => {
                     resolvers.push(resolve as (v: unknown) => void);
@@ -163,8 +213,9 @@ describe('useDataAppAnalysis', () => {
             ],
         });
         await settle();
-        expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
-        expect(lookupDataAppAnalysis).toHaveBeenCalledWith(
+        expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+        expect(lookupAnalysis).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 sources: [
                     { queryUuid: 'q-1', label: 'Orders' },
@@ -176,14 +227,17 @@ describe('useDataAppAnalysis', () => {
 
     it('opens with a stored analysis and its investigations when one exists', async () => {
         const stored = analysis('app-a');
-        vi.mocked(lookupDataAppAnalysis).mockResolvedValue({
+        vi.mocked(lookupAnalysis).mockResolvedValue({
             analysis: stored,
             investigations: [
                 {
                     investigationId: 'inv-1',
                     analysisId: stored.analysisId,
-                    appUuid: 'app-a',
-                    appVersion: 1,
+                    target: {
+                        kind: 'app' as const,
+                        appUuid: 'app-a',
+                        appVersion: 1,
+                    },
                     generatedAt: new Date(),
                     explanation: 'because',
                     anomaly: {
@@ -207,16 +261,58 @@ describe('useDataAppAnalysis', () => {
         await settle();
         expect(result.current.state.status).toBe('ready');
         expect(result.current.investigations['anom-1']?.status).toBe('ready');
-        expect(detectDataAppAnomalies).not.toHaveBeenCalled();
-        expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
+        expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
+        expect(lookupAnalysis).toHaveBeenCalledTimes(1);
 
         // Analysing a view that already shows a current analysis regenerates.
         await act(async () => {
             await result.current.analyse();
         });
-        expect(detectDataAppAnomalies).toHaveBeenCalledWith(
+        expect(detectAnalysisAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({ force: true }),
         );
+    });
+
+    it('restores stored investigations when detect serves a cached analysis', async () => {
+        const cached = analysis('app-a');
+        vi.mocked(detectAnalysisAnomalies).mockResolvedValue({
+            ...cached,
+            investigations: [
+                {
+                    investigationId: 'inv-1',
+                    analysisId: cached.analysisId,
+                    target: {
+                        kind: 'app' as const,
+                        appUuid: 'app-a',
+                        appVersion: 1,
+                    },
+                    generatedAt: new Date(),
+                    explanation: 'because',
+                    anomaly: {
+                        id: 'anom-1',
+                        severity: 'high',
+                        text: 't',
+                        queryUuid: 'q-1',
+                        fieldId: 'orders_count',
+                        dimensionValues: {},
+                        expected: null,
+                        actual: '1',
+                    },
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                    queriesRun: 2,
+                    partial: false,
+                },
+            ],
+        });
+        const { result } = render();
+        await settle();
+        await act(async () => {
+            await result.current.analyse();
+        });
+        expect(result.current.state.status).toBe('ready');
+        expect(result.current.investigations['anom-1']?.status).toBe('ready');
     });
 
     it('stays idle on a lookup miss and does not force the first run', async () => {
@@ -226,7 +322,8 @@ describe('useDataAppAnalysis', () => {
         await act(async () => {
             await result.current.analyse();
         });
-        expect(detectDataAppAnomalies).toHaveBeenCalledWith(
+        expect(detectAnalysisAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({ force: false }),
         );
     });
@@ -234,22 +331,26 @@ describe('useDataAppAnalysis', () => {
     it('runs detect on a lookup miss when the app analyses on load', async () => {
         const { result } = render(true);
         await settle();
-        expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
-        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
-        expect(detectDataAppAnomalies).toHaveBeenCalledWith(
-            expect.objectContaining({ appUuid: 'app-a', force: false }),
+        expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+        expect(detectAnalysisAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                target: { kind: 'app', appUuid: 'app-a' },
+                force: false,
+            }),
         );
         expect(result.current.state.status).toBe('ready');
     });
 
     it('does not run detect on load when a stored analysis exists', async () => {
-        vi.mocked(lookupDataAppAnalysis).mockResolvedValue({
+        vi.mocked(lookupAnalysis).mockResolvedValue({
             analysis: analysis('app-a'),
             investigations: [],
         });
         const { result } = render(true);
         await settle();
-        expect(detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
         expect(result.current.state.status).toBe('ready');
     });
 
@@ -267,23 +368,147 @@ describe('useDataAppAnalysis', () => {
             { initialProps: { queries: [readyQuery] } },
         );
         await settle();
-        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
         rerender({
             queries: [
                 readyQuery,
                 { ...readyQuery, id: 'req-2', timestamp: 2, queryUuid: 'q-2' },
             ],
         });
-        expect(result.current.state).toMatchObject({
-            status: 'ready',
-            stale: true,
-        });
+        // The re-run is coming, so the viewer sees analysing immediately
+        // instead of the old summary with a stale note.
+        expect(result.current.state.status).toBe('analysing');
         await settle();
-        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(2);
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(2);
         expect(result.current.state).toMatchObject({
             status: 'ready',
             stale: false,
         });
+    });
+
+    it('presents analysing while the changed view is still running its queries', async () => {
+        vi.mocked(lookupAnalysis)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({
+                analysis: analysis('app-a'),
+                investigations: [],
+            });
+        const { result, rerender } = renderHook(
+            ({
+                queries,
+                mountedQueryUuids,
+            }: {
+                queries: QueryEvent[];
+                mountedQueryUuids: string[];
+            }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries,
+                    mountedQueryUuids,
+                    enabled: true,
+                    autoAnalyse: true,
+                }),
+            {
+                initialProps: {
+                    queries: [readyQuery],
+                    mountedQueryUuids: ['q-1'],
+                },
+            },
+        );
+        await settle();
+        expect(result.current.state.status).toBe('ready');
+
+        // Tab switch: the new view's query is still pending, so there is no
+        // ready source yet — feedback must not wait for the warehouse.
+        const pendingQuery: QueryEvent = {
+            ...readyQuery,
+            id: 'req-2',
+            timestamp: 2,
+            queryUuid: null,
+            status: 'pending',
+        };
+        rerender({
+            queries: [readyQuery, pendingQuery],
+            mountedQueryUuids: [],
+        });
+        expect(result.current.state.status).toBe('analysing');
+
+        // The query lands, the view settles, and the stored analysis loads.
+        rerender({
+            queries: [
+                readyQuery,
+                { ...pendingQuery, queryUuid: 'q-2', status: 'ready' },
+            ],
+            mountedQueryUuids: ['q-2'],
+        });
+        expect(result.current.state.status).toBe('analysing');
+        await settle();
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: false,
+        });
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the stale analysis when the changed view has nothing to analyse', async () => {
+        const { result, rerender } = renderHook(
+            ({ mountedQueryUuids }: { mountedQueryUuids: string[] }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries: [readyQuery],
+                    mountedQueryUuids,
+                    enabled: true,
+                    autoAnalyse: true,
+                }),
+            { initialProps: { mountedQueryUuids: ['q-1'] } },
+        );
+        await settle();
+        expect(result.current.state.status).toBe('ready');
+
+        // A view with no queries never looks up, so analysing would hang.
+        rerender({ mountedQueryUuids: [] });
+        await settle();
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: true,
+        });
+    });
+
+    it('falls back to the stale analysis when the re-run lookup fails', async () => {
+        const { result, rerender } = renderHook(
+            ({ queries }: { queries: QueryEvent[] }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries,
+                    mountedQueryUuids: null,
+                    enabled: true,
+                    autoAnalyse: true,
+                }),
+            { initialProps: { queries: [readyQuery] } },
+        );
+        await settle();
+        expect(result.current.state.status).toBe('ready');
+
+        vi.mocked(lookupAnalysis).mockRejectedValueOnce(
+            new Error('lookup down'),
+        );
+        rerender({
+            queries: [
+                readyQuery,
+                { ...readyQuery, id: 'req-2', timestamp: 2, queryUuid: 'q-2' },
+            ],
+        });
+        expect(result.current.state.status).toBe('analysing');
+        await settle();
+        // No run is coming; the old summary with its stale note is honest.
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: true,
+        });
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
     });
 
     it('drops a finished analysis when the app changes', async () => {
@@ -300,7 +525,7 @@ describe('useDataAppAnalysis', () => {
 
     it('shows the analysis of the current view when an older detect resolves late', async () => {
         const resolvers: ((v: ReturnType<typeof analysis>) => void)[] = [];
-        vi.mocked(detectDataAppAnomalies).mockImplementation(
+        vi.mocked(detectAnalysisAnomalies).mockImplementation(
             () =>
                 new Promise((resolve) => {
                     resolvers.push(resolve);
@@ -330,7 +555,8 @@ describe('useDataAppAnalysis', () => {
             void result.current.analyse();
         });
         expect(resolvers).toHaveLength(2);
-        expect(detectDataAppAnomalies).toHaveBeenLastCalledWith(
+        expect(detectAnalysisAnomalies).toHaveBeenLastCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 sources: [{ queryUuid: 'q-2', label: 'Orders' }],
             }),
@@ -352,6 +578,58 @@ describe('useDataAppAnalysis', () => {
         });
     });
 
+    describe('analysis on load declared after the lookup', () => {
+        const QUERIES = [readyQuery];
+        const renderLate = () =>
+            renderHook(
+                ({ autoAnalyse }: { autoAnalyse: boolean }) =>
+                    useDataAppAnalysis({
+                        projectUuid: 'proj-1',
+                        appUuid: 'app-a',
+                        queries: QUERIES,
+                        mountedQueryUuids: null,
+                        enabled: true,
+                        autoAnalyse,
+                    }),
+                { initialProps: { autoAnalyse: false } },
+            );
+
+        it('runs detect once when turned on after a lookup miss', async () => {
+            const { result, rerender } = renderLate();
+            await settle();
+            expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+            expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
+            expect(result.current.state.status).toBe('idle');
+
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+            expect(result.current.state.status).toBe('ready');
+
+            // Toggling again for the same view never re-runs.
+            rerender({ autoAnalyse: false });
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+            expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps a stored analysis when turned on after a lookup hit', async () => {
+            vi.mocked(lookupAnalysis).mockResolvedValue({
+                analysis: analysis('app-a'),
+                investigations: [],
+            });
+            const { result, rerender } = renderLate();
+            await settle();
+            expect(result.current.state.status).toBe('ready');
+
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
+            expect(result.current.state.status).toBe('ready');
+        });
+    });
+
     it('auto-runs once per view generation, not once per query event', async () => {
         const { rerender } = renderHook(
             ({ queries }: { queries: QueryEvent[] }) =>
@@ -366,7 +644,7 @@ describe('useDataAppAnalysis', () => {
             { initialProps: { queries: [readyQuery] } },
         );
         await settle();
-        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
         // Same generation: a re-emitted event and a pending sibling change
         // nothing the analysis keys on.
         rerender({ queries: [{ ...readyQuery, timestamp: 2 }] });
@@ -383,7 +661,7 @@ describe('useDataAppAnalysis', () => {
             ],
         });
         await settle();
-        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
     });
 
     describe('expired sources', () => {
@@ -401,9 +679,11 @@ describe('useDataAppAnalysis', () => {
         ];
 
         it('reloads the app once, then analyses the fresh view', async () => {
-            vi.mocked(detectDataAppAnomalies)
+            vi.mocked(detectAnalysisAnomalies)
                 .mockRejectedValueOnce(expired)
-                .mockImplementation(async ({ appUuid }) => analysis(appUuid));
+                .mockImplementation(async (_lightdashApi, { target }) =>
+                    analysis(target.kind === 'app' ? target.appUuid : ''),
+                );
             const onSourcesExpired = vi.fn();
             const { result, rerender } = renderHook(
                 ({ queries }: { queries: QueryEvent[] }) =>
@@ -427,8 +707,9 @@ describe('useDataAppAnalysis', () => {
             // The reload re-runs the app's queries under new uuids.
             rerender({ queries: reloadedQueries });
             await settle();
-            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(2);
-            expect(detectDataAppAnomalies).toHaveBeenLastCalledWith(
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(2);
+            expect(detectAnalysisAnomalies).toHaveBeenLastCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     sources: [{ queryUuid: 'q-2', label: 'Orders' }],
                     force: false,
@@ -438,7 +719,7 @@ describe('useDataAppAnalysis', () => {
         });
 
         it('gives up with a distinct error when the fresh view expires too', async () => {
-            vi.mocked(detectDataAppAnomalies).mockRejectedValue(expired);
+            vi.mocked(detectAnalysisAnomalies).mockRejectedValue(expired);
             const onSourcesExpired = vi.fn();
             const { result, rerender } = renderHook(
                 ({ queries }: { queries: QueryEvent[] }) =>
@@ -459,7 +740,7 @@ describe('useDataAppAnalysis', () => {
             rerender({ queries: reloadedQueries });
             await settle();
             expect(onSourcesExpired).toHaveBeenCalledTimes(1);
-            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(2);
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(2);
             expect(result.current.state).toMatchObject({
                 status: 'error',
                 message: expect.stringMatching(/expired/),
@@ -467,7 +748,7 @@ describe('useDataAppAnalysis', () => {
         });
 
         it('consumes the retry when the fresh view has a stored analysis', async () => {
-            vi.mocked(detectDataAppAnomalies).mockRejectedValueOnce(expired);
+            vi.mocked(detectAnalysisAnomalies).mockRejectedValueOnce(expired);
             const { result, rerender } = renderHook(
                 ({ queries }: { queries: QueryEvent[] }) =>
                     useDataAppAnalysis({
@@ -484,25 +765,25 @@ describe('useDataAppAnalysis', () => {
             await act(async () => {
                 await result.current.analyse();
             });
-            vi.mocked(lookupDataAppAnalysis).mockResolvedValueOnce({
+            vi.mocked(lookupAnalysis).mockResolvedValueOnce({
                 analysis: analysis('app-a'),
                 investigations: [],
             });
             rerender({ queries: reloadedQueries });
             await settle();
             expect(result.current.state.status).toBe('ready');
-            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
 
             // A later filter change that misses must not analyse on its own.
             rerender({
                 queries: [{ ...readyQuery, id: 'req-3', queryUuid: 'q-3' }],
             });
             await settle();
-            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
         });
 
         it('forgets the retry when the app changes', async () => {
-            vi.mocked(detectDataAppAnomalies).mockRejectedValueOnce(expired);
+            vi.mocked(detectAnalysisAnomalies).mockRejectedValueOnce(expired);
             const { result, rerender } = renderHook(
                 ({ appUuid }: { appUuid: string }) =>
                     useDataAppAnalysis({
@@ -522,11 +803,11 @@ describe('useDataAppAnalysis', () => {
             rerender({ appUuid: 'app-b' });
             await settle();
             expect(result.current.state.status).toBe('idle');
-            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
         });
 
         it('reports the second expiry when the reloaded lookup expires', async () => {
-            vi.mocked(detectDataAppAnomalies).mockRejectedValueOnce(expired);
+            vi.mocked(detectAnalysisAnomalies).mockRejectedValueOnce(expired);
             const { result, rerender } = renderHook(
                 ({ queries }: { queries: QueryEvent[] }) =>
                     useDataAppAnalysis({
@@ -543,10 +824,10 @@ describe('useDataAppAnalysis', () => {
             await act(async () => {
                 await result.current.analyse();
             });
-            vi.mocked(lookupDataAppAnalysis).mockRejectedValueOnce(expired);
+            vi.mocked(lookupAnalysis).mockRejectedValueOnce(expired);
             rerender({ queries: reloadedQueries });
             await settle();
-            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
             expect(result.current.state).toMatchObject({
                 status: 'error',
                 message: expect.stringMatching(/expired/),
@@ -554,14 +835,14 @@ describe('useDataAppAnalysis', () => {
         });
 
         it('still swallows an expired lookup outside a retry', async () => {
-            vi.mocked(lookupDataAppAnalysis).mockRejectedValueOnce(expired);
+            vi.mocked(lookupAnalysis).mockRejectedValueOnce(expired);
             const { result } = render();
             await settle();
             expect(result.current.state.status).toBe('idle');
         });
 
         it('is a plain error where the host cannot reload the app', async () => {
-            vi.mocked(detectDataAppAnomalies).mockRejectedValue(expired);
+            vi.mocked(detectAnalysisAnomalies).mockRejectedValue(expired);
             const { result } = render();
             await settle();
             await act(async () => {
@@ -576,7 +857,7 @@ describe('useDataAppAnalysis', () => {
 
     it('ignores a response that arrives after the app changed', async () => {
         let resolve: (value: ReturnType<typeof analysis>) => void = () => {};
-        vi.mocked(detectDataAppAnomalies).mockImplementation(
+        vi.mocked(detectAnalysisAnomalies).mockImplementation(
             () =>
                 new Promise((r) => {
                     resolve = r;

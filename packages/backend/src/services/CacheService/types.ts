@@ -1,3 +1,4 @@
+import { type QueryHistory, type QueryResultProducer } from '@lightdash/common';
 import { DbQueryHistory } from '../../database/entities/queryHistory';
 
 export enum ResultsCacheStatus {
@@ -6,7 +7,11 @@ export enum ResultsCacheStatus {
 }
 
 export type CacheHitCacheResult = {
+    queryUuid?: string;
+    queryHistory?: QueryHistory;
+    resultProducer: QueryResultProducer | null;
     cacheKey: string;
+    cacheGeneration: number;
     cacheHit: true;
     totalRowCount: number;
     fileName: string;

@@ -56,6 +56,7 @@ const execute = async (
     args: { slug: string; type: 'dashboard' | 'chart' },
 ) => {
     const tool = getReadContent({
+        siteUrl: 'https://app.lightdash.cloud',
         readContent: vi.fn().mockResolvedValue(read),
     });
     if (!tool.execute) {
@@ -108,4 +109,27 @@ describe('readContent tool', () => {
             expect.not.stringContaining('chartQuery'),
         );
     });
+
+    it.each([null, 'c1'])(
+        'reads a chart and ignores the Document-only chartId %j',
+        async (chartId) => {
+            const readContent = vi.fn().mockResolvedValue(chartRead);
+            const tool = getReadContent({
+                siteUrl: 'https://app.lightdash.cloud',
+                readContent,
+                documentsEnabled: true,
+            });
+
+            const output = await tool.execute!(
+                { slug: 'orders-per-month', type: 'chart', chartId },
+                options,
+            );
+
+            expect(readContent).toHaveBeenCalledWith({
+                slug: 'orders-per-month',
+                type: 'chart',
+            });
+            expect(output).toHaveProperty('metadata.status', 'success');
+        },
+    );
 });

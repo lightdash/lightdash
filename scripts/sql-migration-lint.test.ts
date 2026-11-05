@@ -231,6 +231,19 @@ export async function down(knex) { await knex.schema.alterTable('users', table =
     );
 });
 
+test('migration enforcement never offers Path 3 for an undeclared destructive migration', () => {
+    const source = `export async function up(knex) { await knex.schema.dropTable('legacy'); }
+export async function down(knex) { await knex.schema.createTable('legacy', table => table.integer('id')); }`;
+    const finding = enforcement(source).find(({ rule }) => rule === 'undeclared-breaking-change');
+    assert.ok(finding);
+    assert.strictEqual(finding.severity, 'error');
+    assert.match(finding.message, /BREAKING-CHANGE DECISION BRIEF/);
+    assert.match(finding.message, /Path 1/);
+    assert.match(finding.message, /Path 2/);
+    assert.doesNotMatch(finding.message, /Path 3/);
+    assert.match(finding.message, /confirm with a human/);
+});
+
 test('hollow breaking reasons do not satisfy migration enforcement', () => {
     const hollowReasons = [
         '',
@@ -516,6 +529,7 @@ test('registry diagnostics fail migration enforcement without changed migrations
         paths: [],
         declarationChanges: {
             added: [],
+            advisories: [],
             diagnostics: [
                 {
                     file: 'release-safety.declarations.json',

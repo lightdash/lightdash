@@ -6,6 +6,8 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    ALL_SECTION_ID,
+    buildRecentWarehouseRows,
     buildWarehouseTreeRows,
     catalogHasViews,
     collectEnabledUnits,
@@ -100,6 +102,7 @@ const build = (args: {
     connections: TreeConnection[];
     units?: Record<string, TableUnitState>;
     expanded?: string[];
+    expansionOverrides?: Record<string, boolean>;
     search?: string;
     typeFilter?: 'tables' | 'views' | null;
 }) =>
@@ -108,7 +111,10 @@ const build = (args: {
         getUnitState: (unit) =>
             args.units?.[tableUnitId(unit)] ??
             args.units?.[unit.database] ?? { status: 'idle' },
-        isExpanded: (rowId) => (args.expanded ?? []).includes(rowId),
+        isExpanded: (rowId) =>
+            args.expansionOverrides?.[rowId] ??
+            (args.expanded ?? []).includes(rowId),
+        getExpansionOverride: (rowId) => args.expansionOverrides?.[rowId],
         search: args.search ?? '',
         typeFilter: args.typeFilter ?? null,
     });
@@ -370,16 +376,36 @@ describe('buildWarehouseTreeRows', () => {
             units: { analytics: loaded(snowflakeCatalog) },
             expanded: [
                 `database:${CONNECTION_ID}/analytics`,
-                `schema:${CONNECTION_ID}/analytics/PUBLIC`,
+                `schema:${CONNECTION_ID}/ANALYTICS/PUBLIC`,
             ],
         });
 
         expect(rows.map((row) => row.id)).toEqual([
-            `database:${CONNECTION_ID}/analytics`,
-            `schema:${CONNECTION_ID}/analytics/PUBLIC`,
-            `table:${CONNECTION_ID}/analytics/PUBLIC/CUSTOMERS`,
+            `database:${CONNECTION_ID}/ANALYTICS`,
+            `schema:${CONNECTION_ID}/ANALYTICS/PUBLIC`,
+            `table:${CONNECTION_ID}/ANALYTICS/PUBLIC/CUSTOMERS`,
         ]);
         expect(rows[0]).toMatchObject({ childCount: 1 });
+        const tableRow = rows.find((row) => row.type === 'table');
+        if (tableRow?.type !== 'table') throw new Error('Table row not found');
+        expect(qualifiedTableName(tableRow.identity, '"')).toBe(
+            '"ANALYTICS"."PUBLIC"."CUSTOMERS"',
+        );
+
+        const collapsed = build({
+            connections: [connection(snowflakeDatabases)],
+            units: { analytics: loaded(snowflakeCatalog) },
+            expanded: [`database:${CONNECTION_ID}/analytics`],
+            expansionOverrides: {
+                [`database:${CONNECTION_ID}/ANALYTICS`]: false,
+            },
+        });
+        expect(collapsed).toMatchObject([
+            {
+                id: `database:${CONNECTION_ID}/ANALYTICS`,
+                isExpanded: false,
+            },
+        ]);
     });
 
     it('falls back to the sole catalog database for a Databricks connection with no catalog set', () => {
@@ -508,6 +534,61 @@ describe('buildWarehouseTreeRows', () => {
                 table: 'movies',
             },
         ]);
+    });
+});
+
+describe('buildRecentWarehouseRows', () => {
+    const getUnitState = (unit: { database: string }): TableUnitState =>
+        unit.database === 'AwsDataCatalog'
+            ? loaded(athenaCatalog)
+            : unit.database === 'broken'
+              ? { status: 'error', message: 'nope' }
+              : { status: 'idle' };
+
+    it('wraps the recent tables in sections and carries catalog details', () => {
+        const rows = buildRecentWarehouseRows({
+            connectionId: CONNECTION_ID,
+            recentTables: [
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'jaffle',
+                    table: 'orders',
+                },
+                { database: 'lazy', schema: 'main', table: 'events' },
+            ],
+            getUnitState,
+            allLabel: 'All schemas',
+        });
+
+        expect(rows).toMatchObject([
+            { type: 'section', label: 'Recent' },
+            {
+                type: 'recent',
+                identity: {
+                    connectionId: CONNECTION_ID,
+                    database: 'AwsDataCatalog',
+                    schema: 'jaffle',
+                    table: 'orders',
+                },
+                partitionColumn,
+            },
+            { type: 'recent', identity: { database: 'lazy', table: 'events' } },
+            { type: 'section', id: ALL_SECTION_ID, label: 'All schemas' },
+        ]);
+    });
+
+    it('drops tables a loaded database no longer has, and broken databases', () => {
+        const rows = buildRecentWarehouseRows({
+            connectionId: CONNECTION_ID,
+            recentTables: [
+                { database: 'AwsDataCatalog', schema: 'jaffle', table: 'gone' },
+                { database: 'broken', schema: 'main', table: 'events' },
+            ],
+            getUnitState,
+            allLabel: 'All schemas',
+        });
+
+        expect(rows).toEqual([]);
     });
 });
 

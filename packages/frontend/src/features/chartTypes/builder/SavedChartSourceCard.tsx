@@ -87,7 +87,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                         <MantineIcon icon={IconChartBar} size={18} />
                     </Box>
                     <Stack gap={2} flex={1} miw={0}>
-                        <Text fz="sm" fw={500} c="ldGray.8">
+                        <Text fz="sm" fw={500}>
                             Use a saved chart
                         </Text>
                         <Text fz="xs" c="dimmed" lh={1.5}>

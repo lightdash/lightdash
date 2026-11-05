@@ -40,6 +40,16 @@ export type ArtifactChartExportAccess = {
         versionUuid: string;
     }) => Promise<PreparedChartAsCode>;
     prepareVersion: (versionUuid: string) => Promise<PreparedChartAsCode>;
+    /** The SQL of a `runSql` result in this conversation, or null for other artifacts. */
+    prepareSqlVersion: (
+        versionUuid: string,
+    ) => Promise<ArtifactSqlResult | null>;
+};
+
+export type ArtifactSqlResult = {
+    title: string | null;
+    sql: string;
+    limit: number;
 };
 
 /** Metadata-only replay of an already authorized, exact artifact version. */

@@ -4,6 +4,49 @@ import { MetricQueryBuilder } from '../../../utils/QueryBuilder/MetricQueryBuild
 import { createAnalyticsExplores } from './createAnalyticsExplores';
 
 describe('createAnalyticsExplores', () => {
+    it('exposes database history without combining its counts with native views', () => {
+        const history = createAnalyticsExplores().find(
+            ({ name }) => name === 'historical_activity',
+        )!;
+        expect(history).toBeDefined();
+        expect(
+            history.tables.historical_activity.metrics.record_count,
+        ).toMatchObject({ type: MetricType.COUNT });
+        expect(
+            history.tables.historical_activity.dimensions.activity_type
+                .description,
+        ).toContain('must not be added');
+        expect(
+            history.tables.historical_activity.dimensions.current_status
+                .description,
+        ).toContain('last import');
+    });
+
+    it('offers native content links through the same Explore URL aliases', () => {
+        const explores = createAnalyticsExplores();
+        for (const name of [
+            'query_events',
+            'export_events',
+            'semantic_usage',
+            'content_reach',
+            'content_health',
+            'content_inventory',
+        ]) {
+            const explore = explores.find((item) => item.name === name)!;
+            const table = explore.tables[explore.baseTable];
+            for (const type of name.startsWith('content_')
+                ? ['content']
+                : ['chart', 'dashboard']) {
+                expect(table.dimensions[`${type}_name`].urls).toEqual([
+                    {
+                        label: `Open ${type}`,
+                        url: `\${row.${table.name}.${type}_url.raw}`,
+                    },
+                ]);
+            }
+        }
+    });
+
     it('exposes one field list per Explore including available names and slugs', () => {
         const explores = createAnalyticsExplores();
         for (const explore of explores) {
@@ -20,15 +63,50 @@ describe('createAnalyticsExplores', () => {
         expect(exports.tables.export_events.dimensions).toMatchObject({
             chart_name: { label: 'Chart name', hidden: false },
             chart_slug: { label: 'Chart slug', hidden: false },
+            chart_url: { label: 'Chart url', hidden: false },
             dashboard_name: { label: 'Dashboard name', hidden: false },
             dashboard_slug: { label: 'Dashboard slug', hidden: false },
+            dashboard_url: { label: 'Dashboard url', hidden: false },
             chart_id: { hidden: false },
             dashboard_id: { hidden: false },
             explore_name: { hidden: false },
         });
     });
 
+    it('adds primary email fields without replacing names', () => {
+        for (const explore of createAnalyticsExplores()) {
+            if (explore.tables.lightdash_users) {
+                expect(
+                    explore.tables[explore.baseTable].dimensions.user_email,
+                ).toMatchObject({
+                    label: 'User email',
+                    hidden: false,
+                });
+                expect(explore.tables.lightdash_users.dimensions.name.sql).toBe(
+                    "COALESCE(${TABLE}.name, 'Unknown user')",
+                );
+            }
+            if (explore.name === 'people_adoption') {
+                expect(
+                    explore.tables.people_adoption.dimensions.email,
+                ).toMatchObject({
+                    label: 'User email',
+                    hidden: false,
+                });
+                expect(
+                    explore.tables.people_adoption.dimensions.name.label,
+                ).toBe('User name');
+            }
+        }
+    });
+
     it.each([
+        [
+            'query_events',
+            'lightdash_users_email',
+            'user_email',
+            'total_queries',
+        ],
         ['ai_usage', 'lightdash_users_name', 'user_name', 'total_ai_calls'],
         ['ai_usage', 'lightdash_agents_name', 'agent_name', 'total_ai_calls'],
         [
@@ -52,6 +130,24 @@ describe('createAnalyticsExplores', () => {
             'total_views',
         ],
         ['user_activity', 'lightdash_users_name', 'user_name', 'total_events'],
+        [
+            'historical_activity',
+            'lightdash_users_name',
+            'user_name',
+            'record_count',
+        ],
+        [
+            'historical_activity',
+            'lightdash_content_content_name',
+            'content_name',
+            'record_count',
+        ],
+        [
+            'historical_activity',
+            'lightdash_apps_name',
+            'app_name',
+            'record_count',
+        ],
     ])(
         'keeps the same SQL work for %s %s selections, filters and sorts',
         (name, original, alias, metric) => {
@@ -190,14 +286,19 @@ describe('createAnalyticsExplores', () => {
             'export_events',
             'agent_steps',
             'user_activity',
+            'historical_activity',
             'tool_activity',
             'content_reach',
             'content_health',
+            'content_inventory',
             'agent_requests',
+            'agent_request_starts',
             'agent_request_events',
             'semantic_usage',
             'data_app_reach',
+            'data_app_outcomes',
             'people_adoption',
+            'embed_reach',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
         expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();

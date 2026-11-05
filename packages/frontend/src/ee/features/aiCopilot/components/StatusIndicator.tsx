@@ -8,7 +8,7 @@ export const StatusIndicator: FC<{ color: MantineColor; label: string }> = ({
 }) => (
     <Group gap={6} wrap="nowrap">
         <Box className={styles.dot} bg={color} />
-        <Text fz="sm" c="ldGray.7">
+        <Text fz="sm" c="dimmed">
             {label}
         </Text>
     </Group>

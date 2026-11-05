@@ -1,0 +1,9 @@
+version: 2
+models:
+  - name: pg_calendar_weekdays
+    columns:
+      - name: calendar_date
+        meta:
+          dimension: { type: date }
+          metrics:
+            weekday_count: { type: count_distinct }

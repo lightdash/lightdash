@@ -29,15 +29,41 @@ const duckdb = (
 const measured = (nodes: PipelineFlowNode[]) =>
     nodes.map((node) => ({ ...node, measured: { width: 160, height: 40 } }));
 
-const noDisplay = {
-    displayedNodeId: '',
-    displayableNodeIds: new Set<string>(),
-};
+const noDisplay = { hoveredNodeId: null, nodeStatuses: {} };
 
 const xOf = (nodes: PipelineFlowNode[], id: string) =>
     nodes.find((node) => node.id === id)!.position.x;
 
 describe('toPipelineFlow', () => {
+    it('labels python nodes and draws edges into and out of them', () => {
+        const { nodes, edges } = toPipelineFlow(
+            groupPipeline(
+                [
+                    sql('orders', 'Orders by status'),
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'sim',
+                        title: 'Simulation',
+                        code: 'def run(inputs, params):\n    return inputs["orders"]',
+                        references: ['orders'],
+                    },
+                    duckdb('summary', 'Summary', ['sim']),
+                ],
+                'summary',
+            ),
+            noDisplay,
+        );
+        expect(nodes.map((node) => [node.id, node.data.typeLabel])).toEqual([
+            ['orders', 'Warehouse SQL'],
+            ['sim', 'Python'],
+            ['summary', 'DuckDB'],
+        ]);
+        expect(edges.map((edge) => edge.id)).toEqual([
+            'orders->sim',
+            'sim->summary',
+        ]);
+    });
+
     it('makes one node per pipeline node with source and terminal flags', () => {
         const { nodes } = toPipelineFlow(
             groupPipeline(
@@ -50,24 +76,22 @@ describe('toPipelineFlow', () => {
             noDisplay,
         );
         expect(nodes.map((node) => node.data)).toEqual([
-            {
+            expect.objectContaining({
                 title: 'Orders by status',
-                sourceLabel: 'Warehouse SQL',
+                typeLabel: 'Warehouse SQL',
                 isTerminal: false,
-                isDisplayed: false,
-                isDisplayable: false,
-            },
-            {
+                status: null,
+            }),
+            expect.objectContaining({
                 title: 'Orders with amounts',
-                sourceLabel: null,
+                typeLabel: 'DuckDB',
                 isTerminal: true,
-                isDisplayed: false,
-                isDisplayable: false,
-            },
+                status: null,
+            }),
         ]);
     });
 
-    it('marks the displayed node and the nodes with a stored result', () => {
+    it('carries each node status', () => {
         const { nodes } = toPipelineFlow(
             groupPipeline(
                 [
@@ -77,19 +101,25 @@ describe('toPipelineFlow', () => {
                 'joined',
             ),
             {
-                displayedNodeId: 'orders',
-                displayableNodeIds: new Set(['orders']),
+                hoveredNodeId: null,
+                nodeStatuses: {
+                    orders: {
+                        status: 'success',
+                        error: null,
+                        totalRowCount: 20,
+                        durationMs: null,
+                    },
+                },
             },
         );
         expect(
             nodes.map(({ id, data }) => [
                 id,
-                data.isDisplayed,
-                data.isDisplayable,
+                data.status?.totalRowCount ?? null,
             ]),
         ).toEqual([
-            ['orders', true, true],
-            ['joined', false, false],
+            ['orders', 20],
+            ['joined', null],
         ]);
     });
 
@@ -111,44 +141,6 @@ describe('toPipelineFlow', () => {
             ['b', 'ab'],
             ['ab', 'final'],
         ]);
-    });
-
-    it('draws an earlier result placeholder with an edge to its reader', () => {
-        const { nodes, edges } = toPipelineFlow(
-            groupPipeline(
-                [duckdb('final', 'Final', { prev: 'uuid-1' })],
-                'final',
-            ),
-            noDisplay,
-        );
-        const marks = { isDisplayed: false, isDisplayable: false };
-        expect(nodes.map((node) => [node.id, node.data])).toEqual([
-            [
-                'earlier:uuid-1',
-                {
-                    title: 'prev',
-                    sourceLabel: 'Earlier result',
-                    isTerminal: false,
-                    ...marks,
-                },
-            ],
-            [
-                'final',
-                {
-                    title: 'Final',
-                    sourceLabel: null,
-                    isTerminal: true,
-                    ...marks,
-                },
-            ],
-        ]);
-        expect(edges.map((edge) => [edge.source, edge.target])).toEqual([
-            ['earlier:uuid-1', 'final'],
-        ]);
-        const laidOut = layoutPipelineFlow(measured(nodes), edges);
-        expect(xOf(laidOut, 'earlier:uuid-1')).toBeLessThan(
-            xOf(laidOut, 'final'),
-        );
     });
 
     it('returns empty arrays for an empty pipeline', () => {

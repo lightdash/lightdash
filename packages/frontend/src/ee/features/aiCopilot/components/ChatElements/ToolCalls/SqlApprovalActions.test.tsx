@@ -1,13 +1,13 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../../../../api';
+import { mockedLightdashApi } from '../../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { store } from '../../../store';
 import { SqlRunToolCallDescription } from './descriptions/SqlRunToolCallDescription';
 
-vi.mock('../../../../../../api', () => ({ lightdashApi: vi.fn() }));
-const mockedLightdashApi = vi.mocked(lightdashApi);
+vi.mock('../../../../../../api');
 
 const approval = {
     projectUuid: 'project-1',
@@ -62,5 +62,49 @@ describe('SqlRunToolCallDescription approval', () => {
         expect(
             screen.queryByRole('button', { name: 'Approve' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('approves from the enlarged SQL modal and closes it', async () => {
+        mockedLightdashApi.mockResolvedValue(undefined);
+        renderDescription();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Expand SQL' }),
+        );
+        const dialog = await screen.findByRole('dialog');
+        await userEvent.click(
+            within(dialog).getByRole('button', { name: 'Approve' }),
+        );
+
+        await waitFor(() =>
+            expect(mockedLightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    body: JSON.stringify({ decision: 'approved' }),
+                }),
+            ),
+        );
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+    });
+
+    it('closes the enlarged SQL modal from its header without deciding', async () => {
+        renderDescription();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Expand SQL' }),
+        );
+        const dialog = await screen.findByRole('dialog');
+        await userEvent.click(
+            within(dialog).getByRole('button', { name: 'Close' }),
+        );
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(mockedLightdashApi).not.toHaveBeenCalled();
+        expect(
+            screen.getByRole('button', { name: 'Approve' }),
+        ).toBeInTheDocument();
     });
 });

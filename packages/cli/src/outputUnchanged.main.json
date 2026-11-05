@@ -1,0 +1,30 @@
+{
+    "revision": "046b7d77612d329114fd4e807f2638f06281815c",
+    "outputs": {
+        "login": {
+            "stdout": "",
+            "stderr": "Cannot sign in with email/password: Rejected postgres_password_dbt_cloud_user_first.last\n\n🤖 Coding agents: If your password has special characters (like !), read:\n   packages/cli/README.md#claude-code--agentic-tools-passwords-with-special-characters\nLooks like you did not authenticate or the personal access token expired.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for help and examples\n\n💡 Run lightdash diagnostics for more info.\n\n",
+            "code": 1
+        },
+        "config": {
+            "stdout": "",
+            "stderr": "\nCurrent project:\n\n  Name: postgres_password_dbt_cloud_user_first.last\n  UUID: 44444444-4444-4444-8444-444444444444\n\nDone 🕶\n",
+            "code": 0
+        },
+        "configVerboseAbsent": {
+            "stdout": "",
+            "stderr": "> Config: {\"user\":{\"anonymousUuid\":\"test\"},\"context\":{\"serverUrl\":\"http://127.0.0.1:3000\",\"project\":\"44444444-4444-4444-8444-444444444444\",\"projectName\":\"postgres_password_dbt_cloud_user_first.last\"}}\n\nCurrent project:\n\n  Name: postgres_password_dbt_cloud_user_first.last\n  UUID: 44444444-4444-4444-8444-444444444444\n\nDone 🕶\n",
+            "code": 0
+        },
+        "configVerbosePresent": {
+            "stdout": "",
+            "stderr": "> Config: {\"user\":{\"anonymousUuid\":\"test\"},\"context\":{\"serverUrl\":\"http://127.0.0.1:3000\",\"project\":\"44444444-4444-4444-8444-444444444444\",\"projectName\":\"postgres_password_dbt_cloud_user_first.last\",\"apiKey\":\"d40c859a88894eea85b10a390492bdfa\",\"proxyAuthorization\":\"Bearer 1bd98c387f924de091f6b79cda97125e\"}}\n\nCurrent project:\n\n  Name: postgres_password_dbt_cloud_user_first.last\n  UUID: 44444444-4444-4444-8444-444444444444\n\n> Making HTTP GET request to: http://127.0.0.1:3000/api/v1/user\n> HTTP request returned status: 200\n> HTTP request returned status: ok\nDone 🕶\n",
+            "code": 0
+        },
+        "catalog": {
+            "stdout": "{\n  \"tables\": [\n    {\n      \"database\": \"dbt_cloud_user\",\n      \"schema\": \"first.last\",\n      \"table\": \"postgres\",\n      \"fields\": [\n        {\n          \"name\": \"password\",\n          \"type\": \"string\"\n        }\n      ]\n    }\n  ]\n}\n",
+            "stderr": "Done 🕶\n",
+            "code": 0
+        }
+    }
+}

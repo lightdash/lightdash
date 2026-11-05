@@ -1,5 +1,6 @@
 import { OrganizationProject, ProjectType } from '@lightdash/common';
 import { URL } from 'url';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject, unsetProject } from '../config';
 import GlobalState from '../globalState';
@@ -16,6 +17,7 @@ export const setProjectCommand = async (
     name?: string,
     uuidOrSlug?: string,
 ): Promise<'selected' | 'skipped' | 'empty'> => {
+    assertAgentCommandAllowed('config set-project');
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
         url: `/api/v1/org/projects`,
@@ -99,6 +101,7 @@ export const setProjectCommand = async (
 };
 
 export const setFirstProject = async () => {
+    assertAgentCommandAllowed('config set-project');
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
         url: `/api/v1/org/projects`,
@@ -120,6 +123,7 @@ export const setFirstProject = async () => {
 };
 
 export const setProjectHandler = async (options: SetProjectOptions) => {
+    assertAgentCommandAllowed('config set-project');
     const startTime = Date.now();
     let success = true;
     GlobalState.setVerbose(options.verbose);
@@ -149,6 +153,7 @@ const unsetProjectCommand = async () => {
 };
 
 export const unsetProjectHandler = async (options: { verbose: boolean }) => {
+    assertAgentCommandAllowed('config unset-project');
     const startTime = Date.now();
     let success = true;
     GlobalState.setVerbose(options.verbose);

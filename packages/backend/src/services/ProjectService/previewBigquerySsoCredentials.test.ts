@@ -4,7 +4,13 @@ import {
     type CreateBigqueryCredentials,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import { UserRefreshClient } from 'google-auth-library';
 import { describe, expect, it, vi } from 'vitest';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import {
+    getWarehouseCredentialVersions,
+    withWarehouseCredentialVersion,
+} from '../../utils/warehouseCredentialVersion';
 import {
     checkGoogleRefreshTokenCached,
     getPreviewOwnsBigquerySsoCredentials,
@@ -314,20 +320,106 @@ describe('checkGoogleRefreshTokenCached and recheckGoogleRefreshToken', () => {
         const { keyfileContents } = bigquerySso('recheck-token');
 
         await expect(
-            checkGoogleRefreshTokenCached(keyfileContents),
+            checkGoogleRefreshTokenCached(
+                keyfileContents,
+                lightdashConfigMock.auth.google,
+            ),
         ).resolves.toBe('valid');
         google.rejectedTokens.add('recheck-token');
         await expect(
-            checkGoogleRefreshTokenCached(keyfileContents),
+            checkGoogleRefreshTokenCached(
+                keyfileContents,
+                lightdashConfigMock.auth.google,
+            ),
         ).resolves.toBe('valid');
         expect(google.getAccessToken).toHaveBeenCalledTimes(1);
 
-        await expect(recheckGoogleRefreshToken(keyfileContents)).resolves.toBe(
-            'rejected',
-        );
         await expect(
-            checkGoogleRefreshTokenCached(keyfileContents),
+            recheckGoogleRefreshToken(
+                keyfileContents,
+                lightdashConfigMock.auth.google,
+            ),
+        ).resolves.toBe('rejected');
+        await expect(
+            checkGoogleRefreshTokenCached(
+                keyfileContents,
+                lightdashConfigMock.auth.google,
+            ),
         ).resolves.toBe('rejected');
         expect(google.getAccessToken).toHaveBeenCalledTimes(3);
+    });
+});
+
+it('checks secret-free preview credentials with the configured secret', async () => {
+    const keyfile = {
+        type: 'authorized_user',
+        client_id: 'saved-client',
+        refresh_token: 'secret-free-preview',
+    };
+    await expect(
+        recheckGoogleRefreshToken(keyfile, lightdashConfigMock.auth.google),
+    ).resolves.toBe('valid');
+    expect(UserRefreshClient).toHaveBeenLastCalledWith({
+        clientId: 'saved-client',
+        clientSecret: lightdashConfigMock.auth.google.oauth2ClientSecret,
+        refreshToken: 'secret-free-preview',
+    });
+    expect(keyfile).not.toHaveProperty('client_secret');
+});
+
+it.each([undefined, '', '   '])(
+    'checks preview credentials with the stored secret when the configured secret is %j',
+    async (oauth2ClientSecret) => {
+        const config = {
+            ...lightdashConfigMock.auth.google,
+            oauth2ClientId: LIGHTDASH_CLIENT,
+            oauth2ClientSecret,
+        };
+        const { keyfileContents } = bigquerySso('legacy-preview');
+        await expect(
+            recheckGoogleRefreshToken(keyfileContents, config),
+        ).resolves.toBe('valid');
+        expect(UserRefreshClient).toHaveBeenLastCalledWith({
+            clientId: LIGHTDASH_CLIENT,
+            clientSecret: 'secret',
+            refreshToken: 'legacy-preview',
+        });
+        expect(keyfileContents.client_secret).toBe('secret');
+    },
+);
+
+describe('preview credential version metadata', () => {
+    it('keeps the preview version and hides its marker through a keyfile repair', async () => {
+        const preview = withWarehouseCredentialVersion(
+            bigquerySso('old-token'),
+            'preview-version',
+        );
+        const upstream = withWarehouseCredentialVersion(
+            bigquerySso('fresh-token'),
+            'upstream-version',
+        );
+        const repaired = await repairStalePreviewBigquerySso({
+            previewCredentials: preview,
+            upstreamCredentials: upstream,
+            checkRefreshToken: async (keyfile) =>
+                keyfile.refresh_token === 'old-token' ? 'rejected' : 'valid',
+        });
+        expect(repaired.kind).toBe('repaired');
+        if (repaired.kind !== 'repaired') throw new Error('Expected repair');
+        expect(getWarehouseCredentialVersions(repaired.credentials)).toEqual([
+            'preview-version',
+        ]);
+        expect(repaired.credentials).not.toHaveProperty(
+            'resultIdentityVersion',
+        );
+        expect(
+            getWarehouseCredentialVersions(
+                getPushedPreviewCredentials({
+                    previewCredentials: preview,
+                    previousUpstreamCredentials: bigquerySso('old-token'),
+                    nextUpstreamCredentials: upstream,
+                })!,
+            ),
+        ).toEqual(['preview-version']);
     });
 });

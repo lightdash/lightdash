@@ -1,0 +1,88 @@
+import {
+    DuckdbConnectionType,
+    WarehouseTypes,
+    type CreateWarehouseCredentials,
+} from '@lightdash/common';
+
+export const warehouseConnectionCredentials: Record<
+    WarehouseTypes,
+    CreateWarehouseCredentials
+> = {
+    [WarehouseTypes.POSTGRES]: {
+        type: WarehouseTypes.POSTGRES,
+        host: 'host',
+        port: 5432,
+        user: 'user',
+        password: 'password',
+        dbname: 'db',
+        schema: 'public',
+    },
+    [WarehouseTypes.REDSHIFT]: {
+        type: WarehouseTypes.REDSHIFT,
+        host: 'host',
+        port: 5439,
+        user: 'user',
+        password: 'password',
+        dbname: 'db',
+        schema: 'public',
+    },
+    [WarehouseTypes.BIGQUERY]: {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'project',
+        dataset: 'dataset',
+        keyfileContents: {},
+        timeoutSeconds: undefined,
+        priority: undefined,
+        retries: undefined,
+        location: undefined,
+        maximumBytesBilled: undefined,
+    },
+    [WarehouseTypes.SNOWFLAKE]: {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'account',
+        user: 'user',
+        password: 'password',
+        database: 'db',
+        schema: 'public',
+        warehouse: 'warehouse',
+    },
+    [WarehouseTypes.DATABRICKS]: {
+        type: WarehouseTypes.DATABRICKS,
+        database: 'db',
+        serverHostName: 'host',
+        httpPath: '/sql/warehouse',
+        personalAccessToken: 'token',
+    },
+    [WarehouseTypes.TRINO]: {
+        type: WarehouseTypes.TRINO,
+        host: 'host',
+        port: 8080,
+        user: 'user',
+        password: '',
+        dbname: 'catalog',
+        schema: 'public',
+        http_scheme: 'http',
+    },
+    [WarehouseTypes.CLICKHOUSE]: {
+        type: WarehouseTypes.CLICKHOUSE,
+        host: 'host',
+        port: 8123,
+        user: 'user',
+        password: 'password',
+        schema: 'public',
+    },
+    [WarehouseTypes.ATHENA]: {
+        type: WarehouseTypes.ATHENA,
+        region: 'us-east-1',
+        database: 'catalog',
+        schema: 'public',
+        s3StagingDir: 's3://staging/',
+    },
+    [WarehouseTypes.DUCKDB]: {
+        type: WarehouseTypes.DUCKDB,
+        connectionType: DuckdbConnectionType.MOTHERDUCK,
+        database: 'db',
+        schema: 'main',
+        token: 'token',
+    },
+};

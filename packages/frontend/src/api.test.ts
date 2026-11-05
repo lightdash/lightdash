@@ -6,9 +6,9 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     BASE_API_URL,
-    lightdashApi,
-    lightdashApiStream,
+    createLightdashApi,
     networkHistory,
+    sharedLightdashApi,
 } from './api';
 import { EMBED_KEY } from './ee/providers/Embed/types';
 import {
@@ -31,7 +31,7 @@ describe('api', () => {
                 results: 'test',
             });
 
-        const result = await lightdashApi({
+        const result = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,
@@ -44,6 +44,28 @@ describe('api', () => {
         expect(scope.isDone()).toBe(true);
     });
 
+    it('preserves metadata outside results when the full response is requested', async () => {
+        const response = {
+            status: 'ok',
+            results: null,
+            parent: {
+                projectUuid: 'parent',
+                projectName: null,
+                principal: 'agent@example.test',
+            },
+        };
+        const scope = nock(BASE_API_URL)
+            .get('/api/v2/projects/preview/ai-access/service-account')
+            .reply(200, response);
+        const result = await sharedLightdashApi.response({
+            version: 'v2',
+            method: 'GET',
+            url: '/projects/preview/ai-access/service-account',
+        });
+        scope.done();
+        expect(result).toEqual(response);
+    });
+
     it('should allow custom headers', async () => {
         const scope = nock(BASE_API_URL)
             .matchHeader('Content-Type', 'application/json')
@@ -54,7 +76,7 @@ describe('api', () => {
                 results: 'another test',
             });
 
-        const result = await lightdashApi({
+        const result = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,
@@ -82,7 +104,7 @@ describe('api', () => {
                 results: 'token headers',
             });
 
-        const result = await lightdashApi({
+        const result = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,
@@ -113,7 +135,7 @@ describe('api', () => {
             .query({ projectUuid: 'project-uuid' })
             .reply(200, { status: 'ok', results: 'dashboard' });
 
-        const result = await lightdashApi({
+        const result = await sharedLightdashApi({
             method: 'POST',
             url: '/embed/project-uuid/dashboard',
             body: '{}',
@@ -137,7 +159,7 @@ describe('api', () => {
             .query({ projectUuid: 'project-uuid' })
             .reply(200, 'stream response');
 
-        const result = await lightdashApiStream({
+        const result = await sharedLightdashApi.stream({
             method: 'POST',
             url: '/projects/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/stream',
             body: JSON.stringify({}),
@@ -150,6 +172,170 @@ describe('api', () => {
         expect(scope.isDone()).toBe(true);
 
         clearInMemoryStorage();
+    });
+});
+
+describe('createLightdashApi', () => {
+    beforeEach(() => {
+        clearInMemoryStorage();
+        setToInMemoryStorage(EMBED_KEY, { token: 'shared token' });
+    });
+
+    afterEach(() => {
+        clearInMemoryStorage();
+    });
+
+    it('sends each client its own token, not the shared one', async () => {
+        const dashboardApi = createLightdashApi(() => ({
+            token: 'dashboard token',
+            projectUuid: 'project-uuid',
+        }));
+        const chartApi = createLightdashApi(() => ({
+            token: 'chart token',
+            projectUuid: 'project-uuid',
+        }));
+        const dashboardScope = nock(BASE_API_URL)
+            .matchHeader(JWT_HEADER_NAME, 'dashboard token')
+            .get('/api/v1/dashboard')
+            .query(true)
+            .reply(200, { status: 'ok', results: 'dashboard' });
+        const chartScope = nock(BASE_API_URL)
+            .matchHeader(JWT_HEADER_NAME, 'chart token')
+            .get('/api/v1/chart')
+            .query(true)
+            .reply(200, { status: 'ok', results: 'chart' })
+            .get('/api/v1/chart-stream')
+            .query(true)
+            .reply(200, 'stream');
+
+        await expect(
+            dashboardApi({ method: 'GET', url: '/dashboard' }),
+        ).resolves.toEqual('dashboard');
+        await expect(
+            chartApi({ method: 'GET', url: '/chart' }),
+        ).resolves.toEqual('chart');
+        await expect(
+            chartApi.stream({ method: 'GET', url: '/chart-stream' }),
+        ).resolves.toHaveProperty('ok', true);
+        expect(dashboardScope.isDone()).toBe(true);
+        expect(chartScope.isDone()).toBe(true);
+    });
+
+    it('reads the token on every request so rotation needs no new client', async () => {
+        let token = 'first token';
+        const api = createLightdashApi(() => ({ token }));
+        const scope = nock(BASE_API_URL)
+            .matchHeader(JWT_HEADER_NAME, 'second token')
+            .get('/api/v1/test')
+            .reply(200, { status: 'ok', results: 'rotated' });
+
+        token = 'second token';
+
+        await expect(api({ method: 'GET', url: '/test' })).resolves.toEqual(
+            'rotated',
+        );
+        expect(scope.isDone()).toBe(true);
+    });
+});
+
+describe('networkHistory retention', () => {
+    beforeEach(() => {
+        networkHistory.length = 0;
+        clearInMemoryStorage();
+    });
+
+    afterEach(() => {
+        networkHistory.length = 0;
+    });
+
+    it.each([0, 10, 11, 25])(
+        'keeps the latest ten entries after %i successful requests',
+        async (requestCount) => {
+            const urls = Array.from(
+                { length: requestCount },
+                (_, index) => `/history/${index}`,
+            );
+            for (const url of urls) {
+                const scope = nock(BASE_API_URL)
+                    .get(`/api/v1${url}`)
+                    .reply(200, { status: 'ok', results: url });
+
+                await expect(
+                    sharedLightdashApi({ method: 'GET', url }),
+                ).resolves.toBe(url);
+                scope.done();
+            }
+
+            expect(networkHistory.map((entry) => entry.url)).toEqual(
+                urls.slice(-10),
+            );
+        },
+    );
+
+    it.each(['errors', 'mixed'] as const)(
+        'keeps recent requests in completion order with %s',
+        async (outcomes) => {
+            const urls = Array.from(
+                { length: 15 },
+                (_, index) => `/history/${index}`,
+            );
+            for (const [index, url] of urls.entries()) {
+                const failed = outcomes === 'errors' || index % 2 === 0;
+                const scope = nock(BASE_API_URL)
+                    .get(`/api/v1${url}`)
+                    .reply(
+                        failed ? 404 : 200,
+                        failed
+                            ? {
+                                  status: 'error',
+                                  error: {
+                                      name: 'NotFoundError',
+                                      statusCode: 404,
+                                      message: 'Missing example',
+                                  },
+                              }
+                            : { status: 'ok', results: url },
+                    );
+                const response = sharedLightdashApi({ method: 'GET', url });
+                if (failed) {
+                    await expect(response).rejects.toMatchObject({
+                        error: { name: 'NotFoundError', statusCode: 404 },
+                    });
+                } else {
+                    await expect(response).resolves.toBe(url);
+                }
+                scope.done();
+            }
+
+            expect(networkHistory.map((entry) => entry.url)).toEqual(
+                urls.slice(-10),
+            );
+        },
+    );
+
+    it('bounds shared history across clients and full response requests', async () => {
+        const api = createLightdashApi(() => undefined);
+        for (let index = 0; index < 12; index += 1) {
+            const url = `/history/${index}`;
+            const envelope = { status: 'ok', results: index };
+            const scope = nock(BASE_API_URL)
+                .get(`/api/v1${url}`)
+                .reply(200, envelope);
+            if (index % 2 === 0) {
+                await expect(
+                    api.response({ method: 'GET', url }),
+                ).resolves.toEqual(envelope);
+            } else {
+                await expect(
+                    sharedLightdashApi({ method: 'GET', url }),
+                ).resolves.toBe(index);
+            }
+            scope.done();
+        }
+
+        expect(networkHistory).toHaveLength(10);
+        expect(networkHistory[0].url).toBe('/history/2');
+        expect(networkHistory[9].url).toBe('/history/11');
     });
 });
 
@@ -166,7 +352,7 @@ describe('networkHistory redaction', () => {
                 results: { token: 'secret-response' },
             });
 
-        await lightdashApi({
+        await sharedLightdashApi({
             method: 'POST',
             url: '/login',
             body: JSON.stringify({ email: 'a@b.com', password: 'hunter2' }),
@@ -201,7 +387,7 @@ describe('networkHistory redaction', () => {
             });
 
         await expect(
-            lightdashApi({
+            sharedLightdashApi({
                 method: 'POST',
                 url: '/login',
                 body: JSON.stringify({
@@ -232,7 +418,7 @@ describe('networkHistory redaction', () => {
             results: 'visible',
         });
 
-        await lightdashApi({
+        await sharedLightdashApi({
             method: 'POST',
             url: '/test',
             body: JSON.stringify({ foo: 'bar' }),
@@ -268,7 +454,7 @@ describe('network error messages', () => {
         new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
 
     const request = () =>
-        lightdashApi({
+        sharedLightdashApi({
             method: 'PATCH',
             url: '/projects/abc',
             body: JSON.stringify({}),
@@ -282,7 +468,7 @@ describe('network error messages', () => {
             .mockResolvedValueOnce(healthOk());
 
         await expect(
-            lightdashApi({
+            sharedLightdashApi({
                 method: 'GET',
                 url: '/user',
                 body: undefined,
@@ -485,7 +671,7 @@ describe('network error messages', () => {
         );
 
         await expect(
-            lightdashApiStream({
+            sharedLightdashApi.stream({
                 method: 'POST',
                 url: '/stream',
                 body: JSON.stringify({}),
@@ -516,7 +702,7 @@ describe('fetch binding', () => {
         const stub = vi.fn().mockResolvedValue(okResponse('late-bound'));
         globalThis.fetch = stub;
 
-        const results = await lightdashApi({
+        const results = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,
@@ -546,7 +732,7 @@ describe('fetch binding', () => {
         saved = null;
         globalThis.fetch = restored;
 
-        const results = await lightdashApi({
+        const results = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,

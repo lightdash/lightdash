@@ -27,14 +27,20 @@ vi.mock('../../hooks/useContextMenuPermissions', () => ({
     }),
 }));
 
-vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
+vi.mock('../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({
         chartRef: { current: null },
         isLoading: false,
         resultsData: { setFetchAll: vi.fn() },
         minimal: false,
-    }),
-}));
+    });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+    };
+});
 
 vi.mock('../EChartsReactWrapper', () => ({
     default: ({ onEvents }: { onEvents?: Record<string, unknown> }) => (
@@ -81,7 +87,7 @@ describe('non-cartesian chart context menus', () => {
 
             expect(screen.getByTestId('echarts')).toHaveAttribute(
                 'data-events',
-                'legendselectchanged',
+                'legendscroll,legendselectchanged',
             );
             expect(screen.queryByTestId(menuTestId)).toBeNull();
         },
@@ -94,7 +100,7 @@ describe('non-cartesian chart context menus', () => {
 
             expect(screen.getByTestId('echarts')).toHaveAttribute(
                 'data-events',
-                'click,legendselectchanged,oncontextmenu',
+                'click,legendscroll,legendselectchanged,oncontextmenu',
             );
             expect(screen.getByTestId(menuTestId)).toBeVisible();
         },

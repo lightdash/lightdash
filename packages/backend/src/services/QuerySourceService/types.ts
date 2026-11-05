@@ -1,5 +1,6 @@
 import type {
     Account,
+    FeatureFlags,
     ParametersValuesMap,
     PivotConfiguration,
     QueryExecutionContext,
@@ -31,6 +32,13 @@ export type SourceQueryExecutionContext = {
      */
     userAttributeOverrides: UserAttributeValueMap;
     invalidateCache: boolean;
+};
+
+/** The AI agent run a batch belongs to, for analytics. */
+export type SourceQueryAiAttribution = {
+    aiAgentUuid: string | null;
+    threadUuid: string | null;
+    promptUuid: string | null;
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
@@ -77,6 +85,8 @@ export interface QuerySourceClient {
     definition: QuerySourceDefinition;
     /** Whether a query of this source may carry a pivotConfiguration. */
     supportsPivot: boolean;
+    /** Flags that must all be on for the org to list, scan or submit this source. */
+    requiredFeatureFlags: FeatureFlags[];
     scanSchema(args: ScanSchemaArgs): Promise<QuerySourceSchema>;
     getQueryReferences(query: SourceQuery): string[];
     submitQuery(

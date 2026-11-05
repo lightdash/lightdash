@@ -17,12 +17,15 @@ import {
     WarehouseDatabaseListing,
     WarehouseListedDatabase,
     WarehouseQueryError,
+    WarehouseQueryTimeoutError,
     WarehouseResults,
     WarehouseTables,
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
+    type WarehousePhaseTimings,
     type WarehouseQueryPhase,
+    type WarehouseQueryTimeoutDetails,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -42,6 +45,13 @@ export const canConnectToPostgresDatabaseName = (database: string): boolean =>
 
 export const unopenablePostgresDatabaseMessage = (database: string) =>
     `Database "${database}" cannot be opened: its name contains one of ; / ? : @ & = + $ , #`;
+
+declare module 'pg' {
+    interface ClientBase {
+        // Backend process ID from BackendKeyData, set once connected
+        processID: number | null;
+    }
+}
 
 types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
 types.setTypeParser(types.builtins.INT8, BigInt);
@@ -164,6 +174,19 @@ const DEFAULT_STATEMENT_TIMEOUT_MS = 1000 * 60 * 9; // 9 minutes
 // never reports back (e.g. a dead SSH tunnel socket).
 const CLIENT_STATEMENT_TIMEOUT_BUFFER_MS = 1000 * 30; // 30 seconds
 
+const formatTimeoutDetails = ({
+    step,
+    stepElapsedMs,
+    completedStepTimingsMs,
+    rowsFetched,
+    backendPid,
+}: WarehouseQueryTimeoutDetails): string => {
+    const completed = Object.entries(completedStepTimingsMs)
+        .map(([phase, ms]) => `${phase}=${ms}ms`)
+        .join(' ');
+    return `step=${step} step_elapsed=${stepElapsedMs}ms completed=[${completed}] rows=${rowsFetched} backend_pid=${backendPid ?? 'unknown'}`;
+};
+
 const convertDataTypeIdToDimensionType = (
     dataTypeId: number,
 ): DimensionType => {
@@ -263,6 +286,22 @@ export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+export type PostgresStreamQueryOptions = {
+    values?: AnyType[];
+    tags?: Record<string, string>;
+    timezone?: string;
+    recoverStalledQuery?: boolean;
+    onPhaseTiming?: (phase: WarehouseQueryPhase, durationMs: number) => void;
+};
+
+export type PostgresQueryAttempt = {
+    getBackendPid: () => number | null;
+    hasSentQuery: () => boolean;
+    hasReceivedRow: () => boolean;
+    /** Fails the attempt unless a row was already streamed; returns whether it did. */
+    abort: (error: WarehouseQueryError) => boolean;
+};
+
 type CatalogQueryFilters = {
     databaseFilters: string[];
     schemaFilters: string[];
@@ -305,6 +344,10 @@ export class PostgresClient<
                 ? { application_name: AI_AGENT_APPLICATION_NAME }
                 : {}),
         };
+    }
+
+    protected prepareSession(_client: pg.PoolClient): Promise<void> {
+        return Promise.resolve();
     }
 
     protected getAgentSessionStatement(): string {
@@ -368,22 +411,42 @@ export class PostgresClient<
     async streamQuery(
         sql: string,
         streamCallback: (data: WarehouseResults) => void | Promise<void>,
-        options: {
-            values?: AnyType[];
-            tags?: Record<string, string>;
-            timezone?: string;
-            onPhaseTiming?: (
-                phase: WarehouseQueryPhase,
-                durationMs: number,
-            ) => void;
-        },
+        options: PostgresStreamQueryOptions,
+    ): Promise<void> {
+        return this.streamQueryAttempt(sql, streamCallback, options, null);
+    }
+
+    protected async streamQueryAttempt(
+        sql: string,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
+        options: PostgresStreamQueryOptions,
+        onAttemptStart: ((attempt: PostgresQueryAttempt) => void) | null,
     ): Promise<void> {
         let pool: pg.Pool | undefined;
         let closeClient: (() => void) | undefined;
         let activeStream: QueryStream | undefined;
         let clientTimeout: ReturnType<typeof setTimeout> | undefined;
+        let backendPid: number | null = null;
+        let sentQuery = false;
+        let receivedRow = false;
 
-        const reportPhase = options.onPhaseTiming;
+        // Tracked so a backstop timeout can say which step never finished.
+        const completedStepTimingsMs: WarehousePhaseTimings = {};
+        let currentStep: WarehouseQueryPhase = 'connect';
+        let currentStepStartedAt = performance.now();
+        let rowsFetched = 0;
+
+        const startStep = (step: WarehouseQueryPhase) => {
+            currentStep = step;
+            currentStepStartedAt = performance.now();
+        };
+        const reportPhase = (
+            phase: WarehouseQueryPhase,
+            durationMs: number,
+        ) => {
+            completedStepTimingsMs[phase] = Math.round(durationMs);
+            options.onPhaseTiming?.(phase, durationMs);
+        };
 
         // Enforce the ceiling with a server-side `statement_timeout` (set
         // below) plus this client-side wall-clock backstop, which fires shortly
@@ -398,14 +461,40 @@ export class PostgresClient<
 
         return new Promise<void>((resolve, reject) => {
             clientTimeout = setTimeout(() => {
-                const timeoutError = new WarehouseQueryError(
-                    `Query timed out after ${Math.round(
-                        clientTimeoutMs / 1000,
-                    )}s`,
+                const message = `Query timed out after ${Math.round(
+                    clientTimeoutMs / 1000,
+                )}s`;
+                const details: WarehouseQueryTimeoutDetails = {
+                    step: currentStep,
+                    stepElapsedMs: Math.round(
+                        performance.now() - currentStepStartedAt,
+                    ),
+                    completedStepTimingsMs: { ...completedStepTimingsMs },
+                    rowsFetched,
+                    backendPid,
+                };
+                console.warn(
+                    `${message} with no response from ${this.credentials.type}: ${formatTimeoutDetails(details)} project_uuid=${options.tags?.project_uuid ?? 'unknown'} query_context=${options.tags?.query_context ?? 'unknown'}`,
+                );
+                const timeoutError = new WarehouseQueryTimeoutError(
+                    message,
+                    details,
                 );
                 activeStream?.destroy(timeoutError);
                 reject(timeoutError);
             }, clientTimeoutMs);
+
+            onAttemptStart?.({
+                getBackendPid: () => backendPid,
+                hasSentQuery: () => sentQuery,
+                hasReceivedRow: () => receivedRow,
+                abort: (error) => {
+                    if (receivedRow) return false;
+                    activeStream?.destroy(error);
+                    reject(error);
+                    return true;
+                },
+            });
 
             pool = new pg.Pool({
                 ...this.config,
@@ -440,7 +529,9 @@ export class PostgresClient<
                     reject(new Error('client undefined'));
                     return;
                 }
-                reportPhase?.('connect', performance.now() - connectStart);
+                reportPhase('connect', performance.now() - connectStart);
+                backendPid = client.processID;
+                startStep('session');
 
                 client.on('error', (e) => {
                     console.error(
@@ -462,6 +553,7 @@ export class PostgresClient<
                 const runQuery = () => {
                     const queryStart = performance.now();
                     let fetchStart: number | undefined;
+                    sentQuery = true;
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                     //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
                     activeStream = client.query(
@@ -489,18 +581,21 @@ export class PostgresClient<
                             encoding,
                             callback,
                         ) {
+                            receivedRow = true;
                             try {
                                 if (cachedFields === null) {
                                     cachedFields =
                                         PostgresClient.convertQueryResultFields(
                                             chunk.fields,
                                         );
-                                    reportPhase?.(
+                                    reportPhase(
                                         'query',
                                         performance.now() - queryStart,
                                     );
                                     fetchStart = performance.now();
+                                    startStep('fetch');
                                 }
+                                rowsFetched += 1;
                                 await streamCallback({
                                     fields: cachedFields,
                                     rows: [chunk.row],
@@ -520,13 +615,13 @@ export class PostgresClient<
                     // (not 'end' on readable - async write callbacks may still be in flight)
                     writable.on('finish', () => {
                         if (fetchStart === undefined) {
-                            reportPhase?.(
+                            reportPhase(
                                 'query',
                                 performance.now() - queryStart,
                             );
-                            reportPhase?.('fetch', 0);
+                            reportPhase('fetch', 0);
                         } else {
-                            reportPhase?.(
+                            reportPhase(
                                 'fetch',
                                 performance.now() - fetchStart,
                             );
@@ -551,6 +646,7 @@ export class PostgresClient<
                 const sessionStart = performance.now();
                 client
                     .query(`SET statement_timeout = ${statementTimeoutMs}`)
+                    .then(() => this.prepareSession(client))
                     .then(() =>
                         this.agentSession
                             ? client.query(this.getAgentSessionStatement())
@@ -568,10 +664,11 @@ export class PostgresClient<
                         return undefined;
                     })
                     .then(() => {
-                        reportPhase?.(
+                        reportPhase(
                             'session',
                             performance.now() - sessionStart,
                         );
+                        startStep('query');
                         runQuery();
                     })
                     .catch((sessionError) => {
@@ -584,7 +681,9 @@ export class PostgresClient<
                     throw e;
                 }
                 const error = e as pg.DatabaseError;
-                throw this.parseError(error, sql);
+                const translatedError = this.parseError(error, sql);
+                translatedError.cause = error;
+                throw translatedError;
             })
             .finally(async () => {
                 if (clientTimeout) {

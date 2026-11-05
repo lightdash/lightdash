@@ -2,7 +2,6 @@ import {
     ChartKind,
     DimensionType,
     getComposerVizPanelOptions,
-    QuerySourceType,
     switchComposerVizKind,
     VizAggregationOptions,
     VizIndexType,
@@ -10,37 +9,17 @@ import {
     type ComposerVizKind,
     type RawResultRow,
     type ResultColumn,
-    type SourceQuery,
 } from '@lightdash/common';
 import { Box, Center, Stack, Text } from '@mantine/core';
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import { clsx } from 'clsx';
 import { useState } from 'react';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
-import { AiComposerResultsExpired } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultsExpired';
-import { AiComposerPipelinePanel } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
+import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
 import {
     AiComposerVizConfigPanel,
     type AiComposerVizConfigPanelMode,
 } from '../ee/features/aiCopilot/components/ChatElements/composerVizConfig/AiComposerVizConfigPanel';
-
-const queries: SourceQuery[] = [
-    {
-        sourceType: QuerySourceType.SEMANTIC_LAYER,
-        nodeId: 'revenue',
-        title: 'Revenue by month and region',
-        exploreName: 'orders',
-        dimensions: ['orders_month', 'orders_region'],
-        metrics: ['orders_revenue', 'orders_count'],
-    },
-    {
-        sourceType: QuerySourceType.DUCKDB,
-        nodeId: 'result',
-        title: 'Revenue per region',
-        sql: 'SELECT * FROM revenue',
-        references: ['revenue'],
-    },
-];
 
 const columns: ResultColumn[] = [
     { reference: 'month', type: DimensionType.DATE, label: 'Month' },
@@ -96,7 +75,7 @@ type Args = {
     mode: AiComposerVizConfigPanelMode;
     defaultExpanded: boolean;
     fieldsDisabledReason: string | null;
-    isExpired: boolean;
+    resultError: string | null;
 };
 
 /** The composer artifact chrome with the viz config panel over a placeholder result; state in memory. */
@@ -105,14 +84,13 @@ const PanelStory = ({
     mode,
     defaultExpanded,
     fieldsDisabledReason,
-    isExpired,
+    resultError,
 }: Args) => {
     const [value, setValue] = useState(initialValue);
     const [remembered, setRemembered] = useState<AllVizChartConfig | null>(
         null,
     );
     const [isChartOpen, setIsChartOpen] = useState(defaultExpanded);
-    const [isPipelineOpen, setIsPipelineOpen] = useState(false);
     const head = (
         <Box className={clsx(panelStyles.head, panelStyles.flushHead)}>
             <Text fz="sm" fw={600}>
@@ -129,64 +107,48 @@ const PanelStory = ({
                         panelStyles.flushContent,
                     )}
                 >
-                    <AiComposerPipelinePanel
-                        projectUuid="story"
-                        queries={queries}
-                        terminalNodeId="result"
-                        displayedNodeId="result"
-                        displayableNodeIds={new Set(['revenue', 'result'])}
-                        onDisplayNode={() => {}}
-                        expanded={isPipelineOpen}
-                        onExpandedChange={(open) => {
-                            setIsPipelineOpen(open);
-                            if (open) setIsChartOpen(false);
+                    <AiComposerVizConfigPanel
+                        value={value}
+                        columns={columns}
+                        options={getComposerVizPanelOptions(
+                            value,
+                            columns,
+                            rows,
+                        )}
+                        onChange={setValue}
+                        onKindChange={(kind) => {
+                            if (value.type !== ChartKind.TABLE)
+                                setRemembered(value);
+                            setValue(
+                                switchComposerVizKind(value, kind, {
+                                    columns,
+                                    rows,
+                                    node: null,
+                                    remembered,
+                                }),
+                            );
                         }}
+                        mode={mode}
+                        expanded={isChartOpen}
+                        onExpandedChange={setIsChartOpen}
+                        fieldsDisabledReason={fieldsDisabledReason}
                     >
-                        <AiComposerVizConfigPanel
-                            value={value}
-                            columns={columns}
-                            options={getComposerVizPanelOptions(
-                                value,
-                                columns,
-                                rows,
-                            )}
-                            onChange={setValue}
-                            onKindChange={(kind) => {
-                                if (value.type !== ChartKind.TABLE)
-                                    setRemembered(value);
-                                setValue(
-                                    switchComposerVizKind(value, kind, {
-                                        columns,
-                                        rows,
-                                        node: null,
-                                        remembered,
-                                    }),
-                                );
-                            }}
-                            mode={mode}
-                            expanded={isChartOpen}
-                            onExpandedChange={(open) => {
-                                setIsChartOpen(open);
-                                if (open) setIsPipelineOpen(false);
-                            }}
-                            fieldsDisabledReason={fieldsDisabledReason}
-                        >
-                            {isExpired ? (
-                                <AiComposerResultsExpired
-                                    headerContent={head}
-                                />
-                            ) : (
-                                <Stack gap="md" h="100%">
-                                    {head}
-                                    <Center flex={1} bg="ldGray.0" mx="md">
-                                        <Text size="xs" c="dimmed">
-                                            The chart renders here
-                                        </Text>
-                                    </Center>
-                                </Stack>
-                            )}
-                        </AiComposerVizConfigPanel>
-                    </AiComposerPipelinePanel>
+                        {resultError !== null ? (
+                            <AiComposerResultError
+                                headerContent={head}
+                                message={resultError}
+                            />
+                        ) : (
+                            <Stack gap="md" h="100%">
+                                {head}
+                                <Center flex={1} bg="ldGray.0" mx="md">
+                                    <Text size="xs" c="dimmed">
+                                        The chart renders here
+                                    </Text>
+                                </Center>
+                            </Stack>
+                        )}
+                    </AiComposerVizConfigPanel>
                 </Box>
             </Box>
         </Box>
@@ -201,7 +163,7 @@ const meta = {
         mode: 'expandable',
         defaultExpanded: true,
         fieldsDisabledReason: null,
-        isExpired: false,
+        resultError: null,
     },
 } satisfies Meta<typeof PanelStory>;
 
@@ -233,6 +195,9 @@ export const ReadOnly: Story = {
 
 export const OtherNode: Story = { args: { mode: 'switcher' } };
 
-export const Expired: Story = {
-    args: { mode: 'static', isExpired: true },
+export const ResultFailed: Story = {
+    args: {
+        mode: 'static',
+        resultError: 'Binder Error: Referenced column "region" not found',
+    },
 };

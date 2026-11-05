@@ -22,10 +22,12 @@ export const useTableDataModel = ({
     config,
     resultsRunner,
     enableJsonViewer = false,
+    rowHeight = ROW_HEIGHT_PX,
 }: {
     config: VizTableColumnsConfig | undefined;
     resultsRunner: IResultsRunner;
     enableJsonViewer?: boolean;
+    rowHeight?: number;
 }) => {
     const tableModel = useMemo(() => {
         return new TableDataModel({
@@ -87,7 +89,7 @@ export const useTableDataModel = ({
         },
     });
 
-    const getRowHeight = useCallback(() => ROW_HEIGHT_PX, []);
+    const getRowHeight = useCallback(() => rowHeight, [rowHeight]);
 
     const virtualizer = useVirtualizer({
         getScrollElement: () => scrollElementRef.current,

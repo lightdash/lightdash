@@ -128,10 +128,11 @@ describe('AiDeepResearchRunModel integration', () => {
                 enable_content_tools: true,
                 enable_user_context: false,
                 enable_sql_mode: true,
+                enable_sql_auto_approval: false,
+                enable_composer_queries: false,
                 admin_only: false,
                 model_config: null,
                 ai_organization_provider_credential_uuid: null,
-                is_system: false,
                 version: 2,
                 thread_retention_hours: null,
             })

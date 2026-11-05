@@ -86,7 +86,7 @@ describe('getEditDbtProject', () => {
             aiWritebackRunUuid: 'run-1',
         });
         expect(output.result).toBe(
-            'Started the change. Give a brief one-line acknowledgement.',
+            'Started the change; the pull request opens in the background. Acknowledge it briefly.',
         );
         expect(output.result).not.toContain('run-1');
     });
@@ -126,7 +126,6 @@ describe('getEditDbtProject', () => {
         expect(output.result).toContain('Unable to enqueue writeback');
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
             true,

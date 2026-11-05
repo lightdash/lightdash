@@ -13,7 +13,10 @@ import {
     Explore,
     ExploreCompiler,
     FieldType,
+    getDimensionMapFromTables,
+    getFilterRules,
     getItemId,
+    getItemMap,
     getReservedParameterNames,
     isCustomBinDimension,
     isCustomSqlDimension,
@@ -38,6 +41,7 @@ import {
 import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
 import { resolveAdditionalMetricsSql } from './utils/embedCompiledSql';
+import { getDimensionFromId } from './utils/QueryBuilder/utils';
 
 const formatFormulaError = (displayName: string, error: unknown): string => {
     const message = error instanceof Error ? error.message : String(error);
@@ -572,4 +576,49 @@ export const compileMetricQuery = ({
         compiledAdditionalMetrics,
         compiledCustomDimensions,
     };
+};
+
+export const validateMetricQueryFields = (
+    args: CompileMetricQueryArgs & { explore: Explore },
+): void => {
+    const query = compileMetricQuery(args);
+    const fields = getItemMap(
+        args.explore,
+        query.compiledAdditionalMetrics,
+        query.compiledTableCalculations,
+        query.compiledCustomDimensions,
+    );
+    const ids = [
+        ...query.dimensions,
+        ...query.metrics,
+        ...query.sorts.map(({ fieldId }) => fieldId),
+        ...getFilterRules(query.filters).map(({ target }) => target.fieldId),
+        ...query.compiledCustomDimensions
+            .filter(isCustomBinDimension)
+            .map(({ dimensionId }) => dimensionId),
+        ...query.compiledCustomDimensions.map(getItemId),
+        ...query.compiledAdditionalMetrics.map(getItemId),
+        ...query.compiledTableCalculations.map(getItemId),
+    ];
+    const dimensions = getDimensionMapFromTables(args.explore.tables);
+    ids.forEach((id) => {
+        try {
+            const field =
+                fields[id] ??
+                getDimensionFromId({
+                    dimId: id,
+                    dimensions,
+                    adapterType: args.warehouseSqlBuilder.getAdapterType(),
+                    startOfWeek: args.warehouseSqlBuilder.getStartOfWeek(),
+                });
+            if ('compilationError' in field && field.compilationError)
+                throw new CompileError(
+                    'The query references a field that is no longer accessible',
+                );
+        } catch {
+            throw new CompileError(
+                'The query references a field that is no longer accessible',
+            );
+        }
+    });
 };

@@ -14,6 +14,7 @@ import {
     waitFor,
 } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
+import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import {
     CollectionBlockBuild,
     CollectionBlockView,
@@ -25,6 +26,7 @@ const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     toggle: vi.fn(),
     documentsEnabled: true,
+    canManagePins: false,
     popular: [] as Array<{
         uuid: string;
         contentType?: ContentType.DATA_APP;
@@ -62,7 +64,7 @@ vi.mock('../../../../hooks/useSpaces', () => ({
 vi.mock('../../../../hooks/useContent', () => ({
     useInfiniteContent: () => ({ data: { pages: [{ data: [document] }] } }),
 }));
-vi.mock('../../../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../../../api');
 vi.mock('../../../../hooks/favorites/useFavorites', () => ({
     useFavorites: () => ({ data: favorites, isInitialLoading: false }),
 }));
@@ -71,6 +73,12 @@ vi.mock('../../../../hooks/favorites/useFavoriteMutation', () => ({
 }));
 vi.mock('../../../../hooks/pinning/usePinnedItems', () => ({
     usePinnedItems: () => ({ data: favorites, isInitialLoading: false }),
+    useReorder: () => ({ mutate: vi.fn() }),
+}));
+vi.mock('../../../../providers/App/useApp', () => ({
+    default: () => ({
+        user: { data: { ability: { can: () => mocks.canManagePins } } },
+    }),
 }));
 vi.mock('../../../../hooks/useProject', () => ({
     useMostPopularAndRecentlyUpdated: () => ({
@@ -126,14 +134,17 @@ describe('Document collections', () => {
         mocks.documentsEnabled = true;
         mocks.popular = [];
         mocks.toggle.mockReset();
-        mocks.api.mockReset();
-        mocks.api.mockImplementation(async ({ url }: { url: string }) => ({
-            data:
-                new URL(url, 'http://test').searchParams.get('contentTypes') ===
-                'document'
-                    ? [document]
-                    : [chart],
-        }));
+        mockedLightdashApi.mockReset();
+        mockedLightdashApi.mockImplementation(
+            async ({ url }: { url: string }) => ({
+                data:
+                    new URL(url, 'http://test').searchParams.get(
+                        'contentTypes',
+                    ) === 'document'
+                        ? [document]
+                        : [chart],
+            }),
+        );
     });
     afterEach(() => clients.forEach((client) => client.clear()));
 
@@ -154,8 +165,8 @@ describe('Document collections', () => {
         );
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.items).toEqual([app, chart]);
-        expect(mocks.api).toHaveBeenCalledTimes(1);
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(1);
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/content?projectUuids=project&uuids=chart&pageSize=10',
             }),
@@ -169,13 +180,13 @@ describe('Document collections', () => {
         );
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.items).toEqual([document, chart]);
-        expect(mocks.api).toHaveBeenCalledTimes(2);
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(2);
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/content?projectUuids=project&uuids=direct-document&contentTypes=document&pageSize=10',
             }),
         );
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/content?projectUuids=project&uuids=chart&pageSize=10',
             }),
@@ -201,7 +212,7 @@ describe('Document collections', () => {
     });
 
     it('omits Documents removed by server-side access filtering', async () => {
-        mocks.api.mockResolvedValue({ data: [chart] });
+        mockedLightdashApi.mockResolvedValue({ data: [chart] });
         const { result } = renderHook(
             () => useCollectionSourceContent('project', config),
             { wrapper: wrapper() },
@@ -220,8 +231,8 @@ describe('Document collections', () => {
             { wrapper: wrapper() },
         );
         await waitFor(() => expect(result.current.items).toEqual([chart]));
-        expect(mocks.api).toHaveBeenCalledTimes(1);
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(1);
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/content?projectUuids=project&uuids=chart&pageSize=10',
             }),
@@ -252,7 +263,7 @@ describe('Document collections', () => {
             );
             await waitFor(() => expect(result.current.isLoading).toBe(false));
             expect(result.current.items).toEqual([document, chart]);
-            expect(mocks.api).toHaveBeenCalledTimes(2);
+            expect(mockedLightdashApi).toHaveBeenCalledTimes(2);
         },
     );
 
@@ -320,25 +331,6 @@ describe('Document collections', () => {
         expect(onChange).toHaveBeenLastCalledWith(block);
     });
 
-    it('hides the Document picker when Documents are disabled', () => {
-        mocks.documentsEnabled = false;
-        render(
-            <CollectionBlockBuild
-                block={{
-                    id: 'manual',
-                    type: 'collection',
-                    config: { title: 'Picked', items: [] },
-                }}
-                projectUuid="project"
-                itemSpan={null}
-                onChange={vi.fn()}
-            />,
-            { wrapper: wrapper() },
-        );
-        fireEvent.click(screen.getByRole('button', { name: 'Add content' }));
-        expect(screen.queryByText('Documents')).not.toBeInTheDocument();
-    });
-
     it('imports Documents and charts from the pin list in their existing order', () => {
         const onChange = vi.fn();
         const block: HomepageCollectionBlock = {
@@ -370,24 +362,37 @@ describe('Document collections', () => {
         });
     });
 
-    it('hides the Document type filter for dynamic collections when disabled', () => {
-        mocks.documentsEnabled = false;
-        render(
-            <CollectionBlockBuild
-                block={{
-                    id: 'pinned',
-                    type: 'collection',
-                    config: { title: 'Pins', source: 'pinned', items: [] },
-                }}
-                projectUuid="project"
-                itemSpan={null}
-                onChange={vi.fn()}
-            />,
-            { wrapper: wrapper() },
-        );
-        expect(screen.queryByText('Documents')).not.toBeInTheDocument();
-        expect(screen.getByText('Dashboards')).toBeInTheDocument();
-    });
+    it.each([
+        [
+            true,
+            "Follows the project's pin list, so new pins appear here. Drag to reorder; changes save right away.",
+        ],
+        [false, "Follows the project's pin list, so new pins appear here."],
+    ])(
+        'offers pin reordering in the Pinned preview only to pin managers (%s)',
+        async (canManagePins, hint) => {
+            mocks.canManagePins = canManagePins;
+            render(
+                <CollectionBlockBuild
+                    block={{
+                        id: 'pinned',
+                        type: 'collection',
+                        config: {
+                            title: 'Pinned',
+                            source: 'pinned',
+                            items: [],
+                        },
+                    }}
+                    projectUuid="project"
+                    itemSpan={null}
+                    onChange={vi.fn()}
+                />,
+                { wrapper: wrapper() },
+            );
+            expect(await screen.findByText(hint)).toBeInTheDocument();
+            mocks.canManagePins = false;
+        },
+    );
 
     it('keeps scoped results out of the generic collection cache', async () => {
         const { result } = renderHook(
@@ -405,6 +410,6 @@ describe('Document collections', () => {
             expect(result.current.scoped.data).toEqual([document]),
         );
         await waitFor(() => expect(result.current.generic.data).toEqual([]));
-        expect(mocks.api).toHaveBeenCalledTimes(2);
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(2);
     });
 });

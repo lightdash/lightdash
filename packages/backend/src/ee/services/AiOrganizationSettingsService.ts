@@ -4,12 +4,15 @@ import {
     AI_DEEP_RESEARCH_MAX_WORKERS,
     AiOrganizationRuntimeSettings,
     AiOrganizationSettings,
+    assertUnreachable,
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     FeatureFlags,
     ForbiddenError,
+    getErrorMessage,
     getVisibleDataAppClaudeModels,
     isValidRetentionWindowHours,
     LightdashUser,
@@ -26,14 +29,21 @@ import {
     type ByoAiProvider,
     type CreateAiProviderCredential,
     type DataAppAnalysisLimits,
+    type McpProjectAccess,
     type ProjectAiCredentialSelection,
+    type RegisteredAccount,
     type SessionUser,
     type UpdateAiProviderCredential,
 } from '@lightdash/common';
+import { toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import { createAuditLogEvent } from '../../logging/auditLog';
+import { createActorFromAccount } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../../services/BaseService';
 import { AiOrganizationProviderCredentialModel } from '../models/AiOrganizationProviderCredentialModel';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
@@ -55,6 +65,7 @@ import {
     OrgAiCopilotConfigResolver,
     type ReviewJudgeAvailability,
 } from './ai/OrgAiCopilotConfigResolver';
+import { isSameMcpProjectAccess } from './McpService/mcpProjectAccess';
 
 type AvailableModelPreset = ModelPreset<SelectableModelProvider>;
 
@@ -180,6 +191,22 @@ export const validateDataAppAnalysisLimits = (
     });
 };
 
+/** Normalizes a submitted org default to trimmed text or null (cleared). */
+export const normalizeAnalysisDefaultInstructions = (
+    raw: string | null,
+): string | null => {
+    const instructions = raw?.trim() || null;
+    if (
+        instructions !== null &&
+        instructions.length > DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS
+    ) {
+        throw new ParameterError(
+            `Analysis instructions are limited to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters`,
+        );
+    }
+    return instructions;
+};
+
 export const validateDeepResearchLimits = (
     limits: AiDeepResearchLimits,
 ): void => {
@@ -256,6 +283,22 @@ export class AiOrganizationSettingsService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
+    }
+
+    async isMcpEnabled(organizationUuid: string): Promise<boolean> {
+        return (
+            (await this.aiOrganizationSettingsModel.findMcpEnabled(
+                organizationUuid,
+            )) ?? true
+        );
+    }
+
+    async getMcpProjectAccess(
+        organizationUuid: string,
+    ): Promise<McpProjectAccess> {
+        return this.aiOrganizationSettingsModel.getMcpProjectAccess(
+            organizationUuid,
+        );
     }
 
     private checkManageAiAgentAccess(user: SessionUser): void {
@@ -466,12 +509,14 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentMemoryEnabled,
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
+                mcpEnabled: true,
+                mcpProjectAccess: { mode: 'all' },
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
                 dataAppRuntimeAiEnabled: false,
                 dataAppContinueInAskAiEnabled: true,
-                dataAppAutoAnalysisEnabled: false,
                 dataAppAnalysisLimits: DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                dataAppAnalysisDefaultInstructions: null,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
@@ -553,6 +598,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 );
             return {
                 ...availability,
+                mcpEnabled: await this.isMcpEnabled(organizationUuid),
                 aiAgentsVisible: false,
                 aiAgentMemoryEnabled: false,
                 aiAgentReviewsEnabled: false,
@@ -566,7 +612,6 @@ export class AiOrganizationSettingsService extends BaseService {
                 ),
                 dataAppRuntimeAiEnabled: false,
                 dataAppContinueInAskAiEnabled: true,
-                dataAppAutoAnalysisEnabled: false,
                 threadRetentionHours: null,
             };
         }
@@ -574,6 +619,7 @@ export class AiOrganizationSettingsService extends BaseService {
         const settings = await this.resolveSettings(user, availability);
         return {
             ...availability,
+            mcpEnabled: settings.mcpEnabled ?? true,
             aiAgentsVisible: settings.aiAgentsVisible,
             aiAgentMemoryEnabled: settings.aiAgentMemoryEnabled,
             aiAgentReviewsEnabled: settings.aiAgentReviewsEnabled,
@@ -590,8 +636,6 @@ export class AiOrganizationSettingsService extends BaseService {
             dataAppRuntimeAiEnabled: settings.dataAppRuntimeAiEnabled ?? false,
             dataAppContinueInAskAiEnabled:
                 settings.dataAppContinueInAskAiEnabled ?? true,
-            dataAppAutoAnalysisEnabled:
-                settings.dataAppAutoAnalysisEnabled ?? false,
             threadRetentionHours: settings.threadRetentionHours ?? null,
         };
     }
@@ -639,15 +683,15 @@ export class AiOrganizationSettingsService extends BaseService {
         );
     }
 
-    /** Org default for running AI analysis when a data app loads. */
-    async isDataAppAutoAnalysisEnabled(
+    /** Org-wide guidance for AI analysis summaries; app instructions append to it. */
+    async getDataAppAnalysisDefaultInstructions(
         organizationUuid: string,
-    ): Promise<boolean> {
+    ): Promise<string | null> {
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
             );
-        return settings?.dataAppAutoAnalysisEnabled ?? false;
+        return settings?.dataAppAnalysisDefaultInstructions ?? null;
     }
 
     async isDeepResearchRawSqlEnabled({
@@ -697,15 +741,90 @@ export class AiOrganizationSettingsService extends BaseService {
     }
 
     async upsertSettings(
-        user: SessionUser,
+        account: RegisteredAccount,
         aiSettingsUpdate: UpdateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
+        const user = toSessionUser(account);
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.aiOrganizationSettingsModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
 
         await this.checkAiSettingsAccess(user, organizationUuid);
+
+        let { mcpProjectAccess } = aiSettingsUpdate;
+        if (mcpProjectAccess !== undefined) {
+            switch (mcpProjectAccess.mode) {
+                case 'all':
+                    mcpProjectAccess = { mode: 'all' };
+                    break;
+                case 'selected': {
+                    const projectUuids = [
+                        ...new Set(mcpProjectAccess.projectUuids),
+                    ].sort();
+                    const projects =
+                        await this.projectModel.getAllByOrganizationUuid(
+                            organizationUuid,
+                        );
+                    const organizationProjects = new Set(
+                        projects.map((project) => project.projectUuid),
+                    );
+                    if (
+                        projectUuids.some(
+                            (uuid) => !organizationProjects.has(uuid),
+                        )
+                    ) {
+                        throw new ParameterError(
+                            'Invalid MCP project selection',
+                        );
+                    }
+                    mcpProjectAccess = { mode: 'selected', projectUuids };
+                    break;
+                }
+                default:
+                    assertUnreachable(
+                        mcpProjectAccess,
+                        'Unknown MCP project access mode',
+                    );
+            }
+        }
+
+        if (
+            aiSettingsUpdate.mcpProjectAccess !== undefined ||
+            aiSettingsUpdate.mcpAgentsEnabled !== undefined ||
+            aiSettingsUpdate.mcpContentWritesEnabled !== undefined
+        ) {
+            if (!(await this.isMcpEnabled(organizationUuid))) {
+                const storedSettings =
+                    await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                        organizationUuid,
+                    );
+                if (
+                    (mcpProjectAccess !== undefined &&
+                        !isSameMcpProjectAccess(
+                            mcpProjectAccess,
+                            storedSettings?.mcpProjectAccess ?? { mode: 'all' },
+                        )) ||
+                    (aiSettingsUpdate.mcpAgentsEnabled !== undefined &&
+                        aiSettingsUpdate.mcpAgentsEnabled !==
+                            (storedSettings?.mcpAgentsEnabled ?? true)) ||
+                    (aiSettingsUpdate.mcpContentWritesEnabled !== undefined &&
+                        aiSettingsUpdate.mcpContentWritesEnabled !==
+                            (storedSettings?.mcpContentWritesEnabled ?? true))
+                ) {
+                    throw new ForbiddenError(
+                        'MCP access is disabled for this organization',
+                    );
+                }
+            }
+        }
 
         if (aiSettingsUpdate.deepResearchLimits !== undefined) {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
@@ -715,6 +834,12 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiSettingsUpdate.dataAppAnalysisLimits,
             );
         }
+        const normalizedDefaultInstructions =
+            aiSettingsUpdate.dataAppAnalysisDefaultInstructions === undefined
+                ? undefined
+                : normalizeAnalysisDefaultInstructions(
+                      aiSettingsUpdate.dataAppAnalysisDefaultInstructions,
+                  );
 
         if (aiSettingsUpdate.threadRetentionHours !== undefined) {
             // No-op writes stay allowed: clients that round-trip the settings
@@ -916,17 +1041,62 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
-        const update =
-            reconciledDefaultModelConfig === undefined
-                ? aiSettingsUpdate
-                : {
-                      ...aiSettingsUpdate,
-                      defaultAiAgentModelConfig: reconciledDefaultModelConfig,
-                  };
+        const update = {
+            ...aiSettingsUpdate,
+            ...(mcpProjectAccess !== undefined ? { mcpProjectAccess } : {}),
+            ...(reconciledDefaultModelConfig !== undefined
+                ? { defaultAiAgentModelConfig: reconciledDefaultModelConfig }
+                : {}),
+            ...(normalizedDefaultInstructions !== undefined
+                ? {
+                      dataAppAnalysisDefaultInstructions:
+                          normalizedDefaultInstructions,
+                  }
+                : {}),
+        };
         const settings = await this.aiOrganizationSettingsModel.upsert(
             organizationUuid,
             update,
         );
+        if (
+            update.mcpEnabled !== undefined ||
+            update.mcpProjectAccess !== undefined
+        ) {
+            try {
+                logAuditEvent(
+                    createAuditLogEvent(
+                        createActorFromAccount(account),
+                        'update',
+                        {
+                            type: 'OrganizationSettings',
+                            organizationUuid,
+                            metadata: {
+                                ...(update.mcpEnabled !== undefined
+                                    ? { mcpEnabled: settings.mcpEnabled }
+                                    : {}),
+                                ...(update.mcpProjectAccess !== undefined
+                                    ? {
+                                          mcpProjectAccess:
+                                              settings.mcpProjectAccess,
+                                      }
+                                    : {}),
+                            },
+                        },
+                        {
+                            ip: account.requestContext?.ip,
+                            userAgent: account.requestContext?.userAgent,
+                            requestId: account.requestContext?.requestId,
+                        },
+                        'allowed',
+                    ),
+                );
+            } catch (error) {
+                this.logger.warn('Failed to log MCP settings audit event', {
+                    error: getErrorMessage(error),
+                    organizationUuid,
+                });
+            }
+        }
 
         return {
             ...settings,
@@ -1071,7 +1241,9 @@ export class AiOrganizationSettingsService extends BaseService {
 
         if (defaultCredential.status === 'ok') {
             const { config } = defaultCredential.credential;
-            await this.aiOrganizationSettingsModel.update(organizationUuid, {
+            // Upsert: the organization may never have saved AI settings, and
+            // the first credential must not fail on the missing settings row.
+            await this.aiOrganizationSettingsModel.upsert(organizationUuid, {
                 providerApiKeys: {
                     bedrock: {
                         apiKey: config.apiKey,

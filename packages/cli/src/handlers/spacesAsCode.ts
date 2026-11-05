@@ -18,6 +18,7 @@ import {
 import { promises as fs, type Dirent } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { shouldWarnAllSkipped } from './apps/appsDownload';
@@ -772,15 +773,22 @@ export const downloadSpaces = async (
                 .filter((space) => space.access === undefined)
                 .map((space) => space.slug),
         );
-        results.skipped.forEach((skipped) =>
-            GlobalState.log(
-                styles.warning(
-                    downloadedWithoutAccessSlugs.has(skipped.slug)
-                        ? `Downloaded space "${skipped.slug}" without access: ${skipped.reason}`
-                        : `Skipped space "${skipped.slug}": ${skipped.reason}`,
-                ),
-            ),
-        );
+        results.skipped.forEach((skipped) => {
+            const withoutAccess = downloadedWithoutAccessSlugs.has(
+                skipped.slug,
+            );
+            let message: string;
+            if (getAgentConnectionSelection() !== null) {
+                message = withoutAccess
+                    ? 'A space was downloaded without access settings.'
+                    : 'A space was skipped.';
+            } else {
+                message = withoutAccess
+                    ? `Downloaded space "${skipped.slug}" without access: ${skipped.reason}`
+                    : `Skipped space "${skipped.slug}": ${skipped.reason}`;
+            }
+            GlobalState.log(styles.warning(message));
+        });
         const spaces = sortSpaceFilesParentFirst(
             results.spaces.map((space) => ({
                 filePath: `downloaded space "${space.slug}"`,

@@ -12,8 +12,6 @@ import { SchedulerFormGoogleChatInput } from '../SchedulerFormGoogleChatInput';
 import { SchedulerFormMicrosoftTeamsInput } from '../SchedulerFormMicrosoftTeamsInput';
 import { SchedulerFormSlackInput } from '../SchedulerFormSlackInput';
 
-const SVG_SIZE = { width: 14, height: 14 } as const;
-
 const Destination: FC<{
     icon: ReactNode;
     label: string;
@@ -49,7 +47,10 @@ export const SchedulerRecipientsSection: FC = () => {
                 />
             </Destination>
 
-            <Destination icon={<SlackSvg style={SVG_SIZE} />} label="Slack">
+            <Destination
+                icon={<SlackSvg width={14} height={14} />}
+                label="Slack"
+            >
                 <SchedulerFormSlackInput
                     hideIcon
                     value={form.values.slackTargets}
@@ -59,7 +60,7 @@ export const SchedulerRecipientsSection: FC = () => {
 
             {health.data?.hasMicrosoftTeams && (
                 <Destination
-                    icon={<MsTeamsSvg style={SVG_SIZE} />}
+                    icon={<MsTeamsSvg width={14} height={14} />}
                     label="Microsoft Teams"
                 >
                     <SchedulerFormMicrosoftTeamsInput
@@ -73,7 +74,7 @@ export const SchedulerRecipientsSection: FC = () => {
             )}
 
             <Destination
-                icon={<GoogleChatSvg style={SVG_SIZE} />}
+                icon={<GoogleChatSvg width={14} height={14} />}
                 label="Google Chat"
             >
                 <SchedulerFormGoogleChatInput

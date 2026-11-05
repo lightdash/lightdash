@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     ProjectType,
     WarehouseTypes,
     type Project,
@@ -15,21 +16,26 @@ import {
     vi,
     type Mock,
 } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionsPanel from './ConnectionsPanel';
 
-const flag = vi.hoisted(() => ({ enabled: true }));
+const flag = vi.hoisted(() => ({ enabled: true, mixedTypesEnabled: true }));
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
+    useServerFeatureFlag: (id: FeatureFlags) => ({
+        data: {
+            enabled:
+                id === FeatureFlags.MixedWarehouseConnections
+                    ? flag.mixedTypesEnabled
+                    : flag.enabled,
+        },
+    }),
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const original: WarehouseConnection = {
     warehouseConnectionUuid: 'original-uuid',
@@ -64,6 +70,7 @@ const projectRule = (action: 'manage' | 'update') => ({
 const renderPanel = (
     type: ProjectType = ProjectType.DEFAULT,
     abilityRules = [projectRule('manage')],
+    primaryRequiresUserCredentials = false,
 ) => {
     renderWithProviders(
         <ConnectionsPanel
@@ -72,6 +79,10 @@ const renderPanel = (
                     projectUuid: 'project-uuid',
                     organizationUuid,
                     type,
+                    warehouseConnection: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        requireUserCredentials: primaryRequiresUserCredentials,
+                    },
                 } as Project
             }
         />,
@@ -84,6 +95,7 @@ describe('ConnectionsPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         flag.enabled = true;
+        flag.mixedTypesEnabled = true;
     });
 
     afterEach(() => {
@@ -169,6 +181,26 @@ describe('ConnectionsPanel', () => {
         ).not.toBeInTheDocument();
     });
 
+    it.each([false, true])(
+        'gates a Trino original in the panel with the resolved mixed flag %s',
+        async (enabled) => {
+            flag.mixedTypesEnabled = enabled;
+            mockApi.mockResolvedValue({
+                connections: [
+                    { ...original, warehouseType: WarehouseTypes.TRINO },
+                ],
+                capabilities: { canAddConnection: true, reason: null },
+            });
+            renderPanel();
+            const button = await screen.findByRole('button', {
+                name: 'Add connection',
+            });
+            await waitFor(() =>
+                expect(button).toHaveProperty('disabled', !enabled),
+            );
+        },
+    );
+
     it('lists connections and only offers edit and removal for extra connections', async () => {
         mockApi.mockResolvedValue({
             connections: [original, extra],
@@ -204,6 +236,137 @@ describe('ConnectionsPanel', () => {
             within(extraMenu).getByRole('menuitem', { name: 'Edit' }),
         ).toBeInTheDocument();
     });
+
+    it('offers SQL runner database settings only for supported warehouse types', async () => {
+        mockApi.mockResolvedValue({
+            connections: [
+                { ...original, warehouseType: WarehouseTypes.SNOWFLAKE },
+                { ...extra, warehouseType: WarehouseTypes.SNOWFLAKE },
+            ],
+            capabilities: { canAddConnection: true, reason: null },
+        });
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Actions for Warehouse',
+            }),
+        );
+        expect(
+            within(await screen.findByRole('menu')).queryByRole('menuitem', {
+                name: 'SQL runner databases',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('renders Snowflake fields without fetching organization credentials', async () => {
+        mockApi.mockImplementation(
+            async ({ url, method }: { url: string; method: string }) => {
+                if (url === listUrl && method === 'GET')
+                    return {
+                        connections: [
+                            {
+                                ...original,
+                                warehouseType: WarehouseTypes.SNOWFLAKE,
+                            },
+                        ],
+                        capabilities: { canAddConnection: true, reason: null },
+                    };
+                if (url === listUrl && method === 'POST') return extra;
+                return undefined;
+            },
+        );
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', { name: 'Add connection' }),
+        );
+        expect(
+            await screen.findByRole('textbox', { name: 'Account' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('textbox', { name: 'Warehouse' }),
+        ).toBeInTheDocument();
+        expect(screen.getAllByRole('textbox', { name: 'Schema' })).toHaveLength(
+            1,
+        );
+        expect(
+            screen.queryByRole('radio', {
+                name: 'Use organization credentials',
+            }),
+        ).not.toBeInTheDocument();
+        expect(mockApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ url: '/org/warehouse-credentials' }),
+        );
+    });
+
+    // Full panel render plus a multi-step form; the default 5 s is not enough on a shared CI runner.
+    it('saves manual credentials after changing the warehouse type', async () => {
+        mockApi.mockImplementation(
+            async ({ url, method }: { url: string; method: string }) => {
+                if (url === listUrl && method === 'GET')
+                    return {
+                        connections: [
+                            {
+                                ...original,
+                                warehouseType: WarehouseTypes.SNOWFLAKE,
+                            },
+                        ],
+                        capabilities: { canAddConnection: true, reason: null },
+                    };
+                if (url === listUrl && method === 'POST') return extra;
+                return undefined;
+            },
+        );
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', { name: 'Add connection' }),
+        );
+        await user.click(screen.getByLabelText(/^Name\s*\*?$/));
+        await user.paste('Reporting');
+        await user.click(screen.getByRole('combobox', { name: 'Type' }));
+        await user.click(screen.getByRole('option', { name: 'Trino' }));
+        for (const [name, value] of [
+            ['Host', 'trino.internal'],
+            ['User', 'reporter'],
+            ['DB name', 'analytics'],
+            ['Schema', 'public'],
+        ]) {
+            await user.click(
+                screen.getByLabelText(new RegExp(`^${name}\\s*\\*?$`)),
+            );
+            await user.paste(value);
+        }
+        await user.click(screen.getByLabelText(/^Password/));
+        await user.paste('trino-password');
+        const dialog = screen
+            .getByText('Add a connection')
+            .closest<HTMLElement>('[role="alertdialog"], [role="dialog"]')!;
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Add connection' }),
+        );
+        await waitFor(() =>
+            expect(mockApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: listUrl,
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: 'Reporting',
+                        warehouseConnection: {
+                            type: WarehouseTypes.TRINO,
+                            schema: 'public',
+                            host: 'trino.internal',
+                            user: 'reporter',
+                            password: 'trino-password',
+                            requireUserCredentials: false,
+                            port: 443,
+                            dbname: 'analytics',
+                            http_scheme: 'https',
+                            source: '',
+                        },
+                    }),
+                }),
+            ),
+        );
+    }, 20_000);
 
     it('disables adding a connection when the project cannot hold another', async () => {
         mockApi.mockResolvedValue({
@@ -243,11 +406,98 @@ describe('ConnectionsPanel', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('hides the ineffective toggle when editing an organisation credential extra', async () => {
+    it.each([true, false])(
+        'offers None in the Snowflake add form only when the primary requires personal credentials: %s',
+        async (required) => {
+            mockApi.mockResolvedValue({
+                connections: [
+                    { ...original, warehouseType: WarehouseTypes.SNOWFLAKE },
+                ],
+                capabilities: { canAddConnection: true, reason: null },
+            });
+            const user = renderPanel(
+                ProjectType.DEFAULT,
+                [projectRule('manage')],
+                required,
+            );
+            await user.click(
+                await screen.findByRole('button', { name: 'Add connection' }),
+            );
+            await user.click(
+                await screen.findByRole('combobox', {
+                    name: /Authentication Type/,
+                }),
+            );
+            expect(
+                screen.queryByRole('option', { name: 'None' }) !== null,
+            ).toBe(required);
+            if (required) {
+                await user.click(screen.getByRole('option', { name: 'None' }));
+                expect(
+                    screen.getByText(
+                        /No project-level credentials will be used/,
+                    ),
+                ).toBeInTheDocument();
+            }
+        },
+    );
+
+    it.each([true, false])(
+        'offers None in the Snowflake switch form only when the primary requires personal credentials: %s',
+        async (required) => {
+            mockApi.mockImplementation(({ url }: { url: string }) => {
+                if (url === listUrl)
+                    return Promise.reject({
+                        status: 'error',
+                        error: {
+                            name: 'SingleConnectionProjectError',
+                            message:
+                                'This project uses a single warehouse connection.',
+                            statusCode: 409,
+                            data: {},
+                        },
+                    });
+                if (url === '/projects/project-uuid/warehouse-connection-mode')
+                    return Promise.resolve({
+                        canSwitch: true,
+                        reason: null,
+                        originalWarehouseType: WarehouseTypes.SNOWFLAKE,
+                    });
+                return Promise.resolve(undefined);
+            });
+            const user = renderPanel(
+                ProjectType.DEFAULT,
+                [projectRule('manage')],
+                required,
+            );
+            await user.click(
+                await screen.findByRole('button', {
+                    name: 'Enable multiple connections',
+                }),
+            );
+            await user.click(
+                await screen.findByRole('combobox', {
+                    name: /Authentication Type/,
+                }),
+            );
+            expect(
+                screen.queryByRole('option', { name: 'None' }) !== null,
+            ).toBe(required);
+            if (required) {
+                await user.click(screen.getByRole('option', { name: 'None' }));
+                expect(
+                    screen.getByText(
+                        /No project-level credentials will be used/,
+                    ),
+                ).toBeInTheDocument();
+            }
+        },
+    );
+
+    it('edits an extra connection with the inherited user credential setting', async () => {
         const shared = {
             ...extra,
             name: 'Shared',
-            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
         };
         mockApi.mockImplementation(
             async ({ url, method }: { url: string; method: string }) => {
@@ -308,9 +558,16 @@ describe('ConnectionsPanel', () => {
         const patch = mockApi.mock.calls.find(
             ([call]) => (call as { method: string }).method === 'PATCH',
         )![0] as { body: string };
-        expect(JSON.parse(patch.body)).not.toHaveProperty(
-            'organizationWarehouseCredentialsUuid',
-        );
+        expect(JSON.parse(patch.body)).toEqual({
+            warehouseConnection: {
+                type: WarehouseTypes.POSTGRES,
+                host: 'shared.internal',
+                dbname: 'analytics',
+                schema: 'public',
+                port: 5432,
+                requireUserCredentials: true,
+            },
+        });
     });
 
     it('shows why a bound connection cannot be removed', async () => {

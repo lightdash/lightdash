@@ -1,9 +1,22 @@
 import { z } from 'zod';
 import type { ChartAsCode } from '../../../../types/coder';
+import { type ToolDescriptionContext } from '../defineTool';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
+import { toolNameFor } from './discoveryToolNames';
 
-export const TOOL_CREATE_CONTENT_DESCRIPTION =
-    'Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.';
+export const SQL_CHART_CREATE_GUIDANCE =
+    'A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.';
+
+export const TOOL_CREATE_CONTENT_DESCRIPTION = ({
+    runtime,
+}: ToolDescriptionContext): string =>
+    `Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in ${toolNameFor(
+        'findContent',
+        runtime,
+    )} or ${toolNameFor(
+        'listContent',
+        runtime,
+    )} results; a write to any other space is refused. ${SQL_CHART_CREATE_GUIDANCE}`;
 
 type RequiredMetricQueryKeys = keyof Omit<
     ChartAsCode['metricQuery'],
@@ -17,7 +30,7 @@ type RequiredMetricQueryKeys = keyof Omit<
 >;
 
 const TOOL_CHART_AS_CODE_METRIC_QUERY_DESCRIPTION =
-    'Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.';
+    'Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. filters is {} when there are none, not null or an array. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.';
 
 const chartAsCodeMetricQueryShape = {
     exploreName: z.unknown().optional(),
@@ -40,7 +53,7 @@ const baseContentSchema = z.object({
         .string()
         .min(1)
         .describe(
-            'Requested slug. Lightdash may append a suffix if this slug already exists.',
+            'Requested slug. A taken slug gets a suffix, so reference the slug the result returns.',
         ),
     name: z.string().min(1),
     description: z.string().nullable(),
@@ -53,9 +66,40 @@ const baseContentSchema = z.object({
     verification: z.unknown().optional(),
 });
 
+export const SQL_CHART_KINDS = [
+    'vertical_bar',
+    'line',
+    'pie',
+    'big_number',
+    'table',
+] as const;
+
+export type SqlChartKind = (typeof SQL_CHART_KINDS)[number];
+
+export const toolSqlChartAsCodeSchema = baseContentSchema
+    .omit({ verified: true, verification: true })
+    .extend({
+        sql: z
+            .string()
+            .min(1)
+            .describe(
+                'Read-only warehouse SQL (SELECT or WITH) run on the primary connection.',
+            ),
+        limit: z.number().int().positive(),
+        chartKind: z.enum(SQL_CHART_KINDS).describe('Must equal config.type.'),
+        config: z
+            .object({ type: z.enum(SQL_CHART_KINDS) })
+            .passthrough()
+            .describe(
+                'SQL chart config: { metadata: { version: 1 }, type, fieldConfig, display } for charts, or { metadata, type: "table", columns, display } for tables. See sql-chart-reference.',
+            ),
+    })
+    .passthrough()
+    .describe('Full SQL chart JSON to create.');
+
 export const toolCreateContentArgsSchema = z.object({
     type: z
-        .enum(['dashboard', 'chart'])
+        .enum(['dashboard', 'chart', 'sql_chart'])
         .describe('Type of Lightdash content to create.'),
     content: z.union([
         baseContentSchema
@@ -80,6 +124,7 @@ export const toolCreateContentArgsSchema = z.object({
             })
             .passthrough()
             .describe('Full Chart JSON to create.'),
+        toolSqlChartAsCodeSchema,
     ]),
 });
 
@@ -121,6 +166,7 @@ export const toolCreateContentStructuredContentSchema = z.discriminatedUnion(
     [
         z.object({ type: z.literal('dashboard'), ...createdContentShape }),
         z.object({ type: z.literal('chart'), ...createdContentShape }),
+        z.object({ type: z.literal('sql_chart'), ...createdContentShape }),
         z.object({
             type: z.literal('document'),
             ...createdContentShape,

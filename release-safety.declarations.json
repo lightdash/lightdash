@@ -1,6 +1,18 @@
 {
     "$schema": "./scripts/release-safety-declarations.schema.json",
     "declarations": {
+        "mcp-run-composer-queries-renamed-to-query": {
+            "reason": "The published MCP tool schema listed run_composer_queries, but the MCP server never registered that tool, so tools/list never offered it and every call to it failed. The composer query tool now ships on MCP under its in-app name, query. MCP clients see no change in behaviour: the old name never worked and the new name is new.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "No client could ever call run_composer_queries because the MCP server never registered it; it existed only in the generated schema file.",
+                "covers": {
+                    "rest": [],
+                    "mcp": ["run_composer_queries"]
+                }
+            }
+        },
         "custom-chart-ordered-field-mappings": {
             "reason": "Custom chart inputs declared with multiple: true now return ordered arrays in fieldMapping; single-field inputs still return strings. API and query SDK consumers reading arbitrary mapping entries must narrow string versus string[] before using a field id. Existing scalar saved configurations remain valid.",
             "requiredStop": false
@@ -47,6 +59,118 @@
         },
         "documents-personal-space-nullable": {
             "reason": "Documents (beta, documents feature flag) can now be personal: a Document created without a Space is visible only to its creator and admins, and spaceUuid in Document responses and space in Document content items are null until it is moved into a Space. API clients reading these fields must handle null. Requests are unchanged except that spaceUuid becomes optional when creating a Document.",
+            "requiredStop": false
+        },
+        "ai-credit-entitlements-table-dropped": {
+            "reason": "Drops the never-populated ai_credit_entitlements table and the unused ai_credit_holds.ai_credit_entitlement_uuid column with its partial unique index. Releases from 2.388.0 onward neither read nor write them, so a rolling upgrade from 2.388.0 or later is unaffected. An instance upgrading straight from 2.381.0 through 2.387.x must use the Recreate strategy: those releases still query ai_credit_entitlements from the AI usage sink, so their pods would fail to record AI usage once the table is gone.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/ee/database/migrations/20261009100000_drop_ai_credit_entitlements.ts"
+        },
+        "agent-identity-test-access-endpoint-removed": {
+            "reason": "Agent identity (beta, agent-identity feature flag) removes POST /api/v2/projects/{projectUuid}/ai-access/service-account/test-access and the exported AgentAccessReport, AgentAccessTestRequest and BigqueryAgentAccessProbe types. API clients that called the per-table access check get a 404 and must use POST .../ai-access/service-account/test instead, which still checks the AI service account key. Only the Lightdash frontend called the removed endpoint, so no rolling upgrade is affected.",
+            "requiredStop": false
+        },
+        "agent-permissions-pilot-preset-removed": {
+            "reason": "Agent identity (beta, agent-identity feature flag) removes POST /api/v2/org/agent-permissions/pilot-preset and the pilotPreset field from GET /api/v2/org/agent-permissions. The agent-identity flag is off by default on Cloud and on self-hosted, and the endpoint refuses callers when the flag is off. No released Lightdash UI ever called the endpoint or read the field. API clients get a 404 and must save the capability ceiling with PUT /api/v2/org/agent-permissions instead.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "agent-identity",
+                "covers": {
+                    "rest": [
+                        "POST /api/v2/org/agent-permissions/pilot-preset",
+                        "GET /api/v2/org/agent-permissions"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "agent-warehouse-confirmation-endpoints-removed": {
+            "reason": "The three warehouse-confirmation operations (GET, PUT and DELETE /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation) and the exported AgentWarehouseRestrictionConfirmation and AgentWarehouseConfirmationStatus types are removed. The agent-identity flag is off by default on Cloud and on self-hosted. The endpoints refuse callers when the flag is off. Only the project Agent identity settings page of the same release called them. API clients get a 404. Raw SQL for agents no longer needs a project confirmation.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "agent-identity",
+                "covers": {
+                    "rest": [
+                        "GET /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation",
+                        "PUT /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation",
+                        "DELETE /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "spk-2738-agent-permissions-capability-list-and-group-only-api": {
+            "reason": "Only the organization Agents settings page calls these operations. An old browser tab can still save the old shape; its people and project choices are dropped. GET, PUT and reset no longer return those choices. The agent-identity flag is off by default on Cloud and on self-hosted instances. With the flag off nothing changes. With the flag on and limits off no request gets a different answer. With the flag on and limits on, access widens in four ways, and each matches the flag-off behaviour. First, Enable agents over MCP off no longer refuses agents in the app, Slack, the OAuth API or the CLI connection. Second, it no longer refuses generic MCP tools, skill tools and skill resources, or the warehouse connect and status calls; choosing or using a configured agent over MCP is still refused. Third, Allow content changes via MCP off no longer refuses data app generate and iterate over MCP, or content writes on the other surfaces; the MCP create content, edit content and scheduled delivery tools stay hidden. Fourth, a saved people list or project list no longer refuses anyone. To restrict agents, use Who can use agents or untick capabilities. Unticking every capability turns agents off.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The organization Agents settings page is the only client of these policy operations. Old tabs can save and refresh. Their people and project choices no longer apply.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v2/org/agent-permissions",
+                        "PUT /api/v2/org/agent-permissions",
+                        "POST /api/v2/org/agent-permissions/reset"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "ai-review-replay-capture-endpoint-removed": {
+            "reason": "POST /api/v1/aiAgents/admin/review-replay-capture and its AiAgentReviewReplayCapture request and response types are removed together with the ai-review-replay-capture feature flag. The endpoint was org-admin only and refused callers unless that flag was on, and the flag was off by default on Cloud and on self-hosted. Callers now get a 404.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The internal AI review classifier scoreboard repl script (captureReviewScoreboardFixtureFromApi) was the only client, and it is removed in the same change. An older checkout of that script gets a 404 during a rolling update, which is safe because it is an offline eval tool, not part of the product.",
+                "covers": {
+                    "rest": [
+                        "POST /api/v1/aiAgents/admin/review-replay-capture"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "ai-agent-thread-first-message-nullable": {
+            "reason": "AI agent thread responses (thread create, get and list, and the SDK LightdashAiAgentThread type) now return firstMessage as null for a thread created with a binding or threadContext and no prompt. Creating such a thread was rejected before, so existing threads and threads created with a prompt still return a firstMessage. API clients and SDK hosts that pre-create threads this way must handle null until the first message is sent.",
+            "requiredStop": false
+        },
+        "mcp-deprecated-context-tools-removed": {
+            "reason": "The deprecated MCP tools set_project, get_current_project, set_agent, clear_agent and get_current_agent are removed. MCP clients discover tools from tools/list, so agents pick up the change on their next session; only scripted callers that hard-code one of these names get an unknown-tool error. get_context reports the stored project and agent, route_agent selects an agent, and every project-scoped tool takes projectUuid (and optionally agentUuid) explicitly. Stored context written by older clients or route_agent is still honoured.",
+            "requiredStop": false
+        },
+        "ai-agent-thread-binding-chart": {
+            "reason": "AI agent thread responses (thread create, get and list, thread share clone, and the SDK binding type) can now return binding as { type: 'chart', chartUuid } as well as { type: 'dashboard', dashboardUuid }. Only threads created with the new chart binding return it; existing threads and dashboard-bound threads are unchanged. API clients and SDK hosts that read binding.dashboardUuid must check binding.type first. During a rolling update an old UI pod cannot render the header of a chart-bound thread until refresh.",
+            "requiredStop": false
+        },
+        "edit-yaml-in-ui-git-integration-endpoints-removed": {
+            "reason": "GET /api/v1/projects/{projectUuid}/git-integration/explores/{exploreName}/file-path is removed together with the edit-yaml-in-ui feature flag and the FeatureFlags.EditYamlInUi enum member; the already-deprecated explore files and file-change PR endpoints are removed in the same change. The endpoint refused callers unless that flag was on, and the flag was off by default on Cloud and on self-hosted. Callers now get a 404 and should use the /api/v1/projects/{projectUuid}/git branch and file endpoints instead.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The Lightdash web app source code editor drawer was the only client, and it is removed in the same change. During a rolling update an old browser tab with the drawer open from Explore shows an error resolving the file path until refresh, which is safe because the drawer only read files and the error does not affect any other page.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/git-integration/explores/{exploreName}/file-path"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "ai-credits-daily-usage-breakdown-removed": {
+            "reason": "GET /api/v1/org/ai-credits/usage/daily no longer accepts the breakdown query parameter, no longer returns the breakdown property, and always returns billable credits per day by feature; each series is { feature, credits } instead of the former typed value/other/deleted/embeddedViewers/unattributed shapes. The endpoint is org-admin only and answers only for organizations with an AI credit contract. Unknown query parameters are ignored, so during a rolling update an old AI Credits settings tab receives the new shape, its usage chart cannot label the series and the page falls back to the app error state until refresh. This is safe because it is an admin reporting view with no writes and a refresh fully recovers it.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The AI Credits organization settings page is the only client of this operation. During a rolling update an old tab on that page shows the app error state until refresh, and nothing is written or lost.",
+                "covers": {
+                    "rest": ["GET /api/v1/org/ai-credits/usage/daily"],
+                    "mcp": []
+                }
+            }
+        },
+        "organization-warehouse-credentials-api-retired": {
+            "reason": "The deprecated organization warehouse credential REST endpoints and CLI organization-credentials option are removed. Callers of those endpoints receive 404 and older CLI commands using that option must configure warehouse credentials on the project instead. Existing project credentials, personal sign-ins and service accounts retain their current behavior. Legacy storage and shared compatibility types remain unchanged.",
             "requiredStop": false
         }
     }

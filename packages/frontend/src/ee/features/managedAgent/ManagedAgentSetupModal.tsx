@@ -9,15 +9,17 @@ import {
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FC, useState } from 'react';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import MantineModal from '../../../components/common/MantineModal';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { useManagedAgentRuntime } from './hooks/useManagedAgentRuntime';
 import { ManagedAgentRuntimeDetails } from './ManagedAgentRuntimeDetails';
 import classes from './ManagedAgentSetupModal.module.css';
 
 const updateSettings = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     body: { enabled: boolean; schedule: ManagedAgentScheduleOption },
 ) =>
@@ -68,6 +70,7 @@ export const ManagedAgentSetupModal: FC<{
     onClose: () => void;
     onEnabled: () => void;
 }> = ({ projectUuid, opened, onClose, onEnabled }) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { user } = useApp();
     const runtime = useManagedAgentRuntime(projectUuid, opened);
@@ -76,7 +79,7 @@ export const ManagedAgentSetupModal: FC<{
 
     const mutation = useMutation<unknown, ApiError>({
         mutationFn: () =>
-            updateSettings(projectUuid, {
+            updateSettings(lightdashApi, projectUuid, {
                 enabled: true,
                 schedule,
             }),

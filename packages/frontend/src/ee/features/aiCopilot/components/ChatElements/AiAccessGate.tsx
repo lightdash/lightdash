@@ -32,7 +32,7 @@ export const AiAccessGate = ({
                     <Group gap="sm" align="flex-start" wrap="nowrap">
                         <MantineIcon icon={IconShieldCheck} color="dimmed" />
                         <Text size="sm" c="dimmed">
-                            We could not check your agent connection.{' '}
+                            Could not check your agent identity.{' '}
                             <Button
                                 variant="subtle"
                                 size="compact-sm"

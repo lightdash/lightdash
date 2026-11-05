@@ -16,6 +16,7 @@ describe('exportChartAsCode', () => {
             ]),
             prepare: vi.fn(),
             prepareVersion: vi.fn(),
+            prepareSqlVersion: vi.fn().mockResolvedValue(null),
         };
         const exportTool = getExportChartAsCode(
             new AgentContext([validExplore]),
@@ -61,6 +62,7 @@ it('preserves a chart export access refusal as structured content', async () => 
         list: vi.fn(),
         prepare: vi.fn().mockRejectedValue(error),
         prepareVersion: vi.fn(),
+        prepareSqlVersion: vi.fn().mockResolvedValue(null),
     });
     const output = await exportTool.execute!(
         {

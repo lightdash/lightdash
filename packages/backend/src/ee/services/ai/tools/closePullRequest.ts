@@ -32,7 +32,7 @@ export const getClosePullRequest = ({ closePullRequest }: Dependencies) =>
                     state: 'closed',
                 };
                 return {
-                    result: `Closed the pull request. The card above reflects its ${closed.state} state, so do NOT repeat the pull request URL — just confirm it was closed.`,
+                    result: `Closed the pull request. The card above shows its ${closed.state} state, so confirm it was closed without repeating the URL.`,
                     metadata: { status: 'success' },
                     structuredContent: closed,
                 };
@@ -45,7 +45,7 @@ export const getClosePullRequest = ({ closePullRequest }: Dependencies) =>
                     return {
                         result,
                         metadata: { status: 'error' },
-                        structuredContent: { error: result, refusal: null },
+                        structuredContent: { error: result },
                     };
                 }
                 return toolErrorOutput(

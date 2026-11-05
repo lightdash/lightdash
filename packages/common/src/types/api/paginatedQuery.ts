@@ -8,6 +8,7 @@ import { type MergeQuery, type MetricSourcedMergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
 import type {
+    ApiSourcePayload,
     ExternalSourceTableReference,
     QuerySourceTableName,
 } from '../querySources';
@@ -29,6 +30,13 @@ export type DateZoom = {
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
+        /**
+         * Export row limit, same contract as the saved-chart endpoints:
+         * - undefined: run with `query.limit`
+         * - null: all results, capped by the org's CSV cells limit
+         * - number: that many rows, capped by the org's CSV cells limit
+         */
+        limit?: number | null | undefined;
         dateZoom?: DateZoom;
         pivotConfiguration?: PivotConfiguration;
         // Filters whose target field is absent from the query's explore are
@@ -63,6 +71,12 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dateZoom?: DateZoom;
         limit?: number | null | undefined;
         pivotResults?: boolean;
+        /**
+         * The keys this tile keeps as its own, sent with `parameters` when the
+         * app resolved the tile's parameter controls. A signed-in user's
+         * request is then used as sent, not resolved from the saved controls.
+         */
+        excludedParameterKeys?: string[];
         // Run the caller's own unpublished chart draft instead of the
         // published chart, so a tile matches what the author sees
         includeUnpublishedDraft?: boolean;
@@ -96,6 +110,21 @@ export type ExecuteAsyncSqlQueryRequestParams =
         warehouseConnectionUuid?: string | null;
     };
 
+export type EstimateAsyncMetricQueryRequestParams = {
+    query: Omit<MetricQueryRequest, 'csvLimit'>;
+    dateZoom?: DateZoom;
+    pivotConfiguration?: PivotConfiguration;
+    parameters?: ParametersValuesMap;
+    usePreAggregateCache?: boolean;
+};
+
+export type EstimateAsyncSqlQueryRequestParams = {
+    sql: string;
+    limit?: number;
+    parameters?: ParametersValuesMap;
+    warehouseConnectionUuid?: string | null;
+};
+
 export type ExecuteAsyncComposeSqlQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         sql: string;
@@ -113,6 +142,32 @@ export type ExecuteAsyncComposeSqlQueryRequestParams =
          * additionalProperties intact (and validates the uuid format).
          */
         references?: Record<string, UUID>;
+    };
+
+/** A query sent live to an external API; stored so query history shows what ran. */
+export type ExecuteAsyncApiQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        connectionUuid: string;
+        payload: ApiSourcePayload;
+        limit?: number;
+    };
+
+/** Python `run(inputs, params)` over other async queries' results, executed in a sandbox. */
+export type ExecuteAsyncPythonQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        /**
+         * Python source defining `run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.
+         * Each key of `references` is exposed in `inputs` as a DataFrame.
+         */
+        code: string;
+        /** Maximum rows kept from the returned DataFrame; the rest are dropped and the result marked truncated. */
+        limit?: number;
+        /**
+         * Results of other async queries exposed to the code as DataFrames, keyed
+         * by input name: {"orders": "<queryUuid>"} is read as inputs["orders"].
+         * Typed Record<string, UUID> for the same TSOA reason as compose SQL.
+         */
+        references: Record<string, UUID>;
     };
 
 export type ExecuteAsyncExternalSqlQueryRequestParams =
@@ -161,6 +216,8 @@ type ExecuteAsyncDashboardSqlChartCommonParams =
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
         limit?: number;
+        /** As on the dashboard chart request */
+        excludedParameterKeys?: string[];
     };
 
 export type ExecuteAsyncDashboardSqlChartByUuidRequestParams =
@@ -213,6 +270,8 @@ export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncComposeMergeQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncComposeSqlQueryRequestParams
+    | ExecuteAsyncPythonQueryRequestParams
+    | ExecuteAsyncApiQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams

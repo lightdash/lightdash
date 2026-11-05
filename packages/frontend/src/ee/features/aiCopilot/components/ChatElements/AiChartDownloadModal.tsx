@@ -9,7 +9,12 @@ import { useCallback, type FC } from 'react';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type Limit } from '../../../../../components/ExportResults/types';
 import { isTableVisualizationConfig } from '../../../../../components/LightdashVisualization/types';
-import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import {
+    useEditedChartConfig,
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import { executeAiChartDownloadQuery } from '../../utils/executeAiChartDownloadQuery';
 
 type Props = {
@@ -30,15 +35,11 @@ export const AiChartDownloadModal: FC<Props> = ({
     mergeQuery,
     executedQueryUuid,
 }) => {
-    const {
-        chartConfig,
-        columnOrder,
-        itemsMap,
-        parameters,
-        pivotDimensions,
-        resultsData,
-        visualizationConfig,
-    } = useVisualizationContext();
+    const lightdashApi = useLightdashApi();
+    const visualizationConfig = useVisualizationConfig();
+    const chartConfig = useEditedChartConfig();
+    const { columnOrder, itemsMap, parameters, pivotDimensions, resultsData } =
+        useVisualizationInputs();
 
     const metricQuery = resultsData?.metricQuery;
     const tableConfig = isTableVisualizationConfig(visualizationConfig)
@@ -73,7 +74,7 @@ export const AiChartDownloadModal: FC<Props> = ({
                 throw new Error('Missing artifact query data');
             }
 
-            return executeAiChartDownloadQuery({
+            return executeAiChartDownloadQuery(lightdashApi, {
                 projectUuid,
                 metricQuery,
                 parameters,
@@ -94,6 +95,7 @@ export const AiChartDownloadModal: FC<Props> = ({
             parameters,
             pivotDimensions,
             projectUuid,
+            lightdashApi,
         ],
     );
 

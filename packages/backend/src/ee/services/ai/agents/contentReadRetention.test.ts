@@ -196,17 +196,6 @@ describe('pruneSupersededContentReads', () => {
         expect(resultValue(pruned, 'd2')).toBe(huge);
     });
 
-    it('keys documents by documentUuid when no slug is given', () => {
-        const uuid = '0d2f0b5e-7a1c-4e0e-9c4d-2d4c1f7a9b11';
-        const messages = [
-            ...read('r1', { type: 'document', documentUuid: uuid }, 'v1'),
-            ...read('r2', { type: 'document', documentUuid: uuid }, 'v2'),
-        ];
-        const { messages: pruned } = pruneSupersededContentReads(messages);
-        expect(resultValue(pruned, 'r1')).toContain('read again later');
-        expect(resultValue(pruned, 'r2')).toBe('v2');
-    });
-
     it('leaves non-read tool results and failed reads untouched', () => {
         const messages = [
             ...read('r1', { type: 'dashboard', slug: 'sales' }, 'v1'),

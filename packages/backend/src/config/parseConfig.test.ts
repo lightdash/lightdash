@@ -5,6 +5,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     ParseError,
+    SCHEDULER_TASKS,
     SentryConfig,
     WarehouseTypes,
     WeekDay,
@@ -40,8 +41,50 @@ beforeEach(() => {
     };
 });
 
+describe('Python E2B template configuration', () => {
+    it('defaults to the python template at the running version', () => {
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: 'lightdash-python-runner',
+            e2bPythonTemplateTag: VERSION,
+        });
+    });
+
+    it.each<[NodeJS.ProcessEnv, string, string]>([
+        [
+            { E2B_PYTHON_TEMPLATE_TAG: 'pinned' },
+            'lightdash-python-runner',
+            'pinned',
+        ],
+        [{ E2B_PYTHON_TEMPLATE_TAG: '' }, 'lightdash-python-runner', ''],
+        [{ E2B_PYTHON_TEMPLATE_NAME: 'custom' }, 'custom', VERSION],
+        [{ E2B_PYTHON_TEMPLATE_NAME: '' }, 'lightdash-python-runner', VERSION],
+    ])('uses configured settings: %o', (env, name, tag) => {
+        Object.assign(process.env, env);
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: name,
+            e2bPythonTemplateTag: tag,
+        });
+    });
+});
+
+describe('agent result identity check configuration', () => {
+    it.each([
+        [undefined, true],
+        ['false', false],
+        ['true', true],
+        ['', true],
+        ['FALSE', true],
+        ['0', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined)
+            process.env.AGENT_RESULT_IDENTITY_CHECK_ENABLED = value;
+        expect(parseConfig().ai.agentResultIdentityCheckEnabled).toBe(expected);
+    });
+});
+
 describe('Snowflake AI OAuth configuration', () => {
-    it('reads the separate client and routes', () => {
+    it('ignores legacy OAuth environment settings', () => {
+        process.env.SNOWFLAKE_AI_OAUTH_ACCOUNT = 'legacy-account';
         process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID = 'ai-client';
         process.env.SNOWFLAKE_AI_OAUTH_CLIENT_SECRET = 'ai-secret';
         process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT =
@@ -49,14 +92,77 @@ describe('Snowflake AI OAuth configuration', () => {
         process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT =
             'https://snowflake.example/token';
         expect(parseConfig().auth.snowflakeAi).toEqual({
-            account: undefined,
-            clientId: 'ai-client',
-            clientSecret: 'ai-secret',
-            authorizationEndpoint: 'https://snowflake.example/authorize',
-            tokenEndpoint: 'https://snowflake.example/token',
             loginPath: '/login/snowflake-ai',
             callbackPath: '/oauth/redirect/snowflake-ai',
+            testAccountUrlOrigin: null,
         });
+    });
+    it.each([undefined, ''])(
+        'disables the test origin when it is %s',
+        (value) => {
+            if (value !== undefined)
+                process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+            const warning = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            try {
+                expect(
+                    parseConfig().auth.snowflakeAi.testAccountUrlOrigin,
+                ).toBeNull();
+                expect(warning).not.toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+                    ),
+                );
+            } finally {
+                warning.mockRestore();
+            }
+        },
+    );
+    it.each(['http://snowflake-ai-stub:3900', 'https://localhost:3900'])(
+        'accepts the exact origin %s and warns once',
+        (value) => {
+            process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+            const warning = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            try {
+                expect(
+                    parseConfig().auth.snowflakeAi.testAccountUrlOrigin,
+                ).toBe(value);
+                expect(
+                    warning.mock.calls.filter(([message]) =>
+                        String(message).includes(
+                            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+                        ),
+                    ),
+                ).toEqual([[expect.stringContaining('for tests only')]]);
+            } finally {
+                warning.mockRestore();
+            }
+        },
+    );
+    it.each([
+        'not-a-url',
+        'null',
+        ' ',
+        'http://snowflake-ai-stub:3900/',
+        'http://snowflake-ai-stub:3900/path',
+        'http://snowflake-ai-stub:3900?query=value',
+        'http://snowflake-ai-stub:3900#fragment',
+        'http://user:secret@snowflake-ai-stub:3900',
+        'http://*.example:3900',
+        'http://SNOWFLAKE-AI-STUB:3900',
+        'http://snowflake-ai-stub:80',
+        ' http://snowflake-ai-stub:3900',
+        'http://snowflake-ai-stub:3900 ',
+        'file://snowflake-ai-stub',
+    ])('rejects an invalid test origin %s', (value) => {
+        process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+        expect(() => parseConfig()).toThrow(ParseError);
+        expect(() => parseConfig()).toThrow(
+            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+        );
     });
 });
 
@@ -121,6 +227,28 @@ describe('external connection private hosts', () => {
             expect(() => parseConfig()).toThrow(ParseError);
         },
     );
+});
+
+describe('chart registry host access flags', () => {
+    it('defaults to strict: no private hosts, no insecure transport', () => {
+        const { chartRegistry } = parseConfig().appRuntime;
+        expect(chartRegistry.allowPrivateHosts).toBe(false);
+        expect(chartRegistry.allowInsecure).toBe(false);
+    });
+
+    it('LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS=true enables private hosts without enabling insecure transport', () => {
+        process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS = 'true';
+        const { chartRegistry } = parseConfig().appRuntime;
+        expect(chartRegistry.allowPrivateHosts).toBe(true);
+        expect(chartRegistry.allowInsecure).toBe(false);
+    });
+
+    it('ignores any value other than "true"', () => {
+        process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS = 'yes';
+        expect(parseConfig().appRuntime.chartRegistry.allowPrivateHosts).toBe(
+            false,
+        );
+    });
 });
 
 describe('explore summary projection threshold', () => {
@@ -278,6 +406,24 @@ describe('query history retention', () => {
         } finally {
             warn.mockRestore();
         }
+    });
+});
+
+describe('dashboard tile query concurrency', () => {
+    it('is unlimited when unset', () => {
+        expect(parseConfig().dashboard.maxConcurrentTileQueries).toBeNull();
+    });
+
+    it('reads the configured cap', () => {
+        process.env.LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES = '4';
+
+        expect(parseConfig().dashboard.maxConcurrentTileQueries).toBe(4);
+    });
+
+    it.each(['0', '-1', 'invalid'])('rejects an invalid cap: %s', (value) => {
+        process.env.LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES = value;
+
+        expect(() => parseConfig()).toThrow(ParseError);
     });
 });
 
@@ -693,6 +839,156 @@ describe('scoped SSH tunnel release', () => {
     });
 });
 
+describe('compile credential resolution', () => {
+    const environment = { ...process.env };
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = value;
+        }
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            expected,
+        );
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            true,
+        );
+    });
+
+    it('stays enabled when scoped SSH release is disabled', () => {
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            true,
+        );
+    });
+});
+
+describe('dbt Cloud preview credential resolution', () => {
+    const environment = { ...process.env };
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = value;
+        }
+        expect(
+            parseConfig().warehouseClient.resolveDbtCloudPreviewCredentials,
+        ).toBe(expected);
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            true,
+        );
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            true,
+        );
+    });
+
+    it('stays enabled when compile resolution and scoped SSH release are disabled', () => {
+        process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(
+            parseConfig().warehouseClient.resolveDbtCloudPreviewCredentials,
+        ).toBe(true);
+    });
+});
+
+describe('timezone preview credential resolution', () => {
+    const environment = { ...process.env };
+    beforeEach(() => {
+        delete process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED;
+    });
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = value;
+        }
+        expect(
+            parseConfig().warehouseClient.resolveTimezonePreviewCredentials,
+        ).toBe(expected);
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            true,
+        );
+        expect(
+            parseConfig().warehouseClient.resolveDbtCloudPreviewCredentials,
+        ).toBe(true);
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            true,
+        );
+    });
+
+    it('stays enabled when other credential switches and scoped SSH release are disabled', () => {
+        process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(
+            parseConfig().warehouseClient.resolveTimezonePreviewCredentials,
+        ).toBe(true);
+    });
+});
+
+describe('test-and-compile credential resolution', () => {
+    const environment = { ...process.env };
+    beforeEach(() => {
+        delete process.env.TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED;
+    });
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined)
+            process.env.TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED = value;
+        const config = parseConfig().warehouseClient;
+        expect(config.resolveTestAndCompileCredentials).toBe(expected);
+        expect(config.resolveCompileCredentials).toBe(true);
+        expect(config.resolveDbtCloudPreviewCredentials).toBe(true);
+        expect(config.resolveTimezonePreviewCredentials).toBe(true);
+        expect(config.releaseSshTunnelOnScopeExit).toBe(true);
+    });
+    it('stays enabled when other credential switches and scoped SSH release are disabled', () => {
+        process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(
+            parseConfig().warehouseClient.resolveTestAndCompileCredentials,
+        ).toBe(true);
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -893,6 +1189,29 @@ test('Should use explicit apps S3 config when set', () => {
         forcePathStyle: false,
         authMode: 'default',
     });
+});
+
+test('Should have no uploads S3 config until a bucket is set', () => {
+    expect(parseConfig().uploads.s3).toBeNull();
+});
+
+test('Should inherit base S3 settings for the uploads bucket', () => {
+    process.env.S3_ACCESS_KEY = 'mock_access_key';
+    process.env.S3_SECRET_KEY = 'mock_secret_key';
+    process.env.S3_FORCE_PATH_STYLE = 'true';
+    process.env.UPLOADS_S3_BUCKET = 'uploads_bucket';
+    const config = parseConfig();
+    expect(config.uploads.s3).toEqual(
+        expect.objectContaining({
+            endpoint: 'mock_endpoint',
+            bucket: 'uploads_bucket',
+            region: 'mock_region',
+            accessKey: 'mock_access_key',
+            secretKey: 'mock_secret_key',
+            forcePathStyle: true,
+        }),
+    );
+    expect(config.s3?.bucket).toEqual('mock_bucket');
 });
 
 describe('S3_AUTH_MODE', () => {
@@ -1224,6 +1543,44 @@ test('Should parse bedrock inference profile prefix from env', () => {
         inferenceProfilePrefix: 'jp',
     });
 });
+
+test('leaves the Bedrock output cap unset when not configured', () => {
+    process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+    process.env.BEDROCK_REGION = 'us-east-1';
+
+    const { bedrock } = parseConfig().ai.copilot.providers;
+    expect(bedrock).toBeDefined();
+    expect(bedrock?.maxOutputTokens).toBeUndefined();
+});
+
+test.each([
+    { BEDROCK_API_KEY: 'test-bedrock-key' },
+    {
+        BEDROCK_ACCESS_KEY_ID: 'test-access-key',
+        BEDROCK_SECRET_ACCESS_KEY: 'test-secret-key',
+    },
+    { BEDROCK_USE_DEFAULT_CREDENTIALS: 'true' },
+])('parses the Bedrock output cap with credentials %o', (credentials) => {
+    Object.assign(process.env, credentials);
+    process.env.BEDROCK_REGION = 'us-east-1';
+    process.env.BEDROCK_MAX_OUTPUT_TOKENS = '32000';
+
+    expect(parseConfig().ai.copilot.providers.bedrock).toMatchObject({
+        maxOutputTokens: 32_000,
+    });
+});
+
+test.each(['abc', '0'])(
+    'rejects invalid BEDROCK_MAX_OUTPUT_TOKENS=%s',
+    (value) => {
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+        process.env.BEDROCK_MAX_OUTPUT_TOKENS = value;
+
+        expect(parseConfig).toThrowError(ParseError);
+        expect(parseConfig).toThrowError('BEDROCK_MAX_OUTPUT_TOKENS');
+    },
+);
 
 test('Should configure Gemini only when an explicit API key is set', () => {
     process.env.GEMINI_MODEL_NAME = 'gemini-3.5-flash-lite';
@@ -2142,7 +2499,7 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Default behavior', () => {
-        test('should return all tasks when scheduler tasks environment variables are not set or empty', () => {
+        test('includes analytics content tasks when task lists are unset or empty', () => {
             // Test with no environment variables set
             const config1 = parseConfig();
             expect(config1.scheduler.tasks).toEqual(ALL_TASK_NAMES);
@@ -2156,6 +2513,15 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Include tasks validation', () => {
+        test('can explicitly include only analytics content tasks', () => {
+            process.env.SCHEDULER_INCLUDE_TASKS =
+                'reconcileAnalyticsContent,syncAnalyticsContent';
+            expect(parseConfig().scheduler.tasks).toEqual([
+                SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+                SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            ]);
+        });
+
         test.each([
             ['handleScheduledDelivery', ['handleScheduledDelivery']],
             [
@@ -2186,6 +2552,27 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Exclude tasks validation', () => {
+        test('keeps analytics content tasks enabled when other tasks are excluded', () => {
+            process.env.SCHEDULER_EXCLUDE_TASKS = 'appGeneratePipeline';
+            expect(parseConfig().scheduler.tasks).toEqual(
+                ALL_TASK_NAMES.filter(
+                    (task) => task !== SCHEDULER_TASKS.APP_GENERATE_PIPELINE,
+                ),
+            );
+        });
+
+        test('can explicitly exclude analytics content tasks', () => {
+            process.env.SCHEDULER_EXCLUDE_TASKS =
+                'reconcileAnalyticsContent,syncAnalyticsContent';
+            expect(parseConfig().scheduler.tasks).toEqual(
+                ALL_TASK_NAMES.filter(
+                    (task) =>
+                        task !== SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT &&
+                        task !== SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+                ),
+            );
+        });
+
         test('should return all tasks except excluded ones', () => {
             process.env.SCHEDULER_EXCLUDE_TASKS =
                 'sendEmailNotification,uploadGsheets';
@@ -2592,23 +2979,13 @@ describe('getMultiProjectSetupConfig', () => {
 });
 
 describe('legacy feature-flag env vars (compat repair for trivial-batch)', () => {
-    // The change-chart-explore env-var parser was removed when that flag was
-    // migrated to DB-backed resolution. Re-translating it via the legacy
-    // enable list preserves backward compat for self-hosted deployments that
-    // set the var.
     test.each([
-        ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
         ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
         ['EMBEDDING_ENABLED', 'embedding'],
-        ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
         ['SCIM_ENABLED', 'scim-token-management'],
-        [
-            'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
-            'organization-warehouse-credentials',
-        ],
-        ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
+        ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();
@@ -2871,5 +3248,60 @@ describe('usage capture infrastructure', () => {
         delete process.env.LIGHTDASH_LICENSE_KEY;
         delete process.env.LIGHTDASH_LICENSE_CERTIFICATE;
         expect(parseConfig().usageEvents.enabled).toBe(false);
+    });
+});
+
+describe('Docker Hub update check', () => {
+    it('is enabled by default', () => {
+        expect(parseConfig().updateCheck.enabled).toBe(true);
+    });
+    it('is disabled with LIGHTDASH_DISABLE_UPDATE_CHECK=true', () => {
+        process.env.LIGHTDASH_DISABLE_UPDATE_CHECK = 'true';
+        expect(parseConfig().updateCheck.enabled).toBe(false);
+    });
+});
+
+describe('database transaction rollback logging', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().database.logTransactionRollbacks).toBe(false);
+    });
+    it('is enabled with PG_LOG_TRANSACTION_ROLLBACKS=true', () => {
+        process.env.PG_LOG_TRANSACTION_ROLLBACKS = 'true';
+        expect(parseConfig().database.logTransactionRollbacks).toBe(true);
+    });
+    it('treats any other value as disabled', () => {
+        process.env.PG_LOG_TRANSACTION_ROLLBACKS = 'yes';
+        expect(parseConfig().database.logTransactionRollbacks).toBe(false);
+    });
+});
+
+describe('database slow transaction threshold', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().database.slowTransactionThresholdMs).toBeNull();
+    });
+    it('treats 0 as disabled', () => {
+        process.env.PG_SLOW_TRANSACTION_THRESHOLD_MS = '0';
+        expect(parseConfig().database.slowTransactionThresholdMs).toBeNull();
+    });
+    it('reads a positive threshold in milliseconds', () => {
+        process.env.PG_SLOW_TRANSACTION_THRESHOLD_MS = '60000';
+        expect(parseConfig().database.slowTransactionThresholdMs).toBe(60000);
+    });
+});
+
+describe('dbt source disk configuration', () => {
+    it('defaults the estimate and leaves the budget unset', () => {
+        expect(parseConfig().dbt).toMatchObject({
+            sourceFetchDiskBudgetBytes: undefined,
+            sourceFetchDiskPerSourceBytes: 256 * 1024 ** 2,
+        });
+    });
+    it('parses both disk settings', () => {
+        process.env.DBT_SOURCE_FETCH_DISK_BUDGET_BYTES = '1073741824';
+        process.env.DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES = '134217728';
+        expect(parseConfig().dbt).toMatchObject({
+            sourceFetchDiskBudgetBytes: 1073741824,
+            sourceFetchDiskPerSourceBytes: 134217728,
+        });
     });
 });

@@ -13,31 +13,32 @@ import {
 } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-const boundedQueryInstructionByRuntime = {
-    agent: 'Do not use a null or empty query to enumerate a warehouse column',
-    mcp: 'Do not omit query or use an empty query to enumerate a warehouse column',
-} satisfies Record<ToolDescriptionContext['runtime'], string>;
-
 const emptyFiltersInstructionByRuntime = {
     agent: 'Set filters to null when the search does not need additional filters',
     mcp: 'Omit filters when the search does not need additional filters',
 } satisfies Record<ToolDescriptionContext['runtime'], string>;
+
+const PURPOSE = `Purpose:
+Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.`;
+
+const SEARCH_ONLY_WHEN_UNCERTAIN =
+    'Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly';
+
+const SEARCH_RESULT_GUIDANCE =
+    'Reading the result: the values describe observed data, not the permitted filter literals.';
 
 export const TOOL_SEARCH_FIELD_VALUES_DESCRIPTION = ({
     runtime,
     toolName,
 }: ToolDescriptionContext): string => `Tool: ${toolName}
 
-Purpose:
-Validate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.
+${PURPOSE}
 
 Usage Tips:
-- Specify the table and field ID whose values you want to search
-- Prefer a non-empty query containing candidate text, such as "complete" for a status
-- ${boundedQueryInstructionByRuntime[runtime]}. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
-- If the user or field metadata already provides the exact value, use it directly instead of searching
+- ${SEARCH_ONLY_WHEN_UNCERTAIN}
 - ${emptyFiltersInstructionByRuntime[runtime]}
-- When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
+
+${SEARCH_RESULT_GUIDANCE}
 `;
 
 const expressionGuidanceByRuntime = {
@@ -50,16 +51,14 @@ export const TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION = ({
     toolName,
 }: ToolDescriptionContext): string => `Tool: ${toolName}
 
-Purpose:
-Validate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.
+${PURPOSE}
 
 Usage Tips:
-- Specify the table and field ID whose values you want to search
-- Prefer a non-empty query containing candidate text, such as "complete" for a status
-- ${boundedQueryInstructionByRuntime[runtime]}. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
-- If the user or field metadata already provides the exact value, use it directly instead of searching
+- ${SEARCH_ONLY_WHEN_UNCERTAIN}
 - Omit filters when the search does not need additional filters
 - ${expressionGuidanceByRuntime[runtime]}
+
+${SEARCH_RESULT_GUIDANCE}
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema()
@@ -71,7 +70,7 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema()
         query: z
             .string()
             .describe(
-                'Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.',
+                'Candidate text to match within field values, e.g. "complete" for a status. Without candidate text only curated field metadata values come back reliably, and an empty warehouse-backed search may be rejected, so never use it to enumerate a column.',
             )
             .nullable(),
         filters: filtersSchemaV2

@@ -1,18 +1,25 @@
 import {
     BigQuery,
     Dataset,
+    Table,
     type DatasetsResponse,
     type QueryRowsResponse,
 } from '@google-cloud/bigquery';
 import {
+    BIGQUERY_UNSUPPORTED_KEYFILE_MESSAGE,
     BigqueryAuthenticationType,
     BigqueryTokenError,
     DimensionType,
+    getBigqueryWorkloadIdentityStsAudience,
     getCatalogNestedColumnShape,
+    getCatalogTableNativeTypes,
+    PartitionGranularity,
+    PartitionType,
     setCatalogNestedColumnShape,
     setCatalogTimestampDomain,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseTableType,
     type BigqueryProject,
     type CreateBigqueryCredentials,
     type WarehouseNestedColumnShape,
@@ -21,6 +28,7 @@ import type { Mock, MockInstance } from 'vitest';
 import {
     BigquerySqlBuilder,
     BigqueryWarehouseClient,
+    type BigqueryExternalAccountCredentials,
 } from './BigqueryWarehouseClient';
 import {
     createJobResponse,
@@ -35,6 +43,81 @@ import {
 } from './WarehouseClient.mock';
 
 describe('BigqueryWarehouseClient', () => {
+    describe('workload identity federation', () => {
+        const wifCredentials: CreateBigqueryCredentials = {
+            ...credentials,
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            workloadIdentityProvider:
+                'projects/123/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+            keyfileContents: {},
+        };
+
+        test('passes the supplier through the real BigQuery auth library without using a keyfile or ADC', async () => {
+            const getSubjectToken = vi.fn(async (): Promise<string> => {
+                throw new WarehouseConnectionError('supplier invoked');
+            });
+            const external: BigqueryExternalAccountCredentials = {
+                type: 'external_account',
+                audience:
+                    getBigqueryWorkloadIdentityStsAudience(wifCredentials),
+                subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+                token_url: 'https://sts.googleapis.com/v1/token',
+                subject_token_supplier: { getSubjectToken },
+            };
+            const warehouse = new BigqueryWarehouseClient(
+                {
+                    ...wifCredentials,
+                    keyfileContents: {
+                        type: 'service_account',
+                        private_key: 'ignored',
+                    },
+                },
+                { bigqueryExternalAccount: external },
+            );
+            expect(warehouse.client.authClient.jsonContent).toEqual(external);
+            const auth = await warehouse.client.authClient.getClient();
+            expect(auth.constructor.name).toBe('IdentityPoolClient');
+            await expect(auth.getAccessToken()).rejects.toThrow(
+                'supplier invoked',
+            );
+            expect(getSubjectToken).toHaveBeenCalledOnce();
+        });
+
+        test.each<CreateBigqueryCredentials['keyfileContents']>([
+            {},
+            { type: 'authorized_user', refresh_token: 'ignored' },
+        ])(
+            'rejects missing injection without falling back to other credentials: %j',
+            (keyfileContents) => {
+                expect(
+                    () =>
+                        new BigqueryWarehouseClient({
+                            ...wifCredentials,
+                            keyfileContents,
+                        }),
+                ).toThrow(WarehouseConnectionError);
+                expect(
+                    () =>
+                        new BigqueryWarehouseClient({
+                            ...wifCredentials,
+                            keyfileContents,
+                        }),
+                ).toThrow(
+                    'workload identity federation credentials are unavailable',
+                );
+            },
+        );
+
+        test('keeps ADC without injected credentials', () => {
+            const warehouse = new BigqueryWarehouseClient({
+                ...credentials,
+                authenticationType: BigqueryAuthenticationType.ADC,
+            });
+            expect(warehouse.client.authClient.jsonContent).toBeNull();
+        });
+    });
+
     it('expect query rows with mapped values', async () => {
         const warehouse = new BigqueryWarehouseClient(credentials);
 
@@ -148,6 +231,58 @@ describe('BigqueryWarehouseClient', () => {
         expect(getTableMock).toHaveBeenCalledTimes(1);
         expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);
     });
+    it('expect getCatalog to skip tables the credentials cannot read', async () => {
+        const getMetadata = vi.fn().mockRejectedValue(
+            Object.assign(new Error('Permission bigquery.tables.get denied'), {
+                code: 403,
+                errors: [
+                    {
+                        reason: 'accessDenied',
+                        message: 'Permission bigquery.tables.get denied',
+                    },
+                ],
+            }),
+        );
+        Dataset.prototype.table = vi.fn(() => ({ getMetadata })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        expect(await warehouse.getCatalog(config)).toEqual({});
+        expect(warn).toHaveBeenCalledOnce();
+        warn.mockRestore();
+    });
+    it('expect getCatalog to fail on a 403 that is not a permission error', async () => {
+        const getMetadata = vi.fn().mockRejectedValue(
+            Object.assign(new Error('Exceeded rate limits'), {
+                code: 403,
+                errors: [
+                    {
+                        reason: 'rateLimitExceeded',
+                        message: 'Exceeded rate limits',
+                    },
+                ],
+            }),
+        );
+        Dataset.prototype.table = vi.fn(() => ({ getMetadata })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+
+        await expect(warehouse.getCatalog(config)).rejects.toThrow(
+            WarehouseConnectionError,
+        );
+    });
+    it('expect getCatalog to fail on errors other than missing or denied tables', async () => {
+        const getMetadata = vi
+            .fn()
+            .mockRejectedValue(
+                Object.assign(new Error('Internal error'), { code: 500 }),
+            );
+        Dataset.prototype.table = vi.fn(() => ({ getMetadata })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+
+        await expect(warehouse.getCatalog(config)).rejects.toThrow(
+            WarehouseConnectionError,
+        );
+    });
     it('expect getFields to flatten nested columns with the same shapes as getCatalog', async () => {
         Dataset.prototype.table = vi
             .fn()
@@ -179,6 +314,181 @@ describe('BigqueryWarehouseClient', () => {
                 'myStringColumn',
             ),
         ).toBeUndefined();
+    });
+    it('expect getFields to record native types that collapse into timestamp', async () => {
+        const schemaFields = [
+            { name: 'created_at_local', type: 'DATETIME' },
+            { name: 'departure_at', type: 'TIMESTAMP' },
+            { name: 'pickup_time', type: 'TIME' },
+            { name: 'trip_date', type: 'DATE' },
+            { name: 'name', type: 'STRING' },
+        ];
+        Dataset.prototype.table = vi.fn(() => ({
+            id: 'trips',
+            bigQuery: { projectId: 'myDatabase' },
+            getMetadata: vi.fn(() => [{ schema: { fields: schemaFields } }]),
+        })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const fields = await warehouse.getFields(
+            'trips',
+            'mySchema',
+            'myDatabase',
+        );
+        expect(
+            getCatalogTableNativeTypes(
+                fields,
+                'myDatabase',
+                'mySchema',
+                'trips',
+            ),
+        ).toEqual({
+            created_at_local: 'DATETIME',
+            departure_at: 'TIMESTAMP',
+            pickup_time: 'TIME',
+        });
+    });
+});
+
+describe('BigqueryWarehouseClient.estimateQuery', () => {
+    it('dry-runs the query without the cache and returns bytes processed', async () => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            maximumBytesBilled: 1000,
+        });
+        const createQueryJob = vi.fn(async () => [
+            {
+                metadata: {
+                    statistics: { totalBytesProcessed: '123456789' },
+                },
+            },
+        ]);
+        warehouse.client.createQueryJob =
+            createQueryJob as unknown as BigQuery['createQueryJob'];
+
+        await expect(
+            warehouse.estimateQuery({
+                sql: 'select 1',
+                tags: {},
+                timezone: 'UTC',
+            }),
+        ).resolves.toEqual({ totalBytesProcessed: 123456789 });
+        expect(createQueryJob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                query: 'select 1',
+                dryRun: true,
+                useQueryCache: false,
+                maximumBytesBilled: '1000',
+                connectionProperties: [{ key: 'time_zone', value: 'UTC' }],
+            }),
+        );
+    });
+
+    it('reports zero bytes when the dry run returns no statistics', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            { metadata: {} },
+        ]) as unknown as BigQuery['createQueryJob'];
+
+        await expect(
+            warehouse.estimateQuery({ sql: 'select 1', tags: {} }),
+        ).resolves.toEqual({ totalBytesProcessed: 0 });
+    });
+
+    it('does not dry-run regular queries', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        (warehouse.client.createQueryJob as Mock) = vi.fn(
+            () => createJobResponse,
+        );
+
+        await warehouse.runQuery('fake sql');
+
+        expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledWith(
+            expect.not.objectContaining({ dryRun: true }),
+        );
+    });
+});
+
+describe('BigqueryWarehouseClient.getQueryFields', () => {
+    const withDryRun = (dryRun: () => Promise<unknown>) => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const createQueryJob = vi.fn(dryRun);
+        warehouse.client.createQueryJob =
+            createQueryJob as unknown as BigQuery['createQueryJob'];
+        return { warehouse, createQueryJob };
+    };
+
+    it('maps the dry-run schema to the fields a real run reports', async () => {
+        const { warehouse, createQueryJob } = withDryRun(async () => [
+            {
+                metadata: {
+                    statistics: {
+                        query: {
+                            schema: {
+                                fields: [
+                                    { name: 'customer', type: 'STRING' },
+                                    { name: 'orders', type: 'INT64' },
+                                    {
+                                        name: 'revenue',
+                                        type: 'NUMERIC',
+                                        scale: '2',
+                                    },
+                                    { name: 'ordered_at', type: 'TIMESTAMP' },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            warehouse.getQueryFields('select 1', { tags: { a: 'b' } }),
+        ).resolves.toEqual({
+            customer: { type: DimensionType.STRING },
+            orders: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'integer' },
+            },
+            revenue: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'decimal', scale: 2 },
+            },
+            ordered_at: { type: DimensionType.TIMESTAMP },
+        });
+        expect(createQueryJob).toHaveBeenCalledWith(
+            expect.objectContaining({ query: 'select 1', dryRun: true }),
+        );
+    });
+
+    it('returns no fields when the dry run has no result schema', async () => {
+        const { warehouse } = withDryRun(async () => [
+            { metadata: { statistics: { query: {} } } },
+        ]);
+
+        await expect(
+            warehouse.getQueryFields('create table t as select 1', {
+                tags: {},
+            }),
+        ).resolves.toEqual({});
+    });
+
+    it('surfaces dry-run errors as warehouse query errors', async () => {
+        const { warehouse } = withDryRun(async () => {
+            throw Object.assign(new Error('Not found'), {
+                errors: [
+                    {
+                        reason: 'notFound',
+                        message: 'Not found: Table p:d.missing',
+                    },
+                ],
+            });
+        });
+
+        const result = warehouse.getQueryFields('select * from missing', {
+            tags: {},
+        });
+        await expect(result).rejects.toThrow(WarehouseQueryError);
+        await expect(result).rejects.toThrow('Not found: Table p:d.missing');
     });
 });
 
@@ -278,6 +588,79 @@ describe('BigqueryWarehouseClient.getDatabases', () => {
         expect(
             result.slice(25).every(({ sizeBytes }) => sizeBytes === null),
         ).toBe(true);
+    });
+});
+
+describe('BigqueryWarehouseClient.getAllTables', () => {
+    // Mirrors the SDK: datasets carry the requested project, or the
+    // client's default project when none is requested.
+    const createWarehouse = (overrides: Partial<CreateBigqueryCredentials>) => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            ...overrides,
+        });
+        const getDatasets = vi.fn((options?: { projectId?: string }) => {
+            const dataset = new Dataset(warehouse.client, 'prod_report', {
+                projectId: options?.projectId,
+            });
+            // Not dataset.table(): other suites stub Dataset.prototype.table.
+            const table = new Table(dataset, 'semantic_listenings');
+            table.metadata = { type: 'TABLE' };
+            dataset.getTables = vi
+                .fn()
+                .mockResolvedValue([
+                    [table],
+                ]) as unknown as Dataset['getTables'];
+            return Promise.resolve([[dataset]]);
+        });
+        const query = vi.fn().mockResolvedValue([
+            [
+                {
+                    table_name: 'semantic_listenings',
+                    column_name: 'listened_at',
+                    data_type: 'DATE',
+                },
+            ],
+        ]);
+        warehouse.client.getDatasets =
+            getDatasets as unknown as BigQuery['getDatasets'];
+        warehouse.client.query = query as unknown as BigQuery['query'];
+        return { warehouse, getDatasets, query };
+    };
+
+    it('lists the connection project when an execution project is set', async () => {
+        const { warehouse, getDatasets, query } = createWarehouse({
+            project: 'dbt-project',
+            executionProject: 'billing-project',
+        });
+
+        await expect(warehouse.getAllTables()).resolves.toEqual([
+            {
+                database: 'dbt-project',
+                schema: 'prod_report',
+                table: 'semantic_listenings',
+                tableType: WarehouseTableType.TABLE,
+                partitionColumn: {
+                    field: 'listened_at',
+                    partitionType: PartitionType.DATE,
+                },
+            },
+        ]);
+        expect(warehouse.client.projectId).toBe('billing-project');
+        expect(getDatasets).toHaveBeenCalledWith({ projectId: 'dbt-project' });
+        expect(query).toHaveBeenCalledWith(
+            expect.stringContaining(
+                '`dbt-project.prod_report.INFORMATION_SCHEMA.COLUMNS`',
+            ),
+        );
+    });
+
+    it('lists the connection project when no execution project is set', async () => {
+        const { warehouse } = createWarehouse({ project: 'dbt-project' });
+
+        const [table] = await warehouse.getAllTables();
+
+        expect(table.database).toBe('dbt-project');
     });
 });
 
@@ -561,6 +944,27 @@ describe('BigqueryWarehouseClient.sanitizeLabelsWithValues', () => {
 
         expect(result).toEqual(
             expect.objectContaining({ query_uuid: 'query-uuid' }),
+        );
+        expect(Object.keys(result ?? {})).toHaveLength(64);
+    });
+
+    it('keeps attribution labels when other labels exceed the BigQuery maximum', () => {
+        const result = BigqueryWarehouseClient.sanitizeLabelsWithValues({
+            ...Object.fromEntries(
+                Array.from({ length: 70 }, (_, index) => [
+                    `tag_${index}`,
+                    'value',
+                ]),
+            ),
+            user_uuid: 'user-uuid',
+            agent_uuid: 'agent-uuid',
+        });
+
+        expect(result).toEqual(
+            expect.objectContaining({
+                user_uuid: 'user-uuid',
+                agent_uuid: 'agent-uuid',
+            }),
         );
         expect(Object.keys(result ?? {})).toHaveLength(64);
     });
@@ -881,5 +1285,315 @@ describe('BigqueryWarehouseClient key file credentials', () => {
                     },
                 }),
         ).toThrow(WarehouseConnectionError);
+    });
+
+    it('rejects an unsupported key file before listing datasets', async () => {
+        await expect(
+            BigqueryWarehouseClient.getDatasetsWithKeyfile({
+                type: 'external_account',
+                audience: 'audience',
+                credential_source: { file: '/var/run/token' },
+            }),
+        ).rejects.toThrow(BIGQUERY_UNSUPPORTED_KEYFILE_MESSAGE);
+    });
+});
+
+describe('BigQuery agent job options', () => {
+    const callerTags: (Record<string, string> | undefined)[] = [
+        undefined,
+        Object.fromEntries(
+            Array.from({ length: 80 }, (_, index) => [String(index), 'value']),
+        ),
+        { agent: 'false', ordinary: 'value' },
+        {
+            ...Object.fromEntries(
+                Array.from({ length: 80 }, (_, index) => [
+                    String(index),
+                    'value',
+                ]),
+            ),
+            agent_surface: 'mcp',
+            agent_client: 'client-id',
+        },
+        {
+            ...Object.fromEntries(
+                Array.from({ length: 80 }, (_, index) => [
+                    `tag_${index}`,
+                    'value',
+                ]),
+            ),
+            agent: 'false',
+            AGENT: 'false',
+            agent_surface: 'mcp',
+            agent_client: 'client-id',
+        },
+        {
+            ...Object.fromEntries(
+                Array.from({ length: 80 }, (_, index) => [
+                    `tag_${index}`,
+                    'value',
+                ]),
+            ),
+            agent_surface: 'mcp',
+            agent_client: 'client-id',
+            agent_uuid: 'agent-uuid',
+            user_uuid: 'user-uuid',
+        },
+    ];
+    test.each(
+        [false, true].flatMap((agentSession) =>
+            [false, true].flatMap((agentJobControls) =>
+                ['run', 'stream'].flatMap((method) =>
+                    callerTags.map((tags) => ({
+                        agentSession,
+                        agentJobControls,
+                        method,
+                        tags,
+                    })),
+                ),
+            ),
+        ),
+    )(
+        '$method agentSession=$agentSession agentJobControls=$agentJobControls tags=$tags',
+        async ({ agentSession, agentJobControls, method, tags }) => {
+            const clientOptions = { agentSession, agentJobControls };
+            const warehouse = new BigqueryWarehouseClient(
+                credentials,
+                clientOptions,
+            );
+            const createQueryJob = vi.fn(
+                (_options: {
+                    labels?: Record<string, string>;
+                    useQueryCache?: boolean;
+                }) => createJobResponse,
+            );
+            warehouse.client.createQueryJob =
+                createQueryJob as unknown as BigQuery['createQueryJob'];
+            if (method === 'stream')
+                await warehouse.streamQuery('SELECT 1', vi.fn(), { tags });
+            else await warehouse.runQuery('SELECT 1', tags);
+            expect(createQueryJob).toHaveBeenCalledOnce();
+            const options = createQueryJob.mock.calls[0][0] as {
+                labels: Record<string, string> | undefined;
+                useQueryCache?: boolean;
+            };
+            if (agentJobControls) {
+                expect(options.useQueryCache).toBe(false);
+                expect(options.labels?.agent).toBe('true');
+                if (tags?.agent_client) {
+                    expect(options.labels).toMatchObject({
+                        agent_surface: 'mcp',
+                        agent_client: 'client-id',
+                    });
+                }
+                if (tags?.agent_uuid) {
+                    expect(options.labels).toMatchObject({
+                        agent_uuid: 'agent-uuid',
+                        user_uuid: 'user-uuid',
+                    });
+                }
+                expect(
+                    Object.keys(options.labels ?? {}).length,
+                ).toBeLessThanOrEqual(64);
+            } else {
+                expect(options).not.toHaveProperty('useQueryCache');
+                expect(options).toStrictEqual({
+                    query: 'SELECT 1',
+                    params: undefined,
+                    useLegacySql: false,
+                    connectionProperties: undefined,
+                    maximumBytesBilled: credentials.maximumBytesBilled
+                        ? `${credentials.maximumBytesBilled}`
+                        : undefined,
+                    priority: credentials.priority,
+                    jobTimeoutMs:
+                        credentials.timeoutSeconds &&
+                        credentials.timeoutSeconds * 1000,
+                    labels: BigqueryWarehouseClient.sanitizeLabelsWithValues(
+                        tags,
+                    ),
+                });
+            }
+        },
+    );
+});
+
+describe('BigQuery per-query maximum bytes billed', () => {
+    const limitJobResponse = [{ id: 'job-id', location: 'US' }];
+    const stream = async (
+        connectionLimit: number | undefined,
+        queryLimit: number | undefined,
+    ) => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            maximumBytesBilled: connectionLimit,
+        });
+        const createQueryJob = vi.fn(
+            (_options: { maximumBytesBilled?: string }) => limitJobResponse,
+        );
+        warehouse.client.createQueryJob =
+            createQueryJob as unknown as BigQuery['createQueryJob'];
+        await warehouse
+            .streamQuery('SELECT 1', vi.fn(), {
+                tags: {},
+                maximumBytesBilled: queryLimit,
+            })
+            .catch(() => undefined);
+        return createQueryJob.mock.calls[0][0].maximumBytesBilled;
+    };
+
+    test('uses the connection limit when the query has none', async () => {
+        expect(await stream(1000, undefined)).toBe('1000');
+    });
+
+    test('prefers the query limit over the connection limit', async () => {
+        expect(await stream(1000, 5000)).toBe('5000');
+    });
+
+    test('a query limit of 0 removes the connection limit', async () => {
+        expect(await stream(1000, 0)).toBeUndefined();
+    });
+});
+
+describe('BigQuery execution stats', () => {
+    const completedJob = (statistics: Record<string, unknown> | undefined) => ({
+        id: 'job-123',
+        location: 'US',
+        metadata: { statistics },
+        on: vi.fn((event: string, callback: () => void) => {
+            if (event === 'complete') callback();
+        }),
+        getQueryResults: vi.fn(() => [
+            [],
+            undefined,
+            { totalRows: '2', schema: { fields: [] } },
+        ]),
+        getQueryResultsStream: vi.fn(),
+    });
+
+    const runWithJob = async (job: ReturnType<typeof completedJob>) => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            job,
+        ]) as unknown as BigQuery['createQueryJob'];
+        return warehouse.executeAsyncQuery({ sql: 'SELECT 1', tags: {} });
+    };
+
+    it('returns bytes, duration, cache hit and job id from the completed job', async () => {
+        const result = await runWithJob(
+            completedJob({
+                startTime: '1700000000000',
+                endTime: '1700000001250',
+                totalBytesProcessed: '2048',
+                query: {
+                    totalBytesProcessed: '1048576',
+                    totalBytesBilled: '10485760',
+                    cacheHit: false,
+                },
+            }),
+        );
+
+        expect(result.executionStats).toStrictEqual({
+            jobId: 'job-123',
+            bytesProcessed: 1048576,
+            bytesBilled: 10485760,
+            executionTimeMs: 1250,
+            cacheHit: false,
+        });
+    });
+
+    it('returns nulls for statistics the job did not report', async () => {
+        const result = await runWithJob(completedJob(undefined));
+
+        expect(result.executionStats).toStrictEqual({
+            jobId: 'job-123',
+            bytesProcessed: null,
+            bytesBilled: null,
+            executionTimeMs: null,
+            cacheHit: null,
+        });
+    });
+
+    it('falls back to the job-level bytes processed', () => {
+        expect(
+            BigqueryWarehouseClient.getExecutionStats('job-1', {
+                totalBytesProcessed: '512',
+                query: { cacheHit: true },
+            }),
+        ).toStrictEqual({
+            jobId: 'job-1',
+            bytesProcessed: 512,
+            bytesBilled: null,
+            executionTimeMs: null,
+            cacheHit: true,
+        });
+    });
+});
+
+describe('BigqueryWarehouseClient.getTablePartitioning', () => {
+    const partitioningFor = async (metadata: Record<string, unknown>) => {
+        Dataset.prototype.table = vi.fn().mockImplementationOnce(() => ({
+            getMetadata: async () => [metadata],
+        }));
+        return new BigqueryWarehouseClient(credentials).getTablePartitioning(
+            'analytics',
+            'analytics',
+            'example-project',
+        );
+    };
+
+    it('reads a time-unit column partition and its granularity', async () => {
+        await expect(
+            partitioningFor({
+                timePartitioning: { type: 'DAY', field: 'created_at' },
+            }),
+        ).resolves.toEqual({
+            partitionColumn: {
+                field: 'created_at',
+                partitionType: PartitionType.DATE,
+            },
+            granularity: PartitionGranularity.DAY,
+            requiresPartitionFilter: false,
+        });
+    });
+
+    it('uses _PARTITIONTIME for ingestion-time partitions and reads the required filter flag', async () => {
+        await expect(
+            partitioningFor({
+                timePartitioning: { type: 'HOUR' },
+                requirePartitionFilter: true,
+            }),
+        ).resolves.toEqual({
+            partitionColumn: {
+                field: '_PARTITIONTIME',
+                partitionType: PartitionType.DATE,
+            },
+            granularity: PartitionGranularity.HOUR,
+            requiresPartitionFilter: true,
+        });
+    });
+
+    it('reads an integer-range partition without a granularity', async () => {
+        await expect(
+            partitioningFor({
+                rangePartitioning: {
+                    field: 'customer_id',
+                    range: { start: '0', end: '1000', interval: '10' },
+                },
+            }),
+        ).resolves.toEqual({
+            partitionColumn: {
+                field: 'customer_id',
+                partitionType: PartitionType.RANGE,
+            },
+            granularity: null,
+            requiresPartitionFilter: false,
+        });
+    });
+
+    it('returns null for an unpartitioned table', async () => {
+        await expect(partitioningFor({ schema: { fields: [] } })).resolves.toBe(
+            null,
+        );
     });
 });

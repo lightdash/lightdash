@@ -1,4 +1,5 @@
 import {
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     ExpectedNotFoundError,
@@ -46,5 +47,54 @@ describe('agent identity refusal API response', () => {
         expect(response.statusCode).toBe(403);
         expect(response.data).toEqual(error.refusal);
         expect(response.message).toBe(error.refusal.message);
+    });
+});
+
+it('serializes all optional diagnostic fields in the REST error data', () => {
+    const error = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        {
+            capability: AgentCapability.ContentWrite,
+            policyLayer: 'org_ceiling',
+            requiredCapabilities: [
+                AgentCapability.ContentWrite,
+                AgentCapability.Publish,
+            ],
+            blockersComplete: true,
+            explanationUrl: '/generalSettings/myAgentConnections',
+            blockers: [
+                {
+                    checkId: 'capability:content_write',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.ContentWrite,
+                    policyLayer: 'org_ceiling',
+                    message: 'Primary',
+                    settingsUrl: null,
+                },
+                {
+                    checkId: 'capability:publish',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.Publish,
+                    policyLayer: 'org_ceiling',
+                    message: 'Secondary',
+                    settingsUrl: null,
+                },
+            ],
+        },
+    );
+    const serialized = JSON.parse(JSON.stringify(errorHandler(error).data));
+    expect(serialized).toEqual(error.refusal);
+    expect(serialized).toMatchObject({
+        requiredCapabilities: [
+            AgentCapability.ContentWrite,
+            AgentCapability.Publish,
+        ],
+        blockersComplete: true,
+        explanationUrl: '/generalSettings/myAgentConnections',
+        blockers: expect.arrayContaining([
+            expect.objectContaining({ checkId: 'capability:publish' }),
+        ]),
     });
 });

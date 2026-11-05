@@ -4,19 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAiAgentThreadArtifact } from './useAiAgentThreadArtifact';
 
 const {
-    fastDecisionsMock,
     dispatchMock,
     deepResearchRegistrationStateMock,
     artifactSelectorMock,
 } = vi.hoisted(() => ({
-    fastDecisionsMock: vi.fn(),
     dispatchMock: vi.fn(),
     artifactSelectorMock: vi.fn(),
     deepResearchRegistrationStateMock: vi.fn(),
-}));
-
-vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: fastDecisionsMock,
 }));
 
 vi.mock('../store/hooks', () => ({
@@ -80,7 +74,6 @@ const regularArtifactThread = {
 
 describe('useAiAgentThreadArtifact', () => {
     beforeEach(() => {
-        fastDecisionsMock.mockReturnValue({ data: { enabled: true } });
         dispatchMock.mockReset();
         artifactSelectorMock.mockReset().mockReturnValue(null);
         deepResearchRegistrationStateMock.mockReturnValue({
@@ -183,53 +176,6 @@ describe('useAiAgentThreadArtifact', () => {
             expect.objectContaining({ type: 'setPreview' }),
         );
     });
-
-    it.each([false, undefined])(
-        'does not follow revisions when the flag is off or unresolved (%s)',
-        (enabled) => {
-            fastDecisionsMock.mockReturnValue({
-                data: enabled === undefined ? undefined : { enabled },
-            });
-            const { rerender } = renderHook(
-                ({ currentThread }) =>
-                    useAiAgentThreadArtifact({
-                        projectUuid: 'project-1',
-                        agentUuid: 'agent-1',
-                        threadUuid: 'thread-1',
-                        thread: currentThread,
-                    }),
-                { initialProps: { currentThread: regularArtifactThread } },
-            );
-            const first = dispatchMock.mock.calls.findLast(
-                ([action]) => action.type === 'setPreview',
-            )?.[0].payload;
-            artifactSelectorMock.mockReturnValue(first);
-            rerender({ currentThread: regularArtifactThread });
-            dispatchMock.mockClear();
-            rerender({
-                currentThread: {
-                    ...regularArtifactThread,
-                    messages: regularArtifactThread.messages.map((message) =>
-                        message.role === 'assistant' &&
-                        message.uuid === 'regular-prompt'
-                            ? {
-                                  ...message,
-                                  artifacts: [
-                                      {
-                                          artifactUuid: 'regular-artifact',
-                                          versionUuid: 'version-2',
-                                      },
-                                  ],
-                              }
-                            : message,
-                    ),
-                } as AiAgentThread,
-            });
-            expect(dispatchMock).not.toHaveBeenCalledWith(
-                expect.objectContaining({ type: 'setPreview' }),
-            );
-        },
-    );
 
     it.each(['closed', 'manual version'])(
         'follows streamed revisions until the preview is %s',

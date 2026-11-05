@@ -1,14 +1,12 @@
-import { Center, Loader, Paper, Stack } from '@mantine/core';
+import { Center, Loader, Paper, Stack, Text } from '@mantine/core';
 import { clsx } from 'clsx';
 import { useMemo, type FC, type ReactNode } from 'react';
-import { ROW_HEIGHT_PX } from '../../../../../components/common/Table/constants';
 import { ChartDataTable } from '../../../../../components/DataViz/visualizations/ChartDataTable';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import styles from './AiArtifactTableVisualization.module.css';
 import { getAiArtifactTableConfig } from './AiArtifactTableVisualization.utils';
 import { useArtifactResultRows } from './useArtifactResultRows';
-
-const TABLE_HEADER_HEIGHT_PX = 34;
 
 type Props = {
     results: InfiniteQueryResults;
@@ -24,6 +22,7 @@ export const AiArtifactTableVisualization: FC<Props> = ({
     loadingMessage,
     flush = false,
 }) => {
+    const uiStrings = useUiStrings();
     const { columns, rows, isLoading } = useArtifactResultRows(results);
     const columnNames = useMemo(
         () => columns.map((column) => column.reference),
@@ -42,13 +41,23 @@ export const AiArtifactTableVisualization: FC<Props> = ({
         );
     }
 
-    const contentHeight = TABLE_HEADER_HEIGHT_PX + rows.length * ROW_HEIGHT_PX;
+    if (columns.length === 0) {
+        return (
+            <Stack gap="md" h="100%" mih={0}>
+                {headerContent}
+                <Paper variant="dotted" p="xl" m={flush ? 'md' : 0}>
+                    <Text size="sm" c="dimmed" ta="center">
+                        {uiStrings('aiAgent.composer.emptyResult')}
+                    </Text>
+                </Paper>
+            </Stack>
+        );
+    }
 
     return (
         <Stack gap="md" h="100%" mih={0}>
             {headerContent}
             <Paper
-                h={contentHeight}
                 mah="100%"
                 mih={0}
                 pos="relative"
@@ -60,7 +69,7 @@ export const AiArtifactTableVisualization: FC<Props> = ({
                     columnNames={columnNames}
                     rows={rows}
                     columnsConfig={getAiArtifactTableConfig(columns).columns}
-                    flexProps={{ h: '100%', mah: '100%' }}
+                    flexProps={{ mih: 0 }}
                 />
             </Paper>
         </Stack>

@@ -49,7 +49,9 @@ describe('getMcpAnalystPrompt', () => {
                 'list_content',
                 'find_content',
             ]);
-            expect(prompt).toContain('explicitly to project-scoped tools');
+            expect(prompt).toContain(
+                'select the project, and the agent when agent-scoped',
+            );
             expect(prompt).toContain('select one explore at the right grain');
             expect(prompt).toContain(
                 'use only exact field IDs returned by discovery',

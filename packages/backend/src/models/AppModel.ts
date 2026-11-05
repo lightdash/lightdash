@@ -6,15 +6,16 @@ import {
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DEFAULT_DATA_APP_VIZ_LIST_SORT,
     generateSlug,
+    normalizeAgentIdentityClaim,
     NotFoundError,
     ProjectType,
+    type AgentIdentityClaim,
     type AppThreadOrigin,
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatusHistoryEntryKind,
     type ChartConfig,
     type DataAppActivityFilters,
-    type DataAppAutoAnalysis,
     type DataAppCodingAgent,
     type DataAppCodingAgentSessionUsage,
     type DataAppGenerationUsage,
@@ -62,6 +63,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { type OnContentVersionCreated } from './OnContentVersionCreated';
 import { getFullTextSearchFilterSql } from './SearchModel/utils/search';
 
 type AppModelArguments = {
@@ -111,6 +113,11 @@ export type PreviewChartVizBindingMapping = {
     sourceAppUuid: string;
     previewAppUuid: string;
     previewAppVersion: number;
+};
+
+export type DbDataAppVizWithLatestReadyVersion = DbApp & {
+    viz_schema: DataAppVizSchema;
+    latest_ready_version: number;
 };
 
 const AppSlugSequence = 'apps_slug_sequence';
@@ -167,6 +174,8 @@ export class AppModel {
             // Defaults to a builder-originated thread 1.
             thread?: Pick<CreateAppThreadArgs, 'origin' | 'aiThreadUuid'>;
         },
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<{ app: DbApp; version: DbAppVersion; thread: DbAppThread }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
@@ -225,6 +234,7 @@ export class AppModel {
             const [versionRow] = await trx(AppVersionsTableName)
                 .insert({
                     ...version,
+                    agent_identity: agentIdentity,
                     app_id: appRow.app_id,
                     app_thread_uuid: thread.app_thread_uuid,
                     status,
@@ -258,6 +268,11 @@ export class AppModel {
                         : null,
                 })
                 .returning('*');
+            await onVersionCreated?.(
+                trx,
+                versionRow.app_version_id,
+                appRow.app_id,
+            );
             return { app: appRow, version: versionRow, thread };
         });
     }
@@ -1059,6 +1074,7 @@ export class AppModel {
             appThreadUuid?: string;
             vizPreview?: DataAppVizPreview | null;
         },
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<DbAppVersion> {
         const appThreadUuid =
             opts?.appThreadUuid ??
@@ -1066,6 +1082,7 @@ export class AppModel {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
                 ...version,
+                agent_identity: agentIdentity,
                 app_id: appId,
                 app_thread_uuid: appThreadUuid,
                 status,
@@ -1110,7 +1127,7 @@ export class AppModel {
         name: string;
         description: string;
         icon: string | null;
-        autoAnalysis: DataAppAutoAnalysis;
+        addAnalysisDismissedAt: Date | null;
         createdByUserUuid: string;
         organizationUuid: string;
         spaceUuid: string | null;
@@ -1178,7 +1195,7 @@ export class AppModel {
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
                 `${AppsTableName}.icon`,
-                `${AppsTableName}.auto_analysis`,
+                `${AppsTableName}.add_analysis_dismissed_at`,
                 `${AppsTableName}.created_by_user_uuid`,
                 `${AppsTableName}.space_uuid`,
                 `${SpaceTableName}.name as space_name`,
@@ -1208,7 +1225,7 @@ export class AppModel {
                 name: string;
                 description: string;
                 icon: string | null;
-                auto_analysis: DataAppAutoAnalysis;
+                add_analysis_dismissed_at: Date | null;
                 created_by_user_uuid: string;
                 space_uuid: string | null;
                 space_name: string | null;
@@ -1233,7 +1250,7 @@ export class AppModel {
             name,
             description,
             icon,
-            auto_analysis: autoAnalysis,
+            add_analysis_dismissed_at: addAnalysisDismissedAt,
             created_by_user_uuid: createdByUserUuid,
             space_uuid: spaceUuid,
             space_name: spaceName,
@@ -1255,7 +1272,7 @@ export class AppModel {
                     name: string;
                     description: string;
                     icon: string | null;
-                    auto_analysis: DataAppAutoAnalysis;
+                    add_analysis_dismissed_at: Date | null;
                     created_by_user_uuid: string;
                     space_uuid: string | null;
                     space_name: string | null;
@@ -1275,7 +1292,7 @@ export class AppModel {
             name,
             description,
             icon,
-            autoAnalysis,
+            addAnalysisDismissedAt,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -1287,11 +1304,10 @@ export class AppModel {
             pinnedListOrder,
             currentThread,
             // getCurrentThread above created thread 1 if it was missing.
-            versions: versions
-                .slice(0, limit)
-                .map((v) =>
-                    resolveVersionThread(v, currentThread.app_thread_uuid),
-                ),
+            versions: versions.slice(0, limit).map((v) => ({
+                ...resolveVersionThread(v, currentThread.app_thread_uuid),
+                agent_identity: normalizeAgentIdentityClaim(v.agent_identity),
+            })),
             hasMore,
             registrySlug,
         };
@@ -1300,9 +1316,7 @@ export class AppModel {
     async updateApp(
         appId: string,
         projectUuid: string,
-        update: Partial<
-            Pick<DbApp, 'name' | 'description' | 'icon' | 'auto_analysis'>
-        >,
+        update: Partial<Pick<DbApp, 'name' | 'description' | 'icon'>>,
     ): Promise<DbApp> {
         const [row] = await this.database(AppsTableName)
             .where({ app_id: appId, project_uuid: projectUuid })
@@ -1313,6 +1327,20 @@ export class AppModel {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    /** Idempotent: re-dismissing refreshes the timestamp, which is harmless. */
+    async dismissAddAnalysisOffer(
+        appId: string,
+        projectUuid: string,
+    ): Promise<void> {
+        const count = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({ add_analysis_dismissed_at: new Date() });
+        if (count === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
     }
 
     async updateDesignUuid(
@@ -1450,9 +1478,7 @@ export class AppModel {
         paginateArgs?: KnexPaginateArgs,
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
-    ): Promise<
-        KnexPaginatedData<(DbApp & { viz_schema: DataAppVizSchema })[]>
-    > {
+    ): Promise<KnexPaginatedData<DbDataAppVizWithLatestReadyVersion[]>> {
         const query = this.joinLatestReadyVersion(this.database(AppsTableName))
             .where({
                 [`${AppsTableName}.project_uuid`]: projectUuid,
@@ -1460,9 +1486,10 @@ export class AppModel {
             })
             .whereNull(`${AppsTableName}.deleted_at`)
             .whereNotNull(`${AppVersionsTableName}.viz_schema`)
-            .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
+            .select<DbDataAppVizWithLatestReadyVersion[]>(
                 `${AppsTableName}.*`,
                 `${AppVersionsTableName}.viz_schema`,
+                this.database.ref('lrv.version').as('latest_ready_version'),
             );
         const sortColumn: Record<DataAppVizListSort['sortBy'], string> = {
             createdAt: 'created_at',
@@ -1567,7 +1594,7 @@ export class AppModel {
     async findDataAppVisualizationBySlug(
         projectUuid: string,
         slug: string,
-    ): Promise<(DbApp & { viz_schema: DataAppVizSchema }) | undefined> {
+    ): Promise<DbDataAppVizWithLatestReadyVersion | undefined> {
         return this.joinLatestReadyVersion(this.database(AppsTableName))
             .where({
                 [`${AppsTableName}.project_uuid`]: projectUuid,
@@ -1576,9 +1603,10 @@ export class AppModel {
             })
             .whereNull(`${AppsTableName}.deleted_at`)
             .whereNotNull(`${AppVersionsTableName}.viz_schema`)
-            .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
+            .select<DbDataAppVizWithLatestReadyVersion[]>(
                 `${AppsTableName}.*`,
                 `${AppVersionsTableName}.viz_schema`,
+                this.database.ref('lrv.version').as('latest_ready_version'),
             )
             .first();
     }
@@ -2357,6 +2385,43 @@ export class AppModel {
                AND v.status <> ALL(?::text[])
                AND v.status_updated_at < now() - ?::interval`,
             [[...terminalStatuses], threshold],
+        );
+        return result.rowCount ?? 0;
+    }
+
+    /**
+     * Error out `pending` versions that have sat past `threshold` with no
+     * live graphile job behind them. A version only reaches `pending`
+     * legitimately for the milliseconds between its insert and its job's
+     * insert; anything older with no job (or only an exhausted one) was
+     * orphaned by a failed request and would otherwise hold a build slot
+     * forever. A job is live when it is locked by a worker or has attempts
+     * remaining: graphile-worker bumps `attempts` at lock time, so a job on
+     * its final attempt has attempts == max_attempts while it runs. Queued-
+     * but-waiting builds have a live job and are left alone.
+     */
+    async failOrphanedPendingVersions(threshold: string): Promise<number> {
+        const result = await this.database.raw<{ rowCount: number }>(
+            `UPDATE app_versions v
+             SET status = 'error',
+                 error = ?,
+                 status_message = ?,
+                 status_updated_at = now()
+             WHERE v.status = 'pending'
+               AND COALESCE(v.status_updated_at, v.created_at) < now() - ?::interval
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM graphile_worker.jobs j
+                   WHERE j.task_identifier IN ('appGeneratePipeline', 'appBuildFromSource')
+                     AND (j.locked_at IS NOT NULL OR j.attempts < j.max_attempts)
+                     AND (j.payload->>'appUuid')::uuid = v.app_id
+                     AND (j.payload->>'version')::int = v.version
+               )`,
+            [
+                'No build job was queued for this version; released by the stale-version sweep.',
+                'Build never started',
+                threshold,
+            ],
         );
         return result.rowCount ?? 0;
     }

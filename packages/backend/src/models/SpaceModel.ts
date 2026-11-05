@@ -138,7 +138,7 @@ const toCascadedDocuments = (rows: DocumentUuidRow[]): CascadedDocument[] =>
     }));
 
 export class SpaceModel {
-    private database: Knex;
+    readonly database: Knex;
 
     public MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: number;
 
@@ -224,6 +224,19 @@ export class SpaceModel {
                 slug: `${SpaceTableName}.slug`,
             });
         return row ?? null;
+    }
+
+    async getSpaceNames(
+        spaceUuids: string[],
+    ): Promise<Array<{ uuid: string; name: string }>> {
+        if (spaceUuids.length === 0) return [];
+        return this.database(SpaceTableName)
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select<Array<{ uuid: string; name: string }>>({
+                uuid: `${SpaceTableName}.space_uuid`,
+                name: `${SpaceTableName}.name`,
+            });
     }
 
     async getSpacesByProjectUuid(

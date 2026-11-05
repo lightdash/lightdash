@@ -1,5 +1,5 @@
 import { Ability } from '@casl/ability';
-import { FeatureFlags, ProjectType } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -7,14 +7,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LearnLink } from './LearnLink';
 
 const mocks = vi.hoisted(() => ({
-    useServerFeatureFlag: vi.fn(),
     useProjects: vi.fn(),
     useApp: vi.fn(),
 }));
 
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: mocks.useServerFeatureFlag,
-}));
 vi.mock('../../hooks/useProjects', () => ({
     useProjects: mocks.useProjects,
 }));
@@ -23,43 +19,35 @@ vi.mock('../../providers/App/useApp', () => ({
     default: mocks.useApp,
 }));
 
+// No feature flag is mocked: the link depends only on the user's Learn
+// ability and the project type.
 describe('LearnLink', () => {
     afterEach(cleanup);
 
     it.each([
         {
-            enabled: undefined,
-            type: ProjectType.DEFAULT,
-            visible: false,
-            canViewLearn: true,
-        },
-        {
-            enabled: false,
-            type: ProjectType.DEFAULT,
-            visible: false,
-            canViewLearn: true,
-        },
-        {
-            enabled: true,
             type: ProjectType.DEFAULT,
             visible: true,
             canViewLearn: true,
         },
         {
-            enabled: true,
+            type: ProjectType.TRAINING,
+            visible: true,
+            canViewLearn: true,
+        },
+        {
             type: ProjectType.PREVIEW,
             visible: false,
             canViewLearn: true,
         },
         {
-            enabled: true,
             type: ProjectType.DEFAULT,
             visible: false,
             canViewLearn: false,
         },
     ])(
-        'renders with flag $enabled and Learn access $canViewLearn on $type: $visible',
-        ({ enabled, type, visible, canViewLearn }) => {
+        'renders with Learn access $canViewLearn on $type: $visible',
+        ({ type, visible, canViewLearn }) => {
             mocks.useApp.mockReturnValue({
                 user: {
                     data: {
@@ -80,12 +68,6 @@ describe('LearnLink', () => {
                     },
                 },
             });
-            mocks.useServerFeatureFlag.mockReturnValue({
-                data:
-                    enabled === undefined
-                        ? undefined
-                        : { id: FeatureFlags.EnableLearn, enabled },
-            });
             mocks.useProjects.mockReturnValue({
                 data: [{ projectUuid: 'project', type }],
             });
@@ -99,9 +81,6 @@ describe('LearnLink', () => {
             expect(
                 screen.queryByRole('button', { name: 'Learn' }) !== null,
             ).toBe(visible);
-            expect(mocks.useServerFeatureFlag).toHaveBeenCalledWith(
-                FeatureFlags.EnableLearn,
-            );
         },
     );
 });

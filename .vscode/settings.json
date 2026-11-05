@@ -8,10 +8,6 @@
         "packages/frontend/node_modules/@mantine-8/core/styles.css"
     ],
     "yaml.schemas": {
-        "https://raw.githubusercontent.com/okteto/okteto/master/schema.json": [
-            "okteto.yaml",
-            "okteto.preview.yaml"
-        ],
         "https://raw.githubusercontent.com/lightdash/lightdash/main/packages/common/src/schemas/json/lightdash-dbt-2.0.json": [
             "/**/models/**/*.yml",
             "/**/models/**/*.yaml"

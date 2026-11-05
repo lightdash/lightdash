@@ -15,6 +15,7 @@ import {
     S3CacheClient,
     type S3CacheClientArguments,
 } from '../Aws/S3CacheClient';
+import { destroyS3Body } from '../Aws/s3Streams';
 
 export class S3ResultsFileStorageClient extends S3CacheClient {
     private readonly s3ExpiresIn: number | undefined;
@@ -204,7 +205,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                     buffer += chunk.toString();
                     const newlineIndex = buffer.indexOf('\n');
                     if (newlineIndex !== -1) {
-                        stream.destroy(); // Stop reading after first line
+                        destroyS3Body(stream); // Stop reading after first line
                         resolve(buffer.slice(0, newlineIndex));
                     }
                 };

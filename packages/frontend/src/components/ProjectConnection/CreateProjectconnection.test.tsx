@@ -6,21 +6,20 @@ import {
     WarehouseTypes,
     type Job,
 } from '@lightdash/common';
+import { notifications } from '@mantine/notifications';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import ActiveJobProvider from '../../providers/ActiveJob/ActiveJobProvider';
 import { renderWithProviders } from '../../testing/testUtils';
 import CreateProjectConnection from './CreateProjectconnection';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const ACTIVE_JOB_URL = '/org/jobs/create-project/active';
 const CREATE_PROJECT_URL = '/org/projects/precompiled';
@@ -63,7 +62,7 @@ const buildJob = (overrides: Partial<Job> = {}): Job =>
         ...overrides,
     }) as Job;
 
-type ApiCall = { url: string; method: string };
+type ApiCall = { url: string; method: string; body?: string };
 
 const routeApi = (handlers: {
     activeJob: () => unknown;
@@ -71,8 +70,8 @@ const routeApi = (handlers: {
     createProject?: () => unknown;
 }) => {
     const calls: ApiCall[] = [];
-    mockApi.mockImplementation(({ url, method }: ApiCall) => {
-        calls.push({ url, method });
+    mockApi.mockImplementation(({ url, method, body }: ApiCall) => {
+        calls.push({ url, method, body });
         if (url === ACTIVE_JOB_URL) {
             return Promise.resolve(handlers.activeJob());
         }
@@ -103,12 +102,37 @@ const renderFlow = () =>
         </MemoryRouter>,
     );
 
+const renderWarehouseOnlyProjectFlow = () =>
+    renderWithProviders(
+        <MemoryRouter initialEntries={['/createProject']}>
+            <ActiveJobProvider>
+                <CreateProjectConnection
+                    isCreatingFirstProject={false}
+                    selectedWarehouse={WarehouseTypes.POSTGRES}
+                    warehouseOnly
+                />
+            </ActiveJobProvider>
+        </MemoryRouter>,
+    );
+
 const renderProjectFlow = () =>
     renderWithProviders(
         <MemoryRouter initialEntries={['/projects/new']}>
             <ActiveJobProvider>
                 <CreateProjectConnection
                     isCreatingFirstProject={false}
+                    selectedWarehouse={WarehouseTypes.POSTGRES}
+                />
+            </ActiveJobProvider>
+        </MemoryRouter>,
+    );
+
+const renderOnboardingDbtFlow = () =>
+    renderWithProviders(
+        <MemoryRouter initialEntries={['/onboarding/dbt']}>
+            <ActiveJobProvider>
+                <CreateProjectConnection
+                    isCreatingFirstProject
                     selectedWarehouse={WarehouseTypes.POSTGRES}
                 />
             </ActiveJobProvider>
@@ -125,9 +149,61 @@ const fillConnectionForm = async () => {
     return user;
 };
 
+const getPostedProjectName = (calls: ApiCall[]) => {
+    const createCall = calls.find(({ url }) => url === CREATE_PROJECT_URL);
+    return createCall?.body ? JSON.parse(createCall.body).name : undefined;
+};
+
+describe('CreateProjectConnection project name', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('asks for a project name when connecting a warehouse to an organization that already has projects', async () => {
+        const calls = routeApi({ activeJob: () => null });
+
+        renderWarehouseOnlyProjectFlow();
+
+        const nameInput = await screen.findByLabelText(/^Project name/);
+        expect(nameInput).toHaveValue('');
+
+        const user = await fillConnectionForm();
+        const submit = screen.getByRole('button', { name: 'Test & save' });
+        expect(submit).toBeDisabled();
+
+        await user.type(nameInput, 'Finance warehouse');
+        expect(submit).toBeEnabled();
+
+        await user.click(submit);
+
+        await waitFor(() =>
+            expect(getPostedProjectName(calls)).toBe('Finance warehouse'),
+        );
+    });
+
+    it('names the first project after the organization without asking', async () => {
+        const calls = routeApi({ activeJob: () => null });
+
+        renderFlow();
+
+        await screen.findByLabelText(/^Host/);
+        expect(
+            screen.queryByLabelText(/^Project name/),
+        ).not.toBeInTheDocument();
+
+        const user = await fillConnectionForm();
+        await user.click(screen.getByRole('button', { name: 'Test & save' }));
+
+        await waitFor(() =>
+            expect(getPostedProjectName(calls)).toBe('Jaffle Shop'),
+        );
+    });
+});
+
 describe('CreateProjectConnection in-flight job recovery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        notifications.clean();
     });
 
     it('resumes the creating state when a create-project job is already in flight', async () => {
@@ -138,9 +214,7 @@ describe('CreateProjectConnection in-flight job recovery', () => {
         expect(
             await screen.findByText('Creating your project'),
         ).toBeInTheDocument();
-        expect(screen.getByText('Testing adaptor')).toBeInTheDocument();
-        expect(screen.getByText('Creating project')).toBeInTheDocument();
-        expect(screen.getByText('0/2 steps complete')).toBeInTheDocument();
+        expect(screen.getByText('Testing the connection')).toBeInTheDocument();
 
         expect(screen.queryByLabelText(/^Host/)).not.toBeInTheDocument();
         expect(
@@ -252,6 +326,30 @@ describe('CreateProjectConnection in-flight job recovery', () => {
         expect(
             calls.filter(({ url }) => url === CREATE_PROJECT_URL),
         ).toHaveLength(1);
+    });
+
+    it('shows the running job toast outside onboarding', async () => {
+        routeApi({ activeJob: () => buildJob() });
+
+        renderProjectFlow();
+
+        expect(await screen.findByText('View log')).toBeInTheDocument();
+    });
+
+    it('keeps the running job inline on the onboarding dbt step', async () => {
+        const calls = routeApi({ activeJob: () => buildJob() });
+
+        renderOnboardingDbtFlow();
+
+        expect(
+            await screen.findByText('Creating your project'),
+        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(
+                calls.some(({ url }) => url === `/jobs/${IN_FLIGHT_JOB_UUID}`),
+            ).toBe(true),
+        );
+        expect(screen.queryByText('View log')).not.toBeInTheDocument();
     });
 
     it('surfaces the failing step when the resumed job errors', async () => {

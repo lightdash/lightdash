@@ -10,14 +10,16 @@ import {
     type LiveActivityToolGroup,
 } from './LiveActivityCard';
 
-const composerToolGroups: LiveActivityToolGroup[] = [
+const buildComposerToolGroups = (
+    toolName: 'query' | 'runComposerQueries',
+): LiveActivityToolGroup[] => [
     {
         keyId: 'composer-call',
-        toolName: 'runComposerQueries',
+        toolName,
         calls: [
             {
                 toolCallId: 'composer-call',
-                toolName: 'runComposerQueries',
+                toolName,
                 toolArgs: {
                     title: 'Compare targets',
                     description: null,
@@ -39,66 +41,82 @@ const composerToolGroups: LiveActivityToolGroup[] = [
     },
 ];
 
-describe('LiveActivityCard composer queries', () => {
-    const runningTargets = [
-        {
-            message: 'Running "targets"',
-            toolName: 'runComposerQueries',
-            progressId: 'composer-call:targets',
-            progressStatus: 'in_progress' as const,
-        },
-    ];
+const composerToolGroups = buildComposerToolGroups('runComposerQueries');
 
-    it('shows the running node SQL by default while the query is running', async () => {
-        renderWithProviders(
-            <LiveActivityCard
-                isLive
-                toolGroups={composerToolGroups}
-                stepProgressMessages={runningTargets}
-            />,
-        );
+describe.each(['query', 'runComposerQueries'] as const)(
+    'LiveActivityCard composer queries (%s)',
+    (toolName) => {
+        const composerToolGroups = buildComposerToolGroups(toolName);
+        const runningTargets = [
+            {
+                message: 'Running "targets"',
+                toolName,
+                progressId: 'composer-call:targets',
+                progressStatus: 'in_progress' as const,
+            },
+        ];
 
-        await waitFor(() =>
-            expect(screen.getByText('External data')).toBeVisible(),
-        );
-        expect(screen.getByRole('button', { name: 'Copy' })).toBeVisible();
-    });
+        it('keeps the running node SQL collapsed while the query is running', async () => {
+            renderWithProviders(
+                <LiveActivityCard
+                    isLive
+                    toolGroups={composerToolGroups}
+                    stepProgressMessages={runningTargets}
+                />,
+            );
 
-    it('collapses the steps once the run finishes', async () => {
-        const { rerender } = renderWithProviders(
-            <LiveActivityCard
-                isLive
-                toolGroups={composerToolGroups}
-                stepProgressMessages={runningTargets}
-            />,
-        );
-        await waitFor(() =>
-            expect(screen.getByText('External data')).toBeVisible(),
-        );
+            await waitFor(() =>
+                expect(screen.getByText('External data')).toBeVisible(),
+            );
+            expect(
+                screen.getByRole('button', { name: /Revenue targets/ }),
+            ).toHaveAttribute('aria-expanded', 'false');
+        });
 
-        rerender(
-            <LiveActivityCard isLive={false} toolGroups={composerToolGroups} />,
-        );
+        it('collapses the steps once the run finishes', async () => {
+            const { rerender } = renderWithProviders(
+                <LiveActivityCard
+                    isLive
+                    toolGroups={composerToolGroups}
+                    stepProgressMessages={runningTargets}
+                />,
+            );
+            await waitFor(() =>
+                expect(screen.getByText('External data')).toBeVisible(),
+            );
 
-        await waitFor(() =>
+            rerender(
+                <LiveActivityCard
+                    isLive={false}
+                    toolGroups={composerToolGroups}
+                />,
+            );
+
+            await waitFor(() =>
+                expect(
+                    screen.getByRole('button', { expanded: false }),
+                ).toBeVisible(),
+            );
+            expect(screen.queryByText('External data')).not.toBeVisible();
+        });
+
+        it('starts collapsed for a finished run', () => {
+            renderWithProviders(
+                <LiveActivityCard
+                    isLive={false}
+                    toolGroups={composerToolGroups}
+                />,
+            );
             expect(
                 screen.getByRole('button', { expanded: false }),
-            ).toBeVisible(),
-        );
-        expect(screen.queryByText('External data')).not.toBeVisible();
-    });
-
-    it('starts collapsed for a finished run', () => {
-        renderWithProviders(
-            <LiveActivityCard isLive={false} toolGroups={composerToolGroups} />,
-        );
-        expect(screen.getByRole('button', { expanded: false })).toBeVisible();
-        expect(screen.queryByText('External data')).not.toBeVisible();
-    });
-});
+            ).toBeVisible();
+            expect(screen.queryByText('External data')).not.toBeVisible();
+        });
+    },
+);
 
 describe('LiveActivityCard composer failure', () => {
-    it('marks a node failed when the call errors while it was running', () => {
+    it('shows no status on a node when the call errors while it was running', () => {
         const failedGroups: LiveActivityToolGroup[] = [
             {
                 ...composerToolGroups[0],
@@ -129,16 +147,16 @@ describe('LiveActivityCard composer failure', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Failed')).toBeInTheDocument();
-        const openRows = screen
-            .getAllByRole('button', { expanded: true })
-            .filter((row) => row.textContent?.includes('Revenue targets'));
-        expect(openRows).toHaveLength(1);
+        expect(screen.queryByLabelText('Failed')).not.toBeInTheDocument();
+        const failedRow = screen
+            .getAllByRole('button', { expanded: false })
+            .find((row) => row.textContent?.includes('Revenue targets'));
+        expect(failedRow).toBeDefined();
     });
 });
 
 describe('LiveActivityCard composer submission failure', () => {
-    it('marks every node failed when the call errors before any node starts', () => {
+    it('shows no failed status when the call errors before any node starts', () => {
         const failedGroups: LiveActivityToolGroup[] = [
             {
                 ...composerToolGroups[0],
@@ -158,7 +176,8 @@ describe('LiveActivityCard composer submission failure', () => {
             <LiveActivityCard isLive toolGroups={failedGroups} />,
         );
 
-        expect(screen.getByLabelText('Failed')).toBeInTheDocument();
+        expect(screen.getByText('Revenue targets')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Failed')).not.toBeInTheDocument();
     });
 });
 
@@ -202,6 +221,7 @@ describe('LiveActivityCard composer approval', () => {
                         agentUuid: 'agent',
                         threadUuid: 'thread',
                         pendingToolCallIds: ['composer-approval'],
+                        decidedToolCallIds: [],
                     }}
                 />
             </Provider>,
@@ -245,6 +265,7 @@ describe('LiveActivityCard runSql', () => {
                         agentUuid: 'agent',
                         threadUuid: 'thread',
                         pendingToolCallIds: ['sql-call'],
+                        decidedToolCallIds: [],
                     }}
                 />
             </Provider>,
@@ -252,6 +273,94 @@ describe('LiveActivityCard runSql', () => {
         expect(screen.getByText('awaiting approval')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
         expect(screen.getByRole('button', { name: 'Reject' })).toBeVisible();
+    });
+
+    it('collapses once the approval is decided', () => {
+        const approval = {
+            projectUuid: 'project',
+            agentUuid: 'agent',
+            threadUuid: 'thread',
+        };
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlToolGroups}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: ['sql-call'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlToolGroups}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: ['sql-call'],
+                    }}
+                />
+            </Provider>,
+        );
+        expect(
+            screen.getByRole('button', { name: /Running SQL query/ }),
+        ).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('keeps a group that streams in as the approval clears expanded', () => {
+        const approval = {
+            projectUuid: 'project',
+            agentUuid: 'agent',
+            threadUuid: 'thread',
+        };
+        const nextGroup: LiveActivityToolGroup = {
+            keyId: 'sql-call-2',
+            toolName: 'runSql',
+            calls: [
+                {
+                    toolCallId: 'sql-call-2',
+                    toolName: 'runSql',
+                    toolArgs: { sql: 'select 2 as two', limit: 10 },
+                },
+            ],
+        };
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlToolGroups}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: ['sql-call'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={[...sqlToolGroups, nextGroup]}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: ['sql-call'],
+                    }}
+                />
+            </Provider>,
+        );
+        expect(
+            screen.getByRole('button', { name: /Running SQL query/ }),
+        ).toHaveAttribute('aria-expanded', 'true');
     });
 
     it('keeps a user collapse when the stream ends', async () => {
@@ -265,5 +374,49 @@ describe('LiveActivityCard runSql', () => {
             <LiveActivityCard isLive={false} toolGroups={sqlToolGroups} />,
         );
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
+    });
+});
+
+describe('LiveActivityCard reasoning', () => {
+    const reasoning = { texts: ['Checking the orders model'], isLive: false };
+
+    it('renders reasoning alone when there are no tool groups', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={[]}
+                reasoning={reasoning}
+            />,
+        );
+        expect(screen.getByText('Reasoning')).toBeVisible();
+    });
+
+    it('renders nothing without tool groups or reasoning', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={[]}
+                reasoning={{ texts: [], isLive: false }}
+            />,
+        );
+        expect(screen.queryByText('Reasoning')).toBeNull();
+    });
+
+    it('renders reasoning as the first item of the card body', async () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={composerToolGroups}
+                reasoning={reasoning}
+            />,
+        );
+        expect(screen.getByText('Reasoning')).not.toBeVisible();
+
+        await userEvent.click(screen.getAllByRole('button')[0]);
+
+        const reasoningRow = screen.getByText('Reasoning');
+        await waitFor(() => expect(reasoningRow).toBeVisible());
+        // First control after the card header is the reasoning row.
+        expect(screen.getAllByRole('button')[1]).toContainElement(reasoningRow);
     });
 });

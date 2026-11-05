@@ -8,10 +8,14 @@ import {
     useQueryClient,
     type UseMutationOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { type UserWithAbility } from './useUser';
 
-const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
+const updateUserQuery = async (
+    lightdashApi: LightdashApi,
+    data: Partial<UpdateUserArgs>,
+) =>
     lightdashApi<LightdashUser>({
         url: `/user/me`,
         method: 'PATCH',
@@ -25,10 +29,12 @@ export const useUserUpdateMutation = (
         Partial<UpdateUserArgs>
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<LightdashUser, ApiError, Partial<UpdateUserArgs>>({
         mutationKey: ['user_update'],
-        mutationFn: updateUserQuery,
+        mutationFn: (data: Partial<UpdateUserArgs>) =>
+            updateUserQuery(lightdashApi, data),
         ...useMutationOptions,
         onSuccess: async (data, variables, context) => {
             // The PATCH response is fresh; a refetch can race a stale server-side session cache

@@ -24,13 +24,7 @@
 
 .suggestionItem:hover,
 .suggestionItem[data-selected='true'] {
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-1);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-    }
+    background-color: var(--mantine-color-ldGray-1);
 }
 
 .itemDescription {
@@ -51,10 +45,6 @@
     margin-top: var(--mantine-spacing-xxs);
     border-top: 1px solid var(--mantine-color-ldGray-2);
     padding-top: 6px;
-
-    @mixin dark {
-        border-top-color: var(--mantine-color-ldDark-4);
-    }
 }
 
 .footer {
@@ -64,10 +54,6 @@
     background-color: var(--mantine-color-ldGray-0);
     color: var(--mantine-color-dimmed);
     font-size: var(--mantine-font-size-xs);
-
-    @mixin dark {
-        border-top-color: var(--mantine-color-ldDark-4);
-    }
 }
 
 .kbd {
@@ -81,9 +67,4 @@
     color: var(--mantine-color-text);
     border: 1px solid var(--mantine-color-ldGray-3);
     box-shadow: 0 1px 0 0 var(--mantine-color-ldGray-3);
-
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-3);
-        border-color: var(--mantine-color-ldDark-5);
-    }
 }

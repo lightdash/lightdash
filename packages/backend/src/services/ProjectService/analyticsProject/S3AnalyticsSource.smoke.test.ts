@@ -45,6 +45,10 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 `events/compacted/org_id=${org}/stream=ai_usage/dt=2026-09-07/part.parquet`,
                 `events/compacted/org_id=${otherOrg}/stream=query_events/dt=2026-09-07/part.parquet`,
                 `events/compacted/org_id=${org}/stream=query_events/dt=2025-09-07/part.parquet`,
+                ...['charts', 'dashboards', 'content', 'users', 'people'].map(
+                    (dimension) =>
+                        `events/compacted/org_id=${org}/dim=${dimension}/${dimension}.parquet`,
+                ),
             ];
             const client = createS3ClientFromConfig(storage);
             const directory = await mkdtemp(
@@ -52,6 +56,10 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
             );
             const fixture = path.join(directory, 'fixture.parquet');
             const replacement = path.join(directory, 'replacement.parquet');
+            const legacyDimensions = path.join(
+                directory,
+                'legacy-dimensions.parquet',
+            );
             const historicalFixture = path.join(
                 directory,
                 'historical.parquet',
@@ -61,6 +69,9 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 const instance = await DuckDBInstance.create(':memory:');
                 const db = await instance.connect();
                 try {
+                    await db.run(
+                        `COPY (SELECT '${org}' AS org_id, 'legacy' AS name, 'legacy' AS content_name, 'chart' AS chart_id, 'dashboard' AS dashboard_id, 'content' AS content_id) TO '${legacyDimensions}' (FORMAT PARQUET)`,
+                    );
                     await db.run(
                         `COPY (SELECT 42::INTEGER AS tokens, TIMESTAMP '2026-09-07' AS event_ts, 7::INTEGER AS new_metric) TO '${fixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
                     );
@@ -80,18 +91,23 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 created = true;
                 const body = await readFile(fixture);
                 const historicalBody = await readFile(historicalFixture);
+                const legacyDimensionsBody = await readFile(legacyDimensions);
                 await Promise.all(
-                    keys.map((Key) =>
-                        client.send(
+                    keys.map((Key) => {
+                        let snapshotBody = body;
+                        if (Key.includes('/dim=')) {
+                            snapshotBody = legacyDimensionsBody;
+                        } else if (Key.includes('/dt=2025-09-07/')) {
+                            snapshotBody = historicalBody;
+                        }
+                        return client.send(
                             new PutObjectCommand({
                                 Bucket: storage.bucket,
                                 Key,
-                                Body: Key.includes('/dt=2025-09-07/')
-                                    ? historicalBody
-                                    : body,
+                                Body: snapshotBody,
                             }),
-                        ),
-                    ),
+                        );
+                    }),
                 );
                 const resolveSource = vi.fn(
                     createS3AnalyticsSourceResolver({
@@ -214,7 +230,9 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 ).rejects.toThrow(/catalog access/);
                 const source = await resolveSource();
                 expect(source).not.toHaveProperty('s3Config');
-                const url = source.tables[0].urls[0];
+                const [url] = await source.getSignedUrls!([
+                    source.tables[0].urls[0],
+                ]);
                 const otherPath = url.replace(org, otherOrg);
                 const denied = await fetch(otherPath);
                 expect(denied.status).toBe(403);
@@ -307,6 +325,41 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                         )
                     ).rows,
                 ).toEqual([{ total: '42' }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, url FROM lightdash_charts',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', url: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, url FROM lightdash_dashboards',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', url: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT content_name, content_url FROM lightdash_content',
+                        )
+                    ).rows,
+                ).toEqual([{ content_name: 'legacy', content_url: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, email FROM lightdash_users',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', email: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, email FROM lightdash_people',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', email: null }]);
             } finally {
                 if (created) {
                     await Promise.all(
@@ -326,6 +379,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 client.destroy();
                 await rm(fixture, { force: true });
                 await rm(replacement, { force: true });
+                await rm(legacyDimensions, { force: true });
                 await rm(historicalFixture, { force: true });
                 await rmdir(directory);
             }

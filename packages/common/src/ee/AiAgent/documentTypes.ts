@@ -1,8 +1,35 @@
+import { ParameterError } from '../../types/errors';
+
 export const AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES = 20 * 1024;
 export const AI_AGENT_DOCUMENT_MAX_NAME_LENGTH = 255;
 export const AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES = 5 * 1024 * 1024;
 
 export type AiAgentDocumentRelevance = 'high' | 'medium' | 'low' | 'none';
+
+export type AiAgentDocumentMimeType = 'text/markdown' | 'text/plain';
+
+export const getAiAgentDocumentFileExtension = (
+    mimeType: AiAgentDocumentMimeType,
+): '.md' | '.txt' => (mimeType === 'text/plain' ? '.txt' : '.md');
+
+export const getAiAgentDocumentMimeType = (
+    fileName: string,
+): AiAgentDocumentMimeType =>
+    fileName.toLowerCase().endsWith('.txt') ? 'text/plain' : 'text/markdown';
+
+/** Trims the name and rejects an empty or over-long one. */
+export const normalizeAiAgentDocumentName = (name: string): string => {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) {
+        throw new ParameterError('Document name cannot be empty');
+    }
+    if (trimmed.length > AI_AGENT_DOCUMENT_MAX_NAME_LENGTH) {
+        throw new ParameterError(
+            `Document name cannot exceed ${AI_AGENT_DOCUMENT_MAX_NAME_LENGTH} characters`,
+        );
+    }
+    return trimmed;
+};
 
 export type AiAgentDocumentStructuredSummary = {
     description: string;
@@ -79,6 +106,8 @@ export type ApiUpdateAgentDocument = {
 export type ApiUpdateAgentDocumentContent = {
     name: string;
     content: string;
+    // Omitted = keep the stored type
+    mimeType?: AiAgentDocumentMimeType;
 };
 
 export type ApiAiAgentDocumentResponse = {
@@ -86,9 +115,17 @@ export type ApiAiAgentDocumentResponse = {
     results: AiAgentDocument;
 };
 
+// Content as Code last applied this document and the project syncs with
+// its repo, so the UI cannot change it.
+// An interface so the OpenAPI schema stays a flat object rather than an
+// allOf, which the API diff tooling reads as a type change.
+export interface AiAgentDocumentListItem extends AiAgentDocumentSummary {
+    managedByContentAsCode: boolean;
+}
+
 export type ApiAiAgentDocumentSummaryListResponse = {
     status: 'ok';
-    results: AiAgentDocumentSummary[];
+    results: AiAgentDocumentListItem[];
 };
 
 export type ApiAiAgentDocumentContentResponse = {

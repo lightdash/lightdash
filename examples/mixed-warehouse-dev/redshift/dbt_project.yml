@@ -1,0 +1,6 @@
+name: redshift_dev
+version: '1.0.0'
+config-version: 2
+profile: redshift_dev
+model-paths: ['models']
+target-path: target

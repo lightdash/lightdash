@@ -59,15 +59,16 @@ export type SettingsNavigationSection = {
  * router, sidebar nav, and a future settings search all derive from it.
  */
 export type SettingsContext = {
+    showMyAgentConnections: boolean;
+    isMyAgentConnectionsLoading: boolean;
     user: UserWithAbility | undefined;
     health: HealthState | undefined;
     organization: Organization | undefined;
     project: Project | undefined;
     showImpersonationPanel: boolean | undefined;
     isCustomRolesEnabled: boolean | undefined;
-    isProLimitsEnabled: boolean;
     canAccessAnalyticsSettings: boolean;
-    isAnalyticsProjectFlagLoading: boolean;
+    isAnalyticsProjectLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
     // Org admin and a contract in force.
     canAccessAiCredits: boolean;
@@ -86,16 +87,19 @@ export type SettingsContext = {
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
     dataAppAnalysisFlag: FeatureFlag | undefined;
-    /** Data apps > General has one flagged setting, so its sidebar entry follows it. */
-    isDataAppGeneralSettingsEnabled: boolean;
+    dashboardAnalysisFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    isApiQuerySourcesEnabled: boolean;
+    // Chart Studio uses org themes, so it opens Themes without data apps.
+    isChartStudioAvailable: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
     isResultsCacheEnabled: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
     isGroupManagementEnabled: boolean;
-    isWarehouseCredentialsEnabled: boolean;
+    isAgentIdentityEnabled: boolean;
+    isAgentIdentityFlagLoading: boolean;
     isGitProject: boolean;
     /** Which project settings the user can open; see `getProjectSettingsAccess`. */
     projectSettingsAccess: ProjectSettingsAccess;

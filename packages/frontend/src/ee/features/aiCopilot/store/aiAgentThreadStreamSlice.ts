@@ -1,3 +1,4 @@
+import { type AiAccessRefusal } from '@lightdash/common';
 import {
     createSlice,
     prepareAutoBatched,
@@ -45,7 +46,8 @@ export type AiAgentThreadStreamConnection =
     | { status: 'recovering' }
     | { status: 'polling' }
     | { status: 'complete' }
-    | { status: 'error'; error: string };
+    | { status: 'error'; error: string }
+    | { status: 'refused'; refusal: AiAccessRefusal };
 
 const activeConnectionStatuses = {
     streaming: true,
@@ -53,6 +55,7 @@ const activeConnectionStatuses = {
     polling: true,
     complete: false,
     error: false,
+    refused: false,
 } satisfies Record<AiAgentThreadStreamConnection['status'], boolean>;
 
 const recoveryConnectionStatuses = {
@@ -61,6 +64,7 @@ const recoveryConnectionStatuses = {
     polling: true,
     complete: false,
     error: false,
+    refused: false,
 } satisfies Record<AiAgentThreadStreamConnection['status'], boolean>;
 
 export const isAiAgentThreadStreamActive = (
@@ -99,6 +103,10 @@ const dedupeStreamParts = (parts: StreamPart[]): StreamPart[] => {
 export interface AiAgentThreadStreamingState {
     threadUuid: string;
     messageUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+    // The server settles this turn's SQL approvals itself.
+    autoApproveSql: boolean;
     content: string;
     parts: StreamPart[];
     connection: AiAgentThreadStreamConnection;
@@ -127,7 +135,12 @@ type State = Record<string, AiAgentThreadStreamingState>;
 const initialState: State = {};
 const initialThread: Omit<
     AiAgentThreadStreamingState,
-    'threadUuid' | 'messageUuid' | 'timing'
+    | 'threadUuid'
+    | 'messageUuid'
+    | 'projectUuid'
+    | 'agentUuid'
+    | 'autoApproveSql'
+    | 'timing'
 > = {
     content: '',
     parts: [],
@@ -144,13 +157,21 @@ export const aiAgentThreadStreamSlice = createSlice({
     reducers: {
         startStreaming: (
             state,
-            action: PayloadAction<{ threadUuid: string; messageUuid: string }>,
+            action: PayloadAction<
+                Pick<
+                    AiAgentThreadStreamingState,
+                    | 'threadUuid'
+                    | 'messageUuid'
+                    | 'projectUuid'
+                    | 'agentUuid'
+                    | 'autoApproveSql'
+                >
+            >,
         ) => {
-            const { threadUuid, messageUuid } = action.payload;
+            const { threadUuid } = action.payload;
 
             state[threadUuid] = {
-                threadUuid,
-                messageUuid,
+                ...action.payload,
                 ...initialThread,
                 timing: {
                     startedAt: Date.now(),
@@ -300,6 +321,20 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.timing.finishedAt ??= Date.now();
             }
         },
+        setAccessRefusal: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                refusal: AiAccessRefusal;
+            }>,
+        ) => {
+            const { threadUuid, refusal } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.connection = { status: 'refused', refusal };
+                streamingThread.timing.finishedAt ??= Date.now();
+            }
+        },
         addReasoning: {
             reducer: (
                 state,
@@ -418,6 +453,7 @@ export const {
     markStreamPolling,
     stopStreaming,
     setError,
+    setAccessRefusal,
     addToolCall,
     addReasoning,
     appendStepProgress,

@@ -4,14 +4,18 @@ import {
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
+    InlineErrorType,
     JobStepStatusType,
     JobStepType,
+    SupportedDbtAdapter,
     SupportedDbtVersions,
     WarehouseTypes,
     type CreateDuckdbDucklakeCredentials,
+    type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
     type DbtLog,
     type DbtManifest,
+    type Explore,
 } from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
@@ -32,6 +36,9 @@ import {
     connectionContextFromUser,
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
+import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
+import { DatabricksOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/DatabricksOAuthCredentialResolver';
+import { SnowflakeOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/SnowflakeOAuthCredentialResolver';
 import { WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
 import {
     MultiConnectionCompiler,
@@ -80,7 +87,7 @@ const manifest: DbtManifest = {
 };
 
 describe('multi-source compilation diagnostics', () => {
-    it('persists the dbt error output when an additional source fails', async () => {
+    it('reports a safe warning and completes the job when an additional source fails', async () => {
         const log: DbtLog = {
             code: 'E001',
             info: {
@@ -100,6 +107,7 @@ describe('multi-source compilation diagnostics', () => {
         };
         const compiler = new MultiConnectionCompiler({
             projectModel: {
+                countCachedExploresForDbtSource: vi.fn(async () => 2),
                 getDbtSourceIdentity: vi.fn().mockResolvedValue({
                     dbtSourceName: 'primary',
                     dbtSourceUuid: 'primary-source-uuid',
@@ -137,9 +145,20 @@ describe('multi-source compilation diagnostics', () => {
             .mockResolvedValue();
         vi.spyOn(jobModel, 'update').mockResolvedValue();
 
+        const warning = vi.fn(async (_message: string) => undefined);
+        vi.spyOn(
+            DbtManifestProjectAdapter.prototype,
+            'prepareExploreStream',
+        ).mockResolvedValue(
+            (async function* stream() {
+                yield* [];
+            })(),
+        );
         await expect(
             jobModel.tryJobStep('job-uuid', JobStepType.COMPILING, () =>
                 compiler.compile({
+                    concurrency: 1,
+                    onSourceWarning: warning,
                     projectUuid: 'project-uuid',
                     context: connectionContextFromUser(
                         { userUuid: 'user-uuid' },
@@ -150,7 +169,14 @@ describe('multi-source compilation diagnostics', () => {
                         },
                     ),
                     primary: {
-                        manifest,
+                        fetchManifest: async () => ({
+                            manifest,
+                            timings: {
+                                gitRefreshMs: null,
+                                depsMs: null,
+                                manifestMs: 0,
+                            },
+                        }),
                         connection: {
                             warehouseClient: warehouseClientMock,
                             connectionCredentials:
@@ -172,22 +198,108 @@ describe('multi-source compilation diagnostics', () => {
                         },
                     },
                     dbtVersion: SupportedDbtVersions.V1_7,
-                    includeUnboundSources: true,
+                    mixedWarehouseConnectionsEnabled: false,
                     fetchSourceManifest: async () => {
                         throw new DbtError('Failed to run dbt ls', [log]);
                     },
                     loadExtraCredentials: vi.fn(),
                 }),
             ),
-        ).rejects.toThrow('Failed to load dbt source "finance"');
+        ).resolves.toMatchObject({
+            carry: {
+                kind: 'connections',
+                dbtSourceUuids: ['finance-source-uuid'],
+            },
+        });
+        expect(warning).toHaveBeenCalledWith(
+            expect.stringContaining('Source "finance" failed'),
+        );
+        expect(warning.mock.calls.flat().join(' ')).not.toContain(log.info.msg);
 
         expect(updateStep).toHaveBeenCalledWith(
             'job-uuid',
-            JobStepStatusType.ERROR,
+            JobStepStatusType.DONE,
             JobStepType.COMPILING,
-            expect.stringContaining('finance'),
-            [log],
         );
+    });
+});
+
+describe('independent source compilation', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('reports a delayed primary failure without starting siblings during independent compilation', async () => {
+        const compiler = new MultiConnectionCompiler({
+            projectModel: {
+                getDbtSourceIdentity: vi.fn().mockResolvedValue({
+                    dbtSourceName: 'primary',
+                    dbtSourceUuid: 'primary-uuid',
+                }),
+            },
+            projectDbtSourcesModel: {},
+            warehouseConnectionCompileModel: {},
+        } as unknown as ConstructorParameters<
+            typeof MultiConnectionCompiler
+        >[0]);
+        vi.spyOn(compiler, 'planGroups').mockResolvedValue([
+            {
+                warehouseConnectionUuid: null,
+                connectionName: 'original',
+                listedDatabases: {
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+                sources: [
+                    {
+                        name: 'shared',
+                        precedence: 1,
+                        projectDbtSourceUuid: 'shared-uuid',
+                        dbtConnection: { type: DbtProjectType.NONE },
+                    },
+                ],
+            } as unknown as CompileGroupPlan,
+        ]);
+        const primaryError = new DbtError('primary failed');
+        const fetchManifest = vi.fn(async () => {
+            await new Promise<void>((done) => {
+                setTimeout(done, 20);
+            });
+            throw primaryError;
+        });
+        const fetchSourceManifest = vi
+            .fn<FetchSourceManifest>()
+            .mockRejectedValue(new DbtError('sibling failed'));
+        await expect(
+            compiler.compile({
+                concurrency: 1,
+                projectUuid: 'project-uuid',
+                context: connectionContextFromUser(
+                    { userUuid: 'user' },
+                    {
+                        organizationUuid: 'org',
+                        queryContext: null,
+                        purpose: 'compile',
+                    },
+                ),
+                primary: {
+                    fetchManifest,
+                    connection: {} as Parameters<
+                        typeof compiler.compile
+                    >[0]['primary']['connection'],
+                    warehouseCredentials: warehouseClientMock.credentials,
+                    cachedWarehouse: {
+                        warehouseCatalog: undefined,
+                        onWarehouseCatalogChange: vi.fn(),
+                    },
+                    dbtProjectDir: undefined,
+                },
+                dbtVersion: SupportedDbtVersions.V1_7,
+                mixedWarehouseConnectionsEnabled: false,
+                fetchSourceManifest,
+                loadExtraCredentials: vi.fn(),
+            }),
+        ).rejects.toBe(primaryError);
+        expect(fetchManifest).toHaveBeenCalledExactlyOnceWith();
+        expect(fetchSourceManifest).not.toHaveBeenCalled();
     });
 });
 
@@ -211,6 +323,7 @@ describe('extra connection scope cleanup', () => {
                 host: 'extra.internal',
                 dbname: 'extra',
                 useSshTunnel: true,
+                sshTunnelPrivateKey: 'COPIED-PRIVATE',
             };
             const projectModel = {
                 getWarehouseClientFromCredentials: vi.fn<
@@ -222,6 +335,15 @@ describe('extra connection scope cleanup', () => {
                 })),
             };
             const factory = new WarehouseClientFactory({
+                credentialResolvers: createCredentialResolverRegistry({
+                    databricksOAuthCredentialResolver:
+                        new DatabricksOAuthCredentialResolver({} as never),
+                    snowflakeOAuthCredentialResolver:
+                        new SnowflakeOAuthCredentialResolver({} as never),
+                    lightdashConfig: lightdashConfigMock,
+                    userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+                    sshKeyPairModel: { find: vi.fn().mockResolvedValue(null) },
+                }),
                 lightdashConfig: lightdashConfigMock,
                 projectModel: projectModel as unknown as ProjectModel,
                 featureFlagModel: {},
@@ -318,17 +440,32 @@ describe('extra connection scope cleanup', () => {
                             schema: 'source_schema',
                         }).credentials,
                     ).toMatchObject({ host: '127.0.0.1', port: 43210 });
-                    return { manifest };
+                    return {
+                        manifest,
+                        timings: {
+                            gitRefreshMs: null,
+                            depsMs: null,
+                            manifestMs: 0,
+                        },
+                    };
                 },
             ) satisfies Parameters<
                 typeof compiler.compile
             >[0]['fetchSourceManifest'];
             const result = await compiler.compile({
+                concurrency: 1,
                 projectUuid: 'project',
                 context,
                 primary: {
                     connection: lease,
-                    manifest,
+                    fetchManifest: async () => ({
+                        manifest,
+                        timings: {
+                            gitRefreshMs: null,
+                            depsMs: null,
+                            manifestMs: 0,
+                        },
+                    }),
                     dbtProjectDir: undefined,
                     warehouseCredentials: lease.connectionCredentials,
                     cachedWarehouse: {
@@ -337,14 +474,19 @@ describe('extra connection scope cleanup', () => {
                     },
                 },
                 dbtVersion: SupportedDbtVersions.V1_7,
-                includeUnboundSources: true,
+                mixedWarehouseConnectionsEnabled: false,
                 fetchSourceManifest,
                 loadExtraCredentials: vi.fn(async () => extraCredentials),
             });
             const extraTunnelIndex = vi
                 .mocked(SshTunnel)
                 .mock.calls.findLastIndex(
-                    ([credentials]) => credentials === extraCredentials,
+                    ([credentials]) =>
+                        credentials.type === WarehouseTypes.POSTGRES &&
+                        credentials.host === extraCredentials.host &&
+                        'sshTunnelPrivateKey' in credentials &&
+                        credentials.sshTunnelPrivateKey ===
+                            extraCredentials.sshTunnelPrivateKey,
                 );
             expect(extraTunnelIndex).toBeGreaterThanOrEqual(0);
             const extraTunnel =
@@ -366,6 +508,133 @@ describe('extra connection scope cleanup', () => {
             await lease.release();
         },
     );
+});
+
+describe('Snowflake extra compile credentials', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('fetches the bound dbt source and catalog with the extra connection', async () => {
+        const credentials: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'example-account',
+            user: 'user',
+            password: 'password',
+            database: 'ANALYTICS',
+            warehouse: 'REPORTING_WH',
+            schema: 'PUBLIC',
+        };
+        const projectModel = {
+            getWarehouseClientFromCredentials: vi.fn(
+                (saved: CreateWarehouseCredentials) => ({
+                    ...warehouseClientMock,
+                    credentials: saved,
+                }),
+            ),
+        };
+        const factory = new WarehouseClientFactory({
+            credentialResolvers: createCredentialResolverRegistry({
+                databricksOAuthCredentialResolver:
+                    new DatabricksOAuthCredentialResolver({} as never),
+                snowflakeOAuthCredentialResolver:
+                    new SnowflakeOAuthCredentialResolver({} as never),
+                lightdashConfig: lightdashConfigMock,
+                userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+                sshKeyPairModel: { find: vi.fn().mockResolvedValue(null) },
+            }),
+            lightdashConfig: lightdashConfigMock,
+            projectModel,
+            featureFlagModel: {},
+            aiAccessService: {},
+            credentialSource: {},
+            logger: Logger,
+        } as unknown as ConstructorParameters<
+            typeof WarehouseClientFactory
+        >[0]);
+        const getCatalogCache = vi.fn(async () => undefined);
+        const compiler = new MultiConnectionCompiler({
+            projectModel,
+            warehouseClientFactory: factory,
+            projectDbtSourcesModel: {},
+            warehouseConnectionCompileModel: { getCatalogCache },
+        } as unknown as ConstructorParameters<
+            typeof MultiConnectionCompiler
+        >[0]);
+        vi.spyOn(
+            DbtManifestProjectAdapter.prototype,
+            'compileAllExplores',
+        ).mockResolvedValue([]);
+        const fetchSourceManifest = vi.fn<FetchSourceManifest>(
+            async (_source, sourceCredentials, connection) => {
+                expect(sourceCredentials).toMatchObject(credentials);
+                expect(connection.warehouseClient.credentials).toMatchObject(
+                    credentials,
+                );
+                return {
+                    manifest,
+                    timings: {
+                        gitRefreshMs: null,
+                        depsMs: null,
+                        manifestMs: 0,
+                    },
+                };
+            },
+        );
+        const loadExtraCredentials = vi.fn(async () => credentials);
+        const internals = compiler as unknown as {
+            compileExtraGroup: (args: {
+                projectUuid: string;
+                context: ReturnType<typeof connectionContextFromUser>;
+                plan: CompileGroupPlan & { warehouseConnectionUuid: string };
+                dbtVersion: SupportedDbtVersions;
+                fetchSourceManifest: FetchSourceManifest;
+                concurrency: number;
+                loadExtraCredentials: typeof loadExtraCredentials;
+                trackingParams: undefined;
+                warnings: string[];
+            }) => Promise<unknown>;
+        };
+        await internals.compileExtraGroup({
+            concurrency: 1,
+            projectUuid: 'project-uuid',
+            context: connectionContextFromUser(
+                { userUuid: 'user' },
+                {
+                    organizationUuid: 'org',
+                    queryContext: null,
+                    purpose: 'compile',
+                },
+            ),
+            plan: {
+                warehouseConnectionUuid: 'extra-uuid',
+                connectionName: 'Reporting',
+                listedDatabases: {
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+                sources: [
+                    {
+                        name: 'source',
+                        precedence: 1,
+                        projectDbtSourceUuid: 'source-uuid',
+                        dbtConnection: { type: DbtProjectType.NONE },
+                    },
+                ],
+            } as unknown as CompileGroupPlan & {
+                warehouseConnectionUuid: string;
+            },
+            dbtVersion: SupportedDbtVersions.V1_7,
+            fetchSourceManifest,
+            loadExtraCredentials,
+            trackingParams: undefined,
+            warnings: [],
+        });
+        expect(loadExtraCredentials).toHaveBeenCalledWith('extra-uuid');
+        expect(getCatalogCache).toHaveBeenCalledWith(
+            'project-uuid',
+            'extra-uuid',
+        );
+        expect(fetchSourceManifest).toHaveBeenCalledOnce();
+    });
 });
 
 describe('DuckLake extra compile credentials', () => {
@@ -392,6 +661,15 @@ describe('DuckLake extra compile credentials', () => {
             ),
         };
         const factory = new WarehouseClientFactory({
+            credentialResolvers: createCredentialResolverRegistry({
+                databricksOAuthCredentialResolver:
+                    new DatabricksOAuthCredentialResolver({} as never),
+                snowflakeOAuthCredentialResolver:
+                    new SnowflakeOAuthCredentialResolver({} as never),
+                lightdashConfig: lightdashConfigMock,
+                userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+                sshKeyPairModel: { find: vi.fn().mockResolvedValue(null) },
+            }),
             lightdashConfig: lightdashConfigMock,
             projectModel,
             featureFlagModel: {},
@@ -420,6 +698,7 @@ describe('DuckLake extra compile credentials', () => {
         ).mockResolvedValue([]);
         const fetchSourceManifest = vi.fn<FetchSourceManifest>(async () => ({
             manifest,
+            timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
         }));
         const internals = compiler as unknown as {
             compileExtraGroup: (args: {
@@ -428,12 +707,14 @@ describe('DuckLake extra compile credentials', () => {
                 plan: CompileGroupPlan & { warehouseConnectionUuid: string };
                 dbtVersion: SupportedDbtVersions;
                 fetchSourceManifest: FetchSourceManifest;
+                concurrency: number;
                 loadExtraCredentials: () => Promise<CreateWarehouseCredentials>;
                 trackingParams: undefined;
                 warnings: string[];
             }) => Promise<unknown>;
         };
         await internals.compileExtraGroup({
+            concurrency: 1,
             projectUuid: 'project-uuid',
             context: connectionContextFromUser(
                 { userUuid: 'user' },
@@ -475,4 +756,78 @@ describe('DuckLake extra compile credentials', () => {
             token: '',
         });
     });
+});
+
+describe('cross-connection join warnings', () => {
+    it.each([
+        { table: 'customers', mixed: true },
+        { table: 'missing_model', mixed: true },
+        { table: 'customers', mixed: false },
+    ])(
+        'explains a skipped join to $table with the mixed flag $mixed',
+        async ({ table, mixed }) => {
+            const warning = {
+                type: InlineErrorType.MISSING_TABLE,
+                message: `Join "customer_alias" to table "${table}" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.`,
+            };
+            const postgresExplore: Explore = {
+                targetDatabase: SupportedDbtAdapter.POSTGRES,
+                name: 'customers',
+                tables: {},
+                joinedTables: [],
+                baseTable: 'customers',
+                label: 'Customers',
+                tags: [],
+            };
+            const trinoExplore: Explore = {
+                ...postgresExplore,
+                targetDatabase: SupportedDbtAdapter.TRINO,
+                name: 'orders',
+                baseTable: 'orders',
+                warnings: [warning],
+            };
+            const internals = MultiConnectionCompiler as unknown as {
+                groupExplores: (
+                    original: AsyncIterable<Explore>,
+                    sources: Map<string, string>,
+                    originalName: string,
+                    extras: {
+                        plan: { connectionName: string };
+                        explores: Explore[];
+                        modelNames: string[];
+                    }[],
+                    originalModels: string[],
+                    mixedWarehouseConnectionsEnabled: boolean,
+                ) => AsyncIterable<Explore>;
+            };
+            const results: Explore[] = [];
+            for await (const explore of internals.groupExplores(
+                (async function* original() {
+                    yield postgresExplore;
+                })(),
+                new Map(),
+                'Postgres (jaffle)',
+                [
+                    {
+                        plan: { connectionName: 'Trino (tpch)' },
+                        explores: [trinoExplore],
+                        modelNames: ['orders'],
+                    },
+                ],
+                ['customers'],
+                mixed,
+            ))
+                results.push(explore);
+            expect(results).toHaveLength(2);
+            expect(results[1].warnings).toEqual([
+                mixed && table === 'customers'
+                    ? {
+                          type: InlineErrorType.MISSING_TABLE,
+                          message:
+                              'Join "customer_alias" was skipped: model "customers" is on connection "Postgres (jaffle)", and this explore runs on connection "Trino (tpch)". Joins across connections are not supported.',
+                      }
+                    : warning,
+            ]);
+        },
+    );
 });

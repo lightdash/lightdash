@@ -76,9 +76,11 @@ import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
+import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
 import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
+import { useDismissAddAnalysisOffer } from '../features/apps/analysis/useDismissAddAnalysisOffer';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
@@ -100,6 +102,7 @@ import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppHistoryDrawer from '../features/apps/components/AppHistoryDrawer';
 import AppPreview from '../features/apps/components/AppPreview';
+import AppUpgradeModal from '../features/apps/components/AppUpgradeModal';
 import AppVersionNarration from '../features/apps/components/AppVersionNarration';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
 import ClearAgentContextAction from '../features/apps/components/ClearAgentContextAction';
@@ -128,6 +131,7 @@ import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion'
 import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useCaptureThumbnail } from '../features/apps/hooks/useCaptureThumbnail';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
+import { useDataAppCapturesEnabled } from '../features/apps/hooks/useDataAppCapturesEnabled';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useElementPicker } from '../features/apps/hooks/useElementPicker';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
@@ -150,6 +154,7 @@ import {
     getAppFileValidationError,
     isSupportedAppImage,
 } from '../features/apps/utils/appFileAttachments';
+import { getAppPageGate } from '../features/apps/utils/appPageGate';
 import {
     emptyChatMessage,
     mergeChatMessages,
@@ -167,6 +172,7 @@ import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
+import { useChartStudioAvailable } from '../features/chartTypes/hooks/useChartStudioAvailable';
 import { type DataAppVizTestPreview } from '../features/chartTypes/hooks/useDataAppVizTestContext';
 import { useVizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
@@ -224,11 +230,7 @@ const ThemeChip: FC<{
                 size="md"
                 leftSection={<MantineIcon icon={IconBrush} size={12} />}
                 disabled={disabled}
-                styles={{
-                    root: {
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                    },
-                }}
+                className={classes.themeBadge}
             >
                 {themeName}
             </Badge>
@@ -689,8 +691,12 @@ const AppGenerate: FC = () => {
         return capture();
     }, []);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const isChartStudioAvailable = useChartStudioAvailable();
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
+    // Org switch for screenshots, file attachments and thumbnails. Hides the
+    // affordances below; the backend rejects the uploads regardless.
+    const capturesEnabled = useDataAppCapturesEnabled();
     const ability = useAbilityContext();
     const chatMessagesRef = useRef<HTMLDivElement>(null);
 
@@ -1172,12 +1178,22 @@ const AppGenerate: FC = () => {
         () => refreshPreviewRef.current(),
         [],
     );
+    // Author guidance declared in app code, reported by the previewed bundle.
+    const [insightInstructions, setInsightInstructions] = useState<
+        string | null
+    >(null);
+    const [insightAnalyseOnLoad, setInsightAnalyseOnLoad] = useState<
+        boolean | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid: previewApp?.appUuid,
         queries: trackedQueries,
         availability: analysisAvailability,
-        // No agent picker in the builder yet; the first accessible agent is used.
+        analyseOnLoad: insightAnalyseOnLoad ?? false,
+        instructions: insightInstructions,
+        // No agent picker in the builder yet; the viewer's default agent
+        // (falling back to the first accessible one) is used.
         onNeedsAgent: () => {},
         onSourcesExpired: reloadPreviewForExpiredSources,
         openThread: openAnalysisThread,
@@ -1351,6 +1367,55 @@ const AppGenerate: FC = () => {
     const isVizBuilder =
         appPersistedTemplate === DATA_APP_VIZ_TEMPLATE ||
         selectedTemplate === DATA_APP_VIZ_TEMPLATE;
+
+    // Offer to add AI analysis to an app whose latest ready version doesn't
+    // wire it up (per the server's source scan). Only when analysis is
+    // actually available to the org; the rendered bundle's own in-use signal
+    // overrides a stale scan, and an unclassified SDK waits — a legacy
+    // sandbox lacks the shipped insight components, so those apps route
+    // through the upgrade first.
+    const latestReadyUsesAnalysis =
+        appData?.pages[0]?.latestReadyVersionUsesAiAnalysis ?? null;
+    const latestReadyHasAnalyzableData =
+        appData?.pages[0]?.latestReadyVersionHasAnalyzableData ?? null;
+    // Dismissal is persisted on the app, so the offer stops nagging across
+    // browsers and builders — including after the build agent declines to add
+    // analysis. Local state hides it instantly while the mutation runs.
+    const serverAddAnalysisDismissed =
+        appData?.pages[0]?.addAnalysisDismissed ?? false;
+    const [locallyDismissedAppUuid, setLocallyDismissedAppUuid] = useState<
+        string | null
+    >(null);
+    const { mutate: persistAddAnalysisDismissal } =
+        useDismissAddAnalysisOffer();
+    const addAnalysisDismissed =
+        serverAddAnalysisDismissed ||
+        (canonicalAppUuid !== undefined &&
+            locallyDismissedAppUuid === canonicalAppUuid);
+    const dismissAddAnalysis = useCallback(() => {
+        if (!projectUuid || !canonicalAppUuid) return;
+        setLocallyDismissedAppUuid(canonicalAppUuid);
+        persistAddAnalysisDismissal({
+            projectUuid,
+            appUuid: canonicalAppUuid,
+        });
+    }, [projectUuid, canonicalAppUuid, persistAddAnalysisDismissal]);
+    const [isAnalysisUpgradeOpen, setIsAnalysisUpgradeOpen] = useState(false);
+    const showAddAnalysisOffer =
+        analysisAvailability.status === 'available' &&
+        !isVizBuilder &&
+        !isVerifiedLocked &&
+        !isAgentWorking &&
+        !addAnalysisDismissed &&
+        activeAppUuid !== undefined &&
+        latestReadyVersion !== null &&
+        latestReadyUsesAnalysis === false &&
+        // Analysis runs over query results; an app that pulls no query data
+        // (e.g. metadata from an external connection) would show a blank
+        // summary, so never offer it there.
+        latestReadyHasAnalyzableData === true &&
+        sdkUpgradeOffer.status !== 'unknown' &&
+        (analysisInUseScope === null || analysisInUseScope !== previewScope);
     const showVizSampleConsent =
         sampleDataEnabled &&
         isVizBuilder &&
@@ -1389,6 +1454,30 @@ const AppGenerate: FC = () => {
         const el = chatMessagesRef.current;
         el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }, []);
+
+    // Auto-scroll is "sticky": scrolling up detaches it (so build-status polls
+    // can't yank the user back down), returning to the bottom reattaches it.
+    // Only an upward move detaches — the smooth auto-scroll itself only ever
+    // moves down, so it can't unstick mid-animation.
+    const isChatStickyRef = useRef(true);
+    const lastChatScrollTopRef = useRef(0);
+    const handleChatScroll = useCallback(() => {
+        const el = chatMessagesRef.current;
+        if (!el) return;
+        const prevTop = lastChatScrollTopRef.current;
+        lastChatScrollTopRef.current = el.scrollTop;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) {
+            isChatStickyRef.current = true;
+        } else if (el.scrollTop < prevTop) {
+            isChatStickyRef.current = false;
+        }
+    }, []);
+
+    // Sending a message always returns to the bottom, even when detached.
+    const stickChatToBottom = useCallback(() => {
+        isChatStickyRef.current = true;
+        scrollToBottom();
+    }, [scrollToBottom]);
 
     // Where the user was when they asked for earlier history. Older versions
     // are prepended, so without re-anchoring the chat would jump around and
@@ -1431,6 +1520,7 @@ const AppGenerate: FC = () => {
             earlierHistoryAnchorRef.current = null;
             return;
         }
+        if (!isChatStickyRef.current) return;
         scrollToBottom();
     }, [
         messages,
@@ -1452,22 +1542,39 @@ const AppGenerate: FC = () => {
         };
     }, []);
 
-    if (dataAppsFlag.isLoading) {
+    const appPage = appData?.pages?.[0];
+    const gate = getAppPageGate({
+        isDataAppsFlagLoading: dataAppsFlag.isLoading,
+        isDataAppsEnabled: dataAppsFlag.data?.enabled === true,
+        isChartStudioAvailable,
+        urlAppUuid,
+        isLoadingApp,
+        app: appPage
+            ? {
+                  appUuid: appPage.appUuid,
+                  slug: appPage.slug ?? null,
+                  template: appPage.template ?? null,
+              }
+            : null,
+    });
+    if (gate.kind === 'wait') {
         return null;
     }
-    if (!dataAppsFlag.data?.enabled) {
+    if (gate.kind === 'home') {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
-
-    // Two paths: creating a brand-new app (no urlAppUuid) → check `create`;
-    // editing an existing one → check `manage` with the app's space access
-    // and creator context (so space editors and the creator of a personal
-    // app both match).
-    // Wait for the app to load before deciding the existing-app case —
-    // without spaceUuid + createdByUserUuid we'd misjudge a non-admin user.
-    if (urlAppUuid && isLoadingApp) {
-        return null;
+    if (gate.kind === 'chartTypeBuilder') {
+        return (
+            <Navigate
+                to={chartTypeBuilderPath(
+                    projectRoute?.projectUrlIdentifier ?? projectUuid ?? '',
+                    gate.appUuidOrSlug,
+                )}
+                replace
+            />
+        );
     }
+
     // Navigating to a soft-deleted (or never-existed) app's URL. Surface a
     // not-found state before permission checks; missing app metadata cannot
     // produce a meaningful manage decision.
@@ -1483,23 +1590,10 @@ const AppGenerate: FC = () => {
         );
     }
 
-    // Chart types have their own builder; prefer slugs for the destination.
-    if (
-        urlAppUuid &&
-        appPersistedTemplate === DATA_APP_VIZ_TEMPLATE &&
-        activeAppUuid
-    ) {
-        return (
-            <Navigate
-                to={chartTypeBuilderPath(
-                    projectRoute?.projectUrlIdentifier ?? projectUuid ?? '',
-                    appData?.pages[0]?.slug ?? activeAppUuid,
-                )}
-                replace
-            />
-        );
-    }
-
+    // Two paths: creating a brand-new app (no urlAppUuid) → check `create`;
+    // editing an existing one → check `manage` with the app's space access
+    // and creator context (so space editors and the creator of a personal
+    // app both match).
     const userSpaceAccess = appSpaceUuid
         ? spaces.find((s) => s.uuid === appSpaceUuid)?.userAccess
         : undefined;
@@ -1529,6 +1623,8 @@ const AppGenerate: FC = () => {
     }
 
     const handleFileAttach = async (file: File, kind?: 'screenshot') => {
+        // Covers paste, drop and the file input in one place.
+        if (!capturesEnabled) return;
         const validationError = await getAppFileValidationError(file);
         if (validationError) {
             showToastError(validationError);
@@ -1818,6 +1914,7 @@ const AppGenerate: FC = () => {
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
+            stickChatToBottom();
             promptEditorRef.current?.clear();
             setIsPromptEmpty(true);
             setFileAttachments([]);
@@ -1868,26 +1965,69 @@ const AppGenerate: FC = () => {
         }
     };
 
-    const handleCancel = () => {
+    // One-click offers (add AI analysis): the optimistic bubble and lock
+    // discipline of handleSubmit without touching the composer draft or
+    // attachment state.
+    const submitCannedPrompt = (text: string) => {
         if (
-            !projectUuid ||
             !activeAppUuid ||
-            !latestBuildingVersion ||
-            isCancelling
+            !projectUuid ||
+            isLoading ||
+            submitState.isInFlight()
         )
             return;
+        submitState.begin({ fromLanding: false });
+        try {
+            setLocalMessages((prev) => [
+                ...prev,
+                {
+                    ...emptyChatMessage(),
+                    role: 'user',
+                    content: text,
+                    timestamp: new Date(),
+                    userName:
+                        [user.data?.firstName, user.data?.lastName]
+                            .filter((s): s is string => !!s && s.length > 0)
+                            .join(' ') || null,
+                    submittedAtVersion: maxHistoryVersion,
+                },
+            ]);
+            stickChatToBottom();
+            resetGenerate();
+            resetIterate();
+            iterateMutate(
+                {
+                    projectUuid,
+                    appUuid: activeAppUuid,
+                    prompt: text,
+                    creationExperience: 'app_builder',
+                    ...modelRequest,
+                },
+                buildSubmitCallbacks(),
+            );
+        } finally {
+            submitState.end();
+        }
+    };
+
+    // Shared by the prompt bar's "Stop generation" (latest build) and the
+    // history drawer (any building version). Plain function, not a hook: it
+    // sits below the early returns.
+    const cancelVersion = (version: number) => {
+        if (!projectUuid || !activeAppUuid || isCancelling) return;
         cancelMutate(
-            {
-                projectUuid,
-                appUuid: activeAppUuid,
-                version: latestBuildingVersion.version,
-            },
+            { projectUuid, appUuid: activeAppUuid, version },
             {
                 onSuccess: () => {
                     invalidateAppData(activeAppUuid);
                 },
             },
         );
+    };
+
+    const handleCancel = () => {
+        if (!latestBuildingVersion) return;
+        cancelVersion(latestBuildingVersion.version);
     };
 
     return (
@@ -1984,6 +2124,7 @@ const AppGenerate: FC = () => {
                         )}
                         <Box
                             ref={chatMessagesRef}
+                            onScroll={handleChatScroll}
                             className={classes.chatMessages}
                             // Walkthrough look for create:DataApp: the
                             // conversation that builds the app, version by
@@ -2633,6 +2774,26 @@ const AppGenerate: FC = () => {
                                     onChange={handleFileInputChange}
                                     hidden
                                 />
+                                {showAddAnalysisOffer && (
+                                    <AddAnalysisOffer
+                                        sdkNeedsUpgrade={
+                                            sdkUpgradeOffer.status !== 'current'
+                                        }
+                                        busy={isLoading}
+                                        onAddAnalysis={() => {
+                                            // One click is enough: if the
+                                            // agent declines, don't re-nag.
+                                            dismissAddAnalysis();
+                                            submitCannedPrompt(
+                                                'Add AI analysis to this app.',
+                                            );
+                                        }}
+                                        onUpgradeApp={() =>
+                                            setIsAnalysisUpgradeOpen(true)
+                                        }
+                                        onDismiss={dismissAddAnalysis}
+                                    />
+                                )}
                                 {((!newAppLanding &&
                                     (displayTemplate || displayThemeName)) ||
                                     availableConnectionAliases.length > 0 ||
@@ -2970,12 +3131,16 @@ const AppGenerate: FC = () => {
                                                         fileAttachments.length >=
                                                         MAX_APP_FILES_PER_VERSION
                                                     }
+                                                    filesHidden={
+                                                        !capturesEnabled
+                                                    }
                                                     linkedAppUuid={
                                                         activeAppUuid
                                                     }
                                                 />
                                                 {previewApp &&
-                                                    screenshotAvailable && (
+                                                    screenshotAvailable &&
+                                                    capturesEnabled && (
                                                         <ScreenshotButton
                                                             onClick={() =>
                                                                 void handleCaptureScreenshot()
@@ -3307,6 +3472,7 @@ const AppGenerate: FC = () => {
                                             : pinPreviewToVersion(version)
                                     }
                                     onRestore={setRestoreTargetVersion}
+                                    onCancel={cancelVersion}
                                     liveBuild={historyLiveBuild}
                                     hasEarlier={hasUnloadedEarlierVersions}
                                     isFetchingEarlier={isFetchingNextPage}
@@ -3349,6 +3515,20 @@ const AppGenerate: FC = () => {
                                     }
                                 />
                             )}
+                            {isAnalysisUpgradeOpen &&
+                                activeAppUuid &&
+                                projectUuid && (
+                                    <AppUpgradeModal
+                                        opened
+                                        onClose={() =>
+                                            setIsAnalysisUpgradeOpen(false)
+                                        }
+                                        projectUuid={projectUuid}
+                                        appUuid={activeAppUuid}
+                                        offer={sdkUpgradeOffer}
+                                        resource="dataApp"
+                                    />
+                                )}
 
                             <Box
                                 className={classes.previewContent}
@@ -3416,6 +3596,12 @@ const AppGenerate: FC = () => {
                                             analysisController.handleAction
                                         }
                                         onInsightsInUse={handleInsightsInUse}
+                                        onInsightInstructionsChange={
+                                            setInsightInstructions
+                                        }
+                                        onInsightAnalyseOnLoadChange={
+                                            setInsightAnalyseOnLoad
+                                        }
                                         onMountedQueriesChange={
                                             analysisController.setMountedQueryUuids
                                         }

@@ -46,6 +46,7 @@ import Callout from '../../common/Callout';
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
+import classes from './AddConnectionWizard.module.css';
 import { AutomaticSetupStep } from './AutomaticSetupStep';
 import {
     ConnectionModeChooser,
@@ -196,11 +197,7 @@ const AuthStep: FC<{
                     <Stack gap="xs" align="flex-start">
                         <MarkdownPreview
                             source={proposal.credentialGuide}
-                            style={{
-                                backgroundColor: 'transparent',
-                                color: 'inherit',
-                                fontSize: 'var(--mantine-font-size-sm)',
-                            }}
+                            className={classes.credentialGuide}
                         />
                         {proposal.docsUrl && (
                             <Anchor

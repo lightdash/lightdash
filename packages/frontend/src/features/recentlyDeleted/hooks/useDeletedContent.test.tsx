@@ -66,10 +66,14 @@ describe('Document trash mutations', () => {
                     contentType: ContentType.DOCUMENT,
                 }),
             );
-            expect(mocks[operation]).toHaveBeenCalledWith('project', {
-                uuid: 'doc',
-                contentType: ContentType.DOCUMENT,
-            });
+            expect(mocks[operation]).toHaveBeenCalledWith(
+                expect.anything(),
+                'project',
+                {
+                    uuid: 'doc',
+                    contentType: ContentType.DOCUMENT,
+                },
+            );
             keys.forEach((key) =>
                 expect(client.getQueryState(key)?.isInvalidated).toBe(true),
             );

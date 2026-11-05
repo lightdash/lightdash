@@ -108,6 +108,34 @@ group_by_query AS (SELECT "table1_dim1", sum("table1_metric1") AS "table1_metric
 SELECT * FROM group_by_query ORDER BY "table1_dim1" ASC LIMIT 500"
 `;
 
+exports[`QueryComposer > totalConfiguration > metric-filtered source (filtered dimension groups) > restricts a metric-only source without emitting an empty SELECT DISTINCT 1`] = `
+"WITH source_rows AS (
+WITH metrics AS (
+SELECT
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+)
+SELECT
+  *
+FROM metrics
+WHERE ((
+  ("table1_metric1") > (10)
+))
+),
+source_dimension_groups AS (
+SELECT DISTINCT
+  1 AS "source_group"
+FROM source_rows
+)
+SELECT
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+INNER JOIN source_dimension_groups ON 1 = 1
+LIMIT 1"
+`;
+
 exports[`QueryComposer > totalConfiguration > metric-filtered source (filtered dimension groups) > restricts the totals query to the filtered dimension groups for kind "'columnSubtotal'" 1`] = `
 "WITH source_rows AS (
 WITH metrics AS (

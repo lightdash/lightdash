@@ -19,7 +19,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 - Creating, downloading, editing, or uploading custom chart types built in Chart Studio (enterprise)
 - Creating, editing, migrating, downloading, or uploading organization Data App themes
 
-**Don't use for:** Developing the Lightdash application itself (use the codebase CLAUDE.md), general dbt work without Lightdash metadata, or raw SQL unrelated to Lightdash models.
+**Don't use for:** Developing the Lightdash application itself (use the codebase AGENTS.md), general dbt work without Lightdash metadata, or raw SQL unrelated to Lightdash models.
 
 ## What You Can Do
 
@@ -174,6 +174,10 @@ lightdash sql "SELECT DISTINCT category FROM payments LIMIT 50" -o category_valu
 ```
 
 Read the CSV and use the **exact values** in your filter YAML. This applies to all `equals`/`notEquals` filters with string values — in charts and dashboards.
+
+### Rolling Weekly Ranges
+
+For a weekly chart of "the last 12 weeks up to today" where every week starts on its first day, put the `inThePast` filter on the week dimension (e.g. `orders_order_date_week`, `completed: false`, `unitOfTime: weeks`, `values: [12]`), not on the day or raw date. That gives 12 weekly rows: 11 full weeks plus the current week to date. The same filter on a day field starts mid-week, so the first week is partial.
 
 ### Editing Metrics & Dimensions
 
@@ -424,6 +428,8 @@ Each path segment must be the slug of an existing (or to-be-created) space at th
 | `custom` | Legacy Vega-Lite custom chart | [Custom Viz](./resources/custom-viz-reference.md) |
 | `data_app_viz` | Chart rendered by a custom chart type | [Custom Chart Types](#working-with-custom-chart-types-enterprise) |
 
+A SQL chart (`contentType: sql_chart`) is saved from raw warehouse SQL instead of an explore. See [SQL Chart Reference](./resources/sql-chart-reference.md).
+
 ## Dashboards
 
 Dashboards arrange charts and content in a grid layout. See [Dashboard Reference](./resources/dashboard-reference.md) for YAML structure, tile types, tabs, and filters.
@@ -475,6 +481,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 - [Sankey Chart Reference](./resources/sankey-chart-reference.md)
 - [Custom Viz Reference](./resources/custom-viz-reference.md) - Legacy Vega-Lite `custom` charts
 - [Period over Period Reference](./resources/period-over-period-reference.md) - PoP comparisons (YoY, MoM, etc.)
+- [SQL Chart Reference](./resources/sql-chart-reference.md) - Charts saved from raw warehouse SQL
 
 ### Dashboards & Workflows
 - [Dashboard Reference](./resources/dashboard-reference.md)

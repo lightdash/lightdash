@@ -38,14 +38,8 @@
     padding: 0 4px;
     border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-xs);
-    background: light-dark(
-        var(--mantine-color-gray-0),
-        var(--mantine-color-ldDark-6)
-    );
-    color: light-dark(
-        var(--mantine-color-gray-6),
-        var(--mantine-color-ldGray-5)
-    );
+    background: var(--mantine-color-ldGray-0);
+    color: var(--mantine-color-ldGray-6);
     font-family: var(--mantine-font-family-monospace);
     font-size: 11px;
     font-weight: 700;

@@ -1,15 +1,16 @@
 import {
-    AuthorizationError,
     ContentType,
     generateSlug,
     LightdashError,
+    MAX_CONTENT_SLUG_LENGTH,
     ParameterError,
     type ContentSlugRenameRequest,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { parseDocument } from 'yaml';
+import { parseDocument, type Document } from 'yaml';
 import { getConfig } from '../config';
+import { refuseAgentConnection, resolveCredential } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { getDownloadFolder } from './contentAsCodePaths';
@@ -101,6 +102,39 @@ const assertMovesAreSafe = async (
     }
 };
 
+type ContentDocument = {
+    slug?: unknown;
+    contentType?: unknown;
+    metricQuery?: unknown;
+    tiles?: Array<{
+        type?: unknown;
+        properties?: { chartSlug?: unknown };
+    }>;
+    resource?: { type?: unknown; slug?: unknown };
+};
+
+// Comment-only or scalar YAML (e.g. chart-type context files) parses to null or a primitive
+const isYamlMapping = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const readYamlDocuments = async (root: string) => {
+    const documents: Array<{ filePath: string; document: Document }> = [];
+    for (const filePath of await getYamlFiles(root)) {
+        // eslint-disable-next-line no-await-in-loop
+        const source = await fs.readFile(filePath, 'utf8');
+        const document = parseDocument(source);
+        if (document.errors.length > 0) {
+            throw new ParameterError(
+                `Could not parse "${filePath}": ${document.errors
+                    .map(({ message }) => message)
+                    .join('; ')}`,
+            );
+        }
+        documents.push({ filePath, document });
+    }
+    return documents;
+};
+
 export const planLocalSlugUpdate = async (
     customPath: string | undefined,
     from: string,
@@ -114,14 +148,12 @@ export const planLocalSlugUpdate = async (
     const languageMapKey =
         resourceType === ContentType.CHART ? 'chart' : 'dashboard';
 
-    if (!from || from.length > 255) {
-        throw new ParameterError(
-            'The source slug must contain between 1 and 255 characters',
-        );
+    if (!from) {
+        throw new ParameterError('The source slug must not be empty');
     }
-    if (!to || to.length > 255 || generateSlug(to) !== to) {
+    if (!to || to.length > MAX_CONTENT_SLUG_LENGTH || generateSlug(to) !== to) {
         throw new ParameterError(
-            'The target slug must contain between 1 and 255 lowercase letters, numbers, or hyphen-separated words',
+            `The target slug must contain between 1 and ${MAX_CONTENT_SLUG_LENGTH} lowercase letters, numbers, or hyphen-separated words`,
         );
     }
 
@@ -134,29 +166,17 @@ export const planLocalSlugUpdate = async (
         };
     }
 
-    for (const filePath of await getYamlFiles(root)) {
-        // eslint-disable-next-line no-await-in-loop
-        const source = await fs.readFile(filePath, 'utf8');
-        const document = parseDocument(source);
-        if (document.errors.length > 0) {
-            throw new ParameterError(
-                `Could not parse "${filePath}": ${document.errors
-                    .map(({ message }) => message)
-                    .join('; ')}`,
-            );
-        }
+    const contentDocuments = (await readYamlDocuments(root)).flatMap(
+        ({ filePath, document }) => {
+            const contents: unknown = document.toJS();
+            return isYamlMapping(contents)
+                ? [{ filePath, document, parsed: contents as ContentDocument }]
+                : [];
+        },
+    );
 
+    for (const { filePath, document, parsed } of contentDocuments) {
         let changed = false;
-        const parsed = document.toJS() as {
-            slug?: unknown;
-            contentType?: unknown;
-            metricQuery?: unknown;
-            tiles?: Array<{
-                type?: unknown;
-                properties?: { chartSlug?: unknown };
-            }>;
-            resource?: { type?: unknown; slug?: unknown };
-        };
 
         const isChart =
             parsed.contentType === ContentType.CHART ||
@@ -507,15 +527,14 @@ export const executeSlugUpdate = async (
 export const slugUpdateHandler = async (
     options: SlugUpdateOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
     const config = await getConfig();
-    if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
+    if (!config.context?.serverUrl)
+        throw new Error("Not logged in. Run 'lightdash login --help'");
 
     const selection = await selectProject(config, options.project);
     if (!selection) {

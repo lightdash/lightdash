@@ -1,9 +1,10 @@
 import { subject } from '@casl/ability';
-import { ProjectType } from '@lightdash/common';
+import { AGENT_IDENTITY_SETTINGS_PATH, ProjectType } from '@lightdash/common';
 import {
     Anchor,
     ActionIcon,
     Box,
+    Divider,
     Group,
     ScrollArea,
     Stack,
@@ -29,8 +30,18 @@ import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
-import { SettingsPage } from '../components/common/Settings/SettingsPage';
+import {
+    SettingRow,
+    SettingsSection,
+} from '../components/common/Settings/SettingLayout';
+import {
+    SettingsCard,
+    SettingsGridCard,
+} from '../components/common/Settings/SettingsCard';
+import {
+    SettingsPage,
+    SettingsPageDocumentationLink,
+} from '../components/common/Settings/SettingsPage';
 import PageSpinner from '../components/PageSpinner';
 import ProjectSettings from '../components/Settings/ProjectSettings';
 import SettingsNavigation from '../components/Settings/SettingsNavigation';
@@ -50,6 +61,7 @@ import InviteLinkExpirationPanel from '../components/UserSettings/InviteLinkExpi
 import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
 import LightdashAnalyticsPanel from '../components/UserSettings/LightdashAnalyticsPanel';
 import LimitsPanel from '../components/UserSettings/LimitsPanel';
+import { MyAgentConnectionsPanel } from '../components/UserSettings/MyAgentConnectionsPanel';
 import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
@@ -60,7 +72,6 @@ import GenericOidcSsoPanel from '../components/UserSettings/OrganizationSso/Gene
 import GoogleSsoPanel from '../components/UserSettings/OrganizationSso/GoogleSsoPanel';
 import OktaSsoPanel from '../components/UserSettings/OrganizationSso/OktaSsoPanel';
 import OneLoginSsoPanel from '../components/UserSettings/OrganizationSso/OneLoginSsoPanel';
-import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
@@ -91,6 +102,8 @@ import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
+import { AgentIdentitySettingsPage } from '../features/aiAccess/AgentIdentitySettingsPage';
+import { getAgentSettingsAccess } from '../features/aiAccess/agentSettingsAccess';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
 import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
 import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
@@ -173,8 +186,10 @@ const Settings: FC = () => {
         isScimTokenManagementEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        dashboardAnalysisFlag,
         externalSourcesFlag,
         isDataAppsFlagLoading,
+        isChartStudioAvailable,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
@@ -182,17 +197,20 @@ const Settings: FC = () => {
         isAiOrganizationSettingsLoading,
         showImpersonationPanel,
         isCustomRolesEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
-        isAnalyticsProjectFlagLoading,
+        isAnalyticsProjectLoading,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
         isAiCreditsLoading,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
+        isAgentIdentityEnabled,
+        isAgentIdentityFlagLoading,
         allowPasswordAuthentication,
+        showMyAgentConnections,
         hasSocialLogin,
+        isMyAgentConnectionsLoading,
         isHealthLoading,
         healthError,
         isUserLoading,
@@ -276,6 +294,12 @@ const Settings: FC = () => {
                 </Stack>
             ),
         });
+        if (showMyAgentConnections) {
+            allowedRoutes.push({
+                path: '/myAgentConnections',
+                element: <MyAgentConnectionsPanel />,
+            });
+        }
         if (user?.ability.can('create', 'ScheduledDeliveries')) {
             // A user might not be able to create scheduled permissions on the org level but on a specific project
             // level. The check here makes sure that the user has the ability to create a scheduled delivery at least somewhere.
@@ -306,85 +330,80 @@ const Settings: FC = () => {
                         title="General"
                         description="Manage organization-wide defaults, access, and account controls."
                     >
-                        <SettingsGridCard>
-                            <Title order={5}>Organization details</Title>
-                            <OrganizationPanel />
-                        </SettingsGridCard>
+                        <SettingsSection label="Workspace" description={null}>
+                            <SettingsCard>
+                                <Stack gap="md">
+                                    <OrganizationPanel />
+                                    <Divider />
+                                    <DefaultProjectPanel />
+                                </Stack>
+                            </SettingsCard>
+                        </SettingsSection>
 
-                        <SettingsGridCard>
-                            <div>
-                                <Title order={5}>Allowed email domains</Title>
-                                <Text c="dimmed" fz="xs">
-                                    Anyone with email addresses at these domains
-                                    can automatically join the organization.
-                                </Text>
-                            </div>
-                            <AllowedDomainsPanel />
-                        </SettingsGridCard>
+                        <SettingsSection label="Joining" description={null}>
+                            <SettingsCard>
+                                <Stack gap="md">
+                                    <AllowedDomainsPanel />
+                                    {user.ability.can(
+                                        'manage',
+                                        'Organization',
+                                    ) && (
+                                        <>
+                                            <Divider />
+                                            <InviteLinkExpirationPanel />
+                                        </>
+                                    )}
+                                </Stack>
+                            </SettingsCard>
+                        </SettingsSection>
 
-                        <SettingsGridCard>
-                            <div>
-                                <Title order={5}>Default project</Title>
-                                <Text c="dimmed" fz="xs">
-                                    This is the project users will see when they
-                                    log in for the first time or from a new
-                                    device. If a user does not have access, they
-                                    will see their next accessible project.
-                                </Text>
-                            </div>
-                            <DefaultProjectPanel />
-                        </SettingsGridCard>
+                        <SettingsSection
+                            label="Impersonation"
+                            description={null}
+                        >
+                            <SettingsCard>
+                                <Stack gap="md">
+                                    {showImpersonationPanel && (
+                                        <>
+                                            <ImpersonationPanel />
+                                            <Divider />
+                                        </>
+                                    )}
+                                    <SupportImpersonationPanel />
+                                </Stack>
+                            </SettingsCard>
+                        </SettingsSection>
 
-                        {user.ability.can('manage', 'Organization') && (
-                            <SettingsGridCard>
-                                <div>
-                                    <Title order={5}>Invitations</Title>
-                                    <Text c="dimmed" fz="xs">
-                                        Control how long new user invitations
-                                        remain valid for your organization.
-                                    </Text>
-                                </div>
-                                <InviteLinkExpirationPanel />
-                            </SettingsGridCard>
-                        )}
-
-                        {showImpersonationPanel && (
-                            <SettingsGridCard>
-                                <Title order={5}>User impersonation</Title>
-                                <ImpersonationPanel />
-                            </SettingsGridCard>
-                        )}
-
-                        <SettingsGridCard>
-                            <Title order={5}>Lightdash support access</Title>
-                            <SupportImpersonationPanel />
-                        </SettingsGridCard>
-
-                        <SettingsGridCard>
-                            <Box>
-                                <Title order={5}>Danger zone</Title>
-                                <Text c="dimmed" fz="xs">
-                                    {
-                                        'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '
-                                    }
+                        <SettingsSection label="Danger zone" description={null}>
+                            <SettingsCard>
+                                <Stack gap="md">
+                                    <SettingRow
+                                        title="Leave organization"
+                                        description="Remove yourself from the organization. You can't leave if you're the only admin."
+                                        control={
+                                            <LeaveOrganizationPanel
+                                                showDeleteAction={false}
+                                            />
+                                        }
+                                    />
                                     {user.ability?.can(
                                         'delete',
                                         'Organization',
-                                    ) &&
-                                        'Deleting the organization removes the whole workspace and all its content, including users. '}
-                                    These actions are not reversible.
-                                </Text>
-                            </Box>
-                            <Stack gap="sm" align="flex-end">
-                                <LeaveOrganizationPanel
-                                    showDeleteAction={false}
-                                />
-                                {user.ability?.can(
-                                    'delete',
-                                    'Organization',
-                                ) && <DeleteOrganizationPanel />}
-                            </Stack>
-                        </SettingsGridCard>
+                                    ) && (
+                                        <>
+                                            <Divider />
+                                            <SettingRow
+                                                title="Delete organization"
+                                                description="Permanently delete the workspace and all its content, including users. This can't be undone."
+                                                control={
+                                                    <DeleteOrganizationPanel />
+                                                }
+                                            />
+                                        </>
+                                    )}
+                                </Stack>
+                            </SettingsCard>
+                        </SettingsSection>
                     </SettingsPage>
                 ),
             });
@@ -395,28 +414,17 @@ const Settings: FC = () => {
                 element: (
                     <SettingsPage
                         title="Exporting"
-                        description="Control how exported files are shared outside Lightdash."
+                        description="Control how files exported from your organization are shared."
+                        actions={
+                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries" />
+                        }
                     >
-                        <SettingsGridCard>
-                            <div>
-                                <Title order={5}>Scheduled deliveries</Title>
-                                <Text c="dimmed" fz="xs">
-                                    Control how files exported from your
-                                    organization — starting with scheduled
-                                    deliveries — are shared.{' '}
-                                    <Anchor
-                                        inherit
-                                        href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        Learn more about scheduled deliveries
-                                    </Anchor>
-                                    .
-                                </Text>
-                            </div>
+                        <SettingsSection
+                            label="Scheduled deliveries"
+                            description={null}
+                        >
                             <ExportingPanel />
-                        </SettingsGridCard>
+                        </SettingsSection>
                     </SettingsPage>
                 ),
             });
@@ -437,7 +445,7 @@ const Settings: FC = () => {
                 element: <AiCreditsSettingsPage />,
             });
         }
-        if (isProLimitsEnabled && user?.ability.can('manage', 'Organization')) {
+        if (user?.ability.can('manage', 'Organization')) {
             allowedRoutes.push({
                 path: '/limits',
                 element: (
@@ -445,17 +453,7 @@ const Settings: FC = () => {
                         title="Limits"
                         description="Set organization-wide query and export limits."
                     >
-                        <SettingsGridCard>
-                            <div>
-                                <Title order={5}>Query and export limits</Title>
-                                <Text c="dimmed" fz="xs">
-                                    Limit how many rows a query can return and
-                                    how many cells a CSV or Excel export can
-                                    contain for your organization.
-                                </Text>
-                            </div>
-                            <LimitsPanel />
-                        </SettingsGridCard>
+                        <LimitsPanel />
                     </SettingsPage>
                 ),
             });
@@ -485,19 +483,6 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/userAttributes',
                 element: <UserAttributesPanel />,
-            });
-        }
-        if (
-            user?.ability.can(
-                'manage',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid: organization?.organizationUuid,
-                }),
-            )
-        ) {
-            allowedRoutes.push({
-                path: '/warehouseCredentials',
-                element: <OrganizationWarehouseCredentialsPanel />,
             });
         }
         if (
@@ -538,13 +523,39 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            (dataAppsFlag?.enabled || isChartStudioAvailable) &&
+            user?.ability.can('manage', 'OrganizationDesign')
+        ) {
+            allowedRoutes.push({
+                path: '/dataApps/themes',
+                element: <DesignListPage />,
+            });
+        }
+
+        // The AI-analysis page hosts the shared consent toggle; dashboard
+        // analysis shares it, so a dashboard-only rollout must still reach it.
+        {
+            const canManageOrganization =
+                user?.ability.can('manage', 'Organization') ?? false;
+            const canManageAiAnalysis =
+                canManageOrganization &&
+                ((dataAppsFlag?.enabled === true &&
+                    dataAppAnalysisFlag?.enabled === true) ||
+                    dashboardAnalysisFlag?.enabled === true);
+            if (canManageAiAnalysis) {
+                allowedRoutes.push({
+                    path: '/dataApps/aiAnalysis',
+                    element: <DataAppAiAnalysisSettingsPage />,
+                });
+            }
+        }
+
         if (dataAppsFlag?.enabled) {
             const canManageThemes =
                 user?.ability.can('manage', 'OrganizationDesign') ?? false;
             const canManageOrganization =
                 user?.ability.can('manage', 'Organization') ?? false;
-            const canManageAiAnalysis =
-                canManageOrganization && dataAppAnalysisFlag?.enabled === true;
 
             if (canManageOrganization) {
                 allowedRoutes.push({
@@ -552,22 +563,10 @@ const Settings: FC = () => {
                     element: <DataAppGeneralSettingsPage />,
                 });
             }
-            if (canManageThemes) {
-                allowedRoutes.push({
-                    path: '/dataApps/themes',
-                    element: <DesignListPage />,
-                });
-            }
             if (canManageOrganization) {
                 allowedRoutes.push({
                     path: '/dataApps/activity',
                     element: <DataAppActivitySettingsPage />,
-                });
-            }
-            if (canManageAiAnalysis) {
-                allowedRoutes.push({
-                    path: '/dataApps/aiAnalysis',
-                    element: <DataAppAiAnalysisSettingsPage />,
                 });
             }
             // Land on whichever sub-page the user can actually reach.
@@ -694,6 +693,30 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            isAgentIdentityEnabled &&
+            user?.ability.can('manage', 'Organization')
+        ) {
+            allowedRoutes.push({
+                path: AGENT_IDENTITY_SETTINGS_PATH.replace(
+                    '/generalSettings',
+                    '',
+                ),
+                element: (
+                    <AgentIdentitySettingsPage
+                        access={getAgentSettingsAccess({
+                            agentIdentityEnabled: isAgentIdentityEnabled,
+                            canManageOrganization:
+                                user?.ability.can('manage', 'Organization') ??
+                                false,
+                            canManageOrgAiAgent,
+                            isAiAvailable: isAiCopilotEnabledOrTrial,
+                        })}
+                    />
+                ),
+            });
+        }
+
         allowedRoutes.push(
             {
                 path: '/mcp',
@@ -769,7 +792,23 @@ const Settings: FC = () => {
             if (canManageOrgAiAgent) {
                 allowedRoutes.push({
                     path: '/mcp/general',
-                    element: <McpGeneralSettingsPage />,
+                    element: (
+                        <McpGeneralSettingsPage
+                            showAgentsPageLink={
+                                getAgentSettingsAccess({
+                                    agentIdentityEnabled:
+                                        isAgentIdentityEnabled,
+                                    canManageOrganization:
+                                        user?.ability.can(
+                                            'manage',
+                                            'Organization',
+                                        ) ?? false,
+                                    canManageOrgAiAgent,
+                                    isAiAvailable: isAiCopilotEnabledOrTrial,
+                                }).mcpPage === 'link'
+                            }
+                        />
+                    ),
                 });
             }
             allowedRoutes.push({
@@ -841,11 +880,13 @@ const Settings: FC = () => {
         return allowedRoutes;
     }, [
         allowPasswordAuthentication,
+        showMyAgentConnections,
         user?.ability,
         organization,
         project,
         isScimTokenManagementEnabled?.enabled,
         isServiceAccountsEnabled,
+        isAgentIdentityEnabled,
         isCustomRolesEnabled,
         hasSocialLogin,
         showImpersonationPanel,
@@ -855,8 +896,9 @@ const Settings: FC = () => {
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
         dataAppAnalysisFlag?.enabled,
+        dashboardAnalysisFlag?.enabled,
+        isChartStudioAvailable,
         externalSourcesFlag?.enabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -900,6 +942,12 @@ const Settings: FC = () => {
             !matchPath(
                 {
                     path: '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/liveDataSources',
                 },
                 location.pathname,
             ) &&
@@ -1001,11 +1049,14 @@ const Settings: FC = () => {
             matchPath('/generalSettings/mcp/general', location.pathname) ||
             matchPath('/generalSettings/mcp/analytics', location.pathname),
         );
+    const isAwaitingAgentIdentityRoute =
+        isAgentIdentityFlagLoading &&
+        Boolean(matchPath(AGENT_IDENTITY_SETTINGS_PATH, location.pathname));
     const isAwaitingDataAppsRoute =
         isDataAppsFlagLoading &&
         Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
     const isAwaitingAnalyticsRoute =
-        isAnalyticsProjectFlagLoading &&
+        isAnalyticsProjectLoading &&
         Boolean(
             matchPath('/generalSettings/lightdashAnalytics', location.pathname),
         );
@@ -1030,6 +1081,11 @@ const Settings: FC = () => {
         : null;
 
     if (
+        (isMyAgentConnectionsLoading &&
+            matchPath(
+                '/generalSettings/myAgentConnections',
+                location.pathname,
+            )) ||
         isHealthLoading ||
         isUserLoading ||
         isOrganizationLoading ||
@@ -1037,6 +1093,7 @@ const Settings: FC = () => {
         isProjectLoading ||
         isAwaitingProjectSettingsRoute ||
         isAwaitingAiSettingsRoute ||
+        isAwaitingAgentIdentityRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
         isAwaitingAiCreditsRoute

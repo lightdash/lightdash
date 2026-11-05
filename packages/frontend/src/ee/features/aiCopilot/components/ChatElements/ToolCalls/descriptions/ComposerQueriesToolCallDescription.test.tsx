@@ -89,7 +89,7 @@ describe('ComposerQueriesToolCallDescription', () => {
         expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
     });
 
-    it('opens only the running node and marks the rest with their status', () => {
+    it('keeps running nodes collapsed and marks each with its status', () => {
         renderWithProviders(
             <ComposerQueriesToolCallDescription
                 queries={[
@@ -116,16 +116,10 @@ describe('ComposerQueriesToolCallDescription', () => {
         expect(screen.getByLabelText('Completed')).toBeInTheDocument();
         expect(screen.getByLabelText('Running')).toBeInTheDocument();
         expect(screen.getByLabelText('Queued')).toBeInTheDocument();
-
-        expect(screen.getAllByRole('button', { expanded: true })).toHaveLength(
-            1,
-        );
-        expect(
-            screen.getByRole('button', { expanded: true }),
-        ).toHaveTextContent('Revenue');
+        expect(screen.queryByRole('button', { expanded: true })).toBeNull();
     });
 
-    it('opens failed nodes so the error is inspectable', () => {
+    it('collapses failed nodes and labels them failed', () => {
         renderWithProviders(
             <ComposerQueriesToolCallDescription
                 queries={[
@@ -134,20 +128,67 @@ describe('ComposerQueriesToolCallDescription', () => {
                 ]}
                 nodeStatuses={{
                     orders: { status: 'success' },
-                    broken: {
-                        status: 'error',
-                        errorMessage: 'column not found',
-                    },
+                    broken: { status: 'error' },
                 }}
             />,
         );
 
+        expect(screen.getByLabelText('Failed')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { expanded: true })).toBeNull();
         expect(
-            screen.getByLabelText('Failed: column not found'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { expanded: true }),
+            screen.getAllByRole('button', { expanded: false })[1],
         ).toHaveTextContent('Broken step');
+    });
+
+    it('lists a python node with its badge, reads and code', async () => {
+        const { container } = renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[
+                    sqlNode('orders', 'Orders', 'select 1'),
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'sim',
+                        title: 'Simulated amounts',
+                        description: null,
+                        code: 'def run(inputs, params):\n    return inputs["orders"]',
+                        references: ['orders'],
+                        limit: 500,
+                    },
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Python')).toBeInTheDocument();
+        expect(screen.getByText('Reads Orders')).toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: /Simulated amounts/ }),
+        );
+        const codes = [...container.querySelectorAll('code')].map(
+            (code) => code.textContent,
+        );
+        expect(codes.some((code) => code?.includes('def run('))).toBe(true);
+    });
+
+    it('renders a partially streamed python node without code', () => {
+        const { container } = renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'sim',
+                        title: 'sim',
+                        description: null,
+                        code: '',
+                        references: [],
+                        limit: 500,
+                    },
+                ]}
+                nodeStatuses={{ sim: { status: 'running' } }}
+            />,
+        );
+
+        expect(screen.getByText('Python')).toBeInTheDocument();
+        expect(container.querySelector('code')).not.toBeInTheDocument();
     });
 
     it('shows approval actions under SQL nodes awaiting approval', () => {

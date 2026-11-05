@@ -183,13 +183,47 @@ resolver while its backend checked only ENV. Enabling Console made the menu
 visible but could never enable the API. An ENV workaround can restore availability;
 the proper fix is to use the standard resolver across entry points.
 
+## Pre-aggregates
+
+Pre-aggregates are not behind a feature flag. They are on for every
+organization when the instance has a licence, `PRE_AGGREGATES_ENABLED=true` and
+pre-aggregate results storage. Preview mode, `LIGHTDASH_ENABLED_FEATURE_FLAGS`
+and Console overrides have no effect on them. See
+[Enablement](pre-aggregates/CONTEXT.md#enablement).
+
 ## Agent identity
 
-`agent-identity` enables the organisation "Require agent identity" switch and
-its API, the agent connection section in My warehouse connections, and the
-connect gate in AI chat. The same flag gates Snowflake agent sign-in, AI access
-checks, warehouse capabilities and marker tests. Disabled routes return a typed
-`FeatureNotEnabledError` with HTTP 403.
+`agent-identity` enables organisation identity rules for each warehouse type and
+their API, My agent identity, and the connect gate in AI chat. My agent identity
+has Agent connections and Warehouse sign-ins tabs. With no connections and no
+list error, it shows warehouse sign-ins alone. The same flag gates Snowflake
+agent sign-in, BigQuery shared agent accounts, AI access checks, warehouse
+capabilities and marker tests. Disabled warehouse identity routes return a typed
+`FeatureNotEnabledError` with HTTP 403. Approval returns
+`AgentConnectionApprovalError` with code `agent_identity_disabled` and HTTP 403.
+The owner list and revoke APIs make no flag check.
+
+Agent connection approval requires the flag for both the person and organisation.
+Approval is review-only: it creates no connection, code or token.
+An agent connection limits requests using its credential; it does not isolate
+[local CLI programs](../packages/cli/README.md#scoped-cli-credentials).
+
+Snowflake rules select **The person**, **The person's agent sign-in** or
+**Shared agent account**.
+BigQuery rules select **The person** or the **Shared agent account** saved on
+each project connection. Both actor rows use the same rule. Service accounts
+cannot use a personal Snowflake agent sign-in.
+
+Required rules refuse queries when the selected identity is missing. Optional
+rules fall back to the user's credentials when it is missing. A saved BigQuery
+shared agent account that cannot sign in always refuses the query. Its queries
+bypass result caches and pre-aggregates, carry the agent label, and disable the
+BigQuery query cache. Replacing its credentials invalidates prior result
+provenance.
+
+During a rolling deploy, new pods read per-type rules. Old pods read the legacy
+Snowflake switch. Rule writes keep that switch in sync with a required Snowflake
+agent sign-in rule. BigQuery slot rules take effect on new pods.
 
 The flag is off by default outside previews and uses the standard resolver with
 no custom handler. Preview defaults enable it. Use organisation overrides for
@@ -197,18 +231,220 @@ Cloud rollouts; standard user overrides also apply. Self-hosted instances can
 use the generic ENV lists and precedence described above.
 
 Snowflake agent sign-in also needs an Enterprise licence and a second Snowflake
-OAuth security integration with `IS_AGENTIC = TRUE`. Configure its endpoints and
-client credentials in `SNOWFLAKE_AI_OAUTH_*`. Warehouse administrators manage
+OAuth security integration with `IS_AGENTIC = TRUE`. An organisation admin saves
+the client on Organization settings → Agent identity. Warehouse administrators manage
 restricted session scopes and masking policies in Snowflake. The app does not
 configure data access.
 
 Each sign-in and token refresh checks agent activation with the new token. Each
 new AI connection checks activation again and disables cached results. A failed
 check refuses the connection. AI and dashboard credentials use separate rows and
-client cache entries. Credential selection also requires the organisation's
-"Require agent identity" switch.
+client cache entries. Credential selection follows the organisation's
+Snowflake identity rule.
 
 Console changes apply to the next backend flag resolution. Reload or refetch the
 page to update the UI. ENV and OAuth configuration changes need a process
 restart. Disabling the flag preserves saved credentials and restores normal query
 identity. It does not cancel queries in progress or revoke Snowflake tokens.
+
+### Preview shared agent accounts
+
+With `agent-identity` enabled, a preview with a parent project uses the parent's
+shared agent account. The original connection matches the parent's original
+connection. Additional connections match by name and warehouse type.
+The preview ignores its stored account. Save and Test with submitted credentials
+are refused. The Agent identity page shows the inherited account read-only.
+Test checks the parent's account against the preview's connection. A preview
+without a parent keeps its own account.
+
+When the rule requires a shared agent account and the parent has none for the
+matching connection, agents are refused on the preview. The page links to the
+parent's Agent identity settings.
+
+An inherited account's query failure keeps the warehouse error message.
+Postgres and Redshift SQLSTATE `42501`, Trino `PERMISSION_DENIED`, and ClickHouse
+code `497` or type `ACCESS_DENIED` add this guidance before it:
+"This preview uses the parent's shared agent account, which can't read this
+preview's data. Ask an admin to grant it access."
+These checks use structured error fields. They do not match message text.
+BigQuery, Snowflake, Databricks and Athena do not receive this guidance.
+Authentication failures retain their existing handling. Other query failures
+retain their original messages.
+
+### Agent capability policy
+
+The capability-policy API and `AgentPermissionService` resolve `agent-identity`
+for the target organization only, without a user override. A missing policy starts
+in `legacy` mode. Saving with limits on activates `managed` mode; resetting
+restores `legacy` and clears the organization capability list. Disabling the flag preserves the
+saved policy and makes the permission service return `off` without new checks.
+
+Managed policy resolution unions system-role matrix grants with custom-role
+capability scopes, then intersects them with `allowedCapabilities` when it is
+not null. Null preserves existing grants until the first save. New policy
+defaults contain all eleven capabilities. An empty saved list refuses agent
+turns on every covered surface. Custom roles keep their own scopes. MCP owns
+Agents over MCP and Allow content changes via MCP; neither setting limits
+in-app, Slack or OAuth API operations.
+Raw SQL for agents needs the person's own permission and the raw-SQL grant. It
+needs no project confirmation.
+
+The credential generation counters on project, shared organization and
+extra-connection credentials are still written when the persistent credentials,
+credential type or credential subject changes. Nothing reads them.
+
+The ceiling applies to MCP tools and resource reads, in-app and Slack agent tools
+and fast data paths, and OAuth REST operations. SQL nodes in mixed-source
+pipelines and SQL-source schema scans require the raw-SQL grant
+before dispatch or cache access. Semantic-only pipelines require
+the query grant. Connected MCP tools also require `external_tools` and an
+explicit entry in that server's `enabledToolNames`, matched by server UUID and
+original tool name. A null tool list does not admit tools in managed mode.
+Personal-access-token and service-account MCP calls are not narrowed, including
+composer SQL nodes and schema scans. Personal-access-token and browser-session
+REST calls are not narrowed. Existing browser-session MCP authentication behavior
+is unchanged. Managed OAuth REST calls cannot change role definitions, role assignments,
+membership, space or direct access grants, agent policy, identity or AI-access
+settings, personal tokens, service accounts or OAuth
+clients, even with the administration capability. Role, project membership,
+organization membership, invite creation or resend, and group mutation services
+also reject managed OAuth and agent execution contexts. Space creation, including
+spaces-as-code imports and missing ancestors, is human-only in managed mode.
+Space updates and spaces-as-code imports reject changes to inheritance,
+project-member access, or user and group grants at the service boundary.
+Metadata-only space edits remain under `content_write`; resubmitting unchanged
+access is allowed, but managed OAuth and agent writes omit those access fields
+so they cannot restore a concurrent human revocation. Ordinary human and PAT
+administration keeps its existing behavior.
+
+Group admission uses the same organization-level `agent-identity` flag.
+`allowedGroupUuids: null` allows everyone whose role allows AI. A list admits
+members of at least one listed group. If all listed groups are deleted, it
+reads as `[]` and admits nobody. It applies with capability limits off and on,
+on MCP tools and resource reads, in-app and Slack agents, OAuth REST, and query
+sources. Slack requires a verified sender when the restriction is active.
+
+A valid deployment licence and the organization-level `UserGroupsEnabled` flag
+allow new group restrictions. Saved restrictions still apply when groups later
+become unavailable. Clearing a restriction is always allowed. Personal-access-token
+and service-account calls keep their existing exemptions. With `agent-identity`
+off, group admission adds no checks or reads. A PUT can set
+`mode: 'legacy'` to save group admission and preserve the dormant role matrix.
+Reset keeps groups and clears the capability list. Old people and project lists
+are ignored and omitted from GET, PUT and reset. An old browser save succeeds
+and drops those choices. The page uses the final policy API for Same as the
+person, Read and query, and Custom. Capability and group changes require review
+before saving.
+
+### Snowflake silent agent refresh
+
+With `agent-identity` enabled and a Snowflake agent sign-in provider selected,
+the OAuth endpoint decides whether the grant is alive. Successful refreshes
+update the token and grant deadline together through a guarded write.
+Temporary failures keep credentials and return a retryable error. A confirmed
+`invalid_grant` refusal emits expiry analytics on query evaluations.
+Side-effect-free connection status checks do not reject a sign-in solely because
+its stored deadline has passed. Non-agent Snowflake authentication is unchanged.
+
+### OAuth scope enforcement
+
+`agent-identity` also enables OAuth scope checks. With that flag off, OAuth
+permissions and scope validation keep their existing behaviour. With it on,
+checks log refusals but preserve existing decisions by default.
+
+`oauth-scope-enforcement` changes those checks from log mode to enforcement.
+It is off by default, has no custom handler and is only resolved when
+`agent-identity` is enabled. Enforcement limits OAuth tokens to their scopes,
+filters MCP tools and rejects invalid requested scopes at grant issuance.
+Personal access tokens, sessions and service accounts keep their permissions.
+
+When `agent-identity` is on, OAuth callers cannot create or rotate personal
+access tokens or service accounts, manage OAuth clients, or rotate SCIM tokens.
+This separate credential guard refuses requests in both log and enforce mode.
+Authentication failures also keep their existing refusal behaviour in both modes.
+
+Both checks use the authenticated user's organisation and user UUID. Console
+organisation and user overrides apply through the standard resolver. Generic
+ENV enable/disable lists keep the precedence described above. There is no
+separate OAuth-scope ENV setting. Console changes apply to the next request or
+grant validation; ENV changes require a process restart. Disabling enforcement
+restores log mode. Disabling agent identity restores the previous behaviour
+without scope-refusal records. Neither change revokes issued tokens.
+
+### Personal credential overlay
+
+`agent-identity` also enforces which fields a personal warehouse credential can
+set. Each warehouse has an allowlist of sign-in fields
+(`packages/common/src/types/personalWarehouseCredentials.ts`). The query uses
+the connection with its auth fields removed, plus the allowlisted personal
+fields (`composePersonalWarehouseCredentials` in
+`packages/backend/src/services/WarehouseClientFactory/personalCredentialOverlay.ts`).
+Host, port, database, compute, TLS, SSH and policy fields such as the Snowflake
+and Postgres roles and BigQuery cost limits always come from the connection.
+
+Three auth details differ by warehouse. A Redshift IAM credential uses the
+person's own role ARN and external ID, with the person's own AWS keys. Athena
+uses only the person's key pair and drops the connection's role, session token
+and web identity. A Databricks U2M credential with no OAuth client ID uses the
+connection's OAuth app only when the connection itself uses U2M.
+
+With the flag on, a save that sets another field returns HTTP 400. Stored rows
+are projected to the allowlist on read, so old extra fields are ignored. A
+stored row that cannot be used safely fails with one reconnect error and never
+falls back to the shared credential. Databricks rows fail with
+`DatabricksTokenError`; other warehouses fail with
+`MissingWarehouseCredentialsError`.
+
+The flag resolves for the project's organisation and the person whose credential
+is used. A user with no organisation keeps the legacy save. With the flag off,
+saves, reads and merges keep their previous behaviour. Disabling the flag does
+not rewrite rows saved while it was on.
+
+### Explicit dbt credentials
+
+`dbt-explicit-credentials` is off by default. It uses the standard resolver for
+the project's organisation, without a user UUID. Personal overrides do not
+apply. Compile, test-and-compile, preview projects and scheduler workers use the
+same policy. Console changes apply to the next policy resolution. The generic
+ENV lists use the precedence above and need an API and worker restart.
+
+When enabled, local dbt compilation refuses ambient authentication modes.
+Use an explicit key, a person's sign-in or BigQuery workload identity federation
+instead. The dbt child process also stops inheriting the cloud credential
+variables in `CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in
+the machine allowlist. Project environment variables and target-injected
+credentials remain available. The server environment does not change.
+
+BigQuery workload identity federation counts as explicit credentials because its
+provider is configured per project and its federated principal is scoped by the
+customer's workload identity pool. The dbt child receives a generated
+`external_account` file through `GOOGLE_APPLICATION_CREDENTIALS`, without a
+service account key or inherited Application Default Credentials (ADC). Its
+subject token still comes from the server's Google identity, so
+`bigquery-workload-identity-auth` must stay off on shared instances.
+
+Disabling the flag restores the existing profile and child-environment behaviour.
+It does not change credential selection, revoke credentials or stop work already
+in progress. This policy does not isolate the child from host files or metadata
+endpoints; it rejects known ambient modes and filters inherited variables.
+
+### Mixed warehouse connections
+
+`mixed-warehouse-connections` is off by default on Cloud and self-hosted. It
+allows originals and extras of every user-connectable warehouse type, in any
+mix. With it off, only Postgres, Athena and Snowflake originals can hold extras,
+and extras must use the original type. Trino is refused with the flag off.
+Backend-provisioned DuckDB variants are always refused. The multi-connection rollout flag and
+licence checks still apply.
+
+Create, credential update and switch requests resolve this flag for the requesting
+user and the project's organisation. User and organisation Console overrides
+apply. The add-connection modal uses the server-resolved flag. Console changes
+apply to the next backend request and frontend flag refetch. The generic ENV
+precedence above applies; ENV changes require an API restart.
+
+Disabling the flag restores the original allowlist for new saves and switches.
+An existing extra cannot change its type with either flag value; add a new
+connection instead. It does not remove
+saved connections or change query execution. Mixed-type extras keep their own
+user-credential requirement; same-type extras still inherit the original's.

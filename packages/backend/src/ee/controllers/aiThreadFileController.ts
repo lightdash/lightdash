@@ -20,6 +20,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -47,6 +48,7 @@ export class AiThreadFileController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiThreadFileController.upload'),
     ])
     @SuccessResponse('201', 'Created')
     @Post('/')
@@ -79,6 +81,7 @@ export class AiThreadFileController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiThreadFileController.delete'),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('/{fileUuid}')

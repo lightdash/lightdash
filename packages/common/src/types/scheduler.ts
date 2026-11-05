@@ -1,5 +1,9 @@
 import { type AiReviewNotificationEvent } from '../ee/types/aiReviewNotification';
 import assertUnreachable from '../utils/assertUnreachable';
+import {
+    type AgentConnectionExecution,
+    type AgentConnectionTaskEffect,
+} from './agentConnectionGrants';
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
@@ -146,6 +150,11 @@ export type SchedulerBase = {
      * unaffected.
      */
     plainTextEmail: boolean;
+    /**
+     * Read query results from the results cache when a valid entry exists,
+     * instead of always running a fresh warehouse query.
+     */
+    useCachedResults: boolean;
     projectUuid?: string | null;
     projectName?: string | null;
 };
@@ -347,10 +356,13 @@ export type CreateSchedulerAndTargets = Omit<
     | 'dashboardName'
     | 'savedSqlName'
     | 'plainTextEmail'
+    | 'useCachedResults'
 > & {
     // Optional on the wire so existing API clients keep working; absent means
     // the branded HTML email, which is what they already get.
     plainTextEmail?: boolean;
+    // Absent means a fresh query on every run.
+    useCachedResults?: boolean;
     slug?: string;
     targets: CreateSchedulerTarget[];
     // Transient: carries the AI augmentation for an unsaved "send now" so the
@@ -438,6 +450,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'includeLinks'
 > & {
     plainTextEmail?: boolean;
+    useCachedResults?: boolean;
     filters?: SchedulerFilters;
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
@@ -680,7 +693,16 @@ export type ApiReassignUserSchedulersResponse = ApiSuccess<{
     reassignedCount: number;
 }>;
 
+export type AgentWorkMarker = {
+    userUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+};
+
 export type TraceTaskBase = {
+    agentConnectionExecution?: AgentConnectionExecution | null;
+    agentConnectionEffect?: AgentConnectionTaskEffect;
+    agentWork?: AgentWorkMarker;
     organizationUuid: string;
     projectUuid: string;
     userUuid: string;
@@ -694,6 +716,10 @@ export type PublishAnnouncementPayload = TraceTaskBase & {
 export type IngestExternalSourceJobPayload = TraceTaskBase & {
     attemptUuid: string;
     sourceUuid: string;
+};
+
+export type ScanApiSourceSchemaJobPayload = TraceTaskBase & {
+    externalConnectionUuid: string;
 };
 
 export type ManagedAgentHeartbeatTriggeredBy = 'cron' | 'manual' | 'on_enable';
@@ -760,6 +786,7 @@ export type DeliveryNotice = {
 };
 
 export type NotificationPayloadBase = {
+    aiSummaryOriginalMessage?: string | null;
     schedulerUuid?: string;
     scheduledTime: Date;
     jobGroup: string;
@@ -977,6 +1004,10 @@ export type ExportContentPayload = TraceTaskBase & {
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
     parameters?: ParametersValuesMap;
+    tileParameters?: Record<
+        string,
+        { parameters: ParametersValuesMap; excludedParameterKeys: string[] }
+    >;
     // Set for embed/JWT exports so the scheduler worker can rebuild the
     // anonymous account (no DB user) and run each tile query under it.
     encodedJwt?: string;
@@ -990,6 +1021,10 @@ export type ExportContentRequest = {
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
     parameters?: ParametersValuesMap;
+    tileParameters?: Record<
+        string,
+        { parameters: ParametersValuesMap; excludedParameterKeys: string[] }
+    >;
 };
 
 /** Renders one saved version of a Document to PDF as the requesting user. */

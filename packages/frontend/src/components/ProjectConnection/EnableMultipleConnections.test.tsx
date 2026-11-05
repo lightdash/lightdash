@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     ProjectType,
     WarehouseTypes,
     type Project,
@@ -7,21 +8,26 @@ import {
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionsPanel from './ConnectionsPanel';
 
-const flag = vi.hoisted(() => ({ enabled: true }));
+const flag = vi.hoisted(() => ({ enabled: true, mixedTypesEnabled: true }));
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
+    useServerFeatureFlag: (id: FeatureFlags) => ({
+        data: {
+            enabled:
+                id === FeatureFlags.MixedWarehouseConnections
+                    ? flag.mixedTypesEnabled
+                    : flag.enabled,
+        },
+    }),
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const organizationUuid = 'organization-uuid';
 const connectionsUrl = '/projects/project-uuid/warehouse-connections';
@@ -70,8 +76,10 @@ type Call = { url: string; method: string; body?: string };
 const routeApi = ({
     availability,
     switchResponses = [],
+    originalWarehouseType = WarehouseTypes.POSTGRES,
 }: {
     availability: { canSwitch: boolean; reason: string | null };
+    originalWarehouseType?: WarehouseTypes;
     switchResponses?: (() => Promise<unknown>)[];
 }) => {
     const pendingSwitches = [...switchResponses];
@@ -82,7 +90,7 @@ const routeApi = ({
         if (url === switchUrl && method === 'GET') {
             return {
                 ...availability,
-                originalWarehouseType: WarehouseTypes.POSTGRES,
+                originalWarehouseType,
             };
         }
         if (url === `${switchUrl}/preview`) return plan;
@@ -130,12 +138,18 @@ const renderPanel = () => {
 
 const fillForm = async (user: ReturnType<typeof userEvent.setup>) => {
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText(/^Name\s*\*?$/), 'Finance');
-    await user.type(within(dialog).getByLabelText(/^Host/), 'finance.internal');
-    await user.type(within(dialog).getByLabelText(/^User/), 'analyst');
-    await user.type(within(dialog).getByLabelText(/^Password/), 'secret');
-    await user.type(within(dialog).getByLabelText(/^DB name/), 'finance');
-    await user.type(within(dialog).getByLabelText(/^Schema/), 'public');
+    // Paste whole field values: these tests exercise the switch, not per-key input.
+    for (const [label, value] of [
+        [/^Name\s*\*?$/, 'Finance'],
+        [/^Host/, 'finance.internal'],
+        [/^User/, 'analyst'],
+        [/^Password/, 'secret'],
+        [/^DB name/, 'finance'],
+        [/^Schema/, 'public'],
+    ] as const) {
+        await user.click(within(dialog).getByLabelText(label));
+        await user.paste(value);
+    }
     return dialog;
 };
 
@@ -143,6 +157,37 @@ describe('Enable multiple connections', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         flag.enabled = true;
+        flag.mixedTypesEnabled = true;
+    });
+
+    it.each([false, true])(
+        'gates a Trino original with the resolved mixed flag %s',
+        async (enabled) => {
+            flag.mixedTypesEnabled = enabled;
+            routeApi({
+                availability: { canSwitch: true, reason: null },
+                originalWarehouseType: WarehouseTypes.TRINO,
+            });
+            renderPanel();
+            const button = await screen.findByRole('button', {
+                name: 'Enable multiple connections',
+            });
+            await waitFor(() =>
+                expect(button).toHaveProperty('disabled', !enabled),
+            );
+        },
+    );
+    it('keeps a Postgres original available with the mixed flag off', async () => {
+        flag.mixedTypesEnabled = false;
+        routeApi({ availability: { canSwitch: true, reason: null } });
+        renderPanel();
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', {
+                    name: 'Enable multiple connections',
+                }),
+            ).toBeEnabled(),
+        );
     });
 
     it('offers the switch on a single-connection project', async () => {
@@ -158,6 +203,7 @@ describe('Enable multiple connections', () => {
         ).not.toBeInTheDocument();
     });
 
+    // Full panel render plus a multi-step form; the default 5 s is not enough on a shared CI runner.
     it('hides the extra credential toggle and explains the primary setting in the switch dialog', async () => {
         routeApi({ availability: { canSwitch: true, reason: null } });
         const user = renderPanel();
@@ -193,7 +239,7 @@ describe('Enable multiple connections', () => {
         expect(body.connection.warehouseConnection.requireUserCredentials).toBe(
             false,
         );
-    });
+    }, 20_000);
 
     it('disables the switch and says why when the project cannot switch', async () => {
         routeApi({
@@ -312,5 +358,5 @@ describe('Enable multiple connections', () => {
         await waitFor(() =>
             expect(screen.queryByText(/Its connection test passed/)).toBeNull(),
         );
-    });
+    }, 20_000);
 });

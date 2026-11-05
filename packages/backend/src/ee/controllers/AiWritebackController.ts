@@ -8,7 +8,6 @@ import {
     type ApiClosePullRequestResponse,
     type ApiErrorPayload,
     type ApiMergePullRequestResponse,
-    type ApiProjectCiStatusResponse,
     type ApiProjectFilesResponse,
     type ApiProjectRepositoriesResponse,
     type ApiPullRequestDiffResponse,
@@ -33,6 +32,7 @@ import {
 import express from 'express';
 import { z } from 'zod';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -40,7 +40,6 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
-import { PreviewDeploySetupService } from '../services/PreviewDeploySetupService/PreviewDeploySetupService';
 
 // The target repo (owner/repo) and dbt sub-folder are resolved server-side from
 // the chosen dbt source. `dbtSourceUuid` selects it when the project has more
@@ -76,6 +75,7 @@ export class AiWritebackController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiWritebackController.runAiWriteback'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/')
@@ -95,6 +95,7 @@ export class AiWritebackController extends BaseController {
         const { prompt, dbtSourceUuid } = parsed.data;
         this.setStatus(200);
         const result = await this.getAiWritebackService().run({
+            agentPermissionsApply: req.account.authentication.type === 'oauth',
             user: toSessionUser(req.account),
             projectUuid,
             prompt,
@@ -129,33 +130,6 @@ export class AiWritebackController extends BaseController {
             toSessionUser(req.account),
             aiWritebackRunUuid,
         );
-        return {
-            status: 'ok',
-            results,
-        };
-    }
-
-    /**
-     * Get the project's CI status — whether its repo has a Lightdash
-     * preview-deploy workflow. Lets the chat UI decide whether a write-back PR
-     * will produce a preview deployment. Returns null when never scanned.
-     * @summary Get project CI status
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/ci-status')
-    @OperationId('getProjectCiStatus')
-    async getProjectCiStatus(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-    ): Promise<ApiProjectCiStatusResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        const results =
-            await this.getPreviewDeploySetupService().getProjectCiStatus(
-                toSessionUser(req.account),
-                projectUuid,
-            );
         return {
             status: 'ok',
             results,
@@ -356,9 +330,5 @@ export class AiWritebackController extends BaseController {
 
     protected getAiWritebackService() {
         return this.services.getAiWritebackService<AiWritebackService>();
-    }
-
-    protected getPreviewDeploySetupService() {
-        return this.services.getPreviewDeploySetupService<PreviewDeploySetupService>();
     }
 }

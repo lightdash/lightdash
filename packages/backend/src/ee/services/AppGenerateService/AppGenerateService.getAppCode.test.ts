@@ -1,15 +1,18 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import {
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
+    TableSelectionType,
     type SessionUser,
 } from '@lightdash/common';
 import { pack } from 'tar-stream';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { assertCanViewApp } from './appAuthz';
 import { AppGenerateService } from './AppGenerateService';
+import { featureFlagModelWith } from './AppGenerateService.mock';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -161,8 +164,12 @@ function buildService(overrides: {
     organizationDesignModel?: Record<string, unknown>;
     externalConnectionModel?: Record<string, unknown>;
     spaceModel?: Record<string, unknown>;
+    dataAppsEnabled?: boolean;
+    chartStudioAvailable?: boolean;
 }): AppGenerateService {
     const {
+        dataAppsEnabled = true,
+        chartStudioAvailable = true,
         appModel = {},
         s3ClientOverride,
         projectModel = {},
@@ -183,6 +190,9 @@ function buildService(overrides: {
 
     const fullProjectModel = {
         getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+        getTablesConfiguration: vi.fn().mockResolvedValue({
+            tableSelection: { type: TableSelectionType.ALL, value: null },
+        }),
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG_UUID }),
         ...projectModel,
     };
@@ -202,14 +212,15 @@ function buildService(overrides: {
         ...externalConnectionModel,
     };
 
-    const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({ enabled: true }),
-    };
+    const featureFlagModel = featureFlagModelWith({
+        [FeatureFlags.EnableDataApps]: dataAppsEnabled,
+    });
     const spacePermissionService = {
         resolveAccess: vi.fn().mockResolvedValue({}),
     };
 
     const svc = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {} as never,
         analytics: { track: analyticsTrackSpy } as never,
@@ -246,6 +257,9 @@ function buildService(overrides: {
         } as never,
     });
 
+    vi.spyOn(svc, 'isChartStudioAvailable').mockReturnValue(
+        chartStudioAvailable,
+    );
     vi.spyOn(
         svc as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
@@ -816,6 +830,67 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.context.theme.assets).toHaveLength(0);
         expect(result.context.theme.instructions).toBeNull();
     });
+
+    it('emits registry provenance for a registry-installed chart type', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue({
+                ...fakeApp,
+                template: 'data_app_viz',
+                registry_slug: 'vega-trellis',
+                registry_url: 'https://charts.example.com',
+            }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue({
+                ...fakeAppVersion,
+                registry_version: '0.6.0',
+            }),
+        };
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+        expect(result.manifest.registry).toEqual({
+            slug: 'vega-trellis',
+            version: '0.6.0',
+            url: 'https://charts.example.com',
+        });
+    });
+
+    it('omits registry provenance for a custom app and for a registry app version without a registry version', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const custom = buildService({
+            appModel: {
+                getAppByUuidOrSlug: vi
+                    .fn()
+                    .mockResolvedValue({ ...fakeApp, registry_slug: null }),
+                getLatestReadyVersion: vi
+                    .fn()
+                    .mockResolvedValue(fakeAppVersion),
+            },
+            s3ClientOverride: fakeS3,
+        });
+        expect(
+            (await custom.getAppCode(fakeUser, PROJECT_UUID, APP_UUID))
+                .manifest,
+        ).not.toHaveProperty('registry');
+
+        const noVersion = buildService({
+            appModel: {
+                getAppByUuidOrSlug: vi.fn().mockResolvedValue({
+                    ...fakeApp,
+                    registry_slug: 'vega-trellis',
+                    registry_url: 'https://charts.example.com',
+                }),
+                getLatestReadyVersion: vi.fn().mockResolvedValue({
+                    ...fakeAppVersion,
+                    registry_version: null,
+                }),
+            },
+            s3ClientOverride: fakeS3,
+        });
+        expect(
+            (await noVersion.getAppCode(fakeUser, PROJECT_UUID, APP_UUID))
+                .manifest,
+        ).not.toHaveProperty('registry');
+    });
 });
 
 describe('AppGenerateService.getDataAppAuthoringContext', () => {
@@ -898,6 +973,54 @@ describe('AppGenerateService.getDataAppAuthoringContext', () => {
                 null,
             ),
         ).rejects.toThrow(`A data app with slug "${APP_SLUG}" already exists`);
+    });
+
+    it('serves chart type authoring with data apps off while Chart Studio is available', async () => {
+        const svc = buildService({
+            dataAppsEnabled: false,
+            chartStudioAvailable: true,
+        });
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                'sankey-flow',
+                null,
+            ),
+        ).resolves.toEqual(expect.objectContaining({ parameters: null }));
+    });
+
+    it('serves authoring with data apps on while Chart Studio is not available', async () => {
+        const svc = buildService({
+            dataAppsEnabled: true,
+            chartStudioAvailable: false,
+        });
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                'sankey-flow',
+                null,
+            ),
+        ).resolves.toEqual(expect.objectContaining({ parameters: null }));
+    });
+
+    it('refuses when neither data apps nor Chart Studio are available', async () => {
+        const svc = buildService({
+            dataAppsEnabled: false,
+            chartStudioAvailable: false,
+        });
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                'sankey-flow',
+                null,
+            ),
+        ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
     });
 
     it('rejects an invalid local app slug', async () => {

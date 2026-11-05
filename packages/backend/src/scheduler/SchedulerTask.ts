@@ -1,4 +1,5 @@
 import {
+    AiAccessRefusedError,
     AnyType,
     appendUuidQueryParam,
     applyChartFilterOverrides,
@@ -62,6 +63,8 @@ import {
     isDashboardSqlChartTile,
     isDashboardValidationError,
     isDataAppValidationError,
+    isJwtUser,
+    isParameterInteractivityEnabled,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
@@ -122,6 +125,8 @@ import {
     VizColumn,
     WarehouseConnectionError,
     type Account as AccountType,
+    type AgentConnectionTaskEffect,
+    type AgentWorkMarker,
     type BatchDeliveryResult,
     type CapturedQuery,
     type DeliveryCaptureManifest,
@@ -141,8 +146,10 @@ import {
     type PartialFailure,
     type PivotConfiguration,
     type ReadyQueryResultsPage,
+    type RegisteredAccount,
     type SchedulerIndexCatalogJobPayload,
     type SlackBatchNotificationPayload,
+    type TraceTaskBase,
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { createHash } from 'crypto';
@@ -159,6 +166,8 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
+import { toSessionUser } from '../auth/account';
+import { type AgentConnectionGrantService } from '../auth/agentConnectionGrants/AgentConnectionGrantService';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
@@ -176,12 +185,20 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
+import { isPreAggregatesEnabled } from '../ee/preAggregates/isPreAggregatesEnabled';
 import type { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { AgentConnectionApprovalRequestModel } from '../models/AgentConnectionApprovalRequestModel';
 import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
+import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
+import {
+    AGENT_SUMMARY_REFUSED_MESSAGE,
+    parseAgentWorkMarker,
+} from '../services/AgentPermissionService/agentWorkAuthority';
+import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -198,7 +215,12 @@ import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHel
 import { LearnSandboxService } from '../services/LearnSandboxService/LearnSandboxService';
 import { resolveOrganizationExportLimits } from '../services/OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
-import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
+import {
+    areDashboardControlsEnabled,
+    getDashboardParametersValuesMap,
+    getDashboardTileParameterLayer,
+    getEnabledParameterControls,
+} from '../services/ProjectService/parameters';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
@@ -208,10 +230,18 @@ import {
 } from '../services/UnfurlService/UnfurlService';
 import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
+import {
+    captureAgentConnectionTask,
+    getAgentConnectionEffectCapabilities,
+    normalizeAgentConnectionTaskPayload,
+} from '../utils/agentConnectionExecution';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { buildGoogleSheetsFilterSummaryRows } from '../utils/googleSheetsFilterSummary';
-import { SchedulerClient } from './SchedulerClient';
+import {
+    SchedulerClient,
+    type SchedulerAiSummaryDelivery,
+} from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
 // AI augmentation runner. Implemented by the EE SchedulerAiAugmentationService
@@ -224,12 +254,18 @@ export type SchedulerDeliveryQuery = {
     queryUuid: string;
 };
 
+export interface SchedulerAiAugmentationResult {
+    message: string;
+    agentWork: AgentWorkMarker | null;
+}
+
 export interface SchedulerAiAugmentationRunner {
+    assertDeliveryAllowed(marker: AgentWorkMarker): Promise<void>;
     runForDelivery(args: {
         scheduler: SchedulerAndTargets | SendNowScheduler;
         createdBy: string;
         deliveryQueries?: SchedulerDeliveryQuery[];
-    }): Promise<string | null>;
+    }): Promise<SchedulerAiAugmentationResult | null>;
 }
 
 type SlackDeliveryFile = NonNullable<
@@ -237,6 +273,7 @@ type SlackDeliveryFile = NonNullable<
 >[number];
 
 export type SchedulerTaskArguments = {
+    getAgentConnectionGrantService?: () => AgentConnectionGrantService;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     schedulerAiAugmentation?: SchedulerAiAugmentationRunner;
@@ -263,9 +300,11 @@ export type SchedulerTaskArguments = {
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
+    featureFlagModel: FeatureFlagModel;
     organizationSettingsModel: OrganizationSettingsModel;
     emailWhitelabelService: EmailWhitelabelService;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
+    agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
     aiUsageLedgerModel: AiUsageLedgerModel;
     learnSandboxService: LearnSandboxService;
 };
@@ -557,17 +596,25 @@ export default class SchedulerTask {
 
     protected readonly preAggregateModel: PreAggregateModel;
 
+    protected readonly featureFlagModel: FeatureFlagModel;
+
     protected readonly organizationSettingsModel: OrganizationSettingsModel;
 
     protected readonly emailWhitelabelService: EmailWhitelabelService;
 
     protected readonly warehouseConnectCodeModel: WarehouseConnectCodeModel;
 
+    protected readonly agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
+
     protected readonly aiUsageLedgerModel: AiUsageLedgerModel;
 
     protected readonly learnSandboxService: LearnSandboxService;
 
+    private readonly getAgentConnectionGrantService: SchedulerTaskArguments['getAgentConnectionGrantService'];
+
     constructor(args: SchedulerTaskArguments) {
+        this.getAgentConnectionGrantService =
+            args.getAgentConnectionGrantService;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.schedulerAiAugmentation = args.schedulerAiAugmentation;
@@ -595,9 +642,12 @@ export default class SchedulerTask {
         this.preAggregateModel = args.preAggregateModel;
         this.preAggregateMaterializationService =
             args.preAggregateMaterializationService;
+        this.featureFlagModel = args.featureFlagModel;
         this.organizationSettingsModel = args.organizationSettingsModel;
         this.emailWhitelabelService = args.emailWhitelabelService;
         this.warehouseConnectCodeModel = args.warehouseConnectCodeModel;
+        this.agentConnectionApprovalRequestModel =
+            args.agentConnectionApprovalRequestModel;
         this.aiUsageLedgerModel = args.aiUsageLedgerModel;
         this.learnSandboxService = args.learnSandboxService;
     }
@@ -827,6 +877,7 @@ export default class SchedulerTask {
             dashboardFilters?: ExportContentPayload['dashboardFilters'];
             dateZoomGranularity?: ExportContentPayload['dateZoomGranularity'];
             parameters?: ExportContentPayload['parameters'];
+            tileParameters?: ExportContentPayload['tileParameters'];
         },
         // Captured once per job by captureAppDeliveryQueries — never rendered here,
         // so the per-channel fan-out can't trigger a second app render.
@@ -851,6 +902,7 @@ export default class SchedulerTask {
             format,
             options,
         } = scheduler;
+        const useCachedResults = scheduler.useCachedResults === true;
 
         let imageUrl;
         let imageS3Key;
@@ -916,6 +968,18 @@ export default class SchedulerTask {
             appUuid,
         );
 
+        const tileParameters =
+            dashboardUuid &&
+            exportOptions?.tileParameters !== undefined &&
+            (format === SchedulerFormat.IMAGE ||
+                format === SchedulerFormat.PDF) &&
+            (await areDashboardControlsEnabled({
+                featureFlagModel: this.featureFlagModel,
+                user: { organizationUuid, userUuid },
+            }))
+                ? exportOptions.tileParameters
+                : undefined;
+
         let deliveryUrl: string;
         if (appUuid) {
             deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/apps/${appUuid}/view`;
@@ -935,6 +999,9 @@ export default class SchedulerTask {
                 'dateZoom',
                 exportOptions.dateZoomGranularity.toLowerCase(),
             );
+        }
+        if (useCachedResults) {
+            minimalRenderUrl.searchParams.set('useCachedResults', 'true');
         }
 
         // App schedulers can snapshot the app's shareable URL state: seed the
@@ -984,6 +1051,7 @@ export default class SchedulerTask {
                         sendNowSchedulerFilters,
                         sendNowSchedulerChartFilters,
                         sendNowSchedulerParameters,
+                        tileParameters,
                     });
                     if (unfurlImage.imageUrl === undefined) {
                         throw new Error('Unable to unfurl image');
@@ -1011,6 +1079,7 @@ export default class SchedulerTask {
                                     exportOptions?.dashboardFilters,
                                 sendNowSchedulerFilters,
                                 sendNowSchedulerParameters,
+                                tileParameters,
                             });
                         pdfFile = perTabResult.pdfFile;
                         pdfPageCount = perTabResult.pdfPageCount;
@@ -1058,7 +1127,18 @@ export default class SchedulerTask {
                         'pagePerTab' in options &&
                         options.pagePerTab === true;
 
-                    if (pagePerTab && dashboardUuid) {
+                    if (appUuid) {
+                        // The app builds its own PDF (the Download PDF
+                        // builder); the headless render just carries it out.
+                        const appPdf = await this.unfurlService.unfurlAppPdf({
+                            minimalUrl: minimalRenderUrl.href,
+                            appName: details.name,
+                            authUserUuid: userUuid,
+                            imageId: pdfId,
+                            contextId: jobId,
+                        });
+                        pdfFile = appPdf.pdfFile;
+                    } else if (pagePerTab && dashboardUuid) {
                         const perTabResult =
                             await this.unfurlService.unfurlPdfCssPaged({
                                 minimalUrl: minimalRenderUrl.href,
@@ -1077,6 +1157,7 @@ export default class SchedulerTask {
                                     exportOptions?.dashboardFilters,
                                 sendNowSchedulerFilters,
                                 sendNowSchedulerParameters,
+                                tileParameters,
                             });
                         pdfFile = perTabResult.pdfFile;
                         pdfPageCount = perTabResult.pdfPageCount;
@@ -1100,6 +1181,7 @@ export default class SchedulerTask {
                             sendNowSchedulerFilters,
                             sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
+                            tileParameters,
                         });
                         if (!unfurlPdf.pdfFile) {
                             throw new UnexpectedServerError(
@@ -1536,7 +1618,7 @@ export default class SchedulerTask {
                                     account,
                                     projectUuid,
                                     chartUuid: savedChartUuid,
-                                    invalidateCache: true,
+                                    invalidateCache: !useCachedResults,
                                     context:
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
@@ -1654,6 +1736,59 @@ export default class SchedulerTask {
                                 ...convertedDashboardParameters,
                                 ...schedulerParameters,
                             };
+                        const parameterControls =
+                            await getEnabledParameterControls({
+                                featureFlagModel: this.featureFlagModel,
+                                user: {
+                                    organizationUuid:
+                                        dashboard.organizationUuid,
+                                    userUuid,
+                                },
+                                config: dashboard.config,
+                            });
+                        const userParameterNames =
+                            parameterControls === null
+                                ? []
+                                : (
+                                      await this.projectService.projectParametersModel.find(
+                                          dashboard.projectUuid,
+                                      )
+                                  ).map(({ name }) => name);
+                        const getTileParameters = (tileUuid: string) =>
+                            parameterControls === null
+                                ? finalParameters
+                                : getDashboardTileParameterLayer({
+                                      parameterControls,
+                                      dashboardParameters: dashboard.parameters,
+                                      tileUuid,
+                                      chartSavedValues: {},
+                                      requestParameters:
+                                          exportOptions?.parameters ??
+                                          schedulerParameters,
+                                      userParameterNames,
+                                  }).dashboardValues;
+
+                        const controlsEnabled =
+                            parameterControls !== null ||
+                            (dashboard.config?.parameterControls ===
+                                undefined &&
+                                exportOptions?.tileParameters !== undefined &&
+                                (await areDashboardControlsEnabled({
+                                    featureFlagModel: this.featureFlagModel,
+                                    user: {
+                                        organizationUuid:
+                                            dashboard.organizationUuid,
+                                        userUuid,
+                                    },
+                                })));
+                        const getExportTileParameters = (tileUuid: string) =>
+                            controlsEnabled &&
+                            (!isJwtUser(account) ||
+                                isParameterInteractivityEnabled(
+                                    account.access.parameters,
+                                ))
+                                ? exportOptions?.tileParameters?.[tileUuid]
+                                : undefined;
 
                         // Sheets are added to the workbook in promise order, so
                         // sort tiles by dashboard layout (tab order, then
@@ -1727,14 +1862,22 @@ export default class SchedulerTask {
                                         projectUuid,
                                         tileUuid,
                                         chartUuid,
-                                        invalidateCache: true,
+                                        invalidateCache: !useCachedResults,
                                         context:
                                             QueryExecutionContext.SCHEDULED_DELIVERY,
                                         dashboardUuid,
                                         dashboardFilters,
                                         dashboardSorts: [],
                                         dateZoom,
-                                        parameters: finalParameters,
+                                        parameters: getExportTileParameters(
+                                            tileUuid,
+                                        )
+                                            ? getExportTileParameters(tileUuid)!
+                                                  .parameters
+                                            : getTileParameters(tileUuid),
+                                        excludedParameterKeys:
+                                            getExportTileParameters(tileUuid)
+                                                ?.excludedParameterKeys,
                                         limit: chartLimit,
                                         pivotResults: shouldPivotResults,
                                     },
@@ -1798,14 +1941,22 @@ export default class SchedulerTask {
                                         account,
                                         projectUuid,
                                         savedSqlUuid: chartUuid,
-                                        invalidateCache: true,
+                                        invalidateCache: !useCachedResults,
                                         context:
                                             QueryExecutionContext.SCHEDULED_DELIVERY,
                                         dashboardUuid,
                                         tileUuid,
                                         dashboardFilters,
                                         dashboardSorts: [],
-                                        parameters: finalParameters,
+                                        parameters: getExportTileParameters(
+                                            tileUuid,
+                                        )
+                                            ? getExportTileParameters(tileUuid)!
+                                                  .parameters
+                                            : getTileParameters(tileUuid),
+                                        excludedParameterKeys:
+                                            getExportTileParameters(tileUuid)
+                                                ?.excludedParameterKeys,
                                         limit:
                                             sqlLimit === null
                                                 ? MAX_SAFE_INTEGER
@@ -2055,10 +2206,55 @@ export default class SchedulerTask {
         }
     }
 
+    private async checkSummaryBeforeSend<
+        T extends NotificationPayloadBase & TraceTaskBase,
+    >(notification: T): Promise<T> {
+        try {
+            const parsed = parseAgentWorkMarker({
+                agentWork: notification.agentWork,
+                organizationUuid: notification.organizationUuid,
+                projectUuid: notification.projectUuid,
+            });
+            if (parsed.status !== 'valid' || !this.schedulerAiAugmentation) {
+                throw new Error('The summary could not be verified.');
+            }
+            await this.schedulerAiAugmentation.assertDeliveryAllowed(
+                parsed.marker,
+            );
+            return notification;
+        } catch (error) {
+            return {
+                ...notification,
+                agentWork: undefined,
+                scheduler: {
+                    ...notification.scheduler,
+                    message: notification.aiSummaryOriginalMessage ?? undefined,
+                },
+                page: {
+                    ...notification.page,
+                    failures: [
+                        ...(notification.page.failures ?? []),
+                        {
+                            type: PartialFailureType.AI_AUGMENTATION,
+                            error:
+                                error instanceof AiAccessRefusedError
+                                    ? AGENT_SUMMARY_REFUSED_MESSAGE
+                                    : 'The summary could not be verified.',
+                        },
+                    ],
+                },
+            };
+        }
+    }
+
     protected async sendSlackNotification(
         jobId: string,
-        notification: SlackNotificationPayload,
+        payload: SlackNotificationPayload,
     ) {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const {
             schedulerUuid,
             schedulerSlackTargetUuid,
@@ -2473,8 +2669,12 @@ export default class SchedulerTask {
 
     protected async sendMsTeamsNotification(
         jobId: string,
-        notification: MsTeamsNotificationPayload,
+        payload: MsTeamsNotificationPayload,
     ) {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const {
             schedulerUuid,
             schedulerMsTeamsTargetUuid,
@@ -2573,7 +2773,7 @@ export default class SchedulerTask {
                     ? 'data alert'
                     : 'scheduled delivery';
             const schedulerFooter = includeLinks
-                ? `<a href="${url}">${schedulerType}</a>`
+                ? `[${schedulerType}](${url})`
                 : schedulerType;
 
             const defaultSchedulerTimezone =
@@ -2859,88 +3059,213 @@ export default class SchedulerTask {
         }
     }
 
-    protected async compileProject(
+    private runConnectionTask(
+        payload: TraceTaskBase,
+        jobId: string,
+        scheduledTime: Date,
+        effect: AgentConnectionTaskEffect,
+        run: (
+            account: RegisteredAccount | null,
+            revalidate: (() => Promise<void>) | null,
+        ) => Promise<void>,
+    ): Promise<void> {
+        if (
+            payload.agentConnectionExecution == null &&
+            payload.agentConnectionEffect === undefined
+        ) {
+            return run(null, null);
+        }
+        return (async () => {
+            let setupComplete = false;
+            try {
+                const normalized = normalizeAgentConnectionTaskPayload(payload);
+                if (
+                    !normalized.agentConnectionExecution ||
+                    normalized.agentConnectionEffect !== effect ||
+                    !this.getAgentConnectionGrantService
+                )
+                    throw new ForbiddenError('Invalid agent connection effect');
+                const validate = () =>
+                    this
+                        .getAgentConnectionGrantService!().assertActiveExecution(
+                        normalized.agentConnectionExecution!,
+                        {
+                            projectUuid: payload.projectUuid,
+                            capabilities: getAgentConnectionEffectCapabilities(
+                                effect,
+                                normalized.agentConnectionExecution!,
+                            ),
+                            recheckOperation: true,
+                        },
+                    );
+                const { account, scope } = await validate();
+                await agentExecutionContext.run(scope, async () => {
+                    const revalidate = async () => {
+                        await validate();
+                        await this.projectService.assertAgentConnectionEffect(
+                            payload.projectUuid,
+                            effect,
+                        );
+                    };
+                    await this.projectService.assertAgentConnectionEffect(
+                        payload.projectUuid,
+                        effect,
+                    );
+                    if (effect === 'compileProject')
+                        await this.projectService.assertConnectionPreAggregateRefresh(
+                            payload.projectUuid,
+                        );
+                    setupComplete = true;
+                    await run(account, revalidate);
+                });
+            } catch (error) {
+                if (
+                    setupComplete &&
+                    !(error instanceof ForbiddenError) &&
+                    !(error instanceof AiAccessRefusedError)
+                )
+                    throw error;
+                if (
+                    effect === 'compileProject' &&
+                    'jobUuid' in payload &&
+                    typeof payload.jobUuid === 'string'
+                )
+                    await this.projectService._markJobAsFailed(payload.jobUuid);
+                await this.schedulerService.logSchedulerJob({
+                    task: effect,
+                    jobId,
+                    scheduledTime,
+                    status: SchedulerJobStatus.ERROR,
+                    details: {
+                        projectUuid: payload.projectUuid,
+                        organizationUuid: payload.organizationUuid,
+                        userUuid: payload.userUuid,
+                        error: getErrorMessage(error),
+                    },
+                });
+            }
+        })();
+    }
+
+    protected compileProject(
         jobId: string,
         scheduledTime: Date,
         payload: CompileProjectPayload,
     ) {
-        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
-            {
-                task: SCHEDULER_TASKS.COMPILE_PROJECT,
-                jobId,
-                scheduledTime,
-            };
-        try {
-            const user = await this.userService.getSessionByUserUuid(
-                payload.createdByUserUuid,
-            );
+        return this.runConnectionTask(
+            payload,
+            jobId,
+            scheduledTime,
+            'compileProject',
+            async (account, revalidate) => {
+                const baseLog: Pick<
+                    SchedulerLog,
+                    'task' | 'jobId' | 'scheduledTime'
+                > = {
+                    task: SCHEDULER_TASKS.COMPILE_PROJECT,
+                    jobId,
+                    scheduledTime,
+                };
+                try {
+                    if (
+                        account &&
+                        payload.createdByUserUuid !== account.user.id
+                    )
+                        throw new ForbiddenError(
+                            'Invalid agent connection subject',
+                        );
+                    const user = account
+                        ? toSessionUser(account)
+                        : await this.userService.getSessionByUserUuid(
+                              payload.createdByUserUuid,
+                          );
 
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: {
-                    createdByUserUuid: payload.createdByUserUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                },
-                status: SchedulerJobStatus.STARTED,
-            });
+                    if (revalidate) await revalidate();
+                    await this.schedulerService.logSchedulerJob({
+                        ...baseLog,
+                        details: {
+                            createdByUserUuid: payload.createdByUserUuid,
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                        },
+                        status: SchedulerJobStatus.STARTED,
+                    });
 
-            await this.projectService.compileProject(
-                user,
-                payload.projectUuid,
-                getRequestMethod(payload.requestMethod),
-                payload.jobUuid,
-                payload.syncContentAfterCompile
-                    ? {
-                          stepType: JobStepType.SYNCING_CONTENT,
-                          run: () =>
-                              this.syncContentFromRepo(
-                                  user,
-                                  payload.projectUuid,
-                              ),
-                      }
-                    : undefined,
-            );
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: {
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    createdByUserUuid: payload.createdByUserUuid,
-                },
-                status: SchedulerJobStatus.COMPLETED,
-            });
-            if (
-                process.env.IS_PULL_REQUEST !== 'true' &&
-                (!payload.isPreview || payload.validateAfterCompile === true)
-            ) {
-                void this.schedulerClient.generateValidation({
-                    projectUuid: payload.projectUuid,
-                    context: 'dbt_refresh',
-                    userUuid: payload.createdByUserUuid,
-                    organizationUuid: payload.organizationUuid,
-                });
-            }
-            // Don't wait for replaceCustomFields response
-            void this.schedulerClient.replaceCustomFields({
-                userUuid: payload.userUuid,
-                projectUuid: payload.projectUuid,
-                organizationUuid: payload.organizationUuid,
-            });
-        } catch (e) {
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                status: SchedulerJobStatus.ERROR,
-                details: {
-                    userUuid: payload.userUuid,
-                    error: getErrorMessage(e),
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    createdByUserUuid: payload.createdByUserUuid,
-                },
-            });
-            throw e;
-        }
+                    if (revalidate) await revalidate();
+                    await this.projectService.compileProject(
+                        user,
+                        payload.projectUuid,
+                        getRequestMethod(payload.requestMethod),
+                        payload.jobUuid,
+                        !account && payload.syncContentAfterCompile
+                            ? {
+                                  stepType: JobStepType.SYNCING_CONTENT,
+                                  run: () =>
+                                      this.syncContentFromRepo(
+                                          user,
+                                          payload.projectUuid,
+                                      ),
+                              }
+                            : undefined,
+                    );
+                    if (revalidate) await revalidate();
+                    await this.schedulerService.logSchedulerJob({
+                        ...baseLog,
+                        details: {
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                            createdByUserUuid: payload.createdByUserUuid,
+                        },
+                        status: SchedulerJobStatus.COMPLETED,
+                    });
+                    if (
+                        process.env.IS_PULL_REQUEST !== 'true' &&
+                        (!payload.isPreview ||
+                            payload.validateAfterCompile === true)
+                    ) {
+                        if (revalidate) await revalidate();
+                        const validationJob =
+                            this.schedulerClient.generateValidation({
+                                ...captureAgentConnectionTask(
+                                    'validateProject',
+                                    payload,
+                                ),
+                                projectUuid: payload.projectUuid,
+                                context: 'dbt_refresh',
+                                userUuid: payload.createdByUserUuid,
+                                organizationUuid: payload.organizationUuid,
+                            });
+                        if (account) await validationJob;
+                    }
+                    // Don't wait for replaceCustomFields response
+                    if (revalidate) await revalidate();
+                    const replacementJob =
+                        this.schedulerClient.replaceCustomFields({
+                            ...captureAgentConnectionTask(
+                                'replaceCustomFields',
+                                payload,
+                            ),
+                            userUuid: payload.userUuid,
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                        });
+                    if (account) await replacementJob;
+                } catch (e) {
+                    await this.schedulerService.logSchedulerJob({
+                        ...baseLog,
+                        status: SchedulerJobStatus.ERROR,
+                        details: {
+                            userUuid: payload.userUuid,
+                            error: getErrorMessage(e),
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                            createdByUserUuid: payload.createdByUserUuid,
+                        },
+                    });
+                    throw e;
+                }
+            },
+        );
     }
 
     // Files that could not be applied fail the step so the job details say why
@@ -2961,91 +3286,119 @@ export default class SchedulerTask {
         }
     }
 
-    protected async materializePreAggregate(
+    protected materializePreAggregate(
         jobId: string,
         scheduledTime: Date,
         payload: MaterializePreAggregatePayload,
     ) {
-        setSchedulerJobLogContext({ jobId });
-        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
-            {
-                task: SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE,
-                jobId,
-                scheduledTime,
-            };
+        return this.runConnectionTask(
+            payload,
+            jobId,
+            scheduledTime,
+            'materializePreAggregate',
+            async (account, revalidate) => {
+                setSchedulerJobLogContext({ jobId });
+                const baseLog: Pick<
+                    SchedulerLog,
+                    'task' | 'jobId' | 'scheduledTime'
+                > = {
+                    task: SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE,
+                    jobId,
+                    scheduledTime,
+                };
 
-        try {
-            const account = await this.userService.getAccountByUserUuid(
-                payload.userUuid,
-            );
+                try {
+                    if (!isPreAggregatesEnabled(this.lightdashConfig)) {
+                        Logger.info(
+                            `Skipping pre-aggregate materialization ${payload.preAggregateDefinitionUuid}: pre-aggregates are not enabled on this instance`,
+                        );
+                        return;
+                    }
+                    const materializationAccount =
+                        account ??
+                        (await this.userService.getAccountByUserUuid(
+                            payload.userUuid,
+                        ));
 
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    organizationUuid: payload.organizationUuid,
-                    projectUuid: payload.projectUuid,
-                    preAggregateDefinitionUuid:
-                        payload.preAggregateDefinitionUuid,
-                    trigger: payload.trigger,
-                },
-                status: SchedulerJobStatus.STARTED,
-            });
+                    await this.schedulerService.logSchedulerJob({
+                        ...baseLog,
+                        details: {
+                            createdByUserUuid: payload.userUuid,
+                            organizationUuid: payload.organizationUuid,
+                            projectUuid: payload.projectUuid,
+                            preAggregateDefinitionUuid:
+                                payload.preAggregateDefinitionUuid,
+                            trigger: payload.trigger,
+                        },
+                        status: SchedulerJobStatus.STARTED,
+                    });
 
-            const result =
-                await this.preAggregateMaterializationService.materializePreAggregate(
-                    {
-                        account,
-                        projectUuid: payload.projectUuid,
-                        preAggregateDefinitionUuid:
+                    if (revalidate) await revalidate();
+                    const result =
+                        await this.preAggregateMaterializationService.materializePreAggregate(
+                            {
+                                account: materializationAccount,
+                                ...(revalidate
+                                    ? { beforeEffect: revalidate }
+                                    : {}),
+                                projectUuid: payload.projectUuid,
+                                preAggregateDefinitionUuid:
+                                    payload.preAggregateDefinitionUuid,
+                                trigger: payload.trigger,
+                            },
+                        );
+
+                    await this.schedulerService.logSchedulerJob({
+                        ...baseLog,
+                        details: {
+                            createdByUserUuid: payload.userUuid,
+                            organizationUuid: payload.organizationUuid,
+                            projectUuid: payload.projectUuid,
+                            preAggregateDefinitionUuid:
+                                payload.preAggregateDefinitionUuid,
+                            trigger: payload.trigger,
+                            materializationUuid: result.materializationUuid,
+                            materializationStatus: result.status,
+                            queryUuid: result.queryUuid,
+                        },
+                        status: SchedulerJobStatus.COMPLETED,
+                    });
+                } catch (error) {
+                    if (
+                        payload.trigger === 'cron' &&
+                        error instanceof NotFoundError
+                    ) {
+                        await this.schedulerClient.deleteScheduledPreAggregateCronJobsForDefinition(
                             payload.preAggregateDefinitionUuid,
-                        trigger: payload.trigger,
-                    },
-                );
+                        );
+                    }
 
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    organizationUuid: payload.organizationUuid,
-                    projectUuid: payload.projectUuid,
-                    preAggregateDefinitionUuid:
-                        payload.preAggregateDefinitionUuid,
-                    trigger: payload.trigger,
-                    materializationUuid: result.materializationUuid,
-                    materializationStatus: result.status,
-                    queryUuid: result.queryUuid,
-                },
-                status: SchedulerJobStatus.COMPLETED,
-            });
-        } catch (error) {
-            if (payload.trigger === 'cron' && error instanceof NotFoundError) {
-                await this.schedulerClient.deleteScheduledPreAggregateCronJobsForDefinition(
-                    payload.preAggregateDefinitionUuid,
-                );
-            }
+                    await this.schedulerService.logSchedulerJob({
+                        ...baseLog,
+                        details: {
+                            createdByUserUuid: payload.userUuid,
+                            organizationUuid: payload.organizationUuid,
+                            projectUuid: payload.projectUuid,
+                            preAggregateDefinitionUuid:
+                                payload.preAggregateDefinitionUuid,
+                            trigger: payload.trigger,
+                            error: getErrorMessage(error),
+                        },
+                        status: SchedulerJobStatus.ERROR,
+                    });
 
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    organizationUuid: payload.organizationUuid,
-                    projectUuid: payload.projectUuid,
-                    preAggregateDefinitionUuid:
-                        payload.preAggregateDefinitionUuid,
-                    trigger: payload.trigger,
-                    error: getErrorMessage(error),
-                },
-                status: SchedulerJobStatus.ERROR,
-            });
-
-            throw error;
-        }
+                    throw error;
+                }
+            },
+        );
     }
 
     protected async generateDailyPreAggregateMaterializationJobs(
         currentDateStartOfDay: Date,
     ): Promise<void> {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
+            return;
+        }
         const preAggregateSchedulerDetails =
             await this.preAggregateModel.getProjectSchedulerDetailsForPreAggregates();
 
@@ -3111,108 +3464,121 @@ export default class SchedulerTask {
         );
     }
 
-    protected async validateProject(
+    protected validateProject(
         jobId: string,
         scheduledTime: Date,
         payload: ValidateProjectPayload,
     ) {
-        await this.schedulerService.logSchedulerJob({
-            task: SCHEDULER_TASKS.VALIDATE_PROJECT,
+        return this.runConnectionTask(
+            payload,
             jobId,
             scheduledTime,
-            status: SchedulerJobStatus.STARTED,
-            details: {
-                projectUuid: payload.projectUuid,
-                organizationUuid: payload.organizationUuid,
-                createdByUserUuid: payload.userUuid,
-                onlyValidateExploresInArgs: payload.onlyValidateExploresInArgs,
+            'validateProject',
+            async (account, revalidate) => {
+                await this.schedulerService.logSchedulerJob({
+                    task: SCHEDULER_TASKS.VALIDATE_PROJECT,
+                    jobId,
+                    scheduledTime,
+                    status: SchedulerJobStatus.STARTED,
+                    details: {
+                        projectUuid: payload.projectUuid,
+                        organizationUuid: payload.organizationUuid,
+                        createdByUserUuid: payload.userUuid,
+                        onlyValidateExploresInArgs:
+                            payload.onlyValidateExploresInArgs,
+                    },
+                });
+
+                this.analytics.track({
+                    event: 'validation.run',
+                    userId: payload.userUuid,
+                    properties: {
+                        context: payload.context,
+                        organizationId: payload.organizationUuid,
+                        projectId: payload.projectUuid,
+                    },
+                });
+                try {
+                    const validationTargetsSet = new Set(
+                        payload.validationTargets,
+                    );
+                    const errors =
+                        await this.validationService.generateValidation(
+                            payload.projectUuid,
+                            payload.explores,
+                            validationTargetsSet,
+                            payload.onlyValidateExploresInArgs,
+                        );
+
+                    const contentIds = errors.map((validation) => {
+                        if (isChartValidationError(validation))
+                            return validation.chartUuid;
+                        if (isDashboardValidationError(validation))
+                            return validation.dashboardUuid;
+                        if (isDataAppValidationError(validation))
+                            return validation.appUuid;
+
+                        return validation.name;
+                    });
+
+                    if (revalidate) await revalidate();
+                    await this.validationService.storeValidation(
+                        payload.projectUuid,
+                        errors,
+                        payload.explores ? jobId : undefined,
+                    );
+
+                    this.analytics.track({
+                        event: 'validation.completed',
+                        userId: payload.userUuid,
+                        properties: {
+                            context: payload.context,
+                            organizationId: payload.organizationUuid,
+                            projectId: payload.projectUuid,
+                            numContentAffected: new Set(contentIds).size,
+                            numErrorsDetected: errors.length,
+                        },
+                    });
+
+                    await this.schedulerService.logSchedulerJob({
+                        task: SCHEDULER_TASKS.VALIDATE_PROJECT,
+                        jobId,
+                        scheduledTime,
+                        status: SchedulerJobStatus.COMPLETED,
+                        details: {
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                            createdByUserUuid: payload.userUuid,
+                        },
+                    });
+                } catch (e) {
+                    this.analytics.track({
+                        event: 'validation.error',
+                        userId: payload.userUuid,
+                        properties: {
+                            context: payload.context,
+                            organizationId: payload.organizationUuid,
+                            projectId: payload.projectUuid,
+                            error: getErrorMessage(e),
+                        },
+                    });
+
+                    await this.schedulerService.logSchedulerJob({
+                        task: SCHEDULER_TASKS.VALIDATE_PROJECT,
+                        jobId,
+                        scheduledTime,
+                        status: SchedulerJobStatus.ERROR,
+                        details: {
+                            error: getErrorMessage(e),
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                            createdByUserUuid: payload.userUuid,
+                        },
+                    });
+                    throw e;
+                }
             },
-        });
-
-        this.analytics.track({
-            event: 'validation.run',
-            userId: payload.userUuid,
-            properties: {
-                context: payload.context,
-                organizationId: payload.organizationUuid,
-                projectId: payload.projectUuid,
-            },
-        });
-        try {
-            const validationTargetsSet = new Set(payload.validationTargets);
-            const errors = await this.validationService.generateValidation(
-                payload.projectUuid,
-                payload.explores,
-                validationTargetsSet,
-                payload.onlyValidateExploresInArgs,
-            );
-
-            const contentIds = errors.map((validation) => {
-                if (isChartValidationError(validation))
-                    return validation.chartUuid;
-                if (isDashboardValidationError(validation))
-                    return validation.dashboardUuid;
-                if (isDataAppValidationError(validation))
-                    return validation.appUuid;
-
-                return validation.name;
-            });
-
-            await this.validationService.storeValidation(
-                payload.projectUuid,
-                errors,
-                payload.explores ? jobId : undefined,
-            );
-
-            this.analytics.track({
-                event: 'validation.completed',
-                userId: payload.userUuid,
-                properties: {
-                    context: payload.context,
-                    organizationId: payload.organizationUuid,
-                    projectId: payload.projectUuid,
-                    numContentAffected: new Set(contentIds).size,
-                    numErrorsDetected: errors.length,
-                },
-            });
-
-            await this.schedulerService.logSchedulerJob({
-                task: SCHEDULER_TASKS.VALIDATE_PROJECT,
-                jobId,
-                scheduledTime,
-                status: SchedulerJobStatus.COMPLETED,
-                details: {
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    createdByUserUuid: payload.userUuid,
-                },
-            });
-        } catch (e) {
-            this.analytics.track({
-                event: 'validation.error',
-                userId: payload.userUuid,
-                properties: {
-                    context: payload.context,
-                    organizationId: payload.organizationUuid,
-                    projectId: payload.projectUuid,
-                    error: getErrorMessage(e),
-                },
-            });
-
-            await this.schedulerService.logSchedulerJob({
-                task: SCHEDULER_TASKS.VALIDATE_PROJECT,
-                jobId,
-                scheduledTime,
-                status: SchedulerJobStatus.ERROR,
-                details: {
-                    error: getErrorMessage(e),
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    createdByUserUuid: payload.userUuid,
-                },
-            });
-            throw e;
-        }
+        );
     }
 
     protected async logWrapper<TRecordValues = string>(
@@ -3653,8 +4019,12 @@ export default class SchedulerTask {
 
     protected async sendEmailNotification(
         jobId: string,
-        notification: EmailNotificationPayload,
+        payload: EmailNotificationPayload,
     ) {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const {
             schedulerUuid,
             schedulerEmailTargetUuid,
@@ -4153,6 +4523,7 @@ export default class SchedulerTask {
                 await this.schedulerService.schedulerModel.getSchedulerAndTargets(
                     schedulerUuid,
                 );
+            const invalidateCache = scheduler.useCachedResults !== true;
 
             const {
                 format,
@@ -4235,7 +4606,7 @@ export default class SchedulerTask {
                         account,
                         projectUuid: chart.projectUuid,
                         chartUuid: savedChartUuid,
-                        invalidateCache: true,
+                        invalidateCache,
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                         pivotResults: shouldPivot,
@@ -4401,12 +4772,30 @@ export default class SchedulerTask {
                     );
                 }
 
+                const schedulerParameters = isDashboardScheduler(scheduler)
+                    ? scheduler.parameters
+                    : undefined;
                 const dashboardParameters: ParametersValuesMap = {
                     ...getDashboardParametersValuesMap(dashboard),
-                    ...(isDashboardScheduler(scheduler)
-                        ? scheduler.parameters
-                        : {}),
+                    ...schedulerParameters,
                 };
+                const parameterControls = await getEnabledParameterControls({
+                    featureFlagModel: this.featureFlagModel,
+                    user: {
+                        organizationUuid: dashboard.organizationUuid,
+                        userUuid: scheduler.createdBy,
+                    },
+                    config: dashboard.config,
+                });
+
+                const userParameterNames =
+                    parameterControls === null
+                        ? []
+                        : (
+                              await this.projectService.projectParametersModel.find(
+                                  dashboard.projectUuid,
+                              )
+                          ).map(({ name }) => name);
 
                 // We want to process all charts in sequence, so we don't load all chart results in memory
                 await chartTiles
@@ -4435,11 +4824,23 @@ export default class SchedulerTask {
                                 dashboardUuid,
                                 dashboardFilters,
                                 dashboardSorts: [],
-                                invalidateCache: true,
+                                invalidateCache,
                                 context:
                                     QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                                 pivotResults: shouldPivotChart,
-                                parameters: dashboardParameters,
+                                parameters:
+                                    parameterControls === null
+                                        ? dashboardParameters
+                                        : getDashboardTileParameterLayer({
+                                              parameterControls,
+                                              dashboardParameters:
+                                                  dashboard.parameters,
+                                              tileUuid: tile.uuid,
+                                              chartSavedValues: {},
+                                              requestParameters:
+                                                  schedulerParameters,
+                                              userParameterNames,
+                                          }).dashboardValues,
                             },
                             SCHEDULER_POLLING_OPTIONS,
                         );
@@ -4537,7 +4938,7 @@ export default class SchedulerTask {
                             account,
                             projectUuid: sqlChart.project.projectUuid,
                             savedSqlUuid: scheduler.savedSqlUuid,
-                            invalidateCache: true,
+                            invalidateCache,
                             context:
                                 QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART,
                         },
@@ -5432,6 +5833,7 @@ export default class SchedulerTask {
             // and the threshold gate has already run so unmet alerts never pay
             // for it.
             let deliveryScheduler = scheduler;
+            let aiSummaryDelivery: SchedulerAiSummaryDelivery | undefined;
             const aiPartialFailures: PartialFailure[] = [];
             if (
                 this.schedulerAiAugmentation &&
@@ -5447,8 +5849,15 @@ export default class SchedulerTask {
                     if (aiMessage !== null) {
                         deliveryScheduler = {
                             ...scheduler,
-                            message: aiMessage,
+                            message: aiMessage.message,
                         };
+                        if (aiMessage.agentWork) {
+                            aiSummaryDelivery = {
+                                agentWork: aiMessage.agentWork,
+                                aiSummaryOriginalMessage:
+                                    scheduler.message ?? null,
+                            };
+                        }
                     }
                 } catch (e) {
                     Logger.error(
@@ -5504,6 +5913,7 @@ export default class SchedulerTask {
                     jobId,
                     traceProperties,
                     perChannelPages,
+                    aiSummaryDelivery,
                 );
 
             // The notification jobs are now queued: nothing below may
@@ -5829,6 +6239,11 @@ export default class SchedulerTask {
                 },
             },
             async () => {
+                const metadata = payload.refreshMetadataBeforeIndex
+                    ? await this.catalogService.getIndexCatalogMetadata(
+                          payload.projectUuid,
+                      )
+                    : payload;
                 const { catalogFieldMap } =
                     await this.catalogService.indexCatalog(
                         payload.projectUuid,
@@ -5837,22 +6252,22 @@ export default class SchedulerTask {
 
                 await this.catalogService.migrateCatalogItemTags(
                     payload.projectUuid,
-                    payload.prevCatalogItemsWithTags,
+                    metadata.prevCatalogItemsWithTags,
                 );
 
                 await this.catalogService.migrateCatalogItemIcons(
                     payload.projectUuid,
-                    payload.prevCatalogItemsWithIcons,
+                    metadata.prevCatalogItemsWithIcons,
                 );
 
                 await this.catalogService.migrateMetricsTreeEdges(
                     payload.projectUuid,
-                    payload.prevMetricTreeEdges,
+                    metadata.prevMetricTreeEdges,
                 );
 
                 await this.catalogService.migrateMetricsTreeNodes(
                     payload.projectUuid,
-                    payload.prevMetricsTreeNodes,
+                    metadata.prevMetricsTreeNodes,
                 );
 
                 await this.catalogService.setChartUsages(
@@ -6184,13 +6599,65 @@ export default class SchedulerTask {
                     );
                 }
 
+                const isEmbedRender =
+                    (payload.format === SchedulerFormat.PDF ||
+                        payload.format === SchedulerFormat.IMAGE) &&
+                    !!overrideAccount?.isJwtUser() &&
+                    !!payload.encodedJwt;
+
                 if (
-                    payload.format === SchedulerFormat.PDF &&
+                    (payload.format === SchedulerFormat.PDF || isEmbedRender) &&
                     !this.fileStorageClient.isEnabled()
                 ) {
                     throw new MissingConfigError(
                         'Cloud storage is not enabled',
                     );
+                }
+
+                if (isEmbedRender && payload.encodedJwt) {
+                    const tileParameters =
+                        payload.tileParameters !== undefined &&
+                        isJwtUser(overrideAccount) &&
+                        isParameterInteractivityEnabled(
+                            overrideAccount.access.parameters,
+                        ) &&
+                        (await areDashboardControlsEnabled({
+                            featureFlagModel: this.featureFlagModel,
+                            user: {
+                                organizationUuid: payload.organizationUuid,
+                            },
+                        }))
+                            ? payload.tileParameters
+                            : undefined;
+                    const embedExportArgs = {
+                        projectUuid: payload.projectUuid,
+                        dashboardUuid: payload.resourceUuid,
+                        embedToken: payload.encodedJwt,
+                        externalId: payload.userUuid,
+                        selectedTabs: payload.selectedTabs ?? null,
+                        dashboardFilters: payload.dashboardFilters ?? null,
+                        parameters: payload.parameters ?? null,
+                        tileParameters,
+                        dateZoomGranularity:
+                            payload.dateZoomGranularity ?? null,
+                        gridWidth: payload.customViewportWidth ?? null,
+                        contextId: jobId,
+                    };
+                    const url =
+                        payload.format === SchedulerFormat.PDF
+                            ? (
+                                  await this.unfurlService.exportEmbedDashboardPdf(
+                                      embedExportArgs,
+                                  )
+                              ).source
+                            : await this.unfurlService.exportEmbedDashboardImage(
+                                  embedExportArgs,
+                              );
+                    return {
+                        url,
+                        fileType: payload.format,
+                        numFailures: 0,
+                    };
                 }
 
                 const scheduler = {
@@ -6229,6 +6696,7 @@ export default class SchedulerTask {
                         dashboardFilters: payload.dashboardFilters,
                         dateZoomGranularity: payload.dateZoomGranularity,
                         parameters: payload.parameters,
+                        tileParameters: payload.tileParameters,
                     },
                     undefined,
                     overrideAccount,
@@ -6689,6 +7157,35 @@ export default class SchedulerTask {
         };
     }
 
+    protected async warmWarehouseTablesCache(
+        jobId: string,
+        scheduledTime: Date,
+        payload: TraceTaskBase,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.WARM_WAREHOUSE_TABLES_CACHE,
+                jobId,
+                scheduledTime,
+                details: {
+                    userUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.userUuid,
+                },
+            },
+            async () => {
+                const user = await this.userService.getSessionByUserUuid(
+                    payload.userUuid,
+                );
+                await this.projectService.populateWarehouseTablesCache(
+                    user,
+                    payload.projectUuid,
+                );
+            },
+        );
+    }
+
     protected async backfillDefaultUserSpaces(
         jobId: string,
         scheduledTime: Date,
@@ -6713,49 +7210,63 @@ export default class SchedulerTask {
         );
     }
 
-    protected async replaceCustomFields(
+    protected replaceCustomFields(
         jobId: string,
         scheduledTime: Date,
         payload: ReplaceCustomFieldsPayload,
     ) {
-        await this.logWrapper(
-            {
-                task: SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS,
-                jobId,
-                scheduledTime,
-                details: {
-                    userUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    createdByUserUuid: payload.userUuid,
-                },
-            },
-            async (): Promise<{
-                replaceableCustomFields: ReplaceableCustomFields;
-                replaceFields: ReplaceCustomFields;
-                updatedCharts: Array<Pick<SavedChartDAO, 'uuid' | 'name'>>;
-            }> => {
-                const replaceableCustomFields =
-                    await this.projectService.findReplaceableCustomFields(
-                        payload,
-                    );
-                const replaceFields =
-                    convertReplaceableFieldMatchMapToReplaceCustomFields(
-                        replaceableCustomFields,
-                    );
-                const updatedCharts =
-                    await this.projectService.replaceCustomFields({
-                        userUuid: payload.userUuid,
-                        projectUuid: payload.projectUuid,
-                        organizationUuid: payload.organizationUuid,
-                        replaceFields,
-                        skipChartsUpdatedAfter: scheduledTime,
-                    });
-                return {
-                    replaceableCustomFields,
-                    replaceFields,
-                    updatedCharts,
-                };
+        return this.runConnectionTask(
+            payload,
+            jobId,
+            scheduledTime,
+            'replaceCustomFields',
+            async (account, revalidate) => {
+                await this.logWrapper(
+                    {
+                        task: SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS,
+                        jobId,
+                        scheduledTime,
+                        details: {
+                            userUuid: payload.userUuid,
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                            createdByUserUuid: payload.userUuid,
+                        },
+                    },
+                    async (): Promise<{
+                        replaceableCustomFields: ReplaceableCustomFields;
+                        replaceFields: ReplaceCustomFields;
+                        updatedCharts: Array<
+                            Pick<SavedChartDAO, 'uuid' | 'name'>
+                        >;
+                    }> => {
+                        const replaceableCustomFields =
+                            await this.projectService.findReplaceableCustomFields(
+                                payload,
+                            );
+                        const replaceFields =
+                            convertReplaceableFieldMatchMapToReplaceCustomFields(
+                                replaceableCustomFields,
+                            );
+                        if (revalidate) await revalidate();
+                        const updatedCharts =
+                            await this.projectService.replaceCustomFields({
+                                ...(revalidate
+                                    ? { beforeEffect: revalidate }
+                                    : {}),
+                                userUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                replaceFields,
+                                skipChartsUpdatedAfter: scheduledTime,
+                            });
+                        return {
+                            replaceableCustomFields,
+                            replaceFields,
+                            updatedCharts,
+                        };
+                    },
+                );
             },
         );
     }
@@ -6879,8 +7390,12 @@ export default class SchedulerTask {
 
     protected async sendSlackBatchNotification(
         jobId: string,
-        notification: SlackBatchNotificationPayload,
+        payload: SlackBatchNotificationPayload,
     ): Promise<BatchDeliveryResult> {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const { schedulerUuid, targets, scheduledTime, scheduler, page } =
             notification;
 
@@ -7111,8 +7626,12 @@ export default class SchedulerTask {
 
     protected async sendEmailBatchNotification(
         jobId: string,
-        notification: EmailBatchNotificationPayload,
+        payload: EmailBatchNotificationPayload,
     ): Promise<BatchDeliveryResult> {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const { schedulerUuid, targets, scheduledTime, scheduler, page } =
             notification;
 
@@ -7333,8 +7852,12 @@ export default class SchedulerTask {
 
     protected async sendMsTeamsBatchNotification(
         jobId: string,
-        notification: MsTeamsBatchNotificationPayload,
+        payload: MsTeamsBatchNotificationPayload,
     ): Promise<BatchDeliveryResult> {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const { schedulerUuid, targets, scheduledTime, scheduler, page } =
             notification;
 
@@ -7551,8 +8074,12 @@ export default class SchedulerTask {
 
     protected async sendGoogleChatNotification(
         jobId: string,
-        notification: GoogleChatNotificationPayload,
+        payload: GoogleChatNotificationPayload,
     ) {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const {
             schedulerUuid,
             schedulerGoogleChatTargetUuid,
@@ -7797,8 +8324,12 @@ export default class SchedulerTask {
 
     protected async sendGoogleChatBatchNotification(
         jobId: string,
-        notification: GoogleChatBatchNotificationPayload,
+        payload: GoogleChatBatchNotificationPayload,
     ): Promise<BatchDeliveryResult> {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const { schedulerUuid, targets, scheduledTime, scheduler, page } =
             notification;
 

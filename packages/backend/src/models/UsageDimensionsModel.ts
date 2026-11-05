@@ -1,6 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
 import type { Knex } from 'knex';
 import type { UsageDimensionName } from '../analytics/eventStream/usageDimensions';
+import { isStatementTimeout } from '../database/errors';
 import {
     usageContentInventoryQuery,
     usageContentTypes,
@@ -12,7 +13,14 @@ type Organization = { organization_id: number; organization_uuid: string };
 type SnapshotRow = { cursor: string; json: string };
 
 export class UsageDimensionsModel {
-    constructor(private readonly database: Knex) {}
+    private readonly projectUrlPrefix: string;
+
+    constructor(
+        private readonly database: Knex,
+        siteUrl: string,
+    ) {
+        this.projectUrlPrefix = `${new URL(siteUrl).origin}/projects/`;
+    }
 
     private async readPage<Row>(
         query: Knex.QueryBuilder,
@@ -30,7 +38,9 @@ export class UsageDimensionsModel {
         });
     }
 
-    async *getOrganizations(): AsyncGenerator<Organization> {
+    async *getOrganizations(
+        organizationUuid?: string,
+    ): AsyncGenerator<Organization> {
         let cursor = 0;
         while (true) {
             // eslint-disable-next-line no-await-in-loop
@@ -38,6 +48,20 @@ export class UsageDimensionsModel {
                 this.database('organizations')
                     .select('organization_id', 'organization_uuid')
                     .where('organization_id', '>', cursor)
+                    .modify((query) => {
+                        if (organizationUuid)
+                            query.where('organization_uuid', organizationUuid);
+                        else
+                            query.whereExists(
+                                this.database('projects')
+                                    .select(this.database.raw('1'))
+                                    .where('provisioning_source', 'analytics')
+                                    .whereRaw('?? = ??', [
+                                        'projects.organization_id',
+                                        'organizations.organization_id',
+                                    ]),
+                            );
+                    })
                     .orderBy('organization_id')
                     .limit(USAGE_DIMENSION_PAGE_SIZE),
             );
@@ -50,8 +74,10 @@ export class UsageDimensionsModel {
     private async *readPages(
         query: Knex.QueryBuilder,
         cursorColumn: string,
+        onStatementTimeout?: () => Promise<void>,
     ): AsyncGenerator<string> {
         let cursor: string | null = null;
+        let recoverFromTimeout = onStatementTimeout;
         while (true) {
             const page = query
                 .clone()
@@ -62,8 +88,19 @@ export class UsageDimensionsModel {
                 .limit(USAGE_DIMENSION_PAGE_SIZE);
             if (cursor !== null) page.where(cursorColumn, '>', cursor);
             // Each page releases its connection before waiting on file IO.
-            // eslint-disable-next-line no-await-in-loop
-            const rows = await this.readPage<SnapshotRow>(page);
+            let rows: SnapshotRow[];
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                rows = await this.readPage<SnapshotRow>(page);
+            } catch (error) {
+                if (!recoverFromTimeout || !isStatementTimeout(error))
+                    throw error;
+                // eslint-disable-next-line no-await-in-loop
+                await recoverFromTimeout();
+                recoverFromTimeout = undefined;
+                // eslint-disable-next-line no-continue
+                continue;
+            }
             if (rows.length === 0) return;
             for (const row of rows) yield `${row.json}\n`;
             cursor = rows[rows.length - 1].cursor;
@@ -135,6 +172,12 @@ export class UsageDimensionsModel {
                             'g.user_id',
                             'p.user_id',
                         )
+                        .leftJoin('emails as e', function joinPrimaryEmail() {
+                            this.on('e.user_id', '=', 'p.user_id').andOnVal(
+                                'e.is_primary',
+                                true,
+                            );
+                        })
                         .orderBy('p.user_id')
                         .select(
                             'p.user_id',
@@ -142,6 +185,7 @@ export class UsageDimensionsModel {
                                 `json_build_object(
                             'org_id', ?::text, 'user_id', p.user_uuid,
                             'name', NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''),
+                            'email', e.email,
                             'organization_role', p.role, 'role_id', p.role_uuid,
                             'membership_created_at', p.created_at, 'snapshot_at', ?::timestamptz,
                             'is_active', p.is_active, 'is_setup_complete', p.is_setup_complete,
@@ -176,6 +220,7 @@ export class UsageDimensionsModel {
                             contentType,
                             cursor,
                             USAGE_DIMENSION_PAGE_SIZE,
+                            this.projectUrlPrefix,
                         );
                         // eslint-disable-next-line no-await-in-loop
                         const rows: SnapshotRow[] = await this.readPage(
@@ -187,6 +232,21 @@ export class UsageDimensionsModel {
                         cursor = rows[rows.length - 1].cursor;
                     }
                 }
+                return;
+            }
+            case 'projects': {
+                const projects = this.database('projects as p')
+                    .where('p.organization_id', orgId)
+                    .select(
+                        this.database.raw(
+                            `json_build_object(
+                        'org_id', ?::text, 'project_id', p.project_uuid,
+                        'name', p.name
+                    )::text AS json`,
+                            [orgUuid],
+                        ),
+                    );
+                yield* this.readPages(projects, 'p.project_id');
                 return;
             }
             case 'agents': {
@@ -205,7 +265,13 @@ export class UsageDimensionsModel {
             }
             case 'charts': {
                 const charts = this.database('saved_queries as c')
-                    .join('projects as p', 'p.project_uuid', 'c.project_uuid')
+                    // Resolve projects once per page and recheck their ownership.
+                    .whereRaw('?? = ANY(ARRAY ?)', [
+                        'c.project_uuid',
+                        this.database('projects')
+                            .select('project_uuid')
+                            .where('organization_id', orgId),
+                    ])
                     .leftJoin(
                         'dashboards as d',
                         'd.dashboard_uuid',
@@ -216,20 +282,33 @@ export class UsageDimensionsModel {
                         's.space_id',
                         this.database.raw('COALESCE(c.space_id, d.space_id)'),
                     )
-                    .where('p.organization_id', orgId)
                     .select(
                         this.database.raw(
                             `json_build_object(
                         'org_id', ?::text, 'chart_id', c.saved_query_uuid,
                         'name', c.name, 'slug', c.slug,
+                        'url', ?::text || c.project_uuid::text || '/saved/' || c.saved_query_uuid::text || '/view',
                         'chart_kind', c.last_version_chart_kind,
                         'space_name', s.name,
                         'is_deleted', c.deleted_at IS NOT NULL OR d.deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL
                     )::text AS json`,
-                            [orgUuid],
+                            [orgUuid, this.projectUrlPrefix],
                         ),
                     );
-                yield* this.readPages(charts, 'c.saved_query_id');
+                yield* this.readPages(charts, 'c.saved_query_id', async () => {
+                    const projects = await this.readPage<{
+                        project_uuid: string;
+                    }>(
+                        this.database('projects')
+                            .select('project_uuid')
+                            .where('organization_id', orgId),
+                    );
+                    // Explicit IDs improve row estimates; keep the ownership check.
+                    charts.whereRaw('?? = ANY(?::uuid[])', [
+                        'c.project_uuid',
+                        projects.map(({ project_uuid }) => project_uuid),
+                    ]);
+                });
                 const sqlCharts = this.database('saved_sql as c')
                     .join('projects as p', 'p.project_uuid', 'c.project_uuid')
                     .leftJoin(
@@ -255,11 +334,12 @@ export class UsageDimensionsModel {
                             `json_build_object(
                         'org_id', ?::text, 'chart_id', c.saved_sql_uuid,
                         'name', c.name, 'slug', c.slug,
+                        'url', ?::text || c.project_uuid::text || '/sql-runner/' || c.saved_sql_uuid::text,
                         'chart_kind', c.last_version_chart_kind,
                         'space_name', s.name,
                         'is_deleted', c.deleted_at IS NOT NULL OR d.deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL
                     )::text AS json`,
-                            [orgUuid],
+                            [orgUuid, this.projectUrlPrefix],
                         ),
                     );
                 yield* this.readPages(sqlCharts, 'c.saved_sql_uuid');
@@ -275,9 +355,10 @@ export class UsageDimensionsModel {
                             `json_build_object(
                         'org_id', ?::text, 'dashboard_id', d.dashboard_uuid,
                         'name', d.name, 'slug', d.slug, 'space_name', s.name,
+                        'url', ?::text || p.project_uuid::text || '/dashboards/' || d.dashboard_uuid::text || '/view',
                         'is_deleted', d.deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL
                     )::text AS json`,
-                            [orgUuid],
+                            [orgUuid, this.projectUrlPrefix],
                         ),
                     );
                 yield* this.readPages(dashboards, 'd.dashboard_id');
@@ -286,6 +367,12 @@ export class UsageDimensionsModel {
             case 'users': {
                 const users = this.database('organization_memberships as m')
                     .join('users as u', 'u.user_id', 'm.user_id')
+                    .leftJoin('emails as e', function joinPrimaryEmail() {
+                        this.on('e.user_id', '=', 'u.user_id').andOnVal(
+                            'e.is_primary',
+                            true,
+                        );
+                    })
                     .where('m.organization_id', orgId)
                     .where('u.is_active', true)
                     .where('u.is_internal', false)
@@ -293,7 +380,8 @@ export class UsageDimensionsModel {
                         this.database.raw(
                             `json_build_object(
                         'org_id', ?::text, 'user_id', u.user_uuid,
-                        'name', NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), '')
+                        'name', NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''),
+                        'email', e.email
                     )::text AS json`,
                             [orgUuid],
                         ),

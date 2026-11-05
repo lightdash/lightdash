@@ -824,7 +824,7 @@ export function evaluateMigrationSource(
                 file,
                 1,
                 'missing-lock-timeout',
-                `DDL on table(s) ${tables.length > 0 ? tables.join(', ') : '<dynamic or unknown>'} has no SET LOCAL lock_timeout or SET lock_timeout protection`,
+                `DDL on table(s) ${tables.length > 0 ? tables.join(', ') : '<dynamic or unknown>'} has no SET LOCAL lock_timeout or SET lock_timeout protection; set lock_timeout explicitly (default '60s' for blocking DDL; see packages/backend/src/database/migrations/AGENTS.md for concurrent-index-only migrations)`,
                 'warning',
             ),
         );
@@ -910,6 +910,7 @@ export function evaluateMigrationEnforcement(
     const findings: SqlMigrationEnforcementFinding[] = [];
     const declarationChanges = options.declarationChanges ?? {
         added: [],
+        advisories: [],
         diagnostics: [],
     };
     for (const diagnostic of declarationChanges.diagnostics) {

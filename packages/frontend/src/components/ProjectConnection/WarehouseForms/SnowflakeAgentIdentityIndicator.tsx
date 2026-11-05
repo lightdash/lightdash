@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { AGENT_IDENTITY_SETTINGS_PATH, FeatureFlags } from '@lightdash/common';
 import { Anchor, Group, Stack, Text } from '@mantine/core';
 import { IconShieldLock } from '@tabler/icons-react';
 import { Link } from 'react-router';
@@ -21,13 +21,13 @@ const SnowflakeAgentIdentityIndicator = ({
             <MantineIcon icon={IconShieldLock} color="dimmed" />
             <Stack gap="xs">
                 <Text size="sm" c="dimmed">
-                    Agent identity required by your organisation. AI queries on
-                    this connection run only for people who have connected their
+                    Your organisation requires agent identity. Agents on this
+                    connection run only for people who have connected their
                     agent.
                 </Text>
                 <Anchor
                     component={Link}
-                    to="/generalSettings/warehouseCredentials"
+                    to={AGENT_IDENTITY_SETTINGS_PATH}
                     size="sm"
                 >
                     Organisation settings

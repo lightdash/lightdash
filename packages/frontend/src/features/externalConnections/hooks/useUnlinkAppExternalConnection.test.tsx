@@ -3,10 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type FC, type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { useUnlinkAppExternalConnection } from './useUnlinkAppExternalConnection';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastInfo: vi.fn(), showToastApiError: vi.fn() }),
 }));
@@ -46,7 +47,7 @@ describe('useUnlinkAppExternalConnection', () => {
     });
 
     it('DELETEs every alias and drops the links from the cache', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue(undefined as never);
+        mockedLightdashApi.mockResolvedValue(undefined as never);
         const { queryClient, result } = setup();
 
         result.current.mutate({
@@ -57,13 +58,13 @@ describe('useUnlinkAppExternalConnection', () => {
         });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
-        expect(lightdashApi).toHaveBeenCalledTimes(2);
-        expect(lightdashApi).toHaveBeenNthCalledWith(1, {
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(2);
+        expect(sharedLightdashApi).toHaveBeenNthCalledWith(1, {
             url: '/ee/projects/project-1/apps/app-1/external-connections/weather',
             method: 'DELETE',
             body: undefined,
         });
-        expect(lightdashApi).toHaveBeenNthCalledWith(2, {
+        expect(sharedLightdashApi).toHaveBeenNthCalledWith(2, {
             url: '/ee/projects/project-1/apps/app-1/external-connections/weather-v2',
             method: 'DELETE',
             body: undefined,
@@ -72,7 +73,7 @@ describe('useUnlinkAppExternalConnection', () => {
     });
 
     it('restores the link when the request fails', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'nope' },
         });
         const { queryClient, result } = setup();

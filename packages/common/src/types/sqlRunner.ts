@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type AuthType,
     type Explore,
     type FieldType,
     type PivotChartData,
@@ -14,6 +15,7 @@ import {
     type VizAggregationOptions,
     type VizColumn,
 } from '../visualizations/types';
+import { type AgentIdentityClaim } from './agentIdentity';
 import { type Dashboard } from './dashboard';
 import {
     type Organization,
@@ -138,6 +140,7 @@ export type SqlRunnerFilter = SqlRunnerFilterTypes & {
 };
 
 export type SqlRunnerPayload = TraceTaskBase & {
+    authMethod?: AuthType | null;
     sqlChartUuid?: string;
     context: QueryExecutionContext;
 } & SqlRunnerBody;
@@ -230,6 +233,7 @@ export const isApiSqlRunnerJobPivotQuerySuccessResponse = (
     response.status === SchedulerJobStatus.COMPLETED;
 
 export type SqlChart = {
+    agentIdentity?: AgentIdentityClaim | null;
     savedSqlUuid: string;
     name: string;
     description: string | null;

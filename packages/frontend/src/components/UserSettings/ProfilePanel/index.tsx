@@ -130,7 +130,7 @@ const ProfilePanel: FC = () => {
 
     return (
         <form onSubmit={handleOnSubmit}>
-            <Stack mt="md">
+            <Stack>
                 <AvatarSettings />
 
                 <TextInput

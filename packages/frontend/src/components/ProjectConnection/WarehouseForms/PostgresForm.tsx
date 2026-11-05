@@ -23,18 +23,20 @@ import DataTimezoneField from './DataTimezoneField';
 import { PostgresDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
 import { SshStaticIpHint } from './SshStaticIpHint';
+import { useFieldHint } from './useFieldHint';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const fieldHint = useFieldHint();
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description={description ?? 'This is the schema name.'}
+            description={description ?? fieldHint('This is the schema name.')}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -45,8 +47,13 @@ export const PostgresSchemaInput: FC<{
 const PostgresForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const fieldHint = useFieldHint();
     const [isOpen, toggleOpen] = useToggle(false);
-    const { savedProject, isProjectExtraConnection } = useProjectFormContext();
+    const {
+        savedProject,
+        isProjectExtraConnection,
+        inheritsPrimaryCredentialRequirement = true,
+    } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.POSTGRES;
     const form = useFormContext();
@@ -85,16 +92,18 @@ const PostgresForm: FC<{
             <Stack mt="xs">
                 <TextInput
                     label="Host"
-                    description="This is the host where the database is running."
+                    description={fieldHint(
+                        'This is the host where the database is running.',
+                    )}
                     required
                     name="warehouse.host"
                     {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
-                    labelProps={{ style: { marginTop: '8px' } }}
+                    labelProps={{ mt: 'xs' }}
                 />
                 <TextInput
                     label="User"
-                    description="This is the database user name."
+                    description={fieldHint('This is the database user name.')}
                     required={requireSecrets}
                     name="warehouse.user"
                     {...form.getInputProps('warehouse.user')}
@@ -107,7 +116,9 @@ const PostgresForm: FC<{
                 />
                 <PasswordInput
                     label="Password"
-                    description="This is the database user password."
+                    description={fieldHint(
+                        'This is the database user password.',
+                    )}
                     required={requireSecrets}
                     name="warehouse.password"
                     placeholder={
@@ -120,7 +131,7 @@ const PostgresForm: FC<{
                 />
                 <TextInput
                     label="DB name"
-                    description="This is the database name."
+                    description={fieldHint('This is the database name.')}
                     required
                     name="warehouse.dbname"
                     {...form.getInputProps('warehouse.dbname')}
@@ -128,7 +139,8 @@ const PostgresForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        {isProjectExtraConnection ? (
+                        {isProjectExtraConnection &&
+                        inheritsPrimaryCredentialRequirement ? (
                             <Text size="sm" c="dimmed">
                                 Require users to provide their own credentials
                                 follows the primary connection.
@@ -154,7 +166,9 @@ const PostgresForm: FC<{
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={PostgresDefaultValues.port}
                             label="Port"
-                            description="This is the port where the database is running."
+                            description={fieldHint(
+                                'This is the port where the database is running.',
+                            )}
                             required
                             disabled={disabled}
                         />

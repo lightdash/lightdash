@@ -7,14 +7,14 @@ import {
     type AllowedEmailDomains,
 } from '@lightdash/common';
 import {
+    ActionIcon,
+    Button,
     Flex,
+    Group,
+    Input,
+    Select,
     Stack,
     Text,
-    Title,
-    Button,
-    ActionIcon,
-    Group,
-    Select,
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -34,6 +34,7 @@ import {
 import { useProjects } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
 import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
+import { SettingRow } from '../../common/Settings/SettingLayout';
 import styles from './AllowedDomainsPanel.module.css';
 
 const roleOptions: Array<{
@@ -217,296 +218,325 @@ const AllowedDomainsPanel: FC = () => {
         setDomainSearch('');
     };
 
-    return isSuccess ? (
-        <form name="allowedEmailDomains" onSubmit={handleSubmit}>
-            <Stack>
-                <MultiSelectCombobox
-                    name="emailDomains"
-                    label="Allowed email domains"
-                    placeholder="E.g. lightdash.com"
-                    disabled={isLoading}
-                    error={form.errors.emailDomains}
-                    options={form.values.emailDomains.map((domain) => ({
-                        value: domain,
-                        label: domain,
-                    }))}
-                    value={form.values.emailDomains}
-                    hidePickedOptions
-                    searchValue={domainSearch}
-                    onSearchChange={setDomainSearch}
-                    onBlur={emailDomainsField.onBlur}
-                    onValueRemove={(domain) => {
-                        form.setFieldValue(
-                            'emailDomains',
-                            form.values.emailDomains.filter(
-                                (value) => value !== domain,
-                            ),
-                        );
-                    }}
-                    onOptionSubmit={(domain) => {
-                        form.setFieldValue(
-                            'emailDomains',
-                            form.values.emailDomains.filter(
-                                (value) => value !== domain,
-                            ),
-                        );
-                    }}
-                    onCreate={handleAddEmailDomain}
-                    clearSearchOnCreate={false}
-                    shouldCreate={(query) =>
-                        query.trim().length > 0 &&
-                        !form.values.emailDomains.some(
-                            (domain) =>
-                                domain.toLowerCase() ===
-                                query.trim().toLowerCase(),
-                        )
-                    }
-                    createLabel={
-                        <Group gap="xxs">
-                            <MantineIcon
-                                icon={IconPlus}
-                                color="blue.7"
-                                size="sm"
-                            />
-                            <Text c="blue.7" fz="sm" fw={500}>
-                                Add {domainSearch.trim()} domain
-                            </Text>
-                        </Group>
-                    }
-                />
-
-                {!!form.values.emailDomains.length && (
-                    <>
-                        <Select
-                            allowDeselect={false}
-                            label="Default role"
-                            name="role"
-                            placeholder="Organization viewer"
+    return (
+        <SettingRow
+            title="Allowed email domains"
+            description="Anyone with an email address at these domains can automatically join the organization."
+        >
+            {isSuccess && (
+                <form name="allowedEmailDomains" onSubmit={handleSubmit}>
+                    <Stack mt="md">
+                        <MultiSelectCombobox
+                            name="emailDomains"
+                            label="Domains"
+                            placeholder="E.g. lightdash.com"
                             disabled={isLoading}
-                            data={roleOptions}
-                            renderOption={({ option, checked }) => {
-                                const role = roleOptions.find(
-                                    ({ value }) => value === option.value,
-                                );
-                                return (
-                                    <Group
-                                        flex={1}
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                        gap="xs"
-                                    >
-                                        <Stack gap={0}>
-                                            <Text size="sm" fw={500}>
-                                                {option.label}
-                                            </Text>
-                                            <Text size="xs" c="dimmed">
-                                                {role?.subLabel}
-                                            </Text>
-                                        </Stack>
-                                        {checked && (
-                                            <MantineIcon
-                                                icon={IconCheck}
-                                                size="sm"
-                                            />
-                                        )}
-                                    </Group>
+                            error={form.errors.emailDomains}
+                            options={form.values.emailDomains.map((domain) => ({
+                                value: domain,
+                                label: domain,
+                            }))}
+                            value={form.values.emailDomains}
+                            hidePickedOptions
+                            searchValue={domainSearch}
+                            onSearchChange={setDomainSearch}
+                            onBlur={emailDomainsField.onBlur}
+                            onValueRemove={(domain) => {
+                                form.setFieldValue(
+                                    'emailDomains',
+                                    form.values.emailDomains.filter(
+                                        (value) => value !== domain,
+                                    ),
                                 );
                             }}
-                            defaultValue={OrganizationMemberRole.VIEWER}
-                            {...form.getInputProps('role')}
-                            onChange={(value) => {
-                                if (value) {
-                                    form.setFieldValue(
-                                        'role',
-                                        value as AllowedEmailDomains['role'],
-                                    );
-                                    // set default project when changing to member role
-                                    if (
-                                        value ===
-                                            OrganizationMemberRole.MEMBER &&
-                                        form.values.projects.length === 0
-                                    ) {
-                                        handleAddProject();
-                                    }
-                                }
+                            onOptionSubmit={(domain) => {
+                                form.setFieldValue(
+                                    'emailDomains',
+                                    form.values.emailDomains.filter(
+                                        (value) => value !== domain,
+                                    ),
+                                );
                             }}
+                            onCreate={handleAddEmailDomain}
+                            clearSearchOnCreate={false}
+                            shouldCreate={(query) =>
+                                query.trim().length > 0 &&
+                                !form.values.emailDomains.some(
+                                    (domain) =>
+                                        domain.toLowerCase() ===
+                                        query.trim().toLowerCase(),
+                                )
+                            }
+                            createLabel={
+                                <Group gap="xxs">
+                                    <MantineIcon
+                                        icon={IconPlus}
+                                        color="blue.7"
+                                        size="sm"
+                                    />
+                                    <Text c="blue.7" fz="sm" fw={500}>
+                                        Add {domainSearch.trim()} domain
+                                    </Text>
+                                </Group>
+                            }
                         />
 
-                        {form.values.role === OrganizationMemberRole.MEMBER ? (
-                            <div>
-                                <Title order={5} mb="md">
-                                    Project access
-                                </Title>
-
-                                <Stack gap="sm" align="flex-start">
-                                    {form.values.projects.map(
-                                        ({ projectUuid }, index) => (
-                                            <Flex
-                                                key={projectUuid}
-                                                align="flex-end"
+                        {!!form.values.emailDomains.length && (
+                            <>
+                                <Select
+                                    allowDeselect={false}
+                                    label="Default role"
+                                    name="role"
+                                    placeholder="Organization viewer"
+                                    disabled={isLoading}
+                                    data={roleOptions}
+                                    renderOption={({ option, checked }) => {
+                                        const role = roleOptions.find(
+                                            ({ value }) =>
+                                                value === option.value,
+                                        );
+                                        return (
+                                            <Group
+                                                flex={1}
+                                                justify="space-between"
+                                                wrap="nowrap"
                                                 gap="xs"
                                             >
-                                                <Select
-                                                    allowDeselect={false}
-                                                    size="xs"
-                                                    disabled={isLoading}
-                                                    label={
-                                                        index === 0
-                                                            ? 'Project name'
-                                                            : undefined
-                                                    }
-                                                    data={projectOptions.filter(
-                                                        ({ value }) => {
-                                                            const isCurrentValue =
-                                                                value ===
-                                                                form.values
-                                                                    .projects[
-                                                                    index
-                                                                ].projectUuid;
-                                                            if (
-                                                                isCurrentValue
-                                                            ) {
-                                                                return true;
-                                                            }
-                                                            const isSelected =
-                                                                form.values.projects.find(
-                                                                    (project) =>
-                                                                        project.projectUuid ===
-                                                                        value,
-                                                                );
-                                                            return !isSelected;
-                                                        },
-                                                    )}
-                                                    {...form.getInputProps(
-                                                        `projects.${index}.projectUuid`,
-                                                    )}
-                                                />
-
-                                                <Select
-                                                    allowDeselect={false}
-                                                    label={
-                                                        index === 0
-                                                            ? 'Project role'
-                                                            : undefined
-                                                    }
-                                                    disabled={isLoading}
-                                                    size="xs"
-                                                    data={projectRoleOptions}
-                                                    renderOption={({
-                                                        option,
-                                                        checked,
-                                                    }) => {
-                                                        const role =
-                                                            projectRoleOptions.find(
-                                                                ({ value }) =>
-                                                                    value ===
-                                                                    option.value,
-                                                            );
-                                                        return (
-                                                            <Flex
-                                                                gap="xs"
-                                                                justify="space-between"
-                                                                align="center"
-                                                            >
-                                                                <Text size="xs">
-                                                                    {
-                                                                        option.label
-                                                                    }
-                                                                </Text>
-
-                                                                <Tooltip
-                                                                    label={
-                                                                        role?.subLabel
-                                                                    }
-                                                                >
-                                                                    <MantineIcon
-                                                                        color={
-                                                                            checked
-                                                                                ? 'white'
-                                                                                : 'grey'
-                                                                        }
-                                                                        icon={
-                                                                            IconHelpCircle
-                                                                        }
-                                                                    />
-                                                                </Tooltip>
-                                                            </Flex>
-                                                        );
-                                                    }}
-                                                    defaultValue={
-                                                        ProjectMemberRole.VIEWER
-                                                    }
-                                                    {...form.getInputProps(
-                                                        `projects.${index}.role`,
-                                                    )}
-                                                />
-
-                                                <ActionIcon
-                                                    color="red"
-                                                    variant="outline"
-                                                    size={30}
-                                                    disabled={isLoading}
-                                                    onClick={() =>
-                                                        form.removeListItem(
-                                                            'projects',
-                                                            index,
-                                                        )
-                                                    }
-                                                >
+                                                <Stack gap={0}>
+                                                    <Text size="sm" fw={500}>
+                                                        {option.label}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        {role?.subLabel}
+                                                    </Text>
+                                                </Stack>
+                                                {checked && (
                                                     <MantineIcon
-                                                        icon={IconTrash}
+                                                        icon={IconCheck}
                                                         size="sm"
                                                     />
-                                                </ActionIcon>
-                                            </Flex>
-                                        ),
-                                    )}
-
-                                    <Tooltip
-                                        disabled={canAddMoreProjects}
-                                        label={
-                                            'There are no other projects to add'
-                                        }
-                                    >
-                                        <Button
-                                            {...(!canAddMoreProjects && {
-                                                'data-disabled': true,
-                                            })}
-                                            className={styles.addProjectButton}
-                                            onClick={handleAddProject}
-                                            variant="outline"
-                                            size="xs"
-                                            leftSection={
-                                                <MantineIcon icon={IconPlus} />
+                                                )}
+                                            </Group>
+                                        );
+                                    }}
+                                    defaultValue={OrganizationMemberRole.VIEWER}
+                                    {...form.getInputProps('role')}
+                                    onChange={(value) => {
+                                        if (value) {
+                                            form.setFieldValue(
+                                                'role',
+                                                value as AllowedEmailDomains['role'],
+                                            );
+                                            // set default project when changing to member role
+                                            if (
+                                                value ===
+                                                    OrganizationMemberRole.MEMBER &&
+                                                form.values.projects.length ===
+                                                    0
+                                            ) {
+                                                handleAddProject();
                                             }
-                                        >
-                                            Add project
-                                        </Button>
-                                    </Tooltip>
-                                </Stack>
-                            </div>
-                        ) : null}
-                    </>
-                )}
+                                        }
+                                    }}
+                                />
 
-                <Flex justify="flex-end" gap="sm">
-                    {form.isDirty() && !isUpdateAllowedEmailDomainsLoading && (
-                        <Button variant="outline" onClick={() => form.reset()}>
-                            Cancel
-                        </Button>
-                    )}
-                    <Button
-                        type="submit"
-                        display="block"
-                        loading={isLoading}
-                        disabled={!form.isDirty()}
-                    >
-                        Update
-                    </Button>
-                </Flex>
-            </Stack>
-        </form>
-    ) : null;
+                                {form.values.role ===
+                                OrganizationMemberRole.MEMBER ? (
+                                    <div>
+                                        <Input.Label mb="xs">
+                                            Project access
+                                        </Input.Label>
+
+                                        <Stack gap="sm" align="flex-start">
+                                            {form.values.projects.map(
+                                                ({ projectUuid }, index) => (
+                                                    <Flex
+                                                        key={projectUuid}
+                                                        align="flex-end"
+                                                        gap="xs"
+                                                    >
+                                                        <Select
+                                                            allowDeselect={
+                                                                false
+                                                            }
+                                                            size="xs"
+                                                            disabled={isLoading}
+                                                            label={
+                                                                index === 0
+                                                                    ? 'Project name'
+                                                                    : undefined
+                                                            }
+                                                            data={projectOptions.filter(
+                                                                ({ value }) => {
+                                                                    const isCurrentValue =
+                                                                        value ===
+                                                                        form
+                                                                            .values
+                                                                            .projects[
+                                                                            index
+                                                                        ]
+                                                                            .projectUuid;
+                                                                    if (
+                                                                        isCurrentValue
+                                                                    ) {
+                                                                        return true;
+                                                                    }
+                                                                    const isSelected =
+                                                                        form.values.projects.find(
+                                                                            (
+                                                                                project,
+                                                                            ) =>
+                                                                                project.projectUuid ===
+                                                                                value,
+                                                                        );
+                                                                    return !isSelected;
+                                                                },
+                                                            )}
+                                                            {...form.getInputProps(
+                                                                `projects.${index}.projectUuid`,
+                                                            )}
+                                                        />
+
+                                                        <Select
+                                                            allowDeselect={
+                                                                false
+                                                            }
+                                                            label={
+                                                                index === 0
+                                                                    ? 'Project role'
+                                                                    : undefined
+                                                            }
+                                                            disabled={isLoading}
+                                                            size="xs"
+                                                            data={
+                                                                projectRoleOptions
+                                                            }
+                                                            renderOption={({
+                                                                option,
+                                                                checked,
+                                                            }) => {
+                                                                const role =
+                                                                    projectRoleOptions.find(
+                                                                        ({
+                                                                            value,
+                                                                        }) =>
+                                                                            value ===
+                                                                            option.value,
+                                                                    );
+                                                                return (
+                                                                    <Flex
+                                                                        gap="xs"
+                                                                        justify="space-between"
+                                                                        align="center"
+                                                                    >
+                                                                        <Text size="xs">
+                                                                            {
+                                                                                option.label
+                                                                            }
+                                                                        </Text>
+
+                                                                        <Tooltip
+                                                                            label={
+                                                                                role?.subLabel
+                                                                            }
+                                                                        >
+                                                                            <MantineIcon
+                                                                                color={
+                                                                                    checked
+                                                                                        ? 'white'
+                                                                                        : 'grey'
+                                                                                }
+                                                                                icon={
+                                                                                    IconHelpCircle
+                                                                                }
+                                                                            />
+                                                                        </Tooltip>
+                                                                    </Flex>
+                                                                );
+                                                            }}
+                                                            defaultValue={
+                                                                ProjectMemberRole.VIEWER
+                                                            }
+                                                            {...form.getInputProps(
+                                                                `projects.${index}.role`,
+                                                            )}
+                                                        />
+
+                                                        <ActionIcon
+                                                            color="red"
+                                                            variant="outline"
+                                                            size={30}
+                                                            disabled={isLoading}
+                                                            onClick={() =>
+                                                                form.removeListItem(
+                                                                    'projects',
+                                                                    index,
+                                                                )
+                                                            }
+                                                        >
+                                                            <MantineIcon
+                                                                icon={IconTrash}
+                                                                size="sm"
+                                                            />
+                                                        </ActionIcon>
+                                                    </Flex>
+                                                ),
+                                            )}
+
+                                            <Tooltip
+                                                disabled={canAddMoreProjects}
+                                                label={
+                                                    'There are no other projects to add'
+                                                }
+                                            >
+                                                <Button
+                                                    {...(!canAddMoreProjects && {
+                                                        'data-disabled': true,
+                                                    })}
+                                                    className={
+                                                        styles.addProjectButton
+                                                    }
+                                                    onClick={handleAddProject}
+                                                    variant="outline"
+                                                    size="xs"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconPlus}
+                                                        />
+                                                    }
+                                                >
+                                                    Add project
+                                                </Button>
+                                            </Tooltip>
+                                        </Stack>
+                                    </div>
+                                ) : null}
+                            </>
+                        )}
+
+                        <Flex justify="flex-end" gap="sm">
+                            {form.isDirty() &&
+                                !isUpdateAllowedEmailDomainsLoading && (
+                                    <Button
+                                        variant="default"
+                                        onClick={() => form.reset()}
+                                    >
+                                        Cancel
+                                    </Button>
+                                )}
+                            <Button
+                                type="submit"
+                                loading={isLoading}
+                                disabled={!form.isDirty()}
+                            >
+                                Update
+                            </Button>
+                        </Flex>
+                    </Stack>
+                </form>
+            )}
+        </SettingRow>
+    );
 };
 
 export default AllowedDomainsPanel;

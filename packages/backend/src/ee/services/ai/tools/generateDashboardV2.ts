@@ -1,4 +1,6 @@
 import {
+    AI_AGENT_MERGE_REFUSAL,
+    AiAgentValidatorError,
     generateDashboardToolDefinition,
     toolDashboardV2ArgsSchemaTransformed,
     type ToolDashboardV2ArgsTransformed,
@@ -56,6 +58,11 @@ export const getGenerateDashboardV2 = ({
                 const vizPromises = transformedToolArgs.visualizations.map(
                     async (viz, index) => {
                         try {
+                            if (viz.mergeConfig) {
+                                throw new AiAgentValidatorError(
+                                    AI_AGENT_MERGE_REFUSAL,
+                                );
+                            }
                             const explore = ctx.getExplore(
                                 viz.queryConfig.exploreName,
                             );
@@ -102,13 +109,13 @@ export const getGenerateDashboardV2 = ({
                         metadata: {
                             status: 'error',
                         },
-                        structuredContent: { error: result, refusal: null },
+                        structuredContent: { error: result },
                     };
                 }
 
-                const visualizations = toolArgs.visualizations.filter(
-                    (_, index) => validIndices.has(index),
-                );
+                const visualizations = toolArgs.visualizations
+                    .filter((_, index) => validIndices.has(index))
+                    .map((viz) => ({ ...viz, mergeConfig: null }));
                 // Layout selection adds no warehouse query and overlaps prompt loading.
                 const [prompt, layout] = await Promise.all([
                     getPrompt(),

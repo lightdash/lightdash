@@ -20,7 +20,7 @@ const renderRepos = (
     repos: ToolDiscoverReposStructuredContent['repos'],
 ): string => {
     if (repos.length === 0) {
-        return "No repositories are accessible to this organization's GitHub App installation.";
+        return 'No repositories are accessible.';
     }
 
     return [

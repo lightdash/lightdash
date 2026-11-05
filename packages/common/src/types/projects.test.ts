@@ -8,6 +8,7 @@ import {
     getDbtVersionSupportedWarehouses,
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
+    isAiAdminScopedProjectType,
     isMissingBigqueryKeyfile,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,
@@ -18,6 +19,7 @@ import {
     omitEmptySecrets,
     PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
     PROJECT_DBT_SOURCE_NAME_PATTERN,
+    ProjectType,
     resolveDbtVersion,
     SupportedDbtVersions,
     validateProjectDbtSourceName,
@@ -28,6 +30,7 @@ import {
     type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
+    type CreateWarehouseCredentialsWithOptionalSecrets,
     type DuckdbAnalyticsCredentials,
 } from './projects';
 
@@ -494,5 +497,88 @@ describe('omitted secrets on connection test', () => {
                 keyfileContents: undefined,
             }),
         ).toMatchObject({ keyfileContents: {} });
+    });
+    it('allows federated BigQuery connections without a keyfile', () => {
+        const federated = {
+            ...bigquery,
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            keyfileContents: undefined,
+        };
+        expect(isMissingBigqueryKeyfile(federated)).toBe(false);
+        expect(fillOmittedSecrets(federated)).toMatchObject({
+            keyfileContents: {},
+        });
+    });
+});
+
+describe('preview tunnel credential merge', () => {
+    const incoming: CreatePostgresCredentials = {
+        type: WarehouseTypes.POSTGRES,
+        host: 'warehouse',
+        port: 5432,
+        dbname: 'analytics',
+        schema: 'preview',
+        user: 'developer',
+        password: 'fresh-password',
+    };
+    const parent = {
+        ...incoming,
+        user: 'parent-user',
+        password: 'parent-secret',
+        useSshTunnel: true,
+        sshTunnelHost: 'bastion',
+        sshTunnelPort: 22,
+        sshTunnelUser: 'tunnel',
+        sshTunnelPublicKey: 'public-key',
+        sshTunnelPrivateKey: 'parent-private-key',
+    };
+    test('inherits tunnel settings without parent secrets', () => {
+        const merged = mergeWarehouseCredentials(parent, incoming);
+        expect(merged).toMatchObject({
+            ...incoming,
+            useSshTunnel: true,
+            sshTunnelHost: 'bastion',
+            sshTunnelPublicKey: 'public-key',
+        });
+        expect(merged).not.toHaveProperty('sshTunnelPrivateKey');
+    });
+    test('accepts redacted credentials without filling or inheriting omitted secrets', () => {
+        const { user: _user, password: _password, ...redacted } = incoming;
+        const merged =
+            mergeWarehouseCredentials<CreateWarehouseCredentialsWithOptionalSecrets>(
+                parent,
+                redacted,
+            );
+        expect(merged).toMatchObject({
+            useSshTunnel: true,
+            sshTunnelHost: 'bastion',
+        });
+        expect(merged).not.toHaveProperty('password');
+        expect(merged).not.toHaveProperty('user');
+        expect(merged).not.toHaveProperty('sshTunnelPrivateKey');
+    });
+    test('preserves saved preview settings before filling parent gaps', () => {
+        const refreshed = mergeWarehouseCredentials(
+            {
+                ...incoming,
+                useSshTunnel: false,
+                sshTunnelHost: 'preview-bastion',
+            },
+            incoming,
+        );
+        expect(mergeWarehouseCredentials(parent, refreshed)).toMatchObject({
+            ...incoming,
+            useSshTunnel: false,
+            sshTunnelHost: 'preview-bastion',
+        });
+    });
+});
+
+describe('isAiAdminScopedProjectType', () => {
+    it('counts only default projects towards AI admin access', () => {
+        expect(isAiAdminScopedProjectType(ProjectType.DEFAULT)).toBe(true);
+        expect(isAiAdminScopedProjectType(ProjectType.PREVIEW)).toBe(false);
+        expect(isAiAdminScopedProjectType(ProjectType.TRAINING)).toBe(false);
     });
 });

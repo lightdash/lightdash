@@ -106,13 +106,17 @@ const buildService = () => {
             agentUuid: 'agent-uuid',
         }),
         getThread: vi.fn().mockResolvedValue({ user: { uuid: 'user-uuid' } }),
-        getWebAppThreadEmbedSpace: vi.fn().mockResolvedValue('space-uuid'),
+        isWebAppThreadInEmbedSpaces: vi.fn().mockResolvedValue(true),
     };
     const asyncQueryService = {
+        bindQueryToArtifact: vi.fn(),
         executeAsyncMetricQuery: vi.fn().mockResolvedValue(query),
         executeAsyncMergeQuery: vi
             .fn()
             .mockResolvedValue({ outcome: 'success', query }),
+    };
+    const featureFlagService = {
+        get: vi.fn().mockResolvedValue({ enabled: true }),
     };
     const service = new AiAgentService({
         aiAgentModel,
@@ -120,9 +124,7 @@ const buildService = () => {
         aiAgentToolsService: {
             getExplore: vi.fn().mockResolvedValue(validExplore),
         },
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        },
+        featureFlagService,
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
@@ -192,7 +194,11 @@ describe.each([
                         : await service.getArtifactVizQuery(user, options);
                 }
 
-                expect(result.query).toEqual(embedded ? redactedQuery : query);
+                expect(result).toEqual(
+                    expect.objectContaining({
+                        query: embedded ? redactedQuery : query,
+                    }),
+                );
                 expect(
                     asyncQueryService.executeAsyncMetricQuery,
                 ).toHaveBeenCalledWith(
@@ -248,7 +254,11 @@ describe.each([
                   )
                 : await service.getArtifactVizQuery(user, options);
 
-            expect(result.query).toEqual(embedded ? redactedQuery : query);
+            expect(result).toEqual(
+                expect.objectContaining({
+                    query: embedded ? redactedQuery : query,
+                }),
+            );
             expect(
                 asyncQueryService.executeAsyncMergeQuery,
             ).toHaveBeenCalledWith(
@@ -285,7 +295,7 @@ describe('AI artifact visualization SQL redaction', () => {
             ...artifactArgs,
         );
 
-        expect(result.query).toEqual(query);
+        expect(result).toEqual(expect.objectContaining({ query }));
     });
 });
 
@@ -305,4 +315,40 @@ describe('artifact visualization identity refusals', () => {
             }),
         ).rejects.toBe(refusal);
     });
+});
+
+describe('artifact visualization agent ownership', () => {
+    it.each(['chart', 'dashboard'] as const)(
+        'rejects a mismatched path agent before executing a %s query',
+        async (artifactType) => {
+            const { service, aiAgentModel, asyncQueryService } = buildService();
+            aiAgentModel.findThread.mockResolvedValue({
+                organizationUuid: 'org-uuid',
+                projectUuid: 'project-uuid',
+                agentUuid: 'different-thread-agent',
+            });
+            const options = {
+                projectUuid: 'project-uuid',
+                agentUuid: 'agent-uuid',
+                artifactUuid: 'artifact-uuid',
+                versionUuid: 'version-uuid',
+            };
+            await expect(
+                artifactType === 'chart'
+                    ? service.getArtifactVizQuery(user, options)
+                    : service.getDashboardArtifactChartVizQuery(user, {
+                          ...options,
+                          chartIndex: 0,
+                      }),
+            ).rejects.toThrow(
+                'Insufficient permissions to access this artifact',
+            );
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.executeAsyncMergeQuery,
+            ).not.toHaveBeenCalled();
+        },
+    );
 });

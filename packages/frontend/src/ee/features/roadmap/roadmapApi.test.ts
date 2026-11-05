@@ -5,25 +5,26 @@ import {
     type RoadmapProjectRequestsResults,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { mockRoadmapProject, mockRoadmapResults } from './roadmap.mock';
 import { roadmapApi } from './roadmapApi';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 
 describe('roadmap API', () => {
     beforeEach(() => vi.resetAllMocks());
 
     it('posts only the note to the authenticated backend endpoint', async () => {
         const result = { message: 'Request received' };
-        vi.mocked(lightdashApi).mockResolvedValue(result);
+        mockedLightdashApi.mockResolvedValue(result);
         expect(
-            await roadmapApi.followProject({
+            await roadmapApi.followProject(sharedLightdashApi, {
                 projectId: 'project/id',
                 note: 'Our use case',
             }),
         ).toEqual(result);
-        expect(lightdashApi).toHaveBeenCalledExactlyOnceWith({
+        expect(sharedLightdashApi).toHaveBeenCalledExactlyOnceWith({
             url: '/org/roadmap/projects/project%2Fid/follow',
             method: 'POST',
             sensitive: true,
@@ -38,9 +39,9 @@ describe('roadmap API', () => {
             JSON.stringify(['alpha']),
         );
         const result = mockRoadmapResults([mockRoadmapProject('alpha')]);
-        vi.mocked(lightdashApi).mockResolvedValue(result);
+        mockedLightdashApi.mockResolvedValue(result);
         expect(
-            await roadmapApi.getProjects({
+            await roadmapApi.getProjects(sharedLightdashApi, {
                 page: 2,
                 pageSize: 10,
                 onlyInterested: true,
@@ -48,7 +49,7 @@ describe('roadmap API', () => {
                 statuses: 'planned',
             }),
         ).toEqual(result);
-        expect(lightdashApi).toHaveBeenCalledExactlyOnceWith({
+        expect(sharedLightdashApi).toHaveBeenCalledExactlyOnceWith({
             url: '/org/roadmap/projects?page=2&pageSize=10&onlyInterested=true&search=AI&statuses=planned',
             method: 'GET',
             body: undefined,
@@ -70,12 +71,13 @@ describe('roadmap API', () => {
         'preserves Slack links and defaults omitted fields: %j',
         async ({ slackThreadUrls }) => {
             const project = mockRoadmapProject('alpha');
-            vi.mocked(lightdashApi).mockResolvedValue({
+            mockedLightdashApi.mockResolvedValue({
                 ...mockRoadmapResults([project]),
                 projects: [{ ...project, slackThreadUrls }],
             } as RoadmapProjectResults);
             expect(
-                (await roadmapApi.getProjects({})).projects[0].slackThreadUrls,
+                (await roadmapApi.getProjects(sharedLightdashApi, {}))
+                    .projects[0].slackThreadUrls,
             ).toEqual(slackThreadUrls ?? []);
             const request = RoadmapItemSchema.parse({
                 ticketId: 'PROD-1',
@@ -88,7 +90,7 @@ describe('roadmap API', () => {
                 issueUrl: null,
                 pullRequestUrl: null,
             });
-            vi.mocked(lightdashApi).mockResolvedValue({
+            mockedLightdashApi.mockResolvedValue({
                 data: [{ ...request, projectId: 'alpha', slackThreadUrls }],
                 pagination: {
                     page: 1,
@@ -114,20 +116,29 @@ describe('roadmap API', () => {
                 },
             } as RoadmapProjectRequestsResults);
             expect(
-                (await roadmapApi.getRequests({ projectId: 'alpha' })).data[0]
-                    .slackThreadUrls,
+                (
+                    await roadmapApi.getRequests(sharedLightdashApi, {
+                        projectId: 'alpha',
+                    })
+                ).data[0].slackThreadUrls,
             ).toEqual(slackThreadUrls ?? []);
         },
     );
 
     it('propagates failures and rejects invalid confirmations', async () => {
-        vi.mocked(lightdashApi).mockRejectedValueOnce(new Error('Unavailable'));
+        mockedLightdashApi.mockRejectedValueOnce(new Error('Unavailable'));
         await expect(
-            roadmapApi.followProject({ projectId: 'alpha', note: 'Use case' }),
+            roadmapApi.followProject(sharedLightdashApi, {
+                projectId: 'alpha',
+                note: 'Use case',
+            }),
         ).rejects.toThrow('Unavailable');
-        vi.mocked(lightdashApi).mockResolvedValue({ message: '' });
+        mockedLightdashApi.mockResolvedValue({ message: '' });
         await expect(
-            roadmapApi.followProject({ projectId: 'alpha', note: 'Use case' }),
+            roadmapApi.followProject(sharedLightdashApi, {
+                projectId: 'alpha',
+                note: 'Use case',
+            }),
         ).rejects.toThrow();
     });
 

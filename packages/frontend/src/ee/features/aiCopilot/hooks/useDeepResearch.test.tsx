@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import {
     registerDeepResearchRun,
     subscribeToDeepResearchComposerPrompt,
@@ -18,7 +19,7 @@ import {
     useTrackDeepResearchReportEngagement,
 } from './useDeepResearch';
 
-const lightdashApiMock = vi.fn();
+const lightdashApiMock = mockedLightdashApi;
 const showToastApiErrorMock = vi.fn();
 const trackMock = vi.fn();
 const appUser = {
@@ -33,9 +34,7 @@ const appUser = {
         | undefined,
 };
 
-vi.mock('../../../../api', () => ({
-    lightdashApi: (args: unknown) => lightdashApiMock(args),
-}));
+vi.mock('../../../../api');
 
 vi.mock('../../../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastApiError: showToastApiErrorMock }),

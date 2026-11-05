@@ -1,5 +1,5 @@
 import { subject, type AbilityBuilder } from '@casl/ability';
-import flow from 'lodash/flow';
+import { flow } from 'es-toolkit/compat';
 import { isChartContent, isDashboardContent, type CreateEmbedJwt } from '../ee';
 import type { EmbedContent, OssEmbed } from '../types/auth';
 import assertUnreachable from '../utils/assertUnreachable';
@@ -309,17 +309,17 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     const subjectType: 'Dashboard' | 'SavedChart' =
         content.type === 'dashboard' ? 'Dashboard' : 'SavedChart';
 
-    // Common abilities for both dashboard and chart
-    if (
+    const canExportImages =
         (useJwtPermissions && permissions.canExportImages) ||
-        canViewEmbedScope('EmbedImageExport', builder, embed)
-    ) {
-        can('export', subjectType, {
+        canViewEmbedScope('EmbedImageExport', builder, embed);
+    if (canExportImages && subjectType === 'SavedChart') {
+        can('export', 'SavedChart', {
             organizationUuid: organization.organizationUuid,
             type: 'images',
         });
     }
 
+    // Common abilities for both dashboard and chart
     if (
         (useJwtPermissions && permissions.canExportCsv) ||
         canViewEmbedScope('EmbedCsvExport', builder, embed)
@@ -336,13 +336,34 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     }
     // Dashboard specific abilities
     if (isDashboardContent(embedUser.content)) {
+        if (canExportImages) {
+            can('export', 'Dashboard', {
+                organizationUuid: organization.organizationUuid,
+                type: 'images',
+                'metadata.dashboardUuid': content.dashboardUuid,
+            });
+            can('view', 'JobStatus', {
+                organizationUuid: organization.organizationUuid,
+                projectUuid: embed.projectUuid,
+                createdByUserUuid: externalId,
+            });
+        }
+
         if (
-            (useJwtPermissions && embedUser.content.canExportPagePdf) ||
+            // Unset means enabled, matching the embed dashboard's default.
+            (useJwtPermissions &&
+                embedUser.content.canExportPagePdf !== false) ||
             canViewEmbedScope('EmbedPagePdfExport', builder, embed)
         ) {
             can('export', 'Dashboard', {
                 organizationUuid: organization.organizationUuid,
                 type: 'pdf',
+                'metadata.dashboardUuid': content.dashboardUuid,
+            });
+            can('view', 'JobStatus', {
+                organizationUuid: organization.organizationUuid,
+                projectUuid: embed.projectUuid,
+                createdByUserUuid: externalId,
             });
         }
 

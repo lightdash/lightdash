@@ -1,10 +1,11 @@
-import words from 'lodash/words';
+import { words } from 'es-toolkit/compat';
 import type {
     AdditionalMetric,
     currencies,
     DefaultTimeDimension,
     LightdashProjectConfig,
 } from '..';
+import { type WeekDay } from '../utils/timeFrames';
 import { type AnyType } from './any';
 import { CompileError } from './errors';
 import { type MetricFilterRule } from './filter';
@@ -441,6 +442,7 @@ export type FrameClause = {
 
 export enum TableCalculationTemplateType {
     PERCENT_CHANGE_FROM_PREVIOUS = 'percent_change_from_previous',
+    DIFFERENCE_FROM_PREVIOUS = 'difference_from_previous',
     PERCENT_OF_PREVIOUS_VALUE = 'percent_of_previous_value',
     PERCENT_OF_COLUMN_TOTAL = 'percent_of_column_total',
     RANK_IN_COLUMN = 'rank_in_column',
@@ -449,6 +451,18 @@ export enum TableCalculationTemplateType {
 }
 
 export type TableCalculationTemplate =
+    | {
+          /** Type of template calculation */
+          type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS;
+          /** Field ID to apply the template to */
+          fieldId: string;
+          /** Fields to order by for window functions */
+          orderBy: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
+          partitionBy?: string[];
+      }
     | {
           /** Type of template calculation */
           type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS;
@@ -792,6 +806,7 @@ export const filterStaticFilterAutocompleteValues = (
     searchFilterAutocompleteValues(values, search).map(({ value }) => value);
 
 export interface Dimension extends Field {
+    filterStartOfWeek?: WeekDay;
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
     /**
@@ -1145,7 +1160,7 @@ export const friendlyName = (text: string): string => {
         return '';
     }
 
-    // Use lodash's words function with a safe custom pattern
+    // Use words() with a safe custom pattern
     // Pattern explanation (avoids backtracking):
     // - [A-Z][a-z]+: Uppercase letter followed by 1+ lowercase (avoids * quantifier)
     // - [a-z]+: One or more lowercase letters

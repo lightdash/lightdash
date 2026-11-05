@@ -1,4 +1,5 @@
 import {
+    isComposerQueryToolName,
     type AiAgentToolCall,
     type AiAgentToolName,
     type AiAgentToolResult,
@@ -23,15 +24,13 @@ import { useState, type FC } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
+import { type ComposerQueryNodeStatus } from '../composerNodeStatus';
 import { AgentStepGroups } from './AgentStepGroups';
-import {
-    type ComposerApprovalTarget,
-    type ComposerQueryNodeStatus,
-} from './descriptions/ComposerQueriesToolCallDescription';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
 import { parseAgentStep } from './parseAgentStep';
+import { type SqlApprovalThread } from './SqlApprovalActions';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
@@ -80,10 +79,13 @@ type Props = {
      * replacing row. Empty when no tool has fired a progress event yet.
      */
     stepProgressMessages?: StepProgressMessage[];
-    /** runSql / composer calls awaiting a decision; approval renders inline under the SQL. */
-    approval?: ComposerApprovalTarget & {
+    /** runSql / composer / SQL chart calls awaiting a decision; approval renders inline under the SQL. */
+    approval?: SqlApprovalThread & {
         pendingToolCallIds: string[];
+        decidedToolCallIds: string[];
     };
+    /** Rendered as the first item of the card body. */
+    reasoning?: { texts: string[]; isLive: boolean };
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -98,6 +100,7 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>(['runSql', 'runSavedChart']);
 // because it has no description string but does render a subagent trace.
 const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'listDataAppThemes',
+    'listDataAppConnections',
     'listKnowledgeDocuments',
     'listProjects',
     'getProjectInfo',
@@ -106,14 +109,8 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'loadSkill',
     'loadProjectContext',
     'editDbtProject',
-    'setupPreviewDeploy',
     'runSavedChart',
 ]);
-
-// Tools that stream coarse step progress rendered as a single replacing row.
-// editDbtProject is intentionally absent: its actions are surfaced as grouped
-// step rows (AgentStepGroups) under the tool call instead of a transient line.
-const TOOLS_WITH_STEP_PROGRESS = new Set<string>(['setupPreviewDeploy']);
 
 const MCP_SUMMARY_ICON_LIMIT = 4;
 
@@ -495,74 +492,8 @@ const getDiscoverFieldsTraceFromCall = (
 };
 
 /**
- * Render the latest tool's progress as a single inline row under the
- * card header — the label gets replaced (rather than stacked) as the tool
- * advances. Matches the Slack experience where one pinned line is
- * overwritten with each new stage, without losing the visual anchor of a
- * pulsing dot.
- *
- * Returns null when there's nothing to render (the tool hasn't fired any
- * progress events, an SQL approval is pending, or we're not actively
- * streaming). Today only editDbtProject emits progress strings that
- * warrant this treatment; other tools either run instantly or share the
- * single "Running your query…" string that the parent bubble shows via
- * TypingDots instead.
- *
- * Crucially, the row shows only the latest event belonging to the active
- * tool (`toolName === latest.toolName`). A writeback often runs alongside
- * other tools (e.g. a `findFields` query the agent fired in the same turn),
- * and all of their progress lands in one flat list — without this scoping a
- * concurrent tool's "Searching for fields…" would briefly surface under the
- * "Opening a pull request" header.
- */
-const renderInlineLiveStepProgress = (params: {
-    latest: LiveActivityToolGroup | null;
-    isLive: boolean;
-    stepProgressMessages: StepProgressMessage[];
-}): React.ReactNode => {
-    const { latest, isLive, stepProgressMessages } = params;
-    if (!isLive || !latest) return null;
-    if (!TOOLS_WITH_STEP_PROGRESS.has(latest.toolName)) return null;
-
-    const currentMessage = stepProgressMessages
-        .filter((m) => m.toolName === latest.toolName)
-        .at(-1)?.message;
-    if (!currentMessage) return null;
-
-    return (
-        <Box className={styles.liveStepProgress}>
-            <Group
-                gap={6}
-                align="center"
-                wrap="nowrap"
-                className={styles.liveStepProgressRow}
-                // Key on the message so React swaps the node (replays the
-                // fade-in animation) each time a new progress event lands,
-                // rather than just rewriting the text in place. Reads as a
-                // deliberate "next step" rather than a silent label change.
-                key={currentMessage}
-                data-active="true"
-            >
-                <Box
-                    className={styles.liveStepProgressDot}
-                    data-active="true"
-                />
-                <Text
-                    size="xs"
-                    className={styles.liveStepProgressLabel}
-                    data-active="true"
-                    data-tour-status="true"
-                >
-                    {currentMessage}
-                </Text>
-            </Group>
-        </Box>
-    );
-};
-
-/**
  * Derive per-node execution statuses for a live composer pipeline from the
- * transient step-progress events the runComposerQueries tool emits
+ * transient step-progress events the composer query tool emits
  * (progressId = `${toolCallId}:${nodeId}`). Nodes without an event yet show
  * as pending while the call is in flight, and flip to success wholesale when
  * the tool's final output lands successfully. Returns undefined for other
@@ -573,7 +504,7 @@ const getComposerNodeStatuses = (
     stepProgressMessages: StepProgressMessage[],
     awaitingApproval: boolean,
 ): Record<string, ComposerQueryNodeStatus> | undefined => {
-    if (call.toolName !== 'runComposerQueries') return undefined;
+    if (!isComposerQueryToolName(call.toolName)) return undefined;
     const queries = getComposerQueryNodes(call.toolArgs);
     const nodeIds = queries.map((query) => query.nodeId);
     const sqlNodeIds = new Set(
@@ -584,7 +515,8 @@ const getComposerNodeStatuses = (
     const progressIdPrefix = `${call.toolCallId}:`;
     const eventStatuses = new Map<string, ComposerQueryNodeStatus>();
     for (const event of stepProgressMessages) {
-        if (event.toolName !== 'runComposerQueries') continue;
+        if (!event.toolName || !isComposerQueryToolName(event.toolName))
+            continue;
         if (
             !event.progressId?.startsWith(progressIdPrefix) ||
             !event.progressStatus
@@ -596,13 +528,7 @@ const getComposerNodeStatuses = (
         } else if (event.progressStatus === 'complete') {
             eventStatuses.set(nodeId, { status: 'success' });
         } else {
-            const failurePrefix = `Query "${nodeId}" failed: `;
-            eventStatuses.set(nodeId, {
-                status: 'error',
-                errorMessage: event.message.startsWith(failurePrefix)
-                    ? event.message.slice(failurePrefix.length)
-                    : null,
-            });
+            eventStatuses.set(nodeId, { status: 'error' });
         }
     }
 
@@ -614,20 +540,18 @@ const getComposerNodeStatuses = (
     return Object.fromEntries(
         nodeIds.flatMap((nodeId): [string, ComposerQueryNodeStatus][] => {
             const fromEvent = eventStatuses.get(nodeId);
-            // The call failed while this node was still running: it failed.
-            if (outputStatus === 'error' && fromEvent?.status === 'running')
-                return [[nodeId, { status: 'error', errorMessage: null }]];
+            // Failures show no indicator: the agent retries on its own.
+            if (
+                fromEvent?.status === 'error' ||
+                (outputStatus === 'error' && fromEvent?.status === 'running')
+            )
+                return [];
             if (fromEvent) return [[nodeId, fromEvent]];
             if (awaitingApproval && sqlNodeIds.has(nodeId))
                 return [[nodeId, { status: 'awaiting_approval' }]];
             if (outputStatus === 'success')
                 return [[nodeId, { status: 'success' }]];
             if (output === undefined) return [[nodeId, { status: 'pending' }]];
-            // The call errored before any node started: the whole pipeline failed.
-            if (outputStatus === 'error' && eventStatuses.size === 0)
-                return [[nodeId, { status: 'error', errorMessage: null }]];
-            // Rejected/timed-out/unattributed failure: nothing truthful to
-            // claim about this node, so show no indicator.
             return [];
         }),
     );
@@ -670,6 +594,7 @@ export const LiveActivityCard: FC<Props> = ({
     mcpServers,
     stepProgressMessages = [],
     approval,
+    reasoning,
 }) => {
     const latestGroup =
         toolGroups.length > 0 ? toolGroups[toolGroups.length - 1] : undefined;
@@ -678,14 +603,26 @@ export const LiveActivityCard: FC<Props> = ({
     // A call waiting on approval keeps the card "live" so its SQL is reachable.
     const isActive = isLive || hasPendingApproval;
 
+    // A decided call's SQL was already reviewed, so its group can collapse.
+    const decidedApprovalIds = approval?.decidedToolCallIds ?? [];
+    const approvalDecided =
+        latestGroup?.calls.some((call) =>
+            decidedApprovalIds.includes(call.toolCallId),
+        ) ?? false;
+
     // runSql expands by default; composer only while active (the artifact panel
     // shows the pipeline once done). A user toggle wins until expandKey changes.
+    const isComposerQueryGroup =
+        latestGroup !== undefined &&
+        isComposerQueryToolName(latestGroup.toolName);
     const defaultExpanded =
-        latestGroup?.toolName === 'runSql' ||
-        (isActive && latestGroup?.toolName === 'runComposerQueries');
+        hasPendingApproval ||
+        (!approvalDecided &&
+            (latestGroup?.toolName === 'runSql' ||
+                (isActive && isComposerQueryGroup)));
     const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
-        latestGroup?.toolName === 'runComposerQueries' ? isActive : ''
-    }`;
+        isComposerQueryGroup ? isActive : ''
+    }:${approvalDecided}`;
     const [userToggle, setUserToggle] = useState<{
         key: string;
         value: boolean;
@@ -695,7 +632,23 @@ export const LiveActivityCard: FC<Props> = ({
     const setUserExpanded = (value: boolean) =>
         setUserToggle({ key: expandKey, value });
 
-    if (toolGroups.length === 0) return null;
+    const hasReasoning = (reasoning?.texts.length ?? 0) > 0;
+
+    if (toolGroups.length === 0) {
+        if (!reasoning || !hasReasoning) return null;
+        return (
+            <Box
+                className={styles.card}
+                data-live={reasoning.isLive ? 'true' : 'false'}
+                data-reasoning-only="true"
+            >
+                <ReasoningHistoryRow
+                    texts={reasoning.texts}
+                    isLive={reasoning.isLive}
+                />
+            </Box>
+        );
+    }
 
     // After streaming the header is a *summary title* rather than the latest
     // row, so every tool group (including the last) belongs in the expandable
@@ -712,15 +665,16 @@ export const LiveActivityCard: FC<Props> = ({
     );
     const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
-    const hasHistory = olderCount > 0;
+    const hasExpandableBody = olderCount > 0 || hasReasoning;
     // Auto-expand while approval is pending so the user sees it immediately.
     const expanded =
         latestAwaitingApproval || (userExpanded ?? defaultExpanded);
 
     const latestNeedsExpandedBody =
         latest?.toolName === 'runSql' ||
-        latest?.toolName === 'runComposerQueries';
-    const showBody = expanded && (hasHistory || latestNeedsExpandedBody);
+        (latest !== null && isComposerQueryToolName(latest.toolName)) ||
+        latestAwaitingApproval;
+    const showBody = expanded && (hasExpandableBody || latestNeedsExpandedBody);
 
     return (
         <Box
@@ -733,7 +687,7 @@ export const LiveActivityCard: FC<Props> = ({
                 onClick={() => setUserExpanded(!expanded)}
                 aria-expanded={expanded}
                 className={styles.header}
-                disabled={!hasHistory && !latestNeedsExpandedBody}
+                disabled={!hasExpandableBody && !latestNeedsExpandedBody}
             >
                 <Group gap={6} align="center" wrap="nowrap">
                     <Box className={styles.latestSlot}>
@@ -781,7 +735,7 @@ export const LiveActivityCard: FC<Props> = ({
                             +{olderCount}
                         </Text>
                     )}
-                    {(hasHistory || latestNeedsExpandedBody) && (
+                    {(hasExpandableBody || latestNeedsExpandedBody) && (
                         <MantineIcon
                             icon={IconChevronRight}
                             size={11}
@@ -794,11 +748,6 @@ export const LiveActivityCard: FC<Props> = ({
                 </Group>
             </UnstyledButton>
             {renderInlineLiveTrace({ latest, isLive })}
-            {renderInlineLiveStepProgress({
-                latest,
-                isLive,
-                stepProgressMessages,
-            })}
             {isLive &&
                 latest?.toolName === 'editDbtProject' &&
                 (() => {
@@ -822,6 +771,12 @@ export const LiveActivityCard: FC<Props> = ({
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
                 <Stack gap={6} className={styles.history}>
+                    {reasoning && hasReasoning && (
+                        <ReasoningHistoryRow
+                            texts={reasoning.texts}
+                            isLive={reasoning.isLive}
+                        />
+                    )}
                     {(() => {
                         if (!latest) return null;
                         const latestBuiltInToolName = isToolName(

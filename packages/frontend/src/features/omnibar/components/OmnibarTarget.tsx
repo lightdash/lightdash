@@ -8,11 +8,11 @@ import classes from './OmnibarTarget.module.css';
 
 type Props = {
     placeholder: string;
-    style: CSSProperties;
+    transitionStyle: CSSProperties;
     onOpen: (e: MouseEvent<HTMLInputElement>) => void;
 };
 
-const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
+const OmnibarTarget: FC<Props> = ({ placeholder, transitionStyle, onOpen }) => {
     const os = useOs();
 
     return (
@@ -22,7 +22,8 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
             role="search"
             aria-label="Search content and settings"
             onClick={onOpen}
-            style={style}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+            style={transitionStyle}
             wrap="nowrap"
             className={classes.container}
         >

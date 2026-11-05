@@ -4,7 +4,9 @@ import {
     AuthTokenPrefix,
     CreateServiceAccount,
     ForbiddenError,
+    getAllScopesForRole,
     getServiceAccountScopePermissions,
+    isOrganizationOnlyScope,
     NotFoundError,
     ParameterError,
     ServiceAccount,
@@ -18,6 +20,7 @@ import {
     UpdateServiceAccount,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { assertOAuthCredentialOperationAllowed } from '../../../auth/oauthScopes/credentials';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { createAuditLogEvent } from '../../../logging/auditLog';
 import { createActorFromUser } from '../../../logging/caslAuditWrapper';
@@ -134,6 +137,7 @@ export class ServiceAccountService extends BaseService {
     private async validateProjectAccessGrantsOrThrow(
         projectAccess: ServiceAccountProjectAccessInput[],
         organizationUuid: string,
+        user: SessionUser,
     ): Promise<void> {
         // Each grant carries exactly one of `role` / `roleUuid`. The TS union
         // covers compile-time callers, but request bodies arrive as JSON, so
@@ -164,6 +168,24 @@ export class ServiceAccountService extends BaseService {
                 );
             }
         }
+        const grantedScopes = await Promise.all(
+            projectAccess.map(async (grant) => {
+                if (grant.role) return getAllScopesForRole(grant.role);
+                const role = await this.rolesModel.getRoleWithScopesByUuid(
+                    grant.roleUuid!,
+                );
+                return role.scopes;
+            }),
+        );
+        // Delegate from organization permissions, never from unrelated projects.
+        await validateOrganizationScopesCanBeGranted({
+            user,
+            organizationUuid,
+            grantedScopes: grantedScopes
+                .flat()
+                .filter((scope) => !isOrganizationOnlyScope(scope)),
+            rolesModel: this.rolesModel,
+        });
     }
 
     private throwForbiddenErrorOnNoPermission(user: SessionUser) {
@@ -188,7 +210,13 @@ export class ServiceAccountService extends BaseService {
         user: SessionUser;
         tokenDetails: CreateServiceAccount;
         prefix?: string;
-    }): Promise<ServiceAccount> {
+    }): Promise<ServiceAccountWithToken> {
+        assertOAuthCredentialOperationAllowed(
+            user,
+            prefix === AuthTokenPrefix.SCIM
+                ? 'createScimToken'
+                : 'createServiceAccount',
+        );
         // Project-scope create: validate before touching the DB so a malformed
         // request can't half-create an SA. The invariant is "Member-scoped SA
         // must have ≥1 project from the moment it exists", so we refuse any
@@ -214,6 +242,7 @@ export class ServiceAccountService extends BaseService {
                 await this.validateProjectAccessGrantsOrThrow(
                     projectAccess,
                     tokenDetails.organizationUuid,
+                    user,
                 );
             }
             await this.validateOrganizationPermissionsCanBeGranted({
@@ -362,6 +391,12 @@ export class ServiceAccountService extends BaseService {
         update: { expiresAt: Date };
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
+        assertOAuthCredentialOperationAllowed(
+            user,
+            prefix === AuthTokenPrefix.SCIM
+                ? 'rotateScimToken'
+                : 'rotateServiceAccount',
+        );
         this.throwForbiddenErrorOnNoPermission(user);
 
         if (update.expiresAt.getTime() < Date.now()) {
@@ -486,6 +521,7 @@ export class ServiceAccountService extends BaseService {
             await this.validateProjectAccessGrantsOrThrow(
                 grants,
                 existingToken.organizationUuid,
+                user,
             );
 
             // Replace grants first, then flip scopes to system:member. Grant

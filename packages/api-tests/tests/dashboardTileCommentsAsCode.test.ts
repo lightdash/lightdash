@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    getContentAsCodePathFromLtreePath,
     SEED_PROJECT,
     type ApiCreateComment,
     type ApiGetComments,
@@ -7,20 +8,25 @@ import {
     type DashboardAsCode,
     type DashboardAsCodeUpsertResult,
     type DashboardTileAsCode,
+    type SavedChart,
+    type Space,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type ApiClient, type Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
+import { chartMock } from '../helpers/mocks';
+import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const projectUuid = SEED_PROJECT.project_uuid;
 const codeUrl = `/api/v1/projects/${projectUuid}/code/dashboards`;
 
 describe('Dashboard tile comments through content-as-code uploads', () => {
     let admin: ApiClient;
-    let template: DashboardAsCode;
+    let spaceSlug: string;
     let chartSlugs: string[];
     const createdDashboardUuids = new Set<string>();
+    const tracker = new TestResourceTracker();
 
     const upload = async (code: DashboardAsCode) => {
         const response = await admin.post<Body<DashboardAsCodeUpsertResult>>(
@@ -29,7 +35,21 @@ describe('Dashboard tile comments through content-as-code uploads', () => {
         );
         expect(response.status).toBe(200);
         const dashboard = response.body.results.dashboards[0].data;
-        createdDashboardUuids.add(dashboard.uuid);
+        if (!createdDashboardUuids.has(dashboard.uuid)) {
+            createdDashboardUuids.add(dashboard.uuid);
+            tracker.trackDashboard(dashboard.uuid);
+        }
+        const chartTiles = dashboard.tiles.filter(
+            (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+        );
+        expect(chartTiles).toHaveLength(
+            code.tiles.filter(
+                (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+            ).length,
+        );
+        for (const tile of chartTiles) {
+            expect(tile.properties.savedChartUuid).toEqual(expect.any(String));
+        }
         return dashboard;
     };
 
@@ -58,7 +78,9 @@ describe('Dashboard tile comments through content-as-code uploads', () => {
         tabs: DashboardAsCode['tabs'] = [],
     ) =>
         upload({
-            ...template,
+            version: 1,
+            spaceSlug,
+            description: 'Tile comments regression',
             slug: `tile-comments-${randomUUID()}`,
             name: 'Tile comments regression',
             tiles,
@@ -93,34 +115,51 @@ describe('Dashboard tile comments through content-as-code uploads', () => {
 
     beforeAll(async () => {
         admin = await login();
-        const response =
-            await admin.get<Body<{ dashboards: DashboardAsCode[] }>>(codeUrl);
-        template = response.body.results.dashboards.find(
-            (dashboard) =>
-                dashboard.tiles.filter(
-                    (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-                ).length >= 2,
-        )!;
-        expect(template).toBeDefined();
-        chartSlugs = [
-            ...new Set(
-                template.tiles.flatMap((tile) =>
-                    tile.type === DashboardTileTypes.SAVED_CHART &&
-                    tile.properties.chartSlug
-                        ? [tile.properties.chartSlug]
-                        : [],
-                ),
-            ),
-        ];
+        const spaceResponse = await admin.post<Body<Space>>(
+            `/api/v1/projects/${projectUuid}/spaces`,
+            {
+                name: uniqueName('Tile comments'),
+                inheritParentPermissions: true,
+            },
+        );
+        expect(spaceResponse.status).toBe(200);
+        const space = spaceResponse.body.results;
+        tracker.trackSpace(space.uuid);
+        spaceSlug = getContentAsCodePathFromLtreePath(space.path);
+        chartSlugs = [];
+        for (let i = 0; i < 2; i += 1) {
+            const response = await admin.post<Body<SavedChart>>(
+                `/api/v1/projects/${projectUuid}/saved`,
+                {
+                    ...chartMock,
+                    name: uniqueName(`Tile comments chart ${i}`),
+                    spaceUuid: space.uuid,
+                    dashboardUuid: null,
+                },
+            );
+            expect(response.status).toBe(200);
+            const savedChart = response.body.results;
+            tracker.trackChart(savedChart.uuid);
+            const fetched = await admin.get<Body<SavedChart>>(
+                `/api/v1/saved/${savedChart.uuid}`,
+            );
+            expect(fetched.status).toBe(200);
+            expect(fetched.body.results).toMatchObject({
+                uuid: savedChart.uuid,
+                slug: savedChart.slug,
+                spaceUuid: space.uuid,
+                dashboardUuid: null,
+            });
+            expect(savedChart.slug).toEqual(expect.any(String));
+            expect(savedChart.slug).not.toBe('');
+            chartSlugs.push(savedChart.slug);
+        }
         expect(chartSlugs.length).toBeGreaterThanOrEqual(2);
+        expect(new Set(chartSlugs).size).toBe(2);
     });
 
     afterAll(async () => {
-        for (const uuid of createdDashboardUuids) {
-            await admin.delete(
-                `/api/v2/projects/${projectUuid}/dashboards/${uuid}`,
-            );
-        }
+        await tracker.cleanup(admin);
     });
 
     it('keeps comments and replies over repeated uploads without exporting tile UUIDs', async () => {

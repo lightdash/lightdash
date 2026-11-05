@@ -43,6 +43,15 @@ export type Organization = {
     createdAt?: Date;
 
     /**
+     * Effective value of the org's "allow screenshots and attachments in data
+     * app builds" switch (the org setting capped by the instance env). Returned
+     * to every org member on the authenticated `GET /org` response so the
+     * builder can hide the capture affordances for non-admins too; the backend
+     * enforces it regardless. Absent on older servers — treat as `true`.
+     */
+    dataAppCapturesEnabled?: boolean;
+
+    /**
      * Postgres wire protocol connection details for the semantic layer, only
      * populated on the authenticated `GET /org` response (not the public health
      * endpoint). `enabled` reflects whether the instance exposes a pgwire port

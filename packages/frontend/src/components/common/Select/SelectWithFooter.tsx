@@ -48,7 +48,6 @@ type Props = Omit<
     footer: ReactNode;
     scrollAreaProps?: ScrollAreaProps;
     classNames?: ComboboxProps['classNames'];
-    styles?: ComboboxProps['styles'];
 };
 
 const renderOptions = (
@@ -99,7 +98,6 @@ export const SelectWithFooter: FC<Props> = ({
     onBlur,
     onClick,
     classNames,
-    styles,
     unstyled,
     size,
     error,
@@ -164,7 +162,6 @@ export const SelectWithFooter: FC<Props> = ({
                     combobox.closeDropdown();
                 }}
                 classNames={classNames}
-                styles={styles}
                 unstyled={unstyled}
                 readOnly={readOnly}
                 size={size}

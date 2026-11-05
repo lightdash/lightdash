@@ -85,6 +85,53 @@ describe('FilterMultiNumberInput', () => {
         });
     });
 
+    describe('pasting values', () => {
+        it.each([
+            ['spreadsheet column', '1\n2\n-3.5'],
+            ['spreadsheet row', '1\t2\t-3.5'],
+            ['Windows spreadsheet cells', '1\t2\r\n-3.5\r\n'],
+            ['comma-separated values', '1,2,-3.5'],
+        ])('adds each number from a %s', async (_label, text) => {
+            const user = userEvent.setup();
+            const onChange = vi.fn();
+            renderWithProviders(
+                <FilterMultiNumberInput values={[]} onChange={onChange} />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+            await user.paste(text);
+
+            expect(onChange).toHaveBeenCalledWith(['1', '2', '-3.5']);
+            expect(screen.getByRole('textbox')).toHaveValue('');
+        });
+
+        it('ignores empty cells and existing or repeated numbers', async () => {
+            const user = userEvent.setup();
+            const onChange = vi.fn();
+            renderWithProviders(
+                <FilterMultiNumberInput values={['1']} onChange={onChange} />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+            await user.paste('1\t2\t\n2\n  -3.5  \n');
+
+            expect(onChange).toHaveBeenCalledWith(['1', '2', '-3.5']);
+        });
+
+        it('rejects the entire paste when a cell is not numeric', async () => {
+            const user = userEvent.setup();
+            const onChange = vi.fn();
+            renderWithProviders(
+                <FilterMultiNumberInput values={[]} onChange={onChange} />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+            await user.paste('1\tinvalid\n2');
+
+            expect(onChange).not.toHaveBeenCalled();
+        });
+    });
+
     describe('truncation behavior', () => {
         it('shows "+N more" pill when values exceed inline limit', () => {
             const values = createNumericValues(100);

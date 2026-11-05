@@ -14,6 +14,9 @@ const { getVisualization } = vi.hoisted(() => ({
     getVisualization: vi.fn(),
 }));
 
+vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable', () => ({
+    useChartStudioAvailable: () => false,
+}));
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     getDataAppVisualization: getVisualization,
 }));
@@ -28,9 +31,15 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
 vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: () => false,
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({ itemsMap: {} }),
-}));
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({ itemsMap: {} });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+    };
+});
 vi.mock(
     '../../../features/chartTypes/components/ChartTypeLibraryModal',
     () => ({

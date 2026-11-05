@@ -26,6 +26,12 @@ const toProjectDetails = (
     dbtConnectionLabel: DbtProjectTypeLabels[info.dbtConnectionType],
     dbtVersion: info.dbtVersion,
     warehouseType: info.warehouseType,
+    connections: info.connections.map((connection) => ({
+        name: connection.name,
+        warehouseConnectionUuid: connection.warehouseConnectionUuid,
+        warehouseType: connection.warehouseType,
+        isOriginal: connection.isOriginal,
+    })),
     git: info.git
         ? {
               repository: info.git.repository,
@@ -37,7 +43,6 @@ const toProjectDetails = (
               hostDomain: info.git.hostDomain,
           }
         : null,
-    previewDeployCi: info.previewDeployCi,
 });
 
 const renderProjectDetails = (
@@ -53,6 +58,12 @@ const renderProjectDetails = (
         lines.push(`Warehouse: ${details.warehouseType}`);
     }
 
+    details.connections.forEach((connection) => {
+        lines.push(
+            `Connection ${JSON.stringify(connection.name)} (${connection.warehouseConnectionUuid ?? 'original'}): ${connection.warehouseType}${connection.isOriginal ? ' (original; raw SQL tools use this connection)' : ''}`,
+        );
+    });
+
     if (details.git) {
         lines.push(
             `Git repository: ${details.git.repository} (branch \`${details.git.branch}\`)`,
@@ -63,23 +74,6 @@ const renderProjectDetails = (
         if (details.git.hostDomain) {
             lines.push(`Git host: ${details.git.hostDomain}`);
         }
-    }
-
-    // Preview-deploy GitHub Actions status — lets the assistant
-    // answer "are preview deploys set up?" from the git-backed repo.
-    // This only detects the Lightdash GitHub Actions workflow (the
-    // only setup the agent automates today); preview deploys wired
-    // via another CI aren't detected. Null when undeterminable.
-    if (details.previewDeployCi) {
-        lines.push(
-            details.previewDeployCi.hasPreviewDeployWorkflow
-                ? `Preview-deploy GitHub Actions: configured${
-                      details.previewDeployCi.workflowPath
-                          ? ` (${details.previewDeployCi.workflowPath})`
-                          : ''
-                  }`
-                : 'Preview-deploy GitHub Actions: not found — no Lightdash preview-deploy workflow in the repo. You can offer to add one with the `setupPreviewDeploy` tool (GitHub Actions only).',
-        );
     }
 
     return lines.join('\n');

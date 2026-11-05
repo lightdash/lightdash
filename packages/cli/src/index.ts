@@ -7,6 +7,9 @@ import {
     ValidationTarget,
 } from '@lightdash/common';
 import { InvalidArgumentError, Option, program, type Command } from 'commander';
+import { registerAgentConnectionConnect } from './agentConnectionConnectOption';
+import { registerAgentConnectionOption } from './agentConnectionOption';
+import { getAgentConnectionSelection } from './credentials';
 import {
     DEFAULT_DBT_PROFILES_DIR as defaultProfilesDir,
     DEFAULT_DBT_PROJECT_DIR as defaultProjectDir,
@@ -42,6 +45,7 @@ import {
 import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
+import { logout } from './handlers/logout';
 import { preAggregateAuditHandler } from './handlers/preAggregateAudit';
 import { preAggregateCheckExternalHandler } from './handlers/preAggregateCheckExternal';
 import {
@@ -122,6 +126,13 @@ function parseProjectArgument(value: string | undefined): string | undefined {
     return value;
 }
 
+let agentConnectionJson = false;
+let agentConnectionConnectInvocation = false;
+registerAgentConnectionOption(program, () => {
+    agentConnectionJson = false;
+    agentConnectionConnectInvocation = false;
+});
+
 program
     .version(getVersionWithSkills())
     .name(styles.title('⚡️lightdash'))
@@ -132,10 +143,22 @@ program
         '--non-interactive',
         'Disable all interactive prompts. Commands fail with helpful error if required input is missing.',
     )
-    .hook('preAction', (thisCommand) => {
+    .hook('preAction', (thisCommand, actionCommand) => {
         const opts = thisCommand.opts();
         if (opts.nonInteractive) {
             GlobalState.setNonInteractive(true);
+        }
+        if (
+            ['deploy', 'preview', 'start-preview'].includes(
+                actionCommand.name(),
+            ) &&
+            actionCommand.getOptionValueSource('source') === 'cli'
+        ) {
+            console.error(
+                styles.warning(
+                    "--source is deprecated and will be ignored in a future release. Lightdash now works out which dbt source a deploy belongs to from your dbt project. You only need it if the deploy is rejected because the source can't be inferred.",
+                ),
+            );
         }
     })
     .showHelpAfterError(
@@ -279,11 +302,37 @@ ${styles.bold('Examples:')}
     .option('--verbose', undefined, false)
     .action(login);
 
+program
+    .command('logout')
+    .description(
+        'Logs out of the configured instance and revokes a browser login session',
+    )
+    .addHelpText(
+        'after',
+        '\nBrowser login sessions are revoked on the server. Saved API keys are removed locally; personal access tokens must be revoked in your account settings.\n',
+    )
+    .action(logout);
+
 const agentProgram = program
     .command('agent')
     .description('Connect your agent to the warehouse and check its status');
 
-agentProgram
+agentProgram.hook('preAction', (_root, command) => {
+    agentConnectionConnectInvocation =
+        command.name() === 'connect' &&
+        (command.opts().name !== undefined ||
+            command.opts().capabilities !== undefined ||
+            command.opts().expiresIn !== undefined ||
+            command.opts().connection === true);
+    agentConnectionJson =
+        command.opts().json === true &&
+        (command.name() === 'revoke' ||
+            (command.name() === 'status' &&
+                (command.opts().name !== undefined ||
+                    getAgentConnectionSelection() !== null)));
+});
+
+const agentConnectProgram = agentProgram
     .command('connect')
     .description('Connects your agent to the warehouse using browser sign-in')
     .option(
@@ -298,7 +347,7 @@ agentProgram
     )
     .option(
         '--timeout <seconds>',
-        'Seconds to wait for the browser callback before polling for another 120 seconds',
+        'Seconds the connect link stays valid while the CLI waits for approval',
         Number,
         180,
     )
@@ -312,10 +361,20 @@ ${styles.bold('Examples:')}
 `,
     )
     .action(agentConnectHandler);
+registerAgentConnectionConnect(agentConnectProgram, agentConnectHandler);
 
 agentProgram
     .command('status')
-    .description('Shows your agent connection status for a project')
+    .addOption(
+        new Option(
+            '--name <slot>',
+            'Select an agent connection slot',
+        ).hideHelp(),
+    )
+    .addOption(
+        new Option('--json', 'Output connection status as JSON').hideHelp(),
+    )
+    .description('Shows your agent sign-in status for a project')
     .option(
         '--project <project uuid or slug>',
         'Specify the project',
@@ -331,6 +390,32 @@ ${styles.bold('Examples:')}
 `,
     )
     .action(agentStatusHandler);
+
+agentProgram
+    .command('revoke', { hidden: true })
+    .addOption(
+        new Option('--name <slot>', 'Select an agent connection slot')
+            .makeOptionMandatory()
+            .hideHelp(),
+    )
+    .addOption(
+        new Option('--json', 'Output revocation status as JSON').hideHelp(),
+    )
+    .addOption(
+        new Option(
+            '--human',
+            'Revoke with a matching personal CLI login',
+        ).hideHelp(),
+    )
+    .action(
+        async (
+            options: import('./handlers/agentRevoke').AgentRevokeOptions,
+        ) => {
+            const { agentRevokeHandler } =
+                await import('./handlers/agentRevoke');
+            await agentRevokeHandler(options);
+        },
+    );
 
 // CONFIG
 const configProgram = program
@@ -562,7 +647,7 @@ program
     .description('Creates a new preview project - waits for a keypress to stop')
     .option(
         '--source <name>',
-        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+        '(deprecated) The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
     )
     .option(
         '--name <preview name>',
@@ -674,10 +759,6 @@ program
         '--no-warehouse-credentials',
         'Create preview without warehouse credentials. Copies credentials from upstream project.',
     )
-    .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
-    )
     .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
@@ -713,7 +794,7 @@ program
     .description('Creates a new preview project')
     .option(
         '--source <name>',
-        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+        '(deprecated) The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
     )
     .option(
         '--name [preview name]',
@@ -1230,6 +1311,11 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--skip-app-access',
+        "upload data apps without applying the access block in their manifest (the app's existing sharing is preserved)",
+        false,
+    )
+    .option(
         '--skip-spaces',
         'skip uploading space definitions and access',
         false,
@@ -1388,6 +1474,11 @@ appsProgram
         '--port <port>',
         'port for the app dev server (default: Vite picks one, usually 5173)',
     )
+    .option(
+        '--show-sql',
+        'print the compiled SQL for each metric query the app runs',
+        false,
+    )
     .option('--verbose', undefined, false)
     .action(appsPreviewHandler);
 appsProgram
@@ -1429,7 +1520,7 @@ program
     .description('Compiles and deploys a Lightdash project')
     .option(
         '--source <name>',
-        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+        '(deprecated) The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
     )
     .option(
         '--project <project uuid or slug>',
@@ -1522,10 +1613,6 @@ program
     .option(
         '--no-warehouse-credentials',
         'Create project without warehouse credentials. Skips dbt compile + warehouse catalog',
-    )
-    .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
     .option(
         '--disable-timestamp-conversion [true|false]',
@@ -1816,9 +1903,7 @@ program
 
 program
     .command('generate-exposures')
-    .description(
-        '[Experimental command] Generates a .yml file for Lightdash exposures',
-    )
+    .description('Generates a YAML file for Lightdash exposures')
     .addHelpText(
         'after',
         `
@@ -2242,7 +2327,11 @@ const errorHandler = (err: Error) => {
         console.error(
             `\n💡 Contact your Lightdash administrator to request project creation access or if you believe this is incorrect.\n`,
         );
-    } else if (err.name === 'AuthorizationError') {
+    } else if (
+        err.name === 'AuthorizationError' &&
+        program.opts().agentConnection === undefined &&
+        getAgentConnectionSelection() === null
+    ) {
         console.error(
             `Looks like you did not authenticate or the personal access token expired.${
                 process.env.LIGHTDASH_API_KEY
@@ -2292,7 +2381,8 @@ const successHandler = () => {
     ) {
         process.exit(0);
     }
-    console.error(`Done 🕶`);
+    if (!agentConnectionJson && !agentConnectionConnectInvocation)
+        console.error(`Done 🕶`);
     // Handlers report partial failures (e.g. some uploads failed) via
     // process.exitCode; an unconditional exit(0) would wipe it.
     process.exit(process.exitCode ?? 0);

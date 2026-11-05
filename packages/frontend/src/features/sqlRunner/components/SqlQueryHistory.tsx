@@ -81,10 +81,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             fz="xs"
                             fw={500}
                             mb="xs"
-                            style={{
-                                borderBottom:
-                                    '1px solid var(--mantine-color-ldGray-3)',
-                            }}
+                            className={styles.historyTimestamp}
                         >
                             {timeAgo}
                         </Text>
@@ -120,17 +117,15 @@ export const SqlQueryHistory: FC = () => {
         ),
     );
 
-    if (!sqlPastHistory || sqlPastHistory.length === 0) {
-        return null;
-    }
+    const hasHistory = sqlPastHistory.length > 0;
 
     return (
-        <Popover>
+        <Popover disabled={!hasHistory}>
             <Popover.Target>
-                <Tooltip label="SQL Query history">
+                <Tooltip label="SQL query history" position="bottom">
                     <ActionIcon
-                        variant="default"
-                        size={32}
+                        aria-label="SQL query history"
+                        disabled={!hasHistory}
                         data-testid="sql-query-history-button"
                     >
                         <MantineIcon icon={IconHistory} />

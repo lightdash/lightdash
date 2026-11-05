@@ -1,4 +1,5 @@
 import {
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     ChartType,
@@ -8,6 +9,8 @@ import {
     MetricType,
     NotFoundError,
     parseAiArtifactChartConfig,
+    type AiAgentToolResult,
+    type SlackPrompt,
 } from '@lightdash/common';
 import type { AgentSelectOption } from './getSlackBlocks';
 import {
@@ -15,16 +18,17 @@ import {
     buildSlackTaskUpdate,
     getAgentSelectionBlocks,
     getAiAccessRefusalBlocks,
+    getFeedbackBlocks,
     getMarkdownBlocks,
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
     getModernPullRequestCardBlocks,
-    getProjectSelectionBlocks,
     getSlackToolTitle,
     getSqlArtifactCardBlocks,
     selectSlackAiAccessRefusal,
     splitMarkdownIntoMessages,
 } from './getSlackBlocks';
+import { getSlackArtifactCardVersions } from './slackArtifactImages';
 import { mockOrdersExplore } from './validationExplore.mock';
 
 const parseStoredChartConfig = (raw: unknown) => {
@@ -118,8 +122,11 @@ describe('Slack AI agent blocks', () => {
         });
     });
 
-    it('builds context-action feedback buttons', () => {
-        expect(buildFeedbackContextActions('prompt-1')).toMatchObject([
+    it('includes a thread link with feedback even without a table or artifact card', () => {
+        const threadUrl = 'https://lightdash.test/threads/thread-1';
+        expect(
+            buildFeedbackContextActions('prompt-1', threadUrl),
+        ).toMatchObject([
             {
                 block_id: 'prompt_human_score',
                 type: 'context_actions',
@@ -127,6 +134,15 @@ describe('Slack AI agent blocks', () => {
                     {
                         type: 'feedback_buttons',
                         action_id: 'prompt_human_score.feedback',
+                    },
+                ],
+            },
+            {
+                type: 'context',
+                elements: [
+                    {
+                        type: 'mrkdwn',
+                        text: `<${threadUrl}|Open agent thread>`,
                     },
                 ],
             },
@@ -244,34 +260,6 @@ describe('Slack AI agent blocks', () => {
         ).toEqual([]);
     });
 
-    it('keeps project picker option values within Slack limits', () => {
-        const blocks = getProjectSelectionBlocks(
-            Array.from({ length: 20 }, (_, index) => ({
-                projectUuid: `00000000-0000-4000-8000-${String(index).padStart(
-                    12,
-                    '0',
-                )}`,
-                name: `Very long project name ${index} ${'x'.repeat(200)}`,
-            })),
-            'C0AD7R21BLG',
-        );
-        const actions = blocks[1] as {
-            type: 'actions';
-            elements: Array<{
-                type: string;
-                options?: Array<{ value: string }>;
-            }>;
-        };
-        const select = actions.elements[0];
-        if (actions.type !== 'actions' || select.type !== 'static_select') {
-            throw new Error('Expected static_select');
-        }
-
-        select.options?.forEach((option) => {
-            expect(option.value.length).toBeLessThan(151);
-        });
-    });
-
     it('builds modern pull request cards from writeback metadata', () => {
         const blocks = getModernPullRequestCardBlocks([
             {
@@ -315,39 +303,6 @@ describe('Slack AI agent blocks', () => {
                         text: { text: 'Preview' },
                         url: 'https://preview.example.com',
                         style: 'primary',
-                    },
-                ],
-            },
-        ]);
-    });
-
-    it('builds modern pull request cards for preview deploy setup', () => {
-        const blocks = getModernPullRequestCardBlocks([
-            {
-                uuid: 'result-1',
-                promptUuid: 'prompt-1',
-                toolCallId: 'call-1',
-                toolType: 'built-in',
-                toolName: 'setupPreviewDeploy',
-                result: 'Opened a pull request',
-                createdAt: new Date(),
-                metadata: {
-                    status: 'success',
-                    prUrl: 'https://github.com/lightdash/lightdash/pull/124',
-                },
-            },
-        ]);
-
-        expect(blocks).toMatchObject([
-            {
-                type: 'card',
-                title: {
-                    text: 'Opened preview deploy PR #124',
-                },
-                actions: [
-                    {
-                        text: { text: 'PR' },
-                        url: 'https://github.com/lightdash/lightdash/pull/124',
                     },
                 ],
             },
@@ -466,6 +421,143 @@ describe('Slack AI agent blocks', () => {
         const saved = JSON.parse(savedRaw);
         expect(saved.metricQuery.filters.dimensions).toHaveProperty('and');
         expect(saved.metricQuery.filters.metrics).toHaveProperty('or');
+    });
+
+    it('links a visualized composer version to the thread, its chart card taking a delivered image', async () => {
+        const composer = (
+            versionUuid: string,
+            title: string,
+            type: 'bar' | 'table' | 'big_number',
+        ) => ({
+            artifactUuid: `artifact-${versionUuid}`,
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart',
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: 1,
+            versionUuid,
+            title,
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                source: 'composer',
+                schemaVersion: 2,
+                queries: [],
+                terminalNodeId: 'final',
+                vizConfig: { type },
+            },
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => mockOrdersExplore,
+            async () => true,
+            'agent-1',
+            [
+                composer('chart', 'Revenue by month', 'bar'),
+                composer('table', 'Top customers', 'table'),
+                composer('kpi', 'Total revenue', 'big_number'),
+            ] as never,
+            [],
+        );
+
+        const threadUrl =
+            'https://lightdash.example.com/projects/project-1/ai-agents/agent-1/threads/thread-1';
+        expect(blocks).toMatchObject([
+            {
+                type: 'carousel',
+                elements: [
+                    {
+                        title: { text: 'Revenue by month' },
+                        actions: [{ url: threadUrl }],
+                    },
+                    {
+                        title: { text: 'Top customers' },
+                        actions: [{ url: threadUrl }],
+                    },
+                    {
+                        title: { text: 'Total revenue' },
+                        actions: [{ url: threadUrl }],
+                    },
+                ],
+            },
+        ]);
+        expect(getSlackArtifactCardVersions(blocks as never)).toEqual([
+            'chart',
+        ]);
+    });
+
+    it('shows a visualized big number value on its card, escaped for mrkdwn', async () => {
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => mockOrdersExplore,
+            async () => true,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-kpi',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'kpi',
+                    title: 'Total revenue',
+                    description: 'All paid orders',
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        source: 'composer',
+                        schemaVersion: 2,
+                        queries: [],
+                        terminalNodeId: 'final',
+                        vizConfig: { type: 'big_number' },
+                    },
+                },
+            ] as never,
+            [],
+            undefined,
+            false,
+            new Map([['kpi', { value: '$48,210', label: 'Net & gross' }]]),
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'card',
+                title: { text: 'Total revenue' },
+                body: { text: '*$48,210*\nNet &amp; gross' },
+                subtext: { text: 'All paid orders' },
+                actions: [
+                    {
+                        url: 'https://lightdash.example.com/projects/project-1/ai-agents/agent-1/threads/thread-1',
+                    },
+                ],
+            },
+        ]);
+        expect(blocks[0]).not.toHaveProperty('subtitle');
     });
 
     it('uses generateVisualization chart image URLs as card hero images', async () => {
@@ -2049,7 +2141,10 @@ describe('Slack AI access refusals', () => {
             expect(getAiAccessRefusalBlocks(refusal, siteUrl)).toEqual([
                 {
                     type: 'section',
-                    text: { type: 'plain_text', text: refusal.message },
+                    text: {
+                        type: 'plain_text',
+                        text: 'I need you to sign in to Snowflake before I can run this. It takes about 30 seconds. Then ask me again.',
+                    },
                 },
                 {
                     type: 'actions',
@@ -2065,6 +2160,37 @@ describe('Slack AI access refusals', () => {
             ]);
         },
     );
+
+    it.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+    ])('links %s to project agent settings', (reason) => {
+        const { refusal } = new AiAccessRefusedError(reason, {
+            message: 'Project-specific refusal',
+            settingsUrl:
+                '/generalSettings/projectManagement/refused-project/agentIdentity',
+        });
+        expect(getAiAccessRefusalBlocks(refusal, siteUrl)).toEqual([
+            {
+                type: 'section',
+                text: { type: 'plain_text', text: refusal.message },
+            },
+            {
+                type: 'actions',
+                elements: [
+                    {
+                        type: 'button',
+                        action_id: 'ai_access_settings',
+                        text: {
+                            type: 'plain_text',
+                            text: 'Open project agent settings',
+                        },
+                        url: 'https://lightdash.example.com/generalSettings/projectManagement/refused-project/agentIdentity',
+                    },
+                ],
+            },
+        ]);
+    });
 
     it.each([
         [
@@ -2158,5 +2284,145 @@ describe('Slack AI access refusals', () => {
                 askAdmin,
             );
         }
+    });
+});
+
+test('offers Slack account linking for an unverified actor', () => {
+    const connectUrl =
+        'https://example.com/api/v1/auth/slack?team=T1&channel=C1&message=1&trigger=app_mention';
+    const { refusal } = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
+        { connectUrl },
+    );
+    expect(getAiAccessRefusalBlocks(refusal, 'https://example.com')).toEqual([
+        {
+            type: 'section',
+            text: {
+                type: 'plain_text',
+                text: 'Connect your Slack account so agents can run as you.',
+            },
+        },
+        {
+            type: 'actions',
+            elements: [
+                {
+                    type: 'button',
+                    action_id: 'ai_access_connect',
+                    text: {
+                        type: 'plain_text',
+                        text: 'Connect your Slack account',
+                    },
+                    url: connectUrl,
+                },
+            ],
+        },
+    ]);
+});
+
+it('keeps channel refusal text and its existing button unchanged with private diagnostics', () => {
+    const { refusal } = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        {
+            capability: AgentCapability.ContentWrite,
+            policyLayer: 'org_ceiling',
+            requiredCapabilities: [
+                AgentCapability.ContentWrite,
+                AgentCapability.Publish,
+            ],
+            blockersComplete: true,
+            explanationUrl: '/generalSettings/myAgentConnections',
+            blockers: [
+                {
+                    checkId: 'capability:content_write',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.ContentWrite,
+                    policyLayer: 'org_ceiling',
+                    message: 'Primary',
+                    settingsUrl: null,
+                },
+                {
+                    checkId: 'capability:publish',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.Publish,
+                    policyLayer: 'org_ceiling',
+                    message: 'Secondary',
+                    settingsUrl: null,
+                },
+            ],
+        },
+    );
+    const {
+        blockers,
+        requiredCapabilities,
+        blockersComplete,
+        explanationUrl,
+        ...oldRefusal
+    } = refusal;
+    const blocks = getAiAccessRefusalBlocks(refusal, 'https://example.com');
+    expect(blocks).toEqual(
+        getAiAccessRefusalBlocks(oldRefusal, 'https://example.com'),
+    );
+    expect(blocks).toHaveLength(2);
+    expect(JSON.stringify(blocks)).not.toContain('Also needed');
+    expect(JSON.stringify(blocks)).not.toContain('See why');
+    expect(JSON.stringify(blocks)).not.toContain('myAgentConnections');
+});
+
+describe('getFeedbackBlocks', () => {
+    const slackPrompt: SlackPrompt = {
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        agentUuid: 'agent-uuid',
+        promptUuid: 'prompt-uuid',
+        threadUuid: 'thread-uuid',
+        threadCreatedFrom: 'slack',
+        createdByUserUuid: 'user-uuid',
+        prompt: 'Compare two sources',
+        createdAt: new Date('2026-10-13T00:00:00Z'),
+        response: null,
+        errorMessage: null,
+        humanScore: null,
+        modelConfig: null,
+        battleProfile: null,
+        response_slack_ts: 'response-ts',
+        slackUserId: 'slack-user',
+        slackChannelId: 'slack-channel',
+        promptSlackTs: 'prompt-ts',
+        slackThreadTs: 'thread-ts',
+    };
+    const composerResult = (
+        status: 'success' | 'error',
+    ): AiAgentToolResult => ({
+        uuid: 'result-uuid',
+        promptUuid: 'prompt-uuid',
+        result: '',
+        createdAt: new Date('2026-10-13T00:00:00Z'),
+        toolCallId: 'call-1',
+        toolType: 'built-in',
+        toolName: 'runComposerQueries',
+        metadata:
+            status === 'success'
+                ? {
+                      status,
+                      queryUuid: 'query-uuid',
+                  }
+                : { status },
+    });
+    const feedbackRow = (results: AiAgentToolResult[]) =>
+        getFeedbackBlocks(
+            slackPrompt,
+            results,
+            'agent-uuid',
+            'https://lightdash.test',
+        );
+
+    it('offers feedback when a composer query answered the prompt', () => {
+        expect(feedbackRow([composerResult('success')])).not.toEqual([]);
+    });
+
+    it('offers no feedback row when the composer query failed', () => {
+        expect(feedbackRow([composerResult('error')])).toEqual([]);
     });
 });

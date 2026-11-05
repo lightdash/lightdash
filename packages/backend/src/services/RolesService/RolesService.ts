@@ -37,6 +37,7 @@ import {
     UserAsCodeLifecycleStatus,
     UserAsCodeRole,
     validateEmail,
+    validateUserName,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
@@ -66,6 +67,7 @@ import {
     validateProjectScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../BaseService';
 import { LicenseService } from '../LicenseService/LicenseService';
 
@@ -144,6 +146,16 @@ export class RolesService extends BaseService {
         this.inviteLinkModel = inviteLinkModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.featureFlagModel = featureFlagModel;
+    }
+
+    private async assertHumanMutation(account: Account): Promise<void> {
+        await assertHumanManagedMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.rolesModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
     }
 
     /**
@@ -491,6 +503,7 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         desiredRole: CustomRoleAsCode,
     ): Promise<ApiCustomRoleAsCodeUpsertResponse['results']> {
+        await this.assertHumanMutation(account);
         this.assertCustomRolesLicensed();
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
@@ -588,6 +601,8 @@ export class RolesService extends BaseService {
         const expectedKeys = [
             'version',
             'email',
+            'firstName',
+            'lastName',
             'disabled',
             'role',
             'additionalRoles',
@@ -613,6 +628,16 @@ export class RolesService extends BaseService {
         }
         if (typeof desiredUser.disabled !== 'boolean') {
             throw new ParameterError('User disabled must be a boolean');
+        }
+        for (const name of [desiredUser.firstName, desiredUser.lastName]) {
+            if (
+                name !== undefined &&
+                (typeof name !== 'string' || !validateUserName(name))
+            ) {
+                throw new ParameterError(
+                    'User names must be strings without < or >',
+                );
+            }
         }
         if (
             typeof desiredUser.role !== 'object' ||
@@ -675,6 +700,12 @@ export class RolesService extends BaseService {
         return {
             ...desiredUser,
             email: desiredUser.email.toLowerCase(),
+            ...(desiredUser.firstName !== undefined
+                ? { firstName: desiredUser.firstName.trim() }
+                : {}),
+            ...(desiredUser.lastName !== undefined
+                ? { lastName: desiredUser.lastName.trim() }
+                : {}),
         };
     }
 
@@ -784,6 +815,8 @@ export class RolesService extends BaseService {
                 const base: UserAsCode = {
                     version: 1,
                     email: member.email.toLowerCase(),
+                    firstName: member.firstName,
+                    lastName: member.lastName,
                     disabled: !member.isActive,
                     role,
                 };
@@ -874,6 +907,7 @@ export class RolesService extends BaseService {
             organizationUuid,
             userUuid,
             InviteLinkPurpose.Member,
+            account.user.id,
         );
         try {
             await this.emailClient.sendInviteEmail(
@@ -893,6 +927,10 @@ export class RolesService extends BaseService {
         this.analytics.track({
             userId: account.user.userUuid,
             event: 'invite_link.created',
+            properties: {
+                organizationId: organizationUuid,
+                purpose: InviteLinkPurpose.Member,
+            },
         });
         return UserAsCodeInvitationStatus.SENT;
     }
@@ -903,6 +941,7 @@ export class RolesService extends BaseService {
         desiredUserInput: UserAsCode,
         sendInvite: boolean = false,
     ): Promise<ApiUserAsCodeUpsertResponse['results']> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateUsersAsCodeAccess(
             account,
@@ -966,6 +1005,12 @@ export class RolesService extends BaseService {
         const disabledChanged = existingUser
             ? existingUser.isActive === desiredUser.disabled
             : false;
+        const namesChanged =
+            existingUser !== undefined &&
+            ((desiredUser.firstName !== undefined &&
+                desiredUser.firstName !== existingUser.firstName) ||
+                (desiredUser.lastName !== undefined &&
+                    desiredUser.lastName !== existingUser.lastName));
         const roleChanged =
             existingRoleSet === undefined ||
             existingRoleSet.systemRole !== desiredRoleSet.systemRole ||
@@ -995,8 +1040,8 @@ export class RolesService extends BaseService {
                 organizationUuid,
                 {
                     email: desiredUser.email,
-                    firstName: '',
-                    lastName: '',
+                    firstName: desiredUser.firstName ?? '',
+                    lastName: desiredUser.lastName ?? '',
                     role: OrganizationMemberRole.MEMBER,
                 },
                 !desiredUser.disabled,
@@ -1010,19 +1055,12 @@ export class RolesService extends BaseService {
                 OrganizationMemberRole.MEMBER,
                 undefined,
             );
-            if (disabledChanged) {
-                await this.userModel.updateUser(
-                    existingUser.userUuid,
-                    existingUser.email,
-                    { isActive: !desiredUser.disabled },
-                );
-            }
             userUuid = existingUser.userUuid;
             action = PromotionAction.CREATE;
         } else {
             userUuid = existingUser.userUuid;
             action =
-                roleChanged || disabledChanged
+                roleChanged || disabledChanged || namesChanged
                     ? PromotionAction.UPDATE
                     : PromotionAction.NO_CHANGES;
         }
@@ -1047,12 +1085,15 @@ export class RolesService extends BaseService {
                 );
             }
         }
-        if (
-            existingUser?.organizationUuid === organizationUuid &&
-            disabledChanged
-        ) {
+        if (existingUser && (disabledChanged || namesChanged)) {
             await this.userModel.updateUser(userUuid, existingUser.email, {
-                isActive: !desiredUser.disabled,
+                ...(disabledChanged ? { isActive: !desiredUser.disabled } : {}),
+                ...(desiredUser.firstName !== undefined
+                    ? { firstName: desiredUser.firstName }
+                    : {}),
+                ...(desiredUser.lastName !== undefined
+                    ? { lastName: desiredUser.lastName }
+                    : {}),
             });
         }
 
@@ -1076,6 +1117,7 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         createRoleData: CreateRole,
     ): Promise<Role> {
+        await this.assertHumanMutation(account);
         const { scopes, name, description, level = 'project' } = createRoleData;
         if (isSystemRole(name)) {
             throw new ParameterError(
@@ -1137,6 +1179,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
         updateRoleData: UpdateRole,
     ): Promise<Role> {
+        await this.assertHumanMutation(account);
         const { scopes, name, description } = updateRoleData;
 
         if (isSystemRole(roleUuid)) {
@@ -1342,6 +1385,7 @@ export class RolesService extends BaseService {
         userUuid: string,
         request: { roleId: string },
     ): Promise<RoleAssignment> {
+        await this.assertHumanMutation(account);
         const { roleId } = request;
 
         // Validate organization access
@@ -1422,6 +1466,7 @@ export class RolesService extends BaseService {
         assigneeType: 'user' | 'group',
         request: UpdateRoleAssignmentRequest,
     ): Promise<RoleAssignment> {
+        await this.assertHumanMutation(account);
         if (assigneeType === 'user') {
             return this.upsertProjectUserRoleAssignment(
                 account,
@@ -1464,6 +1509,7 @@ export class RolesService extends BaseService {
         assigneeId: string,
         assigneeType: 'user' | 'group',
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         if (assigneeType === 'user') {
             await this.removeUserProjectAccess(account, projectId, assigneeId);
         } else if (assigneeType === 'group') {
@@ -1483,6 +1529,7 @@ export class RolesService extends BaseService {
         userUuid: string,
         request: UpsertUserRoleAssignmentRequest,
     ): Promise<RoleAssignment> {
+        await this.assertHumanMutation(account);
         const { roleId } = request;
         const project = await this.projectModel.getSummary(projectUuid);
 
@@ -1606,6 +1653,7 @@ export class RolesService extends BaseService {
         groupUuid: string,
         request: UpsertUserRoleAssignmentRequest, // Reusing the same request type
     ): Promise<RoleAssignment> {
+        await this.assertHumanMutation(account);
         const { roleId } = request;
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
@@ -1833,6 +1881,7 @@ export class RolesService extends BaseService {
         roleSet: OrganizationRoleSet,
         { source = 'api' }: { source?: RoleSetMutationSource } = {},
     ): Promise<OrganizationRoleSet> {
+        await this.assertHumanMutation(account);
         await this.assertRoleSetsEnabled(account);
         RolesService.validateOrganizationAccess(
             account,
@@ -1961,6 +2010,7 @@ export class RolesService extends BaseService {
         roleSet: ProjectRoleSet,
         { source = 'api' }: { source?: RoleSetMutationSource } = {},
     ): Promise<ProjectRoleSet> {
+        await this.assertHumanMutation(account);
         const { organizationUuid } = await this.validateProjectRoleSetRequest(
             account,
             projectUuid,
@@ -2016,6 +2066,7 @@ export class RolesService extends BaseService {
         roleSet: ProjectRoleSet,
         { source = 'api' }: { source?: RoleSetMutationSource } = {},
     ): Promise<ProjectRoleSet> {
+        await this.assertHumanMutation(account);
         const { organizationUuid } = await this.validateProjectRoleSetRequest(
             account,
             projectUuid,
@@ -2066,6 +2117,7 @@ export class RolesService extends BaseService {
     }
 
     async deleteRole(account: Account, roleUuid: string): Promise<void> {
+        await this.assertHumanMutation(account);
         if (isSystemRole(roleUuid)) {
             throw new ParameterError('Cannot remove system roles');
         }
@@ -2112,6 +2164,7 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         projectUuid: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
             account,
@@ -2139,6 +2192,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
         projectUuid: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateRoleOwnership(account, auditedAbility, role);
@@ -2180,6 +2234,7 @@ export class RolesService extends BaseService {
         groupUuid: string,
         projectUuid: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
             account,
@@ -2219,6 +2274,7 @@ export class RolesService extends BaseService {
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
@@ -2246,6 +2302,7 @@ export class RolesService extends BaseService {
         scopeData: AddScopesToRole,
         { tx, role }: { tx?: Knex.Transaction; role?: Role } = {},
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         if (isSystemRole(roleUuid)) {
             throw new ParameterError('Cannot add scopes to system roles');
         }
@@ -2290,6 +2347,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
         scopeName: string,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         if (isSystemRole(roleUuid)) {
             throw new ParameterError('Cannot remove scopes from system roles');
         }
@@ -2318,6 +2376,7 @@ export class RolesService extends BaseService {
         scopeNames: string[],
         tx?: Knex.Transaction,
     ): Promise<void> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
             account,
@@ -2352,6 +2411,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
         duplicateRoleData: CreateRole,
     ): Promise<RoleWithScopes> {
+        await this.assertHumanMutation(account);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
             account,

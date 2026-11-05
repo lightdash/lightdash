@@ -1,0 +1,183 @@
+/* The tile card's corner (`DASHBOARD_TILE_RADIUS`), which the card marks
+   with its mode, so every layer traces it */
+:global([data-tile-uuid]) {
+    --controls-tile-radius: var(--dashboard-tile-radius-view);
+}
+
+:global([data-tile-uuid]:has([data-with-edit-mode='true'])) {
+    --controls-tile-radius: var(--dashboard-tile-radius-edit);
+}
+
+/* Square on purpose: it has to catch the pointer in the tile's corners too */
+.overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--mantine-spacing-xs);
+    cursor: default;
+}
+
+/* No wash: the tile stays as it is under its card. The tile card's corner, so
+   the ring traces it; its inset line paints out the tile's dashed edit border */
+.overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--controls-tile-radius);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-body);
+    animation: fadeIn var(--ld-motion-dropdown-duration) var(--ld-motion-easing);
+}
+
+/* Holds the two state layers, which fade on their own. The ink ring means
+   the tile is on the selected field. Only opacity changes */
+.ring {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.ring::before,
+.ring::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--controls-tile-radius);
+    opacity: 0;
+    transition: opacity var(--ld-motion-dropdown-duration)
+        var(--ld-motion-easing);
+    animation: fadeIn var(--ld-motion-dropdown-duration) var(--ld-motion-easing);
+}
+
+/* On the hovered or selected chip's field: a 2px ink ring over a faint
+   blue, mixed with transparent so the chart reads through it */
+.ring::before {
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-blue-6) 10%,
+        transparent
+    );
+    box-shadow: inset 0 0 0 2px var(--mantine-color-ldGray-9);
+}
+
+.overlay[data-highlighted='mapped'] > .ring::before {
+    opacity: 1;
+}
+
+/* A tile the hovered pill's filter is on: the same ink ring with no tint,
+   which would read as dimmed without the veil around it */
+:global([data-tile-uuid][data-controls-hovered])::after {
+    box-shadow: inset 0 0 0 2px var(--mantine-color-ldGray-9);
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: var(--controls-tile-radius);
+    pointer-events: none;
+}
+
+/* Filtered with no field hovered or selected, or by another field than the
+   one in focus: a neutral hairline over a faint ink tint */
+.ring::after {
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-ldGray-9) 4%,
+        transparent
+    );
+    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-4);
+}
+
+.overlay[data-highlighted='filtered'] > .ring::after,
+.overlay[data-highlighted='other'] > .ring::after {
+    opacity: 1;
+}
+
+/* Not filtered or set, but could be: an empty slot. A neutral dashed outline
+   with no fill */
+.overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px dashed var(--mantine-color-ldGray-4);
+    border-radius: var(--controls-tile-radius);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--ld-motion-dropdown-duration)
+        var(--ld-motion-easing);
+}
+
+.overlay[data-highlighted='available']::after {
+    opacity: 1;
+}
+
+/* A tile that cannot take the filter dims: the tile's own surface over it
+   reads as the tile at low opacity, with no card */
+.unfilterable::before {
+    background-color: color-mix(in srgb, var(--ld-color-tile) 60%, transparent);
+}
+
+/* A veiled tile cannot be dragged, resized or hovered */
+[data-tile-uuid]:has(> .overlay) > :not(.overlay) {
+    pointer-events: none;
+}
+
+[data-tile-uuid]:has(> .overlay) > :global(.react-resizable-handle) {
+    display: none;
+}
+
+/* Above the wash, so the card keeps its own surface. The stronger edge holds
+   it apart from the veiled chart, in dark mode too where shadows barely show */
+.overlay > .card {
+    border-color: var(--mantine-color-ldGray-4);
+}
+
+.card {
+    position: relative;
+    z-index: 1;
+    width: 280px;
+    max-width: 90%;
+}
+
+/* A link prompt has one row per filter: its rows scroll inside the tile, so
+   the card never spills out of it and Skip and Apply stay in view */
+.promptCard {
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+}
+
+.promptBody {
+    min-height: 0;
+}
+
+.promptStack {
+    min-height: 0;
+}
+
+.promptRows {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* No end value: a layer fades in to whatever its state asks for */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overlay::before,
+    .ring::before,
+    .ring::after {
+        animation: none;
+    }
+
+    .ring::before,
+    .ring::after,
+    .overlay::after {
+        transition: none;
+    }
+}

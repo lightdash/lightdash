@@ -20,7 +20,8 @@ export type PreviewTokenPayload = {
     projectUuid: string;
     /** Exact public HTTPS origins admitted to this app's img-src policy. */
     browserImageOrigins: string[];
-    viewContext: DataAppViewContext | 'embed';
+    /** 'embed' and 'mcp' are assigned server-side, never client-supplied. */
+    viewContext: DataAppViewContext | 'embed' | 'mcp';
 };
 
 const viewContextSchema = z.enum([
@@ -30,6 +31,7 @@ const viewContextSchema = z.enum([
     'chart',
     'delivery',
     'embed',
+    'mcp',
     'unknown',
 ]);
 

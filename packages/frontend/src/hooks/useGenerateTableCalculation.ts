@@ -10,12 +10,14 @@ import {
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 // 10 second timeout for AI table calculation generation
 const TABLE_CALC_GENERATION_TIMEOUT_MS = 10000;
 
 const generateTableCalculationApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: GenerateTableCalculationRequest,
     signal?: AbortSignal,
@@ -40,6 +42,7 @@ export const useGenerateTableCalculation = ({
     metricQuery,
     onSuccess,
 }: UseGenerateTableCalculationOptions) => {
+    const lightdashApi = useLightdashApi();
     // Track abort controller to cancel in-flight requests
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -68,7 +71,7 @@ export const useGenerateTableCalculation = ({
     >({
         onSuccess,
         mutationFn: ({ prompt, currentSql }) => {
-            if (!projectUuid || !itemsMap) {
+            if (!projectUuid || !itemsMap || !explore) {
                 throw new Error('Project UUID and itemsMap are required');
             }
 
@@ -119,10 +122,12 @@ export const useGenerateTableCalculation = ({
             ).map((tc) => tc.displayName);
 
             return generateTableCalculationApi(
+                lightdashApi,
                 projectUuid,
                 {
                     prompt,
                     tableName,
+                    exploreName: explore.name,
                     fieldsContext,
                     existingTableCalculations,
                     currentSql,

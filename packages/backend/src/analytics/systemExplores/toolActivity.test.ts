@@ -55,7 +55,7 @@ describe('Tool activity with real DuckDB', () => {
             );
         }
         await db.run(
-            "INSERT INTO lightdash_users VALUES ('org', 'user', 'Alex'), ('other', 'user', 'Other tenant')",
+            "INSERT INTO lightdash_users (org_id, user_id, name) VALUES ('org', 'user', 'Alex'), ('other', 'user', 'Other tenant')",
         );
         await db.run(
             "INSERT INTO lightdash_agents VALUES ('org', 'agent', 'Agent')",

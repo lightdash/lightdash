@@ -801,6 +801,39 @@ test('Should compile PERCENT_OF_COLUMN_TOTAL template without partitionBy', () =
     );
 });
 
+test('Should compile DIFFERENCE_FROM_PREVIOUS template with partitionBy', () => {
+    const tableCalculation: TableCalculation = {
+        name: 'difference_by_category',
+        displayName: 'Difference by Category',
+        template: {
+            type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+            fieldId: 'table_3_metric_1',
+            orderBy: [{ fieldId: 'table3_dim_3', order: 'asc' }],
+            partitionBy: ['table1_dim_1'],
+        },
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: {
+            ...METRIC_QUERY_VALID_REFERENCES,
+            dimensions: ['table1_dim_1', 'table3_dim_3'],
+            tableCalculations: [tableCalculation],
+        },
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const difference = result.compiledTableCalculations.find(
+        (c) => c.name === tableCalculation.name,
+    );
+
+    expect(difference?.compiledSql).toBe(
+        '"table_3_metric_1" - LAG("table_3_metric_1") OVER(PARTITION BY "table1_dim_1" ORDER BY "table3_dim_3" ASC )',
+    );
+    expect(difference?.dependsOn).toEqual([]);
+});
+
 test('Should compile PERCENT_CHANGE_FROM_PREVIOUS template with partitionBy', () => {
     const metricQueryWithPartitionBy = {
         ...METRIC_QUERY_VALID_REFERENCES,

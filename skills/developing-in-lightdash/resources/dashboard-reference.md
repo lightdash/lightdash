@@ -48,14 +48,15 @@ tiles:
 
 ### SQL Chart Tile
 
-Display a SQL-based chart:
+Display a SQL chart. The SQL chart must exist before the dashboard references it: upload or create it first, then use its slug as `chartSlug`. See [SQL Chart Reference](./sql-chart-reference.md) for the SQL chart body and workflow.
 
 ```yaml
 tiles:
   - h: 6
     properties:
+      chartName: Custom SQL chart
       chartSlug: custom-sql-chart
-      savedSqlUuid: "abc123-def456"
+      title: Custom SQL chart
     type: sql_chart
     w: 12
     x: 12
@@ -438,6 +439,30 @@ config:
 | `pinnedParameters` | string[] | List of pinned parameter names |
 
 When `config` is omitted, date zoom is enabled with all default granularities.
+
+### Parameter controls
+
+When dashboard controls are enabled, `config.parameterControls` stores each control's value and its per-parameter tile rules. Use a unique, lowercase `slug`; downloads derive it from the label or first parameter key when none is saved. Uploads preserve the slug and match an existing control by slug, keeping its internal ID through label changes. Legacy files with `id` remain accepted. Duplicate slugs are rejected.
+
+```yaml
+config:
+  isDateZoomDisabled: false
+  parameterControls:
+    - slug: region
+      label: Region
+      value: EMEA
+      valueType: { type: string, multiple: false }
+      parameters:
+        orders.region: { except: [revenue-copy] }
+    - slug: comparison-region
+      label: Comparison region
+      value: US
+      valueType: { type: string, multiple: false }
+      parameters:
+        orders.region: { only: [revenue-copy] }
+```
+
+A key accepts `all`, `except`, or `only`; tile references are tile slugs. At most one default (`all` or `except`) may own a key, and `only` assignments must not overlap each other or the default. `only: []` assigns no tiles; `except: []` means `all`. A present empty control list saves no controls and an empty parameter mirror; an absent list uses legacy dashboard parameters. Hiding a control keeps its assignments and value. An upload with controls derives the top-level parameter mirror from their values.
 
 ## Complete Dashboard Example
 
