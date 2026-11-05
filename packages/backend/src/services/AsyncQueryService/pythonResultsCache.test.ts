@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     QueryExecutionContext,
     QueryHistoryStatus,
+    ResultsCacheMissReason,
     type QueryHistory,
 } from '@lightdash/common';
 import { Readable } from 'stream';
@@ -156,6 +157,10 @@ const buildHarness = ({
         ),
     };
     const cacheService: ICacheService = {
+        lookupCachedResultsFile: vi.fn(async () => ({
+            cacheHit: false as const,
+            missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+        })),
         findCachedResultsFile: vi.fn(
             async (
                 _projectUuid: string,

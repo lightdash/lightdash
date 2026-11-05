@@ -4296,6 +4296,7 @@ describe('AsyncQueryService', () => {
                               cacheHit: false,
                               updatedAt: undefined,
                               expiresAt: undefined,
+                              missReason: null,
                           },
                 );
                 vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
@@ -4343,6 +4344,7 @@ describe('AsyncQueryService', () => {
                         cacheHit: false,
                         updatedAt: undefined,
                         expiresAt: undefined,
+                        missReason: null,
                     }) satisfies MissCacheResult,
             );
         });
@@ -4527,6 +4529,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -4740,6 +4743,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             } satisfies MissCacheResult);
 
             (
@@ -4797,6 +4801,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             } satisfies MissCacheResult);
 
             (
@@ -4849,6 +4854,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -4936,6 +4942,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -5082,6 +5089,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -6081,6 +6089,7 @@ describe('AsyncQueryService', () => {
                     cacheHit: false,
                     updatedAt: undefined,
                     expiresAt: undefined,
+                    missReason: null,
                 });
             credentials.mockResolvedValueOnce({
                 warehouseCredentials: warehouseCredentialsMock,
@@ -6268,7 +6277,11 @@ describe('AsyncQueryService', () => {
             );
             expect(result.cacheMetadata.cacheHit).toBe(false);
             expect(nextExecution).toHaveBeenCalledOnce();
-            expect(tracker.history.select).toHaveLength(1);
+            expect(
+                tracker.history.select.filter(({ sql }) =>
+                    sql.includes('cache_generation = COALESCE'),
+                ),
+            ).toHaveLength(1);
         } finally {
             tracker.reset();
             await database.destroy();
@@ -10878,6 +10891,7 @@ describe('AsyncQueryService', () => {
                     cacheHit: false,
                     updatedAt: undefined,
                     expiresAt: undefined,
+                    missReason: null,
                 }));
         });
 
@@ -11163,6 +11177,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -13394,6 +13409,7 @@ describe('AsyncQueryService', () => {
                     cacheHit: false,
                     updatedAt: undefined,
                     expiresAt: undefined,
+                    missReason: null,
                 } satisfies MissCacheResult);
 
                 (
@@ -13467,6 +13483,7 @@ describe('AsyncQueryService', () => {
                     cacheHit: false,
                     updatedAt: undefined,
                     expiresAt: undefined,
+                    missReason: null,
                 } satisfies MissCacheResult);
                 vi.mocked(service.queryHistoryModel.create).mockResolvedValue({
                     queryUuid: 'test-query-uuid',
@@ -19531,6 +19548,7 @@ describe('query sources carry the execution context', () => {
             cacheHit: false,
             updatedAt: undefined,
             expiresAt: undefined,
+            missReason: null,
         } satisfies MissCacheResult);
         vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
             undefined,
@@ -24437,6 +24455,9 @@ describe('fresh execution producer to result reader', () => {
                     cacheKey === oldKey ? candidate : undefined,
             );
             f.service.queryHistoryModel.findMostRecentByCacheKey = lookup;
+            f.service.queryHistoryModel.hasClearedResultsForCacheKey = vi.fn(
+                async () => false,
+            );
             vi.mocked(
                 f.service.projectModel.getEffectiveResultsCacheTtlSeconds,
             ).mockResolvedValue(86400);

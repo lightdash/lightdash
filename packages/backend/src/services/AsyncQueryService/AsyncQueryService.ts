@@ -337,7 +337,7 @@ import {
     type TrustedQueryResultParameters,
 } from '../AiAccessService/queryResultLineage';
 import type { ICacheService } from '../CacheService/ICacheService';
-import { CreateCacheResult } from '../CacheService/types';
+import { cacheMiss, CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
@@ -1471,11 +1471,7 @@ export class AsyncQueryService extends ProjectService {
             if (existingCache) {
                 if (identityEnabled) {
                     if (!existingCache.queryUuid || !existingCache.queryHistory)
-                        return {
-                            cacheHit: false,
-                            updatedAt: undefined,
-                            expiresAt: undefined,
-                        };
+                        return cacheMiss(null);
                     try {
                         await this.assertCanReadStoredResultsForQueries(
                             account,
@@ -1486,22 +1482,14 @@ export class AsyncQueryService extends ProjectService {
                             true,
                         );
                     } catch {
-                        return {
-                            cacheHit: false,
-                            updatedAt: undefined,
-                            expiresAt: undefined,
-                        };
+                        return cacheMiss(null);
                     }
                 }
                 return existingCache;
             }
         }
 
-        return {
-            cacheHit: false,
-            updatedAt: undefined,
-            expiresAt: undefined,
-        };
+        return cacheMiss(null);
     }
 
     private async getResultsPageFromS3(
@@ -6732,11 +6720,7 @@ export class AsyncQueryService extends ProjectService {
 
                     const cacheCheckStart = Date.now();
                     const resultsCache = bypassResultsCache
-                        ? {
-                              cacheHit: false as const,
-                              updatedAt: undefined,
-                              expiresAt: undefined,
-                          }
+                        ? cacheMiss(null)
                         : await this.findResultsCache(
                               projectUuid,
                               cacheKey,

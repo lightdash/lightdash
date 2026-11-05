@@ -2,6 +2,7 @@ import {
     AgentActorSurface,
     buildAgentIdentityClaim,
     FeatureFlags,
+    ResultsCacheMissReason,
     type QueryResultProducer,
 } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -31,6 +32,7 @@ const makeService = (
         resultProducer: null as QueryResultProducer | null,
     };
     const findMostRecentByCacheKey = vi.fn(async () => candidate);
+    const hasClearedResultsForCacheKey = vi.fn(async () => false);
     const getFlag = vi.fn(async (_args: { featureFlagId: string }) => ({
         enabled: false,
     }));
@@ -40,7 +42,10 @@ const makeService = (
     };
     const service = new CommercialCacheService({
         lightdashConfig: config,
-        queryHistoryModel: { findMostRecentByCacheKey } as never,
+        queryHistoryModel: {
+            findMostRecentByCacheKey,
+            hasClearedResultsForCacheKey,
+        } as never,
         projectModel: { getResultsCacheState } as never,
         storageClient: {} as never,
         featureFlagModel: {
@@ -52,6 +57,7 @@ const makeService = (
         getResultsCacheState,
         candidate,
         findMostRecentByCacheKey,
+        hasClearedResultsForCacheKey,
         getFlag,
         config,
     };
@@ -245,7 +251,10 @@ describe('CommercialCacheService', () => {
         const findMostRecentByCacheKey = vi.fn().mockResolvedValue(undefined);
         const service = new CommercialCacheService({
             lightdashConfig,
-            queryHistoryModel: { findMostRecentByCacheKey } as never,
+            queryHistoryModel: {
+                findMostRecentByCacheKey,
+                hasClearedResultsForCacheKey: vi.fn(async () => false),
+            } as never,
             projectModel: {
                 getResultsCacheState: vi.fn().mockResolvedValue({
                     enabled: true,
@@ -361,6 +370,101 @@ describe('CommercialCacheService', () => {
             const f = makeService(freshResults, undefined, true);
             await expect(lookup(f.service)).resolves.toMatchObject({
                 cacheHit: true,
+            });
+        });
+    });
+
+    describe('lookupCachedResultsFile miss reasons', () => {
+        const user = {
+            userUuid: 'user',
+            organizationUuid: 'org',
+            organizationName: 'Org',
+        };
+
+        test('reports cache_disabled when results caching is off', async () => {
+            const f = makeService(
+                new Date('2026-07-31T11:00:00.000Z'),
+                undefined,
+                false,
+            );
+            await expect(
+                f.service.lookupCachedResultsFile('project', 'cache-key', user),
+            ).resolves.toEqual({
+                cacheHit: false,
+                missReason: ResultsCacheMissReason.CACHE_DISABLED,
+            });
+        });
+
+        test('reports no_cached_result when nothing matches and nothing was cleared', async () => {
+            const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
+            f.findMostRecentByCacheKey.mockResolvedValue(undefined as never);
+            await expect(
+                f.service.lookupCachedResultsFile('project', 'cache-key', user),
+            ).resolves.toEqual({
+                cacheHit: false,
+                missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+            });
+        });
+
+        test('reports cleared when only invalidated rows exist', async () => {
+            const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
+            f.findMostRecentByCacheKey.mockResolvedValue(undefined as never);
+            f.hasClearedResultsForCacheKey.mockResolvedValue(true);
+            await expect(
+                f.service.lookupCachedResultsFile('project', 'cache-key', user),
+            ).resolves.toEqual({
+                cacheHit: false,
+                missReason: ResultsCacheMissReason.CLEARED,
+            });
+        });
+
+        test('reports expired when the newest result is older than the TTL', async () => {
+            const f = makeService(new Date('2026-07-29T11:00:00.000Z'));
+            await expect(
+                f.service.lookupCachedResultsFile('project', 'cache-key', user),
+            ).resolves.toEqual({
+                cacheHit: false,
+                missReason: ResultsCacheMissReason.EXPIRED,
+            });
+        });
+
+        test('reports no_cached_result when the newest run has no results yet', async () => {
+            const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
+            f.findMostRecentByCacheKey.mockResolvedValue({
+                ...f.candidate,
+                resultsFileName: null,
+            } as never);
+            await expect(
+                f.service.lookupCachedResultsFile('project', 'cache-key', user),
+            ).resolves.toEqual({
+                cacheHit: false,
+                missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+            });
+        });
+
+        test('reports access_restricted when identity requires a producer', async () => {
+            const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
+            await expect(
+                f.service.lookupCachedResultsFile(
+                    'project',
+                    'cache-key',
+                    user,
+                    null,
+                    true,
+                ),
+            ).resolves.toEqual({
+                cacheHit: false,
+                missReason: ResultsCacheMissReason.ACCESS_RESTRICTED,
+            });
+        });
+
+        test('returns the hit for a fresh result', async () => {
+            const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
+            await expect(
+                f.service.lookupCachedResultsFile('project', 'cache-key', user),
+            ).resolves.toMatchObject({
+                cacheHit: true,
+                fileName: 'results.jsonl',
             });
         });
     });

@@ -1,4 +1,8 @@
-import { FeatureFlags, type QueryResultProducer } from '@lightdash/common';
+import {
+    FeatureFlags,
+    ResultsCacheMissReason,
+    type QueryResultProducer,
+} from '@lightdash/common';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -9,7 +13,11 @@ import type {
     CacheServiceUser,
     ICacheService,
 } from '../../services/CacheService/ICacheService';
-import { type CacheHitCacheResult } from '../../services/CacheService/types';
+import {
+    type CacheHitCacheResult,
+    type CacheLookupMiss,
+    type CacheLookupResult,
+} from '../../services/CacheService/types';
 import {
     isConnectionProducedQuery,
     isSameResultProducer,
@@ -55,12 +63,32 @@ export class CommercialCacheService implements ICacheService {
         requesterProducer: QueryResultProducer | null = null,
         resolvedIdentityEnabled: boolean | null = null,
     ): Promise<CacheHitCacheResult | null> {
-        // Self-protect: gate every cache lookup on the project setting, regardless
-        // of how the caller arrived here.
+        const result = await this.lookupCachedResultsFile(
+            projectUuid,
+            cacheKey,
+            user,
+            requesterProducer,
+            resolvedIdentityEnabled,
+        );
+        return result.cacheHit ? result : null;
+    }
+
+    async lookupCachedResultsFile(
+        projectUuid: string,
+        cacheKey: string,
+        user: CacheServiceUser,
+        requesterProducer: QueryResultProducer | null = null,
+        resolvedIdentityEnabled: boolean | null = null,
+    ): Promise<CacheLookupResult> {
+        const miss = (missReason: ResultsCacheMissReason): CacheLookupMiss => ({
+            cacheHit: false,
+            missReason,
+        });
+        // Self-protect: gate every lookup on the project setting, whatever the caller.
         const { enabled, ttlSeconds: staleTimeSeconds } =
             await this.projectModel.getResultsCacheState(projectUuid);
         if (!enabled) {
-            return null;
+            return miss(ResultsCacheMissReason.CACHE_DISABLED);
         }
 
         const identityEnabled =
@@ -75,9 +103,8 @@ export class CommercialCacheService implements ICacheService {
             identityEnabled &&
             (!requesterProducer || requesterProducer.agentIdentity !== null)
         )
-            return null;
+            return miss(ResultsCacheMissReason.ACCESS_RESTRICTED);
 
-        // Find recent query with matching cache key
         const latestMatchingQuery =
             await this.queryHistoryModel.findMostRecentByCacheKey(
                 cacheKey,
@@ -93,9 +120,22 @@ export class CommercialCacheService implements ICacheService {
                 },
             );
 
+        if (!latestMatchingQuery) {
+            const cleared =
+                await this.queryHistoryModel.hasClearedResultsForCacheKey(
+                    cacheKey,
+                    projectUuid,
+                );
+            return miss(
+                cleared
+                    ? ResultsCacheMissReason.CLEARED
+                    : ResultsCacheMissReason.NO_CACHED_RESULT,
+            );
+        }
+
         if (
             identityEnabled &&
-            (!latestMatchingQuery?.resultProducer ||
+            (!latestMatchingQuery.resultProducer ||
                 latestMatchingQuery.resultProducer.agentIdentity !== null ||
                 !requesterProducer ||
                 !isSameResultProducer(
@@ -103,61 +143,60 @@ export class CommercialCacheService implements ICacheService {
                     requesterProducer,
                 ))
         )
-            return null;
+            return miss(ResultsCacheMissReason.ACCESS_RESTRICTED);
 
         if (
-            latestMatchingQuery?.queryHistory &&
+            latestMatchingQuery.queryHistory &&
             isConnectionProducedQuery(latestMatchingQuery.queryHistory)
         )
-            return null;
+            return miss(ResultsCacheMissReason.ACCESS_RESTRICTED);
+
+        const {
+            resultsFileName,
+            columns,
+            resultsCreatedAt,
+            resultsExpiresAt,
+            resultsUpdatedAt,
+            totalRowCount,
+        } = latestMatchingQuery;
+        if (
+            !resultsFileName ||
+            !columns ||
+            !resultsCreatedAt ||
+            !resultsExpiresAt ||
+            !resultsUpdatedAt ||
+            totalRowCount === null
+        )
+            return miss(ResultsCacheMissReason.NO_CACHED_RESULT);
 
         const staleTimeMilliseconds = staleTimeSeconds * 1000;
-
         const expiryBuffer = getResultsCacheExpiryBufferMs(
             staleTimeMilliseconds,
         );
-
-        const cacheExpiresAt = latestMatchingQuery?.resultsUpdatedAt
-            ? new Date(
-                  latestMatchingQuery.resultsUpdatedAt.getTime() +
-                      staleTimeMilliseconds,
-              )
-            : null;
-
+        const cacheExpiresAt = new Date(
+            resultsUpdatedAt.getTime() + staleTimeMilliseconds,
+        );
+        const usableUntil = new Date(Date.now() + expiryBuffer);
         // Availability can outlive cache freshness for retained results.
-        if (
-            latestMatchingQuery &&
-            latestMatchingQuery.resultsFileName &&
-            latestMatchingQuery.columns &&
-            latestMatchingQuery.resultsCreatedAt &&
-            latestMatchingQuery.resultsExpiresAt &&
-            latestMatchingQuery.resultsUpdatedAt &&
-            latestMatchingQuery.totalRowCount !== null &&
-            cacheExpiresAt &&
-            cacheExpiresAt > new Date(Date.now() + expiryBuffer) &&
-            latestMatchingQuery.resultsExpiresAt >
-                new Date(Date.now() + expiryBuffer)
-        ) {
-            return {
-                cacheHit: true,
-                queryUuid: latestMatchingQuery.queryUuid,
-                queryHistory: latestMatchingQuery.queryHistory,
-                resultProducer: latestMatchingQuery.resultProducer ?? null,
-                cacheKey: latestMatchingQuery.cacheKey,
-                cacheGeneration: latestMatchingQuery.cacheGeneration,
-                fileName: latestMatchingQuery.resultsFileName,
-                createdAt: latestMatchingQuery.resultsCreatedAt,
-                updatedAt: latestMatchingQuery.resultsUpdatedAt,
-                expiresAt: cacheExpiresAt,
-                totalRowCount: latestMatchingQuery.totalRowCount,
-                columns: latestMatchingQuery.columns,
-                originalColumns: latestMatchingQuery.originalColumns,
-                pivotValuesColumns: latestMatchingQuery.pivotValuesColumns,
-                pivotTotalColumnCount:
-                    latestMatchingQuery.pivotTotalColumnCount,
-            };
-        }
+        if (cacheExpiresAt <= usableUntil || resultsExpiresAt <= usableUntil)
+            return miss(ResultsCacheMissReason.EXPIRED);
 
-        return null;
+        return {
+            cacheHit: true,
+            queryUuid: latestMatchingQuery.queryUuid,
+            queryHistory: latestMatchingQuery.queryHistory,
+            resultProducer: latestMatchingQuery.resultProducer ?? null,
+            cacheKey: latestMatchingQuery.cacheKey,
+            cacheGeneration: latestMatchingQuery.cacheGeneration,
+            fileName: resultsFileName,
+            createdAt: resultsCreatedAt,
+            updatedAt: resultsUpdatedAt,
+            expiresAt: cacheExpiresAt,
+            totalRowCount,
+            columns,
+            originalColumns: latestMatchingQuery.originalColumns,
+            pivotValuesColumns: latestMatchingQuery.pivotValuesColumns,
+            pivotTotalColumnCount: latestMatchingQuery.pivotTotalColumnCount,
+        };
     }
 }

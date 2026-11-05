@@ -637,6 +637,26 @@ export class QueryHistoryModel {
         };
     }
 
+    async hasClearedResultsForCacheKey(
+        cacheKey: string,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(QueryHistoryTableName)
+            .select('query_uuid')
+            .where('cache_key', cacheKey)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere((query) => {
+                void query
+                    .whereNotNull('cache_invalidated_at')
+                    .orWhereRaw(
+                        `cache_generation <> COALESCE((SELECT results_cache_generation FROM ${ProjectTableName} WHERE project_uuid = ?), 0)`,
+                        [projectUuid],
+                    );
+            })
+            .first();
+        return row !== undefined;
+    }
+
     /**
      * Stops results produced for a chart or dashboard from being served as
      * cache hits, including any other query that shares their cache key.
