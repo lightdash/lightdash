@@ -415,6 +415,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ProjectController.refresh',
     'ProjectController.refreshPreAggregateByDefinitionName',
     'ProjectController.refreshPreAggregates',
+    'ProjectController.replaceProjectContext',
     'ProjectController.replaceProjectTableGroups',
     'ProjectController.replaceYamlTags',
     'ProjectController.revokeProjectAccessForUser',

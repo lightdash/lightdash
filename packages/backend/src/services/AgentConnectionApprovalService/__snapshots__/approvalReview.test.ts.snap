@@ -270,6 +270,22 @@ exports[`pins every real admitted contract, base requirement and payload effect 
     "candidates": [
       {
         "capabilities": [
+          "deploy_upload",
+        ],
+        "key": "ProjectController.replaceProjectContext",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.replaceProjectContext",
+    "kind": "path_project",
+    "required": [
+      "deploy_upload",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
           "administration",
         ],
         "key": "ProjectController.replaceProjectTableGroups",

@@ -18,6 +18,7 @@ import {
     ApiExploreResults,
     ApiFormulaValidationResults,
     ApiQueryResults,
+    ApiReplaceProjectContextResults,
     ApiSqlQueryResults,
     ApiUpstreamDiffResults,
     applyWarehouseLocation,
@@ -169,6 +170,7 @@ import {
     LightdashError,
     LightdashProjectConfig,
     LightdashUser,
+    loadProjectContextFile,
     ManifestCollision,
     ManifestSource,
     MAX_RESULTS_CACHE_TTL_SECONDS,
@@ -13242,17 +13244,34 @@ export class ProjectService
             Partial<Pick<SessionUser, 'organizationName'>>;
         organizationUuid: string;
     }): Promise<ProjectContextEntry[] | undefined> {
-        if (!this.projectContextModel) {
-            return undefined;
-        }
-
-        const enabled = this.isProjectContextEnabled
-            ? await this.isProjectContextEnabled({ user, organizationUuid })
-            : false;
-        if (!enabled) {
+        const projectContextModel = await this.getProjectContextStore({
+            user,
+            organizationUuid,
+        });
+        if (!projectContextModel) {
             return undefined;
         }
         return adapter.getProjectContext();
+    }
+
+    // Context can only be stored when the EE model is wired and the org has
+    // agent reviews on; both paths that write it share this gate.
+    private async getProjectContextStore({
+        user,
+        organizationUuid,
+    }: {
+        user: Pick<SessionUser, 'userUuid'> &
+            Partial<Pick<SessionUser, 'organizationName'>>;
+        organizationUuid: string;
+    }): Promise<NonNullable<ProjectService['projectContextModel']> | null> {
+        if (!this.projectContextModel || !this.isProjectContextEnabled) {
+            return null;
+        }
+        const enabled = await this.isProjectContextEnabled({
+            user,
+            organizationUuid,
+        });
+        return enabled ? this.projectContextModel : null;
     }
 
     private async replaceProjectContext(
@@ -18601,6 +18620,50 @@ export class ProjectService
             throw new ForbiddenError();
         }
         return this.projectModel.getTableGroups(projectUuid);
+    }
+
+    async replaceProjectContextFromFile({
+        user,
+        projectUuid,
+        fileContents,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        fileContents: string;
+    }): Promise<ApiReplaceProjectContextResults> {
+        const { organizationUuid, type } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('CompileProject', {
+                    organizationUuid,
+                    projectUuid,
+                    type,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User does not have permission to update project context',
+            );
+        }
+
+        const projectContextModel = await this.getProjectContextStore({
+            user,
+            organizationUuid,
+        });
+        if (!projectContextModel) {
+            return { ingested: false, reason: 'ai_agent_reviews_disabled' };
+        }
+
+        const entries = loadProjectContextFile(fileContents);
+        await projectContextModel.replaceEntriesForProject(
+            projectUuid,
+            entries,
+        );
+        return { ingested: true, entryCount: entries.length };
     }
 
     async replaceProjectTableGroups({
