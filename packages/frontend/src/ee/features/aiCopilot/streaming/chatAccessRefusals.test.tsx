@@ -115,6 +115,7 @@ const renderBubble = (status: AiAgentMessageAssistant['status'] = 'error') =>
                 message={{ ...message, status }}
                 hiddenSibling={null}
                 isLastMessage
+                canRetry
                 projectUuid="project"
                 agentUuid="agent"
             />
@@ -288,6 +289,7 @@ describe('personal Snowflake recovery in chat', () => {
                         }}
                         hiddenSibling={null}
                         isLastMessage
+                        canRetry
                         projectUuid="project"
                         agentUuid="agent"
                     />
