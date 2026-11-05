@@ -13,7 +13,6 @@ import {
     Tabs,
     Text,
     TextInput,
-    Title,
 } from '@mantine/core';
 import { useDebouncedValue, useIntersection } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
@@ -182,10 +181,10 @@ const ChartTypeGallery = () => {
     const mayUseLibrary = registryQuery.data?.registryEnabled !== false;
     const howToGetOne =
         chartStudioAvailable && mayUseLibrary
-            ? 'Describe one and Chart Studio builds it, or install a ready-made one from the library.'
+            ? "Describe the chart you want and it's built for you, or start from one in the library."
             : chartStudioAvailable
-              ? 'Describe one and Chart Studio builds it.'
-              : 'Install a ready-made one from the library.';
+              ? "Describe the chart you want and it's built for you."
+              : 'Start from a ready-made chart in the library.';
 
     const newChartTypeButton = chartStudioAvailable && (
         <Can
@@ -311,14 +310,9 @@ const ChartTypeGallery = () => {
                     ]}
                 />
 
-                <Stack gap={6}>
-                    <Title order={3}>Chart Studio</Title>
-                    <Text fz="sm" c="dimmed" maw={720} lh={1.5}>
-                        New kinds of charts for your whole team. {howToGetOne}{' '}
-                        Each one shows up in the explorer, right next to bar and
-                        line.
-                    </Text>
-                </Stack>
+                <Text fz="sm" c="dimmed" maw={880} lh={1.5}>
+                    Show your data exactly the way you picture it. {howToGetOne}
+                </Text>
 
                 {isLibraryEnabled ? (
                     <Tabs

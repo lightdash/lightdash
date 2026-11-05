@@ -443,7 +443,7 @@ describe('ChartTypeGallery', () => {
 
         expect(screen.getByText('Bar race')).toBeInTheDocument();
         expect(
-            screen.getByRole('heading', { name: 'Chart Studio' }),
+            screen.getByText(/Show your data exactly the way you picture it/),
         ).toBeInTheDocument();
         expect(document.title).toContain('Chart Studio');
         expect(
@@ -941,7 +941,9 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(
-            await screen.findByRole('heading', { name: 'Chart Studio' }),
+            await screen.findByText(
+                /Show your data exactly the way you picture it/,
+            ),
         ).toBeInTheDocument();
         expect(screen.queryByText('home')).not.toBeInTheDocument();
     });
@@ -993,7 +995,9 @@ describe('ChartTypeGallery', () => {
             ]),
         );
 
-        await screen.findByRole('heading', { name: 'Chart Studio' });
+        await screen.findByText(
+            /Show your data exactly the way you picture it/,
+        );
         expect(screen.queryByText('New chart type')).not.toBeInTheDocument();
     });
 
