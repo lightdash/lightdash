@@ -1,6 +1,7 @@
 import { ForbiddenError, MissingConfigError } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import Logger from '../../../logging/logger';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
 export const assertAnalyticsProjectEnabled = async (
@@ -26,11 +27,14 @@ export const createAnalyticsClient = async (
         organizationUuid,
         ...options,
     });
-    return new DuckdbWarehouseClient({
-        type: 'duckdb_parquet',
-        resolveSource: async (referencedTables) => {
-            await assertAnalyticsProjectEnabled(isAnalyticsProjectEnabled);
-            return resolveSource(referencedTables);
+    return new DuckdbWarehouseClient(
+        {
+            type: 'duckdb_parquet',
+            resolveSource: async (referencedTables) => {
+                await assertAnalyticsProjectEnabled(isAnalyticsProjectEnabled);
+                return resolveSource(referencedTables);
+            },
         },
-    });
+        { logger: Logger },
+    );
 };
