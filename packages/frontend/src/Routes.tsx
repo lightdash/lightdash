@@ -960,6 +960,22 @@ const PRIVATE_ROUTES: RouteObject[] = [
             {
                 children: [
                     {
+                        path: '/get-started',
+                        lazy: async () => {
+                            const { default: NoProjectHomepage } =
+                                await import('./ee/features/homepageBuilder/NoProjectHomepage');
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.NO_PROJECT_HOMEPAGE}
+                                    >
+                                        <NoProjectHomepage />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
                         path: '/onboarding/data-source/:warehouse?',
                         handle: { hideAILauncher: true },
                         lazy: async () => {
@@ -1038,22 +1054,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
             {
                 element: <NavBarLayout />,
                 children: [
-                    {
-                        path: '/get-started',
-                        lazy: async () => {
-                            const { default: NoProjectHomepage } =
-                                await import('./ee/features/homepageBuilder/NoProjectHomepage');
-                            return {
-                                Component: () => (
-                                    <TrackPage
-                                        name={PageName.NO_PROJECT_HOMEPAGE}
-                                    >
-                                        <NoProjectHomepage />
-                                    </TrackPage>
-                                ),
-                            };
-                        },
-                    },
                     {
                         path: '/onboarding/invite-expert',
                         handle: { hideAILauncher: true },
