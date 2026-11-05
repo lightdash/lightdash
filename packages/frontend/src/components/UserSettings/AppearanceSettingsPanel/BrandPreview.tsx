@@ -1,11 +1,11 @@
 import {
+    pickBrandLogo,
     type OrganizationBrandColor,
     type OrganizationBrandFont,
     type OrganizationBrandLogo,
 } from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text, Table } from '@mantine/core';
 import { useEffect, type FC } from 'react';
-import { pickBrandLogo } from '../../../hooks/organization/brandLogos';
 // TODO: re-enable browser chrome + nav header preview
 // import { IconSearch } from '@tabler/icons-react';
 // import MantineIcon from '../../common/MantineIcon';
