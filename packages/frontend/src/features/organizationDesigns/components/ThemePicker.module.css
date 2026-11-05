@@ -45,20 +45,3 @@
 .compactPrefix {
     color: var(--mantine-color-ldGray-7);
 }
-
-/* Icon-only trigger: a chosen theme shows as a dot, not a filled button. */
-.iconTrigger {
-    overflow: visible;
-}
-
-.iconTrigger[data-selected]::after {
-    content: '';
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: var(--mantine-color-ldGray-9);
-    box-shadow: 0 0 0 2px var(--mantine-color-body);
-}

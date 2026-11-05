@@ -116,6 +116,7 @@ it('loads the next page of dashboards from content search', () => {
     render(
         <MantineProvider env="test">
             <AttachButton
+                theme={null}
                 selectedCharts={[]}
                 onSelectChart={() => undefined}
                 onDeselectChart={() => undefined}
@@ -329,6 +330,7 @@ it('keeps the app picker mounted until an unlink confirmation completes', () => 
     render(
         <MantineProvider env="test">
             <AttachButton
+                theme={null}
                 selectedCharts={[]}
                 onSelectChart={() => undefined}
                 onDeselectChart={() => undefined}

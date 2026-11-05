@@ -127,6 +127,7 @@ const baseProps = {
     askAiItem: null,
     fullscreenToggle: null,
     openUrl: null,
+    previewTools: null,
     captureThumbnail: null,
     capturePreviewScreenshot: null,
     previewVersion: null,
