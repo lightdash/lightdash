@@ -1,15 +1,26 @@
 import { useEffect, type FC } from 'react';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
-import { pickBrandLogo } from '../../hooks/organization/brandLogos';
 import { useWhiteLabelBrand } from '../../hooks/organization/useWhiteLabelBrand';
 
+const DEFAULT_FAVICON_URL = '/favicon.ico';
+
+const isSameOrigin = (url: string) => {
+    try {
+        return (
+            new URL(url, window.location.origin).origin ===
+            window.location.origin
+        );
+    } catch {
+        return false;
+    }
+};
+
 export const BrandedFaviconSync: FC = () => {
-    const { brand, isResolved } = useWhiteLabelBrand();
+    const { logoUrl, isResolved } = useWhiteLabelBrand();
     const isEmbedded = useIsEmbedded();
-    const logoUrl = brand ? (pickBrandLogo(brand.logos)?.url ?? null) : null;
 
     useEffect(() => {
-        if (isEmbedded) return undefined;
+        if (isEmbedded || !isResolved) return undefined;
         const links = Array.from(
             document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'),
         );
@@ -19,19 +30,12 @@ export const BrandedFaviconSync: FC = () => {
         let objectUrl: string | null = null;
         let cancelled = false;
 
-        if (!isResolved || logoUrl) {
-            apply('/favicon-neutral.svg');
-        } else if (!logoUrl) {
-            links.forEach((link) =>
-                link.setAttribute(
-                    'href',
-                    link.dataset.defaultHref ?? '/favicon.ico',
-                ),
-            );
-        }
-
-        // Favicon requests don't reliably send cookies, and uploaded logos need auth.
-        if (logoUrl) {
+        if (!logoUrl) {
+            apply(DEFAULT_FAVICON_URL);
+        } else if (!isSameOrigin(logoUrl)) {
+            apply(logoUrl);
+        } else {
+            // Favicon requests don't reliably send cookies, and uploaded logos need auth.
             fetch(logoUrl, { credentials: 'same-origin' })
                 .then((response) =>
                     response.ok ? response.blob() : Promise.reject(),

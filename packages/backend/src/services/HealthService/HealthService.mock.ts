@@ -23,6 +23,7 @@ export const BaseResponse: HealthState = {
     },
     isAuthenticated: false,
     requiresOrgRegistration: false,
+    instanceBrand: null,
     localDbtEnabled: true,
     defaultProject: undefined,
     siteUrl: 'https://test.lightdash.cloud',

@@ -135,6 +135,12 @@
     }
 }
 
+.formBrandLogo {
+    align-self: flex-start;
+    height: rem(32px);
+    color: var(--mantine-color-text);
+}
+
 .formSubtitle {
     color: var(--mantine-color-ldGray-6);
 }

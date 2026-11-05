@@ -1,4 +1,4 @@
-import { type OrganizationBrandLogo } from '@lightdash/common';
+import { pickBrandLogo, type OrganizationBrandLogo } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -10,7 +10,6 @@ import {
 } from '@mantine/core';
 import { IconPhoto, IconUpload } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
-import { pickBrandLogo } from '../../../hooks/organization/brandLogos';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './BrandAppearanceSettings.module.css';
 import { BrandLogoModal } from './BrandLogoModal';

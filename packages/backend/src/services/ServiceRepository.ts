@@ -66,6 +66,7 @@ import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
 import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
+import { InstanceBrandService } from './InstanceBrandService/InstanceBrandService';
 import { JiraAppService } from './JiraAppService/JiraAppService';
 import { LearnSandboxService } from './LearnSandboxService/LearnSandboxService';
 import { LicenseService } from './LicenseService/LicenseService';
@@ -150,6 +151,7 @@ interface ServiceManifest {
     groupService: GroupsService;
     headlessBrowserService: HeadlessBrowserService;
     healthService: HealthService;
+    instanceBrandService: InstanceBrandService;
     licenseService: LicenseService;
     notificationService: NotificationsService;
     managedSignInService: ManagedSignInService;
@@ -737,7 +739,15 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     readinessService: this.readinessService,
                     learnSandboxService: this.getLearnSandboxService(),
+                    instanceBrandService: this.getInstanceBrandService(),
                 }),
+        );
+    }
+
+    public getInstanceBrandService(): InstanceBrandService {
+        return this.getService(
+            'instanceBrandService',
+            () => new InstanceBrandService(),
         );
     }
 
@@ -2251,6 +2261,8 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationBrandModel:
                         this.models.getOrganizationBrandModel(),
+                    instanceBrandService: this.getInstanceBrandService(),
+                    licenseService: this.getLicenseService(),
                 }),
         );
     }
