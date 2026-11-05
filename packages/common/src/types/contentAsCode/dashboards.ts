@@ -135,19 +135,25 @@ export type DashboardTabAsCode = {
     hidden?: DashboardTab['hidden'];
 };
 
-export type DashboardControlSectionAsCode = Omit<
-    DashboardControlSection,
-    'id'
-> & {
+export type DashboardControlSectionAsCode = {
+    slug?: string;
     /** Legacy section identifier accepted on upload. */
     id?: string;
+    name: DashboardControlSection['name'];
+    collapsed?: DashboardControlSection['collapsed'];
+    inline?: DashboardControlSection['inline'];
 };
 
 export type DashboardFilterRuleAsCode = DashboardFilterRule & {
     sectionSlug?: string;
 };
 
-export type DateZoomControlAsCode = DateZoomControl & {
+export type DateZoomControlAsCode = {
+    uuid: DateZoomControl['uuid'];
+    name: DateZoomControl['name'];
+    granularity: DateZoomControl['granularity'];
+    hidden?: DateZoomControl['hidden'];
+    sectionId?: string;
     sectionSlug?: string;
 };
 
@@ -182,7 +188,7 @@ export type DashboardConfigAsCode = {
     customMetrics?: DashboardConfig['customMetrics'];
     controlSections?: DashboardControlSectionAsCode[];
     parameterSections?: DashboardConfig['parameterSections'];
-    parameterSectionSlugs?: Record<string, string>;
+    parameterSectionSlugs?: { [parameterName: string]: string };
     parameterControls?: DashboardParameterControlAsCode[];
 };
 

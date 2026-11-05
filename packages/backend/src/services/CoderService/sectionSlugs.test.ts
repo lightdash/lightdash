@@ -137,6 +137,53 @@ describe('dashboard section slugs', () => {
         expect(getDashboardWithSectionSlugs(restored)).toEqual(portable);
     });
 
+    it('round-trips legacy uploads and retains the saved slug when a legacy client renames a section', () => {
+        const original = dashboard();
+        const saved = getDashboardWithSectionIds(
+            getDashboardWithSectionSlugs(original),
+            original.config as DashboardConfig,
+        );
+        const legacy = dashboard();
+        legacy.config!.controlSections![0].name = 'Legacy rename';
+        const restored = getDashboardWithSectionIds(legacy, {
+            isDateZoomDisabled: false,
+            controlSections: saved.config!.controlSections,
+        });
+        expect(restored.config!.controlSections![0]).toMatchObject({
+            id: 'old-id',
+            slug: 'currency-comparison',
+            name: 'Legacy rename',
+        });
+        expect(restored.filters).toEqual(legacy.filters);
+        expect(restored.config!.parameterSections).toEqual(
+            legacy.config!.parameterSections,
+        );
+    });
+
+    it('resolves portable references against target identities rather than source identities', () => {
+        const portable = getDashboardWithSectionSlugs(dashboard());
+        const target = {
+            isDateZoomDisabled: false,
+            controlSections: [{ id: 'target-id', name: 'Currency comparison' }],
+        };
+        const restored = getDashboardWithSectionIds(portable, target);
+        expect(restored.config!.controlSections![0].id).toBe('target-id');
+        for (const rules of Object.values(restored.filters!)) {
+            expect(rules![0].sectionId).toBe('target-id');
+            expect(rules![0].sectionSlug).toBeUndefined();
+        }
+        expect(restored.config!.dateZoomConfig!.controls[0].sectionId).toBe(
+            'target-id',
+        );
+        expect(restored.config!.parameterControls![0].sectionId).toBe(
+            'target-id',
+        );
+        expect(restored.config!.parameterSections).toEqual({
+            currency: 'target-id',
+        });
+        expect(getDashboardWithSectionSlugs(restored)).toEqual(portable);
+    });
+
     it('mints UUID v4 identities for new sections and accepts legacy IDs', () => {
         const fresh = getDashboardWithSectionIds(
             getDashboardWithSectionSlugs(dashboard()),

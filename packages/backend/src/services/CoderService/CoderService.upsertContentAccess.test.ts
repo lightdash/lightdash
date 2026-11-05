@@ -3278,3 +3278,246 @@ describe('bound grant upload effects', () => {
         },
     );
 });
+
+describe.each([true, false])(
+    'CoderService section exports with saved parameter controls=%s',
+    (withControls) => {
+        it.each([true, false])(
+            'exports saved sections with controls enabled=%s',
+            async (enabled) => {
+                const service = buildService();
+                const dashboard: DashboardDAO = {
+                    ...dashboardMock,
+                    uuid: 'dashboard-uuid',
+                    slug: 'dashboard',
+                    spaceUuid: SPACE_UUID,
+                    tabs: [],
+                    tiles: [],
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'saved-section', name: 'Saved section' },
+                        ],
+                        parameterSections: { currency: 'saved-section' },
+                        ...(withControls && {
+                            parameterControls: [
+                                {
+                                    id: 'saved-control',
+                                    label: 'Currency',
+                                    value: 'USD',
+                                    valueType: {
+                                        type: 'string' as const,
+                                        multiple: false,
+                                    },
+                                    parameters: {},
+                                    sectionId: 'saved-section',
+                                },
+                            ],
+                        }),
+                    },
+                    filters: {
+                        dimensions: [
+                            {
+                                id: 'filter',
+                                target: {
+                                    fieldId: 'orders_status',
+                                    tableName: 'orders',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                label: undefined,
+                                sectionId: 'saved-section',
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                };
+                vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                    dashboard,
+                ]);
+                vi.mocked(
+                    service.dashboardModel.getByIdOrSlug,
+                ).mockResolvedValue(dashboard);
+                service.dashboardModel.getSlugAliasesForUuids = vi.fn(
+                    async () => [],
+                );
+                service.contentVerificationModel.getByContentUuids = vi.fn(
+                    async () => new Map(),
+                );
+                vi.spyOn(
+                    service as AnyType,
+                    'filterPrivateContent',
+                ).mockImplementation(
+                    async (
+                        _user: AnyType,
+                        _project: AnyType,
+                        content: AnyType,
+                    ) => content,
+                );
+                vi.mocked(
+                    service.dashboardService.areDashboardControlsEnabled,
+                ).mockResolvedValue(enabled);
+                const result = await (service as AnyType).findDashboardsAsCode(
+                    makeSessionUser([]),
+                    PROJECT_UUID,
+                    undefined,
+                );
+                expect(
+                    service.dashboardService.areDashboardControlsEnabled,
+                ).toHaveBeenCalledTimes(withControls ? 1 : 0);
+                const exported = result.dashboards[0];
+                const current = await service.getCurrentDashboardAsCode(
+                    dashboard.uuid,
+                );
+                const draft = await service.getDashboardAsCodeWithOverlay(
+                    dashboard.uuid,
+                    { name: 'Draft name' },
+                );
+                for (const writeback of [current, draft]) {
+                    expect(writeback.config?.controlSections).toEqual(
+                        exported.config.controlSections,
+                    );
+                    expect(writeback.filters).toEqual(exported.filters);
+                }
+
+                expect(exported.config.controlSections).toEqual([
+                    { slug: 'saved-section', name: 'Saved section' },
+                ]);
+                expect(exported.filters.dimensions[0].sectionSlug).toBe(
+                    'saved-section',
+                );
+                expect(
+                    exported.filters.dimensions[0].sectionId,
+                ).toBeUndefined();
+                expect(exported.config.parameterSectionSlugs).toEqual({
+                    currency: 'saved-section',
+                });
+                expect(exported.config.parameterSections).toBeUndefined();
+                if (!enabled)
+                    expect(exported.config.parameterControls).toBeUndefined();
+            },
+        );
+    },
+);
+
+describe('CoderService section uploads with the flag disabled', () => {
+    it.each(['legacy', 'portable'] as const)(
+        'prepares a %s reupload without replacing saved parameter controls',
+        async (format) => {
+            const service = buildService();
+            const savedConfig: NonNullable<DashboardDAO['config']> = {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'saved-section', name: 'Saved section' },
+                ],
+                parameterControls: [
+                    {
+                        id: 'saved-control',
+                        label: 'Currency',
+                        value: 'USD',
+                        valueType: { type: 'string', multiple: false },
+                        parameters: {},
+                        sectionId: 'saved-section',
+                    },
+                ],
+            };
+            const existing: DashboardDAO = {
+                ...dashboardMock,
+                uuid: 'dashboard-uuid',
+                slug: 'dashboard',
+                spaceUuid: SPACE_UUID,
+                tabs: [],
+                tiles: [],
+                config: savedConfig,
+            };
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                existing,
+            ]);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+                existing,
+            );
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(false);
+            vi.mocked(
+                service.promoteService.getPromotedDashboard,
+            ).mockRejectedValue(new Error('captured upload'));
+            const sectionReference =
+                format === 'legacy'
+                    ? { sectionId: 'saved-section' }
+                    : { sectionSlug: 'saved-section' };
+            const uploaded: DashboardAsCode = {
+                ...dashboardAsCode,
+                filters: {
+                    dimensions: [
+                        {
+                            target: {
+                                fieldId: 'orders_status',
+                                tableName: 'orders',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            label: undefined,
+                            ...sectionReference,
+                        },
+                    ],
+                },
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [
+                        {
+                            ...(format === 'legacy'
+                                ? { id: 'saved-section' }
+                                : { slug: 'saved-section' }),
+                            name: 'Renamed section',
+                        },
+                    ],
+                    // Disabled incoming controls must be ignored before resolving their references.
+                    parameterControls: [
+                        {
+                            sectionSlug: 'unknown-section',
+                            label: 'Incoming',
+                            value: 'EUR',
+                            valueType: { type: 'string', multiple: false },
+                            parameters: {},
+                        },
+                    ],
+                },
+            };
+            await expect(
+                service.upsertDashboard(
+                    makeSessionUser([
+                        { subject: 'ContentAsCode', action: 'create' },
+                        { subject: 'Dashboard', action: 'update' },
+                    ]),
+                    PROJECT_UUID,
+                    'dashboard',
+                    uploaded,
+                ),
+            ).rejects.toThrow('captured upload');
+            expect(
+                service.promoteService.getPromotedDashboard,
+            ).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    config: expect.objectContaining({
+                        controlSections: [
+                            expect.objectContaining({
+                                id: 'saved-section',
+                                name: 'Renamed section',
+                            }),
+                        ],
+                        parameterControls: savedConfig.parameterControls,
+                    }),
+                    filters: expect.objectContaining({
+                        dimensions: [
+                            expect.objectContaining({
+                                sectionId: 'saved-section',
+                            }),
+                        ],
+                    }),
+                }),
+                PROJECT_UUID,
+            );
+        },
+    );
+});

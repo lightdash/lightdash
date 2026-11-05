@@ -744,14 +744,23 @@ must still prove that portable fields download, compare, and upload correctly.
 
 ### Dashboard control sections
 
-When dashboard controls are enabled, `config.controlSections` downloads each
+`config.controlSections` downloads each
 section with a readable `slug`. Filters, parameter controls and date zoom
 controls refer to it with `sectionSlug`. The legacy parameter section map
 downloads as `config.parameterSectionSlugs`.
 
 Uploads match sections by slug and preserve their internal UUIDs, including
 after a name change. New sections receive UUID v4 IDs. Duplicate section slugs
-and unknown `sectionSlug` references are rejected.
+and unknown `sectionSlug` references are rejected. Legacy `id`, `sectionId`
+and `parameterSections` uploads remain accepted. If a file supplies both forms,
+they must refer to the same section.
+
+Section serialization is independent of `dashboard-controls`: previously saved
+sections download with slugs even after the flag is disabled. This keeps their
+file representation stable when the feature graduates. The existing flag check
+still omits parameter controls from regular downloads. Uploads resolve legacy
+IDs and portable slugs with either flag state, without enabling parameter
+controls or replacing their saved values while the flag is off.
 
 ### Dashboard parameter controls
 

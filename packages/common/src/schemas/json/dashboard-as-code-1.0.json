@@ -475,7 +475,11 @@
                     "type": "object"
                 },
                 "parameterSectionSlugs": {
-                    "$ref": "#/$defs/Record_string.string_"
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "properties": {},
+                    "type": "object"
                 },
                 "pinnedParameters": {
                     "items": {
@@ -491,20 +495,26 @@
             "type": "object"
         },
         "DashboardControlSectionAsCode": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/Omit_DashboardControlSection.id_"
+            "properties": {
+                "collapsed": {
+                    "type": "boolean"
                 },
-                {
-                    "properties": {
-                        "id": {
-                            "description": "Legacy section identifier accepted on upload.",
-                            "type": "string"
-                        }
-                    },
-                    "type": "object"
+                "id": {
+                    "description": "Legacy section identifier accepted on upload.",
+                    "type": "string"
+                },
+                "inline": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
                 }
-            ]
+            },
+            "required": ["name"],
+            "type": "object"
         },
         "DashboardDataAppTileAsCode": {
             "additionalProperties": false,
@@ -1167,7 +1177,7 @@
             ],
             "type": "string"
         },
-        "DateZoomControl": {
+        "DateZoomControlAsCode": {
             "properties": {
                 "granularity": {
                     "anyOf": [
@@ -1186,7 +1196,9 @@
                     "type": "string"
                 },
                 "sectionId": {
-                    "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
+                    "type": "string"
+                },
+                "sectionSlug": {
                     "type": "string"
                 },
                 "uuid": {
@@ -1195,21 +1207,6 @@
             },
             "required": ["granularity", "name", "uuid"],
             "type": "object"
-        },
-        "DateZoomControlAsCode": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/DateZoomControl"
-                },
-                {
-                    "properties": {
-                        "sectionSlug": {
-                            "type": "string"
-                        }
-                    },
-                    "type": "object"
-                }
-            ]
         },
         "DateZoomTileTarget": {
             "properties": {
@@ -1407,10 +1404,6 @@
             ],
             "type": "string"
         },
-        "Omit_DashboardControlSection.id_": {
-            "$ref": "#/$defs/Pick_DashboardControlSection.Exclude_keyofDashboardControlSection.id__",
-            "description": "Construct a type with the properties of T except for those in type K."
-        },
         "Omit_DashboardFilterRuleAsCode.id_": {
             "$ref": "#/$defs/Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__",
             "description": "Construct a type with the properties of T except for those in type K."
@@ -1452,28 +1445,6 @@
                     "type": "string"
                 }
             },
-            "type": "object"
-        },
-        "Pick_DashboardControlSection.Exclude_keyofDashboardControlSection.id__": {
-            "description": "From T, pick a set of properties whose keys are in the union K",
-            "properties": {
-                "collapsed": {
-                    "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section",
-                    "type": "boolean"
-                },
-                "inline": {
-                    "description": "Sits on the bar line of the section before it; absent, starts a line of its own",
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "slug": {
-                    "description": "Portable identity supplied by content as code.",
-                    "type": "string"
-                }
-            },
-            "required": ["name"],
             "type": "object"
         },
         "Pick_DashboardDataAppTileProperties-at-properties.title-or-hideTitle_": {
@@ -1591,11 +1562,6 @@
             "additionalProperties": {
                 "$ref": "#/$defs/DateZoomTileTarget"
             },
-            "description": "Construct a type with a set of properties K of type T",
-            "properties": {},
-            "type": "object"
-        },
-        "Record_string.string_": {
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
             "type": "object"
