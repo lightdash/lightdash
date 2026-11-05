@@ -1,4 +1,4 @@
-import { Box, Button, Group, Loader, Skeleton, Text } from '@mantine/core';
+import { Box, Button, Group, Skeleton, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconAppWindow,
@@ -18,32 +18,38 @@ type BuildingProps = {
 };
 
 const BuildStageList: FC<{ stageIndex: number }> = ({ stageIndex }) => (
-    <ol className={classes.stages} aria-label="Build stages">
+    <Box component="ol" className={classes.stages} aria-label="Build stages">
         {BUILD_STAGES.map((stage, i) => {
             const state =
                 i < stageIndex ? 'done' : i === stageIndex ? 'current' : 'todo';
             return (
-                <li key={stage} className={classes.stage} data-state={state}>
-                    {state === 'current' ? (
-                        <Loader size={14} color="ldGray.7" />
-                    ) : (
-                        <MantineIcon
-                            icon={
-                                state === 'done'
-                                    ? IconCircleCheckFilled
-                                    : IconCircleDashed
-                            }
-                            size={16}
-                            className={classes.stageIcon}
-                        />
-                    )}
-                    <Text size="sm" fw={state === 'current' ? 600 : 400} span>
+                <Box
+                    component="li"
+                    key={stage}
+                    className={classes.stage}
+                    data-state={state}
+                >
+                    <MantineIcon
+                        icon={
+                            state === 'done'
+                                ? IconCircleCheckFilled
+                                : IconCircleDashed
+                        }
+                        size={16}
+                        className={classes.stageIcon}
+                    />
+                    <Text
+                        size="sm"
+                        fw={state === 'current' ? 500 : 400}
+                        span
+                        data-shimmer={state === 'current' || undefined}
+                    >
                         {stage}
                     </Text>
-                </li>
+                </Box>
             );
         })}
-    </ol>
+    </Box>
 );
 
 /** Preview pane while the first version builds: a wireframe of the page. */

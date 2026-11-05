@@ -23,7 +23,7 @@
     padding: 6px 8px;
     border-radius: var(--mantine-radius-sm);
     color: var(--mantine-color-text);
-    font-size: 13px;
+    font-size: var(--mantine-font-size-sm);
     line-height: 1.45;
     text-decoration: none;
     transition: background-color 150ms ease;

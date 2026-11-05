@@ -31,7 +31,7 @@ const ThinkingStep: FC<{
         isLive ? (texts[texts.length - 1] ?? '') : texts.join(' '),
     );
     return (
-        <li>
+        <Box component="li">
             <UnstyledButton
                 className={classes.step}
                 data-current={isCurrent || undefined}
@@ -39,9 +39,9 @@ const ThinkingStep: FC<{
                 aria-expanded={open}
                 w="100%"
             >
-                <span className={classes.stepIcon}>
+                <Box component="span" className={classes.stepIcon}>
                     <MantineIcon icon={IconBulb} size={13} stroke={1.7} />
-                </span>
+                </Box>
                 <Text
                     size="xs"
                     className={classes.stepVerb}
@@ -69,7 +69,7 @@ const ThinkingStep: FC<{
                         : preview}
                 </Text>
             )}
-        </li>
+        </Box>
     );
 };
 
@@ -91,7 +91,7 @@ const GroupStep: FC<{ group: BuildStepGroup; isCurrent: boolean }> = ({
     const expandable = group.targets.length > 1;
     const row = (
         <>
-            <span className={classes.stepIcon}>
+            <Box component="span" className={classes.stepIcon}>
                 <MantineIcon
                     icon={getBuildStepIcon(
                         GROUP_ICON_STEP[group.kind] || group.label,
@@ -99,7 +99,7 @@ const GroupStep: FC<{ group: BuildStepGroup; isCurrent: boolean }> = ({
                     size={13}
                     stroke={1.7}
                 />
-            </span>
+            </Box>
             <Text
                 size="xs"
                 className={classes.stepVerb}
@@ -124,13 +124,17 @@ const GroupStep: FC<{ group: BuildStepGroup; isCurrent: boolean }> = ({
     );
     if (!expandable) {
         return (
-            <li className={classes.step} data-current={isCurrent || undefined}>
+            <Box
+                component="li"
+                className={classes.step}
+                data-current={isCurrent || undefined}
+            >
                 {row}
-            </li>
+            </Box>
         );
     }
     return (
-        <li>
+        <Box component="li">
             <UnstyledButton
                 className={classes.step}
                 data-current={isCurrent || undefined}
@@ -149,7 +153,7 @@ const GroupStep: FC<{ group: BuildStepGroup; isCurrent: boolean }> = ({
                     ))}
                 </Box>
             )}
-        </li>
+        </Box>
     );
 };
 

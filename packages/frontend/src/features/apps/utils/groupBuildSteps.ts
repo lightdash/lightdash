@@ -78,13 +78,23 @@ export const groupBuildSteps = (
     const order: string[] = [];
     const byKey = new Map<
         string,
-        { kind: BuildStepGroupKind; targets: string[]; count: number }
+        {
+            kind: BuildStepGroupKind;
+            raw: string;
+            targets: string[];
+            count: number;
+        }
     >();
     let lastKey: string | null = null;
     for (const step of steps) {
         const { kind, target } = classify(step);
         const key = kind === 'other' ? `other:${step.trim()}` : kind;
-        const entry = byKey.get(key) ?? { kind, targets: [], count: 0 };
+        const entry = byKey.get(key) ?? {
+            kind,
+            raw: step.trim(),
+            targets: [],
+            count: 0,
+        };
         if (!byKey.has(key)) {
             byKey.set(key, entry);
             order.push(key);
@@ -100,7 +110,7 @@ export const groupBuildSteps = (
         const n = entry.kind === 'search' ? entry.count : entry.targets.length;
         return {
             kind: entry.kind,
-            label: labelFor(entry.kind, Math.max(n, 1), live, key.slice(6)),
+            label: labelFor(entry.kind, Math.max(n, 1), live, entry.raw),
             targets: entry.targets,
             count: entry.count,
         };

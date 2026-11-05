@@ -105,18 +105,16 @@ const ClarificationStepper: FC<Props> = ({
                         next();
                 }}
             />
-            <Group justify="space-between" gap="xs">
-                {step > 0 ? (
+            <Group justify="flex-end" gap="xs">
+                {step > 0 && (
                     <Button
                         variant="subtle"
-                        color="gray"
                         size="xs"
+                        mr="auto"
                         onClick={() => setStep(step - 1)}
                     >
                         Back
                     </Button>
-                ) : (
-                    <span />
                 )}
                 <Button size="xs" onClick={next}>
                     {isLast ? 'Build' : 'Next'}
