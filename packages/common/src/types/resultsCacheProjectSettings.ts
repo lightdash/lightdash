@@ -66,3 +66,90 @@ export type ExploresResultsCacheInvalidation = ResultsCacheInvalidation & {
 
 export type ApiExploresResultsCacheInvalidationResponse =
     ApiSuccess<ExploresResultsCacheInvalidation>;
+
+// Persisted in query_history.cache_miss_reason; values are a DB contract.
+export enum ResultsCacheMissReason {
+    BYPASSED = 'bypassed',
+    CACHE_DISABLED = 'cache_disabled',
+    ACCESS_RESTRICTED = 'access_restricted',
+    EXPIRED = 'expired',
+    CLEARED = 'cleared',
+    NO_CACHED_RESULT = 'no_cached_result',
+}
+
+export enum ResultsCacheStatsMissReason {
+    EXPIRED = 'expired',
+    CLEARED = 'cleared',
+    SCHEDULED_REFRESH = 'scheduledRefresh',
+}
+
+export enum ResultsCacheStatsContextGroup {
+    DASHBOARDS = 'dashboards',
+    CHARTS_AND_EXPLORE = 'chartsAndExplore',
+    SCHEDULED = 'scheduled',
+    OTHER = 'other',
+}
+
+export type ResultsCacheStatsDays = 7 | 30;
+
+export type ResultsCacheStatsTotals = {
+    runs: number;
+    hits: number;
+    misses: number;
+    hitRate: number | null;
+    warehouseTimeSavedMs: number;
+    warehouseTimeOnMissesMs: number;
+};
+
+export type ResultsCacheStatsSummary = ResultsCacheStatsTotals & {
+    avoidableMisses: number;
+    avoidableWarehouseTimeMs: number;
+};
+
+export type ResultsCacheRecommendationTarget =
+    | { kind: 'chart'; chartUuid: string; name: string }
+    | { kind: 'sqlChart'; savedSqlUuid: string; slug: string; name: string }
+    | { kind: 'explore'; exploreName: string; name: string };
+
+export type ResultsCacheRecommendation = {
+    reason: ResultsCacheStatsMissReason;
+    target: ResultsCacheRecommendationTarget;
+    misses: number;
+    warehouseTimeMs: number;
+};
+
+export type ResultsCacheStats = {
+    days: ResultsCacheStatsDays;
+    summary: ResultsCacheStatsSummary;
+    byContext: Array<
+        { group: ResultsCacheStatsContextGroup } & ResultsCacheStatsTotals
+    >;
+    missReasons: Array<{
+        reason: ResultsCacheStatsMissReason;
+        misses: number;
+        warehouseTimeMs: number;
+    }>;
+    recommendations: ResultsCacheRecommendation[];
+};
+
+export type ApiResultsCacheStatsResponse = ApiSuccess<ResultsCacheStats>;
+
+export type ResultsCacheTtlProjection = {
+    ttlSeconds: number;
+    hits: number;
+    hitRate: number | null;
+    additionalHits: number;
+    warehouseTimeSavedMs: number;
+};
+
+export type ResultsCacheTtlProjections =
+    | {
+          kind: 'projections';
+          currentTtlSeconds: number;
+          baseline: { runs: number; hits: number; hitRate: number | null };
+          projections: ResultsCacheTtlProjection[];
+      }
+    | { kind: 'tooManyRuns' | 'noLongerTtl'; currentTtlSeconds: number };
+
+export type ApiResultsCacheTtlProjectionsResponse =
+    ApiSuccess<ResultsCacheTtlProjections>;
