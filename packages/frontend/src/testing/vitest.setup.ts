@@ -39,7 +39,7 @@ notifyManager.setNotifyFunction((callback) => {
     callback();
 });
 
-// Libraries (Mantine focus trap, hello-pangea/dnd) schedule 0ms timers on
+// Libraries (e.g. Mantine focus trap) schedule 0ms timers on
 // mount/unmount that touch `document`; flush them before jsdom teardown.
 afterAll(async () => {
     await new Promise((resolve) => {

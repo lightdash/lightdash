@@ -1,4 +1,3 @@
-import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     CartesianSeriesType,
     getReadableTextColor,
@@ -28,6 +27,7 @@ import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig
 import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { calculateSeriesLikeIdentifier } from '../../../../hooks/useChartColorConfig/utils';
 import MantineIcon from '../../../common/MantineIcon';
+import { type SortableHandleProps } from '../../../common/Sortable/Sortable';
 import {
     useSeriesColor,
     useVisualizationInputs,
@@ -46,7 +46,7 @@ type Props = {
     isGrouped?: boolean;
     isOpen?: boolean;
     toggleIsOpen?: () => void;
-    dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    dragHandleProps?: SortableHandleProps | null;
     isDragDisabled?: boolean;
 } & Pick<
     ReturnType<typeof useCartesianChartConfig>,
