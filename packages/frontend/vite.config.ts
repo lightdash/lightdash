@@ -134,11 +134,6 @@ export default defineConfig({
                             test: /node_modules[\\/](@sentry[\\/]react|rudder-sdk-js)/,
                             priority: 15,
                         },
-                        {
-                            name: 'uiw',
-                            test: /node_modules[\\/]@uiw[\\/](react-markdown-preview|react-md-editor)/,
-                            priority: 15,
-                        },
                     ],
                 },
             },

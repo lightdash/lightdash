@@ -7,7 +7,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
-import MarkdownPreview from '@uiw/react-markdown-preview';
+import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';
 import { useState } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../components/common/MantineIcon';

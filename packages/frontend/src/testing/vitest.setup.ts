@@ -18,6 +18,9 @@ vi.stubGlobal('fetch', nodeFetch);
 vi.mock('@uiw/react-markdown-preview', () => ({
     default: ReactMarkdownPreview,
 }));
+vi.mock('@uiw/react-markdown-preview/nohighlight', () => ({
+    default: ReactMarkdownPreview,
+}));
 
 beforeAll(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
