@@ -1,3 +1,10 @@
+## [3.163.1](https://github.com/lightdash/lightdash/compare/3.163.0...3.163.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **onboarding:** remove references to deleted semantic-studio flag ([#32128](https://github.com/lightdash/lightdash/issues/32128)) ([2fe6ffd](https://github.com/lightdash/lightdash/commit/2fe6ffd3737eda29355687ce34e4b57b6e7996e8))
+
 # [3.163.0](https://github.com/lightdash/lightdash/compare/3.162.0...3.163.0) (2026-11-05)
 
 
