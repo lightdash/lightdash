@@ -175,12 +175,12 @@ const ParameterTileOverlay = memo<Props>(
                     data-controls-editor
                 >
                     {pendingMove !== null ? (
-                        // As the editor's prompt: one line, its answers beside it
-                        <Group justify="space-between" wrap="nowrap" gap="xs">
+                        // The question on its own line: a long control name has room
+                        <Stack gap="xs">
                             <Text fz="xs" role="status">
                                 {pendingMove.question}
                             </Text>
-                            <Group gap="xs" wrap="nowrap" flex="0 0 auto">
+                            <Group gap="xs" wrap="nowrap" justify="flex-end">
                                 <Button
                                     variant="subtle"
                                     size="xs"
@@ -198,7 +198,7 @@ const ParameterTileOverlay = memo<Props>(
                                     Move
                                 </Button>
                             </Group>
-                        </Group>
+                        </Stack>
                     ) : isPickerShown ? (
                         <Stack gap="xs">
                             <Text fz="xs" c="dimmed" truncate>
