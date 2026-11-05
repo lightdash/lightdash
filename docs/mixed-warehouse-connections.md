@@ -86,13 +86,6 @@ models compiled on the same connection.
 - A join to a model on another connection is skipped by partial compilation.
   `MultiConnectionCompiler` rewrites the warning to name the model and both
   connections. With the mixed flag off, the warning is unchanged.
-- With [cross-source dbt refs](../examples/cross-source-dbt-refs/README.md)
-  on, refs resolve inside one group. When a group fails because it refs a dbt
-  project that an earlier, successful group compiled, and both
-  `mixed-warehouse-connections` and `cross-source-dbt-refs` are on, the
-  compile warning names the project, its dbt source and both connections. The
-  failed connection keeps its previous explores. With the mixed flag off, the
-  message is unchanged.
 - Merge queries run each source on its own warehouse and join the results in
   DuckDB, so they are the supported way to combine data across warehouses.
 
@@ -129,7 +122,7 @@ models compiled on the same connection.
 - [`scripts/mixed-warehouse-scale-test`](../scripts/mixed-warehouse-scale-test/README.md)
   drives a local instance through the API across 20 or more projects: every
   available warehouse as the original with every other as an extra, live
-  connection changes, failure cases, cross-source refs, dashboards with a
+  connection changes, failure cases, dashboards with a
   scheduled delivery, previews, CLI deploy, and a flag-off pass.
 - Local fixtures: [Trino](../examples/trino-dev/README.md), and
   [Postgres, DuckLake, ClickHouse, BigQuery, Snowflake, Athena and a Redshift

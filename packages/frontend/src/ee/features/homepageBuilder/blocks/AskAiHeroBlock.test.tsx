@@ -12,6 +12,12 @@ vi.mock('../../../../providers/App/useApp', () => ({
 vi.mock('../../../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
 }));
+vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: state.isNewOnboarding },
+        isLoading: false,
+    }),
+}));
 vi.mock('./QuickActionsBlock', () => ({
     QuickActionCards: () => <div data-testid="quick-actions" />,
 }));
@@ -20,7 +26,13 @@ const state = vi.hoisted(() => ({
     isWarehouseConnected: true,
     hasPendingActions: false,
     canAskAi: true,
+    isNewOnboarding: true,
 }));
+
+vi.mock(
+    '../../../../features/externalConnections/hooks/useExternalConnections',
+    () => ({ useExternalConnections: () => ({ data: [] }) }),
+);
 
 vi.mock('../hooks/useHomepageAiState', () => ({
     useHomepageAiState: () => ({
@@ -42,11 +54,12 @@ vi.mock('./useRecommendedActions', () => ({
     }),
 }));
 
+vi.mock('./setupGuide/SetupGuide', () => ({
+    SetupGuide: () => <div data-testid="setup-guide" />,
+}));
 vi.mock('./RecommendedActionsChecklist', () => ({
-    RecommendedActionsChecklist: () => <div data-testid="setup-checklist" />,
-    RecommendedActionsChecklistPlaceholder: () => (
-        <div data-testid="setup-checklist-hold" />
-    ),
+    RecommendedActionsChecklist: () => <div data-testid="checklist" />,
+    RecommendedActionsChecklistPlaceholder: () => null,
 }));
 
 const block: HomepageAskAiHeroBlock = {
@@ -69,6 +82,7 @@ describe('AskAiHeroBlockView', () => {
         state.isWarehouseConnected = true;
         state.hasPendingActions = false;
         state.canAskAi = true;
+        state.isNewOnboarding = true;
     });
 
     it('renders the greeting hero with quick actions when AI is unavailable', () => {
@@ -159,9 +173,8 @@ describe('AskAiHeroBlockView', () => {
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
     });
 
-    it('holds the heading and the checklist on the same answer', () => {
+    it('holds the heading while the setup guide holds itself', () => {
         state.isLoading = true;
-        state.hasPendingActions = false;
 
         wrap(
             <AskAiHeroBlockView
@@ -172,14 +185,27 @@ describe('AskAiHeroBlockView', () => {
         );
 
         expect(screen.queryByRole('heading')).toBeNull();
-        expect(screen.getByTestId('setup-checklist-hold')).toBeInTheDocument();
-        expect(screen.queryByTestId('setup-checklist')).toBeNull();
+        expect(screen.getByTestId('setup-guide')).toBeInTheDocument();
         // The composer keeps fetching behind its own hold rather than waiting
         // for the reveal to start
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
     });
 
-    it('reveals the heading and the checklist together', () => {
+    it('reveals the heading alongside the setup guide', () => {
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={blockWithChecklist}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.getByRole('heading')).toBeInTheDocument();
+        expect(screen.getByTestId('setup-guide')).toBeInTheDocument();
+    });
+
+    it('keeps the original checklist when new onboarding is off', () => {
+        state.isNewOnboarding = false;
         state.hasPendingActions = true;
 
         wrap(
@@ -190,9 +216,20 @@ describe('AskAiHeroBlockView', () => {
             />,
         );
 
-        expect(screen.getByRole('heading')).toBeInTheDocument();
-        expect(screen.getByTestId('setup-checklist')).toBeInTheDocument();
-        expect(screen.queryByTestId('setup-checklist-hold')).toBeNull();
+        expect(screen.getByTestId('checklist')).toBeInTheDocument();
+        expect(screen.queryByTestId('setup-guide')).toBeNull();
+    });
+
+    it('leaves the setup guide out when the block hides it', () => {
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={block}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.queryByTestId('setup-guide')).toBeNull();
     });
 });
 

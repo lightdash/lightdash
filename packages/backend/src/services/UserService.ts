@@ -497,15 +497,24 @@ export class UserService extends BaseService {
         inviteCode: string,
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
-        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
-        return this.activateUserFromInviteLink(inviteLink, activateUser);
+        const { inviteLink, invitedByUserUuid } =
+            await this.inviteLinkModel.getByCodeWithInviter(inviteCode);
+        return this.activateUserFromInviteLink(
+            inviteLink,
+            invitedByUserUuid,
+            activateUser,
+        );
     }
 
     async activateUserFromInviteWithoutPassword(
         inviteCode: string,
     ): Promise<SessionUser> {
-        const inviteLink = await this.getInviteLink(inviteCode);
-        const user = await this.activateUserFromInviteLink(inviteLink);
+        const { inviteLink, invitedByUserUuid } =
+            await this.inviteLinkModel.getByCodeWithInviter(inviteCode);
+        const user = await this.activateUserFromInviteLink(
+            inviteLink,
+            invitedByUserUuid,
+        );
         // The invite link was delivered to this address, so opening it proves
         // mailbox ownership — same trust as OpenID email verification.
         await this.tryVerifyUserEmail(user, inviteLink.email, 'link');
@@ -514,6 +523,7 @@ export class UserService extends BaseService {
 
     private async activateUserFromInviteLink(
         inviteLink: InviteLink,
+        invitedByUserUuid: string | null,
         activateUser?: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
         const userEmail =
@@ -657,6 +667,7 @@ export class UserService extends BaseService {
                     organizationId: inviteLink.organizationUuid,
                     invitePurpose: InviteLinkPurpose.Setup,
                     onboardingFlow,
+                    invitedByUserId: invitedByUserUuid,
                 },
             });
         }
@@ -923,11 +934,16 @@ export class UserService extends BaseService {
             organizationUuid,
             userUuid,
             purpose,
+            user.userUuid,
         );
         await this.emailClient.sendInviteEmail(user, inviteLink);
         this.analytics.track({
             userId: user.userUuid,
             event: 'invite_link.created',
+            properties: {
+                organizationId: organizationUuid,
+                purpose,
+            },
         });
 
         const organization = await this.organizationModel.get(organizationUuid);
@@ -1615,6 +1631,8 @@ export class UserService extends BaseService {
         user: SessionUser,
         {
             organizationName,
+            firstName,
+            lastName,
             jobTitle,
             isTrackingAnonymized,
             isMarketingOptedIn,
@@ -1624,6 +1642,14 @@ export class UserService extends BaseService {
     ): Promise<LightdashUser> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
+        }
+        if (
+            (firstName !== undefined && !validateUserName(firstName)) ||
+            (lastName !== undefined && !validateUserName(lastName))
+        ) {
+            throw new ParameterError(
+                'First name and last name must not contain HTML',
+            );
         }
         const auditedAbility = this.createAuditedAbility(user);
         if (organizationName) {
@@ -1683,6 +1709,8 @@ export class UserService extends BaseService {
             user.userUuid,
             undefined,
             {
+                firstName: firstName?.trim(),
+                lastName: lastName?.trim(),
                 isSetupComplete: true,
                 isTrackingAnonymized,
                 isMarketingOptedIn,

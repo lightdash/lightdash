@@ -5,8 +5,6 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
-    /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
-    CrossSourceDbtRefs = 'cross-source-dbt-refs',
     DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and
@@ -19,7 +17,6 @@ export enum FeatureFlags {
     /** Extra warehouse connections of a different type to the project's original connection. */
     MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Backend-provisioned usage analytics projects. */
-    AnalyticsProject = 'analytics-project',
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
@@ -161,8 +158,10 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Show the coding-agent project onboarding flow. This gates only the UI;
-     * the CLI, APIs, and installed skills remain available independently.
+     * Show the coding-agent project onboarding flow. With NewOnboarding, people
+     * without a repo can start an onboarding run right after connecting their
+     * warehouse. The CLI, APIs, and installed skills remain available
+     * independently.
      */
     CodingAgentOnboarding = 'coding-agent-onboarding',
 
@@ -219,7 +218,8 @@ export enum FeatureFlags {
     /**
      * Enable api query sources: queries sent live to an external API (HogQL
      * to PostHog) through a project connection, and the Live data sources
-     * project settings page. Off by default; enable per org.
+     * project settings page. Off by default; enable per org. Also on wherever
+     * NewOnboarding is on, unless a user or org override turns it off.
      */
     ApiQuerySources = 'api-query-sources',
 

@@ -19,6 +19,7 @@ import {
     documentAsCodeSchema,
     doesPatchTouchSqlChartSql,
     Explore,
+    ExploreType,
     FeatureFlags,
     filterExploreByTags,
     filterStaticFilterAutocompleteValues,
@@ -5444,23 +5445,45 @@ export class AiAgentToolsService extends BaseService {
                         : undefined;
 
                 const startedAt = Date.now();
+                const queryContext =
+                    context.source === 'mcp'
+                        ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
+                        : QueryExecutionContext.AI;
+                const explore = await this.getExploreForRuntime(context, {
+                    table: args.table,
+                }).catch(() => null);
+                // Live sources answer through their API, which only the async query path reaches
                 const results =
-                    await this.projectService.searchFieldUniqueValues(
-                        context.account,
-                        context.projectUuid,
-                        args.table,
-                        args.fieldId,
-                        args.query,
-                        100,
-                        andFilters,
-                        false,
-                        undefined,
-                        context.userAttributeOverrides,
-                        context.source === 'mcp'
-                            ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
-                            : QueryExecutionContext.AI,
-                        context.querySurface,
-                    );
+                    explore?.type === ExploreType.API_SOURCE
+                        ? await this.asyncQueryService.searchFieldValuesAndWait(
+                              {
+                                  account: context.account,
+                                  projectUuid: context.projectUuid,
+                                  table: args.table,
+                                  fieldId: args.fieldId,
+                                  search: args.query,
+                                  limit: 100,
+                                  filters: andFilters,
+                                  context: queryContext,
+                                  querySurface: context.querySurface,
+                                  userAttributeOverrides:
+                                      context.userAttributeOverrides,
+                              },
+                          )
+                        : await this.projectService.searchFieldUniqueValues(
+                              context.account,
+                              context.projectUuid,
+                              args.table,
+                              args.fieldId,
+                              args.query,
+                              100,
+                              andFilters,
+                              false,
+                              undefined,
+                              context.userAttributeOverrides,
+                              queryContext,
+                              context.querySurface,
+                          );
                 const output =
                     context.source === 'mcp' ? results : results.results;
                 Logger.info(

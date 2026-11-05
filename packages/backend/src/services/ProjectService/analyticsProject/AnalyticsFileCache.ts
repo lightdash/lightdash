@@ -12,6 +12,8 @@ export class AnalyticsFileCache {
 
     private downloads = 0;
 
+    private readonly queue: Array<() => void> = [];
+
     constructor(private readonly maxBytes = 64 * 1024 * 1024) {}
 
     async get(
@@ -39,20 +41,20 @@ export class AnalyticsFileCache {
             this.entries.set(identity, hit);
             return hit.value;
         }
-        // Two isolated query sessions can each prepare eight files at once.
-        if (this.downloads >= 16) return undefined;
         for (const [id, entry] of this.entries) {
-            if (this.bytes + size <= this.maxBytes && this.entries.size < 4096)
+            if (
+                this.bytes + size <= this.maxBytes &&
+                this.entries.size < 16_384
+            )
                 break;
             if (entry.ready) {
                 this.entries.delete(id);
                 this.bytes -= entry.size;
             }
         }
-        if (this.bytes + size > this.maxBytes || this.entries.size >= 4096)
+        if (this.bytes + size > this.maxBytes || this.entries.size >= 16_384)
             return undefined;
         this.bytes += size;
-        this.downloads += 1;
         const entry = {
             size,
             ready: false,
@@ -60,6 +62,12 @@ export class AnalyticsFileCache {
         };
         this.entries.set(identity, entry);
         entry.value = (async () => {
+            // Queued downloads reserve bytes and entries before waiting.
+            if (this.downloads >= 16) {
+                await new Promise<void>((resolve) => {
+                    this.queue.push(resolve);
+                });
+            } else this.downloads += 1;
             try {
                 const response = await client.send(
                     new GetObjectCommand({
@@ -98,7 +106,9 @@ export class AnalyticsFileCache {
                 this.bytes -= size;
                 return undefined;
             } finally {
-                this.downloads -= 1;
+                const next = this.queue.shift();
+                if (next) next();
+                else this.downloads -= 1;
             }
         })();
         return entry.value;

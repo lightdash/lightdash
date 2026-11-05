@@ -22,7 +22,7 @@ const settingsContext = (
     showImpersonationPanel: false,
     isCustomRolesEnabled: false,
     canAccessAnalyticsSettings: false,
-    isAnalyticsProjectFlagLoading: false,
+    isAnalyticsProjectLoading: false,
     isOrganizationRoadmapEnabled: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,

@@ -2256,6 +2256,15 @@ describe('AiAccessService', () => {
             isServiceAccount: false,
         });
     });
+    test('needs no identity in a project without a warehouse', async () => {
+        const { service, projects } = setup();
+        projects.getWarehouseCredentialsForBinding.mockRejectedValue(
+            new NotFoundError('No warehouse'),
+        );
+        expect(
+            await service.getMyAccess(viewer, 'project', null),
+        ).toMatchObject({ enabled: false, refusal: null, identity: null });
+    });
     test('loads extra connection credentials in the project scope', async () => {
         const { service, connections, projects } = setup();
         const capabilities = await service.getCapabilities(

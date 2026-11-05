@@ -1,4 +1,4 @@
-import { type OrganizationBrand } from '@lightdash/common';
+import { type InstanceBrand, type OrganizationBrand } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import {
     act,
@@ -17,18 +17,20 @@ const state = vi.hoisted(() => ({
         | {
               license?: { valid: boolean; hasLicenseKey: boolean };
               isAuthenticated: boolean;
+              instanceBrand?: InstanceBrand | null;
           }
         | undefined,
     user: undefined as { organizationUuid: string } | undefined,
     brand: undefined as OrganizationBrand | null | undefined,
     brandError: false,
+    healthError: false,
     embedded: false,
     colorScheme: 'light' as 'light' | 'dark',
 }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
-        health: { data: state.health },
-        user: { data: state.user },
+        health: { data: state.health, isError: state.healthError },
+        user: { data: state.user, isError: false },
     }),
 }));
 vi.mock('../../hooks/organization/useOrganizationBrand', () => ({
@@ -62,18 +64,23 @@ const AppBrand = () => (
         <NavBarLogo />
     </MantineProvider>
 );
+const SERVER_FAVICON_URL = '/api/v1/org/brand/favicon';
+const instanceBrand: InstanceBrand = {
+    logoUrl: 'https://cdn.example.com/instance.png',
+    name: 'Acme Analytics',
+};
 let favicon: HTMLLinkElement;
 beforeEach(() => {
     state.health = undefined;
     state.user = undefined;
     state.brand = undefined;
     state.brandError = false;
+    state.healthError = false;
     state.embedded = false;
     state.colorScheme = 'light';
     favicon = document.createElement('link');
     favicon.rel = 'icon';
-    favicon.href = '/favicon-neutral.svg';
-    favicon.dataset.defaultHref = '/favicon.ico';
+    favicon.href = SERVER_FAVICON_URL;
     document.head.append(favicon);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:brand-logo');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
@@ -85,7 +92,7 @@ afterEach(() => {
 });
 
 describe('brand loading', () => {
-    it('stays neutral through health, user and brand loading, then applies the brand', async () => {
+    it('keeps the server favicon and a neutral logo while loading, then applies the brand', async () => {
         let resolveLogo: (response: Response) => void = () => {};
         vi.spyOn(globalThis, 'fetch').mockReturnValue(
             new Promise((resolve) => {
@@ -99,7 +106,7 @@ describe('brand loading', () => {
                 '/favicon-neutral.svg',
             );
             expect(document.title).not.toContain('Lightdash');
-            expect(favicon).toHaveAttribute('href', '/favicon-neutral.svg');
+            expect(favicon).toHaveAttribute('href', SERVER_FAVICON_URL);
         };
         expectNeutral();
         state.health = {
@@ -118,7 +125,7 @@ describe('brand loading', () => {
             '/logo.png',
         );
         expect(document.title).toContain('Settings - Acme');
-        expect(favicon).toHaveAttribute('href', '/favicon-neutral.svg');
+        expect(favicon).toHaveAttribute('href', SERVER_FAVICON_URL);
         await act(async () => {
             resolveLogo(new Response(new Blob(['logo'])));
         });
@@ -238,6 +245,72 @@ describe('brand loading', () => {
             '/logo.png',
         );
         await act(async () => {});
+    });
+
+    it('uses the instance brand when signed out', () => {
+        const fetchLogo = vi.spyOn(globalThis, 'fetch');
+        state.health = {
+            license: { valid: true, hasLicenseKey: true },
+            isAuthenticated: false,
+            instanceBrand,
+        };
+        render(<AppBrand />);
+        expect(document.title).toContain('Settings - Acme Analytics');
+        expect(screen.getByAltText('Acme Analytics logo')).toHaveAttribute(
+            'src',
+            instanceBrand.logoUrl,
+        );
+        expect(favicon).toHaveAttribute('href', instanceBrand.logoUrl);
+        expect(fetchLogo).not.toHaveBeenCalled();
+    });
+
+    it('prefers the organization brand over the instance brand', () => {
+        vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {}));
+        state.health = {
+            license: { valid: true, hasLicenseKey: true },
+            isAuthenticated: true,
+            instanceBrand,
+        };
+        state.user = { organizationUuid: 'org' };
+        state.brand = brand;
+        render(<AppBrand />);
+        expect(document.title).toContain('Settings - Acme');
+        expect(document.title).not.toContain('Acme Analytics');
+        expect(screen.getByAltText('Acme logo')).toHaveAttribute(
+            'src',
+            '/logo.png',
+        );
+    });
+
+    it('falls back to the instance brand when the organization has none', () => {
+        state.health = {
+            license: { valid: true, hasLicenseKey: true },
+            isAuthenticated: true,
+            instanceBrand,
+        };
+        state.user = { organizationUuid: 'org' };
+        state.brand = null;
+        render(<AppBrand />);
+        expect(document.title).toContain('Settings - Acme Analytics');
+        expect(favicon).toHaveAttribute('href', instanceBrand.logoUrl);
+    });
+
+    it('applies a malformed logo URL without crashing', () => {
+        state.health = {
+            license: { valid: true, hasLicenseKey: true },
+            isAuthenticated: false,
+            instanceBrand: { logoUrl: 'https://', name: null },
+        };
+        render(<AppBrand />);
+        expect(favicon).toHaveAttribute('href', 'https://');
+    });
+
+    it('falls back to the defaults when the health request fails', () => {
+        state.healthError = true;
+        const { container } = render(<AppBrand />);
+        expect(document.title).toContain('Settings - Lightdash');
+        expect(container.querySelector('svg')).not.toBeNull();
+        expect(favicon).toHaveAttribute('href', '/favicon.ico');
     });
 
     it('leaves the SDK host title and favicon untouched', () => {

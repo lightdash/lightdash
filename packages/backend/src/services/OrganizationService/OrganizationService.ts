@@ -64,7 +64,6 @@ import {
 import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../BaseService';
 import { getOrganizationSettingsInstanceDefaults } from '../OrganizationSettingsService/getInstanceDefaults';
-import { isAnalyticsProjectEnabled } from '../ProjectService/analyticsProject/analyticsProjectClient';
 
 export type OrganizationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -76,6 +75,7 @@ export type OrganizationServiceArguments = {
     userModel: UserModel;
     groupsModel: GroupsModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    isAnalyticsProjectEnabled?: () => boolean;
     featureFlagModel: FeatureFlagModel;
     rolesModel: RolesModel;
     organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
@@ -106,6 +106,8 @@ export class OrganizationService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly isAnalyticsProjectEnabled: () => boolean;
+
     private readonly rolesModel: RolesModel;
 
     private readonly organizationSettingsModel: Pick<
@@ -126,6 +128,7 @@ export class OrganizationService extends BaseService {
         groupsModel,
         organizationAllowedEmailDomainsModel,
         featureFlagModel,
+        isAnalyticsProjectEnabled = () => false,
         rolesModel,
         organizationSettingsModel,
         onOrganizationCreated,
@@ -142,6 +145,7 @@ export class OrganizationService extends BaseService {
             organizationAllowedEmailDomainsModel;
         this.groupsModel = groupsModel;
         this.featureFlagModel = featureFlagModel;
+        this.isAnalyticsProjectEnabled = isAnalyticsProjectEnabled;
         this.rolesModel = rolesModel;
         this.organizationSettingsModel = organizationSettingsModel;
         this.onOrganizationCreated = onOrganizationCreated;
@@ -446,11 +450,7 @@ export class OrganizationService extends BaseService {
         const analyticsEnabled =
             projects.some(
                 (project) => project.provisioningSource === 'analytics',
-            ) &&
-            (await isAnalyticsProjectEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            ));
+            ) && this.isAnalyticsProjectEnabled();
 
         return projects.filter(
             (project, index) =>

@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "3.154.1",
+    "version": "3.158.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -177,7 +177,8 @@
         "ldenv:test": "tsx --test scripts/ldenv/*.test.ts",
         "ldenv:typecheck": "tsc --project scripts/ldenv/tsconfig.json",
         "ldenv:lint": "pnpm -F backend exec sh -c 'cd ../.. && oxlint -c scripts/ldenv/oxlint.json scripts/ldenv'",
-        "ldenv:format": "oxfmt --check scripts/ldenv"
+        "ldenv:format": "oxfmt --check scripts/ldenv",
+        "dev:onboarding": "pnpm -F backend dev:onboarding"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [

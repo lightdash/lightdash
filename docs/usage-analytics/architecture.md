@@ -22,15 +22,15 @@ Explore. It does not reconstruct every past event or historical People summaries
 
 ## Current implementation versus rollout intent
 
-| Area                   | Implemented                                                                                       | Still required for production                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up              |
-| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints               | No configurable connector setup UI                                 |
-| Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags         | Controlled live verification before customer rollout               |
-| Source org             | Persisted, authorized project org; legacy local overrides ignored                                 | Live shared-instance isolation verification                        |
-| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB                 | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
-| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                  | Additional event coverage and named-entity lookups                 |
-| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins               | Other entity lookups; production-scale database load verification  |
+| Area                   | Implemented                                                                                       | Still required for production                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin readers need explicit managed Analytics and project permissions |
+| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints               | No configurable connector setup UI                                        |
+| Enablement             | Validated commercial license and usage storage; enabled by default                                | Controlled live verification before customer rollout                      |
+| Source org             | Persisted, authorized project org; legacy local overrides ignored                                 | Live shared-instance isolation verification                               |
+| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB                 | Verify effective IAM; read-only hardening is deferred (PROD-11103)        |
+| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                  | Additional event coverage and named-entity lookups                        |
+| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins               | Other entity lookups; production-scale database load verification         |
 
 Historical tickets and handover proposals may describe different designs. They
 are not evidence that production rollout or final role restrictions are complete.
@@ -116,7 +116,9 @@ compaction, and **Sync content** installs the Explore and Embed dashboard.
 
 After event compaction, the same `compactUsageEvents` job refreshes charts,
 dashboards and users from Postgres, including on days with no new events. Each
-organization has separate files in the shared bucket:
+organization selected for processing has separate files in the shared bucket.
+Nightly runs require a managed Analytics project; regular projects alone do not
+qualify. Explicit organization-scoped processing retains its existing scope:
 
 ```text
 events/compacted/org_id=<org-uuid>/dim=charts/charts.parquet
@@ -140,7 +142,7 @@ for resource limits, retries and operational caveats. Reader resource settings
 below apply to interactive queries, not this background export.
 
 Scheduled processing includes only organizations with a managed Analytics project
-(`provisioning_source = 'analytics'); feature-flag checks still apply. Regular,
+(`provisioning_source = 'analytics'); deployment availability still applies. Regular,
 preview and playground projects alone do not qualify. Raw event capture continues
 for other organizations, but their events are not processed by scheduled runs.
 Creating Analytics still queues explicit organization-scoped initial processing
@@ -172,7 +174,7 @@ supplements, rather than replaces, captured event history.
 [`ProjectService.ensureAnalyticsProject`](../../packages/backend/src/services/ProjectService/ProjectService.ts)
 backs `POST /api/v1/org/analytics-project`:
 
-1. Check the session's organization, org-management permission and feature flag.
+1. Check the session's organization, org-management permission and deployment availability.
    No org, bucket, path or credential is accepted in the request.
 2. Verify signed-Parquet access before creating a project. Model compilation is
    in memory, but the endpoint includes this storage round trip.
@@ -208,7 +210,7 @@ There are three distinct forms of access; none should be confused with the other
 
 | Layer                    | Credential or authority                                                      | Scope                                                          |
 | ------------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| User → Lightdash         | Authenticated session plus org authorization and feature gate                | Access to that org's analytics project                         |
+| User → Lightdash         | Authenticated session, org authorization and deployment availability         | Access to that org's analytics project                         |
 | Backend → object storage | Server-owned usage-events access key/secret, currently reused from ingestion | Potentially broad bucket access, including writes; not per-org |
 | DuckDB → Parquet         | Short-lived signed GET URLs generated by the backend                         | Exact selected objects, HTTP method and expiry                 |
 
@@ -236,8 +238,12 @@ incomplete/malformed listings or an empty manifest. It signs exact
 The backend still retains its configured credentials; destroying the client
 does not erase that process's configuration or revoke credentials.
 
-Each new DuckDB session resolves a fresh manifest and signatures. Expired URLs
-fail; a new query/session obtains new signatures. Credential rotation must
+Each new DuckDB session resolves a fresh manifest. Buffered files need no
+signature unless private staging fails. Remote files reuse a bounded process-local
+signature cache, keyed by a SHA-256 digest of organization, storage configuration,
+resolved credentials and exact object key/ETag/size. Concurrent requests share
+pending signatures. Reuse ends two minutes before URL or credential expiry;
+failed signing is never cached. Unversioned objects are signed on each resolution. Credential rotation must
 refresh backend configuration through the deployment's normal secret/restart
 mechanism; this is not an automatic rotation implementation.
 
@@ -260,9 +266,9 @@ The internal Parquet path in
 - Sets exact `allowed_paths` and disables general external access and disk spilling.
 - Enables HTTP metadata, Parquet metadata and external-file caching only inside
   the private query instance. The instance is closed on success or failure;
-  its engine caches and signed URLs are not reused by another request. The
-  separate backend byte cache described below can serve later queries for the
-  same organization.
+  its engine caches are not reused by another request. The separate backend
+  byte and signature caches described below can serve later authorized queries
+  for the same organization.
 - Builds temporary views over `read_parquet` for those exact objects only, plus
   validated typed empty views for dimension snapshots not yet published.
 - Restricts user SQL and blocks catalog access that could disclose view SQL;
@@ -271,7 +277,7 @@ The internal Parquet path in
 Schema binding retains `union_by_name=true` so older files can lack newer columns.
 Caching prevents repeated remote metadata reads during binding, validation and
 execution. This does not remove all-history discovery, skip old files or change
-the 10,000-file cap. Large histories still require further scaling work (PROD-11111);
+the 10,000-selected-file cap (unrelated tables no longer consume it). Large histories still require further scaling work (PROD-11111);
 these settings do not guarantee a latency ceiling for arbitrary data volumes.
 Each concurrent query has its own thread budget; deployment-wide and per-org
 concurrency limits still need validation before customer rollout.
@@ -281,8 +287,8 @@ The normal result/history paths still exist and need authorization. Analytics
 checks cover project access, result/history retrieval, CSV/XLSX export generation
 and protected download retrieval. Scheduled deliveries can intentionally share
 signed export links; see [downloads and scheduled deliveries](access.md#downloads-and-scheduled-deliveries).
-Flag-off denial is not deletion or cryptographic revocation of previously issued
-signed delivery links or returned data.
+Deleting the project does not revoke previously issued signed delivery links
+or returned data.
 
 ### Small Parquet cache and temporary-file lifecycle
 
@@ -292,9 +298,10 @@ from DuckDB's per-query caches and Lightdash's query-result cache. Object storag
 remains the source of truth; this does not change capture or nightly compaction.
 
 1. Authorize the analytics project and resolve its persisted organization as
-   usual. List current objects and create fresh signed URLs on every query.
+   usual. List current objects on every query; never reuse the manifest.
 2. Reuse or download eligible bytes. Cache identity includes storage endpoint,
-   bucket, authorized org prefix, object key, ETag and size. Downloads use
+   bucket, authorized org prefix, storage configuration/resolved credentials,
+   object key, ETag and size. Downloads use
    `If-Match` and validate the returned ETag and exact length. Changed objects
    get new entries; deleted objects are absent from the new manifest and cannot
    be selected from the cache. Concurrent requests for the same identity share
@@ -304,7 +311,11 @@ remains the source of truth; this does not change capture or nightly compaction.
    host/container. These are compressed Parquet copies, not exported query
    results. Files use owner-only permissions (`0600`) in a private directory.
    A table uses local files only when all its files are available within the
-   staging budget; otherwise it keeps its original remote URLs.
+   staging budget. Only tables that can fit the budget are downloaded. Buffered
+   objects use canonical unsigned URLs internally; these never reach DuckDB. If
+   staging fails, the provider lazily signs those exact objects with a fresh SDK
+   client. DuckDB validates their scope and unchanged object paths before using
+   the whole table remotely, preserving the signed-only engine boundary.
 4. Give that query's isolated DuckDB instance an exact-file allowlist, never a
    directory or shared-cache allowlist. Arbitrary external access remains disabled.
    Another organization's cached or staged files are not in that allowlist.
@@ -312,21 +323,30 @@ remains the source of truth; this does not change capture or nightly compaction.
    recursively. Normal query/bootstrap errors also run teardown. Later queries
    create new directories even when reusing the same in-memory bytes.
 
-| Resource                           | Limit / lifetime                                                                                                                       |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Reusable memory cache              | 64 MiB of compressed bytes and 4,096 entries **per process**, shared capacity across orgs but separately keyed entries                 |
-| Eligible file                      | At most 1 MiB, with a positive known size and ETag                                                                                     |
-| Cache downloads                    | At most 16 in flight per process (two query sessions × eight files); pending bytes/entries reserve capacity; 10-second request timeout |
-| Per-query buffers and staged files | At most 32 MiB each; concurrent queries have separate staging directories                                                              |
-| Memory eviction                    | Least recently used completed entries are evicted when capacity is needed; no time-based TTL; process exit clears memory               |
-| Disk cleanup                       | At session teardown after success or error; no scheduled cleanup interval                                                              |
+| Resource                           | Limit / lifetime                                                                                                                                     |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reusable memory cache              | 64 MiB of compressed bytes and 16,384 entries **per process**, shared capacity across orgs but separately keyed entries                              |
+| Eligible file                      | At most 1 MiB, with a positive known size and ETag                                                                                                   |
+| Cache downloads                    | At most 16 in flight per process; excess requests queue within reserved byte/entry limits; 10-second active-request timeout                          |
+| Per-query buffers and staged files | At most 32 MiB each; concurrent queries have separate staging directories                                                                            |
+| Memory eviction                    | Least recently used completed entries are evicted when capacity is needed; no time-based TTL; process exit clears memory                             |
+| Reusable signatures                | At most 16,384 entries / 32 MiB per process, including pending entries; 16 active signatures, bounded queue, LRU eviction; process exit clears cache |
+| Disk cleanup                       | At session teardown after success or error; no scheduled cleanup interval                                                                            |
 
 The byte budget is not a process RSS limit: in-flight queries can still reference
 buffers evicted from the cache, and DuckDB, JavaScript and concurrent staging add
 resource use. Each replica/process warms independently. Cache misses, download
 failures, missing metadata, budget exhaustion or staging failures fall back to
-remote reads; there is no stale-data fallback. Listing and signing still happen,
-so this does not eliminate storage setup latency or bound large-history costs.
+signed remote reads; there is no stale-data fallback. Tables that stage locally
+make zero signing calls, including on a cold cache. Listing remains fresh and
+large/unbufferable cold tables still need per-file signatures, so this does not
+guarantee a latency ceiling for arbitrary histories.
+
+`Analytics source prepared` logs listing, download, signing and total preparation
+times, selected/buffered/signed file counts, buffer bytes and signature cache hits.
+`DuckDB Parquet source prepared` adds source resolution and private staging times.
+The lazy staging fallback has its own signing timing. These logs contain no object
+keys, signed URLs, credentials or query results.
 
 **Crash limitation:** SIGKILL, OOM or host failure can prevent `finally` from
 running; a teardown error can also prevent directory removal. There is no startup
@@ -342,7 +362,7 @@ immediately purge previously cached bytes. Eviction is not secure erasure.
 [`analyticsProjectClient`](../../packages/backend/src/services/ProjectService/analyticsProject/analyticsProjectClient.ts)
 reads files for the persisted project's org after service authorization checks.
 Legacy local org/source-org overrides are ignored in all environments. Production
-execution uses the standard feature-flag resolver for the target organization.
+execution uses validated commercial registration and configured usage storage.
 See [live testing](live-testing.md) for rollout and remaining trust boundaries.
 
 The prefix filter is a backend authorization boundary, not bucket IAM. Storage
@@ -360,7 +380,7 @@ no Terraform/IAM change or read-only cutover is included in this stack.
 
 ## Operations, verification and rollout
 
-- Follow [local testing](local-testing.md) for feature flags, persisted-org
+- Follow [local testing](local-testing.md) for deployment availability, persisted-org
   binding and the browser-console provisioning request. Keep capture
   disabled for a read-only local test; never copy another worktree's DB settings.
 - Follow [credential verification](credentials.md) for real-bucket read-only

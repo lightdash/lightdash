@@ -1,3 +1,67 @@
+# [3.158.0](https://github.com/lightdash/lightdash/compare/3.157.0...3.158.0) (2026-11-05)
+
+
+### Features
+
+* **cli:** deploy and preview upload lightdash.project_context.yml ([#32065](https://github.com/lightdash/lightdash/issues/32065)) ([677d86d](https://github.com/lightdash/lightdash/commit/677d86d225879663d2c3a83b9b87b9286601a682))
+
+# [3.157.0](https://github.com/lightdash/lightdash/compare/3.156.2...3.157.0) (2026-11-05)
+
+
+### Features
+
+* **onboarding:** agent run screens ([#32075](https://github.com/lightdash/lightdash/issues/32075)) ([095fecc](https://github.com/lightdash/lightdash/commit/095feccbc589db01cb1b8a2ea282e118e08b8d03))
+* **onboarding:** connect your data step ([#32074](https://github.com/lightdash/lightdash/issues/32074)) ([377f371](https://github.com/lightdash/lightdash/commit/377f371d8b7719a08be847f3fac4892d90b81bbf))
+* **onboarding:** new sign up and organization setup screens ([#32073](https://github.com/lightdash/lightdash/issues/32073)) ([e2fff72](https://github.com/lightdash/lightdash/commit/e2fff722d9caa8fa9e3359ceaf9f94b40bb8810f))
+* **onboarding:** query live sources in a project without a warehouse ([#32083](https://github.com/lightdash/lightdash/issues/32083)) ([993ec4e](https://github.com/lightdash/lightdash/commit/993ec4ecb2fdfb6f62bdc9e89ec616e4c0b8e4b1))
+* **onboarding:** run the onboarding agent on request and scan live sources ([#32072](https://github.com/lightdash/lightdash/issues/32072)) ([eb4ac45](https://github.com/lightdash/lightdash/commit/eb4ac456333c4de4fe91894f25e60ae616959389))
+* **onboarding:** setup guide on the default homepage ([#32077](https://github.com/lightdash/lightdash/issues/32077)) ([9806e97](https://github.com/lightdash/lightdash/commit/9806e97051f6e732f9367bb67e68921aa8501c7c))
+* **onboarding:** start with PostHog and connect a warehouse later ([#32084](https://github.com/lightdash/lightdash/issues/32084)) ([063b243](https://github.com/lightdash/lightdash/commit/063b24370d7ed80260f671307c3e5fe7a502dd64))
+* **onboarding:** tools, team and done steps ([#32076](https://github.com/lightdash/lightdash/issues/32076)) ([313e5f6](https://github.com/lightdash/lightdash/commit/313e5f6e05f2f2077803e44172d60bb7c0616017))
+* **onboarding:** track the onboarding funnel on the backend ([#32071](https://github.com/lightdash/lightdash/issues/32071)) ([8011c28](https://github.com/lightdash/lightdash/commit/8011c289da1311bdbe923c5611c3586f607f1369))
+
+## [3.156.2](https://github.com/lightdash/lightdash/compare/3.156.1...3.156.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **ai:** absolute link in document-saved fast response ([#32094](https://github.com/lightdash/lightdash/issues/32094)) ([408372e](https://github.com/lightdash/lightdash/commit/408372e7563e5a1a33b7bb30233cc25807dceef4))
+
+## [3.156.1](https://github.com/lightdash/lightdash/compare/3.156.0...3.156.1) (2026-11-05)
+
+
+### Performance Improvements
+
+* avoid redundant analytics file signing ([#32093](https://github.com/lightdash/lightdash/issues/32093)) ([2eba121](https://github.com/lightdash/lightdash/commit/2eba121e79787b10cc34c041a78f21731301b666))
+
+# [3.156.0](https://github.com/lightdash/lightdash/compare/3.155.0...3.156.0) (2026-11-05)
+
+
+### Features
+
+* enable managed analytics by default ([#31778](https://github.com/lightdash/lightdash/issues/31778)) ([ff55b02](https://github.com/lightdash/lightdash/commit/ff55b02814da2395a592aa0ccd40d336ab5edb2b))
+
+# [3.155.0](https://github.com/lightdash/lightdash/compare/3.154.3...3.155.0) (2026-11-05)
+
+
+### Features
+
+* instance logo and name for signed-out pages and bookmarks ([#32049](https://github.com/lightdash/lightdash/issues/32049)) ([c45eb12](https://github.com/lightdash/lightdash/commit/c45eb12d1d8424bb89522ba5c036ecca57c9e9e3))
+
+## [3.154.3](https://github.com/lightdash/lightdash/compare/3.154.2...3.154.3) (2026-11-05)
+
+
+### Bug Fixes
+
+* **learn:** repair canonical Agents references ([#32087](https://github.com/lightdash/lightdash/issues/32087)) ([917e254](https://github.com/lightdash/lightdash/commit/917e254825d682bba8a81f8e875494b20a749a76))
+
+## [3.154.2](https://github.com/lightdash/lightdash/compare/3.154.1...3.154.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **release:** wait for npm availability ([#31889](https://github.com/lightdash/lightdash/issues/31889)) ([e4467f5](https://github.com/lightdash/lightdash/commit/e4467f53db618703151441d7fb36d2f4b0c47dbf))
+
 ## [3.154.1](https://github.com/lightdash/lightdash/compare/3.154.0...3.154.1) (2026-11-05)
 
 

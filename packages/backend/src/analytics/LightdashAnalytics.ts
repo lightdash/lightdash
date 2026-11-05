@@ -4,6 +4,7 @@ import {
     AdminNotificationType,
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
+    AgentOnboardingStage,
     AI_WRITEBACK_STAGES,
     AiAccessRefusalReason,
     AiAgentSkillVersionSource,
@@ -94,7 +95,6 @@ import { type ExternalConnectionEvent } from '../ee/analytics';
 import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
-import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import type { ApiQueryOutcome } from '../services/QuerySourceService/api/apiQueryOutcome';
@@ -143,12 +143,19 @@ type Group = {
 type TrackSimpleEvent = BaseTrack & {
     event:
         | 'password.updated'
-        | 'invite_link.created'
         | 'invite_link.all_revoked'
         | 'password_reset_link.created'
         | 'password_reset_link.used'
         | 'personal_access_token.deleted'
         | 'personal_access_token.rotated';
+};
+
+type InviteLinkCreatedEvent = BaseTrack & {
+    event: 'invite_link.created';
+    properties: {
+        organizationId: string;
+        purpose: InviteLinkPurpose;
+    };
 };
 
 type PersonalAccessTokenEvent = BaseTrack & {
@@ -306,6 +313,8 @@ type SetupInviteAcceptedEvent = BaseTrack & {
         organizationId: string;
         invitePurpose: InviteLinkPurpose.Setup;
         onboardingFlow: OnboardingFlow;
+        /** Null for links created before the inviter was stored */
+        invitedByUserId: string | null;
     };
 };
 
@@ -340,13 +349,29 @@ type WarehouseConnectEvent = BaseTrack & {
     };
 };
 
+export type ConnectionTestStage = 'warehouse' | 'dbt';
+
+export type ConnectionTestErrorCategory =
+    | 'authentication'
+    | 'network'
+    | 'permission'
+    | 'not_found'
+    | 'timeout'
+    | 'dbt'
+    | 'unknown';
+
 type WarehouseConnectionTestedEvent = BaseTrack & {
     event: 'warehouse_connection.tested';
     userId: string;
     properties: {
+        organizationId: string | null;
+        projectId: string | null;
         warehouseType: WarehouseTypes;
+        authenticationType: string | null;
         result: 'success' | 'failure';
+        stage: ConnectionTestStage;
         errorType?: string;
+        errorCategory: ConnectionTestErrorCategory | null;
         context: 'project_create' | 'project_update';
         method: RequestMethod;
         onboardingFlow: OnboardingFlow;
@@ -1354,7 +1379,7 @@ export type ConditionalFormattingRuleSavedEvent = BaseTrack & {
 };
 
 export type ProjectEvent = BaseTrack & {
-    event: 'project.updated' | 'project.created';
+    event: 'project.updated';
     userId: string;
     properties: {
         projectName: string;
@@ -1372,15 +1397,12 @@ export type ProjectEvent = BaseTrack & {
     };
 };
 
-type OnboardingHomepageProvisionedEvent = BaseTrack & {
-    event: 'onboarding_homepage.provisioned';
+export type ProjectCreatedEvent = BaseTrack & {
+    event: 'project.created';
     userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        homepageUuid: string;
-        onboardingFlow: OnboardingFlow;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
+    properties: ProjectEvent['properties'] & {
+        provisioningSource: 'playground' | 'training' | 'analytics' | null;
+        isFirstProject: boolean;
     };
 };
 
@@ -1408,39 +1430,28 @@ type HomepagePublishedEvent = BaseTrack & {
     };
 };
 
-export type OnboardingHomepageSkippedReason =
-    | 'new_onboarding_flag_disabled'
-    | 'homepage_disabled'
-    | 'not_first_project'
-    | 'homepage_already_exists';
+export type OnboardingAgentRunFailureCategory =
+    | 'sandbox_connection'
+    | 'incomplete_output'
+    | 'timeout'
+    | 'abandoned'
+    | 'schedule_failed'
+    | 'unknown';
 
-type OnboardingHomepageSkippedEvent = BaseTrack & {
-    event: 'onboarding_homepage.skipped';
+type OnboardingAgentRunFinishedEvent = BaseTrack & {
+    event: 'onboarding_agent.run_finished';
     userId: string;
     properties: {
         organizationId: string;
         projectId: string;
-        onboardingFlow: OnboardingFlow;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
-        reason: OnboardingHomepageSkippedReason;
+        agentOnboardingRunId: string;
+        status: 'completed' | 'failed' | 'cancelled';
+        failureCategory: OnboardingAgentRunFailureCategory | null;
+        lastStage: AgentOnboardingStage | null;
+        durationSeconds: number;
+        numTurns: number | null;
     };
 };
-
-type OnboardingHomepageFailedEvent = BaseTrack & {
-    event: 'onboarding_homepage.failed';
-    userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        onboardingFlow: OnboardingFlow;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
-        errorType: string;
-    };
-};
-
-export type CodingAgentOnboardingEnablement =
-    | EnsureOrganizationOverrideOutcome
-    | 'failed';
 
 type PlaygroundProjectProvisionedEvent = BaseTrack & {
     event: 'playground_project.provisioned';
@@ -4879,6 +4890,7 @@ type TypedEvent =
     | AgentIdentityServiceAccountTestedEvent
     | AgentIdentityServiceAccountDeletedEvent
     | TrackSimpleEvent
+    | InviteLinkCreatedEvent
     | CreateUserEvent
     | UpdateUserEvent
     | HearAboutUsSubmittedEvent
@@ -4922,9 +4934,8 @@ type TypedEvent =
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
-    | OnboardingHomepageProvisionedEvent
-    | OnboardingHomepageSkippedEvent
-    | OnboardingHomepageFailedEvent
+    | ProjectCreatedEvent
+    | OnboardingAgentRunFinishedEvent
     | OrganizationHomepageSettingsUpdatedEvent
     | HomepagePublishedEvent
     | PlaygroundProjectProvisionedEvent

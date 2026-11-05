@@ -36,7 +36,12 @@ export const PostHogConnectionModal: FC<Props> = ({
     const signIn = (connectionUuid: string | null) => {
         if (form.validateField('name').hasError) return;
         window.location.assign(
-            getPostHogSignInUrl(projectUuid, form.values, connectionUuid),
+            getPostHogSignInUrl(
+                projectUuid,
+                form.values,
+                connectionUuid,
+                'settings',
+            ),
         );
     };
 
@@ -78,6 +83,7 @@ export const PostHogConnectionModal: FC<Props> = ({
             cancelDisabled={isSaving}
         >
             <PostHogConnectionStep
+                showIntro
                 projectUuid={projectUuid}
                 form={form}
                 isEditing={!!connection}

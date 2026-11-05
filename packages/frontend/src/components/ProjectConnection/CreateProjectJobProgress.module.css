@@ -1,0 +1,148 @@
+.card {
+    --tone: var(--mantine-color-ldGray-6);
+    --tone-soft: var(--mantine-color-ldGray-0);
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-md);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    animation: cardIn 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.card[data-status='success'] {
+    --tone: var(--mantine-color-green-7);
+    --tone-soft: var(--mantine-color-green-0);
+}
+
+.card[data-status='error'] {
+    --tone: var(--mantine-color-red-7);
+    --tone-soft: var(--mantine-color-red-0);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+}
+
+.badge {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--mantine-radius-md);
+    background: var(--tone-soft);
+    color: var(--tone);
+}
+
+.card[data-status='success'] .badge {
+    animation: pop 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.steps,
+.indented {
+    padding-left: calc(36px + var(--mantine-spacing-sm));
+}
+
+.steps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding-block: 0;
+    padding-right: 0;
+    list-style: none;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    color: var(--mantine-color-text);
+}
+
+.step[data-state='PENDING'],
+.step[data-state='SKIPPED'] {
+    color: var(--mantine-color-dimmed);
+}
+
+.stepGlyph {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 50%;
+}
+
+.step[data-state='RUNNING'] .stepGlyph {
+    border-color: transparent;
+}
+
+.step[data-state='DONE'] .stepGlyph {
+    border-color: var(--mantine-color-green-6);
+    background: var(--mantine-color-green-6);
+    color: var(--mantine-color-white);
+}
+
+.step[data-state='DONE'] .stepGlyph {
+    animation: pop 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.step[data-state='ERROR'] .stepGlyph {
+    border-color: var(--mantine-color-red-6);
+    background: var(--mantine-color-red-6);
+    color: var(--mantine-color-white);
+}
+
+.step[data-state='SKIPPED'] .stepGlyph {
+    border-style: dashed;
+}
+
+.errorMessage {
+    max-height: 8rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: var(--mantine-font-size-xs);
+    background: var(--tone-soft);
+    color: var(--tone);
+}
+
+.logsButton {
+    align-self: flex-end;
+    padding-inline: 0;
+    font-weight: 400;
+}
+
+@keyframes cardIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes pop {
+    from {
+        transform: scale(0.6);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card,
+    .card[data-status='success'] .badge,
+    .step[data-state='DONE'] .stepGlyph {
+        animation: none;
+    }
+}

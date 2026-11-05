@@ -48,6 +48,7 @@ import {
     type MsTeamsNotificationPayload,
     type PublishAnnouncementPayload,
     type ReplaceCustomFieldsPayload,
+    type ScanApiSourceSchemaJobPayload,
     type ScheduledDeliveryPayload,
     type SchedulerCreateProjectWithCompilePayload,
     type SendContentReviewNotificationPayload,
@@ -247,6 +248,7 @@ export const EE_SCHEDULER_TASKS = {
     INGEST_EXTERNAL_SOURCE: 'ingestExternalSource',
     INGEST_EXTERNAL_SOURCE_ATTACHMENT: 'ingestExternalSourceAttachment',
     MAINTAIN_EXTERNAL_SOURCES: 'maintainExternalSources',
+    SCAN_API_SOURCE_SCHEMA: 'scanApiSourceSchema',
     SWEEP_UNCLAIMED_AI_THREAD_FILES: 'sweepUnclaimedAiThreadFiles',
     MOBILE_PUSH_LIVE_ACTIVITY_START: 'mobilePushLiveActivityStart',
     MOBILE_PUSH_LIVE_ACTIVITY: 'mobilePushLiveActivity',
@@ -301,6 +303,7 @@ export const SCHEDULER_TASKS = {
         'cleanAgentConnectionApprovalRequests',
     RECONCILE_PLAYGROUND_BUNDLES: 'reconcilePlaygroundBundles',
     BACKFILL_DEFAULT_USER_SPACES: 'backfillDefaultUserSpaces',
+    WARM_WAREHOUSE_TABLES_CACHE: 'warmWarehouseTablesCache',
     LEARN_SANDBOX_COMMAND: 'learnSandboxCommand',
     ...EE_SCHEDULER_TASKS,
 } as const;
@@ -361,6 +364,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CLEAN_AGENT_CONNECTION_APPROVAL_REQUESTS]: TraceTaskBase;
     [SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES]: TraceTaskBase;
     [SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES]: BackfillDefaultUserSpacesPayload;
+    [SCHEDULER_TASKS.WARM_WAREHOUSE_TABLES_CACHE]: TraceTaskBase;
     [SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND]: LearnSandboxCommandPayload;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
@@ -400,6 +404,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: ScanApiSourceSchemaJobPayload;
     [SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: Record<string, never>;
     [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: MobilePushLiveActivityStartJobPayload;
     [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: MobilePushLiveActivityJobPayload;
@@ -458,6 +463,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: ScanApiSourceSchemaJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: Record<string, never>;
     [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: MobilePushLiveActivityStartJobPayload;
     [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: MobilePushLiveActivityJobPayload;

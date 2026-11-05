@@ -68,7 +68,7 @@ export type SettingsContext = {
     showImpersonationPanel: boolean | undefined;
     isCustomRolesEnabled: boolean | undefined;
     canAccessAnalyticsSettings: boolean;
-    isAnalyticsProjectFlagLoading: boolean;
+    isAnalyticsProjectLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
     // Org admin and a contract in force.
     canAccessAiCredits: boolean;

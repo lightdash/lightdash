@@ -44,6 +44,7 @@ export const GoogleConnectionModal: FC<Props> = ({
                 connector,
                 form.values.name,
                 connectionUuid,
+                'settings',
             ),
         );
     };

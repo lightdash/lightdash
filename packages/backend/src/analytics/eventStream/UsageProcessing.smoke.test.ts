@@ -1,12 +1,10 @@
 import { DeleteObjectsCommand, S3 } from '@aws-sdk/client-s3';
-import { FeatureFlags } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { randomUUID } from 'crypto';
 import knex from 'knex';
 import { gzipSync } from 'zlib';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { up as createUsageProcessingStatus } from '../../database/migrations/20261030100000_create_usage_processing_status';
-import { CommercialFeatureFlagModel } from '../../ee/models/CommercialFeatureFlagModel';
 import { UsageProcessingModel } from '../../models/UsageProcessingModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
@@ -79,12 +77,8 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     bufferMaxSize: 100000,
                 },
             };
-            const flags = new CommercialFeatureFlagModel({
-                database: db,
-                lightdashConfig: config,
-            });
+            const eligibleOrgs = new Set<string>();
             const processing = new UsageProcessingModel(db);
-            const get = vi.spyOn(flags, 'get');
             const metrics = {
                 incrementUsageEventsPushed: vi.fn(),
                 incrementUsageEventsFlushed: vi.fn(),
@@ -97,8 +91,13 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
             const failedContentOrganizations = new Set<string>();
             const model = {
                 async *getOrganizations() {
-                    yield { organization_id: 1, organization_uuid: org };
-                    yield { organization_id: 2, organization_uuid: otherOrg };
+                    if (eligibleOrgs.has(org))
+                        yield { organization_id: 1, organization_uuid: org };
+                    if (eligibleOrgs.has(otherOrg))
+                        yield {
+                            organization_id: 2,
+                            organization_uuid: otherOrg,
+                        };
                 },
                 async *getJsonLines(
                     organization: { organization_uuid: string },
@@ -121,7 +120,6 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     s3Config: storage,
                     prometheusMetrics: null,
                     usageDimensionsModel: model,
-                    featureFlagModel: flags,
                     usageProcessingModel: processing,
                 }).run(now, undefined, includeHistory);
             const event = (orgId: string, date = '2026-10-07') => ({
@@ -166,38 +164,15 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     [org, otherOrg],
                 );
                 await db.transaction(createUsageProcessingStatus);
-                await db.raw(
-                    'CREATE TABLE feature_flags (flag_id text PRIMARY KEY, default_enabled boolean); CREATE TABLE feature_flag_overrides (flag_id text, organization_uuid uuid, user_uuid uuid, enabled boolean)',
-                );
-                await db('feature_flags').insert({
-                    flag_id: FeatureFlags.AnalyticsProject,
-                    default_enabled: false,
-                });
-                await db('feature_flag_overrides').insert([
-                    {
-                        flag_id: FeatureFlags.AnalyticsProject,
-                        organization_uuid: org,
-                        enabled: false,
-                    },
-                    {
-                        flag_id: FeatureFlags.AnalyticsProject,
-                        organization_uuid: otherOrg,
-                        enabled: false,
-                    },
-                ]);
                 await s3.createBucket({ Bucket: storage.bucket });
                 created = true;
                 writer.push('query_events', event(org));
                 writer.push('query_events', event(otherOrg));
                 await writer.flush();
                 expect(await list('events/raw/')).toHaveLength(2);
-                expect(get).not.toHaveBeenCalled();
                 expect((await run()).dimensions.refreshed).toBe(0);
                 expect(dimensionsRead).toEqual([]);
-                await db('feature_flag_overrides')
-                    .where({ organization_uuid: org })
-                    .update({ enabled: true });
-                get.mockClear();
+                eligibleOrgs.add(org);
                 const captureStart = performance.now();
                 for (let index = 0; index < 10000; index += 1) {
                     writer.push(
@@ -212,7 +187,6 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 writer.push('query_events', event(org, '2026-10-08'));
                 await writer.flush();
                 const captureMs = performance.now() - captureStart;
-                expect(get).not.toHaveBeenCalled();
                 expect(
                     await list(`events/raw/org_id=${otherOrg}/`),
                 ).toHaveLength(2);
@@ -363,9 +337,7 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'content'),
                 });
-                await db('feature_flag_overrides')
-                    .where({ organization_uuid: otherOrg })
-                    .update({ enabled: true });
+                eligibleOrgs.add(otherOrg);
                 failedContentOrganizations.add(org);
                 failedContentOrganizations.add(otherOrg);
                 await putRaw(1);
@@ -403,13 +375,9 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     await list(usageDimensionKey(otherOrg, 'content')),
                 ).toHaveLength(0);
                 failedContentOrganizations.clear();
-                await db('feature_flag_overrides')
-                    .where({ organization_uuid: otherOrg })
-                    .update({ enabled: false });
-                // Disabling processing leaves capture running on the existing writer.
-                await db('feature_flag_overrides')
-                    .where({ organization_uuid: org })
-                    .update({ enabled: false });
+                eligibleOrgs.delete(otherOrg);
+                // Organizations without Analytics projects leave nightly selection.
+                eligibleOrgs.delete(org);
                 const before = (await list()).length;
                 writer.push('query_events', event(org));
                 await writer.flush();
@@ -432,7 +400,6 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                         historyMs,
                         recoveredTotal: processedEvents + 22,
                         usersPublishedDespiteDimensionFailure: true,
-                        flagLookupsPerFlush: 0,
                     })}\n`,
                 );
             } finally {

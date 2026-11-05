@@ -1,5 +1,5 @@
-import { ProjectType, DbtProjectType } from '@lightdash/common';
-import { TextInput, Flex, Stack, Title, Avatar } from '@mantine/core';
+import { ProjectType, DbtProjectType, WarehouseTypes } from '@lightdash/common';
+import { TextInput, Flex, Stack, Title, Avatar, Box } from '@mantine/core';
 import { type FC } from 'react';
 import LightdashLogo from '../../svgs/logo-icon.svg';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
@@ -14,12 +14,20 @@ import { useProjectFormContext } from './useProjectFormContext';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
+// These warehouses only read the schema when running dbt
+const DBT_ONLY_SCHEMA_WAREHOUSES = new Set<WarehouseTypes>([
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.REDSHIFT,
+    WarehouseTypes.BIGQUERY,
+]);
+
 interface Props {
     showGeneralSettings: boolean;
     disabled: boolean;
     defaultType?: DbtProjectType;
     isProjectUpdate?: boolean;
     warehouseOnly?: boolean;
+    dbtTypePicker?: 'select' | 'tiles';
 }
 
 export const ProjectForm: FC<Props> = ({
@@ -28,6 +36,7 @@ export const ProjectForm: FC<Props> = ({
     defaultType,
     isProjectUpdate,
     warehouseOnly = false,
+    dbtTypePicker = 'select',
 }) => {
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
@@ -40,7 +49,7 @@ export const ProjectForm: FC<Props> = ({
     return (
         <Stack gap="xl">
             {showGeneralSettings && (
-                <SettingsGridCard>
+                <SettingsGridCard data-connection-card>
                     <div>
                         <Title order={5}>General settings</Title>
                     </div>
@@ -57,7 +66,10 @@ export const ProjectForm: FC<Props> = ({
                 </SettingsGridCard>
             )}
 
-            <SettingsGridCard p={warehouseOnly ? 'xl' : 'md'}>
+            <SettingsGridCard
+                p={warehouseOnly ? 'xl' : 'md'}
+                data-connection-card
+            >
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
                     <Flex align="center" gap={2}>
@@ -77,18 +89,24 @@ export const ProjectForm: FC<Props> = ({
                         isProjectUpdate={isProjectUpdate}
                     >
                         {(warehouseOnly || isNative) && warehouse && (
-                            <WarehouseSchemaInput
-                                warehouseType={warehouse}
-                                disabled={disabled}
-                                warehouseOnly
-                            />
+                            <Box
+                                data-dbt-only-schema={DBT_ONLY_SCHEMA_WAREHOUSES.has(
+                                    warehouse,
+                                )}
+                            >
+                                <WarehouseSchemaInput
+                                    warehouseType={warehouse}
+                                    disabled={disabled}
+                                    warehouseOnly
+                                />
+                            </Box>
                         )}
                     </WarehouseSettingsForm>
                 </div>
             </SettingsGridCard>
 
             {!warehouseOnly && (
-                <SettingsGridCard>
+                <SettingsGridCard data-connection-card="dbt">
                     <div>
                         <Avatar
                             size="md"
@@ -110,6 +128,7 @@ export const ProjectForm: FC<Props> = ({
                         <DbtSettingsForm
                             disabled={disabled}
                             defaultType={defaultType}
+                            typePicker={dbtTypePicker}
                         />
                     </div>
                 </SettingsGridCard>

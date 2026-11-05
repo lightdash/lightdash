@@ -182,7 +182,7 @@ describe('OnboardingInviteExpert', () => {
         expect(mocks.updateUser).not.toHaveBeenCalled();
         expect(mocks.track).toHaveBeenCalledWith({
             name: EventName.SETUP_INVITE_SENT,
-            properties: { organizationId: 'org-1' },
+            properties: { organizationId: 'org-1', surface: 'invite_expert' },
         });
 
         await waitFor(() => {

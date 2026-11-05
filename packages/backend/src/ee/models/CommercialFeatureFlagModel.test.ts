@@ -79,10 +79,42 @@ describe('CommercialFeatureFlagModel ai copilot', () => {
     });
 });
 
-describe('CommercialFeatureFlagModel analytics rollout', () => {
+describe('CommercialFeatureFlagModel live sources', () => {
     let tracker: Tracker;
-    const featureFlagId = FeatureFlags.AnalyticsProject;
-    const user = { organizationUuid: 'organization-uuid' };
+    const featureFlagId = FeatureFlags.ApiQuerySources;
+    const userUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const organizationUuid = 'organization-uuid';
+    const user = { userUuid, organizationUuid };
+
+    // Overrides are keyed by `${flag_id}:${user_uuid or organization_uuid}`
+    const respond = ({
+        overrides = {},
+        liveSource = false,
+        defaultEnabled = null,
+    }: {
+        overrides?: Record<string, boolean>;
+        liveSource?: boolean;
+        defaultEnabled?: boolean | null;
+    }) => {
+        tracker.on.select('feature_flag_overrides').response((query) => {
+            const enabled =
+                overrides[`${query.bindings[0]}:${query.bindings[1]}`];
+            return enabled === undefined ? undefined : { enabled };
+        });
+        tracker.on
+            .select('external_connections')
+            .response(
+                liveSource ? { external_connection_uuid: 'conn' } : undefined,
+            );
+        tracker.on
+            .select('feature_flags')
+            .response({ default_enabled: defaultEnabled });
+    };
+
+    const getLiveSources = (config: Partial<typeof lightdashConfigMock> = {}) =>
+        createModel(config)
+            .get({ featureFlagId, user })
+            .then(({ enabled }) => enabled);
 
     beforeAll(() => {
         tracker = getTracker();
@@ -91,57 +123,44 @@ describe('CommercialFeatureFlagModel analytics rollout', () => {
         tracker.reset();
     });
 
-    it('keeps analytics off without an existing rollout setting', async () => {
-        tracker.on.select('feature_flags').responseOnce(undefined);
-        await expect(
-            createModel().get({ featureFlagId, user }),
-        ).resolves.toEqual({ id: featureFlagId, enabled: false });
+    it('turns on for orgs on the new onboarding', async () => {
+        respond({
+            overrides: {
+                [`${FeatureFlags.NewOnboarding}:${organizationUuid}`]: true,
+            },
+        });
+        await expect(getLiveSources()).resolves.toBe(true);
     });
 
-    it.each([
-        { defaultEnabled: true, override: undefined, expected: true },
-        { defaultEnabled: false, override: true, expected: true },
-        { defaultEnabled: true, override: false, expected: false },
-    ])(
-        'preserves default=$defaultEnabled and org override=$override',
-        async ({ defaultEnabled, override, expected }) => {
-            tracker.on.select('feature_flags').responseOnce({
-                flag_id: featureFlagId,
-                default_enabled: defaultEnabled,
-            });
-            tracker.on
-                .select('feature_flag_overrides')
-                .responseOnce(
-                    override === undefined ? undefined : { enabled: override },
-                );
-            await expect(
-                createModel().get({ featureFlagId, user }),
-            ).resolves.toEqual({ id: featureFlagId, enabled: expected });
-        },
-    );
+    it('ignores a user override of the new onboarding', async () => {
+        respond({
+            overrides: { [`${FeatureFlags.NewOnboarding}:${userUuid}`]: true },
+        });
+        await expect(getLiveSources()).resolves.toBe(false);
+    });
 
-    it('allows instance enablement with the registered commercial model', async () => {
+    it('stays on for orgs that already have a live source', async () => {
+        respond({ liveSource: true });
+        await expect(getLiveSources()).resolves.toBe(true);
+    });
+
+    it('keeps an org override that turns it off', async () => {
+        respond({
+            overrides: { [`${featureFlagId}:${organizationUuid}`]: false },
+            liveSource: true,
+        });
         await expect(
-            createModel({ enabledFeatureFlags: new Set([featureFlagId]) }).get({
-                featureFlagId,
-                user,
+            getLiveSources({
+                enabledFeatureFlags: new Set([FeatureFlags.NewOnboarding]),
             }),
-        ).resolves.toEqual({ id: featureFlagId, enabled: true });
-        expect(tracker.history.select).toHaveLength(0);
+        ).resolves.toBe(false);
     });
 
-    it('retains preview override precedence', async () => {
-        tracker.on
-            .select('feature_flag_overrides')
-            .responseOnce({ enabled: false });
-        await expect(
-            createModel({
-                enabledFeatureFlags: new Set([featureFlagId]),
-                previewFeatureFlags: {
-                    ...lightdashConfigMock.previewFeatureFlags,
-                    enabled: true,
-                },
-            }).get({ featureFlagId, user }),
-        ).resolves.toEqual({ id: featureFlagId, enabled: false });
+    it('follows the flag default otherwise', async () => {
+        respond({});
+        await expect(getLiveSources()).resolves.toBe(false);
+        tracker.reset();
+        respond({ defaultEnabled: true });
+        await expect(getLiveSources()).resolves.toBe(true);
     });
 });

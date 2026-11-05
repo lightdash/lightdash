@@ -38,7 +38,7 @@ export class GithubInstallController extends BaseController {
     /**
      * Install the Lightdash GitHub App and link to an organization
      * @summary Install GitHub App
-     * @param redirect The url to redirect to after installation
+     * @param redirect Optional app path to return to after installation
      * @param req express request
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
@@ -47,11 +47,12 @@ export class GithubInstallController extends BaseController {
     @OperationId('installGithubAppForOrganization')
     async installGithubAppForOrganization(
         @Request() req: express.Request,
+        @Query() redirect?: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const context = await this.services
             .getGithubAppService()
-            .installRedirect(toSessionUser(req.account));
+            .installRedirect(toSessionUser(req.account), redirect);
 
         req.session.oauth = {};
         req.session.oauth.returnTo = context.returnToUrl;

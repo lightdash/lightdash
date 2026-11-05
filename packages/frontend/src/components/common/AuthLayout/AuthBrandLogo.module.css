@@ -1,0 +1,19 @@
+.root {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+}
+
+.logo {
+    flex-shrink: 0;
+    width: rem(32px);
+    height: rem(32px);
+    object-fit: contain;
+}
+
+.name {
+    font-size: var(--mantine-font-size-xl);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}

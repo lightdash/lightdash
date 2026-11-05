@@ -7,6 +7,7 @@ import {
 
 export const BaseResponse: HealthState = {
     healthy: true,
+    hasManagedAnalytics: false,
     requiresMigration: false,
     migrationWarnings: undefined,
     license: {
@@ -23,6 +24,7 @@ export const BaseResponse: HealthState = {
     },
     isAuthenticated: false,
     requiresOrgRegistration: false,
+    instanceBrand: null,
     localDbtEnabled: true,
     defaultProject: undefined,
     siteUrl: 'https://test.lightdash.cloud',

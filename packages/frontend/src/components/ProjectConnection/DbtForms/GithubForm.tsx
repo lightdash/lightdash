@@ -28,6 +28,7 @@ import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
 import { githubDefaultValues } from './defaultValues';
 import styles from './GithubForm.module.css';
+import { useAwaitingGithubSignIn } from './useAwaitingGithubSignIn';
 
 const GITHUB_INSTALL_URL = `/api/v1/github/install`;
 
@@ -265,11 +266,12 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
     const isInstallationValid =
         githubConfig?.enabled && authorizationMethod === 'installation_id';
+    const awaitingSignIn = useAwaitingGithubSignIn();
 
     return (
         <>
             <Stack mt="xs">
-                {!isDbtSource && (
+                {!isDbtSource && !awaitingSignIn && (
                     <Select
                         label="Semantic layer format"
                         name="dbt.semanticLayer"
@@ -356,70 +358,77 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <GithubPersonalAccessTokenForm disabled={disabled} />
                 )}
 
-                {!isNative && <DbtVersionSelect disabled={disabled} />}
-                <TextInput
-                    name="dbt.branch"
-                    {...form.getInputProps('dbt.branch')}
-                    label="Branch"
-                    description={
-                        <>
-                            <p>
-                                This is the branch in your GitHub repo that
-                                Lightdash should sync to. e.g. <b>main</b>,{' '}
-                                <b>master</b> or <b>dev</b>
-                            </p>
-                            <p>
-                                By default, we've set this to <b>main</b> but
-                                you can change it to whatever you'd like.
-                            </p>
-                        </>
-                    }
-                    required
-                    defaultValue={githubDefaultValues.branch}
-                    disabled={disabled}
-                />
-                <TextInput
-                    name="dbt.project_sub_path"
-                    {...form.getInputProps('dbt.project_sub_path')}
-                    label="Project directory path"
-                    description={
-                        isNative ? (
-                            <Text size="sm">
-                                Use / for the repository root, or the
-                                subdirectory containing lightdash.config.yml and
-                                models/ (or lightdash/models/).
-                            </Text>
-                        ) : (
-                            <>
-                                <p>
-                                    Put <b>/</b> if your <b>dbt_project.yml</b>{' '}
-                                    file is in the main folder of your repo
-                                    (e.g.
-                                    lightdash/lightdash-analytics/dbt_project.yml).
-                                </p>
-                                <p>
-                                    Include the path to the sub-folder where
-                                    your dbt project is if your dbt project is
-                                    in a sub-folder in your repo. For example,
-                                    if my project was in
-                                    lightdash/lightdash-analytics/dbt/dbt_project.yml,
-                                    I'd write <b>/dbt</b> in this field.
-                                </p>
-                            </>
-                        )
-                    }
-                    required
-                    disabled={disabled}
-                    defaultValue={githubDefaultValues.project_sub_path}
-                />
-                <TextInput
-                    name="dbt.host_domain"
-                    {...form.getInputProps('dbt.host_domain')}
-                    label="Host domain (for Github Enterprise)"
-                    description="If you've customized the domain for your Github, you can add the custom domain for your project in here."
-                    disabled={disabled}
-                    defaultValue={githubDefaultValues.host_domain}
-                />
+                {!awaitingSignIn && (
+                    <>
+                        {!isNative && <DbtVersionSelect disabled={disabled} />}
+                        <TextInput
+                            name="dbt.branch"
+                            {...form.getInputProps('dbt.branch')}
+                            label="Branch"
+                            description={
+                                <>
+                                    <p>
+                                        This is the branch in your GitHub repo
+                                        that Lightdash should sync to. e.g.{' '}
+                                        <b>main</b>, <b>master</b> or <b>dev</b>
+                                    </p>
+                                    <p>
+                                        By default, we've set this to{' '}
+                                        <b>main</b> but you can change it to
+                                        whatever you'd like.
+                                    </p>
+                                </>
+                            }
+                            required
+                            defaultValue={githubDefaultValues.branch}
+                            disabled={disabled}
+                        />
+                        <TextInput
+                            name="dbt.project_sub_path"
+                            {...form.getInputProps('dbt.project_sub_path')}
+                            label="Project directory path"
+                            description={
+                                isNative ? (
+                                    <Text size="sm">
+                                        Use / for the repository root, or the
+                                        subdirectory containing
+                                        lightdash.config.yml and models/ (or
+                                        lightdash/models/).
+                                    </Text>
+                                ) : (
+                                    <>
+                                        <p>
+                                            Put <b>/</b> if your{' '}
+                                            <b>dbt_project.yml</b> file is in
+                                            the main folder of your repo (e.g.
+                                            lightdash/lightdash-analytics/dbt_project.yml).
+                                        </p>
+                                        <p>
+                                            Include the path to the sub-folder
+                                            where your dbt project is if your
+                                            dbt project is in a sub-folder in
+                                            your repo. For example, if my
+                                            project was in
+                                            lightdash/lightdash-analytics/dbt/dbt_project.yml,
+                                            I'd write <b>/dbt</b> in this field.
+                                        </p>
+                                    </>
+                                )
+                            }
+                            required
+                            disabled={disabled}
+                            defaultValue={githubDefaultValues.project_sub_path}
+                        />
+                        <TextInput
+                            name="dbt.host_domain"
+                            {...form.getInputProps('dbt.host_domain')}
+                            label="Host domain (for Github Enterprise)"
+                            description="If you've customized the domain for your Github, you can add the custom domain for your project in here."
+                            disabled={disabled}
+                            defaultValue={githubDefaultValues.host_domain}
+                        />
+                    </>
+                )}
             </Stack>
         </>
     );
