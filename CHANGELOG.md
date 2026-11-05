@@ -1,3 +1,10 @@
+# [3.163.0](https://github.com/lightdash/lightdash/compare/3.162.0...3.163.0) (2026-11-05)
+
+
+### Features
+
+* **onboarding:** install starter chart types from the library while onboarding finishes ([#32108](https://github.com/lightdash/lightdash/issues/32108)) ([0a9cffe](https://github.com/lightdash/lightdash/commit/0a9cffe3c900b51331f31341ef05a53188f8106b))
+
 # [3.162.0](https://github.com/lightdash/lightdash/compare/3.161.0...3.162.0) (2026-11-05)
 
 
