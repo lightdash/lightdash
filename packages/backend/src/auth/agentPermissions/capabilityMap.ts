@@ -656,6 +656,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'CatalogController.getMetadata': [AgentCapability.ReadDiscover],
     'CatalogController.getMetric': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricOwners': [AgentCapability.ReadDiscover],
+    'CatalogController.getMetricTables': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsCatalog': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsTree': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsTreeDetails': [AgentCapability.ReadDiscover],
