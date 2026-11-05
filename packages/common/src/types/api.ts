@@ -420,6 +420,8 @@ import {
     type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
     type ApiResultsCacheStatusResponse,
+    type ApiResultsCacheStatsResponse,
+    type ApiResultsCacheTtlProjectionsResponse,
 } from './resultsCacheProjectSettings';
 import {
     type ApiRoadmapFollowProjectResponse,
@@ -1787,6 +1789,8 @@ type ApiResults =
     | ApiResultsCacheProjectSettingsResponse['results']
     | ApiResultsCacheStatusResponse['results']
     | ApiResultsCacheInvalidationResponse['results']
+    | ApiResultsCacheStatsResponse['results']
+    | ApiResultsCacheTtlProjectionsResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
