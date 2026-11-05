@@ -1,6 +1,7 @@
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AppsTableName } from '../database/entities/apps';
+import { AppSlugMappingsTableName } from '../database/entities/appSlugMappings';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../database/entities/dashboardSlugMappings';
 import { ProjectTableName } from '../database/entities/projects';
@@ -175,6 +176,7 @@ describe('generateUniqueSlugScopedToProject', () => {
         'uses native project ownership for %s',
         async (tableName) => {
             tracker.on.select(tableName).responseOnce([]);
+            tracker.on.select(AppSlugMappingsTableName).responseOnce([]);
 
             await generateUniqueSlugScopedToProject(
                 database,
@@ -183,11 +185,30 @@ describe('generateUniqueSlugScopedToProject', () => {
                 'Orders',
             );
 
-            const [query] = tracker.history.select;
-            expect(query.sql).toContain(`"${tableName}"."project_uuid"`);
-            expect(query.sql).not.toContain('join');
+            const query = tracker.history.select.find(({ sql }) =>
+                sql.includes(`"${tableName}"`),
+            );
+            expect(query?.sql).toContain(`"${tableName}"."project_uuid"`);
+            expect(query?.sql).not.toContain('join');
         },
     );
+
+    it('reserves historical app aliases when generating app slugs', async () => {
+        tracker.on.select(AppsTableName).response([]);
+        tracker.on
+            .select(AppSlugMappingsTableName)
+            .responseOnce([{ slug: 'orders' }]);
+        tracker.on.select(AppSlugMappingsTableName).responseOnce([]);
+
+        const slug = await generateUniqueSlugScopedToProject(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            AppsTableName,
+            'Orders',
+        );
+
+        expect(slug).toBe('orders-1');
+    });
 
     it('uses the indexed numeric project owner for spaces', async () => {
         tracker.on.select(SpaceTableName).responseOnce([]);
@@ -230,6 +251,7 @@ describe('generateUniqueSlugScopedToProject', () => {
 
     it('caps generated app slugs at 255 characters', async () => {
         tracker.on.select(AppsTableName).responseOnce([]);
+        tracker.on.select(AppSlugMappingsTableName).responseOnce([]);
 
         const slug = await generateUniqueSlugScopedToProject(
             database,

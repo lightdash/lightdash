@@ -4737,10 +4737,15 @@ export class CoderService extends BaseService {
         if (!from) {
             throw new ParameterError('The source slug must not be empty');
         }
+        // Data-app slugs follow the server's own shape check
+        // (isValidDataAppSlug, applied in AppGenerateService.renameAppSlug),
+        // which allows more than generateSlug emits — e.g. consecutive
+        // hyphens and up to 255 characters.
         if (
-            !to ||
-            to.length > MAX_CONTENT_SLUG_LENGTH ||
-            generateSlug(to) !== to
+            resourceType !== ContentType.DATA_APP &&
+            (!to ||
+                to.length > MAX_CONTENT_SLUG_LENGTH ||
+                generateSlug(to) !== to)
         ) {
             throw new ParameterError(
                 `The target slug must contain between 1 and ${MAX_CONTENT_SLUG_LENGTH} lowercase letters, numbers, or hyphen-separated words`,
