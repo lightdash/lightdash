@@ -465,7 +465,7 @@ const bannerGuide: SetupGuideState = {
     sections: [],
     semanticExplores: [],
     liveConnections: [],
-    semanticStudioUrl: null,
+    semanticStudioUrl: '/projects/project-uuid/semantic-layer',
     chartCount: 0,
     activeRun: null,
     completedRunUrl: null,
