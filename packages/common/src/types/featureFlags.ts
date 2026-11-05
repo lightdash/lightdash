@@ -266,17 +266,6 @@ export enum FeatureFlags {
     AiDisableThreadDeletion = 'ai-disable-thread-deletion',
 
     /**
-     * Enables the chart type library — browsing and installing official
-     * chart types from the configured chart registry — and, as an either/or
-     * gate with Chart Studio availability and `EnableDataApps`, usage of
-     * installed chart types (picking, configuring, rendering). Authoring,
-     * editing, and forking chart types follow Chart Studio availability
-     * (a valid licence and a configured sandbox provider), not this flag.
-     * Default: off.
-     */
-    ChartTypeRegistry = 'chart-type-registry',
-
-    /**
      * Custom metrics created while building a chart inside a dashboard are
      * kept on the dashboard and offered when building later charts there.
      * Off by default.
