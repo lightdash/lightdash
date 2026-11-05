@@ -117,6 +117,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
             });
             expect(
                 (await service.getHealthState(userMock)).hasManagedAnalytics,
