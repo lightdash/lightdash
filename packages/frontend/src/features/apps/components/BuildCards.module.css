@@ -271,7 +271,7 @@
     );
     background-color: light-dark(
         var(--mantine-color-yellow-0),
-        var(--mantine-color-dark-6)
+        var(--mantine-color-body)
     );
 }
 

@@ -16,7 +16,9 @@ const UndoChangeButton: FC<Props> = ({ previousVersion, loading, onUndo }) => (
     <Group gap={2} className={classes.turnActions}>
         {loading ? (
             <Text size="xs" fw={500} className={classes.turnActionPending}>
-                <span data-shimmer>Undoing…</span>
+                <Text span inherit data-shimmer>
+                    Restoring…
+                </Text>
             </Text>
         ) : (
             <Tooltip label={`Back to v${previousVersion}`} openDelay={200}>

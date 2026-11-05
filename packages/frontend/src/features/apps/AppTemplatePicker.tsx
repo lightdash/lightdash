@@ -80,10 +80,10 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                         data-layout={template.id}
                         aria-hidden
                     >
-                        <span />
-                        <span />
-                        <span />
-                        <span />
+                        <Box component="span" />
+                        <Box component="span" />
+                        <Box component="span" />
+                        <Box component="span" />
                     </Box>
                     <Stack gap={4} className={classes.cardContent}>
                         <Group gap={6} wrap="nowrap">

@@ -368,20 +368,16 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         upgrade !== null &&
         (upgrade.status === 'stale' || upgrade.status === 'legacy');
 
-    const showShareGroup =
-        (canEditVerified &&
-            directAccessAvailability.isAvailable &&
-            canManageAppAccess) ||
-        canCreateScheduledDeliveries;
+    const canShareWithPeople =
+        canEditVerified &&
+        directAccessAvailability.isAvailable &&
+        canManageAppAccess;
+    const showShareGroup = canShareWithPeople || canCreateScheduledDeliveries;
     const showManageGroup =
         canEditVerified || canDuplicate || userCanManageVerification;
     const showPreviewGroup =
         !!viewNetwork || !!onRefresh || (canEditVerified && !!captureThumbnail);
 
-    const canShareWithPeople =
-        canEditVerified &&
-        directAccessAvailability.isAvailable &&
-        canManageAppAccess;
     const showOverflowShare = showShareGroup && shareMenu === null;
     // With a share button in the header, only deliveries stay in the overflow.
     const showOverflowDeliver =
@@ -452,12 +448,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                     >
                         <Menu.Target>
                             <Tooltip label="Share" openDelay={200}>
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    size="md"
-                                    aria-label="Share"
-                                >
+                                <ActionIcon size="md" aria-label="Share">
                                     <MantineIcon icon={IconShare2} />
                                 </ActionIcon>
                             </Tooltip>
@@ -535,6 +526,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                     <MantineIcon
                                         icon={IconCircleCheckFilled}
                                         size={14}
+                                        color="green.6"
                                     />
                                 ) : (
                                     <MantineIcon

@@ -129,8 +129,6 @@ const AppHeaderActions: FC<Props> = ({
                         href={openUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        variant="subtle"
-                        color="gray"
                         size="md"
                         aria-label="Open app"
                     >
@@ -144,16 +142,10 @@ const AppHeaderActions: FC<Props> = ({
                 target={{ variant: 'subtle' }}
                 onRefresh={null}
                 shareMenu={{ copyUrl: shareUrl }}
-                viewNetwork={
-                    network.open || network.queryCount > 0
-                        ? {
-                              label: network.open
-                                  ? 'Hide queries'
-                                  : `Show queries (${network.queryCount})`,
-                              onClick: network.onToggle,
-                          }
-                        : null
-                }
+                viewNetwork={{
+                    label: network.open ? 'Hide network' : 'View network',
+                    onClick: network.onToggle,
+                }}
             />
         </>
     );

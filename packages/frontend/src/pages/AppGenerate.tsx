@@ -1285,8 +1285,7 @@ const AppGenerate: FC = () => {
         composer.focus();
     };
 
-    // Retry/edit only on the latest turn; older failures are history.
-    // Retry / Edit prompt for the failed turn at `index`; null when unavailable.
+    // Retry / Edit prompt for the latest failed turn; older failures are history.
     const failedTurnActions = (index: number) => {
         const prompt = messages[index - 1];
         const isLastTurn = index === messages.length - 1;
@@ -3681,8 +3680,7 @@ const AppGenerate: FC = () => {
                                             (m) => m.status === 'error',
                                         )}
                                         onRetry={
-                                            messages[messages.length - 1]
-                                                ?.status === 'error'
+                                            lastMessage?.status === 'error'
                                                 ? failedTurnActions(
                                                       messages.length - 1,
                                                   ).onRetry

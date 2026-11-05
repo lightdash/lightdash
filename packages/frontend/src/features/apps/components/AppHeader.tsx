@@ -88,7 +88,7 @@ const AppHeader: FC<Props> = ({
                 className: classes.header,
             }}
         >
-            <Group gap={6} flex={1} wrap="nowrap" miw={0}>
+            <Group gap="xs" flex={1} wrap="nowrap" miw={0}>
                 <Popover
                     withArrow
                     position="bottom-start"
@@ -164,7 +164,7 @@ const AppHeader: FC<Props> = ({
                 />
             </Group>
 
-            <Group gap={6} wrap="wrap">
+            <Group gap="xs" wrap="wrap">
                 {rightSection}
             </Group>
 
