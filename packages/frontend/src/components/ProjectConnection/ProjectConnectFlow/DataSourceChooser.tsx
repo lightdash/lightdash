@@ -63,7 +63,8 @@ export const DataSourceChooser: FC = () => {
     const [hasFailed, setHasFailed] = useState(false);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const createProject = useCreateProjectWithoutCompileMutation();
-    const { data: projects } = useProjects();
+    const { data: projects, isInitialLoading: isLoadingProjects } =
+        useProjects();
     const isBusy = isOpeningSample || createProject.isLoading;
     // Coming back from the tools step resumes that project instead of starting another
     const toolsProject = projects?.find(
@@ -227,7 +228,8 @@ export const DataSourceChooser: FC = () => {
             )}
 
             <LiveSourcesStartCard
-                isStarting={createProject.isLoading}
+                // Holds until projects load so a click can't create a second tools project
+                isStarting={createProject.isLoading || isLoadingProjects}
                 onStart={startWithTools}
             />
 
