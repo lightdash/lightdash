@@ -18,7 +18,7 @@ type Props = {
     projectUuid: string;
 };
 
-export const RetentionDateFilter: FC<Props> = ({ projectUuid }) => {
+export const RetentionFilters: FC<Props> = ({ projectUuid }) => {
     const dispatch = useAppDispatch();
     const dateRangePreset = useAppSelector(selectDateRangePreset);
     const customDateRange = useAppSelector(selectCustomDateRange);
@@ -34,7 +34,7 @@ export const RetentionDateFilter: FC<Props> = ({ projectUuid }) => {
         <Stack gap="sm">
             <Stack gap={2}>
                 <Text size="xs" c="dimmed">
-                    Cohorts born in
+                    Cohort date range
                 </Text>
                 <EventDateRangeFilter
                     preset={dateRangePreset}

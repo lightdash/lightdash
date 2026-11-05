@@ -884,9 +884,6 @@ export type HealthState = {
     echarts6: {
         enabled: boolean;
     };
-    funnelBuilder: {
-        enabled: boolean;
-    };
     softDelete: {
         enabled: boolean;
         retentionDays: number;

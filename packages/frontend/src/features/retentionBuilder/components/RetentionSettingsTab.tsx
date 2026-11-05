@@ -70,14 +70,14 @@ export const RetentionSettingsTab: FC = () => {
         <Stack gap="md">
             <Group gap="xs">
                 <Text fw={600} size="sm">
-                    Retention behaviour
+                    Retention
                 </Text>
                 {isLoadingEventNames && <Loader size="xs" />}
             </Group>
 
             <Select
                 label="Users who did"
-                placeholder="Select born event"
+                placeholder="Select an event"
                 searchable
                 data={eventOptions}
                 value={bornEvent}
@@ -123,7 +123,7 @@ export const RetentionSettingsTab: FC = () => {
             </Tooltip>
 
             <Text fw={600} size="sm" mt="md">
-                Time
+                Periods
             </Text>
 
             <Group gap="xs" wrap="nowrap">
@@ -159,7 +159,7 @@ export const RetentionSettingsTab: FC = () => {
                 withArrow
             >
                 <Select
-                    label="Period alignment"
+                    label="Alignment"
                     data={RETENTION_MODE_OPTIONS}
                     value={mode}
                     onChange={(value) => {
@@ -176,7 +176,7 @@ export const RetentionSettingsTab: FC = () => {
                 withArrow
             >
                 <Select
-                    label="Count a user as retained"
+                    label="Count as retained"
                     data={RETENTION_CRITERIA_OPTIONS}
                     value={criteria}
                     onChange={(value) => {

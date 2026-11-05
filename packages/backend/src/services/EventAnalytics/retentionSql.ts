@@ -19,7 +19,7 @@ import {
     ACTIVITY_COLUMNS,
     ActivityStreamQuery,
     resolveActivityStream,
-} from '../EventAnalytics/activityStream';
+} from './activityStream';
 
 const UNIT_TIME_FRAME: Record<RetentionUnit, TimeFrames> = {
     day: TimeFrames.DAY,
@@ -33,7 +33,7 @@ const UNIT_INTERVAL: Record<RetentionUnit, TimeIntervalUnit> = {
     month: TimeIntervalUnit.MONTH,
 };
 
-// Rolling periods are fixed lengths from the birth event; a rolling month is 30 days
+// Rolling periods are fixed lengths from the birth event. A rolling month is 30 days.
 const UNIT_SECONDS: Record<RetentionUnit, number> = {
     day: 24 * 60 * 60,
     week: 7 * 24 * 60 * 60,
@@ -65,8 +65,8 @@ type GenerateRetentionSqlArgs = {
 };
 
 /**
- * Retention as an Activity Schema query: the cohort is the born activity
- * (first ever, or first per bucket for recurring cohorts) and the return
+ * Builds retention as an Activity Schema query. The cohort is the born
+ * activity, first ever or first per bucket for recurring cohorts. The return
  * activity is appended with an "all after" relationship, then bucketed into
  * periods and counted per cohort.
  */
@@ -95,7 +95,7 @@ export const generateRetentionSql = ({
     );
     const startSql = sqlBuilder.castToTimestamp(start);
     const endSql = sqlBuilder.castToTimestamp(end);
-    // Returns can land up to `periods + 1` buckets after the last birth
+    // Returns can land up to `periods + 1` buckets after the last birth.
     const scanEndSql = `${endSql} + ${sqlBuilder.getIntervalSql(
         periods + 1,
         UNIT_INTERVAL[unit],
@@ -123,7 +123,7 @@ export const generateRetentionSql = ({
     } else if (unit === 'month') {
         periodSql = `(EXTRACT(YEAR FROM s.${periodStart}) - EXTRACT(YEAR FROM c.${periodStart})) * 12 + (EXTRACT(MONTH FROM s.${periodStart}) - EXTRACT(MONTH FROM c.${periodStart}))`;
     } else {
-        // Both sides are bucket starts, so the difference is a whole number of units
+        // Both sides are bucket starts, so the difference is a whole number of units.
         periodSql = `ROUND(${diff(
             `c.${periodStart}`,
             `s.${periodStart}`,
@@ -137,7 +137,7 @@ export const generateRetentionSql = ({
                 : null,
             tsFrom: startSql,
             tsTo: scanEndSql,
-            // First-time cohorts need every born event to find each customer's first one
+            // First-time cohorts need every born event to find each customer's first one.
             activitiesWithFullHistory:
                 cohortType === 'first_time' ? [request.bornEvent] : [],
             extraColumns: {
@@ -183,7 +183,7 @@ export const generateRetentionSql = ({
     WHERE ${col('period')} >= 0 AND ${col('period')} <= ${periods}
     GROUP BY ${periodStart}${bdGroup}, ${col('period')}`;
     } else {
-        // Group customers by their last period; earlier periods are accumulated after the query
+        // Groups customers by their last period. Earlier periods are accumulated after the query.
         ctes.customer_last_period = `
     SELECT
         ${periodStart}${bdGroup},
@@ -230,10 +230,10 @@ ORDER BY c.${periodStart}${bdSelect('c')}, r.${col('period')}`,
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** Normalise a warehouse cohort bucket (Date or string) to yyyy-mm-dd. */
+/** Normalizes a warehouse cohort bucket, a Date or a string, to yyyy-mm-dd. */
 export const toCohortDateString = (value: unknown): string => {
     if (value instanceof Date) {
-        // Warehouse drivers parse zoneless timestamps as local time
+        // Warehouse drivers parse zoneless timestamps as local time.
         return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(
             value.getDate(),
         )}`;
@@ -242,7 +242,7 @@ export const toCohortDateString = (value: unknown): string => {
         return value.slice(0, 10);
     }
     if (value !== null && typeof value === 'object' && 'value' in value) {
-        // BigQuery wraps DATE/TIMESTAMP values
+        // BigQuery wraps DATE and TIMESTAMP values.
         return String((value as { value: unknown }).value).slice(0, 10);
     }
     throw new ParameterError(`Unexpected cohort date value: ${String(value)}`);
@@ -250,7 +250,7 @@ export const toCohortDateString = (value: unknown): string => {
 
 type RetentionRow = Record<string, unknown>;
 
-/** Turn the long (cohort, period, users) rows into the cohort matrix. */
+/** Turns the long (cohort, period, users) rows into the cohort matrix. */
 export const parseRetentionRows = (
     rows: RetentionRow[],
     request: Pick<

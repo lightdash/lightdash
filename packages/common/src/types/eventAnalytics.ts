@@ -1,6 +1,6 @@
 import type { Filters } from './filter';
 
-// Date range presets shared by the event analytics query builders (funnel, retention)
+/** Date range presets offered by the event analytics builders. */
 export const EVENT_ANALYTICS_DATE_PRESETS = [
     { value: 'last_7_days', label: 'Last 7 days', days: 7 },
     { value: 'last_14_days', label: 'Last 14 days', days: 14 },
@@ -49,8 +49,9 @@ export function resolveEventAnalyticsDateRange(
 }
 
 /**
- * How an explore maps onto an event stream. Every event analytics query
- * (funnel, retention) is built on top of this mapping.
+ * How an explore maps onto an event stream: one row per event with a
+ * timestamp, a user and an event name. Every event analytics query (funnel,
+ * retention) is built on this mapping.
  */
 export type EventAnalyticsFieldMapping = {
     exploreName: string;
@@ -60,12 +61,16 @@ export type EventAnalyticsFieldMapping = {
 };
 
 /**
- * Shared request shape for the event analytics query builders.
- * `filters` uses the same payload as `MetricQuery.filters` so that dashboard
- * filters can be pushed down to these queries unchanged.
+ * Request fields shared by every event analytics query. `filters` has the
+ * same shape as `MetricQuery.filters`, so dashboard filters apply unchanged.
  */
 export type EventAnalyticsQueryBase = EventAnalyticsFieldMapping & {
     dateRange: EventAnalyticsDateRange;
     filters?: Filters;
     breakdownDimensionId?: string;
+};
+
+export type ApiEventNamesResponse = {
+    status: 'ok';
+    results: string[];
 };

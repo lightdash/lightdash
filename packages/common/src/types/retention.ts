@@ -3,24 +3,23 @@ import type { EventAnalyticsQueryBase } from './eventAnalytics';
 export type RetentionUnit = 'day' | 'week' | 'month';
 
 /**
- * first_time: a user joins the cohort of the period in which they did the
- * born event for the first time (Mixpanel "First time").
- * recurring: a user joins the cohort of every period in which they did the
- * born event (Mixpanel "Recurring").
+ * `first_time`: a user joins the cohort of the period in which they first did
+ * the born event. `recurring`: a user joins the cohort of every period in
+ * which they did the born event.
  */
 export type RetentionCohortType = 'first_time' | 'recurring';
 
 /**
- * on: counted in period N only if they returned during period N.
- * on_or_after: counted in period N if they returned during period N or any
- * later period (Mixpanel "unbounded retention").
+ * `on`: a user counts in period N only if they returned during period N.
+ * `on_or_after`: a user counts in period N if they returned during period N
+ * or any later period.
  */
 export type RetentionCriteria = 'on' | 'on_or_after';
 
 /**
- * rolling: periods are measured from each user's birth event (day 1 is
- * 24-48h after birth). calendar: periods are calendar buckets after the
- * birth bucket (day 1 is the next calendar day).
+ * `rolling`: periods are measured from each user's birth event, so day 1 is
+ * 24 to 48 hours after birth. `calendar`: periods are calendar buckets after
+ * the birth bucket, so day 1 is the next calendar day.
  */
 export type RetentionMode = 'rolling' | 'calendar';
 
@@ -38,35 +37,35 @@ export const RETENTION_DEFAULT_PERIODS: Record<RetentionUnit, number> = {
 
 export type RetentionQueryRequest = EventAnalyticsQueryBase & {
     bornEvent: string;
-    /** null means any event counts as a return */
+    /** Null means any event counts as a return. */
     returnEvent: string | null;
     cohortType: RetentionCohortType;
     unit: RetentionUnit;
-    /** Number of periods after period 0; results have `periods + 1` buckets */
+    /** The number of periods after period 0. Results have `periods + 1` buckets. */
     periods: number;
     criteria: RetentionCriteria;
     mode: RetentionMode;
 };
 
 export type RetentionCohortResult = {
-    /** yyyy-mm-dd start of the cohort bucket */
+    /** The start of the cohort bucket, as yyyy-mm-dd. */
     cohortDate: string;
     breakdownValue: string | null;
     cohortSize: number;
-    /** Retained users per period, index 0 is period 0 */
+    /** Retained users per period. Index 0 is period 0. */
     counts: number[];
-    /** Retained users as a percentage of cohortSize, index 0 is period 0 */
+    /** Retained users as a percentage of `cohortSize`. Index 0 is period 0. */
     rates: number[];
-    /** Highest period index that had fully elapsed when the query ran; -1 if none */
+    /** The highest period index that had fully elapsed when the query ran. -1 if none. */
     lastCompletePeriod: number;
 };
 
 export type RetentionAverageResult = {
     breakdownValue: string | null;
-    /** Sum of cohort sizes that contributed to each period */
+    /** The sum of cohort sizes that contributed to each period. */
     cohortSizes: number[];
     counts: number[];
-    /** null when no cohort has completed that period yet */
+    /** Null when no cohort has completed that period. */
     rates: (number | null)[];
 };
 
@@ -74,14 +73,10 @@ export type RetentionQueryResult = {
     unit: RetentionUnit;
     periods: number;
     cohorts: RetentionCohortResult[];
-    /** Cohort-size weighted mean over completed periods only, one per breakdown value */
+    /** The cohort-size weighted mean over completed periods, one per breakdown value. */
     averages: RetentionAverageResult[];
-    sql: string; // For debugging
-};
-
-export type ApiRetentionEventNamesResponse = {
-    status: 'ok';
-    results: string[];
+    /** The SQL that produced the result, for debugging */
+    sql: string;
 };
 
 export type ApiRetentionQueryResponse = {
@@ -127,9 +122,9 @@ function addCalendarUnits(date: Date, unit: RetentionUnit, n: number): Date {
 }
 
 /**
- * Highest period index that has fully elapsed for every user in the cohort.
- * A period is complete when its end for the latest possible birth in the
- * cohort bucket is in the past.
+ * Gets the highest period index that has fully elapsed for every user in the
+ * cohort. A period is complete when its end, for the latest possible birth in
+ * the cohort bucket, is in the past.
  */
 export function getLastCompleteRetentionPeriod(
     cohortStart: Date,
@@ -160,8 +155,9 @@ export function getLastCompleteRetentionPeriod(
 }
 
 /**
- * Size-weighted average retention per period, using only cohorts for which
- * that period has completed. Equivalent to pooled retained / pooled size.
+ * Computes the size-weighted average retention per period, using only
+ * cohorts for which that period has completed. Equivalent to pooled retained
+ * users divided by pooled cohort size.
  */
 export function computeRetentionAverages(
     cohorts: RetentionCohortResult[],

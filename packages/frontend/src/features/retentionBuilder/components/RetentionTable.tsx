@@ -31,9 +31,9 @@ const RateCell: FC<{ cell: Cell; rowMax: number }> = ({ cell, rowMax }) => (
         <Tooltip
             label={
                 cell.count === null
-                    ? 'No data'
+                    ? 'No data yet'
                     : `${cell.count.toLocaleString()} users${
-                          cell.incomplete ? ' (period still in progress)' : ''
+                          cell.incomplete ? ', period in progress' : ''
                       }`
             }
             withArrow
@@ -46,7 +46,7 @@ const RateCell: FC<{ cell: Cell; rowMax: number }> = ({ cell, rowMax }) => (
     </Table.Td>
 );
 
-/** Mixpanel-style cohort table: rows are cohorts, columns are periods. */
+/** Cohort table: one row per cohort, one column per period. */
 export const RetentionTable: FC = () => {
     const results = useAppSelector(selectResults);
 

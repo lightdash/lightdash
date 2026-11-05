@@ -6,10 +6,7 @@ import {
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { sharedLightdashApi } from '../../../api';
 import type { RootState } from '../../sqlRunner/store';
-import {
-    buildDateRange,
-    buildFunnelQueryRequest,
-} from '../utils/funnelChartConfig';
+import { buildFunnelQueryRequest } from '../utils/funnelChartConfig';
 
 export const fetchEventNames = createAsyncThunk<
     string[],
@@ -28,7 +25,7 @@ export const fetchEventNames = createAsyncThunk<
     ) => {
         try {
             return await sharedLightdashApi<string[]>({
-                url: `/projects/${projectUuid}/funnel/event-names?exploreName=${exploreName}&eventDimensionId=${eventDimensionId}&timestampFieldId=${timestampFieldId}`,
+                url: `/projects/${projectUuid}/event-analytics/event-names?exploreName=${exploreName}&eventDimensionId=${eventDimensionId}&timestampFieldId=${timestampFieldId}`,
                 method: 'GET',
                 body: undefined,
             });
@@ -46,30 +43,20 @@ export const runFunnelQuery = createAsyncThunk<
     void,
     { state: RootState; rejectValue: ApiErrorDetail }
 >('funnelBuilder/runFunnelQuery', async (_, { getState, rejectWithValue }) => {
-    const state = getState();
-    const fb = state.funnelBuilder;
-
-    const dateRange = buildDateRange(fb.dateRangePreset, [
-        fb.customDateRange[0] ? new Date(fb.customDateRange[0]) : null,
-        fb.customDateRange[1] ? new Date(fb.customDateRange[1]) : null,
-    ]);
-
-    const request = buildFunnelQueryRequest({
-        exploreName: fb.exploreName!,
-        timestampFieldId: fb.timestampFieldId!,
-        userIdFieldId: fb.userIdFieldId!,
-        eventNameFieldId: fb.eventNameFieldId!,
-        steps: fb.steps,
-        dateRange,
-        filters: fb.filters,
-        conversionWindowValue: fb.conversionWindowValue,
-        conversionWindowUnit: fb.conversionWindowUnit,
-        breakdownDimensionId: fb.breakdownDimensionId,
-    });
+    const fb = getState().funnelBuilder;
+    const request = buildFunnelQueryRequest(fb);
+    if (!request) {
+        return rejectWithValue({
+            statusCode: 400,
+            name: 'ParameterError',
+            message: 'The funnel is not fully configured',
+            data: {},
+        });
+    }
 
     try {
         return await sharedLightdashApi<FunnelQueryResult>({
-            url: `/projects/${fb.projectUuid}/funnel/query`,
+            url: `/projects/${fb.projectUuid}/event-analytics/funnel`,
             method: 'POST',
             body: JSON.stringify(request),
         });

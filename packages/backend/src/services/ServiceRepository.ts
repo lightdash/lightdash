@@ -56,9 +56,9 @@ import { DirectAccessService } from './DirectAccess/DirectAccessService';
 import { DocumentService } from './DocumentService/DocumentService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
+import { EventAnalyticsService } from './EventAnalytics/EventAnalyticsService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
-import { FunnelService } from './FunnelService/FunnelService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
@@ -102,7 +102,6 @@ import { QuerySourceService } from './QuerySourceService/QuerySourceService';
 import type { ReadinessService } from './ReadinessService/ReadinessService';
 import { RecentContentService } from './RecentContentService/RecentContentService';
 import { RenameService } from './RenameService/RenameService';
-import { RetentionService } from './RetentionService/RetentionService';
 import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
@@ -205,8 +204,7 @@ interface ServiceManifest {
     coderService: CoderService;
     contentAsCodeWritebackService: ContentAsCodeWritebackService;
     featureFlagService: FeatureFlagService;
-    funnelService: FunnelService;
-    retentionService: RetentionService;
+    eventAnalyticsService: EventAnalyticsService;
     spotlightService: SpotlightService;
     lightdashAnalyticsService: LightdashAnalyticsService;
     asyncQueryService: AsyncQueryService;
@@ -2064,24 +2062,11 @@ export class ServiceRepository
         );
     }
 
-    public getFunnelService(): FunnelService {
+    public getEventAnalyticsService(): EventAnalyticsService {
         return this.getService(
-            'funnelService',
+            'eventAnalyticsService',
             () =>
-                new FunnelService({
-                    analytics: this.context.lightdashAnalytics,
-                    lightdashConfig: this.context.lightdashConfig,
-                    projectModel: this.models.getProjectModel(),
-                    projectService: this.getProjectService(),
-                }),
-        );
-    }
-
-    public getRetentionService(): RetentionService {
-        return this.getService(
-            'retentionService',
-            () =>
-                new RetentionService({
+                new EventAnalyticsService({
                     analytics: this.context.lightdashAnalytics,
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),

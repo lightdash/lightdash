@@ -31,7 +31,8 @@ export interface RetentionBuilderState {
 
     // Retention behaviour
     bornEvent: string | null;
-    returnEvent: string | null; // null = any event
+    /** Null means any event */
+    returnEvent: string | null;
     cohortType: RetentionCohortType;
     unit: RetentionUnit;
     periods: number;

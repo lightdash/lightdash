@@ -1,7 +1,6 @@
 import {
     RETENTION_MAX_PERIODS,
     type EventAnalyticsDatePreset,
-    type EventAnalyticsDateRange,
     type Filters,
     type RetentionCohortType,
     type RetentionCriteria,
@@ -9,6 +8,7 @@ import {
     type RetentionQueryRequest,
     type RetentionUnit,
 } from '@lightdash/common';
+import { buildEventDateRange } from '../../eventAnalytics/utils/dateRange';
 
 export type RetentionConfig = {
     projectUuid: string;
@@ -29,24 +29,7 @@ export type RetentionConfig = {
     filters: Filters;
 };
 
-function buildEventDateRange(
-    preset: EventAnalyticsDatePreset,
-    customRange: [string | null, string | null],
-): EventAnalyticsDateRange | null {
-    if (preset === 'custom') {
-        if (customRange[0] && customRange[1]) {
-            return {
-                type: 'custom',
-                start: customRange[0],
-                end: customRange[1],
-            };
-        }
-        return null;
-    }
-    return { type: 'preset', preset };
-}
-
-/** Build the API request, or null when the configuration is incomplete. */
+/** Builds the API request, or null while the configuration is incomplete. */
 export function buildRetentionQueryRequest(
     config: RetentionConfig,
 ): RetentionQueryRequest | null {
@@ -106,12 +89,14 @@ export const RETENTION_COHORT_TYPE_OPTIONS: {
     {
         value: 'first_time',
         label: 'First time',
-        description: 'Users join the cohort when they first do the event',
+        description:
+            'A user joins one cohort: the period they first did the event',
     },
     {
         value: 'recurring',
         label: 'Recurring',
-        description: 'Users join a cohort every period they do the event',
+        description:
+            'A user joins a cohort for every period they did the event',
     },
 ];
 
@@ -122,13 +107,13 @@ export const RETENTION_CRITERIA_OPTIONS: {
 }[] = [
     {
         value: 'on',
-        label: 'On',
-        description: 'Returned during that exact period',
+        label: 'In the period',
+        description: 'Counted in a period only if they came back during it',
     },
     {
         value: 'on_or_after',
-        label: 'On or after',
-        description: 'Returned during that period or any later one',
+        label: 'In or after the period',
+        description: 'Counted in a period if they came back during it or later',
     },
 ];
 
@@ -140,19 +125,20 @@ export const RETENTION_MODE_OPTIONS: {
     {
         value: 'calendar',
         label: 'Calendar',
-        description: 'Periods are calendar buckets after the birth bucket',
+        description:
+            'Day 1 is the next calendar day, week 1 the next calendar week',
     },
     {
         value: 'rolling',
         label: 'Rolling',
-        description: 'Periods are measured from each user’s birth event',
+        description: 'Day 1 is 24 to 48 hours after each user’s first event',
     },
 ];
 
 export const formatRetentionRate = (rate: number | null): string =>
     rate === null ? '—' : `${rate.toFixed(1)}%`;
 
-/** Mixpanel-style purple shading, intensity relative to the row maximum. */
+/** Cell shading, with intensity relative to the row maximum. */
 export const getRetentionCellColor = (
     rate: number | null,
     rowMax: number,

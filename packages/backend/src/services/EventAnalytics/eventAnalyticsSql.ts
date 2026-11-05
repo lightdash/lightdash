@@ -23,7 +23,7 @@ export type EventAnalyticsFieldMap = Record<
     CompiledField | AdditionalMetric
 >;
 
-/** Resolve a dimension by field id, failing loudly on unknown or non-dimension fields. */
+/** Gets a dimension by field ID. Throws if the field is missing or not a dimension. */
 export const getDimensionFromFieldMap = (
     fieldMap: EventAnalyticsFieldMap,
     fieldId: string,
@@ -41,7 +41,7 @@ export const getDimensionFromFieldMap = (
     return field;
 };
 
-/** Quote a user-provided string literal for the warehouse. */
+/** Quotes a user-provided string literal for the warehouse. */
 export const quoteStringLiteral = (
     sqlBuilder: WarehouseSqlBuilder,
     value: string,
@@ -50,7 +50,7 @@ export const quoteStringLiteral = (
     return `${stringQuote}${sqlBuilder.escapeString(value)}${stringQuote}`;
 };
 
-/** The explore base table aliased so compiled dimension SQL resolves against it. */
+/** Gets the explore base table, aliased so that compiled dimension SQL resolves against it. */
 export const getBaseTableFromSql = (
     explore: Explore,
     sqlBuilder: WarehouseSqlBuilder,
@@ -67,8 +67,8 @@ type CompileFiltersArgs = {
 };
 
 /**
- * Compile the dimension filter group of a `Filters` payload (the same shape
- * the semantic layer uses) into a WHERE fragment over the explore base table.
+ * Compiles the dimension filter group of a `Filters` payload, the same shape
+ * the semantic layer uses, into a WHERE fragment over the explore base table.
  * Returns null when there is nothing to filter on.
  */
 export const compileEventAnalyticsFilterSql = ({
@@ -132,7 +132,7 @@ type EventNamesSqlArgs = {
     since: Date;
 };
 
-/** Distinct event names seen since a date, for populating event pickers. */
+/** Builds the query for the distinct event names seen since a date. */
 export const buildEventNamesSql = ({
     explore,
     sqlBuilder,

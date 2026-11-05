@@ -18,7 +18,7 @@ type Props = {
     projectUuid: string;
 };
 
-export const FunnelDateFilter: FC<Props> = ({ projectUuid }) => {
+export const FunnelFilters: FC<Props> = ({ projectUuid }) => {
     const dispatch = useAppDispatch();
     const dateRangePreset = useAppSelector(selectDateRangePreset);
     const customDateRange = useAppSelector(selectCustomDateRange);

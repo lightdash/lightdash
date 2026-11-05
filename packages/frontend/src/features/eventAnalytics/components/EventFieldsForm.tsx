@@ -18,7 +18,7 @@ function toSortedSelectItems(fields: CompiledDimension[]): SelectItem[] {
         .map((d) => ({ value: getItemId(d), label: d.label }));
 }
 
-/** Group fields whose name starts with the prefix under "Suggested". */
+/** Groups fields whose name starts with the prefix under "Suggested". */
 function buildGroupedSelectData(
     fields: CompiledDimension[],
     suggestedPrefix: string,
@@ -57,10 +57,7 @@ type Props = EventFieldsFormValues & {
     onBreakdownChange: (value: string | null) => void;
 };
 
-/**
- * Maps an explore onto an event stream (timestamp, user, event name).
- * Shared by every event analytics builder (funnel, retention).
- */
+/** Selects the explore fields that make up the event stream. */
 export const EventFieldsForm: FC<Props> = ({
     projectUuid,
     exploreName,
@@ -148,8 +145,8 @@ export const EventFieldsForm: FC<Props> = ({
             {exploreName && (
                 <>
                     <Select
-                        label="Timestamp Field"
-                        placeholder="Select timestamp"
+                        label="Timestamp field"
+                        placeholder="Select a timestamp field"
                         searchable
                         selectFirstOptionOnChange
                         data={timestampSelectData}
@@ -159,8 +156,8 @@ export const EventFieldsForm: FC<Props> = ({
                     />
 
                     <Select
-                        label="User ID Field"
-                        placeholder="Select user identifier"
+                        label="User ID field"
+                        placeholder="Select a user field"
                         searchable
                         selectFirstOptionOnChange
                         data={userIdSelectData}
@@ -170,8 +167,8 @@ export const EventFieldsForm: FC<Props> = ({
                     />
 
                     <Select
-                        label="Event Name Field"
-                        placeholder="Select event name"
+                        label="Event name field"
+                        placeholder="Select an event name field"
                         searchable
                         selectFirstOptionOnChange
                         data={eventNameSelectData}
@@ -181,8 +178,8 @@ export const EventFieldsForm: FC<Props> = ({
                     />
 
                     <Select
-                        label="Breakdown (Optional)"
-                        placeholder="Select breakdown"
+                        label="Breakdown (optional)"
+                        placeholder="Select a dimension"
                         searchable
                         selectFirstOptionOnChange
                         clearable

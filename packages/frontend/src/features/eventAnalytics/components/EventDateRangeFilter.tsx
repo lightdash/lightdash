@@ -9,7 +9,7 @@ import { type CalendarDateRange } from '../../../components/common/DatePickers/t
 
 type Props = {
     preset: EventAnalyticsDatePreset;
-    /** ISO strings so the value can live in a serialisable store */
+    /** ISO strings, so the value can live in a serializable store */
     customRange: [string | null, string | null];
     onPresetChange: (preset: EventAnalyticsDatePreset) => void;
     onCustomRangeChange: (range: [string | null, string | null]) => void;
@@ -19,7 +19,7 @@ type Props = {
 const isPreset = (value: string): value is EventAnalyticsDatePreset =>
     EVENT_ANALYTICS_DATE_PRESETS.some((p) => p.value === value);
 
-/** Date range selector shared by the event analytics builders. */
+/** Selects the date range of an event analytics query. */
 export const EventDateRangeFilter: FC<Props> = ({
     preset,
     customRange,
@@ -58,7 +58,7 @@ export const EventDateRangeFilter: FC<Props> = ({
 
             {preset === 'custom' && (
                 <CalendarRangePickerInput
-                    label="Custom Date Range"
+                    label="Custom date range"
                     value={customDateRangeDates}
                     onChange={handleCustomDateChange}
                 />

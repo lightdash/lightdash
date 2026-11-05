@@ -44,7 +44,7 @@ import { WarehouseConnectionIdentityModel } from '../../../models/WarehouseConne
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type ConnectionBinding } from '../../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
-import { FunnelService } from '../../../services/FunnelService/FunnelService';
+import { EventAnalyticsService } from '../../../services/EventAnalytics/EventAnalyticsService';
 import { MetricsExplorerService } from '../../../services/MetricsExplorerService/MetricsExplorerService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
@@ -2140,11 +2140,10 @@ describe('Multi runtime identity wiring on the real schema', () => {
         };
 
         const funnelService = (projectService: ProjectService) =>
-            new FunnelService({
+            new EventAnalyticsService({
                 analytics: { track: vi.fn() },
-                lightdashConfig: {
-                    ...lightdashConfigMock,
-                    funnelBuilder: { enabled: true },
+                featureFlagModel: {
+                    get: async () => ({ id: 'flag', enabled: true }),
                 },
                 projectModel,
                 projectService,

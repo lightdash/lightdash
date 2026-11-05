@@ -171,10 +171,12 @@
       /* Date-native picker seam: features must not touch Mantine date strings.
          Widen the files list as more features migrate to components/common/DatePickers. */
       "files": [
+        "src/features/eventAnalytics/**",
         "src/features/funnelBuilder/**",
         "src/features/metricsCatalog/**",
         "src/features/omnibar/**",
-        "src/features/parameters/**"
+        "src/features/parameters/**",
+        "src/features/retentionBuilder/**"
       ],
       "rules": {
         "no-restricted-imports": [

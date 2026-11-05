@@ -1,7 +1,8 @@
 import {
     type ApiErrorDetail,
+    type EventAnalyticsDatePreset,
     type Filters,
-    type FunnelDatePreset,
+    type FunnelConversionWindowUnit,
     type FunnelQueryResult,
     type FunnelStep,
 } from '@lightdash/common';
@@ -18,33 +19,28 @@ export interface FunnelBuilderState {
     projectUuid: string;
     activeTab: SidebarTab;
 
-    // Field mapping
+    // Event stream mapping (shared with the retention builder)
     exploreName: string | null;
     timestampFieldId: string | null;
     userIdFieldId: string | null;
     eventNameFieldId: string | null;
     breakdownDimensionId: string | null;
 
-    // Funnel steps
     steps: FunnelStep[];
 
-    // Date range
-    dateRangePreset: FunnelDatePreset;
-    customDateRange: [string | null, string | null]; // ISO strings for serialization
+    dateRangePreset: EventAnalyticsDatePreset;
+    customDateRange: [string | null, string | null];
 
     // Dimension filters, same payload as the semantic layer
     filters: Filters;
 
-    // Conversion window
     conversionWindowValue: number;
-    conversionWindowUnit: 'hours' | 'days' | 'weeks';
+    conversionWindowUnit: FunnelConversionWindowUnit;
 
-    // Event names (fetched when eventNameFieldId is set)
     eventNames: string[];
     eventNamesLoading: boolean;
     eventNamesError: ApiErrorDetail | SerializedError | null;
 
-    // Query results
     results: FunnelQueryResult | null;
     queryLoading: boolean;
     queryError: ApiErrorDetail | SerializedError | null;
@@ -105,7 +101,6 @@ export const funnelBuilderSlice = createSlice({
         },
         setExploreName: (state, action: PayloadAction<string | null>) => {
             state.exploreName = action.payload;
-            // Clear dependent fields when explore changes
             state.timestampFieldId = null;
             state.userIdFieldId = null;
             state.eventNameFieldId = null;
@@ -155,7 +150,7 @@ export const funnelBuilderSlice = createSlice({
         },
         setDateRangePreset: (
             state,
-            action: PayloadAction<FunnelDatePreset>,
+            action: PayloadAction<EventAnalyticsDatePreset>,
         ) => {
             state.dateRangePreset = action.payload;
         },
@@ -173,7 +168,7 @@ export const funnelBuilderSlice = createSlice({
         },
         setConversionWindowUnit: (
             state,
-            action: PayloadAction<'hours' | 'days' | 'weeks'>,
+            action: PayloadAction<FunnelConversionWindowUnit>,
         ) => {
             state.conversionWindowUnit = action.payload;
         },
@@ -184,7 +179,6 @@ export const funnelBuilderSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            // Fetch event names
             .addCase(fetchEventNames.pending, (state) => {
                 state.eventNamesLoading = true;
                 state.eventNamesError = null;
@@ -197,7 +191,6 @@ export const funnelBuilderSlice = createSlice({
                 state.eventNamesLoading = false;
                 state.eventNamesError = action.payload ?? action.error;
             })
-            // Run funnel query
             .addCase(runFunnelQuery.pending, (state) => {
                 state.queryLoading = true;
                 state.queryError = null;

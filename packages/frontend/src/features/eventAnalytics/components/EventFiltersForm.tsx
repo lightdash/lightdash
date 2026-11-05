@@ -14,8 +14,8 @@ type Props = {
 };
 
 /**
- * Dimension filters over the explore base table, using the same `Filters`
- * payload as the semantic layer so dashboard filters can be pushed down.
+ * Edits dimension filters over the explore base table. Uses the semantic
+ * layer's `Filters` payload, so dashboard filters apply unchanged.
  */
 export const EventFiltersForm: FC<Props> = ({
     projectUuid,
@@ -38,7 +38,7 @@ export const EventFiltersForm: FC<Props> = ({
         includeHiddenFields: false,
     });
 
-    // Event analytics queries only scan the base table
+    // Event analytics queries scan only the base table
     const baseTableFields = useMemo(
         () =>
             Object.fromEntries(

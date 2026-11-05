@@ -10,7 +10,7 @@ import {
     ACTIVITY_COLUMNS,
     ActivityStreamQuery,
     resolveActivityStream,
-} from '../EventAnalytics/activityStream';
+} from './activityStream';
 
 const CONVERSION_WINDOW_UNIT: Record<
     FunnelConversionWindowUnit,
@@ -30,9 +30,9 @@ type GenerateFunnelSqlArgs = {
 };
 
 /**
- * Funnel as an Activity Schema query: step 1 is the cohort (first occurrence
- * in the date range) and every later step is a "first after" append on the
- * previous step within the conversion window.
+ * Builds a funnel as an Activity Schema query. Step 1 is the cohort, the
+ * first occurrence in the date range. Every later step is a "first after"
+ * append on the previous step within the conversion window.
  */
 export const generateFunnelSql = ({
     request,

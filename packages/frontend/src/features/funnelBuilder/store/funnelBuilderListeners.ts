@@ -1,4 +1,4 @@
-import { canRunFunnelQuery } from '../utils/funnelChartConfig';
+import { buildFunnelQueryRequest } from '../utils/funnelChartConfig';
 import {
     clearResults,
     resetSteps,
@@ -8,9 +8,7 @@ import {
 import { type startAppListening } from './listenerMiddleware';
 import { fetchEventNames, runFunnelQuery } from './thunks';
 
-/**
- * Auto-run query when configuration becomes valid and changes.
- */
+/** Runs the query whenever the configuration changes and is complete. */
 export const addFunnelConfigChangeListener = (
     startListening: typeof startAppListening,
 ) => {
@@ -19,7 +17,6 @@ export const addFunnelConfigChangeListener = (
             const prev = previousState.funnelBuilder;
             const curr = currentState.funnelBuilder;
 
-            // Check if query-relevant config changed
             return (
                 prev.projectUuid !== curr.projectUuid ||
                 prev.steps !== curr.steps ||
@@ -32,35 +29,14 @@ export const addFunnelConfigChangeListener = (
             );
         },
         effect: async (_, listenerApi) => {
-            const state = listenerApi.getState();
-            const fb = state.funnelBuilder;
-
-            const customDateRange: [Date | null, Date | null] = [
-                fb.customDateRange[0] ? new Date(fb.customDateRange[0]) : null,
-                fb.customDateRange[1] ? new Date(fb.customDateRange[1]) : null,
-            ];
-
-            if (
-                canRunFunnelQuery({
-                    projectUuid: fb.projectUuid,
-                    exploreName: fb.exploreName,
-                    timestampFieldId: fb.timestampFieldId,
-                    userIdFieldId: fb.userIdFieldId,
-                    eventNameFieldId: fb.eventNameFieldId,
-                    steps: fb.steps,
-                    dateRangePreset: fb.dateRangePreset,
-                    customDateRange,
-                })
-            ) {
+            if (buildFunnelQueryRequest(listenerApi.getState().funnelBuilder)) {
                 await listenerApi.dispatch(runFunnelQuery());
             }
         },
     });
 };
 
-/**
- * Invalidate results and steps when explore changes.
- */
+/** Clears results and steps when the explore changes. */
 export const addFieldChangeInvalidationListener = (
     startListening: typeof startAppListening,
 ) => {
@@ -73,9 +49,7 @@ export const addFieldChangeInvalidationListener = (
     });
 };
 
-/**
- * Fetch event names when event field changes.
- */
+/** Fetches event names when the event field changes. */
 export const addEventFieldChangeListener = (
     startListening: typeof startAppListening,
 ) => {

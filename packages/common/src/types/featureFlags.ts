@@ -229,10 +229,10 @@ export enum FeatureFlags {
     AiThreadRetention = 'ai-thread-retention',
 
     /**
-     * Experimental retention curves query builder (event analytics). Gates the
-     * retention API and page. Organization scope; no handler.
+     * Experimental event analytics builders (funnel, retention). Gates the
+     * event analytics API and pages. Organization scope; no handler.
      */
-    RetentionBuilder = 'retention-builder',
+    EventAnalytics = 'event-analytics',
 
     /**
      * Per-organization gate for experimental surfaces in Lightdash Desktop.

@@ -1,3 +1,4 @@
+import { type FunnelConversionWindowUnit } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -24,6 +25,12 @@ import {
     updateStepEventName,
 } from '../store/funnelBuilderSlice';
 
+const WINDOW_UNITS: { value: FunnelConversionWindowUnit; label: string }[] = [
+    { value: 'hours', label: 'Hours' },
+    { value: 'days', label: 'Days' },
+    { value: 'weeks', label: 'Weeks' },
+];
+
 export const FunnelStepsTab: FC = () => {
     const dispatch = useAppDispatch();
 
@@ -36,13 +43,12 @@ export const FunnelStepsTab: FC = () => {
     return (
         <Stack gap="md">
             <Text fw={600} size="sm">
-                Funnel Steps
+                Steps
             </Text>
 
             {isLoadingEventNames && <Loader size="sm" />}
 
             {steps.map((step, index) => {
-                // Filter out events already selected in previous steps
                 const previousEventNames = steps
                     .slice(0, index)
                     .map((s) => s.eventName)
@@ -58,7 +64,7 @@ export const FunnelStepsTab: FC = () => {
                             Step {step.stepOrder}
                         </Text>
                         <Select
-                            placeholder="Select event"
+                            placeholder="Select an event"
                             searchable
                             data={availableEvents}
                             value={step.eventName || null}
@@ -91,11 +97,11 @@ export const FunnelStepsTab: FC = () => {
                 onClick={() => dispatch(addStep())}
                 disabled={!eventNames.length}
             >
-                Add Step
+                Add step
             </Button>
 
             <Text fw={600} size="sm" mt="md">
-                Conversion Window
+                Conversion window
             </Text>
 
             <Group gap="xs">
@@ -110,18 +116,12 @@ export const FunnelStepsTab: FC = () => {
                 />
                 <Select
                     value={conversionWindowUnit}
-                    onChange={(val) =>
-                        dispatch(
-                            setConversionWindowUnit(
-                                val as 'hours' | 'days' | 'weeks',
-                            ),
-                        )
-                    }
-                    data={[
-                        { value: 'hours', label: 'Hours' },
-                        { value: 'days', label: 'Days' },
-                        { value: 'weeks', label: 'Weeks' },
-                    ]}
+                    onChange={(val) => {
+                        const unit = WINDOW_UNITS.find((u) => u.value === val);
+                        if (unit) dispatch(setConversionWindowUnit(unit.value));
+                    }}
+                    data={WINDOW_UNITS}
+                    allowDeselect={false}
                     w={100}
                 />
             </Group>

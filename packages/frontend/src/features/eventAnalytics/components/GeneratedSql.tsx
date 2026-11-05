@@ -1,14 +1,16 @@
 import { Code, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useAppSelector } from '../store';
-import { selectResults } from '../store/retentionBuilderSlice';
 
-export const RetentionDebugSql: FC = () => {
-    const results = useAppSelector(selectResults);
+type Props = {
+    sql: string | null;
+};
+
+/** Collapsible view of the SQL behind a result. */
+export const GeneratedSql: FC<Props> = ({ sql }) => {
     const [opened, setOpened] = useState(false);
 
-    if (!results?.sql) return null;
+    if (!sql) return null;
 
     return (
         <>
@@ -20,13 +22,13 @@ export const RetentionDebugSql: FC = () => {
                         <IconChevronRight size={16} />
                     )}
                     <Text size="sm" c="dimmed">
-                        View Generated SQL
+                        {opened ? 'Hide generated SQL' : 'Show generated SQL'}
                     </Text>
                 </Group>
             </UnstyledButton>
             <Collapse expanded={opened}>
                 <Code block mt="xs">
-                    {results.sql}
+                    {sql}
                 </Code>
             </Collapse>
         </>

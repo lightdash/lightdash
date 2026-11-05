@@ -70,7 +70,7 @@ const pickOption = <T extends string>(
     value: string | null,
 ): T | null => options.find((o) => o.value === value)?.value ?? null;
 
-/** Keep retention builder state in the URL so reports can be shared. */
+/** Keeps retention builder state in the URL so reports can be shared. */
 export function useRetentionUrlSync() {
     const dispatch = useAppDispatch();
     const [searchParams, setSearchParams] = useSearchParams();

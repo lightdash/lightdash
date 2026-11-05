@@ -14,18 +14,18 @@ import {
 
 /**
  * An explore viewed as an Activity Schema stream (activityschema.com): one
- * row per activity with a customer, an activity name and a timestamp.
- * Funnels, retention and any future event analytics compile against this
- * instead of raw explore fields.
+ * row per activity with a customer, an activity name, and a timestamp.
+ * Funnel and retention queries compile against this instead of raw explore
+ * fields.
  */
 export type ActivityStream = {
     fromSql: string;
     customerSql: string;
     activitySql: string;
-    /** Timestamp-typed expression */
+    /** A timestamp-typed expression. */
     tsSql: string;
     breakdownSql: string | null;
-    /** Compiled semantic-layer dimension filters */
+    /** The compiled semantic-layer dimension filters. */
     filterSql: string | null;
 };
 
@@ -36,7 +36,7 @@ type ResolveActivityStreamArgs = {
     timezone: string;
 };
 
-/** Map an explore onto the activity stream contract using the request's field mapping. */
+/** Maps an explore onto the activity stream contract using the request's field mapping. */
 export const resolveActivityStream = ({
     explore,
     mapping,
@@ -78,7 +78,7 @@ export const resolveActivityStream = ({
     };
 };
 
-// Column names used inside the generated CTEs
+/** Column names used inside the generated CTEs. */
 export const ACTIVITY_COLUMNS = {
     customer: 'customer',
     activity: 'activity',
@@ -87,52 +87,52 @@ export const ACTIVITY_COLUMNS = {
 } as const;
 
 type StreamCteArgs = {
-    /** Activities to keep; null keeps every activity */
+    /** The activities to keep. Null keeps every activity. */
     activities: string[] | null;
-    /** Timestamp bounds as SQL expressions */
+    /** The timestamp bounds, as SQL expressions. */
     tsFrom: string | null;
     tsTo: string | null;
-    /** Activities that ignore `tsFrom`, so their whole history is kept */
+    /** Activities that ignore `tsFrom`, so their whole history is kept. */
     activitiesWithFullHistory?: string[];
-    /** Extra computed columns derived from the timestamp column */
+    /** Extra columns computed from the timestamp expression. */
     extraColumns?: Record<string, (tsSql: string) => string>;
 };
 
 export type CohortOccurrence =
-    /** The customer's first row of the activity within the stream window */
+    /** The customer's first row of the activity within the stream window. */
     | 'first_in_window'
-    /** The customer's first row of the activity in each bucket */
+    /** The customer's first row of the activity in each bucket. */
     | 'first_in_bucket';
 
 type CohortCteArgs = {
     streamCte: string;
     activity: string;
     occurrence: CohortOccurrence;
-    /** Column of the stream CTE used as bucket; required for first_in_bucket */
+    /** The stream CTE column used as the bucket. Required for `first_in_bucket`. */
     bucketColumn?: string;
-    /** Extra bounds on the cohort row timestamp */
+    /** Extra bounds on the cohort row timestamp. */
     tsFrom: string | null;
     tsTo: string | null;
-    /** Alias for the cohort timestamp column */
+    /** The alias of the cohort timestamp column. */
     tsAlias: string;
 };
 
 type AppendCteArgs = {
     cohortCte: string;
-    /** Columns carried over from the cohort CTE */
+    /** The columns carried over from the cohort CTE. */
     cohortColumns: string[];
     cohortTsColumn: string;
     streamCte: string;
-    /** Activity to append; null means any activity */
+    /** The activity to append. Null means any activity. */
     activity: string | null;
-    /** Only consider rows up to this interval after the cohort timestamp */
+    /** If set, ignores rows later than this interval after the cohort timestamp. */
     maxInterval?: string | null;
 };
 
 /**
- * Builds the CTE bodies for Activity Schema style temporal queries:
- * a normalised stream, cohort rows, and "first after" / "all after"
- * appends joined on customer and timestamp only.
+ * Builds the CTE bodies of Activity Schema style temporal queries: a
+ * normalized stream, cohort rows, and "first after" or "all after" appends
+ * joined on customer and timestamp only.
  */
 export class ActivityStreamQuery {
     private readonly stream: ActivityStream;
@@ -157,7 +157,7 @@ export class ActivityStreamQuery {
         return this.stream.breakdownSql !== null;
     }
 
-    /** Columns every cohort row carries besides its timestamp */
+    /** The columns every cohort row carries besides its timestamp. */
     get cohortBaseColumns(): string[] {
         return this.hasBreakdown
             ? [ACTIVITY_COLUMNS.customer, ACTIVITY_COLUMNS.breakdown]
@@ -294,7 +294,7 @@ export class ActivityStreamQuery {
       ON ${conditions.join('\n     AND ')}`;
     }
 
-    /** "First after": the first matching activity after each cohort row, as `appendTsAlias`. */
+    /** Appends the first matching activity after each cohort row, as `appendTsAlias`. */
     firstAfterCte(args: AppendCteArgs & { appendTsAlias: string }): string {
         const cohortSelect = args.cohortColumns
             .map((name) => `c.${this.col(name)}`)
@@ -310,10 +310,10 @@ export class ActivityStreamQuery {
     GROUP BY ${cohortSelect}`;
     }
 
-    /** "All after": every matching activity after each cohort row, one row per occurrence. */
+    /** Appends every matching activity after each cohort row, one row per occurrence. */
     allAfterCte(
         args: AppendCteArgs & {
-            /** Columns computed from the append row, with access to `c` (cohort) and `s` (stream) */
+            /** Columns computed from the append row. `c` is the cohort row and `s` the stream row. */
             appendColumns: Record<string, string>;
         },
     ): string {
@@ -331,7 +331,7 @@ export class ActivityStreamQuery {
     ${this.appendJoin(args)}`;
     }
 
-    /** Render named CTEs and a final select into one statement. */
+    /** Renders named CTEs and a final select into one statement. */
     static render(ctes: Record<string, string>, finalSql: string): string {
         const body = Object.entries(ctes)
             .map(([name, sql]) => `${name} AS (${sql}\n)`)

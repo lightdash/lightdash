@@ -1,136 +1,91 @@
-import { FeatureFlags, type ApiErrorDetail } from '@lightdash/common';
-import { Badge, Group, Title } from '@mantine/core';
-import { IconFlask2Filled } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, type FC } from 'react';
-import { Provider } from 'react-redux';
-import { Navigate } from 'react-router';
-import Page from '../../components/common/Page/Page';
-import useToaster from '../../hooks/toaster/useToaster';
+import { useEffect, useMemo, type FC } from 'react';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import { store } from '../sqlRunner/store';
-import { RetentionBuilderSidebar } from './components/RetentionBuilderSidebar';
+import {
+    EventAnalyticsPage,
+    EventAnalyticsRoute,
+} from '../eventAnalytics/components/EventAnalyticsPage';
+import { EventAnalyticsSidebar } from '../eventAnalytics/components/EventAnalyticsSidebar';
+import { useQueryErrorToasts } from '../eventAnalytics/hooks/useQueryErrorToasts';
+import { RetentionFieldsTab } from './components/RetentionFieldsTab';
 import { RetentionMainContent } from './components/RetentionMainContent';
+import { RetentionSettingsTab } from './components/RetentionSettingsTab';
 import { useRetentionUrlSync } from './hooks/useRetentionUrlSync';
 import { useAppDispatch, useAppSelector } from './store';
 import {
     resetState,
+    selectActiveTab,
     selectEventNamesError,
     selectQueryError,
+    setActiveTab,
     setProjectUuid,
 } from './store/retentionBuilderSlice';
 
-const isApiErrorDetail = (
-    error: ApiErrorDetail | { message?: string } | null,
-): error is ApiErrorDetail => error !== null && 'statusCode' in error;
+const TITLE = 'Retention builder';
 
-const RetentionBuilder: FC = () => {
-    const projectUuid = useProjectUuid();
+const RetentionBuilder: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const dispatch = useAppDispatch();
-    const { showToastApiError, showToastError } = useToaster();
-
+    const activeTab = useAppSelector(selectActiveTab);
     const queryError = useAppSelector(selectQueryError);
     const eventNamesError = useAppSelector(selectEventNamesError);
-    const shownQueryError = useRef<typeof queryError>(null);
-    const shownEventNamesError = useRef<typeof eventNamesError>(null);
 
     useRetentionUrlSync();
+    useQueryErrorToasts(
+        useMemo(
+            () => [
+                {
+                    title: "Couldn't run the retention query",
+                    error: queryError,
+                },
+                { title: "Couldn't load event names", error: eventNamesError },
+            ],
+            [queryError, eventNamesError],
+        ),
+    );
 
     useEffect(() => {
-        if (projectUuid) {
-            dispatch(setProjectUuid(projectUuid));
-        }
+        dispatch(setProjectUuid(projectUuid));
         return () => {
             dispatch(resetState());
         };
     }, [projectUuid, dispatch]);
 
-    useEffect(() => {
-        if (queryError && queryError !== shownQueryError.current) {
-            shownQueryError.current = queryError;
-            if (isApiErrorDetail(queryError)) {
-                showToastApiError({
-                    title: 'Failed to run retention query',
-                    apiError: queryError,
-                });
-            } else {
-                showToastError({
-                    title: 'Failed to run retention query',
-                    subtitle:
-                        queryError.message ?? 'An unexpected error occurred',
-                });
-            }
-        }
-    }, [queryError, showToastApiError, showToastError]);
-
-    useEffect(() => {
-        if (
-            eventNamesError &&
-            eventNamesError !== shownEventNamesError.current
-        ) {
-            shownEventNamesError.current = eventNamesError;
-            if (isApiErrorDetail(eventNamesError)) {
-                showToastApiError({
-                    title: 'Failed to load event names',
-                    apiError: eventNamesError,
-                });
-            } else {
-                showToastError({
-                    title: 'Failed to load event names',
-                    subtitle:
-                        eventNamesError.message ??
-                        'An unexpected error occurred',
-                });
-            }
-        }
-    }, [eventNamesError, showToastApiError, showToastError]);
-
-    const sidebar = useMemo(
-        () =>
-            projectUuid ? (
-                <RetentionBuilderSidebar projectUuid={projectUuid} />
-            ) : null,
-        [projectUuid],
-    );
-
-    if (!projectUuid) return null;
-
     return (
-        <Page
-            title="Retention Builder"
-            sidebar={sidebar}
-            withFullHeight
-            withPaddedContent
+        <EventAnalyticsPage
+            title={TITLE}
+            sidebar={
+                <EventAnalyticsSidebar
+                    title={TITLE}
+                    activeTab={activeTab}
+                    onTabChange={(tab) => dispatch(setActiveTab(tab))}
+                    tabs={[
+                        {
+                            value: 'fields',
+                            label: 'Fields',
+                            content: (
+                                <RetentionFieldsTab projectUuid={projectUuid} />
+                            ),
+                        },
+                        {
+                            value: 'retention',
+                            label: 'Retention',
+                            content: <RetentionSettingsTab />,
+                        },
+                    ]}
+                />
+            }
         >
-            <Group gap="sm" mb="md">
-                <Title order={4}>Retention Builder</Title>
-                <Badge
-                    color="violet"
-                    size="sm"
-                    leftSection={<IconFlask2Filled size={12} />}
-                >
-                    Experimental
-                </Badge>
-            </Group>
             <RetentionMainContent projectUuid={projectUuid} />
-        </Page>
+        </EventAnalyticsPage>
     );
 };
 
 const RetentionBuilderPage: FC = () => {
     const projectUuid = useProjectUuid();
-    const flag = useServerFeatureFlag(FeatureFlags.RetentionBuilder);
-
-    if (flag.isInitialLoading) return null;
-
-    if (!flag.data?.enabled) {
-        return <Navigate to={`/projects/${projectUuid}/home`} replace />;
-    }
-
+    if (!projectUuid) return null;
     return (
-        <Provider store={store}>
-            <RetentionBuilder />
-        </Provider>
+        <EventAnalyticsRoute>
+            <RetentionBuilder projectUuid={projectUuid} />
+        </EventAnalyticsRoute>
     );
 };
 

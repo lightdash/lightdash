@@ -1,21 +1,9 @@
-import {
-    EVENT_ANALYTICS_DATE_PRESETS,
-    resolveEventAnalyticsDateRange,
-    type EventAnalyticsDatePreset,
-    type EventAnalyticsDateRange,
-    type EventAnalyticsQueryBase,
-} from './eventAnalytics';
+import type { EventAnalyticsQueryBase } from './eventAnalytics';
 
 export type FunnelStep = {
     stepOrder: number;
     eventName: string;
 };
-
-export const FUNNEL_DATE_PRESETS = EVENT_ANALYTICS_DATE_PRESETS;
-
-export type FunnelDatePreset = EventAnalyticsDatePreset;
-
-export type FunnelDateRange = EventAnalyticsDateRange;
 
 export type FunnelConversionWindowUnit = 'hours' | 'days' | 'weeks';
 
@@ -27,26 +15,23 @@ export type FunnelQueryRequest = EventAnalyticsQueryBase & {
     };
 };
 
-export const resolveFunnelDateRange = resolveEventAnalyticsDateRange;
-
 export type FunnelStepResult = {
     stepOrder: number;
     stepName: string;
     totalUsers: number;
-    conversionRate: number; // From step 1 (overall)
-    stepConversionRate: number; // From previous step
-    medianTimeToConvertSeconds: number | null; // null for step 1
-    breakdownValue?: string; // If breakdown dimension selected
+    /** Percentage of step 1 users */
+    conversionRate: number;
+    /** Percentage of previous step users */
+    stepConversionRate: number;
+    /** Null for step 1 */
+    medianTimeToConvertSeconds: number | null;
+    breakdownValue?: string;
 };
 
 export type FunnelQueryResult = {
     steps: FunnelStepResult[];
-    sql: string; // For debugging
-};
-
-export type ApiFunnelEventNamesResponse = {
-    status: 'ok';
-    results: string[];
+    /** The SQL that produced the result, for debugging */
+    sql: string;
 };
 
 export type ApiFunnelQueryResponse = {

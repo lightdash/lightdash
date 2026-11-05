@@ -1,9 +1,11 @@
 import {
     ApiErrorPayload,
-    ApiFunnelEventNamesResponse,
+    ApiEventNamesResponse,
     ApiFunnelQueryResponse,
+    ApiRetentionQueryResponse,
     assertRegisteredAccount,
     FunnelQueryRequest,
+    RetentionQueryRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -24,36 +26,35 @@ import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
-@Route('/api/v1/projects/{projectUuid}/funnel')
+@Route('/api/v1/projects/{projectUuid}/event-analytics')
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('Funnel')
-export class FunnelController extends BaseController {
+@Tags('Event analytics')
+export class EventAnalyticsController extends BaseController {
     /**
-     * Get distinct event names from a dimension for funnel step selection.
-     * Scans the last 30 days of data to limit query cost.
+     * Gets the distinct event names of an explore, scanning the last 30 days.
      * @summary Get event names
      * @param projectUuid The project UUID
      * @param exploreName The explore to query
-     * @param eventDimensionId The dimension containing event names
-     * @param timestampFieldId The timestamp dimension used to filter to last 30 days
+     * @param eventDimensionId The dimension that holds event names
+     * @param timestampFieldId The timestamp dimension that bounds the scan
      * @param req Express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/event-names')
-    @OperationId('GetFunnelEventNames')
+    @OperationId('GetEventNames')
     async getEventNames(
         @Path() projectUuid: string,
         @Query() exploreName: string,
         @Query() eventDimensionId: string,
         @Query() timestampFieldId: string,
         @Request() req: express.Request,
-    ): Promise<ApiFunnelEventNamesResponse> {
+    ): Promise<ApiEventNamesResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
-            .getFunnelService()
+            .getEventAnalyticsService()
             .getEventNames(
                 toSessionUser(req.account),
                 projectUuid,
@@ -66,15 +67,15 @@ export class FunnelController extends BaseController {
     }
 
     /**
-     * Execute a funnel analysis query and return conversion metrics
+     * Runs a funnel query and returns conversion per step.
      * @summary Run funnel query
      * @param projectUuid The project UUID
-     * @param body The funnel query configuration
+     * @param body The funnel definition
      * @param req Express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/query')
+    @Post('/funnel')
     @OperationId('RunFunnelQuery')
     async runFunnelQuery(
         @Path() projectUuid: string,
@@ -85,8 +86,34 @@ export class FunnelController extends BaseController {
         this.setStatus(200);
 
         const results = await this.services
-            .getFunnelService()
+            .getEventAnalyticsService()
             .runFunnelQuery(toSessionUser(req.account), projectUuid, body);
+
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Runs a retention query and returns the cohort matrix.
+     * @summary Run retention query
+     * @param projectUuid The project UUID
+     * @param body The retention definition
+     * @param req Express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/retention')
+    @OperationId('RunRetentionQuery')
+    async runRetentionQuery(
+        @Path() projectUuid: string,
+        @Body() body: RetentionQueryRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiRetentionQueryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        const results = await this.services
+            .getEventAnalyticsService()
+            .runRetentionQuery(toSessionUser(req.account), projectUuid, body);
 
         return { status: 'ok', results };
     }

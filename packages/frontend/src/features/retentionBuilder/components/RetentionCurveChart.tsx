@@ -20,8 +20,8 @@ const SERIES_COLORS = [
 const COHORT_LINE_COLOR = 'rgba(99, 102, 241, 0.18)';
 
 /**
- * Retention curve: the size-weighted average rate per period (one line per
- * breakdown value), with the individual cohorts drawn faintly behind it.
+ * Draws the size-weighted average retention per period, one line per
+ * breakdown value, with individual cohorts drawn faintly behind it.
  */
 export const RetentionCurveChart: FC = () => {
     const theme = useMantineTheme();
