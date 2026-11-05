@@ -15,8 +15,6 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
-import Callout from '../../../components/common/Callout';
-import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
@@ -25,8 +23,10 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useChartTypesEnabled } from '../hooks/useChartTypesEnabled';
+import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
+import ChartTypeCardSkeletons from './ChartTypeCardSkeletons';
 import ChartTypeLibraryCard from './ChartTypeLibraryCard';
 import ChartTypeLibraryDetailModal from './ChartTypeLibraryDetailModal';
 import classes from './ChartTypeLibrarySection.module.css';
@@ -35,6 +35,8 @@ import ChartTypeUpgradeAllModal from './ChartTypeUpgradeAllModal';
 type Props = {
     projectUuid: string;
     withHeader?: boolean;
+    /** The page shows its own hint in the toolbar instead. */
+    withIntro?: boolean;
     onShowInstalled?: (appUuid: string) => void;
     /** Called after a successful install with the installed app's uuid. */
     onInstalled?: (appUuid: string) => void;
@@ -49,6 +51,7 @@ type Props = {
 const ChartTypeLibrarySection: FC<Props> = ({
     projectUuid,
     withHeader = true,
+    withIntro = true,
     onShowInstalled,
     onInstalled,
 }) => {
@@ -59,6 +62,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
     const [isUpgradeAllOpen, setIsUpgradeAllOpen] = useState(false);
     const canUpgrade = useCanCreateDataApp(projectUuid);
     const { track } = useTracking();
+    const installMutation = useInstallRegistryChartType();
 
     const charts = useMemo(
         () => registryQuery.data?.charts ?? [],
@@ -216,14 +220,15 @@ const ChartTypeLibrarySection: FC<Props> = ({
                 </Stack>
             )}
 
-            <Callout variant="info">
-                These chart types are available to add to your instance. Once
-                installed, they can be used by anyone building charts in your
-                organization.
-            </Callout>
+            {withIntro && (
+                <Text fz="sm" c="dimmed" lh={1.5}>
+                    Ready-made chart types, kept up to date for you. Install one
+                    and anyone in this project can pick it in the explorer.
+                </Text>
+            )}
 
             {registryQuery.isInitialLoading ? (
-                <EmptyStateLoader title="Loading chart type library…" />
+                <ChartTypeCardSkeletons label="Loading the chart type library" />
             ) : isOffline ? (
                 <InlineErrorState
                     message="The chart type library can't be reached right now. It may be a temporary outage or a network restriction on this instance."
@@ -231,10 +236,10 @@ const ChartTypeLibrarySection: FC<Props> = ({
                 />
             ) : visibleCharts.length === 0 ? (
                 <Paper variant="dotted" p="xl">
-                    <Text ta="center" fz="xs" c="dimmed">
+                    <Text ta="center" fz="sm" c="dimmed">
                         {allInstalled
-                            ? 'Every chart type from the library is installed — find them in your installed chart types.'
-                            : 'No chart types available in the registry yet.'}
+                            ? "You've installed every chart type in the library. They're all under Installed."
+                            : "The library is empty for now. New chart types show up here as they're published."}
                     </Text>
                 </Paper>
             ) : (
@@ -255,6 +260,37 @@ const ChartTypeLibrarySection: FC<Props> = ({
                                 });
                                 setSelectedSlug(chart.slug);
                             }}
+                            onInstall={
+                                canUpgrade && chart.state === 'not_installed'
+                                    ? () => {
+                                          track({
+                                              name: EventName.CHART_TYPE_LIBRARY_INSTALL_CLICKED,
+                                              properties: {
+                                                  projectUuid,
+                                                  chartSlug: chart.slug,
+                                                  action: 'install',
+                                              },
+                                          });
+                                          installMutation.mutate(
+                                              {
+                                                  projectUuid,
+                                                  chartSlug: chart.slug,
+                                              },
+                                              {
+                                                  onSuccess: (result) =>
+                                                      onInstalled?.(
+                                                          result.appUuid,
+                                                      ),
+                                              },
+                                          );
+                                      }
+                                    : null
+                            }
+                            isInstalling={
+                                installMutation.isLoading &&
+                                installMutation.variables?.chartSlug ===
+                                    chart.slug
+                            }
                         />
                     ))}
                 </SimpleGrid>

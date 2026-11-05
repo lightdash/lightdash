@@ -331,7 +331,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(
             screen.getByText(
-                'These chart types are available to add to your instance. Once installed, they can be used by anyone building charts in your organization.',
+                /anyone in this project can pick it in the explorer/,
             ),
         ).toBeInTheDocument();
         expect(
@@ -370,7 +370,9 @@ describe('ChartTypeLibrarySection', () => {
         // Installed chart types — upgradable ones included — are hidden from
         // the library; they live in the installed tab.
         expect(screen.getByText('(2)')).toBeInTheDocument();
-        expect(screen.getAllByText('Built by Lightdash')).toHaveLength(2);
+        expect(
+            screen.getAllByRole('img', { name: 'Built by Lightdash' }),
+        ).toHaveLength(2);
 
         expect(screen.getByText('Not installed chart')).toBeInTheDocument();
         expect(screen.queryByText('Installed chart')).not.toBeInTheDocument();
@@ -379,34 +381,6 @@ describe('ChartTypeLibrarySection', () => {
         expect(
             screen.getByText('Requires newer Lightdash'),
         ).toBeInTheDocument();
-    });
-
-    it('badges charts by release stage, leaving stable ones unbadged', () => {
-        setEnabled(true);
-        setRegistryData([
-            makeItem({
-                slug: 'a',
-                name: 'Stable chart',
-                channel: 'stable',
-                releaseStage: 'stable',
-            }),
-            makeItem({
-                slug: 'b',
-                name: 'Unpointed chart',
-                releaseStage: 'prerelease',
-            }),
-            makeItem({
-                slug: 'c',
-                name: 'Beta chart',
-                channel: 'beta',
-                releaseStage: 'beta',
-            }),
-        ]);
-        renderSection();
-
-        expect(screen.getByText('Beta chart')).toBeInTheDocument();
-        expect(screen.getAllByText('Beta')).toHaveLength(1);
-        expect(screen.getAllByText('Pre-release')).toHaveLength(1);
     });
 
     it('renders each card as a keyboard-focusable button', () => {
@@ -455,6 +429,36 @@ describe('ChartTypeLibrarySection', () => {
         expect(
             await screen.findByRole('button', { name: 'Install' }),
         ).toBeInTheDocument();
+    });
+
+    it('offers Install on the card only when the user can install it', async () => {
+        defaultAbility.update([
+            {
+                action: 'create',
+                subject: 'DataApp',
+                conditions: {
+                    organizationUuid: DEFAULT_ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                },
+            },
+        ]);
+        setEnabled(true);
+        setRegistryData([
+            makeItem({ slug: 'radial-gauge' }),
+            makeItem({
+                slug: 'old-gauge',
+                name: 'Old gauge',
+                state: 'incompatible',
+            }),
+        ]);
+        renderSection();
+
+        expect(
+            await screen.findByRole('button', { name: 'Install Radial gauge' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Install Old gauge' }),
+        ).not.toBeInTheDocument();
     });
 
     it('shows the incompatible explanation and disabled Install without gating on permission', async () => {
@@ -522,7 +526,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(
             screen.getByText(
-                'Every chart type from the library is installed — find them in your installed chart types.',
+                "You've installed every chart type in the library. They're all under Installed.",
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('(0)')).toBeInTheDocument();

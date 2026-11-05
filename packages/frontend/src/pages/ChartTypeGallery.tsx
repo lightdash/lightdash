@@ -4,6 +4,8 @@ import {
     type RegistryChartTypeListItem,
 } from '@lightdash/common';
 import {
+    ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -13,16 +15,18 @@ import {
     Tabs,
     Text,
     TextInput,
+    Title,
+    Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue, useIntersection } from '@mantine/hooks';
-import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { useEffect, useMemo, useState } from 'react';
+import { IconInfoCircle, IconPlus, IconSearch } from '@tabler/icons-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import InlineErrorState from '../components/common/InlineErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
+import ChartTypeCardSkeletons from '../features/chartTypes/components/ChartTypeCardSkeletons';
 import ChartTypeDeleteModal from '../features/chartTypes/components/ChartTypeDeleteModal';
 import ChartTypeDetailModal from '../features/chartTypes/components/ChartTypeDetailModal';
 import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGalleryCard';
@@ -39,11 +43,14 @@ import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
+import classes from './ChartTypeGallery.module.css';
 
 const GalleryTab = {
     INSTALLED_CHARTS: 'installed-charts',
     CHART_LIBRARY: 'chart-library',
 } as const;
+
+const SEARCH_MIN_COUNT = 9;
 
 const ChartTypeGallery = () => {
     const projectUuid = useProjectUuid();
@@ -56,6 +63,7 @@ const ChartTypeGallery = () => {
     const chartStudioAvailable = useChartStudioAvailable();
 
     const [search, setSearch] = useState('');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [deleteUuid, setDeleteUuid] = useState<string | null>(null);
@@ -175,101 +183,129 @@ const ChartTypeGallery = () => {
         );
     }
 
-    const chartTypesContent = (
-        <Stack gap="md">
-            {!isEmptyGallery && (
-                <Group justify="flex-end" gap="xs">
-                    <TextInput
-                        size="xs"
-                        w={220}
-                        placeholder="Search by name or description"
-                        leftSection={
-                            <MantineIcon icon={IconSearch} size={15} />
-                        }
-                        value={search}
-                        onChange={(e) => setSearch(e.currentTarget.value)}
-                    />
-                    {chartStudioAvailable && (
-                        <Can
-                            I="create"
-                            this={subject('DataApp', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <Button
-                                size="xs"
-                                component={Link}
-                                to={chartTypeBuilderPath(
-                                    projectUrlIdentifier ?? projectUuid,
-                                )}
-                                leftSection={
-                                    <MantineIcon icon={IconPlus} size={15} />
-                                }
-                            >
-                                New chart type
-                            </Button>
-                        </Can>
-                    )}
-                </Group>
-            )}
+    // A handful of chart types fit on screen; search only earns its place past that.
+    const showSearch =
+        activeTab === GalleryTab.INSTALLED_CHARTS &&
+        (search !== '' || (totalCount ?? 0) >= SEARCH_MIN_COUNT);
 
-            {isInitialLoading ? (
-                <EmptyStateLoader title="Loading chart types…" />
-            ) : error ? (
-                <InlineErrorState
-                    message="Failed to load chart types"
-                    onRetry={() => refetch()}
-                />
-            ) : dataAppVizs.length === 0 ? (
-                debouncedSearch ? (
-                    <Paper variant="dotted" p="xl">
-                        <Text ta="center" fz="xs" c="dimmed">
-                            No chart types match &ldquo;
-                            {debouncedSearch}&rdquo;
-                        </Text>
-                    </Paper>
-                ) : (
-                    <ChartTypeGalleryEmptyState projectUuid={projectUuid} />
-                )
-            ) : (
-                <>
-                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-                        {dataAppVizs.map((viz) => (
-                            <ChartTypeGalleryCard
-                                key={viz.dataAppVizUuid}
-                                dataAppViz={viz}
-                                hasRegistryUpdate={
-                                    registryEntryFor(viz)?.state ===
-                                    'update_available'
-                                }
-                                onClick={() =>
-                                    setSelectedUuid(viz.dataAppVizUuid)
-                                }
-                                onPreview={() =>
-                                    setPreviewUuid(viz.dataAppVizUuid)
-                                }
-                                onDelete={() =>
-                                    setDeleteUuid(viz.dataAppVizUuid)
-                                }
-                            />
-                        ))}
-                    </SimpleGrid>
-                    {hasNextPage && (
-                        <Box
-                            ref={paginationRef}
-                            data-testid="chart-types-pagination"
-                            mih="xl"
-                            role="status"
+    const newChartTypeButton = chartStudioAvailable && (
+        <Can
+            I="create"
+            this={subject('DataApp', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            })}
+        >
+            <Button
+                size="sm"
+                component={Link}
+                to={chartTypeBuilderPath(projectUrlIdentifier ?? projectUuid)}
+                leftSection={<MantineIcon icon={IconPlus} size={16} />}
+            >
+                New chart type
+            </Button>
+        </Can>
+    );
+
+    const toolbar = (tabsList: ReactNode) =>
+        (tabsList || showSearch) && (
+            <Group justify="space-between" gap="sm">
+                {tabsList ?? <span />}
+                {showSearch &&
+                    (isSearchOpen || search ? (
+                        <TextInput
+                            size="sm"
+                            autoFocus
+                            className={classes.search}
+                            placeholder="Search chart types"
+                            aria-label="Search chart types"
+                            leftSection={
+                                <MantineIcon icon={IconSearch} size={15} />
+                            }
+                            value={search}
+                            onChange={(e) => setSearch(e.currentTarget.value)}
+                            onBlur={() => setIsSearchOpen(false)}
+                            onKeyDown={(e) => {
+                                if (e.key !== 'Escape') return;
+                                setSearch('');
+                                setIsSearchOpen(false);
+                            }}
+                        />
+                    ) : (
+                        <ActionIcon
+                            variant="default"
+                            size={32}
+                            aria-label="Search chart types"
+                            onClick={() => setIsSearchOpen(true)}
                         >
-                            {isFetchingNextPage && (
-                                <EmptyStateLoader description="Loading more chart types…" />
-                            )}
-                        </Box>
+                            <MantineIcon icon={IconSearch} size={15} />
+                        </ActionIcon>
+                    ))}
+            </Group>
+        );
+
+    const chartTypesContent = isInitialLoading ? (
+        <ChartTypeCardSkeletons label="Loading chart types" />
+    ) : error ? (
+        <InlineErrorState
+            message="We couldn't load your chart types. Give it another try in a moment."
+            onRetry={() => refetch()}
+        />
+    ) : dataAppVizs.length === 0 ? (
+        debouncedSearch ? (
+            <Paper variant="dotted" p="xl">
+                <Stack align="center" gap="xs">
+                    <Text ta="center" fz="sm" c="dimmed">
+                        No chart types match &ldquo;{debouncedSearch}&rdquo;
+                    </Text>
+                    <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        onClick={() => setSearch('')}
+                    >
+                        Clear search
+                    </Button>
+                </Stack>
+            </Paper>
+        ) : (
+            <ChartTypeGalleryEmptyState
+                projectUuid={projectUuid}
+                onBrowseLibrary={
+                    isLibraryEnabled
+                        ? () => handleTabChange(GalleryTab.CHART_LIBRARY)
+                        : null
+                }
+            />
+        )
+    ) : (
+        <>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                {dataAppVizs.map((viz) => (
+                    <ChartTypeGalleryCard
+                        key={viz.dataAppVizUuid}
+                        dataAppViz={viz}
+                        hasRegistryUpdate={
+                            registryEntryFor(viz)?.state === 'update_available'
+                        }
+                        onClick={() => setSelectedUuid(viz.dataAppVizUuid)}
+                        onPreview={() => setPreviewUuid(viz.dataAppVizUuid)}
+                        onDelete={() => setDeleteUuid(viz.dataAppVizUuid)}
+                    />
+                ))}
+            </SimpleGrid>
+            {hasNextPage && (
+                <Box
+                    ref={paginationRef}
+                    data-testid="chart-types-pagination"
+                    mih="xl"
+                    role="status"
+                >
+                    {isFetchingNextPage && (
+                        <EmptyStateLoader description="Loading more chart types…" />
                     )}
-                </>
+                </Box>
             )}
-        </Stack>
+        </>
     );
 
     return (
@@ -281,49 +317,92 @@ const ChartTypeGallery = () => {
             withLargeContent
         >
             <Stack gap="xl" w="100%">
-                <PageBreadcrumbs
-                    items={[
-                        { title: 'Home', to: '/home' },
-                        { title: 'Chart Studio', active: true },
-                    ]}
-                />
+                <Group justify="space-between" align="flex-start" gap="md">
+                    <Stack gap={4}>
+                        <Title order={3} fw={600}>
+                            Chart Studio
+                        </Title>
+                        <Text fz="sm" c="dimmed" maw={720}>
+                            {chartStudioAvailable
+                                ? 'Build the charts you’ve always wanted and use them on any data you explore.'
+                                : 'Pick the charts you’ve always wanted and use them on any data you explore.'}
+                        </Text>
+                    </Stack>
+                    {/* The empty state carries its own CTAs. */}
+                    {!isEmptyGallery && newChartTypeButton}
+                </Group>
 
                 {isLibraryEnabled ? (
                     <Tabs
                         value={activeTab}
                         onChange={handleTabChange}
                         keepMounted={false}
+                        variant="unstyled"
                     >
-                        <Tabs.List>
-                            <Tabs.Tab value={GalleryTab.INSTALLED_CHARTS}>
-                                <Group gap={6} wrap="nowrap">
-                                    Installed chart types
-                                    {!isEmptyGallery && totalCount !== null && (
-                                        <Text span fz="xs" c="dimmed">
-                                            ({totalCount})
-                                        </Text>
-                                    )}
-                                </Group>
-                            </Tabs.Tab>
-                            <Tabs.Tab value={GalleryTab.CHART_LIBRARY}>
-                                Chart type library
-                            </Tabs.Tab>
-                        </Tabs.List>
+                        <Stack gap="md">
+                            {toolbar(
+                                <Tabs.List className={classes.tabList}>
+                                    <Tabs.Tab
+                                        value={GalleryTab.INSTALLED_CHARTS}
+                                        className={classes.tab}
+                                    >
+                                        <Group gap={6} wrap="nowrap">
+                                            Installed
+                                            {!isEmptyGallery &&
+                                                totalCount !== null && (
+                                                    <Badge
+                                                        size="xs"
+                                                        variant="light"
+                                                        color="gray"
+                                                        radius="sm"
+                                                    >
+                                                        {totalCount}
+                                                    </Badge>
+                                                )}
+                                        </Group>
+                                    </Tabs.Tab>
+                                    <Tabs.Tab
+                                        value={GalleryTab.CHART_LIBRARY}
+                                        className={classes.tab}
+                                    >
+                                        <Group gap={4} wrap="nowrap">
+                                            Library
+                                            <Tooltip
+                                                withinPortal
+                                                maw={240}
+                                                multiline
+                                                label="Ready-made chart types, kept up to date for you. Install one and anyone in this project can use it."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    size={13}
+                                                    color="dimmed"
+                                                />
+                                            </Tooltip>
+                                        </Group>
+                                    </Tabs.Tab>
+                                </Tabs.List>,
+                            )}
 
-                        <Tabs.Panel value={GalleryTab.INSTALLED_CHARTS} pt="xl">
-                            {chartTypesContent}
-                        </Tabs.Panel>
+                            <Tabs.Panel value={GalleryTab.INSTALLED_CHARTS}>
+                                {chartTypesContent}
+                            </Tabs.Panel>
 
-                        <Tabs.Panel value={GalleryTab.CHART_LIBRARY} pt="xl">
-                            <ChartTypeLibrarySection
-                                projectUuid={projectUuid}
-                                withHeader={false}
-                                onShowInstalled={setSelectedUuid}
-                            />
-                        </Tabs.Panel>
+                            <Tabs.Panel value={GalleryTab.CHART_LIBRARY}>
+                                <ChartTypeLibrarySection
+                                    projectUuid={projectUuid}
+                                    withHeader={false}
+                                    withIntro={false}
+                                    onShowInstalled={setSelectedUuid}
+                                />
+                            </Tabs.Panel>
+                        </Stack>
                     </Tabs>
                 ) : (
-                    chartTypesContent
+                    <Stack gap="md">
+                        {toolbar(null)}
+                        {chartTypesContent}
+                    </Stack>
                 )}
             </Stack>
 
