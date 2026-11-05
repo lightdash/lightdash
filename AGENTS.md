@@ -25,6 +25,7 @@ These live next to the code and load when Claude works there. Read the linked fi
 - **Merge freeze**: agents never freeze or unfreeze merges; ask a human. Details in `docs/merge-freeze.md`.
 - **CI workflows**: cache keys, the single pnpm store writer, and when the heavy E2E and CLI suites run; see `.github/workflows/AGENTS.md`.
 - **dbt YAML schemas**: two schemas must stay in sync when field types change; see `packages/common/src/dbt/AGENTS.md`.
+- **Common import-time code** (e.g. `dayjs.extend`): list the file in `sideEffects` in `packages/common/package.json` or bundlers drop it; `src/sideEffects.test.ts` enforces this.
 - **Warehouse credentials**: new sensitive credential fields go in `sensitiveCredentialsFieldNames`; see `packages/common/src/types/AGENTS.md`.
 - **LIGHTDASH_SECRET-derived state** must register for rotation; see `packages/backend/AGENTS.md`.
 - **Slugs and uuid-or-slug params**: rules in `packages/backend/AGENTS.md`.
