@@ -605,6 +605,12 @@ const FilterConfiguration: FC<Props> = ({
                             // reaches the Apply button — so a real-user click
                             // would otherwise need two presses to apply.
                             onMouseDown={handleApply}
+                            // On touch, the outside-click detector fires on
+                            // touchstart: an open value list closes, Apply
+                            // moves up, and the tap's mousedown lands below
+                            // it, closing the editor unsaved. Keep the touch
+                            // from reaching it so the mousedown hits Apply.
+                            onTouchStart={(event) => event.stopPropagation()}
                             onClick={(event) => {
                                 // Keyboard and assistive activation do not emit mousedown.
                                 if (event.detail === 0) handleApply();
