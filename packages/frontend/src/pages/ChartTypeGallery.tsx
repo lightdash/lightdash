@@ -313,7 +313,7 @@ const ChartTypeGallery = () => {
 
                 <Stack gap={6}>
                     <Title order={3}>Chart Studio</Title>
-                    <Text fz="sm" c="dimmed" maw={620} lh={1.5}>
+                    <Text fz="sm" c="dimmed" maw={720} lh={1.5}>
                         New kinds of charts for your whole team. {howToGetOne}{' '}
                         Each one shows up in the explorer, right next to bar and
                         line.
