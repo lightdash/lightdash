@@ -626,6 +626,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.uploadImage': [AgentCapability.DeployUpload],
     'AppGenerateController.uploadThumbnail': [AgentCapability.DeployUpload],
     'AppGenerateController.verifyDataApp': [AgentCapability.Publish],
+    'BigqueryController.getBigQueryDatasetsFromKeyfile': [
+        AgentCapability.ReadDiscover,
+    ],
     'BigquerySSOController.get': [AgentCapability.ReadDiscover],
     'BigquerySSOController.getBigQueryDatabases': [
         AgentCapability.ReadDiscover,

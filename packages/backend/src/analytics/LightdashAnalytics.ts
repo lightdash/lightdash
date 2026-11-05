@@ -4,6 +4,7 @@ import {
     AdminNotificationType,
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
+    AgentOnboardingStage,
     AI_WRITEBACK_STAGES,
     AiAccessRefusalReason,
     AiAgentSkillVersionSource,
@@ -143,12 +144,19 @@ type Group = {
 type TrackSimpleEvent = BaseTrack & {
     event:
         | 'password.updated'
-        | 'invite_link.created'
         | 'invite_link.all_revoked'
         | 'password_reset_link.created'
         | 'password_reset_link.used'
         | 'personal_access_token.deleted'
         | 'personal_access_token.rotated';
+};
+
+type InviteLinkCreatedEvent = BaseTrack & {
+    event: 'invite_link.created';
+    properties: {
+        organizationId: string;
+        purpose: InviteLinkPurpose;
+    };
 };
 
 type PersonalAccessTokenEvent = BaseTrack & {
@@ -306,6 +314,8 @@ type SetupInviteAcceptedEvent = BaseTrack & {
         organizationId: string;
         invitePurpose: InviteLinkPurpose.Setup;
         onboardingFlow: OnboardingFlow;
+        /** Null for links created before the inviter was stored */
+        invitedByUserId: string | null;
     };
 };
 
@@ -340,13 +350,29 @@ type WarehouseConnectEvent = BaseTrack & {
     };
 };
 
+export type ConnectionTestStage = 'warehouse' | 'dbt';
+
+export type ConnectionTestErrorCategory =
+    | 'authentication'
+    | 'network'
+    | 'permission'
+    | 'not_found'
+    | 'timeout'
+    | 'dbt'
+    | 'unknown';
+
 type WarehouseConnectionTestedEvent = BaseTrack & {
     event: 'warehouse_connection.tested';
     userId: string;
     properties: {
+        organizationId: string | null;
+        projectId: string | null;
         warehouseType: WarehouseTypes;
+        authenticationType: string | null;
         result: 'success' | 'failure';
+        stage: ConnectionTestStage;
         errorType?: string;
+        errorCategory: ConnectionTestErrorCategory | null;
         context: 'project_create' | 'project_update';
         method: RequestMethod;
         onboardingFlow: OnboardingFlow;
@@ -1354,7 +1380,7 @@ export type ConditionalFormattingRuleSavedEvent = BaseTrack & {
 };
 
 export type ProjectEvent = BaseTrack & {
-    event: 'project.updated' | 'project.created';
+    event: 'project.updated';
     userId: string;
     properties: {
         projectName: string;
@@ -1372,15 +1398,12 @@ export type ProjectEvent = BaseTrack & {
     };
 };
 
-type OnboardingHomepageProvisionedEvent = BaseTrack & {
-    event: 'onboarding_homepage.provisioned';
+export type ProjectCreatedEvent = BaseTrack & {
+    event: 'project.created';
     userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        homepageUuid: string;
-        onboardingFlow: OnboardingFlow;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
+    properties: ProjectEvent['properties'] & {
+        provisioningSource: 'playground' | 'training' | 'analytics' | null;
+        isFirstProject: boolean;
     };
 };
 
@@ -1405,6 +1428,41 @@ type HomepagePublishedEvent = BaseTrack & {
         audienceType: 'everyone' | 'groups' | 'roles';
         blockTypeCounts: Record<string, number>;
         openingBlockType: string | null;
+    };
+};
+
+export type OnboardingAgentRunFailureCategory =
+    | 'sandbox_connection'
+    | 'incomplete_output'
+    | 'timeout'
+    | 'abandoned'
+    | 'schedule_failed'
+    | 'unknown';
+
+type OnboardingAgentRunFinishedEvent = BaseTrack & {
+    event: 'onboarding_agent.run_finished';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentOnboardingRunId: string;
+        status: 'completed' | 'failed' | 'cancelled';
+        failureCategory: OnboardingAgentRunFailureCategory | null;
+        lastStage: AgentOnboardingStage | null;
+        durationSeconds: number;
+        numTurns: number | null;
+    };
+};
+
+type OnboardingHomepageProvisionedEvent = BaseTrack & {
+    event: 'onboarding_homepage.provisioned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        homepageUuid: string;
+        onboardingFlow: OnboardingFlow;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
     };
 };
 
@@ -4879,6 +4937,7 @@ type TypedEvent =
     | AgentIdentityServiceAccountTestedEvent
     | AgentIdentityServiceAccountDeletedEvent
     | TrackSimpleEvent
+    | InviteLinkCreatedEvent
     | CreateUserEvent
     | UpdateUserEvent
     | HearAboutUsSubmittedEvent
@@ -4922,11 +4981,13 @@ type TypedEvent =
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
+    | ProjectCreatedEvent
+    | OnboardingAgentRunFinishedEvent
+    | OrganizationHomepageSettingsUpdatedEvent
+    | HomepagePublishedEvent
     | OnboardingHomepageProvisionedEvent
     | OnboardingHomepageSkippedEvent
     | OnboardingHomepageFailedEvent
-    | OrganizationHomepageSettingsUpdatedEvent
-    | HomepagePublishedEvent
     | PlaygroundProjectProvisionedEvent
     | PlaygroundProjectSkippedEvent
     | PlaygroundProjectFailedEvent

@@ -404,7 +404,9 @@ const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     updateMetadata: vi.fn(async () => undefined),
     get: vi.fn(async () => projectWithSensitiveFields),
-    getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
+    getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(
+        async () => [],
+    ),
     updateExpiresAt: vi.fn(async () => undefined),
     getSummary: vi.fn(async (_projectUuid: string) => projectSummary),
     getDbtSourceIdentity: vi.fn(async () => ({
@@ -700,6 +702,7 @@ const schedulerClient = {
     backfillDefaultUserSpaces: vi.fn(async () => ({
         jobId: 'backfill-job-1',
     })),
+    warmWarehouseTablesCache: vi.fn(async () => ({ jobId: 'warm-job-1' })),
     createProjectWithCompile:
         vi.fn<SchedulerClient['createProjectWithCompile']>(),
     hasCreateProjectWithCompileJob: vi.fn<
@@ -4764,6 +4767,65 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('warehouse tables cache warm-up', () => {
+        const creationUser: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['create'] },
+            ]),
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+        };
+
+        const createProject = async (newOnboardingEnabled: boolean) => {
+            const warmService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(warmService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.NewOnboarding &&
+                        newOnboardingEnabled,
+                }),
+            );
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                'warm-project-uuid',
+            );
+            await warmService.createWithoutCompile(
+                creationUser,
+                {
+                    name: 'Project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            );
+        };
+
+        test('schedules the warm-up under the new onboarding flow', async () => {
+            schedulerClient.warmWarehouseTablesCache.mockClear();
+            await createProject(true);
+            expect(
+                schedulerClient.warmWarehouseTablesCache,
+            ).toHaveBeenCalledWith({
+                organizationUuid: creationUser.organizationUuid,
+                projectUuid: 'warm-project-uuid',
+                userUuid: creationUser.userUuid,
+            });
+        });
+
+        test('does not schedule the warm-up under the legacy flow', async () => {
+            schedulerClient.warmWarehouseTablesCache.mockClear();
+            await createProject(false);
+            expect(
+                schedulerClient.warmWarehouseTablesCache,
+            ).not.toHaveBeenCalled();
+        });
+    });
+
     describe('default AI agent provisioning', () => {
         test('provisions a default AI agent for a playground when the organization already has another project', async () => {
             const createdProjectUuid = 'created-playground-project-uuid';
@@ -4863,7 +4925,7 @@ describe('ProjectService', () => {
             projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
                 createdProjectUuid,
             );
-            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(
+            projectModel.getAllByOrganizationUuid.mockResolvedValue(
                 organizationProjects,
             );
             const validateSpy = vi
@@ -4892,6 +4954,127 @@ describe('ProjectService', () => {
                 validateSpy.mockRestore();
                 projectModel.getAllByOrganizationUuid.mockReset();
             }
+        });
+    });
+
+    describe('project.created analytics', () => {
+        const creationUser: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['create'] },
+            ]),
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+        };
+        const createdProjectUuid = 'tracked-project-uuid';
+
+        const createAndTrack = async (
+            organizationProjects: Awaited<
+                ReturnType<ProjectModel['getAllByOrganizationUuid']>
+            >,
+            newOnboardingEnabled = true,
+        ) => {
+            const trackingService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(trackingService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.NewOnboarding &&
+                        newOnboardingEnabled,
+                }),
+            );
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                createdProjectUuid,
+            );
+            projectModel.getAllByOrganizationUuid.mockResolvedValue(
+                organizationProjects,
+            );
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            try {
+                await trackingService.createWithoutCompile(
+                    creationUser,
+                    {
+                        name: 'Project',
+                        type: ProjectType.DEFAULT,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                        warehouseConnection: warehouseClientMock.credentials,
+                    },
+                    RequestMethod.WEB_APP,
+                );
+                return track.mock.calls.map(([payload]) => payload);
+            } finally {
+                projectModel.getAllByOrganizationUuid.mockReset();
+                track.mockRestore();
+            }
+        };
+
+        test('marks the first customer project and completes the warehouse step once', async () => {
+            const events = await createAndTrack([
+                { ...defaultProject, projectUuid: createdProjectUuid },
+                {
+                    ...defaultProject,
+                    projectUuid: 'playground-uuid',
+                    provisioningSource: 'playground',
+                },
+            ]);
+            expect(events).toContainEqual(
+                expect.objectContaining({
+                    event: 'project.created',
+                    properties: expect.objectContaining({
+                        projectId: createdProjectUuid,
+                        provisioningSource: null,
+                        isFirstProject: true,
+                    }),
+                }),
+            );
+            expect(
+                events.filter(
+                    (payload) => payload.event === 'onboarding.step_completed',
+                ),
+            ).toEqual([
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        step: 'warehouse_connected',
+                    }),
+                }),
+            ]);
+        });
+
+        test('leaves the warehouse step to the connection test in the legacy flow', async () => {
+            const events = await createAndTrack(
+                [{ ...defaultProject, projectUuid: createdProjectUuid }],
+                false,
+            );
+            expect(
+                events.some(
+                    (payload) => payload.event === 'onboarding.step_completed',
+                ),
+            ).toBe(false);
+        });
+
+        test('does not repeat the warehouse step for a later project', async () => {
+            const events = await createAndTrack([
+                { ...defaultProject, projectUuid: createdProjectUuid },
+                { ...defaultProject, projectUuid: 'existing-project-uuid' },
+            ]);
+            expect(events).toContainEqual(
+                expect.objectContaining({
+                    event: 'project.created',
+                    properties: expect.objectContaining({
+                        isFirstProject: false,
+                    }),
+                }),
+            );
+            expect(
+                events.some(
+                    (payload) => payload.event === 'onboarding.step_completed',
+                ),
+            ).toBe(false);
         });
     });
 
@@ -22240,6 +22423,51 @@ describe('compile adapter connection credentials', () => {
             await tested.lease.release();
         }
     });
+
+    it.each([
+        ['legacy', false, 1],
+        ['new', true, 0],
+    ])(
+        'testProjectAdapter on project_create in the %s flow tracks the warehouse step %i time(s)',
+        async (_flow, newOnboardingEnabled, expectedCount) => {
+            const flaggedService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(flaggedService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.NewOnboarding &&
+                        newOnboardingEnabled,
+                }),
+            );
+            const service = flaggedService as unknown as CompileInternals;
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            const tested = await service.testProjectAdapter(
+                {
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: {
+                        kind: 'submitted_resolved',
+                        credentials: ducklakeCredentials,
+                    },
+                    dbtConnection: { type: DbtProjectType.NONE },
+                },
+                caller,
+                'project_create',
+                RequestMethod.WEB_APP,
+                null,
+                null,
+            );
+            await tested.lease.release();
+            expect(
+                track.mock.calls.filter(
+                    ([payload]) =>
+                        payload.event === 'onboarding.step_completed',
+                ),
+            ).toHaveLength(expectedCount);
+        },
+    );
 
     it('buildSourceAdapter derives from original DuckLake credentials with the source location', async () => {
         const service = getMockedProjectService(

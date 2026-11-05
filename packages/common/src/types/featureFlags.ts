@@ -158,8 +158,10 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Show the coding-agent project onboarding flow. This gates only the UI;
-     * the CLI, APIs, and installed skills remain available independently.
+     * Show the coding-agent project onboarding flow. With NewOnboarding, people
+     * without a repo can start an onboarding run right after connecting their
+     * warehouse. The CLI, APIs, and installed skills remain available
+     * independently.
      */
     CodingAgentOnboarding = 'coding-agent-onboarding',
 

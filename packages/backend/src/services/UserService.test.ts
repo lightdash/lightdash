@@ -179,6 +179,9 @@ const emailModel = {
 
 const inviteLinkModel = {
     getByCode: vi.fn(async () => inviteLink),
+    getByCodeWithInviter: vi.fn<InviteLinkModel['getByCodeWithInviter']>(
+        async () => ({ inviteLink, invitedByUserUuid: null }),
+    ),
     deleteByCode: vi.fn(async () => undefined),
     upsert: vi.fn(async () => inviteLink),
 };
@@ -1361,9 +1364,12 @@ describe('UserService', () => {
         };
 
         test('activates the invited user without a password and consumes the invite', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             vi.mocked(
                 userModel.activateUserWithoutPassword,
             ).mockResolvedValueOnce(memberUser);
@@ -1407,9 +1413,12 @@ describe('UserService', () => {
         });
 
         test('requires SSO instead of activating the invited user when local authentication is disabled', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             const service = createUserService(lightdashConfigMock);
             vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(false);
 
@@ -1428,9 +1437,9 @@ describe('UserService', () => {
         });
 
         test('rejects an expired invite without activating the user', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
-                new ExpiredError('Invite link expired'),
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockRejectedValueOnce(new ExpiredError('Invite link expired'));
             const service = createUserService(lightdashConfigMock);
 
             await expect(
@@ -1445,9 +1454,9 @@ describe('UserService', () => {
         });
 
         test('returns not found for an unknown invite without activating the user', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
-                new NotFoundError('No invite link found'),
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockRejectedValueOnce(new NotFoundError('No invite link found'));
             const service = createUserService(lightdashConfigMock);
 
             await expect(
@@ -1461,8 +1470,11 @@ describe('UserService', () => {
         });
 
         test('returns not found when the same invite is consumed again', async () => {
-            vi.mocked(inviteLinkModel.getByCode)
-                .mockResolvedValueOnce(validInviteLink)
+            vi.mocked(inviteLinkModel.getByCodeWithInviter)
+                .mockResolvedValueOnce({
+                    inviteLink: validInviteLink,
+                    invitedByUserUuid: null,
+                })
                 .mockRejectedValueOnce(
                     new NotFoundError('No invite link found'),
                 );
@@ -1505,9 +1517,12 @@ describe('UserService', () => {
                     ],
                 })),
             };
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             vi.mocked(
                 userModel.activateUserWithoutPassword,
             ).mockResolvedValueOnce(memberUser);
@@ -1531,9 +1546,12 @@ describe('UserService', () => {
                 ...memberUser,
                 role: OrganizationMemberRole.ADMIN,
             };
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             vi.mocked(
                 userModel.activateUserWithoutPassword,
             ).mockResolvedValueOnce(adminUser);
@@ -1585,9 +1603,9 @@ describe('UserService', () => {
     });
 
     test('keeps password-based invite activation unchanged', async () => {
-        vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce({
-            ...inviteLink,
-            expiresAt: new Date('2099-01-01'),
+        vi.mocked(inviteLinkModel.getByCodeWithInviter).mockResolvedValueOnce({
+            inviteLink: { ...inviteLink, expiresAt: new Date('2099-01-01') },
+            invitedByUserUuid: null,
         });
         const service = createUserService(lightdashConfigMock);
         vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
@@ -1626,6 +1644,41 @@ describe('UserService', () => {
                 isOrganizationCreator: false,
             },
         });
+    });
+
+    test('tracks who sent a setup invite when it is accepted', async () => {
+        vi.mocked(inviteLinkModel.getByCodeWithInviter).mockResolvedValueOnce({
+            inviteLink: {
+                ...inviteLink,
+                purpose: InviteLinkPurpose.Setup,
+                expiresAt: new Date('2099-01-01'),
+            },
+            invitedByUserUuid: 'inviter-uuid',
+        });
+        const service = createUserService(lightdashConfigMock);
+        vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+        vi.spyOn(
+            service,
+            'sendOneTimePasscodeToPrimaryEmail',
+        ).mockResolvedValue({
+            email: inviteLink.email,
+            isVerified: false,
+        });
+
+        await service.activateUserFromInvite(inviteLink.inviteCode, {
+            firstName: 'Invite',
+            lastName: 'User',
+            password: 'password1!',
+        });
+
+        expect(analyticsMock.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'setup_invite.accepted',
+                properties: expect.objectContaining({
+                    invitedByUserId: 'inviter-uuid',
+                }),
+            }),
+        );
     });
 
     describe('email OTP login', () => {
@@ -5324,6 +5377,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
         });
         test('should cap invite expiry at the organization setting', async () => {
@@ -5346,6 +5400,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -5366,6 +5421,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -5383,6 +5439,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
         });
         test('should use a changed organization setting for subsequent links only', async () => {
@@ -5410,6 +5467,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenNthCalledWith(
                 2,
@@ -5418,6 +5476,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -5467,6 +5526,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Setup,
+                sessionUser.userUuid,
             );
             expect(vi.mocked(emailClient.sendInviteEmail)).toHaveBeenCalledWith(
                 adminUser,
