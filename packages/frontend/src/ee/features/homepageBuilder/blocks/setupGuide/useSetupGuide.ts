@@ -42,9 +42,6 @@ export const useSetupGuide = (
     const codingAgentFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
     );
-    const semanticStudioFlag = useServerFeatureFlag(
-        FeatureFlags.SemanticStudio,
-    );
     const canManageProject = useCanManageProject(projectUuid);
     // visibleActions is empty on the playground, where setup has no place
     const isEligible =
@@ -134,10 +131,7 @@ export const useSetupGuide = (
         ({ kind }) => kind === 'live_source',
     );
     const activeRunOrNull = run && !isRunTerminal ? run : null;
-    const semanticStudioUrl =
-        semanticStudioFlag.data?.enabled === true
-            ? getSemanticStudioUrl(projectUuid, { ref: null })
-            : null;
+    const semanticStudioUrl = getSemanticStudioUrl(projectUuid, { ref: null });
     const sections = buildSetupGuide({
         projectUuid,
         statuses: actions.statuses,
