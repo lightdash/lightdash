@@ -4,6 +4,8 @@ import { type startAppListening } from './listenerMiddleware';
 import { clearResults, setExploreName } from './retentionBuilderSlice';
 import { fetchRetentionEventNames, runRetentionQuery } from './thunks';
 
+const QUERY_DEBOUNCE_MS = 300;
+
 /** Runs the query whenever the configuration changes and is complete. */
 export const addRetentionConfigChangeListener = (
     startListening: typeof startAppListening,
@@ -28,8 +30,14 @@ export const addRetentionConfigChangeListener = (
             );
         },
         effect: async (_, listenerApi) => {
-            const state = listenerApi.getState();
-            if (buildRetentionQueryRequest(state.retentionBuilder)) {
+            // Coalesce bursts of changes, such as a URL restore, into one query
+            listenerApi.cancelActiveListeners();
+            await listenerApi.delay(QUERY_DEBOUNCE_MS);
+            if (
+                buildRetentionQueryRequest(
+                    listenerApi.getState().retentionBuilder,
+                )
+            ) {
                 await listenerApi.dispatch(runRetentionQuery());
             }
         },

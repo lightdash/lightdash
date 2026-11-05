@@ -4,6 +4,8 @@ import { clearResults, resetSteps, setExploreName } from './funnelBuilderSlice';
 import { type startAppListening } from './listenerMiddleware';
 import { fetchEventNames, runFunnelQuery } from './thunks';
 
+const QUERY_DEBOUNCE_MS = 300;
+
 /** Runs the query whenever the configuration changes and is complete. */
 export const addFunnelConfigChangeListener = (
     startListening: typeof startAppListening,
@@ -25,6 +27,9 @@ export const addFunnelConfigChangeListener = (
             );
         },
         effect: async (_, listenerApi) => {
+            // Coalesce bursts of changes, such as a URL restore, into one query
+            listenerApi.cancelActiveListeners();
+            await listenerApi.delay(QUERY_DEBOUNCE_MS);
             if (buildFunnelQueryRequest(listenerApi.getState().funnelBuilder)) {
                 await listenerApi.dispatch(runFunnelQuery());
             }

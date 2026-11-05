@@ -53,6 +53,8 @@ export interface RetentionBuilderState {
     results: RetentionQueryResult | null;
     queryLoading: boolean;
     queryError: ApiErrorDetail | SerializedError | null;
+    /** The id of the most recent query, so stale responses are ignored */
+    latestQueryRequestId: string | null;
 }
 
 const initialState: RetentionBuilderState = {
@@ -79,6 +81,7 @@ const initialState: RetentionBuilderState = {
     results: null,
     queryLoading: false,
     queryError: null,
+    latestQueryRequestId: null,
 };
 
 export const retentionBuilderSlice = createSlice({
@@ -197,15 +200,20 @@ export const retentionBuilderSlice = createSlice({
                 state.eventNamesLoading = false;
                 state.eventNamesError = action.payload ?? action.error;
             })
-            .addCase(runRetentionQuery.pending, (state) => {
+            .addCase(runRetentionQuery.pending, (state, action) => {
                 state.queryLoading = true;
                 state.queryError = null;
+                state.latestQueryRequestId = action.meta.requestId;
             })
             .addCase(runRetentionQuery.fulfilled, (state, action) => {
+                if (action.meta.requestId !== state.latestQueryRequestId)
+                    return;
                 state.queryLoading = false;
                 state.results = action.payload;
             })
             .addCase(runRetentionQuery.rejected, (state, action) => {
+                if (action.meta.requestId !== state.latestQueryRequestId)
+                    return;
                 state.queryLoading = false;
                 state.queryError = action.payload ?? action.error;
             });

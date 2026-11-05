@@ -44,6 +44,8 @@ export interface FunnelBuilderState {
     results: FunnelQueryResult | null;
     queryLoading: boolean;
     queryError: ApiErrorDetail | SerializedError | null;
+    /** The id of the most recent query, so stale responses are ignored */
+    latestQueryRequestId: string | null;
 }
 
 const initialState: FunnelBuilderState = {
@@ -66,6 +68,7 @@ const initialState: FunnelBuilderState = {
     results: null,
     queryLoading: false,
     queryError: null,
+    latestQueryRequestId: null,
 };
 
 export const funnelBuilderSlice = createSlice({
@@ -191,15 +194,20 @@ export const funnelBuilderSlice = createSlice({
                 state.eventNamesLoading = false;
                 state.eventNamesError = action.payload ?? action.error;
             })
-            .addCase(runFunnelQuery.pending, (state) => {
+            .addCase(runFunnelQuery.pending, (state, action) => {
                 state.queryLoading = true;
                 state.queryError = null;
+                state.latestQueryRequestId = action.meta.requestId;
             })
             .addCase(runFunnelQuery.fulfilled, (state, action) => {
+                if (action.meta.requestId !== state.latestQueryRequestId)
+                    return;
                 state.queryLoading = false;
                 state.results = action.payload;
             })
             .addCase(runFunnelQuery.rejected, (state, action) => {
+                if (action.meta.requestId !== state.latestQueryRequestId)
+                    return;
                 state.queryLoading = false;
                 state.queryError = action.payload ?? action.error;
             });
