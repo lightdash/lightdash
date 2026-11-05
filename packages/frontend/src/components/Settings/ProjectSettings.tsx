@@ -22,11 +22,11 @@ import { useContentReviewAvailability } from '../../ee/features/contentReview/ho
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
 import { ProjectAgentIdentityPage } from '../../features/aiAccess/ProjectAgentIdentityPage';
 import ContentReviewPage from '../../features/contentAsCode/components/ContentReviewPage';
-import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import ScopeTourHost from '../../features/scopeTours/ScopeTourHost';
 import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
+import { ExternalSourcesRedirect } from '../../features/semanticStudio/ExternalSourcesRedirect';
 import { LiveDataSourcesRedirect } from '../../features/semanticStudio/LiveDataSourcesRedirect';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import {
@@ -88,9 +88,8 @@ const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
 );
 
 const ProjectSettings: FC<{
-    externalSourcesEnabled: boolean;
     projectSettingsAccess: Exclude<ProjectSettingsAccess, { type: 'none' }>;
-}> = ({ externalSourcesEnabled, projectSettingsAccess }) => {
+}> = ({ projectSettingsAccess }) => {
     const projectUuid = useProjectUuid();
     const location = useLocation();
 
@@ -152,18 +151,6 @@ const ProjectSettings: FC<{
             false);
     const canManageExternalConnections =
         isDataAppsEnabled && canManageProjectConnections;
-
-    const canManageExternalSources =
-        externalSourcesEnabled &&
-        !!project &&
-        (user.data?.ability.can(
-            'manage',
-            subject('ExternalSource', {
-                organizationUuid: project.organizationUuid,
-                projectUuid: project.projectUuid,
-            }),
-        ) ??
-            false);
 
     const contentReviewAvailability = useContentReviewAvailability();
     const canViewContentReviewSettings =
@@ -288,23 +275,6 @@ const ProjectSettings: FC<{
                     </ProjectSettingsPage>
                 ),
             },
-            ...(canManageExternalSources
-                ? [
-                      {
-                          path: `/externalSources`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="External sources"
-                                  description="Upload files to query them alongside your warehouse."
-                              >
-                                  <ExternalSourcesSettingsPanel
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
             {
                 path: `/usageAnalytics`,
                 element: (
@@ -622,6 +592,10 @@ const ProjectSettings: FC<{
                 path: `/liveDataSources/*`,
                 element: <LiveDataSourcesRedirect projectUuid={projectUuid} />,
             },
+            {
+                path: `/externalSources/*`,
+                element: <ExternalSourcesRedirect projectUuid={projectUuid} />,
+            },
         ];
         if (project?.provisioningSource === 'analytics') {
             return [
@@ -660,7 +634,6 @@ const ProjectSettings: FC<{
         canManageExternalConnections,
         canManageAgentIdentity,
         project,
-        canManageExternalSources,
         canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
         canManageOrgAiAgent,

@@ -505,6 +505,36 @@ describe('Project connections settings navigation', () => {
         );
     });
 
+    it('links External sources to the Semantic Layer page, marked as moved', () => {
+        const item = projectItems({
+            externalSourcesFlag: { id: 'external-sources', enabled: true },
+            health: {
+                softDelete: { enabled: false },
+                preAggregates: { enabled: false },
+                externalSources: { engineAvailable: true },
+            } as SettingsContext['health'],
+            user: {
+                ability: new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'ExternalSource',
+                        conditions: {
+                            organizationUuid: 'org',
+                            projectUuid: 'project',
+                        },
+                    },
+                ]),
+            } as SettingsContext['user'],
+        }).find(({ label }) => label === 'External sources');
+        expect(item).toMatchObject({
+            to: '/projects/project/semantic-layer/kinds/files',
+            movedTo: 'Semantic Layer',
+        });
+        expect(item?.keywords).toEqual(
+            expect.arrayContaining(['csv', 'semantic layer']),
+        );
+    });
+
     it('shows Live data sources without Data app connections when only live sources are enabled', () => {
         const labels = projectLabels({ isApiQuerySourcesEnabled: true });
         expect(labels).toContain('Live data sources');

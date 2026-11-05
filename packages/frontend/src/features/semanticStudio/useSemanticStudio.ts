@@ -31,7 +31,13 @@ import {
     type Project,
     type ProjectTree,
 } from './model';
-import { type StudioRoute } from './urls';
+import { keepsKindPage } from './permissions';
+import {
+    isSameRoute,
+    isSemanticStudioPath,
+    parseSemanticStudioPath,
+    type StudioRoute,
+} from './urls';
 
 /**
  * Who can edit what, from the project CASL abilities (the same checks the
@@ -153,19 +159,25 @@ export const useSemanticStudio = ({
 }: SemanticStudioProps) => {
     const tree = useMemo(() => buildProjectTree(project), [project]);
     // A link to something that no longer exists opens the project root.
-    // Live data sources keep their page while there are none, so admins can
-    // add the first one there.
-    const isLiveSourcesPage =
-        permissions.live &&
-        route.ref?.type === 'kind' &&
-        route.ref.kind === 'live';
-    const isStale = !isLiveSourcesPage && !refExists(project, route.ref);
+    const isStale =
+        !keepsKindPage(permissions, route.ref) &&
+        !refExists(project, route.ref);
     const selected = isStale
         ? null
         : resolveRef(project, tree.nodes, route.ref);
     useEffect(() => {
-        if (isStale) onNavigate({ ref: null }, { replace: true });
-    }, [isStale, onNavigate]);
+        if (!isStale) return;
+        // Only while the address still names the missing page: an action
+        // that already moved on, like deleting a source and opening its
+        // kind's list, wins over this older render.
+        const { pathname } = window.location;
+        if (
+            isSemanticStudioPath(pathname) &&
+            !isSameRoute(parseSemanticStudioPath(pathname), route)
+        )
+            return;
+        onNavigate({ ref: null }, { replace: true });
+    }, [isStale, onNavigate, route]);
     // Unsaved edits, per field, so closing a field's details keeps them.
     const [drafts, setDrafts] = useState<ReadonlyMap<string, FieldDraft>>(
         () => new Map(),

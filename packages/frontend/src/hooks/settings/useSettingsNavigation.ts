@@ -53,7 +53,10 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
-import { getSemanticStudioLiveSourcesUrl } from '../../features/semanticStudio/urls';
+import {
+    getSemanticStudioExternalSourcesUrl,
+    getSemanticStudioLiveSourcesUrl,
+} from '../../features/semanticStudio/urls';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
@@ -1098,13 +1101,26 @@ export const useSettingsNavigation = (
                     }),
                 )
             ) {
+                // Managed on the Semantic Layer page; still listed here so
+                // people who look for it in settings find their way.
                 projectItems.push({
                     label: 'External sources',
-                    to: `${base}/externalSources`,
+                    to: getSemanticStudioExternalSourcesUrl(
+                        project.projectUuid,
+                    ),
                     icon: IconDatabaseExport,
-                    keywords: ['csv', 'upload', 'files', 'google sheets'],
+                    keywords: [
+                        'csv',
+                        'upload',
+                        'files',
+                        'google sheets',
+                        'spreadsheet',
+                        'sources',
+                        'semantic layer',
+                    ],
                     children: [],
                     exact: true,
+                    movedTo: 'Semantic Layer',
                 });
             }
 

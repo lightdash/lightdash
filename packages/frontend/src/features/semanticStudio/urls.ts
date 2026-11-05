@@ -11,7 +11,7 @@
  *
  * Each group level is its own segment, so a group named a/b stays one.
  */
-import { type Kind, type NodeRef } from './model';
+import { nodeKey, type Kind, type NodeRef } from './model';
 
 const STUDIO_PATH = /\/semantic-layer(?=\/|$)/;
 
@@ -82,6 +82,15 @@ const refOf = (segments: string[]): NodeRef | null => {
 };
 
 /** Reads the part of the pathname after /semantic-layer. */
+/** Whether a browser path is on the Semantic Layer page at all. */
+export const isSemanticStudioPath = (pathname: string): boolean =>
+    STUDIO_PATH.test(pathname);
+
+export const isSameRoute = (a: StudioRoute, b: StudioRoute): boolean =>
+    a.ref === null || b.ref === null
+        ? a.ref === b.ref
+        : nodeKey(a.ref) === nodeKey(b.ref);
+
 export const parseSemanticStudioPath = (pathname: string): StudioRoute => {
     const match = STUDIO_PATH.exec(pathname);
     const after = match ? pathname.slice(match.index + match[0].length) : '';
@@ -101,6 +110,20 @@ export const parseSemanticStudioPath = (pathname: string): StudioRoute => {
 /** The live data sources page: every source with its usage and controls. */
 export const getSemanticStudioLiveSourcesUrl = (projectUuid: string): string =>
     getSemanticStudioUrl(projectUuid, { ref: { type: 'kind', kind: 'live' } });
+
+export const getSemanticStudioExternalSourcesUrl = (
+    projectUuid: string,
+): string =>
+    getSemanticStudioUrl(projectUuid, { ref: { type: 'kind', kind: 'files' } });
+
+/**
+ * Where an old Settings › External sources link lands, with its query
+ * string carried across unchanged.
+ */
+export const getExternalSourcesRedirectUrl = (
+    projectUuid: string,
+    search: string,
+): string => `${getSemanticStudioExternalSourcesUrl(projectUuid)}${search}`;
 
 /**
  * Where an old Settings › Live data sources link lands: the rest of its path

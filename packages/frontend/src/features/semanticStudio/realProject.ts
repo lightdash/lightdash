@@ -76,7 +76,8 @@ const externalSource = (source: ExternalSource): Source => ({
         source.status === ExternalSourceStatus.ERROR
             ? (source.errorMessage ?? 'The last refresh failed')
             : null,
-    settingsPath: `${SETTINGS}/externalSources`,
+    // Managed on the external sources page, not in settings.
+    settingsPath: null,
 });
 
 /** Live explores are named `<source name>_<definition>`. */
@@ -146,7 +147,7 @@ const unlistedExternalSource = (
             : 'Google Sheet',
     onWarehouse: false,
     status: null,
-    settingsPath: `${SETTINGS}/externalSources`,
+    settingsPath: null,
 });
 
 const groupPathOf = (explore: SummaryExplore): string[] => {
@@ -243,6 +244,7 @@ export const buildRealProject = ({
     // A source with no explores yet (just added, or its build failed) still
     // has a page, so it can be fixed or removed.
     for (const { connection } of live) register(liveSource(connection));
+    for (const source of externalSources) register(externalSource(source));
 
     return {
         id: project.projectUuid,
