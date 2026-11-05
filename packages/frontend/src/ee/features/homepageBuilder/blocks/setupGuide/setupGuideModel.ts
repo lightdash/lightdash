@@ -83,6 +83,8 @@ export type SetupGuideFacts = {
     activeRun: AgentOnboardingRun | null;
     // Its run page shows what was built, so review lands there
     completedRun: AgentOnboardingRun | null;
+    // Semantic Layer page, when its flag is on; review lands there over the run page
+    semanticStudioUrl: string | null;
     appSourceNames: string[];
     // The live sources settings page only exists behind its flag and permission
     canAddLiveSources: boolean;
@@ -202,6 +204,7 @@ const semanticLayerRow = ({
     skippedActions,
     activeRun,
     completedRun,
+    semanticStudioUrl,
     semanticModelCount,
 }: SetupGuideFacts): SetupGuideRow => {
     const { url, ctaLabel } = statuses['add-semantic-layer'];
@@ -231,12 +234,14 @@ const semanticLayerRow = ({
             ),
             action: {
                 label: 'Review',
-                to: completedRun
-                    ? getAgentOnboardingRunUrl(
-                          completedRun.agentOnboardingRunUuid,
-                          completedRun.projectUuid,
-                      )
-                    : `/projects/${projectUuid}/tables`,
+                to:
+                    semanticStudioUrl ??
+                    (completedRun
+                        ? getAgentOnboardingRunUrl(
+                              completedRun.agentOnboardingRunUuid,
+                              completedRun.projectUuid,
+                          )
+                        : `/projects/${projectUuid}/tables`),
             },
             preview: null,
             choices: [],

@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { useLocalStorage } from 'react-use';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
 import { useExternalSources } from '../../../../../features/externalSources/hooks/useExternalSources';
+import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
 import { useOrganizationBrand } from '../../../../../hooks/organization/useOrganizationBrand';
 import { useInfiniteContent } from '../../../../../hooks/useContent';
 import { useExplores } from '../../../../../hooks/useExplores';
@@ -38,6 +39,9 @@ export const useSetupGuide = (
     const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
     const codingAgentFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
+    );
+    const semanticStudioFlag = useServerFeatureFlag(
+        FeatureFlags.SemanticStudio,
     );
     const canManageProject = useCanManageProject(projectUuid);
     // visibleActions is empty on the playground, where setup has no place
@@ -124,6 +128,10 @@ export const useSetupGuide = (
         ({ kind }) => kind === 'live_source',
     );
     const activeRunOrNull = run && !isRunTerminal ? run : null;
+    const semanticStudioUrl =
+        semanticStudioFlag.data?.enabled === true
+            ? getSemanticStudioUrl(projectUuid, { ref: null })
+            : null;
     const sections = buildSetupGuide({
         projectUuid,
         statuses: actions.statuses,
@@ -134,6 +142,7 @@ export const useSetupGuide = (
         chartCount: chartCount ?? 0,
         activeRun: activeRunOrNull,
         completedRun,
+        semanticStudioUrl,
         canAddLiveSources:
             liveSourcesFlag.data?.enabled === true &&
             !!user.data?.ability.can(
@@ -159,6 +168,7 @@ export const useSetupGuide = (
         sections,
         semanticExplores,
         liveConnections,
+        semanticStudioUrl,
         chartCount,
         activeRun: activeRunOrNull,
         completedRunUrl: completedRun
