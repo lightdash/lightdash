@@ -278,7 +278,7 @@ const ADD_OPTIONS: {
         description: 'Connect a dbt project',
         path: '/generalSettings/projectManagement/:projectUuid/settings',
         inSettings: true,
-        icon: <Logo src={dbtLogo} size={18} />,
+        icon: <KindIcon kind="modelled" size={18} />,
     },
     {
         key: 'sql',
@@ -328,14 +328,22 @@ const useAddSource = (view: ViewModel, kind?: Kind) => {
     const hasWarehouse = view.project.sources.some(
         (source) => source.kind === 'modelled',
     );
-    const options = ADD_OPTIONS.filter(
+    const allowed = ADD_OPTIONS.filter(
         (option) =>
             (!kind || option.kind === kind) &&
-            (option.key !== 'dbt' || !hasWarehouse) &&
             (!option.inSettings || view.canOpenSettings) &&
             isAvailable(option) &&
             view.canManage(option.kind),
     );
+    // One warehouse per project: once it has one, the menu still lists it,
+    // greyed out, so people see where their dbt project comes from.
+    const options = allowed.filter(
+        (option) => option.key !== 'dbt' || !hasWarehouse,
+    );
+    const menuOptions = allowed.map((option) => ({
+        option,
+        disabled: option.key === 'dbt' && hasWarehouse,
+    }));
     const pathOf = (option: AddOption) =>
         option.path ? addPath(view, option.path) : null;
     const addInPlace = (option: AddOption) =>
@@ -350,7 +358,7 @@ const useAddSource = (view: ViewModel, kind?: Kind) => {
             }
         />
     );
-    return { options, pathOf, addInPlace, dialog };
+    return { options, menuOptions, pathOf, addInPlace, dialog };
 };
 
 const addPath = (view: ViewModel, path: string) =>
@@ -360,11 +368,14 @@ export const AddSourceButton: FC<{
     view: ViewModel;
     kind?: Kind;
 }> = ({ view, kind }) => {
-    const { options, pathOf, addInPlace, dialog } = useAddSource(view, kind);
+    const { options, menuOptions, pathOf, addInPlace, dialog } = useAddSource(
+        view,
+        kind,
+    );
     if (options.length === 0) return null;
     return (
         <>
-            <Menu position="bottom-start" width={260}>
+            <Menu position="bottom-start">
                 <Menu.Target>
                     <Button
                         size="xs"
@@ -377,8 +388,8 @@ export const AddSourceButton: FC<{
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    {options.map((option) => {
-                        const path = pathOf(option);
+                    {menuOptions.map(({ option, disabled }) => {
+                        const path = disabled ? null : pathOf(option);
                         const content = (
                             <Text fz="sm" fw={500}>
                                 {option.label}
@@ -396,6 +407,7 @@ export const AddSourceButton: FC<{
                         ) : (
                             <Menu.Item
                                 key={option.key}
+                                disabled={disabled}
                                 onClick={() => addInPlace(option)}
                                 leftSection={option.icon}
                             >
