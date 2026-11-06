@@ -111,11 +111,13 @@ import {
     getDashboardTileParameterOverrides,
     getDbtEnvironmentVariableKeyError,
     getDefaultStartOfWeek,
+    getDimensionMapFromTables,
     getDimensions,
     getEffectiveParameterDefinitions,
     getErrorMessage,
     getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
+    getFilterRules,
     getHiddenFilterableFieldIds,
     getIntrinsicUserAttributes,
     getItemId,
@@ -1503,6 +1505,24 @@ export class ProjectService
         );
     }
 
+    private static countConvertTimezoneOptOutFilters(
+        explore: Explore,
+        metricQuery: MetricQuery,
+    ): number {
+        const dimensions = getDimensionMapFromTables(explore.tables);
+        return getFilterRules(metricQuery.filters).filter((rule) => {
+            const dimension = dimensions[rule.target.fieldId];
+            if (!dimension) return false;
+            const baseName = dimension.timeIntervalBaseDimensionName;
+            return Boolean(
+                dimension.skipTimezoneConversion ||
+                (baseName &&
+                    explore.tables[dimension.table]?.dimensions[baseName]
+                        ?.skipTimezoneConversion),
+            );
+        }).length;
+    }
+
     static getMetricQueryExecutionProperties({
         metricQuery,
         dateZoom,
@@ -1524,6 +1544,11 @@ export class ProjectService
             dimensionsCount: metricQuery.dimensions.length,
             metricsCount: metricQuery.metrics.length,
             filtersCount: countTotalFilterRules(metricQuery.filters),
+            convertTimezoneOptOutFiltersCount:
+                ProjectService.countConvertTimezoneOptOutFilters(
+                    explore,
+                    metricQuery,
+                ),
             sortsCount: metricQuery.sorts.length,
             tableCalculationsCount: metricQuery.tableCalculations.length,
             tableCalculationsPercentFormatCount:

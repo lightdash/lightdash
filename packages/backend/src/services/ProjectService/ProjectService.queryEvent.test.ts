@@ -1,7 +1,12 @@
 import {
     buildPopAdditionalMetric,
+    DimensionType,
+    FieldType,
+    FilterOperator,
     MetricType,
     TimeFrames,
+    type CompiledDimension,
+    type Explore,
     type MetricQuery,
 } from '@lightdash/common';
 import { ProjectService } from './ProjectService';
@@ -65,5 +70,82 @@ describe('ProjectService.getMetricQueryExecutionProperties period-over-period', 
         expect(getProperties(metricQuery)).toMatchObject({
             periodOverPeriodMetricsCount: 0,
         });
+    });
+});
+
+const timestampDimension: Omit<CompiledDimension, 'name' | 'label'> = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.TIMESTAMP,
+    table: 'a',
+    tableLabel: '',
+    sql: '',
+    hidden: false,
+    compiledSql: '',
+    tablesReferences: ['a'],
+};
+
+const optOutExplore: Explore = {
+    ...validExplore,
+    tables: {
+        ...validExplore.tables,
+        a: {
+            ...validExplore.tables.a,
+            dimensions: {
+                ...validExplore.tables.a.dimensions,
+                created: {
+                    ...timestampDimension,
+                    name: 'created',
+                    label: 'created',
+                    skipTimezoneConversion: true,
+                },
+                created_day: {
+                    ...timestampDimension,
+                    type: DimensionType.DATE,
+                    name: 'created_day',
+                    label: 'created day',
+                    timeInterval: TimeFrames.DAY,
+                    timeIntervalBaseDimensionName: 'created',
+                },
+            },
+        },
+    },
+};
+
+const filterRule = (fieldId: string) => ({
+    id: fieldId,
+    target: { fieldId },
+    operator: FilterOperator.NOT_NULL,
+});
+
+const optOutFilters: MetricQuery['filters'] = {
+    dimensions: {
+        id: 'root',
+        and: [
+            filterRule('a_created_day'),
+            filterRule('a_created'),
+            filterRule('a_dim1'),
+        ],
+    },
+};
+
+describe('ProjectService.getMetricQueryExecutionProperties convert_timezone opt-out', () => {
+    it('counts filters on opt-out dimensions and their time intervals', () => {
+        expect(
+            ProjectService.getMetricQueryExecutionProperties({
+                metricQuery: { ...metricQuery, filters: optOutFilters },
+                dateZoom: undefined,
+                chartUuid: undefined,
+                queryTags: {},
+                explore: optOutExplore,
+                parameters: undefined,
+            }).convertTimezoneOptOutFiltersCount,
+        ).toBe(2);
+    });
+
+    it('reports zero when no filtered dimension opts out', () => {
+        expect(
+            getProperties({ ...metricQuery, filters: optOutFilters })
+                .convertTimezoneOptOutFiltersCount,
+        ).toBe(0);
     });
 });
