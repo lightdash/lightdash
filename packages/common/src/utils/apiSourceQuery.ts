@@ -22,6 +22,7 @@ import {
 } from '../types/metricQuery';
 import { ApiConnectorType } from '../types/querySources';
 import assertUnreachable from './assertUnreachable';
+import { getItemId } from './item';
 
 /** Why a metric query can't run on a live data source explore, with what to change. */
 export type ApiSourceQueryIssue = {
@@ -200,10 +201,38 @@ const getUnsupportedFeatureIssues = (
         .map(({ code, message }) => ({ code, fieldId: null, message }));
 };
 
+/** Fields the query defines itself, where the source runs them natively. */
+const getQueryDefinedFieldIds = (
+    { pushdown }: ApiSourceCapabilities,
+    metricQuery: MetricQuery,
+): Set<FieldId> => {
+    const isNative = (feature: ApiSourcePushdown) => feature === 'native';
+    const additionalMetrics = metricQuery.additionalMetrics ?? [];
+    return new Set([
+        ...(isNative(pushdown.tableCalculations)
+            ? metricQuery.tableCalculations.map(({ name }) => name)
+            : []),
+        ...(isNative(pushdown.customDimensions)
+            ? (metricQuery.customDimensions ?? []).map(({ id }) => id)
+            : []),
+        ...additionalMetrics
+            .filter((metric) =>
+                isNative(
+                    isPeriodOverPeriodAdditionalMetric(metric)
+                        ? pushdown.periodOverPeriod
+                        : pushdown.customMetrics,
+                ),
+            )
+            .map((metric) => getItemId(metric)),
+    ]);
+};
+
 const getUnknownFieldIssues = (
     apiSource: ApiSourceExplore,
+    capabilities: ApiSourceCapabilities,
     metricQuery: MetricQuery,
 ): ApiSourceQueryIssue[] => {
+    const queryDefined = getQueryDefinedFieldIds(capabilities, metricQuery);
     const fieldIds = new Set([
         ...metricQuery.dimensions,
         ...metricQuery.metrics,
@@ -211,7 +240,10 @@ const getUnknownFieldIssues = (
         ...getFilterFieldIds(metricQuery),
     ]);
     return [...fieldIds]
-        .filter((fieldId) => !getFieldRule(apiSource, fieldId))
+        .filter(
+            (fieldId) =>
+                !getFieldRule(apiSource, fieldId) && !queryDefined.has(fieldId),
+        )
         .map((fieldId) => ({
             code: 'live_source.refused.unknown_field',
             fieldId,
@@ -473,7 +505,7 @@ export const getApiSourceQueryIssues = (
     const { dimensions, metrics } = metricQuery.filters;
     return [
         ...getUnsupportedFeatureIssues(capabilities, metricQuery, context),
-        ...getUnknownFieldIssues(apiSource, metricQuery),
+        ...getUnknownFieldIssues(apiSource, capabilities, metricQuery),
         ...getFilterIssues(apiSource, capabilities, dimensions, 'dimensions'),
         ...getFilterIssues(apiSource, capabilities, metrics, 'metrics'),
         ...getDateRangeIssues(apiSource, capabilities, dimensions),

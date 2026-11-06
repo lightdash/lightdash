@@ -110,6 +110,16 @@ const everywhere = (message: string) => ({
     [ApiConnectorType.POSTHOG]: [message],
 });
 
+// Report APIs refuse what PostHog compiles into HogQL; PostHog explores
+// cached before capabilities still refuse it until they are refreshed
+const reportApisOnly = (message: string) => ({
+    expected: {
+        [ApiConnectorType.GA4]: [message],
+        [ApiConnectorType.SEARCH_CONSOLE]: [message],
+    },
+    stale: everywhere(message),
+});
+
 const id = (connector: ApiConnectorType, key: keyof typeof FIELDS.ga4) =>
     toFieldId(connector, FIELDS[connector][key]);
 const date = (connector: ApiConnectorType) => toFieldId(connector, 'date');
@@ -124,7 +134,7 @@ const CASES: Case[] = [
         query: () => ({
             tableCalculations: [{ name: 'tc', displayName: 'TC', sql: '1' }],
         }),
-        expected: everywhere(
+        ...reportApisOnly(
             "Table calculations can't run on live data sources yet. Remove them from the query.",
         ),
     },
@@ -141,7 +151,7 @@ const CASES: Case[] = [
                 },
             ],
         }),
-        expected: everywhere(
+        ...reportApisOnly(
             "Custom metrics can't run on live data sources yet. Remove them from the query.",
         ),
     },
@@ -160,7 +170,7 @@ const CASES: Case[] = [
                 },
             ],
         }),
-        expected: everywhere(
+        ...reportApisOnly(
             "Custom dimensions can't run on live data sources yet. Remove them from the query.",
         ),
     },

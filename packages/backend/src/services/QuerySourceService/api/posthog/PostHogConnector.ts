@@ -49,7 +49,14 @@ export const POSTHOG_CAPABILITIES: ApiConnectorCapabilities = {
         grains: [],
         timezone: 'configurable',
     },
-    pushdown: ALL_PUSHDOWN_REFUSED,
+    // HogQL is SQL: the warehouse SQL builder compiles these into the query
+    pushdown: {
+        ...ALL_PUSHDOWN_REFUSED,
+        tableCalculations: 'native',
+        customDimensions: 'native',
+        customMetrics: 'native',
+        periodOverPeriod: 'native',
+    },
 };
 
 const PROPERTY_DEFINITIONS_PAGE_SIZE = 500;
