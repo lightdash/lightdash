@@ -232,6 +232,24 @@ describe('getModel', () => {
         expect(providerOptions.openai.reasoningSummary).toBeUndefined();
     });
 
+    it.each([
+        ['gpt-6-luna', 'none'],
+        ['gpt-5.5', 'low'],
+    ])(
+        'applies %s minimal reasoning options only where the preset defines them',
+        (modelName, expectedEffort) => {
+            const { providerOptions } = getModel(
+                copilotConfigWithStreaming(true),
+                { enableReasoning: false, minimalReasoning: true, modelName },
+            );
+
+            if (!providerOptions || !('openai' in providerOptions)) {
+                throw new Error('expected openai provider options');
+            }
+            expect(providerOptions.openai.reasoningEffort).toBe(expectedEffort);
+        },
+    );
+
     it.each([false, true])(
         'keeps OpenAI zero data retention stateless when extended reasoning is %s',
         (enableReasoning) => {

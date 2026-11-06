@@ -11,7 +11,12 @@ import {
     type SuggestedChartTypeExplore,
     type SuggestedChartTypeField,
 } from '@lightdash/common';
-import { generateText, NoObjectGeneratedError, Output } from 'ai';
+import {
+    generateText,
+    NoObjectGeneratedError,
+    NoOutputGeneratedError,
+    Output,
+} from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -325,7 +330,11 @@ const runSuggestionModel = async <T>(
             );
             return { status: 'timeout' };
         }
-        if (NoObjectGeneratedError.isInstance(error)) {
+        // No output: the whole output cap went to reasoning
+        if (
+            NoObjectGeneratedError.isInstance(error) ||
+            NoOutputGeneratedError.isInstance(error)
+        ) {
             Logger.warn(
                 `Ambient AI suggestion returned unparseable output: feature=${feature} elapsedMs=${elapsedMs}`,
             );
