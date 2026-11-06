@@ -2296,17 +2296,15 @@ describe('semanticLayer node custom metrics', () => {
             ],
         },
         {
-            name: 'a custom metric missing from metrics',
-            node: buyersNode({ metrics: ['orders_total_revenue'] }),
-            messages: ['add "orders_buyers" to metrics to select it'],
-        },
-        {
             name: 'a custom metric named like an explore metric',
             node: buyersNode({
                 metrics: ['orders_total_revenue'],
                 customMetrics: [customMetric({ name: 'total_revenue' })],
             }),
-            messages: ['"orders_total_revenue" already names a field'],
+            messages: [
+                '"orders_total_revenue" is already the explore\'s metric',
+                'select it instead',
+            ],
         },
         {
             name: 'a filter combined with OR',
@@ -2486,6 +2484,38 @@ describe('semanticLayer node period comparisons', () => {
             : undefined;
         return { output, submitted, made };
     };
+
+    it('selects a custom metric that metrics does not list, with its comparison', async () => {
+        const { output, submitted } = await run(
+            monthlyNode({
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'buyers',
+                        label: 'Buyers',
+                        aggregation: MetricType.COUNT_DISTINCT,
+                        dimensionFieldId: 'orders_customer_name',
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_buyers',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            metrics: [
+                'orders_total_revenue',
+                'orders_buyers',
+                expect.stringMatching(/^orders_buyers__pop__month_1__/),
+            ],
+        });
+    });
 
     it('appends the shifted metric next to its base metric, at the time dimension grain', async () => {
         const { output, submitted } = await run(

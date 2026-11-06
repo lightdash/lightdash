@@ -176,7 +176,7 @@ const composerCustomMetricSchema = z.object({
             'Custom metric names use lowercase snake_case',
         )
         .describe(
-            'snake_case name. The metric\'s field id is "<table>_<name>": list it in "metrics" to select it, and use it in sorts, metric filters and periodComparisons.',
+            'snake_case name. The metric\'s field id is "<table>_<name>"; defining it selects it, and the id works in sorts, metric filters and periodComparisons.',
         ),
     label: z.string().describe('Column label shown to users.'),
     description: z
@@ -221,7 +221,7 @@ const composerPeriodComparisonSchema = z.object({
     metricFieldId: z
         .string()
         .describe(
-            'Metric to compare: a field id in "metrics", explore or custom.',
+            'Metric to compare: a field id in "metrics" or a custom metric\'s.',
         ),
     timeDimensionFieldId: z
         .string()
