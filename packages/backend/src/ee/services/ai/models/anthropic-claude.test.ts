@@ -166,22 +166,22 @@ describe('getAnthropicModel minimal reasoning', () => {
     });
 
     test.each([
-        ['the call does not opt in', haiku55, { enableReasoning: false }],
-        [
-            'extended reasoning is on',
-            haiku55,
-            { enableReasoning: true, minimalReasoning: true },
-        ],
+        ['extended reasoning is on', haiku55, true],
         [
             'the preset has no minimal options',
-            { ...preset, reasoningStyle: 'adaptive' as const },
-            { enableReasoning: false, minimalReasoning: true },
+            MODEL_PRESETS.anthropic.find((p) => p.name === 'claude-opus-5-5')!,
+            false,
         ],
-    ])('leaves thinking alone when %s', (_case, modelPreset, options) => {
-        const model = getAnthropicModel(config, modelPreset, options);
-        expect(model.providerOptions?.anthropic?.thinking?.type).not.toBe(
-            'disabled',
-        );
+    ])('changes nothing when %s', (_case, modelPreset, enableReasoning) => {
+        const build = (minimalReasoning: boolean) => {
+            const { callOptions, providerOptions } = getAnthropicModel(
+                config,
+                modelPreset,
+                { enableReasoning, minimalReasoning },
+            );
+            return { callOptions, providerOptions };
+        };
+        expect(build(true)).toEqual(build(false));
     });
 });
 

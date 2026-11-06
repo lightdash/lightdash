@@ -612,7 +612,6 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         payload: SuggestChartTypeFieldsRequest,
     ): Promise<SuggestedChartTypeFields> {
         await this.assertCanManageExplore(user, projectUuid);
-        // Answers within the browser's wait, so skip thinking where the model allows
         const modelOptions = await this.getAmbientAiModel(
             user,
             { projectUuid },
@@ -656,7 +655,6 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         payload: SuggestChartTypeExploreRequest,
     ): Promise<SuggestedChartTypeExploreResult> {
         await this.assertCanManageExplore(user, projectUuid);
-        // Answers within the browser's wait, so skip thinking where the model allows
         const modelOptions = await this.getAmbientAiModel(
             user,
             { projectUuid },

@@ -330,7 +330,7 @@ const runSuggestionModel = async <T>(
             );
             return { status: 'timeout' };
         }
-        // No output: the whole output cap went to reasoning
+        // No output, e.g. reasoning used the whole output cap
         if (
             NoObjectGeneratedError.isInstance(error) ||
             NoOutputGeneratedError.isInstance(error)

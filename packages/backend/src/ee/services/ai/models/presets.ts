@@ -37,7 +37,6 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     supersededBy?: string;
     callOptions: LanguageModelCallOptions & Omit<RequestOptions, 'timeout'>;
     providerOptions: ProviderOptionsMap[P] | undefined;
-    // Merged in for latency-bound calls that opt into minimal reasoning
     minimalReasoningProviderOptions?: ProviderOptionsMap[P];
 } & (
     | { custom?: false; contextWindowTokens: number }
