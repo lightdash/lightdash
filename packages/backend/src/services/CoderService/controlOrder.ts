@@ -152,44 +152,66 @@ const slotOf = (control: DashboardControl) =>
         ? `${control.kind}:${control.group}`
         : control.kind;
 
-/** Whether an order puts the controls it mentions in the same bar slots as the default order */
+/** Whether storing an order would leave the bar at the default; controls new in this upload may be left out */
 export const followsDefaultControlOrder = (
     controlOrder: DashboardControlRef[],
     controls: OrderedControls,
+    saved: OrderedControls | null,
 ): boolean => {
-    const byKey = new Map(
-        getDashboardControls({ ...controls, controlOrder: undefined }).map(
-            (control) => [`${control.kind}:${control.id}`, control],
-        ),
+    const all = getDashboardControls({ ...controls, controlOrder: undefined });
+    const keyOf = ({ kind, id }: { kind: string; id: string }) =>
+        `${kind}:${id}`;
+    const existingKeys = new Set(
+        saved
+            ? getDashboardControls({ ...saved, controlOrder: undefined }).map(
+                  keyOf,
+              )
+            : [],
     );
-    // Per container, each ref's slot and line start, as reconcile places them
-    const toSlots = (refs: DashboardControlRef[]) => {
+    const byKey = new Map(all.map((control) => [keyOf(control), control]));
+    // Per container, each control's slot and line start, as reconcile places them
+    const toSlots = (refs: DashboardControlRef[], tail: DashboardControl[]) => {
+        const seen = new Set<string>();
         let pendingLine = false;
         const placed = refs.flatMap((ref) => {
-            const control = byKey.get(`${ref.kind}:${ref.id}`);
+            const control = byKey.get(keyOf(ref));
             const newLine = pendingLine || ref.newLine === true;
-            if (control === undefined) {
+            if (control === undefined || seen.has(keyOf(ref))) {
                 pendingLine = newLine;
                 return [];
             }
+            seen.add(keyOf(ref));
             pendingLine = control.sectionId !== null && newLine;
             return [
-                {
-                    container: control.sectionId ?? '',
-                    slot: `${slotOf(control)}:${control.sectionId === null && newLine}`,
-                },
+                { control, newLine: control.sectionId === null && newLine },
             ];
         });
-        return mapValues(groupBy(placed, 'container'), (group) =>
-            group.map(({ slot }) => slot),
+        return mapValues(
+            groupBy(
+                [
+                    ...placed,
+                    ...tail.map((control) => ({ control, newLine: false })),
+                ],
+                ({ control }) => control.sectionId ?? '',
+            ),
+            (group) =>
+                group.map(
+                    ({ control, newLine }) => `${slotOf(control)}:${newLine}`,
+                ),
         );
     };
-    const mentioned = new Set(
-        controlOrder.map(({ kind, id }) => `${kind}:${id}`),
+    const mentioned = new Set(controlOrder.map(keyOf));
+    // Saved controls the file leaves out trail their container, as a stored list would place them
+    const leftOut = all.filter(
+        (control) =>
+            existingKeys.has(keyOf(control)) && !mentioned.has(keyOf(control)),
     );
     const defaultOrder = reconcileDashboardControlOrder({
         ...controls,
         controlOrder: undefined,
-    }).filter(({ kind, id }) => mentioned.has(`${kind}:${id}`));
-    return isEqual(toSlots(controlOrder), toSlots(defaultOrder));
+    }).filter(
+        (control) =>
+            mentioned.has(keyOf(control)) || existingKeys.has(keyOf(control)),
+    );
+    return isEqual(toSlots(controlOrder, leftOut), toSlots(defaultOrder, []));
 };

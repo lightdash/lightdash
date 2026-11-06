@@ -4328,6 +4328,73 @@ describe('CoderService dashboard control order as code', () => {
         expect(saved.config).not.toHaveProperty('controlOrder');
     });
 
+    const uploadNeverReordered = (
+        file: DashboardAsCode,
+        controlOrder: AnyType,
+    ) =>
+        upload(
+            { ...file, config: { ...file.config!, controlOrder } },
+            { saved: withoutOrder() as DashboardDAO },
+        );
+
+    it('stores a partial list that puts a saved control first', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true),
+            [{ kind: DashboardControlRefKind.PARAMETER, slug: 'region' }],
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'parameter', id: 'region-id' },
+        ]);
+        expect(
+            reconcileDashboardControlOrder({
+                controlOrder: saved.config!.controlOrder,
+                filters: saved.filters,
+                parameterControls: saved.config!.parameterControls!,
+                sections: saved.config!.controlSections!,
+            }).map(({ kind, slug, newLine }) => [kind, slug, newLine]),
+        ).toEqual([
+            ['parameter', 'region', false],
+            ['filter', 'orders-status-1', false],
+            ['filter', 'orders-total', false],
+            ['section', 'calendar', false],
+            ['filter', 'orders-status-2', false],
+        ]);
+    });
+
+    it('stores a list that only places a section on its own line', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true),
+            [
+                {
+                    kind: DashboardControlRefKind.SECTION,
+                    slug: 'calendar',
+                    newLine: true,
+                },
+            ],
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'section', id: 'section-id', newLine: true },
+        ]);
+    });
+
+    it('stores the read-back default when it drops a line start', async () => {
+        const file = download(withoutOrder(), true, true);
+        const saved = await uploadNeverReordered(
+            file,
+            file.config!.controlOrder!.map(({ kind, slug }) => ({
+                kind,
+                slug,
+            })),
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id' },
+            { kind: 'filter', id: 'second-id' },
+        ]);
+    });
+
     it('stores no order when an agent adds a filter without a ref', async () => {
         const saved = await upload(
             withCityFilter(download(withoutOrder(), true, true)),

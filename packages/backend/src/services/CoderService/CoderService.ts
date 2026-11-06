@@ -5941,7 +5941,21 @@ export class CoderService extends BaseService {
             if (
                 controlOrder !== undefined &&
                 existingDashboard?.config?.controlOrder === undefined &&
-                followsDefaultControlOrder(controlOrder, sources)
+                followsDefaultControlOrder(
+                    controlOrder,
+                    sources,
+                    existingDashboard
+                        ? {
+                              filters: existingDashboard.filters,
+                              parameterControls:
+                                  existingDashboard.config?.parameterControls ??
+                                  [],
+                              sections:
+                                  existingDashboard.config?.controlSections ??
+                                  [],
+                          }
+                        : null,
+                )
             ) {
                 controlOrder = undefined;
             }
