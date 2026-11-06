@@ -550,15 +550,6 @@ type ExecuteMergeQueryInternalArgs = Omit<
         | { type: 'resolved'; configuration: PivotConfiguration };
 };
 
-// Read-only tile queries that are safe to retry when they stall
-const STALL_RECOVERABLE_QUERY_CONTEXTS: ReadonlySet<QueryExecutionContext> =
-    new Set([
-        QueryExecutionContext.DASHBOARD,
-        QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
-        QueryExecutionContext.EMBED,
-        QueryExecutionContext.CHART,
-    ]);
-
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
@@ -5247,16 +5238,9 @@ export class AsyncQueryService extends ProjectService {
             const resolvedDataTimezone = isTimezoneSupportEnabled
                 ? warehouseClient.credentials.dataTimezone
                 : undefined;
+            // Safe for any query: only one Redshift has no record of is re-sent
             const recoverStalledQuery =
-                credentialsType === WarehouseTypes.REDSHIFT &&
-                STALL_RECOVERABLE_QUERY_CONTEXTS.has(queryTags.query_context) &&
-                (
-                    await this.featureFlagModel.get({
-                        featureFlagId:
-                            FeatureFlags.RedshiftStalledQueryRecovery,
-                        user: { userUuid, organizationUuid },
-                    })
-                ).enabled;
+                credentialsType === WarehouseTypes.REDSHIFT;
 
             const t0 = Date.now();
 

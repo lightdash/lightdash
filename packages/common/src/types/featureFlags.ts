@@ -295,12 +295,6 @@ export enum FeatureFlags {
      */
     OrgAiCustomProviders = 'org-ai-custom-providers',
     /**
-     * Organization-scoped, off by default: when a Redshift dashboard or chart
-     * query has no first row after 30s and Redshift has no record of it,
-     * cancel it and retry on a new connection.
-     */
-    RedshiftStalledQueryRecovery = 'redshift-stalled-query-recovery',
-    /**
      * Experiment, off by default: dashboards always fit the screen in view
      * mode, and the fit to screen toggle is removed. Enabled for internal
      * instances only while we gather feedback.
