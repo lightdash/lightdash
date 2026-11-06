@@ -492,8 +492,11 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         steps: z
             .array(z.string())
             .min(2)
+            .refine((steps) => new Set(steps).size === steps.length, {
+                message: 'Each step must be a different event name.',
+            })
             .describe(
-                'Event names in funnel order, at least two: exact values of eventNameFieldId, not field ids. When unsure which values exist, list the distinct values with a semanticLayer node first. A user counts at a step only after completing every earlier step, each within conversionWindow of the previous one.',
+                "Event names in funnel order, at least two, all different: exact values of eventNameFieldId, not field ids. When unsure which values exist, list the distinct values with a semanticLayer node first. Only each user's first occurrence of an event counts, so a user is at a step only when their first such event follows their first event of every earlier step, each within conversionWindow of the previous one.",
             ),
         dateRange: funnelDateRangeSchema.describe(
             'Events on timestampFieldId outside this range are not read: a preset counting back from today, or a custom range.',

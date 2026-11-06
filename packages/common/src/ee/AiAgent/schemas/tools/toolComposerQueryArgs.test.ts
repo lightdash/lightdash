@@ -422,7 +422,7 @@ describe('composer funnel nodes', () => {
         ).toBe(true);
     });
 
-    it('rejects a funnel with fewer than two steps or a malformed custom range', () => {
+    it('rejects a funnel with fewer than two steps, a repeated step, or a malformed custom range', () => {
         const schema = createToolComposerQueriesArgsSchema({
             enableFunnelNodes: true,
         });
@@ -430,6 +430,12 @@ describe('composer funnel nodes', () => {
             schema.safeParse({
                 ...args,
                 queries: [{ ...funnelNode, steps: ['visit'] }],
+            }).success,
+        ).toBe(false);
+        expect(
+            schema.safeParse({
+                ...args,
+                queries: [{ ...funnelNode, steps: ['visit', 'visit'] }],
             }).success,
         ).toBe(false);
         expect(
