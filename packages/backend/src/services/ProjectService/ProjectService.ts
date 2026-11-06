@@ -96,6 +96,7 @@ import {
     FilterableDimension,
     FilterAutocompleteValue,
     findReplaceableCustomMetrics,
+    flattenFilterGroup,
     ForbiddenError,
     formatRows,
     getAccountUserTimezone,
@@ -111,6 +112,7 @@ import {
     getDashboardTileParameterOverrides,
     getDbtEnvironmentVariableKeyError,
     getDefaultStartOfWeek,
+    getDimensionMapFromTables,
     getDimensions,
     getEffectiveParameterDefinitions,
     getErrorMessage,
@@ -1503,6 +1505,30 @@ export class ProjectService
         );
     }
 
+    private static countConvertTimezoneOptOutFilters(
+        explore: Explore,
+        metricQuery: MetricQuery,
+    ): number {
+        const rules = metricQuery.filters.dimensions
+            ? flattenFilterGroup(metricQuery.filters.dimensions).filter(
+                  (rule) => !rule.disabled,
+              )
+            : [];
+        if (rules.length === 0) return 0;
+        const dimensions = getDimensionMapFromTables(explore.tables);
+        return rules.filter((rule) => {
+            const dimension = dimensions[rule.target.fieldId];
+            if (!dimension) return false;
+            const baseName = dimension.timeIntervalBaseDimensionName;
+            return Boolean(
+                dimension.skipTimezoneConversion ||
+                (baseName &&
+                    explore.tables[dimension.table]?.dimensions[baseName]
+                        ?.skipTimezoneConversion),
+            );
+        }).length;
+    }
+
     static getMetricQueryExecutionProperties({
         metricQuery,
         dateZoom,
@@ -1524,6 +1550,11 @@ export class ProjectService
             dimensionsCount: metricQuery.dimensions.length,
             metricsCount: metricQuery.metrics.length,
             filtersCount: countTotalFilterRules(metricQuery.filters),
+            convertTimezoneOptOutFiltersCount:
+                ProjectService.countConvertTimezoneOptOutFilters(
+                    explore,
+                    metricQuery,
+                ),
             sortsCount: metricQuery.sorts.length,
             tableCalculationsCount: metricQuery.tableCalculations.length,
             tableCalculationsPercentFormatCount:

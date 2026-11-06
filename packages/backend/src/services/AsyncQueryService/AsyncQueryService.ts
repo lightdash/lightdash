@@ -6884,6 +6884,8 @@ export class AsyncQueryService extends ProjectService {
                         onboardingFlow,
                         queryId: queryHistoryUuid,
                         warehouseType: warehouseCredentialsType,
+                        resolvedQueryTimezone: displayTimezone,
+                        dataTimezone: resolvedDataTimezone ?? null,
                         ...ProjectService.getMetricQueryExecutionProperties({
                             metricQuery,
                             queryTags,

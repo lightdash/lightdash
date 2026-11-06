@@ -638,6 +638,7 @@ export type MetricQueryExecutionProperties = {
     tableCalculationsNumberFormatCount: number;
     tableCalculationCustomFormatCount: number;
     filtersCount: number;
+    convertTimezoneOptOutFiltersCount: number;
     sortsCount: number;
     additionalMetricsCount: number;
     additionalMetricsFilterCount: number;
@@ -662,6 +663,8 @@ type PaginatedMetricQueryExecutionProperties =
     MetricQueryExecutionProperties & {
         queryId: string;
         warehouseType: WarehouseTypes;
+        resolvedQueryTimezone: string | null;
+        dataTimezone: string | null;
     };
 
 type SqlExecutionProperties = {
