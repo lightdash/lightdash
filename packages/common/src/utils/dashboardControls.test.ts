@@ -317,6 +317,20 @@ describe('reconcileDashboardControlOrder', () => {
         ).toEqual(['filter:x', 'filter:x']);
     });
 
+    it('lists a repeated section id and its members once', () => {
+        expect(
+            order(
+                sources({
+                    filters: {
+                        dimensions: [rule('d1', { sectionId: 's' })],
+                        metrics: [],
+                    },
+                    sections: [section('s'), section('s')],
+                }),
+            ),
+        ).toEqual(['section:s', 'filter:d1']);
+    });
+
     it('builds the envelope from each kind', () => {
         const [param, sec, filter] = reconcileDashboardControlOrder(
             sources({

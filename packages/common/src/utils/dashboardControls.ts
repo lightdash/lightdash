@@ -1,4 +1,4 @@
-import { groupBy } from 'es-toolkit/compat';
+import { groupBy, uniqBy } from 'es-toolkit/compat';
 import {
     DashboardControlRefKind,
     type DashboardControlRef,
@@ -99,8 +99,9 @@ const adapters: { [K in DashboardControlKind]: Adapter<K> } = {
         })),
     // Date zoom controls don't join the shared order yet
     [DashboardControlRefKind.DATE_ZOOM]: () => [],
+    // A repeated section id would expand its members twice
     [DashboardControlRefKind.SECTION]: ({ sections }) =>
-        sections.map((section) => ({
+        uniqBy(sections, 'id').map((section) => ({
             kind: DashboardControlRefKind.SECTION,
             id: section.id,
             slug: section.slug ?? null,
