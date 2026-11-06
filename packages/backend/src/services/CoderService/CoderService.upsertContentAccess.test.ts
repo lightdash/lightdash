@@ -3821,7 +3821,11 @@ describe('CoderService dashboard control order as code', () => {
         const { controlOrder: _order, ...config } = dashboard.config!;
         return { ...dashboard, config };
     };
-    const download = (dashboard: DashboardDAO, controlsEnabled: boolean) => {
+    const download = (
+        dashboard: DashboardDAO,
+        controlsEnabled: boolean,
+        fullControlOrder = false,
+    ) => {
         const { downloadedAt: _downloadedAt, ...file } = (
             CoderService as unknown as {
                 transformDashboard: (...args: AnyType[]) => DashboardAsCode;
@@ -3831,6 +3835,7 @@ describe('CoderService dashboard control order as code', () => {
             [{ uuid: SPACE_UUID, name: 'Space', path: 'space' }],
             new Map(),
             controlsEnabled,
+            fullControlOrder,
         );
         return file as DashboardAsCode;
     };
@@ -4038,6 +4043,166 @@ describe('CoderService dashboard control order as code', () => {
             ...unchanged,
             config: { ...unchanged.config, controlOrder: undefined },
         });
+    });
+
+    it('gives agent reads the default order and filter slugs when none is stored', () => {
+        const file = download(withoutOrder(), true, true);
+        expect(
+            [...file.filters!.dimensions!, ...file.filters!.metrics!].map(
+                ({ slug }) => slug,
+            ),
+        ).toEqual(['orders-status-1', 'orders-status-2', 'orders-total']);
+        expect(file.config?.controlOrder).toEqual([
+            { kind: 'filter', slug: 'orders-status-1' },
+            { kind: 'filter', slug: 'orders-total' },
+            { kind: 'parameter', slug: 'region' },
+            { kind: 'section', slug: 'calendar' },
+            { kind: 'filter', slug: 'orders-status-2' },
+        ]);
+    });
+
+    it.each([true, false])(
+        'resolves the flag for agent reads of dashboards without controls config (enabled=%s)',
+        async (enabled) => {
+            const service = buildService();
+            const dashboard = {
+                ...withoutOrder(),
+                config: { isDateZoomDisabled: false },
+            } as DashboardDAO;
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                dashboard as AnyType,
+            ]);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+                dashboard,
+            );
+            service.dashboardModel.getSlugAliasesForUuids = vi.fn(
+                async () => [],
+            );
+            service.contentVerificationModel.getByContentUuids = vi.fn(
+                async () => new Map(),
+            );
+            (service as AnyType).savedChartModel = {
+                getLatestVersionQueriesBySlugs: vi.fn(async () => ({})),
+            };
+            vi.spyOn(
+                service as AnyType,
+                'filterPrivateContent',
+            ).mockImplementation(
+                async (_user: AnyType, _project: AnyType, content: AnyType) =>
+                    content,
+            );
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(enabled);
+            const user = makeSessionUser([]);
+            const exported = await (service as AnyType).findDashboardsAsCode(
+                user,
+                PROJECT_UUID,
+                undefined,
+            );
+            expect(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).not.toHaveBeenCalled();
+            expect(exported.dashboards[0].config).not.toHaveProperty(
+                'controlOrder',
+            );
+            const { dashboards } = await service.getDashboardsForRead(
+                user,
+                PROJECT_UUID,
+                ['dashboard'],
+            );
+            expect(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).toHaveBeenCalledOnce();
+            expect(dashboards[0].config?.controlOrder).toEqual(
+                enabled
+                    ? [
+                          { kind: 'filter', slug: 'orders-status-1' },
+                          { kind: 'filter', slug: 'orders-status-2' },
+                          { kind: 'filter', slug: 'orders-total' },
+                      ]
+                    : undefined,
+            );
+        },
+    );
+
+    it('gives agent reads exactly the file download with the flag off', () => {
+        expect(JSON.stringify(download(withoutOrder(), false, true))).toBe(
+            JSON.stringify(download(withoutOrder(), false)),
+        );
+    });
+
+    it('gives agent reads an order for a dashboard without a config', () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        expect(download(dashboard as DashboardDAO, true, true).config).toEqual({
+            isDateZoomDisabled: false,
+            controlOrder: [
+                { kind: 'filter', slug: 'orders-status-1' },
+                { kind: 'filter', slug: 'orders-status-2' },
+                { kind: 'filter', slug: 'orders-total' },
+            ],
+        });
+    });
+
+    it('stores no order when an agent edit leaves the default order untouched', async () => {
+        const dashboard = {
+            ...withoutOrder(),
+            tiles: [
+                {
+                    uuid: 'tile-uuid',
+                    type: DashboardTileTypes.MARKDOWN,
+                    x: 0,
+                    y: 0,
+                    h: 3,
+                    w: 3,
+                    tabUuid: undefined,
+                    properties: { title: 'Notes', content: 'Hello' },
+                },
+            ],
+        } as unknown as DashboardDAO;
+        const file = download(dashboard, true, true);
+        const saved = await upload(
+            {
+                ...file,
+                tiles: file.tiles.map((tile) => ({
+                    ...tile,
+                    properties: { ...tile.properties, title: 'Renamed tile' },
+                })) as DashboardAsCode['tiles'],
+            },
+            { saved: dashboard },
+        );
+        expect(saved.tiles[0].properties.title).toBe('Renamed tile');
+        expect(saved.config).not.toHaveProperty('controlOrder');
+    });
+
+    it('stores the order when an agent edit moves a ref', async () => {
+        const file = download(withoutOrder(), true, true);
+        const [first, ...rest] = file.config!.controlOrder!;
+        const saved = await upload(
+            {
+                ...file,
+                config: { ...file.config!, controlOrder: [...rest, first] },
+            },
+            { saved: withoutOrder() as DashboardDAO },
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id' },
+            { kind: 'filter', id: 'second-id' },
+            { kind: 'filter', id: 'first-id' },
+        ]);
+    });
+
+    it('keeps storing a default order once an order is stored', async () => {
+        const saved = await upload(download(withoutOrder(), true, true));
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id' },
+            { kind: 'filter', id: 'second-id' },
+        ]);
     });
 
     it('resets the order when the file has none', async () => {
