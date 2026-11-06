@@ -4,6 +4,10 @@ import {
     isClientIdMetadataDocumentUrl,
     type ClientIdMetadataDocumentFetch,
 } from './clientIdMetadataDocument';
+import {
+    chatGptClientMetadataDocument,
+    liveClientMetadataDocuments,
+} from './clientIdMetadataDocument.mock';
 
 const clientId = 'https://claude.ai/oauth/claude-code-client-metadata';
 
@@ -95,6 +99,34 @@ describe('ClientIdMetadataDocumentResolver', () => {
         });
     });
 
+    it.each(liveClientMetadataDocuments)(
+        'resolves the %s document as published',
+        async (_label, document) => {
+            const { resolver } = createResolver(document);
+            await expect(
+                resolver.resolve(document.client_id),
+            ).resolves.toEqual({
+                clientId: document.client_id,
+                clientName: document.client_name,
+                redirectUris: document.redirect_uris,
+                grantTypes: ['authorization_code', 'refresh_token'],
+            });
+        },
+    );
+
+    it('treats a client that supports `none` as public even when it prefers another method', async () => {
+        const { resolver } = createResolver({
+            ...validDocument,
+            token_endpoint_auth_method:
+                chatGptClientMetadataDocument.token_endpoint_auth_method,
+            token_endpoint_auth_methods_supported:
+                chatGptClientMetadataDocument.token_endpoint_auth_methods_supported,
+        });
+        await expect(resolver.resolve(clientId)).resolves.toMatchObject({
+            clientId,
+        });
+    });
+
     it('defaults the client name and grant types', async () => {
         const { resolver } = createResolver({
             client_id: clientId,
@@ -127,6 +159,25 @@ describe('ClientIdMetadataDocumentResolver', () => {
             {
                 ...validDocument,
                 token_endpoint_auth_method: 'client_secret_post',
+            },
+        ],
+        [
+            'only confidential auth methods supported',
+            {
+                ...validDocument,
+                token_endpoint_auth_method: 'private_key_jwt',
+                token_endpoint_auth_methods_supported: [
+                    'private_key_jwt',
+                    'client_secret_basic',
+                ],
+            },
+        ],
+        [
+            'non-array token_endpoint_auth_methods_supported',
+            {
+                ...validDocument,
+                token_endpoint_auth_method: 'private_key_jwt',
+                token_endpoint_auth_methods_supported: 'none',
             },
         ],
         [
