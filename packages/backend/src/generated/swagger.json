@@ -61444,7 +61444,7 @@
                     "ownerUserUuid": {
                         "type": "string",
                         "nullable": true,
-                        "description": "Set to a user uuid to assign an owner, null or omitted for no owner"
+                        "description": "Set to a user uuid to assign an owner, null for no owner. Omitted defaults to the creator"
                     },
                     "colorPaletteUuid": {
                         "type": "string",
@@ -72641,7 +72641,7 @@
                     "ownerUserUuid": {
                         "type": "string",
                         "nullable": true,
-                        "description": "Set to a user uuid to assign an owner, null or omitted for no owner"
+                        "description": "Set to a user uuid to assign an owner, null for no owner. Omitted defaults to the creator"
                     }
                 },
                 "required": ["name"],
@@ -76076,7 +76076,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.169.3",
+        "version": "3.173.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
