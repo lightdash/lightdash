@@ -112,12 +112,8 @@ const adapters: { [K in DashboardControlKind]: Adapter<K> } = {
         })),
 };
 
-const KINDS: DashboardControlKind[] = [
-    DashboardControlRefKind.FILTER,
-    DashboardControlRefKind.PARAMETER,
-    DashboardControlRefKind.DATE_ZOOM,
-    DashboardControlRefKind.SECTION,
-];
+// Declaration order is the default order of kinds
+const KINDS: DashboardControlKind[] = Object.values(DashboardControlRefKind);
 
 const isKnownKind = (kind: unknown): kind is DashboardControlKind =>
     KINDS.includes(kind as DashboardControlKind);
