@@ -372,6 +372,53 @@ describe('underPointerFor', () => {
         expect(collide(450, 15)).toBe('date');
         expect(collide(150, 15)).toBe('date');
     });
+
+    it('picks the nearest capsule in the pointer’s row across uneven and wrapped rows', () => {
+        const rect = (left: number, right: number, top: number, height = 30) =>
+            ({
+                top,
+                bottom: top + height,
+                left,
+                right,
+                width: right - left,
+                height,
+            }) as ClientRect;
+        const section = { current: { kind: 'section' } };
+        const gap = { current: { kind: 'section', isLineGap: true } };
+        const collideIn =
+            (rects: [string, ClientRect][]) => (x: number, y: number) => {
+                const droppableRects = new Map(rects);
+                return underPointerFor({
+                    active: { id: 'moving', data: section },
+                    collisionRect: rect(x - 40, x + 40, y - 15),
+                    droppableRects,
+                    droppableContainers: rects.map(([id]) => ({
+                        id,
+                        data: id.startsWith('section-line') ? gap : section,
+                    })),
+                    pointerCoordinates: { x, y },
+                } as unknown as Parameters<typeof underPointerFor>[0])[0]?.id;
+            };
+        // An open capsule beside a collapsed one: below the short one's bottom
+        const uneven = collideIn([
+            ['section-line:0', rect(0, 800, -12, 12)],
+            ['open', rect(0, 300, 0, 200)],
+            ['short', rect(310, 500, 0, 30)],
+            ['section-line:1', rect(0, 800, 202, 12)],
+        ]);
+        expect(uneven(600, 100)).toBe('short');
+        // A wrapped line: the space between its rows is no line gap
+        const wrapped = collideIn([
+            ['section-line:0', rect(0, 400, -12, 12)],
+            ['a', rect(0, 150, 0, 36)],
+            ['b', rect(160, 300, 0, 36)],
+            ['c', rect(0, 150, 52, 36)],
+            ['section-line:1', rect(0, 400, 90, 12)],
+        ]);
+        expect(wrapped(250, 44)).toBe('b');
+        // Below every capsule still reaches the end line gap
+        expect(wrapped(200, 300)).toBe('section-line:1');
+    });
 });
 
 describe('getMoveNeighbours', () => {

@@ -506,26 +506,32 @@ export const underPointerFor: CollisionDetection = (args) => {
     if (isSectionDrag && pointer !== null) {
         const within = pointerWithin({ ...args, droppableContainers });
         if (within.length > 0) return within;
-        // A line's empty space lands beside that line's nearest capsule
-        const nearest = droppableContainers
-            .filter(({ data }) => data.current?.isLineGap !== true)
-            .flatMap((container) => {
-                const rect = args.droppableRects.get(container.id);
-                if (
-                    rect === undefined ||
-                    pointer.y < rect.top ||
-                    pointer.y > rect.bottom
-                )
-                    return [];
-                const distance = Math.max(
+        // The empty space among the capsules lands beside the nearest one in
+        // the row the pointer is on (capsules top-align, so a row shares its
+        // top); above or below them all is left to the line gaps
+        const capsules = droppableContainers.flatMap((container) => {
+            const rect = args.droppableRects.get(container.id);
+            return rect === undefined || container.data.current?.isLineGap
+                ? []
+                : [{ container, rect }];
+        });
+        const above = capsules.filter(({ rect }) => rect.top <= pointer.y);
+        const rowTop = Math.max(...above.map(({ rect }) => rect.top));
+        const isAmongCapsules =
+            above.length > 0 &&
+            capsules.some(({ rect }) => rect.bottom >= pointer.y);
+        const nearest = above
+            .filter(({ rect }) => rect.top >= rowTop - 1)
+            .map(({ container, rect }) => ({
+                container,
+                distance: Math.max(
                     rect.left - pointer.x,
                     pointer.x - rect.right,
                     0,
-                );
-                return [{ container, distance }];
-            })
+                ),
+            }))
             .sort((a, b) => a.distance - b.distance)[0];
-        if (nearest !== undefined)
+        if (isAmongCapsules && nearest !== undefined)
             return [
                 {
                     id: nearest.container.id,
