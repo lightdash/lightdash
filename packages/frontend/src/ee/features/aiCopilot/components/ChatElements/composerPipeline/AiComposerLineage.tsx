@@ -40,6 +40,7 @@ import {
     toPipelineFlow,
     type PipelineFlowNode,
 } from './pipelineGraph';
+import { useComposerNodeTypeLabel } from './useComposerNodeLiveSource';
 
 type GraphDisplay = {
     onFocusNode: (nodeId: string) => void;
@@ -74,6 +75,7 @@ const NodeFacts: FC<{
 
 const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
     const getUiString = useUiStrings();
+    const typeLabel = useComposerNodeTypeLabel(data.query);
     return (
         <Paper
             component="button"
@@ -105,7 +107,7 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
                         {data.title}
                     </Text>
                     <Text component="span" className={styles.graphNodeType}>
-                        {data.typeLabel}
+                        {typeLabel}
                     </Text>
                 </Box>
             </Group>

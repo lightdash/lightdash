@@ -53,10 +53,12 @@ describe('toPipelineFlow', () => {
             ),
             noDisplay,
         );
-        expect(nodes.map((node) => [node.id, node.data.typeLabel])).toEqual([
-            ['orders', 'Warehouse SQL'],
-            ['sim', 'Python'],
-            ['summary', 'DuckDB'],
+        expect(
+            nodes.map((node) => [node.id, node.data.query.sourceType]),
+        ).toEqual([
+            ['orders', QuerySourceType.SQL],
+            ['sim', QuerySourceType.PYTHON],
+            ['summary', QuerySourceType.DUCKDB],
         ]);
         expect(edges.map((edge) => edge.id)).toEqual([
             'orders->sim',
@@ -78,13 +80,11 @@ describe('toPipelineFlow', () => {
         expect(nodes.map((node) => node.data)).toEqual([
             expect.objectContaining({
                 title: 'Orders by status',
-                typeLabel: 'Warehouse SQL',
                 isTerminal: false,
                 status: null,
             }),
             expect.objectContaining({
                 title: 'Orders with amounts',
-                typeLabel: 'DuckDB',
                 isTerminal: true,
                 status: null,
             }),

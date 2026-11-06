@@ -34,7 +34,8 @@ import { useComposerNodeRowsLabel } from '../../composerNodeStatus';
 import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
 import { ComposerNodeIcon } from '../ComposerNodeIcon';
-import { nodeTypeLabelOf, type PipelineNode } from '../groupPipeline';
+import { type PipelineNode } from '../groupPipeline';
+import { useComposerNodeTypeLabel } from '../useComposerNodeLiveSource';
 import { CellQueryPanels, CellQueryToggles, ExploreSource } from './NodeQuery';
 import styles from './PipelineNotebook.module.css';
 import {
@@ -75,17 +76,20 @@ export type PipelineNotebookProps = {
 const CellStatus: FC<{
     query: SourceQuery;
     status: ComposerRunNodeStatus | undefined;
-}> = ({ query, status }) => (
-    <Tooltip label={nodeTypeLabelOf(query)}>
-        <Box className={styles.cellIcon}>
-            {status && status.status !== 'success' ? (
-                <NodeStatusIndicator status={status.status} />
-            ) : (
-                <ComposerNodeIcon query={query} size={14} />
-            )}
-        </Box>
-    </Tooltip>
-);
+}> = ({ query, status }) => {
+    const typeLabel = useComposerNodeTypeLabel(query);
+    return (
+        <Tooltip label={typeLabel}>
+            <Box className={styles.cellIcon}>
+                {status && status.status !== 'success' ? (
+                    <NodeStatusIndicator status={status.status} />
+                ) : (
+                    <ComposerNodeIcon query={query} size={14} />
+                )}
+            </Box>
+        </Tooltip>
+    );
+};
 
 type CellProps = Omit<
     PipelineNotebookProps,

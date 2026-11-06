@@ -1,4 +1,5 @@
 import {
+    ApiConnectorType,
     FilterOperator,
     QuerySourceType,
     VizIndexType,
@@ -6,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { useLiveSourceExplore } from '../../../../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import mockIntersectingObserver from '../../../../../../testing/intersectingObserver';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
@@ -20,6 +22,14 @@ const compiledSql = vi.mocked(useCompiledSqlFromMetricQuery);
 vi.mock('../../../../../../hooks/useExplore', () => ({
     useExploreByProjectUuid: vi.fn(() => ({ data: undefined })),
 }));
+vi.mock(
+    '../../../../../../features/externalConnections/liveSources/apiSourceExplore',
+    async (importOriginal) => ({
+        ...(await importOriginal<object>()),
+        useLiveSourceExplore: vi.fn(() => null),
+    }),
+);
+const liveSourceExplore = vi.mocked(useLiveSourceExplore);
 
 beforeAll(mockIntersectingObserver);
 
@@ -396,6 +406,30 @@ describe('AiComposerLineage semantic nodes', () => {
         expect(
             cell('orders').getByTestId('semantic-node-sort'),
         ).toHaveTextContent('Orders count');
+    });
+
+    it('labels a semantic node on a live data source as one in the graph', () => {
+        liveSourceExplore.mockImplementation((exploreName) =>
+            exploreName === 'orders'
+                ? {
+                      connectionUuid: 'conn-1',
+                      connector: ApiConnectorType.GA4,
+                      label: 'Google Analytics',
+                  }
+                : null,
+        );
+        renderPanel({
+            queries: [semanticOrders, queries[1], queries[2]],
+        });
+        expect(
+            within(nodeButton('Orders by status')).getByText(
+                'Live data source',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(nodeButton('Average amount')).getByText('Warehouse SQL'),
+        ).toBeInTheDocument();
+        liveSourceExplore.mockImplementation(() => null);
     });
 
     it('compiles a semantic node query only once SQL query is opened', async () => {
