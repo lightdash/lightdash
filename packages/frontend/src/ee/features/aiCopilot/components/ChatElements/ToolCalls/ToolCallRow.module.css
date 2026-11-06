@@ -12,123 +12,89 @@
 }
 
 .head {
-    height: 22px;
-    min-height: 22px;
+    height: rem(24px);
+    min-height: rem(24px);
 }
 
 .icon {
     flex-shrink: 0;
-    color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-ldGray-6);
     transition: color 220ms ease;
 }
 
 .icon[data-status='running'] {
     color: var(--mantine-color-ldGray-7);
-    animation: toolCallPulse 1.6s ease-in-out infinite;
 }
 
 .icon[data-status='error'] {
-    color: var(--mantine-color-red-5);
+    color: var(--mantine-color-red-text);
 }
 
 .label {
     flex-shrink: 0;
-    line-height: 1;
-    color: var(--mantine-color-ldGray-7);
+    line-height: var(--mantine-line-height-xs);
+    color: var(--mantine-color-ldGray-8);
     font-family: var(--mantine-font-family);
+}
+
+/* The step running now reads first; finished steps stay at label colour. */
+.row[data-status='running'] .label {
+    color: var(--mantine-color-text);
+}
+
+.failedLabel {
+    flex-shrink: 0;
+    line-height: 1;
     font-weight: 500;
-    letter-spacing: -0.005em;
+    color: var(--mantine-color-red-text);
+}
+
+.failureMessages {
+    padding: 0 0 6px 22px;
+}
+
+.failureMessage {
+    color: var(--mantine-color-dimmed);
+    overflow-wrap: anywhere;
 }
 
 .mcpToolChip {
     vertical-align: middle;
+    color: var(--mantine-color-ldGray-7);
 }
 
 .countBadge {
-    display: inline-flex;
-    align-items: center;
-    height: 16px;
-    padding: 0 6px;
-    border-radius: 999px;
-    background-color: var(--mantine-color-ldGray-2);
-    color: var(--mantine-color-ldGray-7);
-    font-size: 10px;
-    font-weight: 500;
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    font-variant-numeric: tabular-nums;
     line-height: 1;
-    letter-spacing: 0.01em;
-    flex-shrink: 0;
 }
 
-/* Single-line preview slot — anything inside is clipped to one line with a
- * fade-out gradient on the right edge so badges/chips don't visually crash
- * into the chevron. */
+.countBadge::before {
+    content: '×';
+}
+
 .previewSlot {
-    min-width: 0;
-    flex: 1;
-    height: 20px;
-    overflow: hidden;
-    position: relative;
-    padding-right: 12px;
-    mask-image: linear-gradient(
-        to right,
-        black calc(100% - 36px),
-        transparent 100%
-    );
-    -webkit-mask-image: linear-gradient(
-        to right,
-        black calc(100% - 36px),
-        transparent 100%
-    );
-}
-
-.inlineDescription {
     display: flex;
-    align-items: center;
-    height: 20px;
-    white-space: nowrap;
-    overflow: hidden;
-    color: var(--mantine-color-ldGray-6);
+    min-width: 0;
+    flex: 0 1 auto;
 }
 
-/* Force any wrapping flex container inside the inline clip onto a single
- * line — the row only has 20px of height, so badges that would otherwise
- * wrap to a second row would get clipped weirdly. The expanded body view
- * (outside this selector) keeps its natural wrap=wrap behaviour. */
-.inlineDescription * {
-    flex-wrap: nowrap;
-}
-
-.chips {
-    height: 20px;
-    align-items: center;
-    flex-wrap: nowrap;
-    overflow: hidden;
-}
-
-/* Pure entry animation — the chip's visual style comes from ToolCallChip
- * (Mantine Badge) so chips here match every other chip in the activity card. */
-.chipAppear {
-    animation: chipAppear 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
-    animation-delay: var(--chip-delay, 0ms);
-}
-
-.overflow {
-    flex-shrink: 0;
-    letter-spacing: -0.005em;
-    align-self: center;
-    color: var(--mantine-color-ldGray-5);
+.target {
+    flex: 0 1 auto;
+    min-width: 0;
+    color: var(--mantine-color-dimmed);
 }
 
 .count {
-    letter-spacing: -0.005em;
     align-self: center;
-    color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-dimmed);
 }
 
 .chevron {
     flex-shrink: 0;
-    margin-left: 8px;
-    color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-ldGray-6);
     transition:
         transform 180ms ease,
         opacity 180ms ease,
@@ -150,32 +116,13 @@
 }
 
 .body {
-    padding: 1px 0 3px 21px;
+    padding: 1px 0 6px 22px;
     color: var(--mantine-color-ldGray-7);
     animation: bodyReveal 360ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .body p {
     line-height: 1.25;
-}
-
-@keyframes toolCallPulse {
-    0%,
-    100% {
-        opacity: 0.45;
-    }
-    50% {
-        opacity: 1;
-    }
-}
-
-@keyframes chipAppear {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
 }
 
 @keyframes bodyReveal {
@@ -191,7 +138,6 @@
 
 @media (prefers-reduced-motion: reduce) {
     .icon[data-status='running'],
-    .chipAppear,
     .body,
     .chevron,
     .rowButton {

@@ -81,12 +81,35 @@
     margin-top: -1px;
 }
 
+/* Code sits on a filled surface inset in the cell, with no border of its own. */
+.code :global(.mantine-CodeHighlight-codeHighlight) {
+    --ch-background: var(--mantine-color-ldGray-1);
+    --ch-radius: var(--mantine-radius-sm);
+}
+
 /* Code runs full height and wraps; the notebook scrolls, not the cell. */
 .code :global(.mantine-CodeHighlight-code) {
     font-size: var(--mantine-font-size-xs);
     line-height: 1.5;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+/* Long code previews about ten lines, fading out, until expanded. */
+.collapsibleCode {
+    --ch-max-height: calc(
+        10 * 1.5 * var(--mantine-font-size-xs) + var(--mantine-spacing-xs)
+    );
+}
+
+.collapsibleCode
+    :global(.mantine-CodeHighlight-scrollarea)[data-collapsed]::after {
+    height: rem(48px);
+}
+
+/* The cell's own toggle row replaces the overlaid expand button. */
+.nativeExpandButton {
+    display: none;
 }
 
 .toolbar {
@@ -105,13 +128,28 @@
     align-items: center;
     gap: var(--mantine-spacing-xs);
     width: 100%;
-    min-height: 26px;
+    min-height: 28px;
     padding: 0 var(--mantine-spacing-md);
     border-top: 1px solid var(--mantine-color-default-border);
-    background: var(--mantine-color-body);
 }
 
 .resultsToggle:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+/* Quiet text row under the code, inside the same code panel. */
+.codeToggle {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    width: fit-content;
+    min-height: 24px;
+    margin-top: var(--mantine-spacing-xxs);
+    padding: 0 var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.codeToggle:hover {
     background: var(--mantine-color-default-hover);
 }
 
@@ -132,7 +170,7 @@
 
 .codePanel {
     composes: code;
-    border-top: 1px solid var(--mantine-color-default-border);
+    padding: var(--mantine-spacing-xs);
 }
 
 /* Header actions show on hover or focus, so idle cells read as title and rows. */

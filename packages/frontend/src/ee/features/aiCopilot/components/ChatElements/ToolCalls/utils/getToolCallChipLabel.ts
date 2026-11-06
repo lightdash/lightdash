@@ -22,7 +22,17 @@ import type {
     ToolSearchFieldValuesArgs,
     ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
+import { getComposerQueryNodes } from './composerQueryNodes';
 import { type ToolCallSummary } from './types';
+
+// Composer calls title each node, not the call.
+const getComposerQueryLabel = (toolArgs: unknown): string | null => {
+    const { title } = toolArgs as { title?: string | null };
+    const nodeTitles = getComposerQueryNodes(toolArgs)
+        .map((node) => node.title)
+        .filter((nodeTitle): nodeTitle is string => Boolean(nodeTitle));
+    return title ?? (nodeTitles.length ? nodeTitles.join(', ') : null);
+};
 
 type ToolReadContentArgs = {
     slug?: string;
@@ -79,9 +89,12 @@ const CHIP_LABEL_BY_TOOL: Partial<Record<ToolName, ToolCallChipLabelFn>> = {
     },
     grepFields: (toolArgs) => {
         const args = toolArgs as ToolGrepFieldsArgs;
-        return args.patterns?.length
-            ? args.patterns.map((p) => `/${p}/`).join(' ')
-            : null;
+        // Regex alternatives read as plain terms: "a|b" and "c" -> "a, b, c".
+        const terms = (args.patterns ?? [])
+            .flatMap((pattern) => pattern.split('|'))
+            .map((term) => term.replace(/[\\^$.*+?()[\]{}/]/g, '').trim())
+            .filter((term) => term.length > 0);
+        return terms.length ? [...new Set(terms)].join(', ') : null;
     },
     getMetadata: (toolArgs) => {
         const args = toolArgs as ToolGetMetadataArgs;
@@ -163,14 +176,8 @@ const CHIP_LABEL_BY_TOOL: Partial<Record<ToolName, ToolCallChipLabelFn>> = {
             return `${args.target}: ${args.command}`;
         return args.command ?? args.target ?? null;
     },
-    query: (toolArgs) => {
-        const args = toolArgs as { title?: string | null };
-        return args.title ?? null;
-    },
-    runComposerQueries: (toolArgs) => {
-        const args = toolArgs as { title?: string | null };
-        return args.title ?? null;
-    },
+    query: getComposerQueryLabel,
+    runComposerQueries: getComposerQueryLabel,
     visualize: (toolArgs) => {
         const args = toolArgs as { title?: string | null };
         return args.title ?? null;

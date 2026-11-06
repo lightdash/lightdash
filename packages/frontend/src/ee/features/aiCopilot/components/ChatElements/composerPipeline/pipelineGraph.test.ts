@@ -2,6 +2,8 @@ import { QuerySourceType, type SourceQuery } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { groupPipeline } from './groupPipeline';
 import {
+    getFittedGraphShare,
+    getPipelineFlowHeight,
     layoutPipelineFlow,
     toPipelineFlow,
     type PipelineFlowNode,
@@ -29,7 +31,7 @@ const duckdb = (
 const measured = (nodes: PipelineFlowNode[]) =>
     nodes.map((node) => ({ ...node, measured: { width: 160, height: 40 } }));
 
-const noDisplay = { hoveredNodeId: null, nodeStatuses: {} };
+const noDisplay = { focusedNodeId: null, nodeStatuses: {} };
 
 const xOf = (nodes: PipelineFlowNode[], id: string) =>
     nodes.find((node) => node.id === id)!.position.x;
@@ -101,7 +103,7 @@ describe('toPipelineFlow', () => {
                 'joined',
             ),
             {
-                hoveredNodeId: null,
+                focusedNodeId: null,
                 nodeStatuses: {
                     orders: {
                         status: 'success',
@@ -121,6 +123,29 @@ describe('toPipelineFlow', () => {
             ['orders', 20],
             ['joined', null],
         ]);
+    });
+
+    it('keeps the focused node and its whole lineage undimmed', () => {
+        const layers = groupPipeline(
+            [
+                sql('revenue', 'Revenue by payment method'),
+                duckdb('quarterly', 'Quarterly revenue', ['revenue']),
+                sql('customers', 'Customer first orders'),
+                sql('unrelated', 'Unrelated'),
+                duckdb('final', 'Revenue per new customer', [
+                    'quarterly',
+                    'customers',
+                ]),
+            ],
+            'final',
+        );
+        const dimmed = (focusedNodeId: string) =>
+            toPipelineFlow(layers, { focusedNodeId, nodeStatuses: {} })
+                .nodes.filter((node) => node.data.isDimmed)
+                .map((node) => node.id);
+
+        expect(dimmed('final')).toEqual(['unrelated']);
+        expect(dimmed('revenue')).toEqual(['customers', 'unrelated']);
     });
 
     it('makes one edge per read, from the read node to the reader', () => {
@@ -190,5 +215,37 @@ describe('layoutPipelineFlow', () => {
         );
         // y reads the terminal, so it sits just before it rather than at rank 0
         expect(xOf(laidOut, 'y')).toBeGreaterThan(xOf(laidOut, 'a'));
+    });
+});
+
+describe('graph pane fit', () => {
+    const bounds = { min: 15, max: 35 };
+
+    it('measures the laid-out nodes from top to bottom', () => {
+        const { nodes } = toPipelineFlow(
+            groupPipeline(
+                [sql('a', 'A'), duckdb('final', 'Final', ['a'])],
+                'final',
+            ),
+            noDisplay,
+        );
+        const [a, final] = measured(nodes);
+        expect(
+            getPipelineFlowHeight([
+                { ...a, position: { x: 0, y: 10 } },
+                { ...final, position: { x: 200, y: 60 } },
+            ]),
+        ).toBe(90);
+    });
+
+    it('sizes a short pipeline to its content, a tall one to the cap', () => {
+        expect(getFittedGraphShare(100, 1000, bounds)).toBe(18);
+        expect(getFittedGraphShare(600, 1000, bounds)).toBe(35);
+        expect(getFittedGraphShare(10, 1000, bounds)).toBe(15);
+    });
+
+    it('keeps the cap until both heights are known', () => {
+        expect(getFittedGraphShare(0, 1000, bounds)).toBe(35);
+        expect(getFittedGraphShare(100, 0, bounds)).toBe(35);
     });
 });

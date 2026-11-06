@@ -16,6 +16,8 @@ const states = {
         kind: 'building',
         name: APP_NAME,
         statusMessage: 'Building your app',
+        step: { index: 1, labelKey: 'aiAgent.dataAppBuild.stage.writing' },
+        startedAt: new Date(),
         narration: {
             reasoning: [
                 'Totals should reconcile against the existing revenue metric, so every page reads from the semantic layer.',

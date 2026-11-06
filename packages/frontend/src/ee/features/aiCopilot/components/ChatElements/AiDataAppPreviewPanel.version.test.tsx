@@ -247,7 +247,9 @@ describe('AiDataAppPreviewPanel versions', () => {
         expect(
             screen.getByText('Your app preview will appear here'),
         ).toBeInTheDocument();
-        expect(screen.getByText('Generating your app')).toBeInTheDocument();
+        expect(
+            screen.getByLabelText(/^Build step \d+ of \d+$/),
+        ).toBeInTheDocument();
         expect(mocks.iframePreview).not.toHaveBeenCalled();
 
         mocks.latestVersionRow = versionRow({

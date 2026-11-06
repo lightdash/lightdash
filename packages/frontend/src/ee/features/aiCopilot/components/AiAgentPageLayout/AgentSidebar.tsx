@@ -10,6 +10,7 @@ import {
     Box,
     Button,
     Divider,
+    Loader,
     Group,
     Menu,
     NavLink,
@@ -19,20 +20,20 @@ import {
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine/core';
+import { useInViewport } from '@mantine/hooks';
 import {
     IconBrandSlack,
     IconChevronDown,
-    IconHistory,
     IconInfoCircle,
     IconPencil,
     IconPin,
     IconPinnedOff,
     IconTrash,
 } from '@tabler/icons-react';
-import { useRef, useState, type FC } from 'react';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -176,9 +177,17 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                     display="block"
                     maxWidth="100%"
                     tooltipMaxWidth={400}
-                    fz="xs"
-                    fw={500}
-                    c={hasTitle ? 'ldGray.9' : 'dimmed'}
+                    tooltipOpenDelay={500}
+                    tooltipPosition="right"
+                    fz="sm"
+                    fw={isActive ? 500 : 400}
+                    c={
+                        hasTitle
+                            ? isActive
+                                ? 'ldGray.9'
+                                : 'ldGray.7'
+                            : 'dimmed'
+                    }
                     fs={hasTitle ? undefined : 'italic'}
                 >
                     {hasTitle ? threadTitle : 'Untitled thread'}
@@ -285,8 +294,47 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     );
 };
 
+type ThreadDateGroup = {
+    title: string;
+    threads: AiAgentProjectThreadSummary[];
+};
+
+const DATE_GROUP_TITLES = [
+    'Today',
+    'Yesterday',
+    'Previous 7 days',
+    'Previous 30 days',
+    'Older',
+] as const;
+
+const getDateGroupTitle = (
+    createdAt: string,
+    now: Date,
+): (typeof DATE_GROUP_TITLES)[number] => {
+    const days = differenceInCalendarDays(now, parseISO(createdAt));
+    // Calendar days, matching the chat's Today / Yesterday dividers.
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days <= 7) return 'Previous 7 days';
+    if (days <= 30) return 'Previous 30 days';
+    return 'Older';
+};
+
+// Threads arrive newest first, so each date bucket stays in order.
+const groupThreadsByDate = (
+    threads: AiAgentProjectThreadSummary[],
+): ThreadDateGroup[] => {
+    const now = new Date();
+    return DATE_GROUP_TITLES.map((title) => ({
+        title,
+        threads: threads.filter(
+            (thread) => getDateGroupTitle(thread.createdAt, now) === title,
+        ),
+    })).filter((group) => group.threads.length > 0);
+};
+
 type ThreadGroupProps = {
-    title: 'Pinned' | 'Recent';
+    title: string;
     threads: AiAgentProjectThreadSummary[];
     projectUuid: string;
     threadUuid?: string;
@@ -307,34 +355,30 @@ const ThreadGroup: FC<ThreadGroupProps> = ({
     onDelete,
     onRename,
     onTogglePin,
-}) => (
-    <Stack component="section" aria-label={title} gap="xs">
-        <Group gap="xs" mx="xs" c="dimmed" wrap="nowrap">
-            <MantineIcon
-                icon={{ Pinned: IconPin, Recent: IconHistory }[title]}
-                size={16}
-            />
-            <Title order={6} c="dimmed" size="xs">
+}) => {
+    return (
+        <Stack component="section" aria-label={title} gap={2}>
+            <Text size="xs" fw={500} c="dimmed" mx="xs" mb={2}>
                 {title}
-            </Title>
-        </Group>
-        <Box>
-            {threads.map((thread) => (
-                <ThreadNavLink
-                    key={thread.uuid}
-                    thread={thread}
-                    isActive={thread.uuid === threadUuid}
-                    projectUuid={projectUuid}
-                    showAgentName={showAgentName}
-                    deletionDisabled={deletionDisabled}
-                    onDelete={onDelete}
-                    onRename={onRename}
-                    onTogglePin={onTogglePin}
-                />
-            ))}
-        </Box>
-    </Stack>
-);
+            </Text>
+            <Box>
+                {threads.map((thread) => (
+                    <ThreadNavLink
+                        key={thread.uuid}
+                        thread={thread}
+                        isActive={thread.uuid === threadUuid}
+                        projectUuid={projectUuid}
+                        showAgentName={showAgentName}
+                        deletionDisabled={deletionDisabled}
+                        onDelete={onDelete}
+                        onRename={onRename}
+                        onTogglePin={onTogglePin}
+                    />
+                ))}
+            </Box>
+        </Stack>
+    );
+};
 
 type ThreadListProps = {
     projectUuid: string;
@@ -353,8 +397,17 @@ const ThreadList: FC<ThreadListProps> = ({
         useInfiniteAiAgentThreads(projectUuid, { agentUuid });
 
     const threads = data?.pages.flatMap((page) => page.data) ?? [];
+    // Older threads load as the end of the list scrolls into view.
+    const { ref: loadMoreRef, inViewport: isLoadMoreVisible } = useInViewport();
+    useEffect(() => {
+        if (isLoadMoreVisible && hasNextPage && !isFetchingNextPage) {
+            void fetchNextPage();
+        }
+    }, [isLoadMoreVisible, hasNextPage, isFetchingNextPage, fetchNextPage]);
     const pinnedThreads = threads.filter((thread) => thread.pinnedAt !== null);
-    const recentThreads = threads.filter((thread) => thread.pinnedAt === null);
+    const recentGroups = groupThreadsByDate(
+        threads.filter((thread) => thread.pinnedAt === null),
+    );
 
     const deletionDisabledFlag = useServerFeatureFlag(
         FeatureFlags.AiDisableThreadDeletion,
@@ -413,7 +466,7 @@ const ThreadList: FC<ThreadListProps> = ({
                 content: classes.threadListContent,
             }}
         >
-            <Stack gap="md">
+            <Stack gap="lg">
                 <Divider mx="xs" />
                 {pinnedThreads.length > 0 && (
                     <ThreadGroup
@@ -423,45 +476,30 @@ const ThreadList: FC<ThreadListProps> = ({
                     />
                 )}
 
-                {pinnedThreads.length > 0 && recentThreads.length > 0 && (
-                    <Divider mx="xs" />
+                {recentGroups.map((group) => (
+                    <ThreadGroup
+                        key={group.title}
+                        title={group.title}
+                        threads={group.threads}
+                        {...groupHandlers}
+                    />
+                ))}
+
+                {threads.length === 0 && (
+                    <Paper variant="dotted" p="sm">
+                        <Text truncate="end" size="sm" c="dimmed" ta="center">
+                            No threads yet
+                        </Text>
+                    </Paper>
                 )}
 
-                <Stack gap="xs" className={classes.threadItems}>
-                    {(recentThreads.length > 0 || threads.length === 0) && (
-                        <ThreadGroup
-                            title="Recent"
-                            threads={recentThreads}
-                            {...groupHandlers}
-                        />
-                    )}
-                    {threads.length === 0 && (
-                        <Paper variant="dotted" p="sm">
-                            <Text
-                                truncate="end"
-                                size="sm"
-                                c="dimmed"
-                                ta="center"
-                            >
-                                No threads yet
-                            </Text>
-                        </Paper>
-                    )}
-                </Stack>
-
-                <Box>
-                    {hasNextPage && (
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            loading={isFetchingNextPage}
-                            onClick={() => fetchNextPage()}
-                            leftSection={<MantineIcon icon={IconChevronDown} />}
-                        >
-                            View more
-                        </Button>
-                    )}
-                </Box>
+                {hasNextPage && (
+                    <Box ref={loadMoreRef} className={classes.loadMore}>
+                        {isFetchingNextPage && (
+                            <Loader size="xs" color="ldGray.5" />
+                        )}
+                    </Box>
+                )}
 
                 <MantineModal
                     opened={threadToDelete !== null}
