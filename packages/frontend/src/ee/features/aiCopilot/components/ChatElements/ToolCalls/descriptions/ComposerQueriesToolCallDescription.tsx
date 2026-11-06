@@ -39,6 +39,7 @@ import {
     type ComposerQueryNodeStatus,
 } from '../../composerNodeStatus';
 import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
+import shimmerStyles from '../../shimmer.module.css';
 import {
     SqlApprovalActions,
     type SqlApprovalTarget,
@@ -128,12 +129,25 @@ const getNodePresentation = (
 };
 
 /** A live data source explore reads by its label, e.g. "Events". */
-const NodeExploreName: FC<{ exploreName: string }> = ({ exploreName }) => {
+const NodeExploreFields: FC<{ exploreName: string; fieldIds: string[] }> = ({
+    exploreName,
+    fieldIds,
+}) => {
     const liveSource = useLiveSourceExplore(exploreName);
+    const prefix = `${exploreName}_`;
     return (
-        <Text size="xs" c="dimmed">
-            {liveSource?.label ?? exploreName}
-        </Text>
+        <Group gap={4} wrap="wrap">
+            <Text size="xs" c="dimmed">
+                {liveSource?.label ?? exploreName}
+            </Text>
+            {fieldIds.map((fieldId) => (
+                <ToolCallChip key={fieldId} ff="monospace">
+                    {fieldId.startsWith(prefix)
+                        ? fieldId.slice(prefix.length)
+                        : fieldId}
+                </ToolCallChip>
+            ))}
+        </Group>
     );
 };
 
@@ -142,12 +156,10 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
 
     if (node.sourceType === QuerySourceType.SEMANTIC_LAYER) {
         return (
-            <Group gap={4} wrap="wrap">
-                <NodeExploreName exploreName={node.exploreName} />
-                {[...node.dimensions, ...node.metrics].map((fieldId) => (
-                    <ToolCallChip key={fieldId}>{fieldId}</ToolCallChip>
-                ))}
-            </Group>
+            <NodeExploreFields
+                exploreName={node.exploreName}
+                fieldIds={[...node.dimensions, ...node.metrics]}
+            />
         );
     }
     if (node.sourceType === QuerySourceType.PYTHON) {
@@ -248,12 +260,12 @@ const ComposerQueryNode: FC<{
                 aria-expanded={open}
             >
                 <Group
-                    gap={10}
+                    gap={8}
                     align="center"
                     wrap="nowrap"
                     className={styles.head}
                 >
-                    {nodeStatus ? (
+                    {nodeStatus && nodeStatus.status !== 'running' ? (
                         <NodeStatusIndicator
                             status={nodeStatus.status}
                             size="md"
@@ -280,22 +292,32 @@ const ComposerQueryNode: FC<{
                             >
                                 <LiveSourceIcon
                                     connector={liveSource?.connector ?? null}
-                                    size={14}
+                                    size={13}
                                 />
                             </Box>
                         </Tooltip>
                     ) : (
                         <MantineIcon
                             icon={presentation.icon}
-                            size={14}
+                            size={13}
                             stroke={1.6}
                             className={rowStyles.icon}
+                            role={nodeStatus ? 'img' : undefined}
+                            aria-label={
+                                nodeStatus
+                                    ? statusLabel(nodeStatus.status)
+                                    : undefined
+                            }
                         />
                     )}
                     <Text
-                        size="sm"
+                        size="xs"
                         truncate
-                        className={styles.title}
+                        className={clsx(
+                            styles.title,
+                            nodeStatus?.status === 'running' &&
+                                shimmerStyles.shimmer,
+                        )}
                         data-status={nodeStatus?.status}
                     >
                         {node.title ?? node.nodeId}
@@ -314,7 +336,7 @@ const ComposerQueryNode: FC<{
                     ) : null}
                     <MantineIcon
                         icon={IconChevronRight}
-                        size={12}
+                        size={11}
                         stroke={1.6}
                         className={clsx(
                             rowStyles.chevron,

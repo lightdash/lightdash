@@ -386,6 +386,22 @@ const AssistantBubbleContent: FC<{
     const isPending =
         message.status === 'pending' &&
         streamingState?.connection.status !== 'refused';
+    // After a reload mid-summary, every step has landed and only the answer is left.
+    const isWritingSummary =
+        isPending &&
+        (message.artifacts?.length ?? 0) > 0 &&
+        message.toolCalls.every((toolCall) =>
+            message.toolResults.some(
+                (result) => result.toolCallId === toolCall.toolCallId,
+            ),
+        );
+    const writingSummaryLabel = useUiString('aiAgent.activity.writingSummary');
+    // A reloaded turn with steps already shows "Working" on its activity card.
+    const hasPersistedActivity = message.toolCalls.some(
+        (toolCall) =>
+            !isHiddenToolName(toolCall.toolName) &&
+            toolCall.parentToolCallId === null,
+    );
     const hasError = message.status === 'error';
     const isRecovering = streamingState?.connection.status === 'recovering';
     const streamingError =
@@ -693,8 +709,8 @@ const AssistantBubbleContent: FC<{
                     ) : null;
                     return (
                         <Stack
-                            gap={4}
-                            pt="xs"
+                            // Same rhythm as the finished turn, so nothing shifts when it settles.
+                            gap="xs"
                             // Walkthrough: the reply is still being worked
                             // on while this is live. See scripts/scope-tours.
                             data-tour-anchor={
@@ -742,9 +758,7 @@ const AssistantBubbleContent: FC<{
                                         [],
                                 }}
                             />
-                            {artifactSlot ? (
-                                <Box my={4}>{artifactSlot}</Box>
-                            ) : null}
+                            {artifactSlot}
                             {latestTextSeg ? (
                                 <Box
                                     className={styles.streamPart}
@@ -795,7 +809,9 @@ const AssistantBubbleContent: FC<{
                     <>
                         <LiveActivityCard
                             toolGroups={persistedToolGroups}
-                            isLive={isStreaming || isPending}
+                            isLive={
+                                (isStreaming || isPending) && !isWritingSummary
+                            }
                             toolResults={message.toolResults}
                             toolCalls={message.toolCalls}
                             mcpServers={mcpServers}
@@ -884,10 +900,18 @@ const AssistantBubbleContent: FC<{
                 (streamingState?.parts?.length ?? 0) === 0 && (
                     <Box
                         className={styles.streamPart}
-                        pl={7}
                         data-tour-anchor="ai-working"
+                        display={
+                            isWritingSummary || !hasPersistedActivity
+                                ? undefined
+                                : 'none'
+                        }
                     >
-                        <TypingDots />
+                        <TypingDots
+                            activity={
+                                isWritingSummary ? writingSummaryLabel : null
+                            }
+                        />
                     </Box>
                 )}
             <AiDocumentCards
@@ -1232,8 +1256,8 @@ export const AssistantBubble: FC<Props> = memo(
                 />
 
                 {showWritingSummary && (
-                    <Box className={styles.streamPart} pl={7}>
-                        <TypingDots label={writingSummaryLabel} />
+                    <Box className={styles.streamPart}>
+                        <TypingDots activity={writingSummaryLabel} />
                     </Box>
                 )}
                 {!popoverOpened && downVoted && message.humanFeedback && (

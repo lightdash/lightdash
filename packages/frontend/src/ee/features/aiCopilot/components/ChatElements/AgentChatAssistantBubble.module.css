@@ -149,6 +149,8 @@
 }
 
 .messageActions {
+    /* Icon glyphs, not their hit areas, sit on the message's left edge. */
+    margin-left: -6px;
     transition: opacity 160ms ease;
 }
 
@@ -172,6 +174,7 @@
 /* Streamdown wraps blocks in one div, so the block rhythm targets its children. */
 .answerMarkdown {
     --ai-markdown-font-size: var(--mantine-font-size-sm);
+    --ai-markdown-padding-left: 0;
     line-height: 1.65;
 }
 

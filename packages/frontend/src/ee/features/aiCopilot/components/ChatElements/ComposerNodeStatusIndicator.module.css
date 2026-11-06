@@ -54,8 +54,8 @@
 }
 
 .statusIndicator[data-size='md'] {
-    width: rem(16px);
-    height: rem(16px);
+    width: rem(13px);
+    height: rem(13px);
 }
 
 .statusIndicator[data-size='md'][data-status='success'] {

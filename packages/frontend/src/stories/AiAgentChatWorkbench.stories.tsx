@@ -1345,7 +1345,7 @@ const ComponentInventory = () => (
                 description="Existing loading and reasoning components."
             >
                 <Stack gap="sm">
-                    <TypingDots label="Querying warehouse" />
+                    <TypingDots activity="Querying warehouse" />
                     <DotsLoader />
                     <ReasoningHistoryRow
                         isLive

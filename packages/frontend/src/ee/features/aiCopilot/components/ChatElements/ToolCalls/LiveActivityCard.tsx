@@ -28,6 +28,7 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import { type ComposerQueryNodeStatus } from '../composerNodeStatus';
+import { WorkingLabel } from '../TypingDots';
 import { AgentStepGroups } from './AgentStepGroups';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
@@ -187,7 +188,15 @@ export const ReasoningHistoryRow: FC<{
      *  reuse the collapsed-history pattern for non-reasoning content. */
     icon?: TablerIconType;
     label?: string;
-}> = ({ texts, isLive, icon = IconNotes, label = 'Reasoning' }) => {
+    /** Leads with the shimmering "Working" label, for the turn's live header. */
+    showWorking?: boolean;
+}> = ({
+    texts,
+    isLive,
+    icon = IconNotes,
+    label = 'Reasoning',
+    showWorking = false,
+}) => {
     const [open, setOpen] = useState(false);
     const combined = texts.join('\n\n');
     // While streaming, the preview is the *latest* reasoning chunk (it rolls
@@ -208,32 +217,23 @@ export const ReasoningHistoryRow: FC<{
                 className={styles.reasoningHeader}
             >
                 <Group gap={8} align="center" wrap="nowrap">
-                    {isLive ? (
-                        <Box className={styles.iconChip} data-live="true">
-                            <MantineIcon
-                                icon={icon}
-                                size={12}
-                                stroke={1.7}
-                                className={styles.reasoningIcon}
-                                data-live="true"
-                            />
+                    {showWorking ? (
+                        <Box data-tour-status="true">
+                            <WorkingLabel />
                         </Box>
                     ) : (
-                        <MantineIcon
-                            icon={icon}
-                            size={13}
-                            stroke={1.6}
-                            className={styles.reasoningIcon}
-                        />
+                        <>
+                            <MantineIcon
+                                icon={icon}
+                                size={13}
+                                stroke={1.6}
+                                className={styles.reasoningIcon}
+                            />
+                            <Text size="xs" className={styles.reasoningLabel}>
+                                {label}
+                            </Text>
+                        </>
                     )}
-                    <Text
-                        size="xs"
-                        className={styles.reasoningLabel}
-                        data-live={isLive ? 'true' : 'false'}
-                        data-tour-status={isLive ? 'true' : undefined}
-                    >
-                        {label}
-                    </Text>
                     <Text
                         size="xs"
                         c="dimmed"
@@ -272,6 +272,8 @@ const LatestRow: FC<{
     mcpServers?: AiMcpServer[];
     failedCount: number;
     showCount: boolean;
+    /** The open card already lists the step's targets. */
+    hideTarget: boolean;
 }> = ({
     group,
     isLive,
@@ -279,6 +281,7 @@ const LatestRow: FC<{
     mcpServers,
     failedCount,
     showCount,
+    hideTarget,
 }) => {
     const getUiString = useUiStrings();
     const builtInToolName = isToolName(group.toolName) ? group.toolName : null;
@@ -308,11 +311,56 @@ const LatestRow: FC<{
     const lastBuiltInToolName = isToolName(lastCall.toolName)
         ? lastCall.toolName
         : builtInToolName;
-    const chipLabel = lastBuiltInToolName
-        ? getToolCallChipLabel(lastBuiltInToolName, lastCall.toolArgs)
-        : null;
+    const chipLabels = [
+        ...new Set(
+            group.calls
+                .map((call) =>
+                    isToolName(call.toolName)
+                        ? getToolCallChipLabel(call.toolName, call.toolArgs)
+                        : null,
+                )
+                .filter((callLabel): callLabel is string => Boolean(callLabel)),
+        ),
+    ];
+    const chipLabel = chipLabels.length ? chipLabels.join(', ') : null;
     const showPreview =
-        chipLabel && !TOOLS_WITHOUT_PREVIEW.has(lastBuiltInToolName ?? '');
+        !hideTarget &&
+        chipLabel &&
+        !TOOLS_WITHOUT_PREVIEW.has(lastBuiltInToolName ?? '');
+    // Live turns lead with "Working"; the step reads as its current activity.
+    const showWorking = isLive && !awaitingApproval && failedCount === 0;
+
+    if (showWorking && label) {
+        return (
+            <Group
+                gap={8}
+                align="center"
+                wrap="nowrap"
+                className={styles.latestRow}
+                data-live="true"
+            >
+                <WorkingLabel />
+                <Text
+                    size="xs"
+                    className={styles.workingStep}
+                    // Walkthrough: the product's own words for what the agent is doing.
+                    data-tour-status="true"
+                >
+                    {label}
+                </Text>
+                {isGrouped && showCount && (
+                    <Box className={styles.countBadge}>
+                        {group.calls.length}
+                    </Box>
+                )}
+                {showPreview && chipLabel && (
+                    <Text size="xs" truncate className={styles.workingActivity}>
+                        {chipLabel}
+                    </Text>
+                )}
+            </Group>
+        );
+    }
 
     return (
         <Group
@@ -322,20 +370,14 @@ const LatestRow: FC<{
             className={styles.latestRow}
             data-live={isLive ? 'true' : 'false'}
         >
-            {/* Keying icon + label by toolName makes them remount with a
-             *  subtle settle-in animation each time the active tool changes,
-             *  so the swap reads as a deliberate transition rather than a
-             *  text flicker. The icon sits inside a small rounded "logo"
-             *  chip for visual weight. */}
-            <Box className={styles.iconSwap} key={`icon-${group.toolName}`}>
-                <Box
-                    className={styles.iconChip}
-                    data-live={isLive ? 'true' : 'false'}
-                >
+            {showWorking ? (
+                <WorkingLabel />
+            ) : (
+                <Box className={styles.iconSwap} key={`icon-${group.toolName}`}>
                     {failedCount > 0 ? (
                         <MantineIcon
                             icon={IconAlertCircle}
-                            size={14}
+                            size={13}
                             stroke={1.7}
                             className={styles.latestIcon}
                             data-status="error"
@@ -344,23 +386,20 @@ const LatestRow: FC<{
                     ) : (
                         <ToolCallIcon
                             toolName={group.toolName}
-                            size={14}
+                            size={13}
                             stroke={1.7}
                             className={styles.latestIcon}
                             mcpServer={mcpServer}
-                            data-live={isLive ? 'true' : 'false'}
                         />
                     )}
                 </Box>
-            </Box>
+            )}
             {label ? (
                 <Text
-                    size="sm"
+                    size="xs"
                     className={styles.latestLabel}
-                    key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
-                    // Walkthrough: the product's own words for what the
-                    // agent is doing right now.
                     data-tour-status={isLive ? 'true' : undefined}
+                    key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
                 >
                     {label}
                 </Text>
@@ -371,11 +410,17 @@ const LatestRow: FC<{
                     className={styles.latestMcpLabel}
                     key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
                 >
-                    <Text size="sm" className={styles.latestLabel}>
+                    <Text
+                        size="xs"
+                        className={styles.latestLabel}
+                        data-working={showWorking || undefined}
+                    >
                         Using {mcpDisplayMetadata?.label ?? 'MCP'}:
                     </Text>
                     <ToolCallChip
                         maxWidth={260}
+                        variant="transparent"
+                        px={0}
                         className={styles.latestMcpToolChip}
                     >
                         {mcpToolDisplayName}
@@ -411,7 +456,7 @@ const LatestRow: FC<{
                 showPreview &&
                 chipLabel && (
                     <Text
-                        size="sm"
+                        size="xs"
                         c="dimmed"
                         lineClamp={1}
                         className={styles.latestPreview}
@@ -710,8 +755,6 @@ export const LiveActivityCard: FC<Props> = ({
         userToggle?.key === expandKey ? userToggle.value : null;
     const setUserExpanded = (value: boolean) =>
         setUserToggle({ key: expandKey, value });
-    // While a step runs, earlier steps and reasoning fold behind one row.
-    const [earlierToggle, setEarlierToggle] = useState<boolean | null>(null);
 
     const hasReasoning = (reasoning?.texts.length ?? 0) > 0;
 
@@ -726,6 +769,7 @@ export const LiveActivityCard: FC<Props> = ({
                 <ReasoningHistoryRow
                     texts={reasoning.texts}
                     isLive={reasoning.isLive}
+                    showWorking={reasoning.isLive}
                 />
             </Box>
         );
@@ -764,16 +808,9 @@ export const LiveActivityCard: FC<Props> = ({
         (latest !== null && isComposerQueryToolName(latest.toolName)) ||
         latestAwaitingApproval;
     const showBody = expanded && (hasExpandableBody || latestNeedsExpandedBody);
-    const earlierOpen =
-        latest === null || (earlierToggle ?? userExpanded === true);
-    const stepLabels = getActivityStepLabels(
-        {
-            totalCalls,
-            latestCallCount: latest?.calls.length ?? 0,
-            hasReasoning,
-        },
-        getUiString,
-    );
+    // While a step runs, earlier steps show only once the user opens the card.
+    const earlierOpen = latest === null || userExpanded === true;
+    const stepLabels = getActivityStepLabels({ totalCalls }, getUiString);
     // A failed run reads "Failed", not as partial progress.
     const composerProgress =
         latest &&
@@ -790,13 +827,23 @@ export const LiveActivityCard: FC<Props> = ({
         latest === null ? getActivityTitle(toolGroups, toolResults) : null;
     // Every finished turn counts its steps, unless the failure label already does.
     const getHeaderMeta = () => {
-        if (composerProgress) {
+        if (
+            composerProgress &&
+            composerProgress.done < composerProgress.total
+        ) {
             return interpolateUiString(
                 getUiString('aiAgent.activity.queryProgress'),
                 composerProgress,
             );
         }
-        if (latest) return stepLabels.running;
+        // "Working" already marks a live step; the step number adds noise.
+        if (latest) {
+            return isActive &&
+                latestFailedCount === 0 &&
+                !latestAwaitingApproval
+                ? null
+                : stepLabels.running;
+        }
         if (failedStepCount === totalCalls && !isFailureSummarized) {
             return null;
         }
@@ -831,12 +878,12 @@ export const LiveActivityCard: FC<Props> = ({
                                     >
                                         <MantineIcon
                                             icon={SummaryIcon}
-                                            size={14}
+                                            size={13}
                                             stroke={1.6}
                                             className={styles.latestIcon}
                                         />
                                         <Text
-                                            size="sm"
+                                            size="xs"
                                             className={styles.latestLabel}
                                         >
                                             {summary.title}
@@ -878,6 +925,7 @@ export const LiveActivityCard: FC<Props> = ({
                                 mcpServers={mcpServers}
                                 failedCount={latestFailedCount}
                                 showCount={composerProgress === null}
+                                hideTarget={showBody}
                             />
                         ) : null}
                     </Box>
@@ -927,6 +975,82 @@ export const LiveActivityCard: FC<Props> = ({
                             texts={reasoning.texts}
                             isLive={reasoning.isLive}
                         />
+                    )}
+                    {latest && earlierOpen && reasoning && hasReasoning && (
+                        <ReasoningHistoryRow
+                            texts={reasoning.texts}
+                            isLive={reasoning.isLive}
+                        />
+                    )}
+                    {olderGroups.length > 0 && earlierOpen && (
+                        <Stack gap={2}>
+                            {olderGroups.map((group) => {
+                                const groupTrace =
+                                    group.toolName === 'discoverFields'
+                                        ? group.calls
+                                              .map(
+                                                  (tc) =>
+                                                      getDiscoverFieldsTraceFromCall(
+                                                          tc,
+                                                      ) ??
+                                                      getDiscoverFieldsTrace(
+                                                          toolResults?.find(
+                                                              (r) =>
+                                                                  r.toolCallId ===
+                                                                  tc.toolCallId,
+                                                          ),
+                                                          toolCalls,
+                                                      ),
+                                              )
+                                              .find((t) => t && t.length > 0)
+                                        : null;
+                                // Adapt the writeback tool's persisted, generic
+                                // step actions into grouped step rows. The
+                                // adaptation lives here (the orchestrator),
+                                // never in the generic row/step components.
+                                const groupSteps =
+                                    group.toolName === 'editDbtProject'
+                                        ? group.calls.flatMap((tc) => {
+                                              const meta = toolResults?.find(
+                                                  (r) =>
+                                                      r.toolCallId ===
+                                                      tc.toolCallId,
+                                              )?.metadata as
+                                                  | {
+                                                        steps?: AiWritebackStep[];
+                                                    }
+                                                  | undefined;
+                                              return meta?.steps ?? [];
+                                          })
+                                        : [];
+                                return (
+                                    <Box key={group.keyId}>
+                                        <ToolCallRow
+                                            toolName={group.toolName}
+                                            toolCalls={group.calls}
+                                            display={group.display}
+                                            status="done"
+                                            toolResults={toolResults}
+                                            mcpServers={mcpServers}
+                                            extraBody={(() => {
+                                                if (groupSteps.length > 0) {
+                                                    return (
+                                                        <AgentStepGroups
+                                                            steps={groupSteps}
+                                                        />
+                                                    );
+                                                }
+                                                return groupTrace ? (
+                                                    <DiscoverFieldsTrace
+                                                        trace={groupTrace}
+                                                    />
+                                                ) : undefined;
+                                            })()}
+                                        />
+                                    </Box>
+                                );
+                            })}
+                        </Stack>
                     )}
                     {(() => {
                         if (!latest) return null;
@@ -1013,111 +1137,6 @@ export const LiveActivityCard: FC<Props> = ({
                         if (renderableCalls.length === 0) return null;
                         return <Stack gap={4}>{renderableCalls}</Stack>;
                     })()}
-                    {latest && stepLabels.earlier !== null && (
-                        <UnstyledButton
-                            className={styles.earlierToggle}
-                            aria-expanded={earlierOpen}
-                            onClick={() => setEarlierToggle(!earlierOpen)}
-                        >
-                            <Group gap={4} wrap="nowrap">
-                                <Text size="xs" className={styles.olderLabel}>
-                                    {stepLabels.earlier}
-                                </Text>
-                                <MantineIcon
-                                    icon={IconChevronRight}
-                                    size={11}
-                                    stroke={1.6}
-                                    className={`${styles.chevron} ${
-                                        earlierOpen ? styles.chevronOpen : ''
-                                    }`}
-                                />
-                            </Group>
-                        </UnstyledButton>
-                    )}
-                    {latest && earlierOpen && reasoning && hasReasoning && (
-                        <ReasoningHistoryRow
-                            texts={reasoning.texts}
-                            isLive={reasoning.isLive}
-                        />
-                    )}
-                    {olderGroups.length > 0 && earlierOpen && (
-                        <Stack gap={2}>
-                            {olderGroups.map((group, idx) => {
-                                const groupTrace =
-                                    group.toolName === 'discoverFields'
-                                        ? group.calls
-                                              .map(
-                                                  (tc) =>
-                                                      getDiscoverFieldsTraceFromCall(
-                                                          tc,
-                                                      ) ??
-                                                      getDiscoverFieldsTrace(
-                                                          toolResults?.find(
-                                                              (r) =>
-                                                                  r.toolCallId ===
-                                                                  tc.toolCallId,
-                                                          ),
-                                                          toolCalls,
-                                                      ),
-                                              )
-                                              .find((t) => t && t.length > 0)
-                                        : null;
-                                // Adapt the writeback tool's persisted, generic
-                                // step actions into grouped step rows. The
-                                // adaptation lives here (the orchestrator),
-                                // never in the generic row/step components.
-                                const groupSteps =
-                                    group.toolName === 'editDbtProject'
-                                        ? group.calls.flatMap((tc) => {
-                                              const meta = toolResults?.find(
-                                                  (r) =>
-                                                      r.toolCallId ===
-                                                      tc.toolCallId,
-                                              )?.metadata as
-                                                  | {
-                                                        steps?: AiWritebackStep[];
-                                                    }
-                                                  | undefined;
-                                              return meta?.steps ?? [];
-                                          })
-                                        : [];
-                                return (
-                                    <Box
-                                        key={group.keyId}
-                                        className={styles.historyRow}
-                                        style={
-                                            {
-                                                '--row-delay': `${idx * 28}ms`,
-                                            } as React.CSSProperties
-                                        }
-                                    >
-                                        <ToolCallRow
-                                            toolName={group.toolName}
-                                            toolCalls={group.calls}
-                                            display={group.display}
-                                            status="done"
-                                            toolResults={toolResults}
-                                            mcpServers={mcpServers}
-                                            extraBody={(() => {
-                                                if (groupSteps.length > 0) {
-                                                    return (
-                                                        <AgentStepGroups
-                                                            steps={groupSteps}
-                                                        />
-                                                    );
-                                                }
-                                                return groupTrace ? (
-                                                    <DiscoverFieldsTrace
-                                                        trace={groupTrace}
-                                                    />
-                                                ) : undefined;
-                                            })()}
-                                        />
-                                    </Box>
-                                );
-                            })}
-                        </Stack>
-                    )}
                 </Stack>
             </Collapse>
         </Box>

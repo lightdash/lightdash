@@ -3,7 +3,7 @@
 }
 
 .head {
-    min-height: rem(30px);
+    min-height: rem(24px);
 }
 
 .title {
@@ -16,7 +16,6 @@
 .title[data-status='running'],
 .title[data-status='awaiting_approval'] {
     color: var(--mantine-color-text);
-    font-weight: 500;
 }
 
 .title[data-status='pending'] {
@@ -29,7 +28,7 @@
 
 /* Engine or source as one muted suffix; reads and fields live behind the row. */
 .suffix {
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
     color: var(--mantine-color-dimmed);
 }
@@ -50,7 +49,7 @@
     color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4));
 }
 
-/* Indent to the title: status glyph (16) + gap (10). */
+/* Indent to the title: status glyph (13) + gap (8). */
 .body {
-    padding: 2px 0 8px 26px;
+    padding: 2px 0 6px 21px;
 }
