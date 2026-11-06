@@ -10,6 +10,7 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
 import { compilePostHogQuery } from './posthogCompiler';
+import { POSTHOG_CAPABILITIES } from './PostHogConnector';
 import {
     POSTHOG_EVENTS_EXPLORE,
     POSTHOG_MAX_SCANNED_PROPERTIES,
@@ -30,6 +31,7 @@ const buildExplore = (definition = POSTHOG_EVENTS_EXPLORE) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.POSTHOG,
         baseVersion: POSTHOG_SEMANTIC_LAYER_VERSION,
+        capabilities: POSTHOG_CAPABILITIES,
         warehouseSqlBuilder,
     });
 
@@ -171,22 +173,6 @@ describe('compilePostHogQuery', () => {
         );
         expect(hogql).toContain(`("${field('event_count')}") > (5)`);
         expect(hogql).toMatch(/\) AS live_query\nORDER BY c0 ASC, c3 DESC$/);
-    });
-
-    test('refuses features live data sources cannot run yet', () => {
-        expect(() =>
-            compile(
-                query({
-                    tableCalculations: [
-                        {
-                            name: 'share',
-                            displayName: 'Share',
-                            sql: '1',
-                        },
-                    ],
-                }),
-            ),
-        ).toThrow(ParameterError);
     });
 });
 

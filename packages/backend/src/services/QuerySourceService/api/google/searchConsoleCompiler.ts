@@ -12,8 +12,8 @@ import {
     toAbsoluteDateRange,
 } from '../apiDateRange';
 import {
-    assertApiSourceQuery,
     getApiName,
+    getApiSourceExplore,
     type CompiledApiSourceQuery,
 } from '../apiSourceExplore';
 
@@ -23,8 +23,6 @@ const OPERATORS: Partial<Record<FilterOperator, string>> = {
     [FilterOperator.INCLUDE]: 'contains',
     [FilterOperator.NOT_INCLUDE]: 'notContains',
 };
-// Matching any of several values is an OR, which Search Analytics can't do
-const SINGLE_VALUE_OPERATORS = [FilterOperator.EQUALS, FilterOperator.INCLUDE];
 
 const toFilters = (dimension: string, rule: FilterRule) => {
     const operator = OPERATORS[rule.operator];
@@ -33,12 +31,9 @@ const toFilters = (dimension: string, rule: FilterRule) => {
             `"${rule.target.fieldId}" can't be filtered with "${rule.operator}".`,
         );
     }
+    // The shared check refuses several values for a positive match, which
+    // would be an OR; several negative matches AND as separate filters
     const values = (rule.values ?? []).map(String);
-    if (SINGLE_VALUE_OPERATORS.includes(rule.operator) && values.length > 1) {
-        throw new ParameterError(
-            `Search Console matches one value per filter; filter "${rule.target.fieldId}" by one value at a time.`,
-        );
-    }
     return values.map((expression) => ({ dimension, operator, expression }));
 };
 
@@ -59,7 +54,7 @@ export const compileSearchConsoleQuery = ({
     today: string;
     maxRows: number;
 }): CompiledApiSourceQuery => {
-    const apiSource = assertApiSourceQuery(explore, metricQuery);
+    const apiSource = getApiSourceExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { dateRule, otherFilters } = apiSource.dateRange
         ? splitDateRangeFilter(

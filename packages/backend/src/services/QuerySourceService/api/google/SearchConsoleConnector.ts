@@ -5,15 +5,21 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    ApiConnector,
-    ApiConnectorColumn,
-    ApiConnectorDescription,
-    ApiConnectorExecuteArgs,
-    ApiConnectorResult,
-    ApiConnectorTransport,
+import {
+    ALL_PUSHDOWN_REFUSED,
+    type ApiConnector,
+    type ApiConnectorCapabilities,
+    type ApiConnectorColumn,
+    type ApiConnectorDescription,
+    type ApiConnectorExecuteArgs,
+    type ApiConnectorResult,
+    type ApiConnectorTransport,
 } from '../ApiConnector';
 import { toGoogleApiError } from './googleApiError';
+import {
+    SEARCH_CONSOLE_DATE_FILTERS,
+    SEARCH_CONSOLE_STRING_FILTERS,
+} from './searchConsoleSemanticLayer';
 
 export const SEARCH_CONSOLE_ORIGIN = 'https://searchconsole.googleapis.com';
 export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
@@ -30,6 +36,31 @@ const SEARCH_CONSOLE_LIMITS = {
     callsPerMinute: 600,
     callsPerHour: 20_000,
     callsPerQuery: 1,
+};
+
+/**
+ * Search Analytics ANDs one flat list of dimension filters, each matching a
+ * single value, and can't filter metrics. Dates are one range in Pacific
+ * Time. Everything SQL-like is refused.
+ */
+export const SEARCH_CONSOLE_CAPABILITIES: ApiConnectorCapabilities = {
+    filters: {
+        operators: {
+            string: SEARCH_CONSOLE_STRING_FILTERS,
+            date: SEARCH_CONSOLE_DATE_FILTERS,
+        },
+        multipleValues: false,
+        or: false,
+        nestedGroups: false,
+    },
+    metricFilters: false,
+    dates: {
+        rangeRequired: true,
+        operators: SEARCH_CONSOLE_DATE_FILTERS,
+        grains: [],
+        timezone: 'fixed',
+    },
+    pushdown: ALL_PUSHDOWN_REFUSED,
 };
 
 const DIMENSIONS = [
@@ -159,6 +190,7 @@ export class SearchConsoleConnector implements ApiConnector {
             maxRows: SEARCH_CONSOLE_MAX_QUERY_ROWS,
             timeoutMs: SEARCH_CONSOLE_TIMEOUT_MS,
             limits: SEARCH_CONSOLE_LIMITS,
+            capabilities: SEARCH_CONSOLE_CAPABILITIES,
         };
     }
 

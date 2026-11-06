@@ -14,20 +14,26 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { type ApiConnectorCapabilities } from './ApiConnector';
 import { getIsoDateInTimeZone } from './apiDateRange';
 import {
+    assertApiSourceQuery,
     buildApiSourceExplore,
     type ApiSourceExploreDefinition,
     type CompiledApiSourceQuery,
 } from './apiSourceExplore';
 import { compileGa4Query } from './google/ga4Compiler';
+import { GA4_CAPABILITIES } from './google/Ga4Connector';
 import {
     GA4_REPORT_EXPLORE,
     GA4_SEMANTIC_LAYER_VERSION,
     withGa4MetadataFields,
 } from './google/ga4SemanticLayer';
 import { compileSearchConsoleQuery } from './google/searchConsoleCompiler';
-import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from './google/SearchConsoleConnector';
+import {
+    SEARCH_CONSOLE_CAPABILITIES,
+    SEARCH_CONSOLE_MAX_QUERY_ROWS,
+} from './google/SearchConsoleConnector';
 import {
     SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
     SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
@@ -38,6 +44,7 @@ import {
     type ScannedLiveSourceField,
 } from './liveSourceFields';
 import { compilePostHogQuery } from './posthog/posthogCompiler';
+import { POSTHOG_CAPABILITIES } from './posthog/PostHogConnector';
 import {
     isInternalPostHogProperty,
     POSTHOG_EVENTS_EXPLORE,
@@ -109,6 +116,8 @@ export const getLiveSourceNameBase = (
  */
 export type ApiSourceBaseLayer = {
     baseVersion: number;
+    /** The connector's own declaration, shared by every model. */
+    capabilities: ApiConnectorCapabilities;
     definitions: readonly [
         ApiSourceExploreDefinition,
         ...ApiSourceExploreDefinition[],
@@ -123,18 +132,21 @@ export const getApiSourceBaseLayer = (
         case ApiConnectorType.GA4:
             return {
                 baseVersion: GA4_SEMANTIC_LAYER_VERSION,
+                capabilities: GA4_CAPABILITIES,
                 definitions: [GA4_REPORT_EXPLORE],
                 plannedModelNames: ['ecommerce'],
             };
         case ApiConnectorType.SEARCH_CONSOLE:
             return {
                 baseVersion: SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
+                capabilities: SEARCH_CONSOLE_CAPABILITIES,
                 definitions: [SEARCH_CONSOLE_PERFORMANCE_EXPLORE],
                 plannedModelNames: ['search_appearance'],
             };
         case ApiConnectorType.POSTHOG:
             return {
                 baseVersion: POSTHOG_SEMANTIC_LAYER_VERSION,
+                capabilities: POSTHOG_CAPABILITIES,
                 definitions: [POSTHOG_EVENTS_EXPLORE],
                 plannedModelNames: ['persons', 'sessions'],
             };
@@ -238,6 +250,7 @@ export const buildApiSourceExplores = ({
 }): Explore[] => {
     const {
         baseVersion,
+        capabilities,
         definitions: [wide, ...others],
     } = getApiSourceBaseLayer(apiSource.connector);
     const build = (definition: ApiSourceExploreDefinition, isWide: boolean) =>
@@ -249,6 +262,7 @@ export const buildApiSourceExplores = ({
             connectionUuid,
             integration: apiSource.connector,
             baseVersion,
+            capabilities,
             warehouseSqlBuilder: getSqlBuilder(apiSource.connector),
         });
     return [
@@ -273,6 +287,9 @@ export const compileApiSourceMetricQuery = ({
     now: Date;
 }): CompiledApiSourceQuery => {
     const integration = explore.apiSource?.integration;
+    if (integration !== undefined) {
+        assertApiSourceQuery(explore, metricQuery);
+    }
     switch (integration) {
         case ApiConnectorType.GA4:
             return compileGa4Query({

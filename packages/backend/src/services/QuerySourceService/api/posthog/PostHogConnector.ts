@@ -9,16 +9,48 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    ApiConnector,
-    ApiConnectorColumn,
-    ApiConnectorDescription,
-    ApiConnectorExecuteArgs,
-    ApiConnectorResponse,
-    ApiConnectorResult,
-    ApiConnectorTransport,
+import {
+    ALL_PUSHDOWN_REFUSED,
+    type ApiConnector,
+    type ApiConnectorCapabilities,
+    type ApiConnectorColumn,
+    type ApiConnectorDescription,
+    type ApiConnectorExecuteArgs,
+    type ApiConnectorResponse,
+    type ApiConnectorResult,
+    type ApiConnectorTransport,
 } from '../ApiConnector';
-import { POSTHOG_MAX_SCANNED_PROPERTIES } from './posthogSemanticLayer';
+import {
+    POSTHOG_DATE_FILTERS,
+    POSTHOG_FILTERS_BY_TYPE,
+    POSTHOG_MAX_SCANNED_PROPERTIES,
+    POSTHOG_METRIC_FILTERS,
+} from './posthogSemanticLayer';
+
+/**
+ * HogQL is SQL, so filters take any shape and dates are ordinary filters.
+ * Table calculations, custom fields and pivots could compile into HogQL
+ * too, but stay refused until that is built.
+ */
+export const POSTHOG_CAPABILITIES: ApiConnectorCapabilities = {
+    filters: {
+        operators: {
+            ...POSTHOG_FILTERS_BY_TYPE,
+            metric: POSTHOG_METRIC_FILTERS,
+        },
+        multipleValues: true,
+        or: true,
+        nestedGroups: true,
+    },
+    metricFilters: true,
+    dates: {
+        rangeRequired: false,
+        operators: POSTHOG_DATE_FILTERS,
+        grains: [],
+        timezone: 'configurable',
+    },
+    pushdown: ALL_PUSHDOWN_REFUSED,
+};
 
 const PROPERTY_DEFINITIONS_PAGE_SIZE = 500;
 
@@ -114,6 +146,7 @@ export class PostHogConnector implements ApiConnector {
             maxRows: POSTHOG_MAX_ROWS - 1,
             timeoutMs: POSTHOG_TIMEOUT_MS,
             limits: POSTHOG_LIMITS,
+            capabilities: POSTHOG_CAPABILITIES,
         };
     }
 

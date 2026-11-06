@@ -1,4 +1,9 @@
-import { DimensionType, FilterOperator, MetricType } from '@lightdash/common';
+import {
+    DimensionType,
+    FilterOperator,
+    MetricType,
+    type ApiSourceMetricAggregation,
+} from '@lightdash/common';
 import { z } from 'zod';
 import type {
     ApiSourceDimensionDefinition,
@@ -8,7 +13,7 @@ import type {
 
 export const GA4_SEMANTIC_LAYER_VERSION = 1;
 
-const STRING_FILTERS = [
+export const GA4_STRING_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.NOT_EQUALS,
     FilterOperator.INCLUDE,
@@ -18,12 +23,12 @@ const STRING_FILTERS = [
     FilterOperator.NULL,
     FilterOperator.NOT_NULL,
 ];
-const DATE_FILTERS = [
+export const GA4_DATE_FILTERS = [
     FilterOperator.IN_THE_PAST,
     FilterOperator.IN_BETWEEN,
     FilterOperator.EQUALS,
 ];
-const METRIC_FILTERS = [
+export const GA4_METRIC_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.GREATER_THAN,
     FilterOperator.GREATER_THAN_OR_EQUAL,
@@ -43,7 +48,7 @@ const dimension = (
     label,
     description,
     type: DimensionType.STRING,
-    filterOperators: STRING_FILTERS,
+    filterOperators: GA4_STRING_FILTERS,
 });
 
 const metric = (
@@ -53,15 +58,27 @@ const metric = (
     type: MetricType,
     description?: string,
     format?: string,
+    aggregation?: ApiSourceMetricAggregation,
 ): ApiSourceMetricDefinition => ({
     name,
     apiName,
     label,
     description,
     type,
-    filterOperators: METRIC_FILTERS,
+    filterOperators: GA4_METRIC_FILTERS,
     ...(format ? { format } : {}),
+    ...(aggregation ? { aggregation } : {}),
 });
+
+// Additivity per the Data API schema
+// (https://developers.google.com/analytics/devguides/reporting/data/v1/api-schema).
+// User and session counts are distinct counts, estimated with HLL++
+// (https://developers.google.com/analytics/blog/2022/hll), so they never sum;
+// event, view, purchase and revenue counts do.
+const ADDITIVE: ApiSourceMetricAggregation = { aggregation: 'additive' };
+const NON_ADDITIVE: ApiSourceMetricAggregation = {
+    aggregation: 'non_additive',
+};
 
 const ITEM_SCOPED_DIMENSIONS = ['item_name'];
 const SESSION_AND_EVENT_METRICS = [
@@ -85,7 +102,7 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             apiName: 'date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: DATE_FILTERS,
+            filterOperators: GA4_DATE_FILTERS,
             description:
                 'Day of the activity, in the property time zone. Queries without a date filter read the last 28 days.',
         },
@@ -182,6 +199,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Active users',
             MetricType.COUNT_DISTINCT,
             'Distinct engaged users; daily values do not add up to a weekly total.',
+            undefined,
+            NON_ADDITIVE,
         ),
         metric(
             'total_users',
@@ -189,6 +208,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Total users',
             MetricType.COUNT_DISTINCT,
             'Distinct users who logged any event, engaged or not.',
+            undefined,
+            NON_ADDITIVE,
         ),
         metric(
             'new_users',
@@ -196,6 +217,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'New users',
             MetricType.SUM,
             'Users who visited for the first time.',
+            undefined,
+            NON_ADDITIVE,
         ),
         metric(
             'sessions',
@@ -203,6 +226,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Sessions',
             MetricType.SUM,
             'Sessions started.',
+            undefined,
+            NON_ADDITIVE,
         ),
         metric(
             'engaged_sessions',
@@ -210,6 +235,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Engaged sessions',
             MetricType.SUM,
             'Sessions over 10 seconds, with a key event, or with 2 or more views.',
+            undefined,
+            NON_ADDITIVE,
         ),
         metric(
             'engagement_rate',
@@ -218,6 +245,9 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             MetricType.NUMBER,
             'Engaged sessions divided by sessions.',
             '0.0%',
+            // Engaged sessions / sessions, but both are distinct counts, so
+            // the rate can't be rebuilt from summed rows
+            NON_ADDITIVE,
         ),
         metric(
             'average_session_duration',
@@ -225,6 +255,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Average session duration (s)',
             MetricType.AVERAGE,
             'Average session length, in seconds.',
+            undefined,
+            NON_ADDITIVE,
         ),
         metric(
             'screen_page_views',
@@ -232,6 +264,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Views',
             MetricType.SUM,
             'Web pages and app screens viewed, repeats included.',
+            undefined,
+            ADDITIVE,
         ),
         metric(
             'event_count',
@@ -239,6 +273,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Event count',
             MetricType.SUM,
             'Events logged.',
+            undefined,
+            ADDITIVE,
         ),
         metric(
             'key_events',
@@ -246,6 +282,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Key events',
             MetricType.SUM,
             'Events marked as key events (formerly conversions).',
+            undefined,
+            ADDITIVE,
         ),
         metric(
             'total_revenue',
@@ -253,6 +291,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Total revenue',
             MetricType.SUM,
             'In the property currency.',
+            undefined,
+            ADDITIVE,
         ),
         metric(
             'ecommerce_purchases',
@@ -260,6 +300,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Ecommerce purchases',
             MetricType.SUM,
             'Purchases completed.',
+            undefined,
+            ADDITIVE,
         ),
         metric(
             'item_revenue',
@@ -267,6 +309,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Item revenue',
             MetricType.SUM,
             'Revenue from items sold, in the property currency, excluding tax and shipping.',
+            undefined,
+            ADDITIVE,
         ),
         metric(
             'items_purchased',
@@ -274,6 +318,8 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Items purchased',
             MetricType.SUM,
             'Units of items purchased.',
+            undefined,
+            ADDITIVE,
         ),
         metric(
             'items_viewed',
@@ -281,9 +327,10 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             'Items viewed',
             MetricType.SUM,
             'Times items were viewed.',
+            undefined,
+            ADDITIVE,
         ),
     ],
-    filterGroups: { or: true, nested: true },
     maxDimensions: 9,
     maxMetrics: 10,
     dateRange: { dimension: 'date', defaultDays: 28 },

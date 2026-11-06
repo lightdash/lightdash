@@ -1,20 +1,38 @@
 import {
+    type ApiSourceCapabilities,
     type ApiSourceExplore,
     type ApiSourceFieldRule,
+    type ApiSourcePushdown,
 } from '../types/apiSourceExplore';
 import { type FieldId } from '../types/field';
 import {
+    FilterOperator,
     flattenFilterGroup,
     isAndFilterGroup,
     isFilterGroup,
+    isFilterRule,
+    UnitOfTime,
     type FilterGroup,
+    type FilterRule,
 } from '../types/filter';
-import { type MetricQuery } from '../types/metricQuery';
+import {
+    isPeriodOverPeriodAdditionalMetric,
+    type MetricQuery,
+} from '../types/metricQuery';
+import { ApiConnectorType } from '../types/querySources';
+import assertUnreachable from './assertUnreachable';
 
 /** Why a metric query can't run on a live data source explore, with what to change. */
 export type ApiSourceQueryIssue = {
     fieldId: FieldId | null;
     message: string;
+};
+
+/** What the query asks for beyond its metric query. */
+export type ApiSourceQueryContext = {
+    isPivoted?: boolean;
+    /** The date zoom granularity, e.g. `Week`; absent without date zoom. */
+    dateZoomGranularity?: string;
 };
 
 const getFieldRule = (
@@ -25,6 +43,74 @@ const getFieldRule = (
         ? apiSource.fields[fieldId]
         : undefined;
 
+const INTEGRATION_LABELS: Record<ApiConnectorType, string> = {
+    [ApiConnectorType.GA4]: 'Google Analytics',
+    [ApiConnectorType.SEARCH_CONSOLE]: 'Search Console',
+    [ApiConnectorType.POSTHOG]: 'PostHog',
+};
+
+const ALL_REFUSED: ApiSourceCapabilities['pushdown'] = {
+    tableCalculations: 'refused',
+    customDimensions: 'refused',
+    customMetrics: 'refused',
+    pivots: 'refused',
+    periodOverPeriod: 'refused',
+    dateZoom: 'refused',
+};
+
+/**
+ * The capabilities of explores built before connectors declared them, read
+ * from their field rules: they refuse exactly what they refused then.
+ */
+const getLegacyCapabilities = (
+    apiSource: ApiSourceExplore,
+): ApiSourceCapabilities => {
+    const { integration, dateRange, filterGroups } = apiSource;
+    const isReportApi = (): boolean => {
+        switch (integration) {
+            case ApiConnectorType.GA4:
+            case ApiConnectorType.SEARCH_CONSOLE:
+                return true;
+            case ApiConnectorType.POSTHOG:
+                return false;
+            default:
+                return assertUnreachable(integration, 'Unknown api connector');
+        }
+    };
+    const dateRule = dateRange
+        ? getFieldRule(apiSource, dateRange.fieldId)
+        : undefined;
+    return {
+        // Field rules carry each field's operators, so none are needed here
+        filters: {
+            operators: {},
+            multipleValues: integration !== ApiConnectorType.SEARCH_CONSOLE,
+            or: filterGroups.or,
+            nestedGroups: filterGroups.nested,
+        },
+        metricFilters: true,
+        dates: {
+            rangeRequired: isReportApi(),
+            operators: dateRule?.filterOperators ?? [],
+            grains: [],
+            timezone: isReportApi() ? 'fixed' : 'configurable',
+        },
+        pushdown: ALL_REFUSED,
+        metrics: {},
+    };
+};
+
+/** What the explore's connector can do; explores built before capabilities get today's refusals. */
+export const getApiSourceCapabilities = (
+    apiSource: ApiSourceExplore,
+): ApiSourceCapabilities =>
+    apiSource.capabilities ?? getLegacyCapabilities(apiSource);
+
+/** Whether a live data source runs `feature`; only `native` runs today. */
+export const isApiSourcePushdownSupported = (
+    pushdown: ApiSourcePushdown,
+): boolean => pushdown === 'native';
+
 const getFilterFieldIds = (metricQuery: MetricQuery): FieldId[] =>
     [metricQuery.filters.dimensions, metricQuery.filters.metrics].flatMap(
         (group) =>
@@ -34,35 +120,69 @@ const getFilterFieldIds = (metricQuery: MetricQuery): FieldId[] =>
     );
 
 const getUnsupportedFeatureIssues = (
+    { pushdown }: ApiSourceCapabilities,
     metricQuery: MetricQuery,
+    context: ApiSourceQueryContext,
 ): ApiSourceQueryIssue[] => {
     const tableCalculationFilters = metricQuery.filters.tableCalculations
         ? flattenFilterGroup(metricQuery.filters.tableCalculations)
         : [];
+    // Period-over-period comparisons arrive as generated custom metrics
+    const additionalMetrics = metricQuery.additionalMetrics ?? [];
+    const periodOverPeriodMetrics = additionalMetrics.filter(
+        isPeriodOverPeriodAdditionalMetric,
+    );
+    const customMetrics = additionalMetrics.filter(
+        (metric) => !isPeriodOverPeriodAdditionalMetric(metric),
+    );
+    const isRefused = (feature: ApiSourcePushdown) =>
+        !isApiSourcePushdownSupported(feature);
+    const toFeatureMessage = (name: string) =>
+        `${name} can't run on live data sources yet. Remove them from the query.`;
     const features = [
         {
-            isUsed: metricQuery.tableCalculations.length > 0,
-            name: 'Table calculations',
+            isUsed:
+                metricQuery.tableCalculations.length > 0 &&
+                isRefused(pushdown.tableCalculations),
+            message: toFeatureMessage('Table calculations'),
         },
         {
-            isUsed: tableCalculationFilters.length > 0,
-            name: 'Table calculation filters',
+            isUsed:
+                tableCalculationFilters.length > 0 &&
+                isRefused(pushdown.tableCalculations),
+            message: toFeatureMessage('Table calculation filters'),
         },
         {
-            isUsed: (metricQuery.additionalMetrics ?? []).length > 0,
-            name: 'Custom metrics',
+            isUsed:
+                customMetrics.length > 0 && isRefused(pushdown.customMetrics),
+            message: toFeatureMessage('Custom metrics'),
         },
         {
-            isUsed: (metricQuery.customDimensions ?? []).length > 0,
-            name: 'Custom dimensions',
+            isUsed:
+                periodOverPeriodMetrics.length > 0 &&
+                isRefused(pushdown.periodOverPeriod),
+            message: toFeatureMessage('Period-over-period comparisons'),
+        },
+        {
+            isUsed:
+                (metricQuery.customDimensions ?? []).length > 0 &&
+                isRefused(pushdown.customDimensions),
+            message: toFeatureMessage('Custom dimensions'),
+        },
+        {
+            isUsed: !!context.isPivoted && isRefused(pushdown.pivots),
+            message:
+                "Pivoted results aren't available from live data sources yet. Remove the pivot to run this query.",
+        },
+        {
+            isUsed:
+                !!context.dateZoomGranularity && isRefused(pushdown.dateZoom),
+            message: "Date zoom isn't available on live data sources yet.",
         },
     ];
     return features
         .filter(({ isUsed }) => isUsed)
-        .map(({ name }) => ({
-            fieldId: null,
-            message: `${name} can't run on live data sources yet. Remove them from the query.`,
-        }));
+        .map(({ message }) => ({ fieldId: null, message }));
 };
 
 const getUnknownFieldIssues = (
@@ -99,16 +219,31 @@ const getFilterGroupShape = (
     };
 };
 
+// One filter matching several of these values is an OR of matches
+const POSITIVE_MATCH_OPERATORS = [
+    FilterOperator.EQUALS,
+    FilterOperator.INCLUDE,
+];
+const SUB_DAY_UNITS = [
+    UnitOfTime.milliseconds,
+    UnitOfTime.seconds,
+    UnitOfTime.minutes,
+    UnitOfTime.hours,
+];
+
 const getFilterIssues = (
     apiSource: ApiSourceExplore,
+    capabilities: ApiSourceCapabilities,
     group: FilterGroup | undefined,
+    kind: 'dimensions' | 'metrics',
 ): ApiSourceQueryIssue[] => {
     if (!group) {
         return [];
     }
+    const { filters } = capabilities;
     const shape = getFilterGroupShape(group);
     const shapeIssues = [
-        ...(shape.usesOr && !apiSource.filterGroups.or
+        ...(shape.usesOr && !filters.or
             ? [
                   {
                       fieldId: null,
@@ -117,7 +252,7 @@ const getFilterIssues = (
                   },
               ]
             : []),
-        ...(shape.isNested && !apiSource.filterGroups.nested
+        ...(shape.isNested && !filters.nestedGroups
             ? [
                   {
                       fieldId: null,
@@ -129,26 +264,115 @@ const getFilterIssues = (
     ];
     const ruleIssues = flattenFilterGroup(group)
         .filter((rule) => !rule.disabled)
-        .flatMap((rule) => {
+        .flatMap((rule): ApiSourceQueryIssue[] => {
             const { fieldId } = rule.target;
             const fieldRule = getFieldRule(apiSource, fieldId);
-            if (
-                !fieldRule ||
-                fieldRule.filterOperators.includes(rule.operator)
-            ) {
+            if (!fieldRule) {
                 return [];
             }
-            return [
-                {
-                    fieldId,
-                    message:
-                        fieldRule.filterOperators.length === 0
-                            ? `"${fieldId}" can't be filtered on this live data source.`
-                            : `"${fieldId}" can't be filtered with "${rule.operator}". Use one of: ${fieldRule.filterOperators.join(', ')}.`,
-                },
-            ];
+            const operators =
+                kind === 'metrics' && !capabilities.metricFilters
+                    ? []
+                    : fieldRule.filterOperators;
+            if (!operators.includes(rule.operator)) {
+                return [
+                    {
+                        fieldId,
+                        message:
+                            operators.length === 0
+                                ? `"${fieldId}" can't be filtered on this live data source.`
+                                : `"${fieldId}" can't be filtered with "${rule.operator}". Use one of: ${operators.join(', ')}.`,
+                    },
+                ];
+            }
+            // A range-required date is the API's date range, not a filter
+            const isDateRange =
+                capabilities.dates.rangeRequired &&
+                fieldId === apiSource.dateRange?.fieldId;
+            if (
+                !isDateRange &&
+                !filters.multipleValues &&
+                POSITIVE_MATCH_OPERATORS.includes(rule.operator) &&
+                (rule.values ?? []).length > 1
+            ) {
+                return [
+                    {
+                        fieldId,
+                        message: `${INTEGRATION_LABELS[apiSource.integration]} matches one value per filter; filter "${fieldId}" by one value at a time.`,
+                    },
+                ];
+            }
+            return [];
         });
     return [...shapeIssues, ...ruleIssues];
+};
+
+/**
+ * An API that reads the date as one range needs one date filter, ANDed with
+ * the others at the top level, in days or longer.
+ */
+const getDateRangeIssues = (
+    apiSource: ApiSourceExplore,
+    capabilities: ApiSourceCapabilities,
+    group: FilterGroup | undefined,
+): ApiSourceQueryIssue[] => {
+    const { dateRange } = apiSource;
+    if (!group || !dateRange || !capabilities.dates.rangeRequired) {
+        return [];
+    }
+    const items = (isAndFilterGroup(group) ? group.and : group.or) ?? [];
+    const isTopLevelAnd = isAndFilterGroup(group) || items.length === 1;
+    const isDateRule = (item: FilterGroup | FilterRule): item is FilterRule =>
+        isFilterRule(item) &&
+        !item.disabled &&
+        item.target.fieldId === dateRange.fieldId;
+    const hasNestedDateRule = (item: FilterGroup | FilterRule): boolean =>
+        isFilterGroup(item) &&
+        ((isAndFilterGroup(item) ? item.and : item.or) ?? []).some(
+            (child) => isDateRule(child) || hasNestedDateRule(child),
+        );
+    const dateRules = items.filter(isDateRule);
+    // Sources without OR or nesting already refuse the whole group
+    const { filters } = capabilities;
+    if (
+        (filters.nestedGroups && items.some(hasNestedDateRule)) ||
+        (filters.or && dateRules.length > 0 && !isTopLevelAnd)
+    ) {
+        return [
+            {
+                fieldId: dateRange.fieldId,
+                message:
+                    'Filter the date with one filter combined with the others by AND, not inside an OR group.',
+            },
+        ];
+    }
+    if (dateRules.length > 1) {
+        return [
+            {
+                fieldId: dateRange.fieldId,
+                message:
+                    'Filter the date once: combine the date filters into one range.',
+            },
+        ];
+    }
+    return dateRules.flatMap((rule): ApiSourceQueryIssue[] => {
+        const settings: unknown = rule.settings;
+        const unit =
+            typeof settings === 'object' &&
+            settings !== null &&
+            'unitOfTime' in settings
+                ? settings.unitOfTime
+                : undefined;
+        return rule.operator === FilterOperator.IN_THE_PAST &&
+            SUB_DAY_UNITS.some((subDayUnit) => subDayUnit === unit)
+            ? [
+                  {
+                      fieldId: dateRange.fieldId,
+                      message: `Live data sources report by day; filter in days or longer, not ${String(unit)}.`,
+                  },
+              ]
+            : [];
+    });
 };
 
 const getIncompatibilityIssues = (
@@ -203,11 +427,17 @@ const getSizeIssues = (
 export const getApiSourceQueryIssues = (
     apiSource: ApiSourceExplore,
     metricQuery: MetricQuery,
-): ApiSourceQueryIssue[] => [
-    ...getUnsupportedFeatureIssues(metricQuery),
-    ...getUnknownFieldIssues(apiSource, metricQuery),
-    ...getFilterIssues(apiSource, metricQuery.filters.dimensions),
-    ...getFilterIssues(apiSource, metricQuery.filters.metrics),
-    ...getIncompatibilityIssues(apiSource, metricQuery),
-    ...getSizeIssues(apiSource, metricQuery),
-];
+    context: ApiSourceQueryContext = {},
+): ApiSourceQueryIssue[] => {
+    const capabilities = getApiSourceCapabilities(apiSource);
+    const { dimensions, metrics } = metricQuery.filters;
+    return [
+        ...getUnsupportedFeatureIssues(capabilities, metricQuery, context),
+        ...getUnknownFieldIssues(apiSource, metricQuery),
+        ...getFilterIssues(apiSource, capabilities, dimensions, 'dimensions'),
+        ...getFilterIssues(apiSource, capabilities, metrics, 'metrics'),
+        ...getDateRangeIssues(apiSource, capabilities, dimensions),
+        ...getIncompatibilityIssues(apiSource, metricQuery),
+        ...getSizeIssues(apiSource, metricQuery),
+    ];
+};
