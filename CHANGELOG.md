@@ -1,3 +1,11 @@
+## [3.169.4](https://github.com/lightdash/lightdash/compare/3.169.3...3.169.4) (2026-11-06)
+
+
+### Bug Fixes
+
+* **documents:** stop pivot tables and failed SQL charts crashing Documents ([#32135](https://github.com/lightdash/lightdash/issues/32135)) ([80be631](https://github.com/lightdash/lightdash/commit/80be631ba90c61eb92c0b373935297c6fa0e0b2c))
+* **oauth:** accept client ID metadata documents that support the none auth method ([#32159](https://github.com/lightdash/lightdash/issues/32159)) ([7d54ab8](https://github.com/lightdash/lightdash/commit/7d54ab8243c4d0a70db6dba861afd042b7c02c09)), closes [#31332](https://github.com/lightdash/lightdash/issues/31332)
+
 ## [3.169.3](https://github.com/lightdash/lightdash/compare/3.169.2...3.169.3) (2026-11-06)
 
 
