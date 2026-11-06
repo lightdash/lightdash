@@ -431,11 +431,10 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
                 options,
             );
         } catch (error) {
+            // Only a missing object is a completed delete: NoSuchBucket is also a 404.
             if (
-                error instanceof NoSuchKey ||
-                error instanceof NotFound ||
-                (error instanceof S3ServiceException &&
-                    error.$metadata.httpStatusCode === 404)
+                error instanceof S3ServiceException &&
+                (error.name === 'NoSuchKey' || error.name === 'NotFound')
             )
                 return;
             throw error;

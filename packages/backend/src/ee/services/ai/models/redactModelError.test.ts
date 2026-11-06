@@ -19,6 +19,19 @@ vi.mock('@sentry/node', async () => ({
 
 const bytes = Buffer.alloc(2048, 171);
 const encoded = bytes.toString('base64');
+const imagePrompt: Parameters<MockLanguageModelV4['doGenerate']>[0]['prompt'] =
+    [
+        {
+            role: 'user',
+            content: [
+                {
+                    type: 'file',
+                    data: { type: 'data', data: bytes },
+                    mediaType: 'image/png',
+                },
+            ],
+        },
+    ];
 const failure = (isRetryable = false) =>
     new APICallError({
         message: `Provider rejected ${encoded}`,
@@ -185,15 +198,33 @@ test('generate and initial stream failures are sanitized before leaving the wrap
         }),
     );
     const generated = await Promise.resolve(
-        model.doGenerate({ prompt: [] }),
+        model.doGenerate({ prompt: imagePrompt }),
     ).catch((error: unknown) => error);
     const streamed = await Promise.resolve(
-        model.doStream({ prompt: [] }),
+        model.doStream({ prompt: imagePrompt }),
     ).catch((error: unknown) => error);
     expectPrivate(generated);
     expectPrivate(streamed);
     expect(APICallError.isInstance(generated)).toBe(true);
     expect(APICallError.isInstance(streamed)).toBe(true);
+});
+
+test('text-only calls rethrow provider errors untouched, without walking the request', async () => {
+    const error = failure();
+    const model = withModelErrorRedaction(
+        new MockLanguageModelV4({
+            doGenerate: async () => {
+                throw error;
+            },
+        }),
+    );
+    await expect(
+        model.doGenerate({
+            prompt: [
+                { role: 'user', content: [{ type: 'text', text: 'hello' }] },
+            ],
+        }),
+    ).rejects.toBe(error);
 });
 
 test('error chunks and lazy stream rejections are scrubbed as well', async () => {
@@ -210,7 +241,7 @@ test('error chunks and lazy stream rejections are scrubbed as well', async () =>
         }),
     );
     const { value } = await (
-        await chunkModel.doStream({ prompt: [] })
+        await chunkModel.doStream({ prompt: imagePrompt })
     ).stream
         .getReader()
         .read();
@@ -228,7 +259,7 @@ test('error chunks and lazy stream rejections are scrubbed as well', async () =>
         }),
     );
     const lazy = await (
-        await lazyModel.doStream({ prompt: [] })
+        await lazyModel.doStream({ prompt: imagePrompt })
     ).stream
         .getReader()
         .read()
@@ -247,7 +278,14 @@ test('every retry error is already sanitized before the SDK aggregates it', asyn
     );
     const request = generateText({
         model,
-        prompt: 'look at this',
+        messages: [
+            {
+                role: 'user',
+                content: [
+                    { type: 'file', data: bytes, mediaType: 'image/png' },
+                ],
+            },
+        ],
         maxRetries: 2,
     }).catch((error: unknown) => error);
     await vi.runAllTimersAsync();
