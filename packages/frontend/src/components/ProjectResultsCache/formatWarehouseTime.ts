@@ -11,5 +11,7 @@ export const formatWarehouseTime = (ms: number): string => {
         const seconds = totalSeconds % 60;
         return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
     }
-    return `${(ms / HOUR_MS).toFixed(1)}h`;
+    const hours = (ms / HOUR_MS).toFixed(1);
+    // Hours drop precision, so mark them as approximate unless exact.
+    return Number(hours) * HOUR_MS === ms ? `${hours}h` : `~${hours}h`;
 };

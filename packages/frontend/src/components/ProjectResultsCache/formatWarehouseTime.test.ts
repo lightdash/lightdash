@@ -13,6 +13,7 @@ describe('formatWarehouseTime', () => {
         [3_600_000, '1.0h'],
         [180_000_000, '50.0h'],
         [11_520_000, '3.2h'],
+        [40_700_000, '~11.3h'],
     ])('%d ms -> %s', (ms, expected) => {
         expect(formatWarehouseTime(ms)).toBe(expected);
     });
