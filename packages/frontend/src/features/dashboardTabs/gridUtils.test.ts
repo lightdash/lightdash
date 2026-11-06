@@ -1,10 +1,14 @@
 import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
 import {
+    AUTO_FIT_FOLD_SCALE_RANGE,
+    AUTO_FIT_WHOLE_GRID_MIN_SCALE,
     canFitGridToScreen,
     DEFAULT_ROW_HEIGHT,
     FIT_TO_SCREEN_MIN_ROW_HEIGHT,
+    getAutoFitToScreenSnap,
     getBreakpointForWidth,
     getFitToScreenRowHeight,
+    getGridCleanCutRows,
     getGridHeight,
     getGridTotalRows,
     getViewModeActiveTabTiles,
@@ -191,6 +195,96 @@ describe('fit to screen', () => {
                 ),
             ),
         ).toEqual(['a', 'c']);
+    });
+
+    it('finds the folds no tile straddles, flush with the tiles above', () => {
+        // row 6: a and b end together; row 9: c straddles 6..12 so no fold at 9
+        const tiles = [
+            chart('a', 0, 0, 6),
+            chart('b', 12, 0, 6),
+            chart('c', 0, 6, 6),
+            chart('d', 12, 6, 3),
+            chart('e', 12, 9, 3),
+            // gap: rows 12 and 13 are empty, the fold stays at 12
+            chart('f', 0, 14, 4),
+        ];
+        expect(getGridCleanCutRows(tiles)).toEqual([6, 12, 18]);
+        expect(getGridCleanCutRows([])).toEqual([]);
+    });
+
+    describe('auto fit', () => {
+        const scaleOf = (rowHeight: number) => rowHeight / DEFAULT_ROW_HEIGHT;
+
+        it('fills the viewport with the whole grid when the squash is gentle', () => {
+            const tiles = [chart('a', 0, 0, 10), chart('b', 0, 10, 10)];
+            const natural = getGridHeight(20, DEFAULT_ROW_HEIGHT);
+            const snap = getAutoFitToScreenSnap(natural * 0.8, tiles);
+            expect(snap).toMatchObject({ rows: 20, isWholeGrid: true });
+            expect(scaleOf(snap!.rowHeight)).toBeGreaterThanOrEqual(
+                AUTO_FIT_WHOLE_GRID_MIN_SCALE,
+            );
+            expect(scaleOf(snap!.rowHeight)).toBeLessThan(1);
+        });
+
+        it('stretches a short grid to the viewport', () => {
+            const tiles = [chart('a', 0, 0, 4)];
+            const snap = getAutoFitToScreenSnap(1000, tiles);
+            expect(snap).toMatchObject({ rows: 4, isWholeGrid: true });
+            expect(snap!.rowHeight).toBeGreaterThan(DEFAULT_ROW_HEIGHT);
+        });
+
+        it('snaps the nearest clean fold to the viewport instead of over-squashing', () => {
+            // natural height 2 viewports: too long to squash whole
+            const tiles = [
+                chart('a', 0, 0, 10),
+                chart('b', 12, 0, 10),
+                chart('c', 0, 10, 10),
+                chart('d', 0, 20, 10),
+                chart('e', 0, 30, 10),
+            ];
+            const natural = getGridHeight(40, DEFAULT_ROW_HEIGHT);
+            const viewport = natural / 2;
+            expect(canFitGridToScreen(viewport, 40)).toBe(true);
+            const snap = getAutoFitToScreenSnap(viewport, tiles);
+            // rows 10, 20 and 30 are folds; 20 rows needs the least change
+            expect(snap).toMatchObject({ rows: 20, isWholeGrid: false });
+            expect(scaleOf(snap!.rowHeight)).toBeCloseTo(1, 1);
+        });
+
+        it('keeps the natural height when no fold is within the band', () => {
+            // the only fold is the top row, which would need a huge stretch
+            const tiles = [chart('a', 0, 0, 1), chart('b', 0, 1, 60)];
+            expect(getAutoFitToScreenSnap(1000, tiles)).toBeNull();
+            // squashing a straddled grid past the whole-grid floor isn't offered
+            const straddled = [chart('a', 0, 0, 40), chart('b', 12, 0, 60)];
+            expect(getAutoFitToScreenSnap(1000, straddled)).toBeNull();
+            expect(getAutoFitToScreenSnap(1000, [])).toBeNull();
+            expect(getAutoFitToScreenSnap(0, tiles)).toBeNull();
+        });
+
+        it('only nudges to a fold within the allowed band', () => {
+            const tiles = [chart('a', 0, 0, 10), chart('b', 0, 10, 40)];
+            const viewportFor = (scale: number) =>
+                getGridHeight(10, DEFAULT_ROW_HEIGHT * scale) + 1;
+            expect(
+                getAutoFitToScreenSnap(
+                    viewportFor(AUTO_FIT_FOLD_SCALE_RANGE.max * 0.98),
+                    tiles,
+                ),
+            ).toMatchObject({ rows: 10, isWholeGrid: false });
+            expect(
+                getAutoFitToScreenSnap(
+                    viewportFor(AUTO_FIT_FOLD_SCALE_RANGE.max * 1.05),
+                    tiles,
+                ),
+            ).toBeNull();
+            expect(
+                getAutoFitToScreenSnap(
+                    viewportFor(AUTO_FIT_FOLD_SCALE_RANGE.min * 0.95),
+                    tiles,
+                ),
+            ).toBeNull();
+        });
     });
 
     it('passes the row height to the grid', () => {

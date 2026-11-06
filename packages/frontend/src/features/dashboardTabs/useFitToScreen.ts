@@ -1,14 +1,17 @@
 import { type DashboardTab, type DashboardTile } from '@lightdash/common';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     canFitGridToScreen,
     FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
+    FIT_TO_SCREEN_SNAP_DURATION_MS,
+    getAutoFitToScreenSnap,
     getBreakpointForWidth,
     getFitToScreenRowHeight,
     getGridTotalRows,
     getViewModeActiveTabTiles,
     GRID_BREAKPOINTS,
     isFitToScreenBreakpoint,
+    type FitToScreenSnap,
 } from './gridUtils';
 
 type GridViewport = { width: number; availableHeight: number };
@@ -62,8 +65,45 @@ const useGridViewport = (
     return viewport;
 };
 
+/**
+ * True for one animation after the snap target (the rows filling the
+ * viewport, or null for the natural layout) jumps to another, so the grid can
+ * spring to it. Stretching within a target, and the first measured layout,
+ * are not animated. `undefined` means nothing is measured yet; `resetKey`
+ * changes (tab switch, edit mode) also start afresh without animating.
+ */
+const useSnapAnimation = (
+    target: number | null | undefined,
+    resetKey: string,
+): boolean => {
+    const [isSnapping, setIsSnapping] = useState(false);
+    const previous = useRef<number | null | undefined>(undefined);
+
+    useEffect(() => {
+        previous.current = undefined;
+    }, [resetKey]);
+
+    useEffect(() => {
+        const from = previous.current;
+        previous.current = target;
+        if (from === undefined || target === undefined || from === target) {
+            return;
+        }
+        setIsSnapping(true);
+        const timeout = setTimeout(
+            () => setIsSnapping(false),
+            FIT_TO_SCREEN_SNAP_DURATION_MS,
+        );
+        return () => clearTimeout(timeout);
+    }, [target]);
+
+    return isSnapping;
+};
+
 type UseFitToScreenArgs = {
     isFitToScreen: boolean;
+    /** The always-on experiment: gentler squash, folds snap, no toggle */
+    isAutoFit: boolean;
     isEditMode: boolean;
     gridElement: HTMLElement | null;
     tiles: DashboardTile[] | undefined;
@@ -71,39 +111,83 @@ type UseFitToScreenArgs = {
     activeTabUuid: string | undefined;
 };
 
+type FitToScreenState = {
+    /** The toggle is offered: wide layout and the active tab is at most 2 screens tall */
+    isAvailable: boolean;
+    /** Null when the grid keeps its natural height */
+    snap: FitToScreenSnap | null;
+    /** The grid is mid-spring between two snap targets */
+    isSnapping: boolean;
+};
+
 /**
- * Fit to screen is offered in view mode on wide layouts when the active tab is
- * at most 2 screens tall. `rowHeight` is null when fit isn't applied.
+ * Fit to screen is applied in view mode on wide layouts. With the toggle, the
+ * whole active tab fills the viewport when it is at most 2 screens tall. With
+ * auto fit, the squash is gentler and a clean fold can snap to the viewport
+ * bottom instead.
  */
 export const useFitToScreen = ({
     isFitToScreen,
+    isAutoFit,
     isEditMode,
     gridElement,
     tiles,
     tabs,
     activeTabUuid,
-}: UseFitToScreenArgs): { isAvailable: boolean; rowHeight: number | null } => {
+}: UseFitToScreenArgs): FitToScreenState => {
     const viewport = useGridViewport(gridElement, !isEditMode);
-    const totalRows = useMemo(
-        () =>
-            getGridTotalRows(
-                getViewModeActiveTabTiles(tiles ?? [], tabs, activeTabUuid),
-            ),
+    const activeTiles = useMemo(
+        () => getViewModeActiveTabTiles(tiles ?? [], tabs, activeTabUuid),
         [tiles, tabs, activeTabUuid],
     );
+    const totalRows = useMemo(
+        () => getGridTotalRows(activeTiles),
+        [activeTiles],
+    );
 
-    if (isEditMode || !viewport) return { isAvailable: false, rowHeight: null };
-
-    const isAvailable =
+    const isWideLayout =
+        viewport !== null &&
         isFitToScreenBreakpoint(
             getBreakpointForWidth(GRID_BREAKPOINTS, viewport.width),
-        ) && canFitGridToScreen(viewport.availableHeight, totalRows);
+        );
+    const isAvailable =
+        isWideLayout &&
+        !isEditMode &&
+        canFitGridToScreen(viewport.availableHeight, totalRows);
 
-    return {
+    const snap = useMemo<FitToScreenSnap | null>(() => {
+        if (isEditMode || !isFitToScreen || viewport === null || !isWideLayout)
+            return null;
+        if (isAutoFit) {
+            return getAutoFitToScreenSnap(
+                viewport.availableHeight,
+                activeTiles,
+            );
+        }
+        if (!isAvailable) return null;
+        return {
+            rows: totalRows,
+            rowHeight: getFitToScreenRowHeight(
+                viewport.availableHeight,
+                totalRows,
+            ),
+            isWholeGrid: true,
+        };
+    }, [
+        isEditMode,
+        isFitToScreen,
+        isWideLayout,
+        isAutoFit,
         isAvailable,
-        rowHeight:
-            isFitToScreen && isAvailable
-                ? getFitToScreenRowHeight(viewport.availableHeight, totalRows)
-                : null,
-    };
+        viewport,
+        activeTiles,
+        totalRows,
+    ]);
+
+    const isSnapping = useSnapAnimation(
+        viewport === null || isEditMode ? undefined : (snap?.rows ?? null),
+        `${activeTabUuid ?? ''}:${isEditMode}`,
+    );
+
+    return { isAvailable, snap, isSnapping };
 };
