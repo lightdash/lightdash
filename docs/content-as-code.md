@@ -790,8 +790,8 @@ saved once a file supplies it.
 `controlOrder` only decides how kinds interleave, where sections sit and
 where bar lines start: an entry with `newLine: true` starts a new bar line, and
 every other entry shares the line of the entry before it. A line start on a
-section member, which sits inside its section, passes to the next control on
-the bar. Without a saved
+section member passes to the next entry in the list outside a section; it is
+dropped if there is none. Without a saved
 order, lines follow each section's `inline`. Controls left out of
 `controlOrder` go to the end of their container, inline.
 

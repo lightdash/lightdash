@@ -177,7 +177,7 @@ export type DashboardControlRefAsCode = {
     kind: DashboardControlRefKind;
     /** Slug of a filter, parameter control or section in this file */
     slug: string;
-    /** Starts a new bar line; absent, it shares the line of the entry before it. Ignored inside a section */
+    /** Starts a new bar line; absent, it shares the line of the entry before it. On a section member it passes to the next loose entry in the list */
     newLine?: boolean;
 };
 
