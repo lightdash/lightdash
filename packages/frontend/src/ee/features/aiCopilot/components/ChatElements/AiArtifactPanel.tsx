@@ -273,6 +273,15 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                 : 'table';
 
         const effectiveChartType = selectedChartType ?? defaultChartType;
+        // The query hasn't resolved the type yet, so read the stored one.
+        const storedChartConfig = vizConfig?.vizTool.chartConfig;
+        const loadingSketchShape =
+            (selectedChartType ??
+                (isCustomChartTypeSlugChartConfig(storedChartConfig)
+                    ? undefined
+                    : storedChartConfig?.defaultVizType)) === 'table'
+                ? 'table'
+                : 'chart';
 
         const groupByDimensions = parsedChartConfig
             ? getGroupByDimensions(parsedChartConfig)
@@ -448,11 +457,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
         ) {
             return (
                 <Box className={styles.floatingPanel}>
-                    <ArtifactLoadingSketch
-                        shape={
-                            effectiveChartType === 'table' ? 'table' : 'chart'
-                        }
-                    />
+                    <ArtifactLoadingSketch shape={loadingSketchShape} />
                 </Box>
             );
         }

@@ -240,6 +240,19 @@ beforeEach(() => {
 });
 
 describe('artifact panel recovery and navigation', () => {
+    it('sketches a chart, not a table, while a chart artifact query loads', () => {
+        mocks.query.mockReturnValue({
+            data: undefined,
+            isLoading: true,
+            error: null,
+            refetch: mocks.retry,
+        });
+        renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+        expect(
+            screen.getByRole('status').closest('[data-shape]'),
+        ).toHaveAttribute('data-shape', 'chart');
+    });
+
     it('keeps a preview choice on rerender but resets it when opening a different version', () => {
         const { rerender } = renderWithProviders(
             <AiArtifactPanel artifact={artifact} />,
