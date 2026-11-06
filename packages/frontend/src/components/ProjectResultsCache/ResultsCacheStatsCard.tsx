@@ -27,6 +27,7 @@ import {
     useResultsCacheTtlProjections,
 } from '../../hooks/useProjectResultsCacheSettings';
 import { BigNumberDisplay } from '../common/BigNumber/BigNumberDisplay';
+import Callout from '../common/Callout';
 import InlineErrorState from '../common/InlineErrorState';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
@@ -329,11 +330,18 @@ const EstimatedUsage: FC<UsageProps> = ({ projectUuid, days }) => {
 
     return (
         <Stack gap="lg">
-            <Text fz="sm">
-                {`Caching is off. Turning it on could have served ${formatPercent(
+            <Callout
+                variant="info"
+                title={`Turning on caching could serve ${formatPercent(
                     baseline.hitRate,
-                )} of the ${baseline.runs.toLocaleString()} queries in this period from the cache.`}
-            </Text>
+                )} of queries from the cache`}
+            >
+                <Text fz="xs">
+                    {`Estimated by replaying the ${baseline.runs.toLocaleString()} queries from this period with a ${formatCacheDuration(
+                        estimate.currentTtlSeconds,
+                    )} cache duration.`}
+                </Text>
+            </Callout>
             <SimpleGrid cols={3} spacing="md">
                 {items.map((item) => (
                     <Stat
@@ -343,11 +351,6 @@ const EstimatedUsage: FC<UsageProps> = ({ projectUuid, days }) => {
                     />
                 ))}
             </SimpleGrid>
-            <Text c="dimmed" fz="xs">
-                {`Estimated by replaying these queries with a ${formatCacheDuration(
-                    estimate.currentTtlSeconds,
-                )} cache duration.`}
-            </Text>
         </Stack>
     );
 };
