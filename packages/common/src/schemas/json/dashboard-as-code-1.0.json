@@ -634,6 +634,10 @@
                         "singleValue": {
                             "type": "boolean"
                         },
+                        "slug": {
+                            "description": "Portable identity supplied by content as code.",
+                            "type": "string"
+                        },
                         "tileTargets": {
                             "$ref": "#/$defs/DashboardTileTargets"
                         }
@@ -1509,6 +1513,10 @@
                 },
                 "singleValue": {
                     "type": "boolean"
+                },
+                "slug": {
+                    "description": "Portable identity supplied by content as code.",
+                    "type": "string"
                 },
                 "target": {
                     "$ref": "#/$defs/DashboardFieldTarget",
