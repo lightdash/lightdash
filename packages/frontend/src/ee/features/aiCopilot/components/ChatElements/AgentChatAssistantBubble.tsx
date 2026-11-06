@@ -1160,7 +1160,7 @@ export const AssistantBubble: FC<Props> = memo(
                               data-tour-scope="create:AiAgentThread"
                               data-tour-result="2"
                               data-tour-label="The chart the agent built"
-                              data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:li2"
+                              data-tour-docs="agents/use-ai-agents.mdx#query-and-visualizations-constraints:p4"
                           >
                               <AiArtifactButton
                                   onClick={() => {

@@ -237,10 +237,9 @@ const ComposerQueryNode: FC<{
         setUserToggle({ status: nodeStatus?.status, open: value });
     const open = userOpen ?? defaultOpen;
     const statusLabel = useComposerNodeStatusLabel();
-    // Queued, running and done read from the title; only states that need action or explain a stop get words.
+    // Queued, running and done read from the title; only approval gets words.
     const statusText =
-        nodeStatus?.status === 'awaiting_approval' ||
-        nodeStatus?.status === 'error'
+        nodeStatus?.status === 'awaiting_approval'
             ? statusLabel(nodeStatus.status).toLowerCase()
             : null;
     const showApproval =

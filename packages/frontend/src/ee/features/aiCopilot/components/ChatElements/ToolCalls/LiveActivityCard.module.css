@@ -33,14 +33,14 @@
 }
 
 .latestIcon[data-status='error'] {
-    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4));
+    color: var(--mantine-color-red-text);
 }
 
 .failedLabel {
     flex-shrink: 0;
     line-height: 1;
     font-weight: 500;
-    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4));
+    color: var(--mantine-color-red-text);
 }
 
 .latestLabel {
