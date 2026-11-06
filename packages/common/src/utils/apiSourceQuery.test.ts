@@ -142,6 +142,7 @@ describe('getApiSourceQueryIssues', () => {
             ),
         ).toEqual([
             {
+                code: 'live_source.refused.unknown_field',
                 fieldId: 'report_city',
                 message:
                     '"report_city" isn\'t available from this live data source.',

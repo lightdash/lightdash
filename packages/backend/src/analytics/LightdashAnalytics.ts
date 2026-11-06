@@ -27,6 +27,8 @@ import {
     LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
+    LiveSourceRefusalCode,
+    LiveSourceUpstreamErrorCode,
     MergeJoinType,
     MergeQueryErrorKind,
     OpenIdIdentityIssuerType,
@@ -780,7 +782,25 @@ export type QueryCompletedEvent = BaseTrack & {
         // Set only when executionSource is 'live_source'.
         apiConnector?: ApiConnectorType;
         apiQueryOutcome?: ApiQueryOutcome;
+        /** Set only when a live_source query failed. */
+        liveSourceErrorCode?: LiveSourceUpstreamErrorCode;
         truncated?: boolean;
+    };
+};
+
+/** One reason Lightdash refused a live data source query before calling its API. */
+export type LiveSourceQueryRefusedEvent = BaseTrack & {
+    event: 'live_source.query_refused';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        externalConnectionUuid: string;
+        integration: ApiConnectorType;
+        exploreName: string;
+        code: LiveSourceRefusalCode;
+        fieldId: string | null;
+        querySurface: QuerySurface | null;
+        context: QueryExecutionContext;
     };
 };
 

@@ -9,11 +9,13 @@ import {
     type ApiSourceExplore,
     type ApiSourceMetricAggregation,
     type ApiSourceQueryContext,
+    type ApiSourceQueryIssue,
     type Dimension,
     type DimensionType,
     type Explore,
     type FieldId,
     type FilterOperator,
+    type LiveSourceErrorData,
     type Metric,
     type MetricQuery,
     type MetricType,
@@ -222,6 +224,26 @@ export const getApiSourceExplore = (explore: Explore): ApiSourceExplore => {
 };
 
 /**
+ * One error for every fixable reason the API can't answer a query, its
+ * messages joined and its refusal codes in `data`.
+ */
+export const toApiSourceQueryError = (
+    issues: ApiSourceQueryIssue[],
+): ParameterError => {
+    const data: LiveSourceErrorData & { liveSourceFieldIds: string[] } = {
+        liveSourceErrorCode: issues[0].code,
+        liveSourceErrorCodes: [...new Set(issues.map(({ code }) => code))],
+        liveSourceFieldIds: [
+            ...new Set(issues.flatMap(({ fieldId }) => fieldId ?? [])),
+        ],
+    };
+    return new ParameterError(
+        issues.map(({ message }) => message).join(' '),
+        data,
+    );
+};
+
+/**
  * Fails with every fixable reason the API can't answer the query, from the
  * shared check every entry point runs, so compilers only translate.
  */
@@ -233,9 +255,7 @@ export const assertApiSourceQuery = (
     const apiSource = getApiSourceExplore(explore);
     const issues = getApiSourceQueryIssues(apiSource, metricQuery, context);
     if (issues.length > 0) {
-        throw new ParameterError(
-            issues.map(({ message }) => message).join(' '),
-        );
+        throw toApiSourceQueryError(issues);
     }
     return apiSource;
 };
