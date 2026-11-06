@@ -9,6 +9,7 @@ import {
     canOpenProjectSettings,
     canOpenSemanticStudio,
     getStudioPermissions,
+    keepsKindPage,
 } from './permissions';
 
 const ORG = 'org-uuid';
@@ -113,5 +114,34 @@ describe('Semantic Layer permissions, per organization role', () => {
     it('opens nothing for a member with no role', () => {
         const ability = abilityFor(OrganizationMemberRole.MEMBER);
         expect(canOpenSemanticStudio(ability, ORG, PROJECT)).toBe(false);
+    });
+});
+
+describe('keepsKindPage', () => {
+    const none = {
+        modelled: false,
+        sqlViews: false,
+        files: false,
+        live: false,
+    };
+
+    it('keeps the live and files pages only for those who manage them', () => {
+        const live = { type: 'kind', kind: 'live' } as const;
+        const files = { type: 'kind', kind: 'files' } as const;
+        expect(keepsKindPage({ ...none, live: true }, live)).toBe(true);
+        expect(keepsKindPage({ ...none, files: true }, files)).toBe(true);
+        expect(keepsKindPage({ ...none, live: true }, files)).toBe(false);
+        expect(keepsKindPage(none, live)).toBe(false);
+    });
+
+    it('never keeps other pages', () => {
+        const all = { modelled: true, sqlViews: true, files: true, live: true };
+        expect(keepsKindPage(all, { type: 'kind', kind: 'modelled' })).toBe(
+            false,
+        );
+        expect(keepsKindPage(all, { type: 'source', sourceId: 'x' })).toBe(
+            false,
+        );
+        expect(keepsKindPage(all, null)).toBe(false);
     });
 });

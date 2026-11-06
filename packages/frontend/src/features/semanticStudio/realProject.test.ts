@@ -184,6 +184,23 @@ describe('buildRealProject', () => {
         ).toBe(false);
     });
 
+    it('gives an external source without explores its own page', () => {
+        const project = buildRealProject({
+            project: lightdashProject,
+            explores: [],
+            externalSources: [csvSource],
+            liveConnections: [],
+        });
+        expect(project.sources).toEqual([
+            expect.objectContaining({
+                id: 'csv-1',
+                kind: 'files',
+                type: 'csv',
+                settingsPath: null,
+            }),
+        ]);
+    });
+
     it('leaves out pre-aggregates', () => {
         expect(
             everything.explores.some(({ name }) => name === 'orders_rollup'),

@@ -187,7 +187,6 @@ const Settings: FC = () => {
         dataAppsFlag,
         dataAppAnalysisFlag,
         dashboardAnalysisFlag,
-        externalSourcesFlag,
         isDataAppsFlagLoading,
         isChartStudioAvailable,
         isAiCopilotEnabledOrTrial,
@@ -507,9 +506,6 @@ const Settings: FC = () => {
                 element: (
                     <TrackPage name={PageName.PROJECT_SETTINGS}>
                         <ProjectSettings
-                            externalSourcesEnabled={
-                                externalSourcesFlag?.enabled ?? false
-                            }
                             projectSettingsAccess={projectSettingsAccess}
                         />
                     </TrackPage>
@@ -898,7 +894,6 @@ const Settings: FC = () => {
         dataAppAnalysisFlag?.enabled,
         dashboardAnalysisFlag?.enabled,
         isChartStudioAvailable,
-        externalSourcesFlag?.enabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
