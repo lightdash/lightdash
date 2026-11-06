@@ -2516,6 +2516,83 @@ describe('AiAgentToolsService', () => {
         );
     });
 
+    it.each([
+        { savedLimit: 50, expectedLimit: undefined },
+        { savedLimit: 10000, expectedLimit: 500 },
+    ])(
+        'runs a saved chart with no limit at its saved limit $savedLimit, capped at the AI max',
+        async ({ savedLimit, expectedLimit }) => {
+            const executeSavedChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const get = vi
+                .fn()
+                .mockResolvedValue({ metricQuery: { limit: savedLimit } });
+            const service = makeService({
+                savedChartModel: { get },
+                asyncQueryService: { executeSavedChartQueryAndGetResults },
+            });
+
+            await service
+                .createRuntime(makeRuntimeContext())
+                .runSavedChartQuery({
+                    chartUuid: 'chart-uuid',
+                    dashboardSlug: null,
+                    limit: null,
+                });
+
+            expect(get).toHaveBeenCalledWith('chart-uuid', undefined, {
+                projectUuid,
+            });
+            expect(
+                executeSavedChartQueryAndGetResults.mock.calls[0][0],
+            ).toMatchObject({ chartUuid: 'chart-uuid', limit: expectedLimit });
+        },
+    );
+
+    it('runs a dashboard chart with no limit at its saved limit', async () => {
+        const executeDashboardChartQueryAndGetResults = vi
+            .fn()
+            .mockResolvedValue({ rows: [] });
+        const savedChart = { metricQuery: { limit: 50 } };
+        const service = makeService({
+            dashboardService: {
+                getByIdOrSlug: vi.fn().mockResolvedValue({
+                    uuid: 'dashboard-uuid',
+                    spaceUuid: 'allowed-space-uuid',
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    tiles: [
+                        {
+                            uuid: 'tile-uuid',
+                            type: 'saved_chart',
+                            properties: { savedChartUuid: 'chart-uuid' },
+                        },
+                    ],
+                }),
+            },
+            savedChartModel: { get: vi.fn().mockResolvedValue(savedChart) },
+            asyncQueryService: { executeDashboardChartQueryAndGetResults },
+        });
+
+        await service.createRuntime(makeRuntimeContext()).runSavedChartQuery({
+            chartUuid: 'chart-uuid',
+            dashboardSlug: 'dashboard',
+            limit: null,
+        });
+
+        const [queryArgs] =
+            executeDashboardChartQueryAndGetResults.mock.calls[0];
+        expect(queryArgs).toMatchObject({
+            tileUuid: 'tile-uuid',
+            preloadedSavedChart: savedChart,
+        });
+        expect(queryArgs.limit).toBeUndefined();
+    });
+
     it('checks the warehouse budget at the saved-chart query boundary', async () => {
         const executeSavedChartQueryAndGetResults = vi.fn();
         const onWarehouseQuery = vi

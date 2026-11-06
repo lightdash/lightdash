@@ -78,6 +78,7 @@ import {
     type McpListCustomChartTypesOutput,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
+    type SavedChartDAO,
     type SchedulerAiAugmentation,
     type SqlChart,
     type SqlChartAsCode,
@@ -4380,6 +4381,35 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    // No requested limit keeps the chart's saved limit (undefined), so its SQL and cache key match the UI's.
+    private async resolveSavedChartQueryLimit(
+        context: AiAgentToolsRuntimeContext,
+        args: Pick<Parameters<RunSavedChartQueryFn>[0], 'chartUuid' | 'limit'>,
+    ): Promise<{
+        limit: number | undefined;
+        savedChart: SavedChartDAO | null;
+    }> {
+        const { maxQueryLimit } = this.lightdashConfig.ai.copilot;
+        if (args.limit !== null) {
+            return {
+                limit: getValidAiQueryLimit(args.limit, maxQueryLimit),
+                savedChart: null,
+            };
+        }
+        const savedChart = await this.savedChartModel.get(
+            args.chartUuid,
+            undefined,
+            { projectUuid: context.projectUuid },
+        );
+        return {
+            limit:
+                savedChart.metricQuery.limit <= maxQueryLimit
+                    ? undefined
+                    : maxQueryLimit,
+            savedChart,
+        };
+    }
+
     private runSavedChartQuery(
         context: AiAgentToolsRuntimeContext,
         args: Parameters<RunSavedChartQueryFn>[0],
@@ -4388,11 +4418,6 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runSavedChartQuery`,
             args,
             async () => {
-                const limit = getValidAiQueryLimit(
-                    args.limit,
-                    this.lightdashConfig.ai.copilot.maxQueryLimit,
-                );
-
                 if (!args.dashboardSlug) {
                     await this.assertSavedChartSpaceInScope(
                         context,
@@ -4401,6 +4426,10 @@ export class AiAgentToolsService extends BaseService {
                         'read',
                     );
 
+                    const { limit } = await this.resolveSavedChartQueryLimit(
+                        context,
+                        args,
+                    );
                     await context.onWarehouseQuery?.();
                     return this.asyncQueryService.executeSavedChartQueryAndGetResults(
                         {
@@ -4447,6 +4476,8 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                const { limit, savedChart } =
+                    await this.resolveSavedChartQueryLimit(context, args);
                 await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
                     {
@@ -4458,6 +4489,9 @@ export class AiAgentToolsService extends BaseService {
                         dashboardFilters: dashboard.filters,
                         dashboardSorts: [],
                         limit,
+                        ...(savedChart
+                            ? { preloadedSavedChart: savedChart }
+                            : {}),
                         context: context.defaultQueryExecutionContext,
                         querySurface: context.querySurface,
                         ...(context.invalidateQueryCache
