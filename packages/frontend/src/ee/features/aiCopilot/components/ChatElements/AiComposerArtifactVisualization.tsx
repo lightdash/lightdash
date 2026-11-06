@@ -74,7 +74,6 @@ export const AiComposerArtifactVisualization: FC<Props> = ({
             pivotQueryUuid={queryUuid}
             vizConfig={vizConfig}
             headerContent={headerContent}
-            loadingMessage={loadingMessage}
         />
     );
 };

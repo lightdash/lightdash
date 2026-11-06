@@ -67,7 +67,6 @@ export const AiVizSwitchedResult: FC<Props> = ({
                         pivotQueryUuid={pivotQueryUuid}
                         vizConfig={vizConfig}
                         headerContent={headerContent}
-                        loadingMessage={loadingMessage}
                     />
                 ) : (
                     <AiArtifactTableVisualization
