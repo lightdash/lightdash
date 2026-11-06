@@ -1,10 +1,12 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     AnyType,
+    ChartKind,
     ForbiddenError,
     OrganizationMemberRole,
     ParameterError,
     PossibleAbilities,
+    PromotionAction,
     SessionUser,
     SpaceMemberRole,
     SqlChartAsCode,
@@ -448,6 +450,120 @@ describe('CoderService.upsertSqlChart - permissions', () => {
     });
 });
 
+describe('CoderService.upsertSqlChart - versioning', () => {
+    afterEach(() => vi.clearAllMocks());
+
+    const chart: SqlChartAsCode = {
+        ...sqlChartAsCode,
+        config: {
+            type: ChartKind.BIG_NUMBER,
+            metadata: { version: 1 },
+            fieldConfig: undefined,
+            display: { label: 'Value', showLabel: true },
+        },
+    };
+    const user = makeUser([{ subject: 'all', action: 'manage' }]);
+    const setup = () => {
+        const savedSqlModel = {
+            find: vi.fn(async () => [
+                {
+                    ...existingRow(),
+                    sql: chart.sql,
+                    limit: chart.limit,
+                    config: chart.config,
+                },
+            ]),
+            update: vi.fn<SavedSqlModel['update']>(),
+        };
+        const service = buildService(savedSqlModel);
+        stubSpace(service);
+        return { service, savedSqlModel };
+    };
+
+    it('does not version identical content when config keys are reordered', async () => {
+        const { service, savedSqlModel } = setup();
+        const result = await service.upsertSqlChart(
+            user,
+            PROJECT_UUID,
+            chart.slug,
+            {
+                ...chart,
+                config: {
+                    display: { showLabel: true, label: 'Value' },
+                    fieldConfig: undefined,
+                    metadata: { version: 1 },
+                    type: ChartKind.BIG_NUMBER,
+                },
+            },
+        );
+
+        expect(
+            savedSqlModel.update.mock.calls[0][0].sqlChart,
+        ).not.toHaveProperty('versionedData');
+        expect(result.charts[0].action).toBe(PromotionAction.UPDATE);
+    });
+
+    it('applies metadata and space changes without creating a version', async () => {
+        const { service, savedSqlModel } = setup();
+        stubSpace(service, OTHER_SPACE_UUID);
+
+        await service.upsertSqlChart(user, PROJECT_UUID, chart.slug, {
+            ...chart,
+            name: 'Renamed chart',
+            description: 'Updated description',
+            spaceSlug: 'other-space',
+        });
+
+        expect(savedSqlModel.update.mock.calls[0][0].sqlChart).toEqual({
+            unversionedData: {
+                name: 'Renamed chart',
+                description: 'Updated description',
+                spaceUuid: OTHER_SPACE_UUID,
+            },
+        });
+    });
+
+    it.each([
+        ['SQL', { ...chart, sql: 'SELECT 2' }],
+        ['limit', { ...chart, limit: chart.limit + 1 }],
+        [
+            'nested config',
+            {
+                ...chart,
+                config: {
+                    type: ChartKind.BIG_NUMBER,
+                    metadata: { version: 1 },
+                    fieldConfig: undefined,
+                    display: { label: 'New label', showLabel: true },
+                },
+            },
+        ],
+    ] satisfies [string, SqlChartAsCode][])(
+        'versions changed %s with the uploading user as author',
+        async (_, upload) => {
+            const { service, savedSqlModel } = setup();
+            await service.upsertSqlChart(
+                user,
+                PROJECT_UUID,
+                chart.slug,
+                upload,
+            );
+
+            expect(savedSqlModel.update.mock.calls[0][0]).toMatchObject({
+                userUuid: user.userUuid,
+                savedSqlUuid: 'existing-uuid',
+                sqlChart: {
+                    versionedData: {
+                        sql: upload.sql,
+                        limit: upload.limit,
+                        config: upload.config,
+                    },
+                },
+            });
+        },
+    );
+});
+
 describe('CoderService.upsertSqlChart - connections', () => {
     afterEach(() => {
         vi.clearAllMocks();
@@ -471,7 +587,10 @@ describe('CoderService.upsertSqlChart - connections', () => {
         const savedSqlModel = {
             find: vi.fn(async () => rows),
             create: vi.fn(async () => ({ savedSqlUuid: 'new-uuid' })),
-            update: vi.fn(async () => ({ savedSqlUuid: 'existing-uuid' })),
+            update: vi.fn<SavedSqlModel['update']>().mockResolvedValue({
+                savedSqlUuid: 'existing-uuid',
+                savedSqlVersionUuid: null,
+            }),
         };
         const service = buildService(savedSqlModel);
         stubSpace(service);
@@ -535,13 +654,29 @@ describe('CoderService.upsertSqlChart - connections', () => {
     it('moves an original-bound SQL chart to a named extra connection', async () => {
         connectionState.route = 'multi';
         const { savedSqlModel, error } = await uploadWith(
-            [existingRow(SPACE_UUID, null)],
+            [
+                {
+                    ...existingRow(SPACE_UUID, null),
+                    sql: sqlChartAsCode.sql,
+                    limit: sqlChartAsCode.limit,
+                    config: sqlChartAsCode.config,
+                },
+            ],
             'Finance',
         );
 
         expect(error).toBeNull();
         expect(savedSqlModel.update).toHaveBeenCalledWith(
-            expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
+            expect.objectContaining({
+                savedSqlUuid: 'existing-uuid',
+                sqlChart: expect.objectContaining({
+                    versionedData: {
+                        sql: sqlChartAsCode.sql,
+                        limit: sqlChartAsCode.limit,
+                        config: sqlChartAsCode.config,
+                    },
+                }),
+            }),
             { kind: 'connection', warehouseConnectionUuid: 'finance-uuid' },
             null,
             expect.any(Function),
@@ -570,11 +705,21 @@ describe('CoderService.upsertSqlChart - connections', () => {
     it('accepts an unchanged extra connection on an existing SQL chart', async () => {
         connectionState.route = 'multi';
         const { savedSqlModel, error } = await uploadWith(
-            [existingRow(SPACE_UUID, 'finance-uuid')],
+            [
+                {
+                    ...existingRow(SPACE_UUID, 'finance-uuid'),
+                    sql: sqlChartAsCode.sql,
+                    limit: sqlChartAsCode.limit,
+                    config: sqlChartAsCode.config,
+                },
+            ],
             'Finance',
         );
 
         expect(error).toBeNull();
+        expect(
+            savedSqlModel.update.mock.calls[0][0].sqlChart,
+        ).not.toHaveProperty('versionedData');
         expect(savedSqlModel.update).toHaveBeenCalledWith(
             expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
             { kind: 'connection', warehouseConnectionUuid: 'finance-uuid' },
