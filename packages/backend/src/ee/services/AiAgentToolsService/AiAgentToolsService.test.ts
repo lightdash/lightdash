@@ -1962,6 +1962,24 @@ describe('AiAgentToolsService', () => {
             ).rejects.toThrow(NotFoundError);
         });
 
+        it('names the unavailable explore and tells the caller not to retry', async () => {
+            const service = makeSelectionService({
+                type: TableSelectionType.WITH_NAMES,
+                value: ['orders'],
+            });
+
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'customers',
+                }),
+            ).rejects.toThrow(
+                /Explore "customers" is not available\..*Do not retry this explore/,
+            );
+        });
+
         it('excludes explores without a selected tag', async () => {
             const service = makeSelectionService({
                 type: TableSelectionType.WITH_TAGS,
