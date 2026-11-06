@@ -1290,7 +1290,71 @@ describe('DashboardService', () => {
             sectionsCount: 0,
             sectionedFiltersCount: 0,
             collapsedByDefaultSectionsCount: 0,
+            parameterControlsCount: 0,
+            parameterControlsWithNonAllTargetsCount: 0,
+            filtersWithCustomTileTargetsCount: 0,
         });
+    });
+    test('should include parameter mapping and filter tile target counts in create analytics, never names', () => {
+        const control = {
+            label: 'Region picker',
+            value: 'emea',
+            valueType: { type: 'string', multiple: false },
+        } as const;
+        const properties = DashboardService.getCreateEventProperties({
+            ...dashboard,
+            filters: {
+                dimensions: [
+                    {
+                        tileTargets: { 'tile-a': false },
+                    } as unknown as DashboardFilterRule,
+                    { tileTargets: {} } as DashboardFilterRule,
+                    {} as DashboardFilterRule,
+                ],
+                metrics: [
+                    {
+                        tileTargets: {
+                            'tile-b': {
+                                fieldId: 'orders_total',
+                                tableName: 'orders',
+                            },
+                        },
+                    } as unknown as DashboardFilterRule,
+                ],
+                tableCalculations: [],
+            },
+            config: {
+                isDateZoomDisabled: false,
+                parameterControls: [
+                    {
+                        ...control,
+                        id: 'all',
+                        parameters: { region_param: 'all' },
+                    },
+                    {
+                        ...control,
+                        id: 'only',
+                        parameters: {
+                            region_param: 'all',
+                            other_param: { only: ['tile-a'] },
+                        },
+                    },
+                    {
+                        ...control,
+                        id: 'except',
+                        parameters: { region_param: { except: ['tile-b'] } },
+                    },
+                ],
+            },
+        });
+        expect(properties).toMatchObject({
+            parameterControlsCount: 3,
+            parameterControlsWithNonAllTargetsCount: 2,
+            filtersWithCustomTileTargetsCount: 2,
+        });
+        expect(JSON.stringify(properties)).not.toMatch(
+            /Region picker|emea|region_param|tile-a|tile-b/,
+        );
     });
     test('should include control section counts in create analytics, never names', () => {
         const properties = DashboardService.getCreateEventProperties({
@@ -1449,6 +1513,9 @@ describe('DashboardService', () => {
                     sectionsCount: 0,
                     sectionedFiltersCount: 0,
                     collapsedByDefaultSectionsCount: 0,
+                    parameterControlsCount: 0,
+                    parameterControlsWithNonAllTargetsCount: 0,
+                    filtersWithCustomTileTargetsCount: 0,
                 }),
             }),
         );
