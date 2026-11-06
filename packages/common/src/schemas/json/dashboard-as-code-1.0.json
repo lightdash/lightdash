@@ -516,7 +516,7 @@
             "type": "object"
         },
         "DashboardControlRefKind": {
-            "description": "Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds\nmay be added, so consumers must ignore a kind they don't know.",
+            "description": "Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds\nmay be added, so consumers must ignore a kind they don't know. Request\nvalidation rejects unknown values, so a new kind ships in a release before\nanything writes it.",
             "enum": ["filter", "parameter", "dateZoom", "section"],
             "type": "string"
         },
