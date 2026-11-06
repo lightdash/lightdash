@@ -103,14 +103,14 @@ describe('ClientIdMetadataDocumentResolver', () => {
         'resolves the %s document as published',
         async (_label, document) => {
             const { resolver } = createResolver(document);
-            await expect(
-                resolver.resolve(document.client_id),
-            ).resolves.toEqual({
-                clientId: document.client_id,
-                clientName: document.client_name,
-                redirectUris: document.redirect_uris,
-                grantTypes: ['authorization_code', 'refresh_token'],
-            });
+            await expect(resolver.resolve(document.client_id)).resolves.toEqual(
+                {
+                    clientId: document.client_id,
+                    clientName: document.client_name,
+                    redirectUris: document.redirect_uris,
+                    grantTypes: ['authorization_code', 'refresh_token'],
+                },
+            );
         },
     );
 
