@@ -83,113 +83,195 @@ const sources: LegacySource[] = [
 export class UsageLegacyHistoryModel {
     constructor(private readonly database: Knex) {}
 
+    private async *getContentIds(
+        source: LegacySource,
+        organizationUuid: string,
+    ): AsyncGenerator<string | null> {
+        if (source.contentType === 'app') {
+            yield null;
+            return;
+        }
+        const table =
+            source.contentType === 'chart' ? 'saved_queries' : 'dashboards';
+        const key =
+            source.contentType === 'chart'
+                ? 'saved_query_uuid'
+                : 'dashboard_uuid';
+        let cursor: string | null = null;
+        while (true) {
+            const query = this.database(`${table} as c`);
+            if (source.contentType === 'dashboard') {
+                query
+                    .join('spaces as s', 's.space_id', 'c.space_id')
+                    .join('projects as p', 'p.project_id', 's.project_id');
+            } else {
+                query.join('projects as p', 'p.project_uuid', 'c.project_uuid');
+            }
+            query
+                .join(
+                    'organizations as o',
+                    'o.organization_id',
+                    'p.organization_id',
+                )
+                .where('o.organization_uuid', organizationUuid)
+                .whereNot('p.project_type', ProjectType.PREVIEW)
+                .select(`c.${key} as content_id`)
+                .orderBy(`c.${key}`)
+                .limit(1000);
+            if (cursor) query.where(`c.${key}`, '>', cursor);
+            // Retained activity includes soft-deleted content.
+            // eslint-disable-next-line no-await-in-loop
+            const rows = await this.database.transaction(async (trx) => {
+                await trx.raw('SET TRANSACTION READ ONLY');
+                await trx.raw("SET LOCAL statement_timeout = '10s'");
+                await trx.raw("SET LOCAL lock_timeout = '1s'");
+                return query.transacting(trx);
+            });
+            if (!rows.length) return;
+            for (const row of rows) yield row.content_id;
+            cursor = rows[rows.length - 1].content_id;
+        }
+    }
+
     async *getJsonLines(
         organizationUuid: string,
         before: string,
     ): AsyncGenerator<string> {
         for (const source of sources) {
-            let cursor: string | undefined;
-            while (true) {
-                const query = this.database(`${source.table} as h`);
-                if (source.contentTable) {
-                    query.join(
-                        `${source.contentTable} as c`,
-                        `c.${source.contentKey}`,
-                        `h.${source.contentId}`,
-                    );
-                }
-                const contentAlias = source.contentTable ? 'c' : 'h';
-                // Dashboard project_uuid can be NULL on retained older rows;
-                // its owning space remains the authoritative project link.
-                if (source.contentType === 'dashboard') {
+            // eslint-disable-next-line no-await-in-loop
+            for await (const contentId of this.getContentIds(
+                source,
+                organizationUuid,
+            )) {
+                let cursor: { id: string; timestamp: string } | null = null;
+                while (true) {
+                    const query = this.database(`${source.table} as h`);
+                    if (source.contentTable) {
+                        query.join(
+                            `${source.contentTable} as c`,
+                            `c.${source.contentKey}`,
+                            `h.${source.contentId}`,
+                        );
+                    }
+                    const contentAlias = source.contentTable ? 'c' : 'h';
+                    // Dashboard project_uuid can be NULL on retained older rows;
+                    // its owning space remains the authoritative project link.
+                    if (source.contentType === 'dashboard') {
+                        query
+                            .join('spaces as s', 's.space_id', 'c.space_id')
+                            .join(
+                                'projects as p',
+                                'p.project_id',
+                                's.project_id',
+                            );
+                    } else {
+                        query.join(
+                            'projects as p',
+                            'p.project_uuid',
+                            `${contentAlias}.project_uuid`,
+                        );
+                    }
                     query
-                        .join('spaces as s', 's.space_id', 'c.space_id')
-                        .join('projects as p', 'p.project_id', 's.project_id');
-                } else {
-                    query.join(
-                        'projects as p',
-                        'p.project_uuid',
-                        `${contentAlias}.project_uuid`,
+                        .join(
+                            'organizations as o',
+                            'o.organization_id',
+                            'p.organization_id',
+                        )
+                        .where('o.organization_uuid', organizationUuid)
+                        .whereNot('p.project_type', ProjectType.PREVIEW)
+                        .where(`h.${source.timestamp}`, '<', before)
+                        .select(
+                            `h.${source.id} as source_id`,
+                            'p.project_uuid as project_id',
+                            `h.${source.user} as user_id`,
+                            `h.${source.contentId} as content_id`,
+                        )
+                        .select(
+                            this.database.raw(
+                                'to_char(??, \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\') as event_ts',
+                                [`h.${source.timestamp}`],
+                            ),
+                        )
+                        .limit(1000);
+                    if (contentId !== null) {
+                        // Use the existing content/timestamp indexes instead of scanning global view UUIDs.
+                        query
+                            .where(`h.${source.contentId}`, contentId)
+                            .orderBy(`h.${source.timestamp}`);
+                    }
+                    query.orderBy(`h.${source.id}`);
+                    if (source.table === 'app_versions') {
+                        query.select('h.version', 'h.status as current_status');
+                    }
+                    if (source.table === 'analytics_chart_views') {
+                        // Never export arbitrary legacy context JSON or infer that
+                        // an unclassified row was a standalone content fetch.
+                        query.select(
+                            this.database.raw(
+                                "CASE WHEN h.context->>'source' = 'dashboard' THEN 'dashboard' END as context",
+                            ),
+                            this.database.raw(
+                                "CASE WHEN h.context->>'source' = 'dashboard' AND h.context->>'dashboardUuid' ~ '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$' THEN h.context->>'dashboardUuid' END as dashboard_id",
+                            ),
+                        );
+                    }
+                    if (cursor) {
+                        if (contentId !== null) {
+                            query.whereRaw('(??, ??) > (?, ?)', [
+                                `h.${source.timestamp}`,
+                                `h.${source.id}`,
+                                cursor.timestamp,
+                                cursor.id,
+                            ]);
+                        } else {
+                            query.where(`h.${source.id}`, '>', cursor.id);
+                        }
+                    }
+                    // Do not hold a connection while writing history to storage.
+                    // eslint-disable-next-line no-await-in-loop
+                    const rows = await this.database.transaction(
+                        async (trx) => {
+                            await trx.raw('SET TRANSACTION READ ONLY');
+                            await trx.raw("SET LOCAL TIME ZONE 'UTC'");
+                            await trx.raw(
+                                "SET LOCAL statement_timeout = '10s'",
+                            );
+                            await trx.raw("SET LOCAL lock_timeout = '1s'");
+                            return query.transacting(trx);
+                        },
                     );
+                    if (!rows.length) break;
+                    for (const row of rows) {
+                        yield `${JSON.stringify({
+                            ...Object.fromEntries(
+                                historicalActivityColumns.map(({ name }) => [
+                                    name,
+                                    null,
+                                ]),
+                            ),
+                            history_source: source.table,
+                            record_id: `${source.activityType}:${row.source_id}`,
+                            activity_type: source.activityType,
+                            org_id: organizationUuid,
+                            project_id: row.project_id,
+                            user_id: row.user_id,
+                            event_ts: row.event_ts,
+                            schema_version: 1,
+                            content_id: row.content_id,
+                            content_type: source.contentType,
+                            app_id:
+                                source.contentType === 'app'
+                                    ? row.content_id
+                                    : null,
+                            version: row.version ?? null,
+                            current_status: row.current_status ?? null,
+                            context: row.context ?? null,
+                            dashboard_id: row.dashboard_id ?? null,
+                        })}\n`;
+                    }
+                    const last = rows[rows.length - 1];
+                    cursor = { id: last.source_id, timestamp: last.event_ts };
                 }
-                query
-                    .join(
-                        'organizations as o',
-                        'o.organization_id',
-                        'p.organization_id',
-                    )
-                    .where('o.organization_uuid', organizationUuid)
-                    .whereNot('p.project_type', ProjectType.PREVIEW)
-                    .where(`h.${source.timestamp}`, '<', before)
-                    .select(
-                        `h.${source.id} as source_id`,
-                        'p.project_uuid as project_id',
-                        `h.${source.user} as user_id`,
-                        `h.${source.contentId} as content_id`,
-                    )
-                    .select(
-                        this.database.raw(
-                            'to_char(??, \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\') as event_ts',
-                            [`h.${source.timestamp}`],
-                        ),
-                    )
-                    .orderBy(`h.${source.id}`)
-                    .limit(1000);
-                if (source.table === 'app_versions') {
-                    query.select('h.version', 'h.status as current_status');
-                }
-                if (source.table === 'analytics_chart_views') {
-                    // Never export arbitrary legacy context JSON or infer that
-                    // an unclassified row was a standalone content fetch.
-                    query.select(
-                        this.database.raw(
-                            "CASE WHEN h.context->>'source' = 'dashboard' THEN 'dashboard' END as context",
-                        ),
-                        this.database.raw(
-                            "CASE WHEN h.context->>'source' = 'dashboard' AND h.context->>'dashboardUuid' ~ '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$' THEN h.context->>'dashboardUuid' END as dashboard_id",
-                        ),
-                    );
-                }
-                if (cursor) query.where(`h.${source.id}`, '>', cursor);
-                // Do not hold a connection while writing history to storage.
-                // eslint-disable-next-line no-await-in-loop
-                const rows = await this.database.transaction(async (trx) => {
-                    await trx.raw('SET TRANSACTION READ ONLY');
-                    await trx.raw("SET LOCAL TIME ZONE 'UTC'");
-                    await trx.raw("SET LOCAL statement_timeout = '10s'");
-                    await trx.raw("SET LOCAL lock_timeout = '1s'");
-                    return query.transacting(trx);
-                });
-                if (!rows.length) break;
-                for (const row of rows) {
-                    yield `${JSON.stringify({
-                        ...Object.fromEntries(
-                            historicalActivityColumns.map(({ name }) => [
-                                name,
-                                null,
-                            ]),
-                        ),
-                        history_source: source.table,
-                        record_id: `${source.activityType}:${row.source_id}`,
-                        activity_type: source.activityType,
-                        org_id: organizationUuid,
-                        project_id: row.project_id,
-                        user_id: row.user_id,
-                        event_ts: row.event_ts,
-                        schema_version: 1,
-                        content_id: row.content_id,
-                        content_type: source.contentType,
-                        app_id:
-                            source.contentType === 'app'
-                                ? row.content_id
-                                : null,
-                        version: row.version ?? null,
-                        current_status: row.current_status ?? null,
-                        context: row.context ?? null,
-                        dashboard_id: row.dashboard_id ?? null,
-                    })}\n`;
-                }
-                cursor = rows[rows.length - 1].source_id;
             }
         }
     }
