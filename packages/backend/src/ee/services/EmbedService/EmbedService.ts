@@ -1,4 +1,4 @@
-import { subject } from '@casl/ability';
+import { subject, type Ability } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
     AndFilterGroup,
@@ -54,6 +54,7 @@ import {
     isDashboardContent,
     isDashboardSlugContent,
     isDashboardSqlChartTile,
+    isEmbedReadOnlyAiAgentToken,
     isExploreError,
     isExternalFetchDocumentContext,
     isFilterInteractivityEnabled,
@@ -95,6 +96,7 @@ import {
     encodeLightdashJwt,
 } from '../../../auth/lightdashJwt';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { AppModel } from '../../../models/AppModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -3365,6 +3367,29 @@ export class EmbedService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        if (isEmbedReadOnlyAiAgentToken(decodedToken)) {
+            const hasExternalUserId = !!decodedToken.user?.externalId;
+            const aiAgentAccess = EmbedService.getEmbedAiAgentAccess({
+                auditedAbility: this.createAuditedAbility(embedWriteUser),
+                decodedToken,
+                organizationUuid,
+                projectUuid,
+            });
+            return {
+                canUpdateDashboard: false,
+                canUpdateSavedChart: false,
+                canCreateSavedChart: false,
+                writableSpaces: [],
+                ...(hasExternalUserId
+                    ? aiAgentAccess
+                    : {
+                          canUseAiAgent: false,
+                          aiAgentErrorMessage:
+                              'Embed tokens without write spaces must include user.externalId',
+                      }),
+            };
+        }
+
         const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
 
         try {
@@ -3492,38 +3517,18 @@ export class EmbedService extends BaseService {
                 return name === undefined ? [] : [{ uuid, name }];
             });
             const canCreateSavedChart = writableSpaces.length > 0;
-            const canViewProject = auditedAbility.can(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            );
-            const canUseAiAgent =
-                decodedToken.content.type === 'aiAgent' &&
-                canViewProject &&
-                (writeActions.permissionsMode !== 'roles' ||
-                    auditedAbility.can(
-                        'view',
-                        subject('EmbedAiAgent', {
-                            organizationUuid,
-                            projectUuid,
-                        }),
-                    ));
 
             return {
                 canUpdateDashboard,
                 canUpdateSavedChart,
                 canCreateSavedChart,
                 writableSpaces,
-                canUseAiAgent,
-                aiAgentErrorMessage: canUseAiAgent
-                    ? undefined
-                    : EmbedService.getEmbedAiAgentErrorMessage({
-                          isAiAgentToken:
-                              decodedToken.content.type === 'aiAgent',
-                          canViewProject,
-                      }),
+                ...EmbedService.getEmbedAiAgentAccess({
+                    auditedAbility,
+                    decodedToken,
+                    organizationUuid,
+                    projectUuid,
+                }),
             };
         } catch (error) {
             if (
@@ -3542,6 +3547,50 @@ export class EmbedService extends BaseService {
             }
             throw error;
         }
+    }
+
+    private static getEmbedAiAgentAccess({
+        auditedAbility,
+        decodedToken,
+        organizationUuid,
+        projectUuid,
+    }: {
+        auditedAbility: CaslAuditWrapper<Ability>;
+        decodedToken: CreateEmbedJwt;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Pick<
+        NonNullable<AnonymousAccount['embedWriteContext']>,
+        'canUseAiAgent' | 'aiAgentErrorMessage'
+    > {
+        const canViewProject = auditedAbility.can(
+            'view',
+            subject('Project', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+        const canUseAiAgent =
+            decodedToken.content.type === 'aiAgent' &&
+            canViewProject &&
+            (decodedToken.writeActions?.permissionsMode !== 'roles' ||
+                auditedAbility.can(
+                    'view',
+                    subject('EmbedAiAgent', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                ));
+
+        return {
+            canUseAiAgent,
+            aiAgentErrorMessage: canUseAiAgent
+                ? undefined
+                : EmbedService.getEmbedAiAgentErrorMessage({
+                      isAiAgentToken: decodedToken.content.type === 'aiAgent',
+                      canViewProject,
+                  }),
+        };
     }
 
     private static getEmbedAiAgentErrorMessage({
@@ -3584,7 +3633,8 @@ export class EmbedService extends BaseService {
         if (
             (!isApiAccess &&
                 writeActions &&
-                getEmbedWriteSpaceUuids(writeActions).length === 0) ||
+                getEmbedWriteSpaceUuids(writeActions).length === 0 &&
+                !isEmbedReadOnlyAiAgentToken(decodedToken)) ||
             actorUserUuid === undefined
         ) {
             throw new ForbiddenError(

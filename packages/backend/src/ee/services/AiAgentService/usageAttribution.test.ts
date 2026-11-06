@@ -21,6 +21,14 @@ describe('getPromptUsageAttribution', () => {
         ).toEqual({ channel: 'embed', externalUserId: 'viewer-1' });
     });
 
+    it('attributes a read-only embedded turn to the viewer who sent it', () => {
+        expect(
+            getPromptUsageAttribution(
+                webPrompt({ externalUserId: 'viewer-1' }),
+            ),
+        ).toEqual({ channel: 'embed', externalUserId: 'viewer-1' });
+    });
+
     it('attributes a turn sent from the app to no viewer', () => {
         expect(getPromptUsageAttribution(webPrompt({}))).toEqual({
             channel: 'web',

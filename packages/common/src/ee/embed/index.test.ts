@@ -5,6 +5,7 @@ import {
     FilterInteractivityValues,
     getEmbedDefaultWriteSpaceUuid,
     getEmbedWriteSpaceUuids,
+    isEmbedReadOnlyAiAgentToken,
     type DashboardFilterInteractivityOptions,
 } from './index';
 
@@ -94,6 +95,71 @@ describe('embed write spaces', () => {
         ]);
         expect(getEmbedWriteSpaceUuids({})).toEqual([]);
         expect(getEmbedWriteSpaceUuids(undefined)).toEqual([]);
+    });
+});
+
+describe('isEmbedReadOnlyAiAgentToken', () => {
+    const aiAgent = { type: 'aiAgent' as const, agentUuid: 'agent-uuid' };
+    const actor = { serviceAccountUserUuid: 'service-account-uuid' };
+
+    it('is true for AI agent tokens with source spaces only', () => {
+        expect(
+            isEmbedReadOnlyAiAgentToken({
+                content: aiAgent,
+                writeActions: { ...actor, sourceSpaceUuids: ['space-a'] },
+            }),
+        ).toBe(true);
+    });
+
+    it('is false when the token has a write space', () => {
+        expect(
+            isEmbedReadOnlyAiAgentToken({
+                content: aiAgent,
+                writeActions: {
+                    ...actor,
+                    writeSpaceUuids: ['space-a'],
+                    sourceSpaceUuids: ['space-b'],
+                },
+            }),
+        ).toBe(false);
+        expect(
+            isEmbedReadOnlyAiAgentToken({
+                content: aiAgent,
+                writeActions: {
+                    ...actor,
+                    spaceUuid: 'space-a',
+                    sourceSpaceUuids: ['space-b'],
+                },
+            }),
+        ).toBe(false);
+    });
+
+    it('stays read-only when every source space is narrowed away', () => {
+        expect(
+            isEmbedReadOnlyAiAgentToken({
+                content: aiAgent,
+                writeActions: { ...actor, sourceSpaceUuids: [] },
+            }),
+        ).toBe(true);
+    });
+
+    it('is false without declared source spaces or write actions', () => {
+        expect(
+            isEmbedReadOnlyAiAgentToken({
+                content: aiAgent,
+                writeActions: actor,
+            }),
+        ).toBe(false);
+        expect(isEmbedReadOnlyAiAgentToken({ content: aiAgent })).toBe(false);
+    });
+
+    it('is false for other content types', () => {
+        expect(
+            isEmbedReadOnlyAiAgentToken({
+                content: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
+                writeActions: { ...actor, sourceSpaceUuids: ['space-a'] },
+            }),
+        ).toBe(false);
     });
 });
 

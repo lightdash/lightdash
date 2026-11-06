@@ -1224,6 +1224,64 @@ describe('EmbedService', () => {
         });
     });
 
+    describe('getEmbedWriteUser without write spaces', () => {
+        const getEmbedWriteUser = () => {
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                userModel: {
+                    findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
+                        userUuid: mockUserUuid,
+                        isActive: true,
+                    }),
+                    findServiceAccountByUserUuid: vi.fn().mockResolvedValue({
+                        uuid: 'service-account-uuid',
+                        organizationUuid: mockOrganizationUuid,
+                        description: 'Embedded customer actions',
+                    }),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            return (
+                scopedService as unknown as {
+                    getEmbedWriteUser: (
+                        decodedToken: CreateEmbedJwt,
+                        organizationUuid: string,
+                    ) => Promise<SessionUser | undefined>;
+                }
+            ).getEmbedWriteUser.bind(scopedService);
+        };
+        const writeActions = {
+            serviceAccountUserUuid: mockUserUuid,
+            sourceSpaceUuids: ['source-space-uuid'],
+        };
+
+        test('resolves the actor of a read-only AI agent token', async () => {
+            await expect(
+                getEmbedWriteUser()(
+                    {
+                        content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
+                        writeActions,
+                    },
+                    mockOrganizationUuid,
+                ),
+            ).resolves.toMatchObject({ userUuid: mockUserUuid });
+        });
+
+        test('still refuses other tokens without write spaces', async () => {
+            await expect(
+                getEmbedWriteUser()(
+                    {
+                        content: {
+                            type: 'dashboard',
+                            dashboardUuid: 'dashboard-uuid',
+                        },
+                        writeActions,
+                    },
+                    mockOrganizationUuid,
+                ),
+            ).rejects.toThrow('Embed token does not allow write actions');
+        });
+    });
+
     describe('getEmbedWriteContext', () => {
         const chartUuid = 'chart-uuid';
         const chartSpaceUuid = 'chart-space-uuid';
@@ -1499,6 +1557,36 @@ describe('EmbedService', () => {
                 noWriteActions: true,
                 allowed: undefined,
             },
+            {
+                name: 'read-only token with scope',
+                readOnly: true,
+                canCreate: false,
+                allowed: true,
+            },
+            {
+                name: 'legacy read-only token',
+                readOnly: true,
+                legacy: true,
+                allowed: true,
+            },
+            {
+                name: 'read-only token missing scope',
+                readOnly: true,
+                scope: 'view:AiAgent',
+                allowed: false,
+            },
+            {
+                name: 'read-only token without project access',
+                readOnly: true,
+                canView: false,
+                allowed: false,
+            },
+            {
+                name: 'read-only token without a viewer id',
+                readOnly: true,
+                noExternalId: true,
+                allowed: false,
+            },
         ])('$name', async ({ allowed, ...scenario }) => {
             const builder = new AbilityBuilder<MemberAbility>(Ability);
             const target = {
@@ -1573,11 +1661,16 @@ describe('EmbedService', () => {
             const context = await getContext(
                 {
                     content,
+                    ...(scenario.readOnly && !scenario.noExternalId
+                        ? { user: { externalId: 'viewer-1' } }
+                        : {}),
                     ...(scenario.noWriteActions
                         ? {}
                         : {
                               writeActions: {
-                                  spaceUuid: 'space',
+                                  ...(scenario.readOnly
+                                      ? { sourceSpaceUuids: ['source-space'] }
+                                      : { spaceUuid: 'space' }),
                                   permissionsMode: scenario.legacy
                                       ? defaultMode
                                       : 'roles',
@@ -1594,6 +1687,17 @@ describe('EmbedService', () => {
             expect(context?.canUseAiAgent).toBe(allowed);
             if (allowed === false)
                 expect(context?.aiAgentErrorMessage).toBeTruthy();
+            if (scenario.readOnly) {
+                expect(context).toMatchObject({
+                    canCreateSavedChart: false,
+                    writableSpaces: [],
+                });
+            }
+            if (scenario.noExternalId) {
+                expect(context?.aiAgentErrorMessage).toBe(
+                    'Embed tokens without write spaces must include user.externalId',
+                );
+            }
             if (scenario.scope === 'view:AiAgent' && !allowed) {
                 expect(context?.aiAgentErrorMessage).toBe(
                     'Embed token write actor cannot use embedded AI agents',

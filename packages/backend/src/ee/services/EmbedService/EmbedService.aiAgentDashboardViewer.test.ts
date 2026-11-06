@@ -1,6 +1,7 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     ForbiddenError,
+    isEmbedReadOnlyAiAgentToken,
     NotFoundError,
     type PossibleAbilities,
     type SessionUser,
@@ -159,6 +160,32 @@ const buildService = ({
             ),
         },
     } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+describe('read-only embedded AI agent tokens', () => {
+    test('stay read-only when the agent cannot use any source space', async () => {
+        const account = await buildService({
+            agentSpaceAccess: [OTHER_SPACE_UUID],
+        }).getAccountFromJwt(
+            mockProjectUuid,
+            mintAgentToken(
+                {},
+                { spaceUuid: undefined, sourceSpaceUuids: [SOURCE_SPACE_UUID] },
+            ),
+        );
+
+        expect(
+            account.authentication.data.writeActions?.sourceSpaceUuids,
+        ).toEqual([]);
+        expect(isEmbedReadOnlyAiAgentToken(account.authentication.data)).toBe(
+            true,
+        );
+        expect(account.embedWriteUser).toBeDefined();
+        expect(account.embedWriteContext).toMatchObject({
+            canCreateSavedChart: false,
+            writableSpaces: [],
+        });
+    });
+});
 
 describe('embedded AI agent dashboard viewer', () => {
     test('serves a write-space dashboard as a read-only dashboard embed limited to it', async () => {
