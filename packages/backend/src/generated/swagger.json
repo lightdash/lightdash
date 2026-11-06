@@ -62091,6 +62091,337 @@
             "ApiResultsCacheInvalidationResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ResultsCacheInvalidation_"
             },
+            "ResultsCacheStatsDays": {
+                "type": "number",
+                "enum": [7, 30]
+            },
+            "ResultsCacheStatsTotals": {
+                "properties": {
+                    "warehouseTimeOnMissesMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "warehouseTimeSavedMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "hitRate": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "misses": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "hits": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "runs": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "warehouseTimeOnMissesMs",
+                    "warehouseTimeSavedMs",
+                    "hitRate",
+                    "misses",
+                    "hits",
+                    "runs"
+                ],
+                "type": "object"
+            },
+            "ResultsCacheStatsSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ResultsCacheStatsTotals"
+                    },
+                    {
+                        "properties": {
+                            "avoidableWarehouseTimeMs": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "avoidableMisses": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": [
+                            "avoidableWarehouseTimeMs",
+                            "avoidableMisses"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ResultsCacheStatsMissReason": {
+                "enum": ["expired", "cleared", "scheduledRefresh"],
+                "type": "string"
+            },
+            "ResultsCacheRecommendationTarget": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "chartUuid", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "slug": {
+                                "type": "string"
+                            },
+                            "savedSqlUuid": {
+                                "type": "string"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["sqlChart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "slug", "savedSqlUuid", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["explore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "exploreName", "kind"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ResultsCacheRecommendation": {
+                "properties": {
+                    "warehouseTimeMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "misses": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/ResultsCacheRecommendationTarget"
+                    },
+                    "reason": {
+                        "$ref": "#/components/schemas/ResultsCacheStatsMissReason"
+                    }
+                },
+                "required": ["warehouseTimeMs", "misses", "target", "reason"],
+                "type": "object"
+            },
+            "ResultsCacheStats": {
+                "properties": {
+                    "recommendations": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultsCacheRecommendation"
+                        },
+                        "type": "array"
+                    },
+                    "missReasons": {
+                        "items": {
+                            "properties": {
+                                "warehouseTimeMs": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "misses": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "reason": {
+                                    "$ref": "#/components/schemas/ResultsCacheStatsMissReason"
+                                }
+                            },
+                            "required": ["warehouseTimeMs", "misses", "reason"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "summary": {
+                        "$ref": "#/components/schemas/ResultsCacheStatsSummary"
+                    },
+                    "days": {
+                        "$ref": "#/components/schemas/ResultsCacheStatsDays"
+                    }
+                },
+                "required": [
+                    "recommendations",
+                    "missReasons",
+                    "summary",
+                    "days"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_ResultsCacheStats_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ResultsCacheStats"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiResultsCacheStatsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ResultsCacheStats_"
+            },
+            "ResultsCacheTtlProjection": {
+                "properties": {
+                    "warehouseTimeSavedMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "additionalHits": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "hitRate": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "hits": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "ttlSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "warehouseTimeSavedMs",
+                    "additionalHits",
+                    "hitRate",
+                    "hits",
+                    "ttlSeconds"
+                ],
+                "type": "object"
+            },
+            "ResultsCacheTtlProjections": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "projections": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ResultsCacheTtlProjection"
+                                },
+                                "type": "array"
+                            },
+                            "baseline": {
+                                "properties": {
+                                    "warehouseTimeSavedMs": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "hitRate": {
+                                        "type": "number",
+                                        "format": "double",
+                                        "nullable": true
+                                    },
+                                    "hits": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "runs": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": [
+                                    "warehouseTimeSavedMs",
+                                    "hitRate",
+                                    "hits",
+                                    "runs"
+                                ],
+                                "type": "object"
+                            },
+                            "currentTtlSeconds": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["projections"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "projections",
+                            "baseline",
+                            "currentTtlSeconds",
+                            "kind"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "currentTtlSeconds": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["tooManyRuns"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["currentTtlSeconds", "kind"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ResultsCacheTtlProjections_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ResultsCacheTtlProjections"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiResultsCacheTtlProjectionsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ResultsCacheTtlProjections_"
+            },
             "ExploresResultsCacheInvalidation": {
                 "allOf": [
                     {
@@ -76076,7 +76407,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.173.2",
+        "version": "3.174.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -105463,6 +105794,108 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/results-cache/stats": {
+            "get": {
+                "operationId": "getProjectResultsCacheStats",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheStatsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Hit rate, warehouse time saved and recommendations for the project's\nresults cache over the last 7 or 30 days. Requires project admin access.",
+                "summary": "Get results cache stats",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "description": "Number of days to include: 7 (default) or 30",
+                        "in": "query",
+                        "name": "days",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/results-cache/ttl-projections": {
+            "get": {
+                "operationId": "getProjectResultsCacheTtlProjections",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheTtlProjectionsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Estimated hit rate for the next longer cache durations, replayed from\nthe queries in the selected period (last 7 or 30 days). Requires\nproject admin access.",
+                "summary": "Get results cache TTL projections",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "description": "Number of days to replay: 7 (default) or 30",
+                        "in": "query",
+                        "name": "days",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]

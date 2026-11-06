@@ -1,3 +1,15 @@
+# [3.174.0](https://github.com/lightdash/lightdash/compare/3.173.2...3.174.0) (2026-11-06)
+
+
+### Bug Fixes
+
+* avoid versions for unchanged SQL chart uploads ([#32167](https://github.com/lightdash/lightdash/issues/32167)) ([9f6acb5](https://github.com/lightdash/lightdash/commit/9f6acb5bca02d7c477b939a64980f982013a9a1b))
+
+
+### Features
+
+* results cache usage stats and recommendations ([#32158](https://github.com/lightdash/lightdash/issues/32158)) ([d2108d1](https://github.com/lightdash/lightdash/commit/d2108d1c82271024c9e8089ea48948ad3d368fc9))
+
 ## [3.173.2](https://github.com/lightdash/lightdash/compare/3.173.1...3.173.2) (2026-11-06)
 
 
