@@ -61,24 +61,47 @@ export const getTileSlugForTileUuid = (
     return contentSlug;
 };
 
+const getTileTargetsWithSlugs = (
+    dashboard: DashboardDAO,
+    tileTargets: DashboardFilterRule['tileTargets'],
+    tileSlugs: Map<string, string> | undefined,
+): Record<string, DashboardTileTarget> =>
+    Object.entries(tileTargets ?? {}).reduce<
+        Record<string, DashboardTileTarget>
+    >((result, [tileUuid, target]) => {
+        const legacySlug = getTileSlugForTileUuid(dashboard, tileUuid);
+        const tileSlug = legacySlug && (tileSlugs?.get(tileUuid) ?? legacySlug);
+        return tileSlug ? { ...result, [tileSlug]: target } : result;
+    }, {});
+
 export const getFiltersWithTileSlugs = (
     dashboard: DashboardDAO,
     tileSlugs?: Map<string, string>,
-): Required<NonNullable<DashboardAsCode['filters']>> => ({
-    ...dashboard.filters,
-    dimensions: dashboard.filters.dimensions.map((filter) => ({
+): Required<NonNullable<DashboardAsCode['filters']>> => {
+    const withTileSlugs = <T extends DashboardFilterRule>(filter: T): T => ({
         ...filter,
-        id: undefined,
-        tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
-            Record<string, DashboardTileTarget>
-        >((result, [tileUuid, target]) => {
-            const legacySlug = getTileSlugForTileUuid(dashboard, tileUuid);
-            const tileSlug =
-                legacySlug && (tileSlugs?.get(tileUuid) ?? legacySlug);
-            return tileSlug ? { ...result, [tileSlug]: target } : result;
-        }, {}),
-    })),
-});
+        tileTargets: getTileTargetsWithSlugs(
+            dashboard,
+            filter.tileTargets,
+            tileSlugs,
+        ),
+    });
+    return {
+        ...dashboard.filters,
+        dimensions: dashboard.filters.dimensions.map((filter) => ({
+            ...withTileSlugs(filter),
+            id: undefined,
+        })),
+        // Stored filters can predate the metric and table calculation lists
+        ...(dashboard.filters.metrics && {
+            metrics: dashboard.filters.metrics.map(withTileSlugs),
+        }),
+        ...(dashboard.filters.tableCalculations && {
+            tableCalculations:
+                dashboard.filters.tableCalculations.map(withTileSlugs),
+        }),
+    };
+};
 
 const findTileUuid = (
     tiles: DashboardTileWithSlug[],
@@ -88,6 +111,26 @@ const findTileUuid = (
         (tile) =>
             tile.tileSlug === tileSlug || getTileContentSlug(tile) === tileSlug,
     )?.uuid;
+
+// Old files keyed metric and table calculation targets by tile uuid
+const getTileTargetsWithUuids = (
+    tiles: DashboardTileWithSlug[],
+    tileTargets: DashboardFilterRule['tileTargets'],
+): Record<string, DashboardTileTarget> =>
+    Object.entries(tileTargets ?? {}).reduce<
+        Record<string, DashboardTileTarget>
+    >((result, [tileSlug, target]) => {
+        const tileUuid =
+            findTileUuid(tiles, tileSlug) ??
+            tiles.find((tile) => tile.uuid === tileSlug)?.uuid;
+        if (!tileUuid) {
+            console.error(
+                `Tile with slug ${tileSlug} not found in tilesWithUuids`,
+            );
+            return result;
+        }
+        return { ...result, [tileUuid]: target };
+    }, {});
 
 const getFilterFieldKey = ({
     target,
@@ -118,25 +161,18 @@ export const getFiltersWithTileUuids = (
 ): DashboardDAO['filters'] => {
     const dimensions = dashboard.filters?.dimensions ?? [];
     const ids = getStableDimensionFilterIds(dimensions, savedDimensionFilters);
+    const withTileUuids = <T extends DashboardFilterRule>(filter: T): T => ({
+        ...filter,
+        tileTargets: getTileTargetsWithUuids(tiles, filter.tileTargets),
+    });
     return {
-        metrics: dashboard.filters?.metrics ?? [],
-        tableCalculations: dashboard.filters?.tableCalculations ?? [],
-        dimensions: dimensions.map((filter, index) => ({
-            ...filter,
-            id: ids[index],
-            tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
-                Record<string, DashboardTileTarget>
-            >((result, [tileSlug, target]) => {
-                const tileUuid = findTileUuid(tiles, tileSlug);
-                if (!tileUuid) {
-                    console.error(
-                        `Tile with slug ${tileSlug} not found in tilesWithUuids`,
-                    );
-                    return result;
-                }
-                return { ...result, [tileUuid]: target };
-            }, {}),
-        })),
+        metrics: (dashboard.filters?.metrics ?? []).map(withTileUuids),
+        tableCalculations: (dashboard.filters?.tableCalculations ?? []).map(
+            withTileUuids,
+        ),
+        dimensions: dimensions.map((filter, index) =>
+            withTileUuids({ ...filter, id: ids[index] }),
+        ),
     };
 };
 
