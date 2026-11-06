@@ -22,6 +22,9 @@ cp "$WAREHOUSES_DIR"/ca-bundle-*.pem "$BUNDLE_DIR"/
 
 # Copy vendored data-app template and authoring skill assets
 cp -R "$CLI_DIR/dist/vendor" "$BUNDLE_DIR/vendor"
+# pkg rewrites every file named package.json ("type": "module" -> "commonjs");
+# scaffolding.ts maps this name back when it reads the template.
+find "$BUNDLE_DIR/vendor" -name package.json -exec sh -c 'mv "$1" "$1.vendored"' _ {} \;
 
 mkdir -p "$DUCKDB_BUNDLE_DIR"
 
