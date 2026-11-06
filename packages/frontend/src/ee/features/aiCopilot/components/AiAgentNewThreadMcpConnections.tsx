@@ -115,8 +115,7 @@ type AppRow = {
     key: string;
     name: string;
     icon: ReactNode;
-    /** Null once the app is connected. */
-    action: { label: string; loading: boolean; onClick: () => void } | null;
+    action: { label: string; loading: boolean; onClick: () => void };
 };
 
 type Props = {
@@ -125,7 +124,19 @@ type Props = {
     onSuggestedPrompt?: (prompt: string) => void;
 };
 
-export const AiAgentNewThreadMcpConnections: FC<Props> = ({
+/** `tray` tucks the row under the composer card; `standalone` is a centered line. */
+export const AiAgentNewThreadMcpConnections: FC<
+    Props & { placement: 'tray' | 'standalone' }
+> = ({ placement, ...props }) =>
+    placement === 'tray' ? (
+        <Box className={styles.tray}>
+            <McpConnections {...props} />
+        </Box>
+    ) : (
+        <McpConnections {...props} />
+    );
+
+const McpConnections: FC<Props> = ({
     projectUuid,
     agentUuid,
     onSuggestedPrompt,
@@ -343,8 +354,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
         isConnectingGithubMcp || isConnectingGithubMcpApp || isAttachingGithub;
 
     const appRows: AppRow[] = [
-        ...(mcpServers ?? []).map((mcpServer): AppRow => {
-            const needsConnection = needsPersonalOauthConnection(mcpServer);
+        ...mcpServersNeedingConnection.map((mcpServer): AppRow => {
             return {
                 key: mcpServer.uuid,
                 name: mcpServer.name,
@@ -356,17 +366,14 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                         src={mcpServer.iconUrl}
                     />
                 ),
-                action: needsConnection
-                    ? {
-                          label: getUiString('aiAgent.mcpApps.signIn'),
-                          loading:
-                              isStartingMcpOAuthConnection &&
-                              startingMcpOAuthConnection?.mcpServerUuid ===
-                                  mcpServer.uuid,
-                          onClick: () =>
-                              void handleStartConnection(mcpServer.uuid),
-                      }
-                    : null,
+                action: {
+                    label: getUiString('aiAgent.mcpApps.signIn'),
+                    loading:
+                        isStartingMcpOAuthConnection &&
+                        startingMcpOAuthConnection?.mcpServerUuid ===
+                            mcpServer.uuid,
+                    onClick: () => void handleStartConnection(mcpServer.uuid),
+                },
             };
         }),
         ...(canOneClickConnectGithub
@@ -412,7 +419,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                         ? appsPopoverHandlers.open()
                         : appsPopoverHandlers.close()
                 }
-                position="bottom"
+                position="top"
                 width={320}
                 trapFocus
                 returnFocus
@@ -434,12 +441,6 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                         </Group>
                         <Text component="span" fz="sm" c="dimmed">
                             {availableLabel}
-                        </Text>
-                        <Text component="span" fz="sm" c="dimmed" aria-hidden>
-                            ·
-                        </Text>
-                        <Text component="span" fz="sm" fw={500}>
-                            {getUiString('aiAgent.mcpApps.connect')}
                         </Text>
                     </UnstyledButton>
                 </Popover.Target>
@@ -469,38 +470,23 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                                     <Text fz="sm" flex={1} miw={0} truncate>
                                         {row.name}
                                     </Text>
-                                    {row.action ? (
-                                        <Button
-                                            size="compact-xs"
-                                            variant="default"
-                                            loading={row.action.loading}
-                                            onClick={row.action.onClick}
-                                            aria-label={interpolateUiString(
-                                                getUiString(
-                                                    'aiAgent.mcpApps.actionFor',
-                                                ),
-                                                {
-                                                    action: row.action.label,
-                                                    app: row.name,
-                                                },
-                                            )}
-                                        >
-                                            {row.action.label}
-                                        </Button>
-                                    ) : (
-                                        <Group gap={4} wrap="nowrap">
-                                            <MantineIcon
-                                                icon={IconCircleCheck}
-                                                size={14}
-                                                color="green"
-                                            />
-                                            <Text fz="xs" c="dimmed">
-                                                {getUiString(
-                                                    'aiAgent.mcpApps.connected',
-                                                )}
-                                            </Text>
-                                        </Group>
-                                    )}
+                                    <Button
+                                        size="compact-xs"
+                                        variant="default"
+                                        loading={row.action.loading}
+                                        onClick={row.action.onClick}
+                                        aria-label={interpolateUiString(
+                                            getUiString(
+                                                'aiAgent.mcpApps.actionFor',
+                                            ),
+                                            {
+                                                action: row.action.label,
+                                                app: row.name,
+                                            },
+                                        )}
+                                    >
+                                        {row.action.label}
+                                    </Button>
                                 </Group>
                             ))}
                         </Stack>
