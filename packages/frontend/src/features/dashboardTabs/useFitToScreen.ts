@@ -1,5 +1,5 @@
 import { type DashboardTab, type DashboardTile } from '@lightdash/common';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     canFitGridToScreen,
     FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
@@ -71,31 +71,39 @@ const useGridViewport = (
  * spring to it. Stretching within a target, and the first measured layout,
  * are not animated. `undefined` means nothing is measured yet; `resetKey`
  * changes (tab switch, edit mode) also start afresh without animating.
+ *
+ * The flag is derived during render, not in an effect, so the transition
+ * rule and the new row height reach the DOM in the same commit: a transition
+ * only runs when the rule is already there when the height changes.
  */
 const useSnapAnimation = (
     target: number | null | undefined,
     resetKey: string,
 ): boolean => {
+    const [previous, setPrevious] = useState({ target, resetKey });
+    const [snapCount, setSnapCount] = useState(0);
     const [isSnapping, setIsSnapping] = useState(false);
-    const previous = useRef<number | null | undefined>(undefined);
 
-    useEffect(() => {
-        previous.current = undefined;
-    }, [resetKey]);
-
-    useEffect(() => {
-        const from = previous.current;
-        previous.current = target;
-        if (from === undefined || target === undefined || from === target) {
-            return;
+    if (previous.target !== target || previous.resetKey !== resetKey) {
+        const shouldAnimate =
+            previous.resetKey === resetKey &&
+            previous.target !== undefined &&
+            target !== undefined;
+        setPrevious({ target, resetKey });
+        if (shouldAnimate) {
+            setIsSnapping(true);
+            setSnapCount((count) => count + 1);
         }
-        setIsSnapping(true);
+    }
+
+    useEffect(() => {
+        if (!isSnapping) return;
         const timeout = setTimeout(
             () => setIsSnapping(false),
             FIT_TO_SCREEN_SNAP_DURATION_MS,
         );
         return () => clearTimeout(timeout);
-    }, [target]);
+    }, [isSnapping, snapCount]);
 
     return isSnapping;
 };
