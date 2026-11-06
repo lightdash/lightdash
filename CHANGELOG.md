@@ -1,3 +1,13 @@
+# [3.178.0](https://github.com/lightdash/lightdash/compare/3.177.1...3.178.0) (2026-11-06)
+
+
+### Features
+
+* **live-sources:** connectors declare their query capabilities ([#32191](https://github.com/lightdash/lightdash/issues/32191)) ([97be9c5](https://github.com/lightdash/lightdash/commit/97be9c536a5a143b829f49c8cfa40ef4e2d8fd97))
+* **live-sources:** map more filter operators and date grains to native API features ([#32194](https://github.com/lightdash/lightdash/issues/32194)) ([5baf367](https://github.com/lightdash/lightdash/commit/5baf367f3ed29ce36fac1e0471c0ef5f8595ec96))
+* **live-sources:** run table calculations, custom fields and period-over-period on PostHog ([#32195](https://github.com/lightdash/lightdash/issues/32195)) ([21b3308](https://github.com/lightdash/lightdash/commit/21b3308428b85d6272b1b0ae3021080c97bc3e05))
+* **live-sources:** stable error codes for refusals and upstream errors ([#32192](https://github.com/lightdash/lightdash/issues/32192)) ([7e4d8eb](https://github.com/lightdash/lightdash/commit/7e4d8eb69c21ccca8c34fd51d6fda253357019cf))
+
 ## [3.177.1](https://github.com/lightdash/lightdash/compare/3.177.0...3.177.1) (2026-11-06)
 
 
