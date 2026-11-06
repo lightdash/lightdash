@@ -190,6 +190,26 @@
                 }
             }
         },
+        "onboarding-agent-endpoints-removed": {
+            "reason": "The onboarding agent is removed. Its six REST endpoints under /api/v1/ee/projects/{projectUuid}/agent-onboarding now return 404, and POST /api/v1/org/playground-projects/ensure no longer accepts the agent_onboarding_wait trigger. Project admins scripting these undocumented onboarding endpoints would see the errors; every other playground trigger behaves as before.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The web app's onboarding screens are the only client of these operations, and they are removed in the same change. During a rolling update an old homepage tab gets a 404 for the latest run and falls back to generated suggestion chips, while an old run page shows its not-found state until refresh, which is safe because no onboarding work depends on it.",
+                "covers": {
+                    "rest": [
+                        "POST /api/v1/ee/projects/{projectUuid}/agent-onboarding",
+                        "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding",
+                        "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding/latest",
+                        "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}",
+                        "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/file",
+                        "POST /api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/cancel",
+                        "POST /api/v1/org/playground-projects/ensure"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
         "results-cache-enabled-flag-removed": {
             "reason": "The ResultsCacheEnabled member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; results caching is now a per-project setting, and the migration copies each organization's flag value into its projects.",
             "requiredStop": false

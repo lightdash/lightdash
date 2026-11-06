@@ -125,8 +125,6 @@ type Props = PropsWithChildren<{
     stackDepth?: number;
     celebrate?: boolean;
     centered?: boolean;
-    /** Background work that should stay visible next to the step */
-    activity?: ReactNode;
 }>;
 
 const OnboardingLayout: FC<Props> = ({
@@ -141,7 +139,6 @@ const OnboardingLayout: FC<Props> = ({
     stackDepth = 0,
     celebrate = false,
     centered = false,
-    activity = null,
 }) => {
     useStackDirection(stackDepth);
     useTrackOnboardingScreen(screen);
@@ -170,9 +167,6 @@ const OnboardingLayout: FC<Props> = ({
                     <PixelField celebrate={celebrate} />
                     <Box className={classes.splitVisualInner}>{aside}</Box>
                 </Box>
-                {activity && (
-                    <Box className={classes.activityToast}>{activity}</Box>
-                )}
             </Box>
         );
     }
@@ -227,9 +221,6 @@ const OnboardingLayout: FC<Props> = ({
                     </Box>
                 )}
             </Box>
-            {activity && (
-                <Box className={classes.activityToast}>{activity}</Box>
-            )}
         </Box>
     );
 };

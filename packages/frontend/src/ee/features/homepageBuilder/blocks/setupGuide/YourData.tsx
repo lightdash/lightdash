@@ -1,7 +1,4 @@
-import {
-    type AgentOnboardingRun,
-    type ExternalConnectionListItem,
-} from '@lightdash/common';
+import { type ExternalConnectionListItem } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -36,14 +33,12 @@ import { LiveSourceIcon } from '../../../../../features/externalConnections/live
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
-import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import {
     SEMANTIC_LAYER_STEP_COUNT,
     SemanticLayerExplainer,
 } from './SemanticLayerExplainer';
-import guideClasses from './SetupGuide.module.css';
 import { ChoiceArt } from './StepArt';
 import { type SetupGuideState } from './useSetupGuide';
 import classes from './YourData.module.css';
@@ -53,18 +48,12 @@ const SEMANTIC_LAYER_DOCS_URL = 'https://docs.lightdash.com/semantic-layer';
 const SourceTag: FC<{
     icon: ReactNode;
     name: string;
-    detail: ReactNode | null;
-}> = ({ icon, name, detail }) => (
+}> = ({ icon, name }) => (
     <Group gap={6} wrap="nowrap" className={classes.pill}>
         <Box className={classes.sourceIcon}>{icon}</Box>
         <Text fz="xs" fw={500}>
             {name}
         </Text>
-        {detail && (
-            <Text fz="xs" c="dimmed" component="div">
-                {detail}
-            </Text>
-        )}
     </Group>
 );
 
@@ -231,23 +220,6 @@ const NextSteps: FC<{
     );
 };
 
-const DraftingModelsDetail: FC<{ run: AgentOnboardingRun }> = ({ run }) => (
-    <Group gap={6} wrap="nowrap">
-        <Box className={guideClasses.liveDot} aria-hidden />
-        Drafting models
-        <Anchor
-            component={Link}
-            to={getAgentOnboardingRunUrl(
-                run.agentOnboardingRunUuid,
-                run.projectUuid,
-            )}
-            fz="xs"
-        >
-            Watch
-        </Anchor>
-    </Group>
-);
-
 const liveSourceTag = (connection: ExternalConnectionListItem) => {
     const { apiSource } = connection;
     return (
@@ -265,7 +237,6 @@ const liveSourceTag = (connection: ExternalConnectionListItem) => {
                     ? getLiveSource(apiSource.connector).label
                     : connection.name
             }
-            detail={null}
         />
     );
 };
@@ -416,13 +387,6 @@ export const YourData: FC<{
                                 )
                             }
                             name={warehouse.annotation ?? 'Warehouse'}
-                            detail={
-                                guide.activeRun ? (
-                                    <DraftingModelsDetail
-                                        run={guide.activeRun}
-                                    />
-                                ) : null
-                            }
                         />
                     )}
                     {guide.liveConnections.map(liveSourceTag)}
@@ -441,7 +405,7 @@ export const YourData: FC<{
                         : null
                 }
                 semanticLayer={
-                    guide.semanticExplores.length === 0 && !guide.activeRun
+                    guide.semanticExplores.length === 0
                         ? {
                               finalAction: !canConnectWarehouse
                                   ? null

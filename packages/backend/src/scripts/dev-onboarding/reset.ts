@@ -51,26 +51,6 @@ export const resetOnboardingFixture = async (database: Knex) => {
                 'A test organization user belongs to another organization; refusing to reset it.',
             );
         }
-        const activeRun = await trx('agent_onboarding_runs')
-            .join(
-                'projects',
-                'projects.project_uuid',
-                'agent_onboarding_runs.project_uuid',
-            )
-            .join(
-                'organizations',
-                'organizations.organization_id',
-                'projects.organization_id',
-            )
-            .where('organizations.organization_uuid', TEST_ORG_UUID)
-            .whereIn('agent_onboarding_runs.status', ['queued', 'running'])
-            .select('agent_onboarding_runs.agent_onboarding_run_uuid')
-            .first<{ agent_onboarding_run_uuid: string }>();
-        if (activeRun) {
-            throw new Error(
-                'Cancel the active onboarding run before restarting the test journey.',
-            );
-        }
         await trx('users').whereIn('user_id', userIds).delete();
         if (org)
             await trx('organizations')

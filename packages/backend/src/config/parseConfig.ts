@@ -2243,7 +2243,6 @@ export type AppRuntimeConfig = {
     e2bPythonTemplateName: string;
     e2bPythonTemplateTag: string;
     /** OCI image used by managed project onboarding with the Docker provider. */
-    sandboxAgentOnboardingDockerImage: string;
     /**
      * How long a *running* sandbox can be idle before the backend suspends it.
      * Feeds the native-pause provider's own idle policy (Lambda MicroVMs'
@@ -2347,8 +2346,6 @@ export type AppRuntimeConfig = {
         sandboxSecret: string | null;
     };
     /** E2B template used by managed project onboarding. */
-    e2bAgentOnboardingTemplateName: string;
-    e2bAgentOnboardingTemplateTag: string;
     /**
      * Claude Code OpenTelemetry tracing for data-app builds. When enabled, the
      * `claude` CLI in the sandbox exports OTLP traces (a span per LLM request /
@@ -2851,9 +2848,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.E2B_PYTHON_TEMPLATE_NAME || 'lightdash-python-runner',
         e2bPythonTemplateTag:
             process.env.E2B_PYTHON_TEMPLATE_TAG ?? (VERSION as string),
-        sandboxAgentOnboardingDockerImage:
-            process.env.SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE ||
-            'lightdash-agent-onboarding:local',
         sandboxIdleTimeoutMs,
         sandboxSnapshotRetentionMs,
         lambdaMicroVm: {
@@ -2911,12 +2905,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.AZURE_SANDBOXES_PYTHON_GROUP || null,
         azureSandboxesPythonDiskImage:
             process.env.AZURE_SANDBOXES_PYTHON_DISK_IMAGE || null,
-        e2bAgentOnboardingTemplateName:
-            process.env.E2B_AGENT_ONBOARDING_TEMPLATE_NAME ||
-            'lightdash-agent-onboarding',
-        e2bAgentOnboardingTemplateTag:
-            process.env.E2B_AGENT_ONBOARDING_TEMPLATE_TAG ??
-            (VERSION as string),
         otel: parseDataAppOtelConfig(),
         dependencyRegistryHosts: (
             process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||

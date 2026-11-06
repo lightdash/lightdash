@@ -1,6 +1,5 @@
 export * from './AiAgent';
 export * from './aiCredits';
-export * from './agentOnboarding/types';
 export * from './aiDeepResearch/evidence';
 export * from './aiDeepResearch/markdown';
 export * from './aiDeepResearch/types';
