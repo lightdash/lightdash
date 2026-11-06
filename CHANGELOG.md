@@ -1,3 +1,10 @@
+# [3.172.0](https://github.com/lightdash/lightdash/compare/3.171.0...3.172.0) (2026-11-06)
+
+
+### Features
+
+* **ai-agent:** apps tray under the new-thread input, author dates always visible ([#32172](https://github.com/lightdash/lightdash/issues/32172)) ([1259e8f](https://github.com/lightdash/lightdash/commit/1259e8f616fa5267f4da3c811eeff95803838bf7))
+
 # [3.171.0](https://github.com/lightdash/lightdash/compare/3.170.1...3.171.0) (2026-11-06)
 
 
