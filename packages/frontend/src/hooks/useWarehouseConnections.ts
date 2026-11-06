@@ -66,7 +66,10 @@ const connectionQueryKey = (
 const connectionsUrl = (projectUuid: string) =>
     `/projects/${projectUuid}/warehouse-connections`;
 
-export const useWarehouseConnections = (projectUuid: string) => {
+export const useWarehouseConnections = (
+    projectUuid: string,
+    { enabled = true }: { enabled?: boolean } = {},
+) => {
     const lightdashApi = useLightdashApi();
     const { data: flag } = useServerFeatureFlag(
         FeatureFlags.MultiConnectionProjects,
@@ -91,7 +94,7 @@ export const useWarehouseConnections = (projectUuid: string) => {
                 throw error;
             }
         },
-        enabled: isEnabled,
+        enabled: isEnabled && enabled,
         retry: false,
     });
     return { ...query, isEnabled };

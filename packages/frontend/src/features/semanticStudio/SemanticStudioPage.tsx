@@ -37,6 +37,7 @@ import {
     type StudioRoute,
 } from './urls';
 import { type StudioPermissions } from './useSemanticStudio';
+import { useStudioWarehouses } from './warehouses';
 import { WorkbenchView } from './WorkbenchView';
 
 const SemanticStudioPage: FC = () => {
@@ -114,6 +115,10 @@ const SemanticStudioPage: FC = () => {
             : undefined,
     );
 
+    // Several warehouses only with the multi-connection-projects flag.
+    const warehouses = useStudioWarehouses(projectUuid);
+    const warehouseConnections = warehouses.warehouses?.connections ?? null;
+
     const realProject = useMemo(
         () =>
             project && explores.data
@@ -122,9 +127,16 @@ const SemanticStudioPage: FC = () => {
                       explores: explores.data,
                       externalSources: externalSources.data ?? [],
                       liveConnections: liveConnections.data ?? [],
+                      warehouseConnections,
                   })
                 : null,
-        [project, explores.data, externalSources.data, liveConnections.data],
+        [
+            project,
+            explores.data,
+            externalSources.data,
+            liveConnections.data,
+            warehouseConnections,
+        ],
     );
 
     if (
@@ -133,7 +145,8 @@ const SemanticStudioPage: FC = () => {
         isProjectLoading ||
         explores.isInitialLoading ||
         externalSources.isInitialLoading ||
-        liveConnections.isInitialLoading
+        liveConnections.isInitialLoading ||
+        warehouses.isInitialLoading
     ) {
         return (
             <Center h="100%">

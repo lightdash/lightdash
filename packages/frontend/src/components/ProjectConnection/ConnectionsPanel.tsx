@@ -130,7 +130,7 @@ const ConnectionRow: FC<{
     </Group>
 );
 
-const AddConnectionModal: FC<{
+export const AddConnectionModal: FC<{
     projectUuid: string;
     warehouseType: WarehouseTypes;
     primaryRequiresUserCredentials: boolean;

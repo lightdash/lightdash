@@ -8,6 +8,7 @@ import {
     type ExternalSource,
     type Project as LightdashProject,
     type SummaryExplore,
+    type WarehouseConnection,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { buildRealProject } from './realProject';
@@ -226,5 +227,83 @@ describe('buildRealProject', () => {
             // Not an available integration: the generic icon.
             undefined,
         ]);
+    });
+});
+
+describe('buildRealProject with several warehouses', () => {
+    const warehouseConnection = (
+        uuid: string,
+        name: string,
+        isOriginal: boolean,
+        warehouseType = WarehouseTypes.POSTGRES,
+    ): WarehouseConnection =>
+        ({
+            warehouseConnectionUuid: uuid,
+            name,
+            isOriginal,
+            warehouseType,
+        }) as WarehouseConnection;
+    const bound = [
+        summary('orders'),
+        summary('events', { warehouseConnectionUuid: 'wc-2' }),
+        summary('ghost', { warehouseConnectionUuid: 'wc-9' }),
+    ];
+    const build = (warehouseConnections?: WarehouseConnection[] | null) =>
+        buildRealProject({
+            project: lightdashProject,
+            explores: bound,
+            externalSources: [],
+            liveConnections: [],
+            warehouseConnections,
+        });
+    const sourceIdOf = (
+        project: ReturnType<typeof build>,
+        exploreName: string,
+    ) => project.explores.find(({ name }) => name === exploreName)?.sourceId;
+
+    it('keeps one warehouse when the flag is off', () => {
+        const project = build();
+        expect(project.multipleWarehouses).toBe(false);
+        expect(project.sources.map(({ id }) => id)).toEqual(['warehouse']);
+        expect(sourceIdOf(project, 'events')).toBe('warehouse');
+        expect(project.sources[0].warehouse).toBeUndefined();
+    });
+
+    it('gives each connection its own source, the original keeping its id', () => {
+        const project = build([
+            warehouseConnection('wc-1', 'Main Postgres', true),
+            warehouseConnection(
+                'wc-2',
+                'Analytics',
+                false,
+                WarehouseTypes.SNOWFLAKE,
+            ),
+        ]);
+        expect(project.multipleWarehouses).toBe(true);
+        expect(sourceIdOf(project, 'orders')).toBe('warehouse');
+        expect(sourceIdOf(project, 'events')).toBe('warehouse:wc-2');
+        expect(
+            project.sources.find(({ id }) => id === 'warehouse:wc-2'),
+        ).toMatchObject({
+            kind: 'modelled',
+            name: 'Analytics',
+            warehouse: { type: 'snowflake', label: 'Snowflake' },
+        });
+    });
+
+    it('lists a connection with no explores yet', () => {
+        const project = build([
+            warehouseConnection('wc-1', 'Main Postgres', true),
+            warehouseConnection('wc-3', 'Empty', false),
+        ]);
+        expect(project.sources.map(({ id }) => id)).toContain('warehouse:wc-3');
+    });
+
+    it('names a connection the person cannot list for what it is', () => {
+        const project = build([]);
+        expect(sourceIdOf(project, 'orders')).toBe('warehouse');
+        expect(
+            project.sources.find(({ id }) => id === 'warehouse:wc-9'),
+        ).toMatchObject({ name: 'Other warehouse', onWarehouse: false });
     });
 });

@@ -71,6 +71,7 @@ import useHealth from '../../hooks/health/useHealth';
 import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { AddDataModal } from '../externalSources/components/AddDataModal';
+import { AddWarehouseModal } from './AddWarehouseModal';
 import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import {
@@ -95,6 +96,7 @@ import {
     type ProjectSearch,
     type ViewModel,
 } from './useSemanticStudio';
+import { useStudioWarehouses, warehouseMenuItem } from './warehouses';
 
 dayjs.extend(relativeTime);
 
@@ -257,7 +259,7 @@ export const NodeIcon: FC<{
 
 const FIELD_ROW_HEIGHT = 36;
 
-const ADD_OPTIONS: {
+type AddOption = {
     key: string;
     kind: Kind;
     label: string;
@@ -270,16 +272,28 @@ const ADD_OPTIONS: {
     path?: string;
     /** The flow lives in project settings, which not everyone can open. */
     inSettings?: boolean;
-}[] = [
-    {
-        key: 'dbt',
-        kind: 'modelled',
-        label: 'Warehouse',
-        description: 'Connect a dbt project',
-        path: '/generalSettings/projectManagement/:projectUuid/settings',
-        inSettings: true,
-        icon: <KindIcon kind="modelled" size={18} />,
-    },
+};
+
+const WAREHOUSE_OPTION: AddOption = {
+    key: 'dbt',
+    kind: 'modelled',
+    label: 'Warehouse',
+    description: 'Connect a dbt project',
+    path: '/generalSettings/projectManagement/:projectUuid/settings',
+    inSettings: true,
+    icon: <KindIcon kind="modelled" size={18} />,
+};
+
+/** With several warehouses, Warehouse adds a connection right here. */
+const WAREHOUSE_IN_PLACE: AddOption = {
+    ...WAREHOUSE_OPTION,
+    description: 'Connect another warehouse',
+    path: undefined,
+    inSettings: false,
+};
+
+const ADD_OPTIONS: AddOption[] = [
+    WAREHOUSE_OPTION,
     {
         key: 'sql',
         kind: 'sqlViews',
@@ -304,17 +318,18 @@ const ADD_OPTIONS: {
     },
 ];
 
-type AddOption = (typeof ADD_OPTIONS)[number];
-
 /**
- * What a person can add: one warehouse per project, only kinds they manage,
- * and only through flows they can open. Files and live data sources are
- * added in place, so the hook also owns the Add data dialog.
+ * What a person can add: only kinds they manage, and only through flows they
+ * can open. One warehouse per project, unless several are allowed (see
+ * warehouses.ts). Files, live data sources and extra warehouses are added in
+ * place, so the hook also owns their dialogs.
  */
 const useAddSource = (view: ViewModel, kind?: Kind) => {
     const { data: health } = useHealth();
     const liveSources = useLiveSourceActions();
+    const { warehouses } = useStudioWarehouses(view.project.id);
     const [isAddingData, setIsAddingData] = useState(false);
+    const [isAddingWarehouse, setIsAddingWarehouse] = useState(false);
     const isAvailable = (option: AddOption) => {
         switch (option.key) {
             case 'file':
@@ -325,38 +340,62 @@ const useAddSource = (view: ViewModel, kind?: Kind) => {
                 return true;
         }
     };
-    const hasWarehouse = view.project.sources.some(
-        (source) => source.kind === 'modelled',
-    );
-    const allowed = ADD_OPTIONS.filter(
+    const isAllowed = (option: AddOption) =>
+        (!option.inSettings || view.canOpenSettings) &&
+        isAvailable(option) &&
+        view.canManage(option.kind);
+    const warehouseItem = warehouseMenuItem({
+        hasWarehouse: view.project.sources.some(
+            (source) => source.kind === 'modelled',
+        ),
+        canAddWithoutWarehouse: isAllowed(WAREHOUSE_OPTION),
+        warehouses,
+    });
+    const menuOptions = ADD_OPTIONS.filter(
         (option) =>
             (!kind || option.kind === kind) &&
-            (!option.inSettings || view.canOpenSettings) &&
-            isAvailable(option) &&
-            view.canManage(option.kind),
-    );
-    // One warehouse per project: once it has one, the menu still lists it,
-    // greyed out, so people see where their dbt project comes from.
-    const options = allowed.filter(
-        (option) => option.key !== 'dbt' || !hasWarehouse,
-    );
-    const menuOptions = allowed.map((option) => ({
-        option,
-        disabled: option.key === 'dbt' && hasWarehouse,
+            (option.key === 'dbt' ? warehouseItem.listed : isAllowed(option)),
+    ).map((option) => ({
+        option:
+            option.key === 'dbt' && warehouseItem.inPlace
+                ? WAREHOUSE_IN_PLACE
+                : option,
+        disabled: option.key === 'dbt' && warehouseItem.disabled,
+        reason:
+            option.key === 'dbt' && warehouseItem.inPlace
+                ? (warehouses?.reason ?? null)
+                : null,
     }));
+    // Greyed-out options stay in the menu, so people see where things come
+    // from, but don't count as something to add.
+    const options = menuOptions
+        .filter(({ disabled }) => !disabled)
+        .map(({ option }) => option);
     const pathOf = (option: AddOption) =>
         option.path ? addPath(view, option.path) : null;
-    const addInPlace = (option: AddOption) =>
-        option.key === 'live' ? liveSources?.add() : setIsAddingData(true);
+    const addInPlace = (option: AddOption) => {
+        if (option.key === 'live') liveSources?.add();
+        else if (option.key === 'dbt') setIsAddingWarehouse(true);
+        else setIsAddingData(true);
+    };
     const dialog = (
-        <AddDataModal
-            projectUuid={view.project.id}
-            opened={isAddingData}
-            onClose={() => setIsAddingData(false)}
-            onCreated={(exploreName) =>
-                view.select({ type: 'explore', exploreId: exploreName })
-            }
-        />
+        <>
+            <AddDataModal
+                projectUuid={view.project.id}
+                opened={isAddingData}
+                onClose={() => setIsAddingData(false)}
+                onCreated={(exploreName) =>
+                    view.select({ type: 'explore', exploreId: exploreName })
+                }
+            />
+            {isAddingWarehouse && warehouses ? (
+                <AddWarehouseModal
+                    projectUuid={view.project.id}
+                    warehouses={warehouses}
+                    onClose={() => setIsAddingWarehouse(false)}
+                />
+            ) : null}
+        </>
     );
     return { options, menuOptions, pathOf, addInPlace, dialog };
 };
@@ -388,7 +427,7 @@ export const AddSourceButton: FC<{
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    {menuOptions.map(({ option, disabled }) => {
+                    {menuOptions.map(({ option, disabled, reason }) => {
                         const path = disabled ? null : pathOf(option);
                         const content = (
                             <Text fz="sm" fw={500}>
@@ -408,6 +447,7 @@ export const AddSourceButton: FC<{
                             <Menu.Item
                                 key={option.key}
                                 disabled={disabled}
+                                title={(disabled && reason) || undefined}
                                 onClick={() => addInPlace(option)}
                                 leftSection={option.icon}
                             >

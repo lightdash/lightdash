@@ -14,6 +14,7 @@ import {
     type ExternalSourceRef,
     type Project as LightdashProject,
     type SummaryExplore,
+    type WarehouseConnection,
 } from '@lightdash/common';
 import { getWarehouseLabel } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import {
@@ -51,6 +52,39 @@ const warehouseSource = (project: LightdashProject): Source => ({
     onWarehouse: true,
     status: null,
     settingsPath: `${SETTINGS}/settings`,
+});
+
+/**
+ * One of several warehouse connections. The original keeps the warehouse's
+ * id, so links to it still work after the project switches.
+ */
+const connectionSource = (
+    project: LightdashProject,
+    connection: WarehouseConnection,
+): Source => ({
+    ...warehouseSource(project),
+    id: connection.isOriginal
+        ? WAREHOUSE_SOURCE_ID
+        : `${WAREHOUSE_SOURCE_ID}:${connection.warehouseConnectionUuid}`,
+    name: connection.name,
+    warehouse: {
+        type: connection.warehouseType,
+        label:
+            getWarehouseLabel(connection.warehouseType) ??
+            connection.warehouseType,
+    },
+});
+
+/** An extra connection the person can't list: named for what it is. */
+const unlistedConnectionSource = (
+    project: LightdashProject,
+    warehouseConnectionUuid: string,
+): Source => ({
+    ...warehouseSource(project),
+    id: `${WAREHOUSE_SOURCE_ID}:${warehouseConnectionUuid}`,
+    name: 'Other warehouse',
+    // Not the project's warehouse, and which one isn't known here.
+    onWarehouse: false,
 });
 
 const virtualViewsSource: Source = {
@@ -159,11 +193,17 @@ export const buildRealProject = ({
     explores,
     externalSources,
     liveConnections,
+    warehouseConnections = null,
 }: {
     project: LightdashProject;
     explores: SummaryExplore[];
     externalSources: ExternalSource[];
     liveConnections: ExternalConnectionListItem[];
+    /**
+     * With several warehouses allowed, the project's connections (empty
+     * until it switches, or for people who can't list them); null otherwise.
+     */
+    warehouseConnections?: WarehouseConnection[] | null;
 }): Project => {
     const warehouseType = project.warehouseConnection?.type;
     const warehouseLabel = warehouseType
@@ -184,6 +224,23 @@ export const buildRealProject = ({
     const register = (source: Source) => {
         if (!sources.has(source.id)) sources.set(source.id, source);
         return source;
+    };
+
+    const original = warehouseConnections?.find(({ isOriginal }) => isOriginal);
+    /** The warehouse an explore runs on: the original unless bound elsewhere. */
+    const modelledSource = ({
+        warehouseConnectionUuid,
+    }: SummaryExplore): Source => {
+        if (!warehouseConnections) return warehouseSource(project);
+        const connection = warehouseConnections.find(
+            (candidate) =>
+                candidate.warehouseConnectionUuid ===
+                (warehouseConnectionUuid ?? original?.warehouseConnectionUuid),
+        );
+        if (connection) return connectionSource(project, connection);
+        return warehouseConnectionUuid === null
+            ? warehouseSource(project)
+            : unlistedConnectionSource(project, warehouseConnectionUuid);
     };
 
     const sourceOf = (explore: SummaryExplore): Source | null => {
@@ -218,7 +275,7 @@ export const buildRealProject = ({
             case ExploreType.PRE_AGGREGATE:
                 return null;
             default:
-                return register(warehouseSource(project));
+                return register(modelledSource(explore));
         }
     };
 
@@ -243,6 +300,10 @@ export const buildRealProject = ({
     // A source with no explores yet (just added, or its build failed) still
     // has a page, so it can be fixed or removed.
     for (const { connection } of live) register(liveSource(connection));
+    // So does a warehouse just connected.
+    for (const connection of warehouseConnections ?? []) {
+        register(connectionSource(project, connection));
+    }
 
     return {
         id: project.projectUuid,
@@ -251,6 +312,7 @@ export const buildRealProject = ({
             warehouseType && warehouseLabel
                 ? { type: warehouseType, label: warehouseLabel }
                 : undefined,
+        multipleWarehouses: warehouseConnections !== null,
         sources: [...sources.values()],
         explores: realExplores,
     };

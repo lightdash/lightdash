@@ -10,7 +10,8 @@ export type Kind = 'modelled' | 'sqlViews' | 'files' | 'live';
 const KIND_ORDER: Kind[] = ['modelled', 'sqlViews', 'files', 'live'];
 
 /**
- * Names match the rest of the product: "Warehouse" for the semantic layer,
+ * Names match the rest of the product: "Warehouse" for the semantic layer
+ * ("Warehouses" when a project connects several),
  * "Virtual views" from the Explore sidebar, "External sources" and "Live
  * data sources" from settings.
  */
@@ -23,25 +24,25 @@ const KIND_LABELS: Record<Exclude<Kind, 'modelled'>, string> = {
 /** The warehouse a source runs on, if it runs on one. */
 export const sourceWarehouse = (
     project: Project,
-    { onWarehouse }: Source,
+    { onWarehouse, warehouse }: Source,
 ): WarehouseConnection | undefined =>
-    onWarehouse ? project.warehouse : undefined;
+    warehouse ?? (onWarehouse ? project.warehouse : undefined);
 
-/** Under Warehouse, the semantic layer is named after the warehouse type. */
+/**
+ * Under Warehouse, the semantic layer is named after the warehouse type;
+ * under Warehouses, each connection by its own name.
+ */
 const sourceLabel = (project: Project, source: Source): string => {
-    const warehouse =
-        source.kind === 'modelled'
-            ? sourceWarehouse(project, source)
-            : undefined;
-    return warehouse ? warehouse.label : source.name;
+    if (source.kind !== 'modelled') return source.name;
+    if (source.warehouse) return source.name;
+    return sourceWarehouse(project, source)?.label ?? source.name;
 };
 
-const kindLabel = (project: Project, kind: Kind): string =>
-    kind === 'modelled'
-        ? project.warehouse
-            ? 'Warehouse'
-            : 'dbt project'
-        : KIND_LABELS[kind];
+const kindLabel = (project: Project, kind: Kind): string => {
+    if (kind !== 'modelled') return KIND_LABELS[kind];
+    if (project.multipleWarehouses) return 'Warehouses';
+    return project.warehouse ? 'Warehouse' : 'dbt project';
+};
 
 export type SourceType = 'dbt' | 'sqlView' | 'csv' | 'sheets' | 'live';
 
@@ -66,6 +67,8 @@ export type Source = {
     integration?: ApiConnectorType;
     /** The live data source's connection, for saving its fields. */
     connectionUuid?: string;
+    /** A warehouse connection of its own, when the project has several. */
+    warehouse?: WarehouseConnection;
     /** Its settings page; null when it has none. */
     settingsPath: string | null;
 };
@@ -113,6 +116,11 @@ export type Project = {
     id: string;
     name: string;
     warehouse: WarehouseConnection | undefined;
+    /**
+     * Several warehouse connections are allowed (the multi-connection-projects
+     * flag): Warehouse reads Warehouses and lists every connection.
+     */
+    multipleWarehouses?: boolean;
     sources: Source[];
     explores: Explore[];
 };
@@ -319,6 +327,20 @@ export type ProjectTree = {
 };
 
 /**
+ * The sources of a kind the tree lists: those with explores, and every
+ * connected warehouse, so one just added shows before it has explores.
+ */
+const listedSources = (project: Project, kind: Kind): Source[] =>
+    project.sources.filter(
+        (source) =>
+            source.kind === kind &&
+            (!!source.warehouse ||
+                project.explores.some(
+                    ({ sourceId }) => sourceId === source.id,
+                )),
+    );
+
+/**
  * Kind > Source > Group > Explore, leaving out a Kind or Source level that
  * has a single child, so a one-source project opens straight on its groups.
  * Warehouse always keeps its level: Warehouse > BigQuery > folders.
@@ -327,11 +349,7 @@ export const buildProjectTree = (project: Project): ProjectTree => {
     const { explores } = project;
     const kindNodes: TreeNode[] = [];
     for (const kind of KIND_ORDER) {
-        const sources = project.sources.filter(
-            (source) =>
-                source.kind === kind &&
-                explores.some(({ sourceId }) => sourceId === source.id),
-        );
+        const sources = listedSources(project, kind);
         if (sources.length === 0) continue;
         const kindRef: NodeRef = { type: 'kind', kind };
         const kindPath = [kindLabel(project, kind)];
@@ -395,11 +413,7 @@ export const buildProjectTree = (project: Project): ProjectTree => {
     if (nodes.length === 1 && nodes[0].ref.type === 'kind') {
         const { kind } = nodes[0].ref;
         nodes = nodes[0].children;
-        const onlySources = project.sources.filter(
-            (source) =>
-                source.kind === kind &&
-                explores.some(({ sourceId }) => sourceId === source.id),
-        );
+        const onlySources = listedSources(project, kind);
         if (onlySources.length === 1) [rootSource] = onlySources;
     }
     if (nodes.length === 1 && nodes[0].ref.type === 'source') {

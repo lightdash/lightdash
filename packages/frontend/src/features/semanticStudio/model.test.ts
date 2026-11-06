@@ -377,3 +377,78 @@ describe('pageNodes', () => {
         expect(pageNodes(shop, tree, null)).toBe(tree.nodes);
     });
 });
+
+describe('buildProjectTree with several warehouses', () => {
+    const main = source({
+        id: 'warehouse',
+        kind: 'modelled',
+        name: 'Main',
+        warehouse: { type: 'postgres', label: 'PostgreSQL' },
+    });
+    const analytics = source({
+        id: 'warehouse:wc-2',
+        kind: 'modelled',
+        name: 'Analytics',
+        warehouse: { type: 'snowflake', label: 'Snowflake' },
+    });
+    const empty = source({
+        id: 'warehouse:wc-3',
+        kind: 'modelled',
+        name: 'Empty',
+        warehouse: { type: 'postgres', label: 'PostgreSQL' },
+    });
+    const oneWarehouse = [
+        explore('orders', 'warehouse'),
+        explore('customers', 'warehouse'),
+        explore('big_orders', 'virtual-views'),
+    ];
+    const several = [
+        ...oneWarehouse,
+        explore('events', 'warehouse:wc-2'),
+        explore('sessions', 'warehouse:wc-2'),
+    ];
+
+    it('reads Warehouse with the flag off', () => {
+        const { nodes } = buildProjectTree(
+            project([warehouse, virtualViews], oneWarehouse),
+        );
+        expect(nodes.map(({ label }) => label)).toEqual([
+            'Warehouse',
+            'Virtual views',
+        ]);
+        expect(nodes[0].children.map(({ label }) => label)).toEqual([
+            'PostgreSQL',
+        ]);
+    });
+
+    it('reads Warehouses and lists each connection by name', () => {
+        const { nodes } = buildProjectTree({
+            ...project([main, analytics, empty, virtualViews], several),
+            multipleWarehouses: true,
+        });
+        const warehouses = nodes.find(({ label }) => label === 'Warehouses');
+        expect(warehouses?.exploreCount).toBe(4);
+        expect(
+            warehouses?.children.map(({ label, exploreCount, children }) => [
+                label,
+                exploreCount,
+                children.map((child) => child.label),
+            ]),
+        ).toEqual([
+            ['Analytics', 2, ['events', 'sessions']],
+            ['Empty', 0, []],
+            ['Main', 2, ['customers', 'orders']],
+        ]);
+    });
+
+    it('reads Warehouses for a project still on one connection', () => {
+        const { nodes } = buildProjectTree({
+            ...project([warehouse, virtualViews], oneWarehouse),
+            multipleWarehouses: true,
+        });
+        expect(nodes.map(({ label }) => label)).toEqual([
+            'Warehouses',
+            'Virtual views',
+        ]);
+    });
+});

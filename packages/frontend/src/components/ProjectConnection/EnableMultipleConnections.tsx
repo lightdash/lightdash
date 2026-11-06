@@ -140,7 +140,7 @@ const SwitchPlanSummary: FC<{ plan: WarehouseConnectionSwitchPlan }> = ({
     );
 };
 
-const EnableMultipleConnectionsModal: FC<{
+export const EnableMultipleConnectionsModal: FC<{
     projectUuid: string;
     warehouseType: WarehouseTypes;
     primaryRequiresUserCredentials: boolean;
