@@ -19,9 +19,9 @@ import { useToggle } from '@mantine/hooks';
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import React from 'react';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
-import { getExploreIcon } from '../../../features/externalSources/utils/exploreIcons';
 import ConnectionBadge from '../../common/ConnectionBadge';
 import MantineIcon from '../../common/MantineIcon';
+import { ExploreSourceIcon } from '../ExploreSourceIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
 
@@ -132,12 +132,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             disabled={isError}
             leftSection={
                 <Paper radius="sm" bg="ldGray.0" p={0} withBorder={false}>
-                    <MantineIcon
-                        icon={getExploreIcon(explore)}
-                        size="md"
-                        color="ldGray.7"
-                        stroke={1.5}
-                    />
+                    <ExploreSourceIcon explore={explore} />
                 </Paper>
             }
             onClick={isError ? undefined : onClick}

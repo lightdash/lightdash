@@ -2,7 +2,7 @@ import {
     type ApiError,
     type ExternalConnectionListItem,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../api';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
@@ -16,7 +16,13 @@ const getExternalConnections = async (
         body: undefined,
     });
 
-export const useExternalConnections = (projectUuid: string | undefined) => {
+export const useExternalConnections = (
+    projectUuid: string | undefined,
+    options?: Pick<
+        UseQueryOptions<ExternalConnectionListItem[], ApiError>,
+        'retry' | 'refetchOnWindowFocus'
+    >,
+) => {
     const lightdashApi = useLightdashApi();
     return useQuery<ExternalConnectionListItem[], ApiError>({
         queryKey: ['external-connections', projectUuid],
@@ -25,5 +31,6 @@ export const useExternalConnections = (projectUuid: string | undefined) => {
         // Refetch when the tab regains focus so connections created in another
         // tab (e.g. from the builder's "New connection" link) show up on return.
         refetchOnWindowFocus: true,
+        ...options,
     });
 };

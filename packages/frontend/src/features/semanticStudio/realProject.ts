@@ -17,9 +17,10 @@ import {
 } from '@lightdash/common';
 import { getWarehouseLabel } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import {
-    isAvailableLiveSource,
-    LIVE_SOURCE_CATALOG,
-} from '../externalConnections/liveSources/liveSourceCatalog';
+    createLiveSourceMatcher,
+    integrationOfLiveExploreName,
+    liveSourceName,
+} from '../externalConnections/liveSources/liveSourceExplores';
 import { type Explore, type Project, type Source } from './model';
 
 const SETTINGS = '/generalSettings/projectManagement/:projectUuid';
@@ -79,13 +80,6 @@ const externalSource = (source: ExternalSource): Source => ({
     settingsPath: `${SETTINGS}/externalSources`,
 });
 
-/** Live explores are named `<source name>_<definition>`. */
-const liveSourceName = (connection: ExternalConnectionListItem) =>
-    connection.liveSourceName ??
-    (connection.apiSource
-        ? `${connection.apiSource.connector}_${connection.externalConnectionUuid.replace(/-/g, '').slice(0, 8)}`
-        : null);
-
 const liveSource = (connection: ExternalConnectionListItem): Source => ({
     id: connection.externalConnectionUuid,
     kind: 'live',
@@ -104,22 +98,6 @@ const liveSource = (connection: ExternalConnectionListItem): Source => ({
  * People who can't list the sources still see what they can query: each
  * explore stands for its own source, named after itself.
  */
-/**
- * Live explores start with their source's name, which by default is the
- * integration's id or connector (`posthog_events`, `search_console_…`), so
- * the explore name is enough to show the integration's logo.
- */
-const INTEGRATION_PREFIXES = LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource)
-    .flatMap(({ id, connector }) => [
-        { prefix: `${id}_`, connector },
-        { prefix: `${connector}_`, connector },
-    ])
-    .sort((a, b) => b.prefix.length - a.prefix.length);
-
-const integrationOf = (exploreName: string) =>
-    INTEGRATION_PREFIXES.find(({ prefix }) => exploreName.startsWith(prefix))
-        ?.connector;
-
 const unlistedLiveSource = (explore: SummaryExplore): Source => ({
     id: `live:${explore.name}`,
     kind: 'live',
@@ -128,7 +106,7 @@ const unlistedLiveSource = (explore: SummaryExplore): Source => ({
     origin: 'Live data source',
     onWarehouse: false,
     status: null,
-    integration: integrationOf(explore.name),
+    integration: integrationOfLiveExploreName(explore.name),
     settingsPath: null,
 });
 
@@ -169,17 +147,7 @@ export const buildRealProject = ({
     const warehouseLabel = warehouseType
         ? getWarehouseLabel(warehouseType)
         : null;
-    const live = liveConnections
-        .map((connection) => ({
-            connection,
-            prefix: liveSourceName(connection),
-        }))
-        .filter(
-            (entry): entry is typeof entry & { prefix: string } =>
-                entry.prefix !== null,
-        )
-        // Longest first, so `posthog_2` wins over `posthog`.
-        .sort((a, b) => b.prefix.length - a.prefix.length);
+    const liveSourceOf = createLiveSourceMatcher(liveConnections);
     const sources = new Map<string, Source>();
     const register = (source: Source) => {
         if (!sources.has(source.id)) sources.set(source.id, source);
@@ -206,12 +174,10 @@ export const buildRealProject = ({
                 );
             }
             case ExploreType.API_SOURCE: {
-                const match = live.find(({ prefix }) =>
-                    explore.name.startsWith(`${prefix}_`),
-                );
+                const connection = liveSourceOf(explore.name);
                 return register(
-                    match
-                        ? liveSource(match.connection)
+                    connection
+                        ? liveSource(connection)
                         : unlistedLiveSource(explore),
                 );
             }
@@ -242,7 +208,14 @@ export const buildRealProject = ({
 
     // A source with no explores yet (just added, or its build failed) still
     // has a page, so it can be fixed or removed.
-    for (const { connection } of live) register(liveSource(connection));
+    // Longest name first, as before, so the source order doesn't change.
+    liveConnections
+        .flatMap((connection) => {
+            const name = liveSourceName(connection);
+            return name === null ? [] : [{ connection, name }];
+        })
+        .sort((a, b) => b.name.length - a.name.length)
+        .forEach(({ connection }) => register(liveSource(connection)));
 
     return {
         id: project.projectUuid,

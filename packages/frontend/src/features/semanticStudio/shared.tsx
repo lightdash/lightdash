@@ -35,7 +35,6 @@ import {
     IconChevronRight,
     IconDatabase,
     IconFileSpreadsheet,
-    IconFileTypeCsv,
     IconFolder,
     IconLock,
     IconPlus,
@@ -61,14 +60,13 @@ import {
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
+import { DataSourceIcon } from '../../components/common/DataSourceIcon';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
 import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
-import { getLiveSource } from '../../features/externalConnections/liveSources/liveSourceCatalog';
 import useHealth from '../../hooks/health/useHealth';
-import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { AddDataModal } from '../externalSources/components/AddDataModal';
 import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
@@ -133,23 +131,16 @@ const SourceLogo: FC<{ source: Source; size?: number }> = ({
         case 'sqlView':
             return <MantineIcon icon={IconSql} size={size} color="dimmed" />;
         case 'csv':
-            return (
-                <MantineIcon
-                    icon={IconFileTypeCsv}
-                    size={size}
-                    color="dimmed"
-                />
-            );
         case 'sheets':
-            return <Logo src={googleSheetsLogo} size={size} />;
+            return (
+                <DataSourceIcon source={{ type: source.type }} size={size} />
+            );
         case 'live':
-            return source.integration ? (
-                <Logo
-                    src={getLiveSource(source.integration).icon}
+            return (
+                <DataSourceIcon
+                    source={{ type: 'live', integration: source.integration }}
                     size={size}
                 />
-            ) : (
-                <MantineIcon icon={IconBroadcast} size={size} color="dimmed" />
             );
         default:
             return null;

@@ -1,9 +1,6 @@
 import { type ApiConnectorType } from '@lightdash/common';
-import { Image } from '@mantine/core';
-import { IconApi } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { getLiveSource } from './liveSourceCatalog';
+import { DataSourceIcon } from '../../../components/common/DataSourceIcon';
 import { useLiveSourceConnection } from './useLiveSourceConnection';
 
 type Props = {
@@ -12,19 +9,14 @@ type Props = {
     size?: number;
 };
 
-export const LiveSourceIcon: FC<Props> = ({ connector, size = 16 }) =>
-    connector ? (
-        <Image
-            src={getLiveSource(connector).icon}
-            alt=""
-            w={size}
-            h={size}
-            fit="contain"
-            flex="none"
-        />
-    ) : (
-        <MantineIcon icon={IconApi} size={size} stroke={1.5} />
-    );
+/** A live data source's integration logo, the same as on the Semantic Layer page. */
+export const LiveSourceIcon: FC<Props> = ({ connector, size = 16 }) => (
+    <DataSourceIcon
+        source={{ type: 'live', integration: connector }}
+        size={size}
+        color="currentColor"
+    />
+);
 
 /** The icon of the integration behind a connection, for views that only hold its uuid. */
 export const LiveSourceConnectionIcon: FC<{

@@ -1,8 +1,8 @@
 import { type ExternalSourceRef } from '@lightdash/common';
 import { Badge } from '@mantine/core';
-import { IconFileSpreadsheet } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { DataSourceIcon } from '../../../components/common/DataSourceIcon';
+import { externalSourceIconOf } from '../../../components/common/dataSourceIconOf';
 import { getExternalSourceTypeLabel } from '../utils/sourceTypeLabel';
 
 export const ExternalSourceBadge: FC<{ sourceRef: ExternalSourceRef }> = ({
@@ -10,7 +10,13 @@ export const ExternalSourceBadge: FC<{ sourceRef: ExternalSourceRef }> = ({
 }) => (
     <Badge
         size="sm"
-        leftSection={<MantineIcon icon={IconFileSpreadsheet} size="sm" />}
+        leftSection={
+            <DataSourceIcon
+                source={externalSourceIconOf(sourceRef.sourceType)}
+                size={12}
+                color="currentColor"
+            />
+        }
     >
         {getExternalSourceTypeLabel(sourceRef.sourceType)}
     </Badge>
