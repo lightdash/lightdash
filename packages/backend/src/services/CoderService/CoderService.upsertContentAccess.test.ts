@@ -3952,6 +3952,54 @@ describe('CoderService dashboard control order as code', () => {
         expect(saved.config?.controlSections?.[0].id).toBe('section-id');
     });
 
+    it('round-trips bar line starts', async () => {
+        const orderWithLines = savedOrder.map((ref) =>
+            ref.id === 'section-id' || ref.id === 'first-id'
+                ? { ...ref, newLine: true }
+                : ref,
+        );
+        const file = download(
+            savedDashboard({ controlOrder: orderWithLines }),
+            true,
+        );
+        expect(file.config?.controlOrder).toEqual([
+            { kind: 'parameter', slug: 'region' },
+            { kind: 'filter', slug: 'orders-total' },
+            { kind: 'section', slug: 'calendar', newLine: true },
+            { kind: 'filter', slug: 'orders-status-2' },
+            { kind: 'filter', slug: 'orders-status-1', newLine: true },
+        ]);
+        const saved = await upload(file, {
+            saved: savedDashboard({ controlOrder: orderWithLines }),
+        });
+        expect(saved.config?.controlOrder).toEqual(orderWithLines);
+    });
+
+    it('drops line starts on section members and never writes them', async () => {
+        const memberLine = savedOrder.map((ref) =>
+            ref.id === 'second-id' ? { ...ref, newLine: true } : ref,
+        );
+        const file = download(
+            savedDashboard({ controlOrder: memberLine }),
+            true,
+        );
+        expect(JSON.stringify(file.config?.controlOrder)).not.toContain(
+            'newLine',
+        );
+        const saved = await upload({
+            ...file,
+            config: {
+                ...file.config!,
+                controlOrder: file.config!.controlOrder!.map((ref) =>
+                    ref.slug === 'orders-status-2'
+                        ? { ...ref, newLine: true }
+                        : ref,
+                ),
+            },
+        });
+        expect(saved.config?.controlOrder).toEqual(savedOrder);
+    });
+
     it('keeps the ids of two filters on one field when the file reorders them', async () => {
         const file = download(savedDashboard(), true);
         const saved = await upload({
@@ -4017,6 +4065,11 @@ describe('CoderService dashboard control order as code', () => {
             'a date zoom ref',
             [{ kind: 'dateZoom', slug: 'zoom' }],
             'Date zoom controls cannot be ordered yet',
+        ],
+        [
+            'a non-boolean newLine',
+            [{ kind: 'section', slug: 'calendar', newLine: 'yes' }],
+            'Invalid newLine on the section "calendar"',
         ],
         [
             'a malformed ref',

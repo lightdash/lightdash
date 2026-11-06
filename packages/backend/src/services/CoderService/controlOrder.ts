@@ -32,7 +32,10 @@ const getFilterRules = ({
 // The slugs a file uses for each control, by kind, in array order
 const getControlSlugs = (
     controls: OrderedControls,
-): Record<OrderableKind, { id: string; slug: string }[]> => {
+): Record<OrderableKind, { id: string; slug: string; member: boolean }[]> => {
+    const sectionIds = new Set(controls.sections.map(({ id }) => id));
+    const isMember = (sectionId: string | undefined) =>
+        sectionId !== undefined && sectionIds.has(sectionId);
     const rules = getFilterRules(controls);
     const filterSlugs = getDashboardFilterSlugs(rules);
     const parameterSlugs = getParameterControlsWithSlugs(
@@ -40,20 +43,25 @@ const getControlSlugs = (
     ).map(({ slug }) => slug!);
     const sectionSlugList = sectionSlugs(controls.sections);
     return {
-        [DashboardControlRefKind.FILTER]: rules.map(({ id }, index) => ({
-            id,
-            slug: filterSlugs[index],
-        })),
+        [DashboardControlRefKind.FILTER]: rules.map(
+            ({ id, sectionId }, index) => ({
+                id,
+                slug: filterSlugs[index],
+                member: isMember(sectionId),
+            }),
+        ),
         [DashboardControlRefKind.PARAMETER]: controls.parameterControls.map(
-            ({ id }, index) => ({
+            ({ id, sectionId }, index) => ({
                 id,
                 slug: parameterSlugs[index],
+                member: isMember(sectionId),
             }),
         ),
         [DashboardControlRefKind.SECTION]: controls.sections.map(
             ({ id }, index) => ({
                 id,
                 slug: sectionSlugList[index],
+                member: false,
             }),
         ),
     };
@@ -77,9 +85,14 @@ export const getControlOrderAsCode = (
                 case DashboardControlRefKind.PARAMETER:
                 case DashboardControlRefKind.SECTION: {
                     const slug = slugOf(control.kind, control.id);
-                    return slug === undefined
-                        ? []
-                        : [{ kind: control.kind, slug }];
+                    if (slug === undefined) return [];
+                    return [
+                        {
+                            kind: control.kind,
+                            slug,
+                            ...(control.newLine && { newLine: true }),
+                        },
+                    ];
                 }
                 case DashboardControlRefKind.DATE_ZOOM:
                     return [];
@@ -116,17 +129,25 @@ export const getControlOrderWithIds = (
     return (controlOrder as unknown[]).map((ref) => {
         if (typeof ref !== 'object' || ref === null)
             return reject(`Invalid entry ${JSON.stringify(ref)}`);
-        const { kind, slug } = ref as Record<string, unknown>;
+        const { kind, slug, newLine } = ref as Record<string, unknown>;
         if (kind === DashboardControlRefKind.DATE_ZOOM)
             return reject('Date zoom controls cannot be ordered yet');
         if (!isOrderableKind(kind) || typeof slug !== 'string')
             return reject(`Invalid entry ${JSON.stringify(ref)}`);
-        const id = slugs[kind].find((control) => control.slug === slug)?.id;
-        if (id === undefined) return reject(`Unknown ${kind} slug "${slug}"`);
+        if (newLine !== undefined && typeof newLine !== 'boolean')
+            return reject(`Invalid newLine on the ${kind} "${slug}"`);
+        const control = slugs[kind].find((item) => item.slug === slug);
+        if (control === undefined)
+            return reject(`Unknown ${kind} slug "${slug}"`);
         const key = `${kind}:${slug}`;
         if (seen.has(key))
             return reject(`The ${kind} "${slug}" appears more than once`);
         seen.add(key);
-        return { kind, id };
+        // Line starts inside a section are ignored, so they aren't stored
+        return {
+            kind,
+            id: control.id,
+            ...(newLine === true && !control.member && { newLine: true }),
+        };
     });
 };
