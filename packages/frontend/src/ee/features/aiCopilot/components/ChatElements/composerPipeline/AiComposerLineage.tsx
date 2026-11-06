@@ -33,10 +33,13 @@ import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import styles from './AiComposerLineage.module.css';
 import { ComposerNodeIcon } from './ComposerNodeIcon';
-import { groupPipeline, type PipelineLayer } from './groupPipeline';
+import {
+    groupPipeline,
+    type NodeLineage,
+    type PipelineLayer,
+} from './groupPipeline';
 import {
     PipelineNotebook,
-    type NodeLineage,
     type PipelineNotebookHandle,
     type PipelineNotebookProps,
 } from './notebook/PipelineNotebook';

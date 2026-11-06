@@ -4,10 +4,10 @@ import type { Edge, Node } from '@xyflow/react';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import {
     nodeTypeLabelOf,
+    type NodeLineage,
     type PipelineLayer,
     type PipelineNode,
 } from './groupPipeline';
-import { type NodeLineage } from './notebook/PipelineNotebook';
 
 type PipelineFlowNodeData = {
     title: string;
@@ -75,7 +75,7 @@ export const toPipelineFlow = (
     display: {
         /** Hovered, else selected; everything outside its lineage dims. */
         focusedNodeId: string | null;
-        /** Mirrored from the notebook so cells off-screen still show in the graph. */
+        /** Mirrored from the notebook; its nodes never dim. */
         notebookLineage: NodeLineage | null;
         nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
     },
@@ -86,11 +86,11 @@ export const toPipelineFlow = (
         if (notebookLineage?.nodeId === nodeId) return 'hovered';
         return notebookLineage?.relatedIds.has(nodeId) ? 'related' : null;
     };
-    const lineage =
+    const focusedLineage =
         focusedNodeId === null
             ? null
             : getLineageNodeIds(pipelineNodes, focusedNodeId);
-    const isLinked = (nodeId: string) => lineage?.has(nodeId) ?? true;
+    const isLinked = (nodeId: string) => focusedLineage?.has(nodeId) ?? true;
     const nodes = pipelineNodes.map<PipelineFlowNode>((node) => ({
         id: node.nodeId,
         type: 'pipeline',
@@ -100,7 +100,8 @@ export const toPipelineFlow = (
             typeLabel: nodeTypeLabelOf(node.query),
             query: node.query,
             isTerminal: node.isTerminal,
-            isDimmed: !isLinked(node.nodeId),
+            isDimmed:
+                !isLinked(node.nodeId) && lineageRoleOf(node.nodeId) === null,
             lineageRole: lineageRoleOf(node.nodeId),
             status: display.nodeStatuses[node.nodeId] ?? null,
         },
@@ -112,11 +113,11 @@ export const toPipelineFlow = (
             target: node.nodeId,
             type: 'pipeline',
             className:
-                (lineage !== null &&
-                    lineage.has(readId) &&
-                    lineage.has(node.nodeId)) ||
-                (lineageRoleOf(readId) !== null &&
-                    lineageRoleOf(node.nodeId) !== null)
+                (focusedLineage !== null &&
+                    focusedLineage.has(readId) &&
+                    focusedLineage.has(node.nodeId)) ||
+                lineageRoleOf(readId) === 'hovered' ||
+                lineageRoleOf(node.nodeId) === 'hovered'
                     ? EDGE_ACTIVE_CLASS
                     : undefined,
         })),

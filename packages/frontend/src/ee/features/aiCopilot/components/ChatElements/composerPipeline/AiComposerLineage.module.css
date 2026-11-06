@@ -55,7 +55,7 @@
     border-color: var(--mantine-color-ldGray-4);
 }
 
-/* Mirrors the notebook's lineage, so a referenced cell scrolled out of view still shows. */
+/* The notebook's lineage, so a cell scrolled out of view still shows. */
 .graphNode[data-lineage-role] {
     border-color: var(--mantine-color-ldGray-6);
 }

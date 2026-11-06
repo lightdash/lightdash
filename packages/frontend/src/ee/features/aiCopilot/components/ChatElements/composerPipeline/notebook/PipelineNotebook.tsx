@@ -34,7 +34,11 @@ import { useComposerNodeRowsLabel } from '../../composerNodeStatus';
 import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
 import { ComposerNodeIcon } from '../ComposerNodeIcon';
-import { nodeTypeLabelOf, type PipelineNode } from '../groupPipeline';
+import {
+    nodeTypeLabelOf,
+    type NodeLineage,
+    type PipelineNode,
+} from '../groupPipeline';
 import { CellQueryPanels, CellQueryToggles, ExploreSource } from './NodeQuery';
 import styles from './PipelineNotebook.module.css';
 import {
@@ -58,12 +62,6 @@ export type PipelineNotebookHandle = {
     hideLineage: () => void;
 };
 
-/** A node and the nodes it directly reads or feeds. */
-export type NodeLineage = {
-    nodeId: string;
-    relatedIds: ReadonlySet<string>;
-};
-
 export type PipelineNotebookProps = {
     ref?: Ref<PipelineNotebookHandle>;
     nodes: PipelineNode[];
@@ -79,7 +77,7 @@ export type PipelineNotebookProps = {
     onAddToChat: ((node: PipelineNode) => void) | null;
     /** Selects the node in the lineage graph. */
     onSelectNode: (nodeId: string) => void;
-    /** The lineage drawn in the notebook, null once hidden. */
+    /** The lineage drawn in the notebook. */
     onLineageChange: (lineage: NodeLineage | null) => void;
 };
 
