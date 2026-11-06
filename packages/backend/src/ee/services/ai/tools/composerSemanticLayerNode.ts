@@ -27,7 +27,7 @@ import {
 } from '../utils/filterExpressions';
 import {
     expandMetricsWithPopAdditionalMetrics,
-    selectAggregationAdditionalMetrics,
+    getSelectedMetricIds,
 } from '../utils/populateCustomMetricsSQL';
 
 type ResolveOptions = {
@@ -247,12 +247,9 @@ const toPeriodComparisonMetrics = (
     node: ToolComposerSemanticLayerNode,
     explore: Explore,
     customMetrics: AdditionalMetric[],
+    selectedMetricIds: string[],
 ): Resolved<AdditionalMetric[]> => {
     const compiledIds = new Set(customMetrics.map(getItemId));
-    const selectedMetricIds = selectAggregationAdditionalMetrics(
-        node.metrics,
-        customMetrics,
-    );
     // A custom metric that failed to compile already reports its own error.
     const failedIds = new Set(
         (node.customMetrics ?? [])
@@ -323,10 +320,15 @@ const resolveSemanticLayerNode = (
     }
     const explore = getExplore(node.exploreName);
     const customMetricDefinitions = toAdditionalMetrics(node, explore);
+    const selectedMetricIds = getSelectedMetricIds(
+        node.metrics,
+        customMetricDefinitions.value,
+    );
     const periodComparisonMetrics = toPeriodComparisonMetrics(
         node,
         explore,
         customMetricDefinitions.value,
+        selectedMetricIds,
     );
     const additionalMetrics = [
         ...customMetricDefinitions.value,
@@ -350,10 +352,7 @@ const resolveSemanticLayerNode = (
     return {
         ...rest,
         metrics: expandMetricsWithPopAdditionalMetrics(
-            selectAggregationAdditionalMetrics(
-                node.metrics,
-                customMetricDefinitions.value,
-            ),
+            selectedMetricIds,
             additionalMetrics,
         ),
         filters: filters.value,

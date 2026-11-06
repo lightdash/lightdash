@@ -189,16 +189,17 @@ export const getPopMetricIdsByBaseMetricId = (
     return popMetricIdsByBase;
 };
 
-/** Defining an aggregation custom metric selects it, so unlisted ones are appended. */
-export const selectAggregationAdditionalMetrics = (
+/** Defining an aggregation custom metric selects it. */
+export const getSelectedMetricIds = (
     metricIds: readonly string[],
     additionalMetrics: AdditionalMetric[],
 ): string[] => [
-    ...metricIds,
-    ...additionalMetrics
-        .filter((metric) => !isPeriodOverPeriodAdditionalMetric(metric))
-        .map(getItemId)
-        .filter((metricId) => !metricIds.includes(metricId)),
+    ...new Set([
+        ...metricIds,
+        ...additionalMetrics
+            .filter((metric) => !isPeriodOverPeriodAdditionalMetric(metric))
+            .map(getItemId),
+    ]),
 ];
 
 export const expandMetricsWithPopAdditionalMetrics = (

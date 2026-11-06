@@ -320,7 +320,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .nullish()
             .default(null)
             .describe(
-                'Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
+                'Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
             ),
         customMetrics: z
             .array(composerCustomMetricSchema)
