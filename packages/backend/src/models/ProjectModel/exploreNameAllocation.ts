@@ -717,6 +717,35 @@ export const allocateStagedExploreNames = async (
                     );
                 else names.set(name, table.originalName ?? name);
             });
+            // Lineage keys and dependencies carry the deferred model name of
+            // another table in this explore. Map them like the general path
+            // does, or the publication guard rejects the explore.
+            const deferredTableNames = new Map<string, string>();
+            Object.entries(explore.tables ?? {}).forEach(([name, table]) => {
+                const identity = identityOfTable(explore, name, table);
+                deferredTableNames.set(
+                    getDeferredExploreName({
+                        unique_id: identity.uniqueId,
+                        lightdash_source_uuid: identity.sourceUuid ?? undefined,
+                    }),
+                    table.originalName ?? table.canonicalName ?? name,
+                );
+            });
+            Object.values(explore.tables ?? {}).forEach((table) => {
+                for (const [lineageName, dependencies] of Object.entries(
+                    table.lineageGraph ?? {},
+                )) {
+                    const lineageTarget = deferredTableNames.get(lineageName);
+                    if (lineageTarget) names.set(lineageName, lineageTarget);
+                    dependencies.forEach((dependency) => {
+                        const dependencyTarget = deferredTableNames.get(
+                            dependency.name,
+                        );
+                        if (dependencyTarget)
+                            names.set(dependency.name, dependencyTarget);
+                    });
+                }
+            });
             allocatedReferences.set(explore.name, names);
             return rewriteAllocatedExplore(explore, names);
         });
