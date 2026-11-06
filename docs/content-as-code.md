@@ -787,7 +787,11 @@ never-reordered dashboard downloads without either. Filter slugs come from the
 field id, suffixed `-1`, `-2` when several filters share a field, and a slug is
 saved once a file supplies it.
 
-`controlOrder` only decides how kinds interleave and where sections sit.
+`controlOrder` only decides how kinds interleave, where sections sit and
+where bar lines start: an entry with `newLine: true` starts a new bar line, and
+every other entry shares the line of the entry before it (`newLine` is ignored
+on section members). Without a saved order, lines follow each section's
+`inline`.
 Within a kind, the array order wins: swapping two dimension filters inside
 `controlOrder` changes nothing, so reorder `filters.dimensions` instead.
 

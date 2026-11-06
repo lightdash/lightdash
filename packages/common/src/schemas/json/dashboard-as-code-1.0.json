@@ -507,6 +507,10 @@
                 "kind": {
                     "$ref": "#/$defs/DashboardControlRefKind"
                 },
+                "newLine": {
+                    "description": "Starts a new bar line; absent, it shares the line of the entry before it. Ignored inside a section",
+                    "type": "boolean"
+                },
                 "slug": {
                     "description": "Slug of a filter, parameter control or section in this file",
                     "type": "string"
