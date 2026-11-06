@@ -4761,6 +4761,23 @@ describe('AiAgentToolsService runComposerQueries', () => {
             });
         });
 
+        it('keeps the rows read while waiting on another unread node when a later read fails', async () => {
+            let ordersReads = 0;
+            const result = await runSampled(
+                (pageSize) => {
+                    ordersReads += 1;
+                    return ordersReads === 1
+                        ? ordersPage(pageSize)
+                        : Promise.reject(new Error('Access denied'));
+                },
+                ['orders'],
+                ['orders'],
+            );
+
+            expect(result.status).toBe('success');
+            expect(samplesOf(result).orders).toHaveLength(8);
+        });
+
         it('returns running while another unread node runs past the deadline', async () => {
             const getAsyncQueryResults = vi
                 .fn()

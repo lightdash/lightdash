@@ -4952,7 +4952,6 @@ export class AiAgentToolsService extends BaseService {
                         submissions,
                         settled.nodeStatuses,
                         sampleNodeIds,
-                        otherUnreadNodeIds,
                     ),
                 });
 
@@ -4964,6 +4963,7 @@ export class AiAgentToolsService extends BaseService {
                         context,
                         submissions,
                         otherUnreadSubmissions,
+                        sampleNodeIds,
                         terminalSubmission,
                         pageSize,
                         deadlineMs,
@@ -5043,7 +5043,6 @@ export class AiAgentToolsService extends BaseService {
         submissions: SourceQuerySubmission[],
         nodeStatuses: ComposerNodeStatus[],
         sampleNodeIds: string[],
-        otherUnreadNodeIds: string[],
     ): Promise<ComposerNodeStatus[]> {
         return Promise.all(
             nodeStatuses.map(async (status) => {
@@ -5053,16 +5052,15 @@ export class AiAgentToolsService extends BaseService {
                 if (
                     !submission ||
                     status.state !== QueryHistoryStatus.READY ||
-                    !sampleNodeIds.includes(status.nodeId)
+                    !sampleNodeIds.includes(status.nodeId) ||
+                    status.sample !== null
                 )
                     return status;
                 try {
                     const page = await this.readComposerResultsPage(
                         context,
                         submission.queryUuid,
-                        otherUnreadNodeIds.includes(status.nodeId)
-                            ? COMPOSER_QUERY_PREVIEW_ROW_LIMIT
-                            : COMPOSER_NODE_SAMPLE_ROW_LIMIT,
+                        COMPOSER_NODE_SAMPLE_ROW_LIMIT,
                     );
                     return {
                         ...status,
@@ -5087,23 +5085,43 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** Waits for the other unread nodes first, so the terminal's status read sees them settled. */
+    /**
+     * Waits for the other unread nodes first, so the terminal's status read sees them settled.
+     * Their rows come from that wait, so a failed read fails the run instead of dropping rows.
+     */
     private async pollComposerResultNodes({
         otherUnreadSubmissions,
+        sampleNodeIds,
         ...args
     }: Parameters<AiAgentToolsService['pollComposerTerminal']>[0] & {
         otherUnreadSubmissions: SourceQuerySubmission[];
+        sampleNodeIds: string[];
     }): Promise<ComposerRunOutcome | ComposerRunningOutcome> {
+        const rowsByNodeId = new Map<string, Record<string, AnyType>[]>();
+        const withRows = <
+            T extends ComposerRunOutcome | ComposerRunningOutcome,
+        >(
+            outcome: T,
+        ): T => ({
+            ...outcome,
+            nodeStatuses: outcome.nodeStatuses.map((status) => {
+                const rows = rowsByNodeId.get(status.nodeId);
+                return rows && sampleNodeIds.includes(status.nodeId)
+                    ? { ...status, sample: rows }
+                    : status;
+            }),
+        });
         for (const terminalSubmission of otherUnreadSubmissions) {
             // eslint-disable-next-line no-await-in-loop
             const polled = await this.pollComposerTerminal({
                 ...args,
                 terminalSubmission,
-                pageSize: 1,
+                pageSize: COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
             });
-            if (polled.status !== 'success') return polled;
+            if (polled.status !== 'success') return withRows(polled);
+            rowsByNodeId.set(terminalSubmission.nodeId, polled.terminal.rows);
         }
-        return this.pollComposerTerminal(args);
+        return withRows(await this.pollComposerTerminal(args));
     }
 
     private async pollComposerTerminal({

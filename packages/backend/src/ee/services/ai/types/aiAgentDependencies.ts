@@ -802,7 +802,7 @@ export type ComposerRunOutcome =
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
-    /** Nodes the run also waits for; their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows. */
+    /** Nodes the run also waits for; when sampled, their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows read by that wait. */
     otherUnreadNodeIds: string[];
     /** Nodes whose node sample is read through the terminal rows' reader once the terminal settles. */
     sampleNodeIds: string[];
@@ -820,7 +820,7 @@ export type ComposerRunningOutcome = {
 export type RunComposerQueriesUntilDeadlineFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
-    /** Nodes the run also waits for; their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows. */
+    /** Nodes the run also waits for; when sampled, their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows read by that wait. */
     otherUnreadNodeIds: string[];
     /** Ready nodes to read a node sample of, also when the terminal is still running. */
     sampleNodeIds: string[];
