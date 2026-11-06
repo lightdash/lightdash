@@ -1908,6 +1908,32 @@ export class ExternalConnectionService extends BaseService {
         return url.href;
     }
 
+    /** Refuses a PostHog reconnect that would point the source at another region or project. */
+    private static assertSamePostHogSource(
+        existing: ExternalConnection,
+        granted: { origin: string; projectId: string | null },
+    ): void {
+        if (existing.apiSource?.connector !== ApiConnectorType.POSTHOG) {
+            throw new ParameterError(
+                `Live data source "${existing.name}" does not use PostHog`,
+            );
+        }
+        if (existing.origin !== granted.origin) {
+            const region = Object.entries(POSTHOG_REGION_ORIGINS).find(
+                ([, origin]) => origin === existing.origin,
+            )?.[0];
+            throw new ParameterError(
+                `Pick the ${region?.toUpperCase() ?? existing.origin} PostHog region to reconnect "${existing.name}"`,
+            );
+        }
+        const { projectId } = existing.apiSource;
+        if (granted.projectId !== null && granted.projectId !== projectId) {
+            throw new ParameterError(
+                `Pick project ${projectId} in PostHog to reconnect "${existing.name}"`,
+            );
+        }
+    }
+
     /** Starts the PostHog sign-in that creates a source, or reconnects one. */
     async startPostHogOAuth(
         account: RegisteredAccount,
@@ -1951,11 +1977,10 @@ export class ExternalConnectionService extends BaseService {
                 projectUuid,
                 connectionUuid,
             );
-            if (existing.apiSource?.connector !== ApiConnectorType.POSTHOG) {
-                throw new ParameterError(
-                    `Live data source "${existing.name}" does not use PostHog`,
-                );
-            }
+            ExternalConnectionService.assertSamePostHogSource(existing, {
+                origin: POSTHOG_REGION_ORIGINS[region],
+                projectId: null,
+            });
         }
 
         const state = randomBytes(24).toString('base64url');
@@ -2034,6 +2059,18 @@ export class ExternalConnectionService extends BaseService {
             throw new ParameterError(
                 'Pick a single PostHog project when signing in',
             );
+        }
+        // Reconnect only refreshes the sign-in; another project is another source
+        if (session.connectionUuid) {
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                session.connectionUuid,
+            );
+            ExternalConnectionService.assertSamePostHogSource(existing, {
+                origin,
+                projectId,
+            });
         }
 
         const config = withApiSourceAccessRules<CreateExternalConnection>({
