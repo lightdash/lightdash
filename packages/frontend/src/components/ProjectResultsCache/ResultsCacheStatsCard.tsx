@@ -191,55 +191,44 @@ const Recommendations: FC<RecommendationsProps> = ({ projectUuid, stats }) => {
                 </Anchor>
             </Group>
             <Collapse expanded={opened}>
-                <Stack gap="xs">
-                    <Table fz="sm">
-                        <Table.Thead>
-                            <Table.Tr>
-                                <Table.Th>Chart</Table.Th>
-                                <Table.Th>Reason</Table.Th>
-                                <Table.Th>Misses</Table.Th>
-                                <Table.Th>Warehouse time</Table.Th>
-                                <Table.Th>Suggested fix</Table.Th>
+                <Table fz="sm">
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th>Chart</Table.Th>
+                            <Table.Th>Reason</Table.Th>
+                            <Table.Th>Misses</Table.Th>
+                            <Table.Th>Warehouse time</Table.Th>
+                            <Table.Th>Suggested fix</Table.Th>
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                        {stats.recommendations.map((row) => (
+                            <Table.Tr
+                                key={`${row.reason}-${row.target.kind}-${targetId(row.target)}`}
+                            >
+                                <Table.Td>
+                                    <Anchor
+                                        component={Link}
+                                        to={targetPath(projectUuid, row.target)}
+                                        fz="sm"
+                                    >
+                                        {row.target.name}
+                                    </Anchor>
+                                </Table.Td>
+                                <Table.Td>{reasonLabel(row.reason)}</Table.Td>
+                                <Table.Td>
+                                    {row.misses.toLocaleString()}
+                                </Table.Td>
+                                <Table.Td>
+                                    {formatWarehouseTime(
+                                        Math.round(row.warehouseTimeMs),
+                                    )}
+                                </Table.Td>
+                                <Table.Td>{reasonFix(row.reason)}</Table.Td>
                             </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                            {stats.recommendations.map((row) => (
-                                <Table.Tr
-                                    key={`${row.reason}-${row.target.kind}-${targetId(row.target)}`}
-                                >
-                                    <Table.Td>
-                                        <Anchor
-                                            component={Link}
-                                            to={targetPath(
-                                                projectUuid,
-                                                row.target,
-                                            )}
-                                            fz="sm"
-                                        >
-                                            {row.target.name}
-                                        </Anchor>
-                                    </Table.Td>
-                                    <Table.Td>
-                                        {reasonLabel(row.reason)}
-                                    </Table.Td>
-                                    <Table.Td>
-                                        {row.misses.toLocaleString()}
-                                    </Table.Td>
-                                    <Table.Td>
-                                        {formatWarehouseTime(
-                                            Math.round(row.warehouseTimeMs),
-                                        )}
-                                    </Table.Td>
-                                    <Table.Td>{reasonFix(row.reason)}</Table.Td>
-                                </Table.Tr>
-                            ))}
-                        </Table.Tbody>
-                    </Table>
-                    <Text c="dimmed" fz="xs">
-                        Misses from before reasons were recorded are counted but
-                        never listed.
-                    </Text>
-                </Stack>
+                        ))}
+                    </Table.Tbody>
+                </Table>
             </Collapse>
         </Stack>
     );
