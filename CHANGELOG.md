@@ -1,3 +1,11 @@
+## [3.173.2](https://github.com/lightdash/lightdash/compare/3.173.1...3.173.2) (2026-11-06)
+
+
+### Bug Fixes
+
+* **redshift:** recover stalled queries for every query and drop the flag ([#32161](https://github.com/lightdash/lightdash/issues/32161)) ([a5bebe0](https://github.com/lightdash/lightdash/commit/a5bebe0173f7e7d7c5f11ef06336b6f591f9c8ea))
+* show live data source icon and label on composer nodes ([#32166](https://github.com/lightdash/lightdash/issues/32166)) ([5daf9d2](https://github.com/lightdash/lightdash/commit/5daf9d222e3885fc90b905ea1ed1975fece01efc))
+
 ## [3.173.1](https://github.com/lightdash/lightdash/compare/3.173.0...3.173.1) (2026-11-06)
 
 
