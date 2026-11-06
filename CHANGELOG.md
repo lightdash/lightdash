@@ -1,3 +1,10 @@
+# [3.169.0](https://github.com/lightdash/lightdash/compare/3.168.0...3.169.0) (2026-11-06)
+
+
+### Features
+
+* **embed:** support read-only embedded AI agent tokens ([#32105](https://github.com/lightdash/lightdash/issues/32105)) ([51dc604](https://github.com/lightdash/lightdash/commit/51dc604bca0df589c76c7c3a8461780e94c8690c))
+
 # [3.168.0](https://github.com/lightdash/lightdash/compare/3.167.0...3.168.0) (2026-11-06)
 
 
