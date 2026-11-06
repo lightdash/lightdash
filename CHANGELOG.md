@@ -1,3 +1,10 @@
+# [3.167.0](https://github.com/lightdash/lightdash/compare/3.166.5...3.167.0) (2026-11-06)
+
+
+### Features
+
+* **ai:** row-limit rule in the base prompt ([#32051](https://github.com/lightdash/lightdash/issues/32051)) ([e8621aa](https://github.com/lightdash/lightdash/commit/e8621aaa249fbe041bd31c03b63689553199f425))
+
 ## [3.166.5](https://github.com/lightdash/lightdash/compare/3.166.4...3.166.5) (2026-11-06)
 
 
