@@ -57,6 +57,12 @@ export class FeatureFlagModel {
         this.featureFlagHandlers = {
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
+            [FeatureFlags.ResultsCacheEnabled]: (flagArgs, options) =>
+                this.getWithEnvFallback(
+                    flagArgs,
+                    this.lightdashConfig.results.cacheEnabled,
+                    options,
+                ),
         };
     }
 

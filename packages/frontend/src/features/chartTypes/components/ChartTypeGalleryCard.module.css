@@ -1,14 +1,11 @@
-/* A tinted shell holding an inset preview; no overflow clipping so the
-   menu pill can straddle the top edge like a dashboard tile's. */
+/* No overflow clipping: the menu pill straddles the top edge like a
+   dashboard tile's; the preview clips its own corners instead. */
 .card {
     position: relative;
-    padding: 6px;
-    background: var(--ld-color-tile);
-    transition: border-color 150ms ease;
-}
-
-.card:hover {
-    border-color: var(--mantine-color-ldGray-3);
+    padding: 0;
+    transition:
+        box-shadow 150ms ease-in-out,
+        transform 150ms ease-in-out;
 }
 
 /* Revealed on hover, but also for keyboard focus or an open menu. */
@@ -23,10 +20,15 @@
     opacity: 1;
 }
 
+.card:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-2px);
+}
+
 .preview {
     height: 148px;
     background: var(--ld-color-tile);
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: var(--mantine-radius-md);
+    border-bottom: 1px solid var(--mantine-color-ldGray-1);
+    border-radius: var(--mantine-radius-md) var(--mantine-radius-md) 0 0;
     overflow: hidden;
 }

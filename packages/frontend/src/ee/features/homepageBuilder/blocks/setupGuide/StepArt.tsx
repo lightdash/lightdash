@@ -1,13 +1,10 @@
 import { ApiConnectorType } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import {
-    IconChartDots3,
-    IconChartRadar,
     IconDatabase,
     IconGitPullRequest,
     IconPlus,
     IconSparkles,
-    IconTable,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { AI_NAME } from '../../../../../components/common/aiName';
@@ -84,15 +81,6 @@ const SCENES: Record<SetupGuideRowId, () => ReactNode> = {
                 <Box className={classes.metricValue}>$1.2M</Box>
                 <Bars heights={[38, 55, 47, 72, 90]} />
             </Box>
-        </Box>
-    ),
-    'chart-types': () => (
-        <Box className={classes.tiles}>
-            {[IconChartRadar, IconChartDots3, IconTable].map((icon, index) => (
-                <Box key={index} className={classes.tile}>
-                    <MantineIcon icon={icon} size={16} />
-                </Box>
-            ))}
         </Box>
     ),
     'first-chart': () => (

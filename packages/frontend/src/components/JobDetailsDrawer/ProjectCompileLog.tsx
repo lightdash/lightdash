@@ -1,8 +1,9 @@
-import { Button } from '@mantine/core';
+import { Box, Button } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import ReactJson from 'react-json-view';
 import { useProjectCompileLogByJob } from '../../hooks/useProjectCompileLogs';
-import JsonTree from '../common/JsonViewer/JsonTree';
+import { useRjvTheme } from '../../hooks/useRjvTheme';
 import MantineIcon from '../common/MantineIcon';
 import { CollapsablePaper } from './../common/CollapsablePaper';
 
@@ -19,6 +20,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
         projectUuid,
         jobUuid,
     });
+    const theme = useRjvTheme();
 
     if (!compileLog) {
         return null;
@@ -41,7 +43,17 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
                 </Button>
             }
         >
-            <JsonTree value={compileLog} defaultExpandDepth={2} withCopy />
+            <Box>
+                <ReactJson
+                    theme={theme}
+                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+                    style={{ fontSize: '12px' }}
+                    src={compileLog}
+                    enableClipboard={true}
+                    displayDataTypes={false}
+                    collapsed={2}
+                />
+            </Box>
         </CollapsablePaper>
     );
 };

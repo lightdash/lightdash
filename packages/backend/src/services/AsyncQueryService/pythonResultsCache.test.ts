@@ -156,6 +156,7 @@ const buildHarness = ({
         ),
     };
     const cacheService: ICacheService = {
+        isResultsCacheEnabled: vi.fn(async () => true),
         findCachedResultsFile: vi.fn(
             async (
                 _projectUuid: string,

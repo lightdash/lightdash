@@ -10,18 +10,18 @@ import {
 } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import MantineModal from '../../../components/common/MantineModal';
-import useApp from '../../../providers/App/useApp';
-import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName } from '../../../types/Events';
-import styles from './AddLiveSourceModal.module.css';
-import { isGoogleConnector } from './googleConnection';
 import {
     isAvailableLiveSource,
     LIVE_SOURCE_CATALOG,
     type LiveSourceCatalogEntry,
-} from './liveSourceCatalog';
+} from '../../../features/externalConnections/liveSources/liveSourceCatalog';
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
+import styles from './AddLiveSourceModal.module.css';
+import { isGoogleConnector } from './googleConnection';
 
 type Props = {
     opened: boolean;

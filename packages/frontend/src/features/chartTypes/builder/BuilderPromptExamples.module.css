@@ -1,120 +1,26 @@
 .card {
-    width: 220px;
+    width: 200px;
     display: flex;
     flex-direction: column;
     gap: var(--mantine-spacing-sm);
-    padding: 6px;
-    background: var(--ld-color-tile);
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: var(--mantine-radius-lg);
-    text-align: left;
-    transition: border-color 200ms ease;
-}
-
-.card:hover,
-.card:focus-visible {
-    border-color: var(--mantine-color-ldGray-4);
-}
-
-/* A dotted canvas behind each example. */
-.stage {
-    height: 120px;
-    padding: 6px 4px 2px;
+    padding: var(--mantine-spacing-sm);
+    background: var(--mantine-color-background-0);
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: var(--mantine-radius-md);
-    background-color: var(--ld-color-page);
-    background-image: radial-gradient(
-        var(--mantine-color-ldGray-3) 0.75px,
-        transparent 0.75px
-    );
-    background-size: 10px 10px;
-    overflow: hidden;
+    text-align: left;
+    transition:
+        transform 150ms,
+        box-shadow 150ms,
+        border-color 150ms;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    border-color: var(--mantine-color-ldGray-4);
+    box-shadow: var(--mantine-shadow-subtle);
 }
 
 .thumbnail {
     display: block;
     width: 100%;
-    height: 100%;
-    overflow: visible;
-}
-
-.axis {
-    stroke: var(--mantine-color-ldGray-4);
-    stroke-width: 1;
-}
-
-.connector {
-    stroke: var(--mantine-color-ldGray-5);
-    stroke-width: 1;
-    stroke-dasharray: 2 2;
-}
-
-.tick {
-    font-size: 7px;
-    font-weight: 500;
-    fill: var(--mantine-color-dimmed);
-}
-
-.barLabel {
-    font-size: 8px;
-    font-weight: 600;
-    fill: #fff;
-}
-
-.layer,
-.bar,
-.cell {
-    transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
-    transform-box: fill-box;
-}
-
-.layer {
-    transform-origin: bottom;
-}
-
-.bar {
-    transform-origin: center bottom;
-}
-
-.cell {
-    transform-origin: center;
-    transition-delay: var(--delay, 0ms);
-}
-
-.card:hover .layer:nth-child(odd) {
-    transform: translateY(-2px);
-}
-
-.card:hover .bar:nth-of-type(even) {
-    transform: translateY(-2px);
-}
-
-.card:hover .cell {
-    transform: scale(1.12);
-}
-
-.arrow {
-    flex: 0 0 auto;
-    margin-top: 2px;
-    color: var(--mantine-color-dimmed);
-    opacity: 0;
-    transform: translateX(-4px);
-    transition:
-        opacity 150ms ease,
-        transform 150ms ease;
-}
-
-.card:hover .arrow,
-.card:focus-visible .arrow {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .layer,
-    .bar,
-    .cell,
-    .arrow {
-        transition: none;
-    }
 }

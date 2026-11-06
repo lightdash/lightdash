@@ -88,7 +88,7 @@ const dashboardAsCode = {
     tabs: [],
 } as unknown as DashboardAsCode;
 
-const buildService = (overrides: AnyType = {}) =>
+const buildService = () =>
     new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
@@ -176,7 +176,6 @@ const buildService = (overrides: AnyType = {}) =>
         organizationMemberProfileModel: {} as AnyType,
         userModel: {} as AnyType,
         warehouseConnectionModel: {} as never,
-        ...overrides,
     });
 
 const registerContentAccessTests = (
@@ -296,56 +295,6 @@ const registerContentAccessTests = (
                 ).not.toHaveBeenCalled();
             },
         );
-    });
-
-    describe('CoderService data app slug rename', () => {
-        const request = {
-            resourceType: ContentType.DATA_APP,
-            from: 'old-app',
-            to: 'new-app',
-        };
-        const writeUser = () =>
-            makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
-
-        // App slugs follow isValidDataAppSlug (consecutive/trailing hyphens,
-        // up to 255 chars) — the chart/dashboard generateSlug check must not
-        // reject them at this entry point.
-        it.each(['sales--report', 'sales-', 'a'.repeat(255)])(
-            'delegates app-style target %s to the app slug renamer',
-            async (to) => {
-                const renameAppSlug = vi.fn(async () => {});
-                const service = buildService({
-                    getAppGenerateService: () => ({ renameAppSlug }),
-                });
-                await service.renameContentSlug(writeUser(), PROJECT_UUID, {
-                    ...request,
-                    to,
-                });
-                expect(renameAppSlug).toHaveBeenCalledExactlyOnceWith(
-                    expect.anything(),
-                    PROJECT_UUID,
-                    { from: request.from, to },
-                );
-            },
-        );
-
-        it('reports data apps unavailable when the EE accessor is absent', async () => {
-            const service = buildService();
-            await expect(
-                service.renameContentSlug(writeUser(), PROJECT_UUID, request),
-            ).rejects.toThrow('Data apps are not available on this instance');
-        });
-
-        it('requires project write access before delegating', async () => {
-            const renameAppSlug = vi.fn(async () => {});
-            const service = buildService({
-                getAppGenerateService: () => ({ renameAppSlug }),
-            });
-            await expect(
-                service.renameContentSlug(makeUser([]), PROJECT_UUID, request),
-            ).rejects.toThrow(ForbiddenError);
-            expect(renameAppSlug).not.toHaveBeenCalled();
-        });
     });
 
     const chartCreateRules: RawRuleOf<Ability<PossibleAbilities>>[] = [

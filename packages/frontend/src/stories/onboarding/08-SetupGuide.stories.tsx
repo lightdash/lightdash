@@ -63,16 +63,13 @@ const Guide = ({ state }: { state: GuideState }) => {
         skippedRows,
         semanticModelCount: state === 'mostly-done' ? 3 : 0,
         chartCount: state === 'mostly-done' ? 2 : 0,
-        chartTypeNames: [],
         activeRun: state === 'building' ? storyAgentRun(false) : null,
         completedRun: null,
-        semanticStudioUrl: null,
         canAddLiveSources: true,
         appSourceNames:
             state === 'mostly-done' ? ['PostHog', 'Wholesale accounts'] : [],
         brand: null,
         teammateCount: state === 'mostly-done' ? 2 : 0,
-        libraryChartTypes: null,
     };
     return (
         <Container size="lg" py="xl">

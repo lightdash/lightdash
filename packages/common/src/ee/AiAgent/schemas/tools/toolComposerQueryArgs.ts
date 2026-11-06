@@ -8,7 +8,6 @@ import {
 } from '../../../../types/metricQuery';
 import { type ParametersValuesMap } from '../../../../types/parameters';
 import {
-    MAX_SOURCE_QUERIES_PER_SUBMISSION,
     QuerySourceType,
     type ApiSourceQuery,
     type DuckdbSourceQuery,
@@ -47,7 +46,6 @@ export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
 export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
 export const COMPOSER_QUERY_PREVIEW_ROW_LIMIT = 50;
 export const COMPOSER_NODE_SAMPLE_ROW_LIMIT = 5;
-export const COMPOSER_QUERY_MAX_UNREAD_NODES = 5;
 
 /** Libraries preinstalled in the python sandbox, pinned in sandboxes/python-runner/e2b.Dockerfile. */
 export const PYTHON_SANDBOX_LIBRARIES = [
@@ -75,7 +73,7 @@ def run(inputs, params):
     return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
 
 Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
-Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
+Rows past "limit" are dropped, so aggregate here. Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
 
 type ComposerQueriesDescriptionOptions = {
     enablePythonNodes: boolean;
@@ -98,13 +96,13 @@ const getComposerNodeKindsDescription = ({
         : ''
 }
 
-A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.`;
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.`;
 
 export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
-}: ComposerQueriesDescriptionOptions) => `Run a pipeline: up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where ${
+}: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more nodes submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
-} nodes join or transform other nodes' results. One call returns the terminal node's rows; every other submitted node is listed with its columns and first rows.
+} nodes join or transform other nodes' results. One call returns one node's rows, the terminal node's, so exactly one submitted node may go unread by the others: to get several results, combine them in one duckdb node (UNION ALL or JOIN) or submit them in separate calls. Every other submitted node is listed with its columns and first rows.
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes,
@@ -113,7 +111,9 @@ ${getComposerNodeKindsDescription({
 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
-export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+
+One call returns one node's rows, so exactly one submitted node may go unread by the others: combine several results in one duckdb node (UNION ALL or JOIN), or submit them in separate calls reusing earlier nodes.
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
@@ -124,7 +124,7 @@ A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "f
 
 Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
-Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
+Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({
@@ -176,7 +176,7 @@ const composerCustomMetricSchema = z.object({
             'Custom metric names use lowercase snake_case',
         )
         .describe(
-            'snake_case name. The metric\'s field id is "<table>_<name>"; defining it selects it, and the id works in sorts, metric filters and periodComparisons.',
+            'snake_case name. The metric\'s field id is "<table>_<name>": list it in "metrics" to select it, and use it in sorts, metric filters and periodComparisons.',
         ),
     label: z.string().describe('Column label shown to users.'),
     description: z
@@ -221,7 +221,7 @@ const composerPeriodComparisonSchema = z.object({
     metricFieldId: z
         .string()
         .describe(
-            'Metric to compare: a field id in "metrics" or a custom metric\'s.',
+            'Metric to compare: a field id in "metrics", explore or custom.',
         ),
     timeDimensionFieldId: z
         .string()
@@ -320,7 +320,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .nullish()
             .default(null)
             .describe(
-                'Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
+                'Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
             ),
         customMetrics: z
             .array(composerCustomMetricSchema)
@@ -459,7 +459,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                 .nullish()
                 .default(null)
                 .describe(
-                    'The terminal node. Null picks the last submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.',
+                    'The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.',
                 ),
         })
         .build();
@@ -805,7 +805,7 @@ const composerQueryNodeSummarySchema = z.object({
         .array(z.record(z.string(), z.unknown()))
         .nullable()
         .describe(
-            `First rows of a node submitted in this call other than the terminal node: ${COMPOSER_NODE_SAMPLE_ROW_LIMIT}, more for a node no other node reads; null otherwise or when data access is disabled.`,
+            `First ${COMPOSER_NODE_SAMPLE_ROW_LIMIT} rows of a node submitted in this call other than the terminal node; null otherwise or when data access is disabled.`,
         ),
 });
 
@@ -859,7 +859,7 @@ export const mcpQueryStructuredOutputSchema = z.object({
     status: z
         .enum(['done', 'running'])
         .describe(
-            'running when a node outlived the wait; poll get_query_result with the queryUuids the result names.',
+            'running when the terminal node outlived the wait; poll get_query_result with its queryUuid.',
         ),
     terminalNodeId: nodeIdSchema.describe('Node whose rows are previewed.'),
     rowCount: z
@@ -890,7 +890,7 @@ export const mcpQueryStructuredOutputSchema = z.object({
                     .array(z.record(z.string(), z.unknown()))
                     .nullable()
                     .describe(
-                        `First rows of a done node submitted in this call other than the terminal node: ${COMPOSER_NODE_SAMPLE_ROW_LIMIT}, more for a node no other node reads; null for the terminal node and for reused, failed or unfinished nodes.`,
+                        `First ${COMPOSER_NODE_SAMPLE_ROW_LIMIT} rows of a done node submitted in this call other than the terminal node; null for the terminal node and for reused, failed or unfinished nodes.`,
                     ),
             }),
         )

@@ -10,12 +10,11 @@
         var(--mantine-spacing-sm) 14px;
 }
 
-/* The offers are one compact row each. */
+/* Side by side the two offers stretch to one height, so each one centres
+   what it holds instead of leaving the shorter one top-heavy. */
 .emptyCard {
     display: flex;
     align-items: center;
-    min-height: 0;
-    padding: 8px 8px 8px 10px;
 }
 
 .emptyCard > * {
@@ -41,18 +40,6 @@
     top: calc(100% + var(--mantine-spacing-xs));
     left: 0;
     right: 0;
-}
-
-.iconTileSmall {
-    width: 28px;
-    height: 28px;
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--mantine-radius-sm);
-    background: var(--mantine-color-ldGray-1);
-    color: var(--mantine-color-ldGray-7);
 }
 
 .iconTile,

@@ -9,12 +9,8 @@ import { useMatches } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useLocalStorage } from 'react-use';
-import { useChartTypesEnabled } from '../../../../../features/chartTypes/hooks/useChartTypesEnabled';
-import { useDataAppVisualizations } from '../../../../../features/chartTypes/hooks/useDataAppVisualizations';
-import { useRegistryChartTypes } from '../../../../../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
 import { useExternalSources } from '../../../../../features/externalSources/hooks/useExternalSources';
-import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
 import { useOrganizationBrand } from '../../../../../hooks/organization/useOrganizationBrand';
 import { useInfiniteContent } from '../../../../../hooks/useContent';
 import { useExplores } from '../../../../../hooks/useExplores';
@@ -89,10 +85,6 @@ export const useSetupGuide = (
         },
         enabled,
     );
-    const chartTypesEnabled = useChartTypesEnabled();
-    const chartTypes = useDataAppVisualizations(
-        isEligible && chartTypesEnabled.enabled ? projectUuid : undefined,
-    );
 
     // ponytail: dismissal is per user and project in localStorage, the server skip table only accepts checklist keys
     const [isDismissed, setIsDismissed] = useLocalStorage<boolean>(
@@ -123,9 +115,6 @@ export const useSetupGuide = (
     const chartCount = charts.data
         ? (charts.data.pages[0]?.pagination?.totalResults ?? 0)
         : null;
-    const canSuggestChartTypes =
-        isEligible && chartTypesEnabled.enabled && (chartCount ?? 0) > 0;
-    const registry = useRegistryChartTypes(projectUuid, canSuggestChartTypes);
     const completedRun =
         latestRun.data?.status === 'completed' ? latestRun.data : null;
     const semanticExplores = (explores.data ?? []).filter(
@@ -135,7 +124,6 @@ export const useSetupGuide = (
         ({ kind }) => kind === 'live_source',
     );
     const activeRunOrNull = run && !isRunTerminal ? run : null;
-    const semanticStudioUrl = getSemanticStudioUrl(projectUuid, { ref: null });
     const sections = buildSetupGuide({
         projectUuid,
         statuses: actions.statuses,
@@ -144,12 +132,8 @@ export const useSetupGuide = (
         skippedRows: skippedRows ?? [],
         semanticModelCount: semanticExplores.length,
         chartCount: chartCount ?? 0,
-        chartTypeNames: (chartTypes.data?.pages[0]?.data ?? []).map(
-            ({ name }) => name,
-        ),
         activeRun: activeRunOrNull,
         completedRun,
-        semanticStudioUrl,
         canAddLiveSources:
             liveSourcesFlag.data?.enabled === true &&
             !!user.data?.ability.can(
@@ -167,10 +151,6 @@ export const useSetupGuide = (
         teammateCount: (users.data ?? []).filter(
             (member) => member.userUuid !== userUuid,
         ).length,
-        libraryChartTypes:
-            canSuggestChartTypes && registry.data?.registryEnabled
-                ? registry.data.charts
-                : null,
     });
 
     return {
@@ -179,7 +159,6 @@ export const useSetupGuide = (
         sections,
         semanticExplores,
         liveConnections,
-        semanticStudioUrl,
         chartCount,
         activeRun: activeRunOrNull,
         completedRunUrl: completedRun

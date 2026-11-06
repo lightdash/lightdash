@@ -59,7 +59,6 @@ export type FieldDraft = {
     label: string;
     description: string;
     aiHint: string;
-    group: string;
     inUse: boolean;
 };
 
@@ -153,13 +152,7 @@ export const useSemanticStudio = ({
 }: SemanticStudioProps) => {
     const tree = useMemo(() => buildProjectTree(project), [project]);
     // A link to something that no longer exists opens the project root.
-    // Live data sources keep their page while there are none, so admins can
-    // add the first one there.
-    const isLiveSourcesPage =
-        permissions.live &&
-        route.ref?.type === 'kind' &&
-        route.ref.kind === 'live';
-    const isStale = !isLiveSourcesPage && !refExists(project, route.ref);
+    const isStale = !refExists(project, route.ref);
     const selected = isStale
         ? null
         : resolveRef(project, tree.nodes, route.ref);

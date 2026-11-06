@@ -605,9 +605,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.installRegistryChartType': [
         AgentCapability.ContentWrite,
     ],
-    'AppGenerateController.installStarterChartTypes': [
-        AgentCapability.ContentWrite,
-    ],
     'AppGenerateController.iterateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.listDataAppVisualizations': [
         AgentCapability.ReadDiscover,
@@ -656,7 +653,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'CatalogController.getMetadata': [AgentCapability.ReadDiscover],
     'CatalogController.getMetric': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricOwners': [AgentCapability.ReadDiscover],
-    'CatalogController.getMetricTables': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsCatalog': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsTree': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsTreeDetails': [AgentCapability.ReadDiscover],
@@ -1557,9 +1553,6 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ReadDiscover,
     ],
     'ProjectController.getProjectResultsCacheSettings': [
-        AgentCapability.ReadDiscover,
-    ],
-    'ProjectController.getProjectResultsCacheStatus': [
         AgentCapability.ReadDiscover,
     ],
     'ProjectController.getProjectTableGroups': [AgentCapability.ReadDiscover],

@@ -1,3 +1,4 @@
+import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     AxisSide,
     CartesianSeriesType,
@@ -18,7 +19,6 @@ import {
 } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
-import { type SortableHandleProps } from '../../common/Sortable/Sortable';
 import {
     SeriesDepthControl,
     type SeriesDrawOrderControl,
@@ -34,7 +34,7 @@ import { CartesianChartValueLabelConfig } from './CartesianChartValueLabelConfig
 const LABEL_WIDTH = 120;
 
 type SingleSeriesConfigurationProps = {
-    dragHandleProps?: SortableHandleProps | null;
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
     drawOrder?: SeriesDrawOrderControl;
     reference: string;
     color: string | undefined;

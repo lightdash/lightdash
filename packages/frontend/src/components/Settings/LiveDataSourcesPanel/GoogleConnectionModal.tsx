@@ -2,8 +2,8 @@ import { type ExternalConnection } from '@lightdash/common';
 import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
-import MantineModal from '../../../components/common/MantineModal';
-import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
+import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
+import MantineModal from '../../common/MantineModal';
 import {
     getApiSourceTarget,
     getGoogleSignInUrl,

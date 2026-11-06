@@ -5,7 +5,6 @@ import {
     AppVersionsTableName,
     type DbApp,
 } from '../database/entities/apps';
-import { AppSlugMappingsTableName } from '../database/entities/appSlugMappings';
 import { DashboardTileDataAppsTableName } from '../database/entities/dashboards';
 import {
     SavedChartsTableName,
@@ -119,8 +118,6 @@ describe('AppModel.setMetadataIfUnset', () => {
 
     beforeEach(() => {
         tracker.on.select('pg_advisory_xact_lock').response({});
-        // Slug generation also probes historical aliases left by renames.
-        tracker.on.select(AppSlugMappingsTableName).response([]);
     });
 
     afterEach(() => {

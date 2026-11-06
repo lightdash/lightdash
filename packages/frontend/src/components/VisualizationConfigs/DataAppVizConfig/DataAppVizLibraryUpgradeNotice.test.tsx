@@ -5,8 +5,8 @@ import {
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
-import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useRegistryChartTypes } from '../../../features/chartTypes/hooks/useRegistryChartTypes';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DataAppVizLibraryUpgradeNotice from './DataAppVizLibraryUpgradeNotice';
 
@@ -16,8 +16,8 @@ vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
 vi.mock('../../../features/chartTypes/hooks/useRegistryChartTypes', () => ({
     useRegistryChartTypes: vi.fn(),
 }));
-vi.mock('../../../features/chartTypes/hooks/useChartTypesEnabled', () => ({
-    useChartTypesEnabled: vi.fn(),
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: vi.fn(),
 }));
 vi.mock(
     '../../../features/chartTypes/components/ChartTypeUpgradeModal',
@@ -91,10 +91,9 @@ describe('DataAppVizLibraryUpgradeNotice', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
-        vi.mocked(useChartTypesEnabled).mockReturnValue({
-            enabled: true,
-            isLoading: false,
-        });
+        vi.mocked(useServerFeatureFlag).mockReturnValue({
+            data: { enabled: true },
+        } as ReturnType<typeof useServerFeatureFlag>);
         mockRegistry([registryUpdate]);
     });
 
@@ -145,11 +144,10 @@ describe('DataAppVizLibraryUpgradeNotice', () => {
         expect(screen.queryByText(/Update available/)).not.toBeInTheDocument();
     });
 
-    it('disables fetching and hides cached offers when chart types are off', () => {
-        vi.mocked(useChartTypesEnabled).mockReturnValue({
-            enabled: false,
-            isLoading: false,
-        });
+    it('disables fetching and hides cached offers when the feature flag is off', () => {
+        vi.mocked(useServerFeatureFlag).mockReturnValue({
+            data: { enabled: false },
+        } as ReturnType<typeof useServerFeatureFlag>);
         renderNotice();
         expect(useRegistryChartTypes).toHaveBeenCalledWith('project-1', false);
         expect(screen.queryByText(/Update available/)).not.toBeInTheDocument();

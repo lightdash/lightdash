@@ -1,6 +1,6 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
 import { Box, Center, Loader, Text } from '@mantine/core';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -28,6 +28,7 @@ import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
 import Table from '../../common/Table';
+import { JsonViewerModal } from '../../JsonViewerModal';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import classes from './ExplorerResults.module.css';
@@ -338,6 +339,23 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         useExplore(activeTableName, {
             refetchOnMount: false,
         });
+    const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
+    const [expandData, setExpandData] = useState<{
+        name: string;
+        jsonObject: Record<string, unknown>;
+    }>({
+        name: 'unknown',
+        jsonObject: {},
+    });
+
+    const handleCellExpand = (name: string, data: Record<string, unknown>) => {
+        setExpandData({
+            name: name,
+            jsonObject: data,
+        });
+        setIsExpandModalOpened(true);
+    };
+
     const itemsMap = useMemo(() => {
         if (mergeResults) return mergeResults.fields;
         return exploreData
@@ -435,6 +453,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 isEditMode={isEditMode}
                 {...props}
                 itemsMap={itemsMap}
+                onExpand={handleCellExpand}
             />
         ),
         [isEditMode, itemsMap],
@@ -596,6 +615,13 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                         columnProperties={columnProperties}
                     />
                 )}
+
+                <JsonViewerModal
+                    heading={`Field: ${expandData.name}`}
+                    jsonObject={expandData.jsonObject}
+                    opened={isExpandModalOpened}
+                    onClose={() => setIsExpandModalOpened(false)}
+                />
             </Box>
         </TrackSection>
     );

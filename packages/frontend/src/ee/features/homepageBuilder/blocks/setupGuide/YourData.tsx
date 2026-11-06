@@ -134,10 +134,7 @@ const SemanticLayerModal: FC<{
     );
 };
 
-const HowItWorks: FC<{
-    projectUuid: string;
-    semanticStudioUrl: string | null;
-}> = ({ projectUuid, semanticStudioUrl }) => {
+const HowItWorks: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const [isOpen, { open, close }] = useDisclosure(false);
     return (
         <>
@@ -156,17 +153,10 @@ const HowItWorks: FC<{
             <SemanticLayerModal
                 opened={isOpen}
                 onClose={close}
-                finalAction={
-                    semanticStudioUrl
-                        ? {
-                              label: 'Open your semantic layer',
-                              to: semanticStudioUrl,
-                          }
-                        : {
-                              label: 'Explore your metrics',
-                              to: `/projects/${projectUuid}/metrics`,
-                          }
-                }
+                finalAction={{
+                    label: 'Explore your metrics',
+                    to: `/projects/${projectUuid}/metrics`,
+                }}
             />
         </>
     );
@@ -428,10 +418,7 @@ export const YourData: FC<{
                     {guide.liveConnections.map(liveSourceTag)}
                 </Group>
                 {guide.semanticExplores.length > 0 && (
-                    <HowItWorks
-                        projectUuid={projectUuid}
-                        semanticStudioUrl={guide.semanticStudioUrl}
-                    />
+                    <HowItWorks projectUuid={projectUuid} />
                 )}
             </Group>
             <NextSteps

@@ -59,15 +59,10 @@ test.describe('Pivot Tables', () => {
         ).toBeAttached();
 
         const dragSelector =
-            '[role="tabpanel"] [data-pivot-item="orders_is_completed"] [aria-roledescription="sortable"]:visible';
-        const dropSelector = '[data-pivot-list="COLUMNS"]:visible';
+            '[role="tabpanel"] [data-rfd-drag-handle-draggable-id="orders_is_completed"]:visible';
+        const dropSelector = '[data-rfd-droppable-id="COLUMNS"]:visible';
 
         await dragAndDrop(page, dragSelector, dropSelector);
-        await expect(
-            page.locator(
-                '[data-pivot-list="COLUMNS"] [data-pivot-item="orders_is_completed"]',
-            ),
-        ).toBeAttached();
 
         // Pivoting now runs in SQL, so re-run the query to fetch pivoted results.
         await page.getByRole('button', { name: 'Run query' }).first().click();

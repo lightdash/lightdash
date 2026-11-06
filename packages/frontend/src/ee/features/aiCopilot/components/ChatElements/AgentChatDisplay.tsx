@@ -244,10 +244,6 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                                 isLastMessage={
                                                     i === xs.length - 1
                                                 }
-                                                canRetry={
-                                                    thread.createdFrom !==
-                                                    'slack'
-                                                }
                                                 debug={debug}
                                                 projectUuid={projectUuid}
                                                 agentUuid={agentUuid}

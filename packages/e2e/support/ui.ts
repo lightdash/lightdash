@@ -78,7 +78,7 @@ export const scrollTreeToItem = async (
     return item;
 };
 
-// Drags with real mouse events, which is what dnd-kit's mouse sensor listens for.
+// Drags with real mouse events, which is what react-beautiful-dnd listens for.
 export const dragAndDrop = async (
     page: Page,
     dragSelector: string,
@@ -88,6 +88,9 @@ export const dragAndDrop = async (
     const droppable = page.locator(dropSelector).first();
     await expect(draggable).toBeVisible();
     await expect(droppable).toBeVisible();
+    const draggableId = await draggable.getAttribute(
+        'data-rfd-drag-handle-draggable-id',
+    );
     const from = await draggable.boundingBox();
     const to = await droppable.boundingBox();
     if (!from || !to) throw new Error('Drag source or target has no bounds');
@@ -98,6 +101,11 @@ export const dragAndDrop = async (
     await page.mouse.move(start.x + 5, start.y + 5);
     await page.mouse.move(end.x, end.y, { steps: 10 });
     await page.mouse.up();
+    if (draggableId) {
+        await expect(
+            droppable.locator(`[data-rfd-draggable-id="${draggableId}"]`),
+        ).toBeAttached();
+    }
 };
 
 // The explore page renders two "Run query" buttons; the first is the toolbar one.

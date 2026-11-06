@@ -12,8 +12,6 @@ import OnboardingLayout from '../../../components/common/OnboardingLayout';
 import { WarehouseTypeLabels } from '../../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
-import { WAREHOUSE_SOURCE_ID } from '../../../features/semanticStudio/realProject';
-import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -31,30 +29,16 @@ type Source = {
     connector: ApiConnectorType | null;
 };
 
-const SourceName: FC<{ source: Source; to: string | null }> = ({
-    source,
-    to,
-}) => {
-    const content = (
-        <>
-            {source.logo ? (
-                <Image src={source.logo} alt="" w={12} h={12} fit="contain" />
-            ) : (
-                <LiveSourceIcon connector={source.connector} size={12} />
-            )}
-            {source.name}
-        </>
-    );
-    return to ? (
-        <Link to={to} className={classes.source}>
-            {content}
-        </Link>
-    ) : (
-        <Box component="span" className={classes.source}>
-            {content}
-        </Box>
-    );
-};
+const SourceName: FC<{ source: Source }> = ({ source }) => (
+    <Box component="span" className={classes.source}>
+        {source.logo ? (
+            <Image src={source.logo} alt="" w={12} h={12} fit="contain" />
+        ) : (
+            <LiveSourceIcon connector={source.connector} size={12} />
+        )}
+        {source.name}
+    </Box>
+);
 
 const FIRST_QUESTION =
     "What's in my data, and what are three questions worth asking?";
@@ -94,7 +78,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
         ...(warehouse?.iconType === 'image'
             ? [
                   {
-                      key: WAREHOUSE_SOURCE_ID,
+                      key: 'warehouse',
                       name: warehouse.label,
                       logo: warehouse.image,
                       connector: null,
@@ -134,13 +118,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                                         (index === sources.length - 1
                                             ? ' and '
                                             : ', ')}
-                                    <SourceName
-                                        source={source}
-                                        to={getSemanticStudioSourceUrl(
-                                            projectUuid,
-                                            source.key,
-                                        )}
-                                    />
+                                    <SourceName source={source} />
                                 </Fragment>
                             ))}{' '}
                             is ready.

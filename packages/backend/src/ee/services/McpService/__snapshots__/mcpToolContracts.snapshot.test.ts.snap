@@ -10605,7 +10605,9 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Run composer queries",
       },
-      "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+      "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+
+One call returns one node's rows, so exactly one submitted node may go unread by the others: combine several results in one duckdb node (UNION ALL or JOIN), or submit them in separate calls reusing earlier nodes.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -10614,13 +10616,13 @@ Node kinds:
 - "duckdb": DuckDB SQL over other results declared in "references".
 - "python": pandas code over other results declared in "references".
 
-A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
 
 A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
 
 Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
-Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
+Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -10698,7 +10700,7 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
                                 "type": "string",
                               },
                               "name": {
-                                "description": "snake_case name. The metric's field id is "<table>_<name>"; defining it selects it, and the id works in sorts, metric filters and periodComparisons.",
+                                "description": "snake_case name. The metric's field id is "<table>_<name>": list it in "metrics" to select it, and use it in sorts, metric filters and periodComparisons.",
                                 "pattern": "^[a-z][a-z0-9_]*$",
                                 "type": "string",
                               },
@@ -10856,7 +10858,7 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
                           "items": {
                             "properties": {
                               "metricFieldId": {
-                                "description": "Metric to compare: a field id in "metrics" or a custom metric's.",
+                                "description": "Metric to compare: a field id in "metrics", explore or custom.",
                                 "type": "string",
                               },
                               "periodOffset": {
@@ -10912,7 +10914,7 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
                         },
                       ],
                       "default": null,
-                      "description": "Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
+                      "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
                     },
                     "sourceType": {
                       "const": "semanticLayer",
@@ -11112,7 +11114,7 @@ def run(inputs, params):
     return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
 
 Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
-Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, polars 1.44. No network, no installs.",
+Rows past "limit" are dropped, so aggregate here. Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, polars 1.44. No network, no installs.",
                       "type": "string",
                     },
                     "description": {
@@ -11183,7 +11185,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
           },
           "terminalNodeId": {
             "default": null,
-            "description": "The terminal node. Null picks the last submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
+            "description": "The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
             "type": [
               "string",
               "null",
@@ -11297,7 +11299,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
                       "type": "null",
                     },
                   ],
-                  "description": "First rows of a done node submitted in this call other than the terminal node: 5, more for a node no other node reads; null for the terminal node and for reused, failed or unfinished nodes.",
+                  "description": "First 5 rows of a done node submitted in this call other than the terminal node; null for the terminal node and for reused, failed or unfinished nodes.",
                 },
                 "sourceType": {
                   "enum": [
@@ -11363,7 +11365,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
             ],
           },
           "status": {
-            "description": "running when a node outlived the wait; poll get_query_result with the queryUuids the result names.",
+            "description": "running when the terminal node outlived the wait; poll get_query_result with its queryUuid.",
             "enum": [
               "done",
               "running",

@@ -18,7 +18,6 @@ import {
     IconArrowDownLeft,
     IconBrandSlack,
     IconChartBar,
-    IconChartRadar,
     IconChevronRight,
     IconCircleCheckFilled,
     IconDatabase,
@@ -39,7 +38,6 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { HomepageTour } from '../../onboarding';
 import { type RecommendedActionsState } from '../useRecommendedActions';
-import { ChartTypeSuggestions } from './ChartTypeSuggestions';
 import classes from './SetupGuide.module.css';
 import {
     countProgress,
@@ -78,11 +76,6 @@ const ROW_COPY: Record<
         icon: IconChartBar,
         pitch: `Ask ${AI_NAME}, or pick a table and build it yourself.`,
         time: '2 min',
-    },
-    'chart-types': {
-        icon: IconChartRadar,
-        pitch: 'Heatmaps, radar charts and more, installed from the chart library.',
-        time: '1 min',
     },
     'source-control': {
         icon: IconGitBranch,
@@ -227,11 +220,7 @@ const GuideRow: FC<
             disabled={!canPreview}
             position="right-start"
             offset={24}
-            width={
-                row.choices.length > 0 || row.preview?.kind === 'chart-types'
-                    ? 360
-                    : 280
-            }
+            width={row.choices.length > 0 ? 360 : 280}
             openDelay={120}
             closeDelay={80}
         >
@@ -299,12 +288,6 @@ const GuideRow: FC<
                             ))}
                         </Box>
                     </Box>
-                ) : row.preview?.kind === 'chart-types' && action ? (
-                    <ChartTypeSuggestions
-                        projectUuid={projectUuid}
-                        chartTypes={row.preview.chartTypes}
-                        libraryUrl={action.to}
-                    />
                 ) : (
                     <>
                         <StepArt

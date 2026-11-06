@@ -1454,8 +1454,8 @@ export class AsyncQueryService extends ProjectService {
         reader: QueryResultReader = buildResultReader(account),
     ): Promise<CreateCacheResult> {
         if (!invalidateCache) {
-            // CommercialCacheService gates internally on the project's
-            // results cache setting.
+            // CommercialCacheService gates internally on the
+            // ResultsCacheEnabled feature flag (DB → env fallback).
             const existingCache =
                 await this.cacheService?.findCachedResultsFile(
                     projectUuid,
@@ -11969,7 +11969,6 @@ export class AsyncQueryService extends ProjectService {
         if (effectiveLimit > maxLimit) {
             throw new ParameterError(`limit must be at most ${maxLimit} rows`);
         }
-        await this.trackFirstQueryForAccount(account);
         const requestParameters: ExecuteAsyncApiQueryRequestParams = {
             connectionUuid,
             payload,
@@ -12038,26 +12037,6 @@ export class AsyncQueryService extends ProjectService {
      * Answers a metric query on a live data source explore with one call to
      * its integration. Callers MUST authorize the account for the explore.
      */
-    private async trackFirstQueryForAccount(account: Account): Promise<void> {
-        assertIsAccountWithOrg(account);
-        const { organizationUuid } = account.organization;
-        // Analytics only: never fail the query
-        try {
-            await this.trackFirstQuery(
-                account,
-                organizationUuid,
-                await this.getOnboardingFlow({
-                    userUuid: account.user.id,
-                    organizationUuid,
-                }),
-            );
-        } catch (error) {
-            this.logger.warn(
-                `Failed to track first query for organization ${organizationUuid}: ${getErrorMessage(error)}`,
-            );
-        }
-    }
-
     private async executePreparedApiSourceQuery(
         args: PreparedAsyncQueryArgs,
         requestParameters: ExecuteAsyncQueryRequestParams,
@@ -12092,7 +12071,6 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Live data sources are not enabled');
         }
         await this.assertApiQuerySourcesEnabled(account);
-        await this.trackFirstQueryForAccount(account);
 
         const metricQuery = queryComposer.getMetricQuery();
         const fields = queryComposer.getFields();
@@ -12815,8 +12793,6 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(getErrorMessage(e));
         }
 
-        await this.trackFirstQueryForAccount(account);
-
         // Parameter values change the executed SQL without changing its text
         const sharedCacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
@@ -13503,8 +13479,6 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             parameters,
         );
-
-        await this.trackFirstQueryForAccount(account);
 
         // Table versions invalidate cached SQL results after refresh.
         const externalSourceSalt = resolvedTables

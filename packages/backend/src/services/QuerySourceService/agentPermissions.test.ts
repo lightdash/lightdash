@@ -190,7 +190,6 @@ const setup = (
                     .runComposerQueries({
                         queries,
                         terminalNodeId: queries.at(-1)!.nodeId!,
-                        otherUnreadNodeIds: [],
                         sampleNodeIds: [],
                     }),
         );

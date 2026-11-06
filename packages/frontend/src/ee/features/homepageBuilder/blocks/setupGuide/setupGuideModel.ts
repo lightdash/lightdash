@@ -4,11 +4,9 @@ import {
     type AgentOnboardingRun,
     type HomepageRecommendedActionKey,
     type OrganizationBrand,
-    type RegistryChartTypeListItem,
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
 import { AI_NAME } from '../../../../../components/common/aiName';
-import { getSemanticStudioLiveSourcesUrl } from '../../../../../features/semanticStudio/urls';
 import {
     getAgentOnboardingRunUrl,
     plural,
@@ -27,7 +25,6 @@ export type SetupGuideRowId =
     | 'app-data'
     | 'semantic-layer'
     | 'first-chart'
-    | 'chart-types'
     | 'source-control'
     | 'brand'
     | 'slack'
@@ -39,9 +36,7 @@ export type SetupGuideEvidence = {
     swatches: string[];
 };
 
-export type SetupGuidePreview =
-    | { kind: 'agent-run'; run: AgentOnboardingRun }
-    | { kind: 'chart-types'; chartTypes: RegistryChartTypeListItem[] };
+export type SetupGuidePreview = { kind: 'agent-run'; run: AgentOnboardingRun };
 
 export type SetupGuideChoice = {
     kind: 'ask' | 'explore';
@@ -85,20 +80,14 @@ export type SetupGuideFacts = {
     skippedRows: SetupGuideRowId[];
     semanticModelCount: number;
     chartCount: number;
-    // Installed chart types, the starter set onboarding adds included
-    chartTypeNames: string[];
     activeRun: AgentOnboardingRun | null;
     // Its run page shows what was built, so review lands there
     completedRun: AgentOnboardingRun | null;
-    // Semantic Layer page, when its flag is on; review lands there over the run page
-    semanticStudioUrl: string | null;
     appSourceNames: string[];
     // The live sources settings page only exists behind its flag and permission
     canAddLiveSources: boolean;
     brand: OrganizationBrand | null;
     teammateCount: number;
-    // null where the chart type library is unavailable to this org
-    libraryChartTypes: RegistryChartTypeListItem[] | null;
 };
 
 export const isCompletedStatus = (status: SetupGuideStatus): boolean => {
@@ -190,7 +179,7 @@ const warehouseRow = (facts: SetupGuideFacts): SetupGuideRow => {
 
 const appDataRow = (facts: SetupGuideFacts): SetupGuideRow => {
     const { projectUuid, appSourceNames } = facts;
-    const to = getSemanticStudioLiveSourcesUrl(projectUuid);
+    const to = `/generalSettings/projectManagement/${projectUuid}/liveDataSources`;
     const hasSources = appSourceNames.length > 0;
     return {
         id: 'app-data',
@@ -213,7 +202,6 @@ const semanticLayerRow = ({
     skippedActions,
     activeRun,
     completedRun,
-    semanticStudioUrl,
     semanticModelCount,
 }: SetupGuideFacts): SetupGuideRow => {
     const { url, ctaLabel } = statuses['add-semantic-layer'];
@@ -243,14 +231,12 @@ const semanticLayerRow = ({
             ),
             action: {
                 label: 'Review',
-                to:
-                    semanticStudioUrl ??
-                    (completedRun
-                        ? getAgentOnboardingRunUrl(
-                              completedRun.agentOnboardingRunUuid,
-                              completedRun.projectUuid,
-                          )
-                        : `/projects/${projectUuid}/tables`),
+                to: completedRun
+                    ? getAgentOnboardingRunUrl(
+                          completedRun.agentOnboardingRunUuid,
+                          completedRun.projectUuid,
+                      )
+                    : `/projects/${projectUuid}/tables`,
             },
             preview: null,
             choices: [],
@@ -300,53 +286,6 @@ const firstChartRow = (facts: SetupGuideFacts): SetupGuideRow => {
                       },
                   ],
     };
-};
-
-const MAX_CHART_TYPE_SUGGESTIONS = 3;
-
-// Installed types first; otherwise library picks once there is a chart to try them on
-const chartTypeRows = (facts: SetupGuideFacts): SetupGuideRow[] => {
-    const { projectUuid, chartCount, chartTypeNames, libraryChartTypes } =
-        facts;
-    if (chartTypeNames.length > 0) {
-        return [
-            {
-                id: 'chart-types',
-                title: 'Try a chart type',
-                status: 'ready',
-                evidence: evidence(
-                    `${plural(chartTypeNames.length, 'chart type')} ready: ${chartTypeNames.slice(0, 3).join(', ')}`,
-                ),
-                action: {
-                    label: 'Browse',
-                    to: `/projects/${projectUuid}/chart-studio`,
-                },
-                actionKey: null,
-                preview: null,
-                choices: [],
-            },
-        ];
-    }
-    if (chartCount === 0 || !libraryChartTypes) return [];
-    const suggestions = libraryChartTypes
-        .filter((item) => item.state === 'not_installed')
-        .slice(0, MAX_CHART_TYPE_SUGGESTIONS);
-    if (suggestions.length === 0) return [];
-    return [
-        {
-            id: 'chart-types',
-            title: 'Try a new chart type',
-            status: openStatus(facts, 'chart-types'),
-            evidence: null,
-            action: {
-                label: 'Browse',
-                to: `/projects/${projectUuid}/chart-studio?tab=chart-library`,
-            },
-            actionKey: null,
-            preview: { kind: 'chart-types', chartTypes: suggestions },
-            choices: [],
-        },
-    ];
 };
 
 const MAX_SWATCHES = 4;
@@ -424,7 +363,7 @@ export const buildSetupGuide = (
             id: 'first-chart',
             title: 'Your first chart',
             why: `Ask ${AI_NAME}, or pick a table and build it yourself.`,
-            rows: [firstChartRow(facts), ...chartTypeRows(facts)],
+            rows: [firstChartRow(facts)],
         },
         {
             id: 'brand',

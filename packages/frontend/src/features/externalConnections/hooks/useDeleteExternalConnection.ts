@@ -19,16 +19,7 @@ const deleteExternalConnection = async (
         body: undefined,
     });
 
-type DeleteMessages = { deleted: string; failed: string };
-
-const CONNECTION_MESSAGES: DeleteMessages = {
-    deleted: 'Connection deleted',
-    failed: 'Failed to delete connection',
-};
-
-export const useDeleteExternalConnection = (
-    messages: DeleteMessages = CONNECTION_MESSAGES,
-) => {
+export const useDeleteExternalConnection = () => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -39,11 +30,11 @@ export const useDeleteExternalConnection = (
             await queryClient.invalidateQueries({
                 queryKey: ['external-connections', variables.projectUuid],
             });
-            showToastSuccess({ title: messages.deleted });
+            showToastSuccess({ title: 'Connection deleted' });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: messages.failed,
+                title: 'Failed to delete connection',
                 apiError: error,
             });
         },

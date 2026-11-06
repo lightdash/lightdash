@@ -23805,33 +23805,6 @@
                 },
                 "type": "object"
             },
-            "ApiSuccess__installedSlugs_description-Slugsthiscallinstalled--already-installedonesareleftout_-string-Array__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "installedSlugs": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "description": "Slugs this call installed; already-installed ones are left out"
-                            }
-                        },
-                        "required": ["installedSlugs"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiInstallStarterChartTypesResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__installedSlugs_description-Slugsthiscallinstalled--already-installedonesareleftout_-string-Array__"
-            },
             "DataAppVizDeleteImpact": {
                 "properties": {
                     "chartCount": {
@@ -61923,32 +61896,6 @@
                 ],
                 "type": "object"
             },
-            "ResultsCacheStatus": {
-                "properties": {
-                    "enabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["enabled"],
-                "type": "object"
-            },
-            "ApiSuccess_ResultsCacheStatus_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ResultsCacheStatus"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiResultsCacheStatusResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_ResultsCacheStatus_"
-            },
             "ResultsCacheClearSchedule": {
                 "properties": {
                     "nextRunAt": {
@@ -61993,13 +61940,6 @@
                         "format": "double",
                         "nullable": true
                     },
-                    "cacheEnabledSetByInstance": {
-                        "type": "boolean",
-                        "description": "True when the deprecated RESULTS_CACHE_ENABLED env var sets caching for every project."
-                    },
-                    "cacheEnabled": {
-                        "type": "boolean"
-                    },
                     "projectUuid": {
                         "type": "string"
                     }
@@ -62010,8 +61950,6 @@
                     "lastInvalidatedAt",
                     "instanceDefaultTtlSeconds",
                     "cacheTtlSeconds",
-                    "cacheEnabledSetByInstance",
-                    "cacheEnabled",
                     "projectUuid"
                 ],
                 "type": "object"
@@ -62038,14 +61976,10 @@
                     "cacheTtlSeconds": {
                         "type": "number",
                         "format": "double",
-                        "nullable": true,
-                        "description": "Omit to keep the current value. Pass null to use the instance default."
-                    },
-                    "cacheEnabled": {
-                        "type": "boolean",
-                        "description": "Omit to keep the current value."
+                        "nullable": true
                     }
                 },
+                "required": ["cacheTtlSeconds"],
                 "type": "object"
             },
             "UpdateResultsCacheClearSchedule": {
@@ -76075,7 +76009,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.168.0",
+        "version": "3.159.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -105244,47 +105178,6 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/results-cache-config/status": {
-            "get": {
-                "operationId": "getProjectResultsCacheStatus",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiResultsCacheStatusResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Whether query results are cached for a project. Readable by anyone who\ncan view the project.",
-                "summary": "Get results cache status",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v1/projects/{projectUuid}/results-cache-config": {
             "get": {
                 "operationId": "getProjectResultsCacheSettings",
@@ -105310,7 +105203,7 @@
                         }
                     }
                 },
-                "description": "Get the results cache settings for a project: whether caching is\nenabled and its TTL. A null TTL means the instance-wide default applies.",
+                "description": "Get the results cache TTL for a project. A null TTL means the\ninstance-wide default applies.",
                 "summary": "Get results cache settings",
                 "tags": ["Projects"],
                 "security": [],
@@ -105349,7 +105242,7 @@
                         }
                     }
                 },
-                "description": "Enable or disable results caching for a project, or update its TTL.\nOmitted fields keep their current value. Pass a null TTL to fall back to\nthe instance-wide default.",
+                "description": "Update the results cache TTL for a project. Pass null to fall back to\nthe instance-wide default.",
                 "summary": "Update results cache settings",
                 "tags": ["Projects"],
                 "security": [],
@@ -114665,61 +114558,6 @@
                 },
                 "description": "Check if there are any metrics in catalog",
                 "summary": "Check if metrics exist in catalog",
-                "tags": ["Catalog"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/tables": {
-            "get": {
-                "operationId": "getMetricTables",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "results": {
-                                            "items": {
-                                                "type": "string"
-                                            },
-                                            "type": "array"
-                                        },
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the tables that have metrics visible in the metrics catalog, for the tables filter dropdown",
-                "summary": "List metrics catalog tables",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [

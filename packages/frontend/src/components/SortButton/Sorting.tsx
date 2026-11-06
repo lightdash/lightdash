@@ -1,4 +1,10 @@
 import {
+    DragDropContext,
+    Draggable,
+    Droppable,
+    type DropResult,
+} from '@hello-pangea/dnd';
+import {
     isField,
     type CustomDimension,
     type Field,
@@ -27,7 +33,7 @@ import {
     type PivotSortIdentity,
 } from '../../utils/pivotSortIdentity';
 import MantineIcon from '../common/MantineIcon';
-import { SortableItem, SortableList } from '../common/Sortable/Sortable';
+import { DraggablePortalHandler } from '../VisualizationConfigs/TreemapConfig/DraggablePortalHandler';
 import classes from './Sorting.module.css';
 import SortItem from './SortItem';
 
@@ -98,12 +104,11 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
         [dispatch, sorts],
     );
 
-    const sortKeys = sorts.map((sort) =>
-        serializeIdentity({
-            fieldId: sort.fieldId,
-            pivotValues: sort.pivotValues,
-        }),
-    );
+    const onDragEnd = (result: DropResult) => {
+        if (!result.destination) return;
+        if (result.destination.index === result.source.index) return;
+        moveSortFields(result.source.index, result.destination.index);
+    };
 
     const addOptions = columns
         .map((c) => {
@@ -134,46 +139,90 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
 
     return (
         <>
-            <SortableList
-                items={sortKeys}
-                onReorder={(from, to) => moveSortFields(from, to)}
-            >
-                {sorts.map((sort, index) => {
-                    const identity: PivotSortIdentity = {
-                        fieldId: sort.fieldId,
-                        pivotValues: sort.pivotValues,
-                    };
-                    const key = sortKeys[index];
-                    return (
-                        <SortableItem key={key} id={key} disabled={!isEditMode}>
-                            {(sortable) => (
-                                <SortItem
-                                    isEditMode={isEditMode}
-                                    sortable={sortable}
-                                    isFirstItem={index === 0}
-                                    isOnlyItem={sorts.length === 1}
-                                    sort={sort}
-                                    column={columns.find(
-                                        (c) => c.id === sort.fieldId,
-                                    )}
-                                    onAddSortField={(opts) => {
-                                        addSortField(identity, opts);
-                                    }}
-                                    onRemoveSortField={() => {
-                                        removeSortField(identity);
-                                    }}
-                                    onSetSortFieldNullsFirst={(payload) => {
-                                        setSortFieldNullsFirst(
-                                            identity,
-                                            payload,
-                                        );
-                                    }}
-                                />
-                            )}
-                        </SortableItem>
-                    );
-                })}
-            </SortableList>
+            <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="results-table-sort-fields">
+                    {(provided) => (
+                        <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                        >
+                            {sorts.map((sort, index) => {
+                                const identity: PivotSortIdentity = {
+                                    fieldId: sort.fieldId,
+                                    pivotValues: sort.pivotValues,
+                                };
+                                const key = serializeIdentity(identity);
+                                return (
+                                    <Draggable
+                                        key={key}
+                                        isDragDisabled={!isEditMode}
+                                        draggableId={key}
+                                        index={index}
+                                    >
+                                        {(
+                                            {
+                                                draggableProps,
+                                                dragHandleProps,
+                                                innerRef,
+                                            },
+                                            snapshot,
+                                        ) => (
+                                            <DraggablePortalHandler
+                                                snapshot={snapshot}
+                                            >
+                                                <SortItem
+                                                    isEditMode={isEditMode}
+                                                    ref={innerRef}
+                                                    isFirstItem={index === 0}
+                                                    isOnlyItem={
+                                                        sorts.length === 1
+                                                    }
+                                                    isDragging={
+                                                        snapshot.isDragging
+                                                    }
+                                                    draggableProps={
+                                                        draggableProps
+                                                    }
+                                                    dragHandleProps={
+                                                        dragHandleProps
+                                                    }
+                                                    sort={sort}
+                                                    column={columns.find(
+                                                        (c) =>
+                                                            c.id ===
+                                                            sort.fieldId,
+                                                    )}
+                                                    onAddSortField={(opts) => {
+                                                        addSortField(
+                                                            identity,
+                                                            opts,
+                                                        );
+                                                    }}
+                                                    onRemoveSortField={() => {
+                                                        removeSortField(
+                                                            identity,
+                                                        );
+                                                    }}
+                                                    onSetSortFieldNullsFirst={(
+                                                        payload,
+                                                    ) => {
+                                                        setSortFieldNullsFirst(
+                                                            identity,
+                                                            payload,
+                                                        );
+                                                    }}
+                                                />
+                                            </DraggablePortalHandler>
+                                        )}
+                                    </Draggable>
+                                );
+                            })}
+
+                            {provided.placeholder}
+                        </div>
+                    )}
+                </Droppable>
+            </DragDropContext>
 
             {isEditMode && hasAddableSomething && (
                 <>

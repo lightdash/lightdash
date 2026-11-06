@@ -137,6 +137,14 @@ export enum FeatureFlags {
     SsoOrganizationSettings = 'sso-organization-settings',
 
     /**
+     * Enable query results caching. DB value (user/org override or flag
+     * default) takes precedence; falls back to the RESULTS_CACHE_ENABLED env
+     * var when no DB row is set. Lets shared-instance customers (eu1/app)
+     * opt in per-org without a redeploy.
+     */
+    ResultsCacheEnabled = 'results-cache-enabled',
+
+    /**
      * Show a persistent trial warning banner for an organization on shared
      * instances. This does not block product access.
      */
@@ -223,6 +231,14 @@ export enum FeatureFlags {
     QueryHistory = 'query-history',
 
     /**
+     * Semantic Studio, the internal name of the Semantic Layer page
+     * (/projects/{projectUuid}/semantic-layer): every kind of explore in one
+     * tree, with field details and live data source field editing. Off by
+     * default.
+     */
+    SemanticStudio = 'semantic-studio',
+
+    /**
      * Configurable retention for AI agent threads. Off by default; enabled
      * per-org on demand for enterprise customers.
      */
@@ -248,6 +264,17 @@ export enum FeatureFlags {
      * still delete threads from the agent admin threads view. Off by default.
      */
     AiDisableThreadDeletion = 'ai-disable-thread-deletion',
+
+    /**
+     * Enables the chart type library — browsing and installing official
+     * chart types from the configured chart registry — and, as an either/or
+     * gate with Chart Studio availability and `EnableDataApps`, usage of
+     * installed chart types (picking, configuring, rendering). Authoring,
+     * editing, and forking chart types follow Chart Studio availability
+     * (a valid licence and a configured sandbox provider), not this flag.
+     * Default: off.
+     */
+    ChartTypeRegistry = 'chart-type-registry',
 
     /**
      * Custom metrics created while building a chart inside a dashboard are
@@ -300,12 +327,6 @@ export enum FeatureFlags {
      * cancel it and retry on a new connection.
      */
     RedshiftStalledQueryRecovery = 'redshift-stalled-query-recovery',
-    /**
-     * Experiment, off by default: dashboards always fit the screen in view
-     * mode, and the fit to screen toggle is removed. Enabled for internal
-     * instances only while we gather feedback.
-     */
-    DashboardFitToScreenDefault = 'dashboard-fit-to-screen-default',
 }
 
 export type FeatureFlag = {

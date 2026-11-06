@@ -352,9 +352,18 @@ describe('Enable multiple connections dialog lifecycle', () => {
         await settle();
         await fillForm(user, dialog);
         await user.click(
-            within(dialog).getByRole('button', {
-                name: 'Enable multiple connections',
-            }),
+            within(dialog).getByRole('button', { name: 'Review the switch' }),
+        );
+        const summary = await screen.findByText(
+            /Its connection test passed/,
+            undefined,
+            { timeout: 3_000 },
+        );
+        await user.click(
+            within(summary.closest('[role="dialog"]') as HTMLElement).getByRole(
+                'button',
+                { name: 'Enable multiple connections' },
+            ),
         );
 
         expect(

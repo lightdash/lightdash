@@ -19,14 +19,7 @@ import {
 } from '@mantine/core';
 import { useCallbackRef } from '@mantine/hooks';
 import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
-import {
-    memo,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    type FC,
-    type ReactNode,
-} from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { getFieldSelectLabel } from '../../components/common/FieldSelect/fieldSelectLabel';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
@@ -132,7 +125,7 @@ const MissingFieldWarning: FC<{ fieldLabel: string }> = ({ fieldLabel }) => {
 
 /** A tile card for a tile the control is not on: what it is, and the one action. */
 export const TileCardOffRow: FC<{
-    label: ReactNode;
+    label: string;
     actionLabel: string;
     ariaLabel: string;
     onAction: () => void;
@@ -144,7 +137,6 @@ export const TileCardOffRow: FC<{
         <Button
             size="xs"
             variant="default"
-            flex="0 0 auto"
             aria-label={ariaLabel}
             onClick={onAction}
         >

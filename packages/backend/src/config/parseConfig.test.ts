@@ -67,22 +67,6 @@ describe('Python E2B template configuration', () => {
     });
 });
 
-describe('RESULTS_CACHE_ENABLED', () => {
-    it.each([
-        [undefined, null],
-        ['', null],
-        ['true', true],
-        [' TRUE ', true],
-        ['false', false],
-        ['False', false],
-        ['1', true],
-        ['0', false],
-    ])('parses %j as %s', (value, expected) => {
-        if (value !== undefined) process.env.RESULTS_CACHE_ENABLED = value;
-        expect(parseConfig().results.cacheEnabled).toBe(expected);
-    });
-});
-
 describe('agent result identity check configuration', () => {
     it.each([
         [undefined, true],

@@ -386,8 +386,6 @@ export type ApiListQuerySourcesResults = {
 export type ApiScanQuerySourceSchemaResults = QuerySourceSchema;
 
 export const DEFAULT_SOURCE_QUERY_LIMIT = 500;
-/** Nodes one submission may hold. */
-export const MAX_SOURCE_QUERIES_PER_SUBMISSION = 25;
 
 export const getSourceQueryLimit = (query: { limit?: number }): number =>
     query.limit ?? DEFAULT_SOURCE_QUERY_LIMIT;

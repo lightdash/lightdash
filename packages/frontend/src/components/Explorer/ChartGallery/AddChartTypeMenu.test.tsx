@@ -144,7 +144,6 @@ vi.mock('react-router', async (importOriginal) => ({
 // Install) see an empty ability unless a test passes one.
 const renderMenu = (
     ability: Ability<PossibleAbilities> = new Ability<PossibleAbilities>(),
-    licensed = false,
 ) =>
     renderWithProviders(
         <Provider store={createExplorerStore()}>
@@ -154,9 +153,6 @@ const renderMenu = (
                 </MemoryRouter>
             </AbilityContext.Provider>
         </Provider>,
-        licensed
-            ? { health: { license: { hasLicenseKey: true, valid: true } } }
-            : undefined,
     );
 
 const expectLibraryDialog = async () => {
@@ -172,7 +168,7 @@ const expectLibraryDialog = async () => {
 describe('AddChartTypeMenu', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        featureFlags.current = {};
+        featureFlags.current = { [FeatureFlags.ChartTypeRegistry]: true };
         vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         mocks.canCreateDataApp.mockReturnValue(true);
         registryState.current = { registryEnabled: true, charts: [] };
@@ -249,19 +245,38 @@ describe('AddChartTypeMenu', () => {
         await expectLibraryDialog();
     });
 
-    it('offers only the library without Chart Studio, even with data apps on', async () => {
-        featureFlags.current = { [FeatureFlags.EnableDataApps]: true };
-        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
-        renderMenu(undefined, true);
+    it('starts authoring directly with data apps and the library off', async () => {
+        featureFlags.current = {};
+        renderMenu();
 
-        expect(
-            await screen.findByRole('button', {
-                name: 'Add chart type from the library',
-            }),
-        ).toBeInTheDocument();
+        const button = screen.getByRole('button', {
+            name: 'Add chart type in Chart Studio',
+        });
+        expect(button).not.toHaveAttribute('aria-haspopup');
+
+        await userEvent.click(button);
+        expect(mocks.dispatch).toHaveBeenCalledWith({
+            type: 'startChartTypeAuthoring',
+            payload: { dataAppVizUuid: null },
+        });
+    });
+
+    it('offers only the library without Chart Studio, even with data apps on', () => {
+        featureFlags.current = {
+            [FeatureFlags.EnableDataApps]: true,
+            [FeatureFlags.ChartTypeRegistry]: true,
+        };
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        renderMenu();
+
         expect(
             screen.queryByRole('button', { name: 'Add chart type' }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Add chart type from the library',
+            }),
+        ).toBeInTheDocument();
     });
 
     it('renders nothing when neither destination is open', () => {

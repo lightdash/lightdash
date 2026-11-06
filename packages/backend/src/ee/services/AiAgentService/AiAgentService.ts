@@ -8245,13 +8245,6 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        // A reply generated here would never reach the Slack conversation.
-        if (thread.createdFrom === 'slack') {
-            throw new ForbiddenError(
-                'This thread was created in Slack. Continue the conversation in Slack.',
-            );
-        }
-
         const threadMessages = await this.aiAgentModel.getThreadMessages(
             user.organizationUuid,
             agent.projectUuid,

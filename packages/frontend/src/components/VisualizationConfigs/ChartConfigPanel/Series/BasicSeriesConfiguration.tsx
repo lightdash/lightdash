@@ -1,3 +1,4 @@
+import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     getItemLabelWithoutTableName,
     type CartesianChartLayout,
@@ -12,7 +13,6 @@ import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import MantineIcon from '../../../common/MantineIcon';
-import { type SortableHandleProps } from '../../../common/Sortable/Sortable';
 import {
     useSeriesColor,
     useVisualizationInputs,
@@ -33,7 +33,7 @@ type BasicSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
     series: Series;
     item: Field | TableCalculation | CustomDimension;
-    dragHandleProps?: SortableHandleProps | null;
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
     isDragDisabled?: boolean;
     drawOrder?: SeriesDrawOrderControl;
     showColorPickerIcon?: boolean;

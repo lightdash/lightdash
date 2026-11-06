@@ -26,7 +26,6 @@ import {
     ApiProjectResponse,
     ApiResultsCacheInvalidationResponse,
     ApiResultsCacheProjectSettingsResponse,
-    ApiResultsCacheStatusResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSpaceSummaryListResponse,
@@ -146,14 +145,6 @@ import {
 import { BaseController } from './baseController';
 
 const isPositiveIntegerString = (value: string): boolean => /^\d+$/.test(value);
-
-// Body coercion turns a null boolean into false, so reject it before validation runs
-const rejectNullCacheEnabled: express.RequestHandler = (req, _res, next) => {
-    if (req.body?.cacheEnabled === null) {
-        throw new ParameterError('cacheEnabled must be true or false');
-    }
-    next();
-};
 
 @Route('/api/v1/projects')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -1525,30 +1516,8 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
-     * Whether query results are cached for a project. Readable by anyone who
-     * can view the project.
-     * @summary Get results cache status
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('{projectUuid}/results-cache-config/status')
-    @OperationId('getProjectResultsCacheStatus')
-    async getProjectResultsCacheStatus(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-    ): Promise<ApiResultsCacheStatusResponse> {
-        const results = await this.services
-            .getProjectService()
-            .getProjectResultsCacheStatus(req.account!, projectUuid);
-        return {
-            status: 'ok',
-            results,
-        };
-    }
-
-    /**
-     * Get the results cache settings for a project: whether caching is
-     * enabled and its TTL. A null TTL means the instance-wide default applies.
+     * Get the results cache TTL for a project. A null TTL means the
+     * instance-wide default applies.
      * @summary Get results cache settings
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -1573,8 +1542,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
-     * Enable or disable results caching for a project, or update its TTL.
-     * Omitted fields keep their current value. Pass a null TTL to fall back to
+     * Update the results cache TTL for a project. Pass null to fall back to
      * the instance-wide default.
      * @summary Update results cache settings
      */
@@ -1582,7 +1550,6 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
-        rejectNullCacheEnabled,
     ])
     @SuccessResponse('200', 'Updated')
     @Patch('{projectUuid}/results-cache-config')

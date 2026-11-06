@@ -163,27 +163,6 @@ describe('buildRealProject', () => {
         expect(sourceOf('stripe_charges')?.connectionUuid).toBeUndefined();
     });
 
-    it('gives a live data source without explores its own page', () => {
-        const project = buildRealProject({
-            project: lightdashProject,
-            explores,
-            externalSources: [],
-            liveConnections: [
-                connection('c-1', 'PostHog', 'posthog'),
-                connection('c-3', 'Fresh PostHog', 'posthog_3'),
-            ],
-        });
-        expect(project.sources.find(({ id }) => id === 'c-3')).toMatchObject({
-            kind: 'live',
-            name: 'Fresh PostHog',
-            connectionUuid: 'c-3',
-            settingsPath: null,
-        });
-        expect(
-            project.explores.some(({ sourceId }) => sourceId === 'c-3'),
-        ).toBe(false);
-    });
-
     it('leaves out pre-aggregates', () => {
         expect(
             everything.explores.some(({ name }) => name === 'orders_rollup'),

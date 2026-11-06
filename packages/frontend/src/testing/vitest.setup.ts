@@ -18,9 +18,6 @@ vi.stubGlobal('fetch', nodeFetch);
 vi.mock('@uiw/react-markdown-preview', () => ({
     default: ReactMarkdownPreview,
 }));
-vi.mock('@uiw/react-markdown-preview/nohighlight', () => ({
-    default: ReactMarkdownPreview,
-}));
 
 beforeAll(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -42,7 +39,7 @@ notifyManager.setNotifyFunction((callback) => {
     callback();
 });
 
-// Libraries (e.g. Mantine focus trap) schedule 0ms timers on
+// Libraries (Mantine focus trap, hello-pangea/dnd) schedule 0ms timers on
 // mount/unmount that touch `document`; flush them before jsdom teardown.
 afterAll(async () => {
     await new Promise((resolve) => {

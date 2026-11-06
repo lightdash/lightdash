@@ -189,10 +189,6 @@
                     "mcp": []
                 }
             }
-        },
-        "results-cache-enabled-flag-removed": {
-            "reason": "The ResultsCacheEnabled member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; results caching is now a per-project setting, and the migration copies each organization's flag value into its projects.",
-            "requiredStop": false
         }
     }
 }

@@ -20,7 +20,8 @@
  *
  * Then point the backend at it (see packages/backend/AGENTS.md /
  * dev-env-local-env-loading for how .env.development.local is picked up by
- * pm2).
+ * pm2) and enable the `chart-type-registry` feature flag — see
+ * `scripts/dev-feature-flags.sh`.
  */
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';

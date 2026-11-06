@@ -20,7 +20,7 @@ exclusion, with a reason, when that isn't safe. Flags are excluded when they:
   and the register page evaluates it anonymously so no override can undo it),
 - are off pending a security review, or are deprecated,
 - derive their value from instance configuration (`ai-copilot`,
-  `enable-timezone-support`) — these are left to their
+  `results-cache-enabled`, `enable-timezone-support`) — these are left to their
   config handler so a preview never advertises an unconfigured backend. To test
   AI copilot in a preview, configure a provider (`AI_COPILOT_ENABLED` plus
   credentials) rather than forcing the flag. PR previews read

@@ -3,7 +3,6 @@ import {
     type AgentOnboardingRun,
     type ExternalConnectionListItem,
     type OrganizationBrand,
-    type RegistryChartTypeListItem,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
@@ -101,15 +100,12 @@ const fresh: SetupGuideFacts = {
     skippedRows: [],
     semanticModelCount: 0,
     chartCount: 0,
-    chartTypeNames: [],
     activeRun: null,
     completedRun: null,
-    semanticStudioUrl: null,
     appSourceNames: [],
     canAddLiveSources: true,
     brand: null,
     teammateCount: 0,
-    libraryChartTypes: null,
 };
 
 const warehouseConnected: SetupGuideFacts['statuses'] = {
@@ -265,50 +261,6 @@ describe('buildSetupGuide', () => {
             '#ff0000',
             '#00ff00',
         ]);
-    });
-
-    it('suggests chart types only after a saved chart, where the library is available', () => {
-        const libraryItem = (slug: string): RegistryChartTypeListItem => ({
-            slug,
-            name: slug,
-            description: '',
-            version: '1.0.0',
-            publishedAt: '2026-11-01',
-            tags: [],
-            changelog: '',
-            minLightdashVersion: null,
-            vizSchema: { fields: [], configOptions: [], colorPalette: null },
-            preview: null,
-            thumbnail: null,
-            thumbnailDark: null,
-            screenshots: [],
-            icon: null,
-            artifacts: {
-                source: { path: 's', sha256: '' },
-                dist: { path: 'd', sha256: '' },
-            },
-            state: 'not_installed',
-            releaseStage: 'stable',
-            installedAppUuid: null,
-            installedRegistryVersion: null,
-            installedCreatedByUserUuid: null,
-        });
-        const library = ['sankey', 'funnel', 'radar', 'gauge'].map(libraryItem);
-        expect(
-            rowById({ ...fresh, libraryChartTypes: library }, 'chart-types'),
-        ).toBeUndefined();
-        expect(
-            rowById({ ...fresh, chartCount: 1 }, 'chart-types'),
-        ).toBeUndefined();
-        expect(
-            rowById(
-                { ...fresh, chartCount: 1, libraryChartTypes: library },
-                'chart-types',
-            ),
-        ).toMatchObject({
-            status: 'suggested',
-            preview: { kind: 'chart-types', chartTypes: library.slice(0, 3) },
-        });
     });
 
     it('takes skipped rows out of the total', () => {
@@ -511,7 +463,6 @@ const bannerGuide: SetupGuideState = {
     sections: [],
     semanticExplores: [],
     liveConnections: [],
-    semanticStudioUrl: '/projects/project-uuid/semantic-layer',
     chartCount: 0,
     activeRun: null,
     completedRunUrl: null,

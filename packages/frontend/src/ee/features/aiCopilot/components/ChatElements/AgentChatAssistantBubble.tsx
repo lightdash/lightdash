@@ -337,7 +337,6 @@ const AssistantBubbleContent: FC<{
     projectUuid: string;
     agentUuid: string;
     isLastMessage: boolean;
-    canRetry: boolean;
     mcpServers?: AiMcpServer[];
     onDashboardLinkClick?: (url: string) => void;
 }> = ({
@@ -345,7 +344,6 @@ const AssistantBubbleContent: FC<{
     projectUuid,
     agentUuid,
     isLastMessage,
-    canRetry,
     mcpServers,
     onDashboardLinkClick,
 }) => {
@@ -428,7 +426,7 @@ const AssistantBubbleContent: FC<{
         ? 'No response'
         : displayErrorTitle;
     const noticeMessage = isBenignEmptyResponse
-        ? `The agent finished without a response.${canRetry ? ' You can try again.' : ''}`
+        ? 'The agent finished without a response. You can try again.'
         : displayErrorMessage;
 
     const baseMessageContent =
@@ -562,7 +560,7 @@ const AssistantBubbleContent: FC<{
                         </Group>
                         {/* Retry re-runs the thread's latest prompt, so only
                             offer it on the message it would actually re-run */}
-                        {canRetry && isLastMessage && (
+                        {isLastMessage && (
                             <Button
                                 size="xs"
                                 variant="default"
@@ -896,7 +894,6 @@ type Props = {
     /** The hidden user turn this reply answers, if any (same prompt uuid). */
     hiddenSibling: AiAgentMessageUser | null;
     isLastMessage: boolean;
-    canRetry: boolean;
     isActive?: boolean;
     debug?: boolean;
     projectUuid: string;
@@ -913,7 +910,6 @@ export const AssistantBubble: FC<Props> = memo(
         message,
         hiddenSibling,
         isLastMessage,
-        canRetry,
         isActive = false,
         debug = false,
         projectUuid,
@@ -1107,7 +1103,6 @@ export const AssistantBubble: FC<Props> = memo(
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     isLastMessage={isLastMessage}
-                    canRetry={canRetry}
                     mcpServers={mcpServers}
                     onDashboardLinkClick={onDashboardLinkClick}
                 />

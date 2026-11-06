@@ -25,10 +25,7 @@ import {
     formatFilterExpressionError,
     resolveExploreFilterExpressions,
 } from '../utils/filterExpressions';
-import {
-    expandMetricsWithPopAdditionalMetrics,
-    getSelectedMetricIds,
-} from '../utils/populateCustomMetricsSQL';
+import { expandMetricsWithPopAdditionalMetrics } from '../utils/populateCustomMetricsSQL';
 
 type ResolveOptions = {
     getExplore: (exploreName: string) => Explore;
@@ -166,19 +163,19 @@ const toAdditionalMetrics = (
     node: ToolComposerSemanticLayerNode,
     explore: Explore,
 ): Resolved<AdditionalMetric[]> => {
-    const exploreFields = getFields(explore);
+    const exploreFieldIds = new Set(getFields(explore).map(getItemId));
     const errors: string[] = [];
     const additionalMetrics = (node.customMetrics ?? []).flatMap(
         (customMetric) => {
             const id = getItemId(customMetric);
-            const clash = exploreFields.find(
-                (field) => getItemId(field) === id,
-            );
-            if (clash) {
+            if (exploreFieldIds.has(id)) {
                 errors.push(
-                    `"${id}" is already the explore's ${clash.fieldType} "${clash.label}": select it instead, or give the custom metric another name.`,
+                    `"${id}" already names a field of the explore; give the custom metric another name.`,
                 );
                 return [];
+            }
+            if (!node.metrics.includes(id)) {
+                errors.push(`add "${id}" to metrics to select it.`);
             }
             try {
                 return [toAdditionalMetric(customMetric, explore)];
@@ -196,7 +193,6 @@ const toPeriodComparisonMetric = (
     node: ToolComposerSemanticLayerNode,
     explore: Explore,
     customMetrics: AdditionalMetric[],
-    selectedMetricIds: string[],
 ): AdditionalMetric => {
     const { metricFieldId, timeDimensionFieldId, periodOffset } =
         periodComparison;
@@ -212,10 +208,8 @@ const toPeriodComparisonMetric = (
             `"${timeDimensionFieldId}" has no day, week, month, quarter or year grain; compare on a time dimension at one of those grains.`,
         );
     }
-    if (!selectedMetricIds.includes(metricFieldId)) {
-        throw new Error(
-            `"${metricFieldId}" must be in metrics or customMetrics.`,
-        );
+    if (!node.metrics.includes(metricFieldId)) {
+        throw new Error(`"${metricFieldId}" must be in metrics.`);
     }
     const customMetric = customMetrics.find(
         (metric) => getItemId(metric) === metricFieldId,
@@ -247,7 +241,6 @@ const toPeriodComparisonMetrics = (
     node: ToolComposerSemanticLayerNode,
     explore: Explore,
     customMetrics: AdditionalMetric[],
-    selectedMetricIds: string[],
 ): Resolved<AdditionalMetric[]> => {
     const compiledIds = new Set(customMetrics.map(getItemId));
     // A custom metric that failed to compile already reports its own error.
@@ -267,7 +260,6 @@ const toPeriodComparisonMetrics = (
                         node,
                         explore,
                         customMetrics,
-                        selectedMetricIds,
                     ),
                 ];
             } catch (e) {
@@ -320,15 +312,10 @@ const resolveSemanticLayerNode = (
     }
     const explore = getExplore(node.exploreName);
     const customMetricDefinitions = toAdditionalMetrics(node, explore);
-    const selectedMetricIds = getSelectedMetricIds(
-        node.metrics,
-        customMetricDefinitions.value,
-    );
     const periodComparisonMetrics = toPeriodComparisonMetrics(
         node,
         explore,
         customMetricDefinitions.value,
-        selectedMetricIds,
     );
     const additionalMetrics = [
         ...customMetricDefinitions.value,
@@ -352,7 +339,7 @@ const resolveSemanticLayerNode = (
     return {
         ...rest,
         metrics: expandMetricsWithPopAdditionalMetrics(
-            selectedMetricIds,
+            node.metrics,
             additionalMetrics,
         ),
         filters: filters.value,

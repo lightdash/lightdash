@@ -1079,14 +1079,8 @@ const Dashboard: FC = () => {
         CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
     );
 
-    // With the flag on, dashboards always fit and viewers get no toggle
-    const fitToScreenDefaultFlag = useServerFeatureFlag(
-        FeatureFlags.DashboardFitToScreenDefault,
-    );
-    const isFitToScreenDefault = fitToScreenDefaultFlag.data?.enabled === true;
     // A viewer-side layout option, kept in the url so a fitted link can be shared
     const isFitToScreen =
-        isFitToScreenDefault ||
         searchParams.get(FIT_TO_SCREEN_SEARCH_PARAM) === 'true';
     const handleToggleFitToScreen = useCallback(() => {
         setSearchParams(
@@ -1476,8 +1470,7 @@ const Dashboard: FC = () => {
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
         isFitToScreen,
-        isFitToScreenAvailable:
-            fitToScreen.isAvailable && !isFitToScreenDefault,
+        isFitToScreenAvailable: fitToScreen.isAvailable,
         onToggleFitToScreen: handleToggleFitToScreen,
         hasDashboardChanged,
         onAddTiles: handleAddTiles,

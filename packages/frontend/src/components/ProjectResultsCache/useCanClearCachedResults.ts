@@ -1,20 +1,22 @@
 import { subject } from '@casl/ability';
-import { useIsResultsCacheEnabled } from '../../hooks/useProjectResultsCacheSettings';
+import { FeatureFlags } from '@lightdash/common';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 
 export const useCanClearCachedResults = (projectUuid: string | undefined) => {
     const { user } = useApp();
-    const canManageProject =
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    return (
         !!projectUuid &&
+        !!resultsCacheFlag?.enabled &&
         !!user.data?.ability.can(
             'manage',
             subject('Project', {
                 organizationUuid: user.data.organizationUuid,
                 projectUuid,
             }),
-        );
-    const isResultsCacheEnabled = useIsResultsCacheEnabled(
-        canManageProject ? projectUuid : undefined,
+        )
     );
-    return canManageProject && isResultsCacheEnabled;
 };

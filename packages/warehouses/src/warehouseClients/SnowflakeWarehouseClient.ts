@@ -49,10 +49,6 @@ const assertIsSnowflakeLoggingLevel = (
 ): x is 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE' =>
     x !== undefined && ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'].includes(x);
 
-// Identifies Lightdash connections to Snowflake. Must exactly match the
-// connection string ID submitted in the Snowflake Partner Network portal.
-const SNOWFLAKE_APPLICATION_ID = 'Lightdash_Lightdash';
-
 // Prevent snowflake sdk from flooding the output with info logs
 configure({
     logLevel: assertIsSnowflakeLoggingLevel(process.env.SNOWFLAKE_SDK_LOG_LEVEL)
@@ -206,7 +202,6 @@ export const checkSnowflakeAgentSessionWithToken = async (
     let connection: Connection | null = null;
     try {
         connection = createConnection({
-            application: SNOWFLAKE_APPLICATION_ID,
             account,
             authenticator: 'OAUTH',
             token,
@@ -917,7 +912,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             : undefined;
 
         this.connectionOptions = {
-            application: SNOWFLAKE_APPLICATION_ID,
             account: credentials.account,
             ...authenticationOptions,
             database: credentials.database,

@@ -884,7 +884,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Shared skills are organization-wide and have no project-only filtering contract.',
         ),
         refused(
-            'handlers/slugUpdate.ts:581',
+            'handlers/slugUpdate.ts:477',
             'POST',
             '`/api/v1/projects/${projectUuid}/slugs/rename`',
             ['ProjectCoderController.renameContentSlug'],

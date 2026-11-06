@@ -1,3 +1,4 @@
+import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import {
     ECHARTS_DEFAULT_COLORS,
     getItemId,
@@ -9,7 +10,6 @@ import {
 } from '@lightdash/common';
 import { Box, Grid, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
-import clsx from 'clsx';
 import { useMemo } from 'react';
 import {
     selectTreemapEditor,
@@ -23,7 +23,6 @@ import { useTreemapEditorActions } from '../../../hooks/useTreemapChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
-import { SortableItem, SortableList } from '../../common/Sortable/Sortable';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
@@ -32,6 +31,7 @@ import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { GrabIcon } from '../common/GrabIcon';
 import classes from './DndList.module.css';
+import { DraggablePortalHandler } from './DraggablePortalHandler';
 
 export const Layout: React.FC = () => {
     const { itemsMap } = useVisualizationInputs();
@@ -78,11 +78,51 @@ export const Layout: React.FC = () => {
         [pools],
     );
 
-    const orderedDimensionIds = !itemsMap
-        ? []
+    const orderedDimensions = !itemsMap
+        ? null
         : groupFieldIds
               .filter((id) => id !== null && id !== undefined)
-              .filter((id) => itemsMap[id]);
+              .filter((id) => itemsMap[id])
+              .map((dimensionId, index) => {
+                  const dimension = itemsMap[dimensionId];
+
+                  return (
+                      <Draggable
+                          key={dimensionId}
+                          index={index}
+                          draggableId={dimensionId}
+                      >
+                          {(provided, snapshot) => (
+                              <DraggablePortalHandler snapshot={snapshot}>
+                                  <Group
+                                      wrap="nowrap"
+                                      gap="xs"
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      className={`${classes.item} ${
+                                          snapshot.isDragging
+                                              ? classes.itemDragging
+                                              : ''
+                                      }`}
+                                  >
+                                      <Box className={classes.dragHandle}>
+                                          <GrabIcon
+                                              dragHandleProps={
+                                                  provided.dragHandleProps
+                                              }
+                                          />
+                                      </Box>
+                                      <Text size="xs">
+                                          {getItemLabelWithoutTableName(
+                                              dimension,
+                                          )}
+                                      </Text>
+                                  </Group>
+                              </DraggablePortalHandler>
+                          )}
+                      </Draggable>
+                  );
+              });
 
     return (
         <Stack>
@@ -102,49 +142,27 @@ export const Layout: React.FC = () => {
                             />
                         </Tooltip>
                     </Group>
-                    <SortableList
-                        items={orderedDimensionIds}
-                        onReorder={(from, to) => groupReorder({ from, to })}
+                    <DragDropContext
+                        onDragEnd={({ destination, source }) => {
+                            if (!destination) return;
+                            groupReorder({
+                                from: source.index,
+                                to: destination.index,
+                            });
+                        }}
                     >
-                        <div>
-                            {orderedDimensionIds.map((dimensionId) => (
-                                <SortableItem
-                                    key={dimensionId}
-                                    id={dimensionId}
+                        <Droppable droppableId="dnd-list" direction="vertical">
+                            {(provided) => (
+                                <div
+                                    ref={provided.innerRef}
+                                    {...provided.droppableProps}
                                 >
-                                    {(sortable) => (
-                                        <Group
-                                            wrap="nowrap"
-                                            gap="xs"
-                                            ref={sortable.ref}
-                                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
-                                            style={sortable.style}
-                                            className={clsx(
-                                                sortable.className,
-                                                classes.item,
-                                                sortable.isDragging &&
-                                                    classes.itemDragging,
-                                            )}
-                                        >
-                                            <Box className={classes.dragHandle}>
-                                                <GrabIcon
-                                                    dragHandleProps={
-                                                        sortable.handleProps
-                                                    }
-                                                />
-                                            </Box>
-                                            <Text size="xs">
-                                                {itemsMap &&
-                                                    getItemLabelWithoutTableName(
-                                                        itemsMap[dimensionId],
-                                                    )}
-                                            </Text>
-                                        </Group>
-                                    )}
-                                </SortableItem>
-                            ))}
-                        </div>
-                    </SortableList>
+                                    {orderedDimensions}
+                                    {provided.placeholder}
+                                </div>
+                            )}
+                        </Droppable>
+                    </DragDropContext>
                 </Config.Section>
             </Config>
 
