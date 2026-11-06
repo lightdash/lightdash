@@ -1,3 +1,16 @@
+# [3.175.0](https://github.com/lightdash/lightdash/compare/3.174.1...3.175.0) (2026-11-06)
+
+
+### Bug Fixes
+
+* reveal truncated big value chart text on hover ([#32179](https://github.com/lightdash/lightdash/issues/32179)) ([a55503b](https://github.com/lightdash/lightdash/commit/a55503ba10479ec9797eb1c41a857822d6919d0f))
+
+
+### Features
+
+* **frontend:** add a Beta badge to live data sources ([#32176](https://github.com/lightdash/lightdash/issues/32176)) ([eed6b4d](https://github.com/lightdash/lightdash/commit/eed6b4d0dbb86b3b513892fd61443f3e1b669b61))
+* **semantic-layer:** quieter field table and field modal ([#32178](https://github.com/lightdash/lightdash/issues/32178)) ([ca88e10](https://github.com/lightdash/lightdash/commit/ca88e105c055702a9414d8ef12f84d4166ef0af8))
+
 ## [3.174.1](https://github.com/lightdash/lightdash/compare/3.174.0...3.174.1) (2026-11-06)
 
 
