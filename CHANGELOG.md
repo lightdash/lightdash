@@ -1,3 +1,10 @@
+## [3.170.1](https://github.com/lightdash/lightdash/compare/3.170.0...3.170.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** drop a section beside the line it is dragged on ([#32171](https://github.com/lightdash/lightdash/issues/32171)) ([2710960](https://github.com/lightdash/lightdash/commit/27109602f8a765ba86de2008f4ca8518f36518f9))
+
 # [3.170.0](https://github.com/lightdash/lightdash/compare/3.169.7...3.170.0) (2026-11-06)
 
 
