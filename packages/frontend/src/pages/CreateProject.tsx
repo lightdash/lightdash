@@ -1,5 +1,5 @@
 import { useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
@@ -28,10 +28,14 @@ const CreateProject: FC = () => {
         health: { data: health, isInitialLoading: isLoadingHealth },
     } = useApp();
 
-    const { method } = useParams<{ method: ConnectMethod }>();
+    const { method } = useParams<{ method: string }>();
     const projectUuid = useSearchParams('projectUuid');
 
     const [warehouse, setWarehouse] = useState<SelectedWarehouse>();
+
+    if (method && !Object.values<string>(ConnectMethod).includes(method)) {
+        return <Navigate to="/createProject" replace />;
+    }
 
     if (isLoadingHealth || !health || isLoadingOrganization || !organization) {
         return <PageSpinner />;
