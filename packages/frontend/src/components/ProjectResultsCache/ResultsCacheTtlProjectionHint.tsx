@@ -2,16 +2,11 @@ import { type ResultsCacheStatsDays } from '@lightdash/common';
 import { Anchor, Box, Divider, Group, Stack, Text } from '@mantine/core';
 import { Fragment, type FC } from 'react';
 import { useResultsCacheTtlProjections } from '../../hooks/useProjectResultsCacheSettings';
+import { formatCacheDuration } from './formatCacheDuration';
 import { formatWarehouseTime } from './formatWarehouseTime';
 import classes from './ResultsCacheTtlProjectionHint.module.css';
 
 const MIN_IMPROVEMENT = 0.01;
-
-const formatTtl = (seconds: number): string => {
-    const hours = seconds / 3600;
-    if (hours >= 48 && hours % 24 === 0) return `${hours / 24} days`;
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-};
 
 type Props = {
     projectUuid: string;
@@ -68,7 +63,9 @@ export const ResultsCacheTtlProjectionHint: FC<Props> = ({
                                             onSelect(projection.ttlSeconds)
                                         }
                                     >
-                                        {formatTtl(projection.ttlSeconds)}
+                                        {formatCacheDuration(
+                                            projection.ttlSeconds,
+                                        )}
                                     </Anchor>
                                 </Box>
                                 <Divider orientation="vertical" />

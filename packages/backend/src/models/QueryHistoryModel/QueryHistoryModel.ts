@@ -1347,13 +1347,17 @@ export class QueryHistoryModel {
         };
     }
 
-    // Counted cache runs: ready, non-bypassed, cache-eligible runs since the cutoff.
-    private static readonly RESULTS_CACHE_RUN_FILTER = `qh.project_uuid = ?
+    // Cache-eligible runs since the cutoff, including runs while caching was off.
+    private static readonly RESULTS_CACHE_ELIGIBLE_RUN_FILTER = `qh.project_uuid = ?
           AND qh.created_at >= ?
           AND qh.status = 'ready'
           AND qh.cache_key IS NOT NULL
           AND strpos(qh.cache_key, '.') = 0
-          AND (qh.cache_miss_reason IS NULL OR qh.cache_miss_reason NOT IN ('${ResultsCacheMissReason.BYPASSED}', '${ResultsCacheMissReason.CACHE_DISABLED}'))`;
+          AND qh.cache_miss_reason IS DISTINCT FROM '${ResultsCacheMissReason.BYPASSED}'`;
+
+    // Counted cache runs: eligible runs made while caching was on.
+    private static readonly RESULTS_CACHE_RUN_FILTER = `${QueryHistoryModel.RESULTS_CACHE_ELIGIBLE_RUN_FILTER}
+          AND qh.cache_miss_reason IS DISTINCT FROM '${ResultsCacheMissReason.CACHE_DISABLED}'`;
 
     private static readonly RESULTS_CACHE_RUN_COLUMNS = `qh.context,
             qh.cache_key,
@@ -1370,6 +1374,13 @@ export class QueryHistoryModel {
         SELECT ${QueryHistoryModel.RESULTS_CACHE_RUN_COLUMNS}
         FROM ${QueryHistoryTableName} qh
         WHERE ${QueryHistoryModel.RESULTS_CACHE_RUN_FILTER}
+    )`;
+
+    // Replays every eligible run, so it also estimates periods when caching was off.
+    private static readonly RESULTS_CACHE_REPLAY_RUNS_CTE = `runs AS (
+        SELECT ${QueryHistoryModel.RESULTS_CACHE_RUN_COLUMNS}
+        FROM ${QueryHistoryTableName} qh
+        WHERE ${QueryHistoryModel.RESULTS_CACHE_ELIGIBLE_RUN_FILTER}
     )`;
 
     private static readonly RESULTS_CACHE_RUNS_WITH_TARGETS_CTE = `runs AS (
@@ -1539,7 +1550,7 @@ export class QueryHistoryModel {
         const since = QueryHistoryModel.resultsCacheStatsCutoff(days);
         const [totalsResult, runsResult] = await Promise.all([
             this.database.raw<{ rows: Array<{ runs: number; hits: number }> }>(
-                `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_SLIM_CTE}
+                `WITH ${QueryHistoryModel.RESULTS_CACHE_REPLAY_RUNS_CTE}
                 SELECT count(*)::int AS runs, (count(*) FILTER (WHERE is_hit))::int AS hits FROM runs`,
                 [projectUuid, since],
             ),
@@ -1553,7 +1564,7 @@ export class QueryHistoryModel {
                     warehouse_ms: number;
                 }>;
             }>(
-                `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_SLIM_CTE},
+                `WITH ${QueryHistoryModel.RESULTS_CACHE_REPLAY_RUNS_CTE},
                 keys AS (
                     SELECT cache_key FROM runs
                     GROUP BY cache_key

@@ -342,4 +342,30 @@ describe('QueryHistoryModel results cache stats', () => {
             ['replayed', true],
         ]);
     });
+    test('runs made while caching was off are replayed but not counted as served', async () => {
+        await insertRun({
+            minutesAgo: 30,
+            cacheKey: 'off',
+            reason: ResultsCacheMissReason.CACHE_DISABLED,
+        });
+        await insertRun({
+            minutesAgo: 20,
+            cacheKey: 'off',
+            reason: ResultsCacheMissReason.CACHE_DISABLED,
+        });
+
+        await expect(
+            model.getResultsCacheContextStats(projectUuid, 7),
+        ).resolves.toEqual([]);
+        const { totals, runs } = await model.getResultsCacheTtlReplayRows(
+            projectUuid,
+            7,
+            100,
+        );
+        expect(totals).toEqual({ runs: 2, hits: 0 });
+        expect(runs.map((r) => [r.cacheKey, r.forcedMiss])).toEqual([
+            ['off', false],
+            ['off', false],
+        ]);
+    });
 });

@@ -390,7 +390,6 @@ import {
 } from '../ResultsCacheStats/resultsCacheStats';
 import {
     buildResultsCacheTtlProjections,
-    getTtlCandidates,
     TTL_PROJECTION_MAX_RUNS,
 } from '../ResultsCacheStats/ttlProjections';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
@@ -17017,9 +17016,6 @@ export class AsyncQueryService extends ProjectService {
             await this.projectModel.getEffectiveResultsCacheTtlSeconds(
                 projectUuid,
             );
-        if (getTtlCandidates(currentTtlSeconds).length === 0) {
-            return { kind: 'noLongerTtl', currentTtlSeconds };
-        }
         const { totals, runs } =
             await this.queryHistoryModel.getResultsCacheTtlReplayRows(
                 projectUuid,

@@ -143,10 +143,17 @@ export type ResultsCacheTtlProjections =
     | {
           kind: 'projections';
           currentTtlSeconds: number;
-          baseline: { runs: number; hits: number; hitRate: number | null };
+          // Replay at the current duration; estimates the benefit while caching is off.
+          baseline: {
+              runs: number;
+              hits: number;
+              hitRate: number | null;
+              warehouseTimeSavedMs: number;
+          };
+          // Empty when the duration is already at the longest suggestion.
           projections: ResultsCacheTtlProjection[];
       }
-    | { kind: 'tooManyRuns' | 'noLongerTtl'; currentTtlSeconds: number };
+    | { kind: 'tooManyRuns'; currentTtlSeconds: number };
 
 export type ApiResultsCacheTtlProjectionsResponse =
     ApiSuccess<ResultsCacheTtlProjections>;

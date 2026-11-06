@@ -58,9 +58,10 @@ describe('simulateResultsCacheTtl', () => {
             resultsCreatedAt: new Date(base),
             warehouseTimeMs: 0,
         });
+        // The real hit is priced at the key's average miss.
         expect(simulateResultsCacheTtl([first, run(2)], 3 * 3600)).toEqual({
             hits: 2,
-            warehouseTimeSavedMs: 1000,
+            warehouseTimeSavedMs: 2000,
         });
     });
 
@@ -85,14 +86,43 @@ describe('getTtlCandidates', () => {
 });
 
 describe('buildResultsCacheTtlProjections', () => {
-    test('noLongerTtl when no candidate exists', () => {
+    test('keeps the baseline with no longer duration to suggest', () => {
         expect(
             buildResultsCacheTtlProjections({
                 currentTtlSeconds: 30 * 86400,
                 totals: { runs: 10, hits: 5 },
                 replayRuns: [],
             }),
-        ).toEqual({ kind: 'noLongerTtl', currentTtlSeconds: 30 * 86400 });
+        ).toEqual({
+            kind: 'projections',
+            currentTtlSeconds: 30 * 86400,
+            baseline: {
+                runs: 10,
+                hits: 5,
+                hitRate: 0.5,
+                warehouseTimeSavedMs: 0,
+            },
+            projections: [],
+        });
+    });
+
+    test('estimates hits and time saved for runs made while caching was off', () => {
+        // Every real run missed; at 3h the runs at 1h and 2h would have hit.
+        const replayRuns = [0, 1, 2, 4].map((h) => run(h));
+        expect(
+            buildResultsCacheTtlProjections({
+                currentTtlSeconds: 3 * 3600,
+                totals: { runs: 4, hits: 0 },
+                replayRuns,
+            }),
+        ).toMatchObject({
+            baseline: {
+                runs: 4,
+                hits: 2,
+                hitRate: 0.5,
+                warehouseTimeSavedMs: 2000,
+            },
+        });
     });
 
     test('tooManyRuns when the replay hits the cap', () => {
@@ -119,7 +149,12 @@ describe('buildResultsCacheTtlProjections', () => {
         expect(result).toEqual({
             kind: 'projections',
             currentTtlSeconds: 3600,
-            baseline: { runs: 8, hits: 4, hitRate: 0.5 },
+            baseline: {
+                runs: 8,
+                hits: 4,
+                hitRate: 0.5,
+                warehouseTimeSavedMs: 0,
+            },
             projections: [
                 {
                     ttlSeconds: 6 * 3600,

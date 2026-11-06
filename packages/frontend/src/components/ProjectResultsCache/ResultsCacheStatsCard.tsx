@@ -22,12 +22,16 @@ import {
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
-import { useResultsCacheStats } from '../../hooks/useProjectResultsCacheSettings';
+import {
+    useResultsCacheStats,
+    useResultsCacheTtlProjections,
+} from '../../hooks/useProjectResultsCacheSettings';
 import { BigNumberDisplay } from '../common/BigNumber/BigNumberDisplay';
 import InlineErrorState from '../common/InlineErrorState';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import { SettingsCard } from '../common/Settings/SettingsCard';
+import { formatCacheDuration } from './formatCacheDuration';
 import { formatWarehouseTime } from './formatWarehouseTime';
 
 const formatPercent = (rate: number | null) =>
@@ -251,56 +255,132 @@ const StatsContent: FC<StatsContentProps> = ({ projectUuid, stats }) => {
     );
 };
 
-type Props = {
+type UsageProps = {
     projectUuid: string;
     days: ResultsCacheStatsDays;
-    onDaysChange: (days: ResultsCacheStatsDays) => void;
 };
 
-export const ResultsCacheStatsCard: FC<Props> = ({
-    projectUuid,
-    days,
-    onDaysChange,
-}) => {
+const ActualUsage: FC<UsageProps> = ({ projectUuid, days }) => {
     const {
         data: stats,
         isLoading,
         isError,
     } = useResultsCacheStats(projectUuid, days);
 
-    const renderContent = () => {
-        if (isError) {
-            return (
-                <InlineErrorState message="Couldn't load usage stats. Try again later." />
-            );
-        }
-        if (isLoading || !stats) return <Loader size="sm" />;
-        if (stats.summary.runs === 0) {
-            return (
-                <Text c="dimmed" fz="sm">
-                    No queries ran in this period.
-                </Text>
-            );
-        }
-        return <StatsContent projectUuid={projectUuid} stats={stats} />;
-    };
+    if (isError) {
+        return (
+            <InlineErrorState message="Couldn't load usage stats. Try again later." />
+        );
+    }
+    if (isLoading || !stats) return <Loader size="sm" />;
+    if (stats.summary.runs === 0) {
+        return (
+            <Text c="dimmed" fz="sm">
+                No queries ran in this period.
+            </Text>
+        );
+    }
+    return <StatsContent projectUuid={projectUuid} stats={stats} />;
+};
+
+const EstimatedUsage: FC<UsageProps> = ({ projectUuid, days }) => {
+    const {
+        data: estimate,
+        isLoading,
+        isError,
+    } = useResultsCacheTtlProjections(projectUuid, days);
+
+    if (isError) {
+        return (
+            <InlineErrorState message="Couldn't estimate the benefit of caching. Try again later." />
+        );
+    }
+    if (isLoading || !estimate) return <Loader size="sm" />;
+    if (estimate.kind === 'tooManyRuns') {
+        return (
+            <Text c="dimmed" fz="sm">
+                Too many queries ran in this period to estimate the benefit of
+                caching.
+            </Text>
+        );
+    }
+    if (estimate.baseline.runs === 0) {
+        return (
+            <Text c="dimmed" fz="sm">
+                No queries ran in this period.
+            </Text>
+        );
+    }
+
+    const { baseline } = estimate;
+    const items: StatProps[] = [
+        { label: 'Estimated hit rate', value: formatPercent(baseline.hitRate) },
+        {
+            label: 'Queries served from cache',
+            value: baseline.hits.toLocaleString(),
+        },
+        {
+            label: 'Warehouse time saved',
+            value: formatWarehouseTime(
+                Math.round(baseline.warehouseTimeSavedMs),
+            ),
+        },
+    ];
 
     return (
-        <SettingsCard>
-            <Stack gap="lg">
-                <Group justify="space-between" wrap="nowrap">
-                    <Title order={5}>Usage</Title>
-                    <SegmentedControl
-                        size="xs"
-                        data={DAYS_OPTIONS}
-                        value={String(days)}
-                        onChange={(value) =>
-                            onDaysChange(value === '30' ? 30 : 7)
-                        }
+        <Stack gap="lg">
+            <Text fz="sm">
+                {`Caching is off. Turning it on could have served ${formatPercent(
+                    baseline.hitRate,
+                )} of the ${baseline.runs.toLocaleString()} queries in this period from the cache.`}
+            </Text>
+            <SimpleGrid cols={3} spacing="md">
+                {items.map((item) => (
+                    <Stat
+                        key={item.label}
+                        label={item.label}
+                        value={item.value}
                     />
-                </Group>
-                {renderContent()}
-            </Stack>
-        </SettingsCard>
+                ))}
+            </SimpleGrid>
+            <Text c="dimmed" fz="xs">
+                {`Estimated by replaying these queries with a ${formatCacheDuration(
+                    estimate.currentTtlSeconds,
+                )} cache duration.`}
+            </Text>
+        </Stack>
     );
 };
+
+type Props = {
+    projectUuid: string;
+    cacheEnabled: boolean;
+    days: ResultsCacheStatsDays;
+    onDaysChange: (days: ResultsCacheStatsDays) => void;
+};
+
+export const ResultsCacheStatsCard: FC<Props> = ({
+    projectUuid,
+    cacheEnabled,
+    days,
+    onDaysChange,
+}) => (
+    <SettingsCard>
+        <Stack gap="lg">
+            <Group justify="space-between" wrap="nowrap">
+                <Title order={5}>Usage</Title>
+                <SegmentedControl
+                    size="xs"
+                    data={DAYS_OPTIONS}
+                    value={String(days)}
+                    onChange={(value) => onDaysChange(value === '30' ? 30 : 7)}
+                />
+            </Group>
+            {cacheEnabled ? (
+                <ActualUsage projectUuid={projectUuid} days={days} />
+            ) : (
+                <EstimatedUsage projectUuid={projectUuid} days={days} />
+            )}
+        </Stack>
+    </SettingsCard>
+);

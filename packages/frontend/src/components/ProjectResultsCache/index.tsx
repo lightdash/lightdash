@@ -175,9 +175,10 @@ const ProjectResultsCache: FC<Props> = ({ projectUuid }) => {
                 cacheEnabledSetByInstance={settings.cacheEnabledSetByInstance}
                 canToggle={canManage}
             />
-            {settings.cacheEnabled && canManage && (
+            {canManage && (
                 <ResultsCacheStatsCard
                     projectUuid={projectUuid}
+                    cacheEnabled={settings.cacheEnabled}
                     days={days}
                     onDaysChange={setDays}
                 />

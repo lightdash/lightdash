@@ -24,6 +24,22 @@ export type TtlReplayRun = {
     warehouseTimeMs: number;
 };
 
+// A real hit records no warehouse time, so it is priced at its key's average miss.
+const getAverageMissMsByKey = (runs: TtlReplayRun[]): Map<string, number> => {
+    const totals = new Map<string, { ms: number; count: number }>();
+    runs.forEach((run) => {
+        if (run.isHit) return;
+        const total = totals.get(run.cacheKey) ?? { ms: 0, count: 0 };
+        totals.set(run.cacheKey, {
+            ms: total.ms + run.warehouseTimeMs,
+            count: total.count + 1,
+        });
+    });
+    return new Map(
+        [...totals].map(([key, { ms, count }]) => [key, ms / count]),
+    );
+};
+
 // Runs must be ordered by cacheKey, then createdAt.
 export const simulateResultsCacheTtl = (
     runs: TtlReplayRun[],
@@ -31,6 +47,7 @@ export const simulateResultsCacheTtl = (
 ): { hits: number; warehouseTimeSavedMs: number } => {
     const ttlMs = ttlSeconds * 1000;
     const usableMs = ttlMs - getResultsCacheExpiryBufferMs(ttlMs);
+    const averageMissMs = getAverageMissMsByKey(runs);
     let hits = 0;
     let warehouseTimeSavedMs = 0;
     let currentKey: string | null = null;
@@ -50,7 +67,9 @@ export const simulateResultsCacheTtl = (
             at - lastProducedAt < usableMs
         ) {
             hits += 1;
-            if (!run.isHit) warehouseTimeSavedMs += run.warehouseTimeMs;
+            warehouseTimeSavedMs += run.isHit
+                ? (averageMissMs.get(run.cacheKey) ?? 0)
+                : run.warehouseTimeMs;
         } else {
             lastProducedAt = at;
         }
@@ -72,9 +91,6 @@ export const buildResultsCacheTtlProjections = ({
     totals: { runs: number; hits: number };
     replayRuns: TtlReplayRun[];
 }): ResultsCacheTtlProjections => {
-    const candidates = getTtlCandidates(currentTtlSeconds);
-    if (candidates.length === 0)
-        return { kind: 'noLongerTtl', currentTtlSeconds };
     if (replayRuns.length > TTL_PROJECTION_MAX_RUNS)
         return { kind: 'tooManyRuns', currentTtlSeconds };
 
@@ -90,8 +106,9 @@ export const buildResultsCacheTtlProjections = ({
             runs: totals.runs,
             hits: baselineHits,
             hitRate: getHitRate(baselineHits, totals.runs),
+            warehouseTimeSavedMs: baseline.warehouseTimeSavedMs,
         },
-        projections: candidates.map((ttlSeconds) => {
+        projections: getTtlCandidates(currentTtlSeconds).map((ttlSeconds) => {
             const simulated = simulateResultsCacheTtl(replayRuns, ttlSeconds);
             const hits = otherHits + simulated.hits;
             return {
