@@ -500,6 +500,8 @@ export const getModel = (
          * (text generation, summaries, simple structured output)
          */
         useFastModel?: boolean;
+        /** For latency-bound calls; Anthropic and OpenAI presets only. */
+        minimalReasoning?: boolean;
     },
 ) => {
     const provider = options?.provider ?? config.defaultProvider;
@@ -523,6 +525,7 @@ export const getModel = (
                 applyStreamingCapability(
                     getOpenaiGptmodel(openaiConfig, preset, {
                         enableReasoning: options?.enableReasoning,
+                        minimalReasoning: options?.minimalReasoning,
                     }),
                     openaiConfig.supportsStreaming,
                 ),
@@ -559,6 +562,7 @@ export const getModel = (
                     getAnthropicModel(anthropicConfig, preset, {
                         enableReasoning: options?.enableReasoning,
                         reasoningEffort: options?.reasoningEffort,
+                        minimalReasoning: options?.minimalReasoning,
                     }),
                     anthropicConfig.supportsStreaming,
                 ),

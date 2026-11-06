@@ -37,6 +37,8 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     supersededBy?: string;
     callOptions: LanguageModelCallOptions & Omit<RequestOptions, 'timeout'>;
     providerOptions: ProviderOptionsMap[P] | undefined;
+    // Merged in for latency-bound calls that opt into minimal reasoning
+    minimalReasoningProviderOptions?: ProviderOptionsMap[P];
 } & (
     | { custom?: false; contextWindowTokens: number }
     // Instance-configured models may have an unknown context window.
@@ -90,6 +92,8 @@ export const MODEL_PRESETS: {
                 // strictJsonSchema: provider default is true
                 parallelToolCalls: false,
             },
+            // Low effort still reasons past a 5 s budget on field mapping
+            minimalReasoningProviderOptions: { reasoningEffort: 'none' },
         },
         {
             name: 'gpt-6-sol',
@@ -371,6 +375,12 @@ export const MODEL_PRESETS: {
             reasoningStyle: 'adaptive',
             callOptions: {},
             providerOptions: undefined,
+            // Thinks by default and spends short caps on thinking; low-effort
+            // adaptive thinking still did on field mapping
+            minimalReasoningProviderOptions: {
+                thinking: { type: 'disabled' },
+                effort: 'low',
+            },
         },
         {
             name: 'claude-haiku-4-5',

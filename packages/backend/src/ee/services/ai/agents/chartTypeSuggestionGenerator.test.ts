@@ -5,7 +5,11 @@ import {
     type DataAppVizField,
     type Explore,
 } from '@lightdash/common';
-import { generateText, NoObjectGeneratedError } from 'ai';
+import {
+    generateText,
+    NoObjectGeneratedError,
+    NoOutputGeneratedError,
+} from 'ai';
 import {
     buildChartTypeExplorePrompt,
     buildChartTypeFieldsPrompt,
@@ -478,8 +482,9 @@ describe('model calls', () => {
 describe('model failures', () => {
     const modelOptions = { model: 'test', keyManagement: null } as never;
 
-    it('answers empty when the output cannot be parsed', async () => {
-        vi.mocked(generateText).mockRejectedValueOnce(
+    it.each([
+        [
+            'cannot be parsed',
             new NoObjectGeneratedError({
                 message: 'No object generated',
                 text: 'not json',
@@ -487,7 +492,11 @@ describe('model failures', () => {
                 usage: {} as never,
                 finishReason: 'stop',
             }),
-        );
+        ],
+        // Reasoning used the whole output cap
+        ['is missing', new NoOutputGeneratedError()],
+    ])('answers empty when the output %s', async (_case, error) => {
+        vi.mocked(generateText).mockRejectedValueOnce(error);
         expect(
             await suggestChartTypeFields(
                 modelOptions,
