@@ -63,9 +63,10 @@ import type {
 } from '../../../services/QuerySourceService/api/ApiConnector';
 import {
     buildApiSourceExplores,
-    getApiSourceBaseLayer,
     getApiSourceExploreName,
     getApiSourceExploreNames,
+    getApiSourceReservedExploreNames,
+    getApiSourceWideDefinition,
     getLegacyLiveSourceName,
     getLiveSourceNameBase,
     toScannedLiveSourceFields,
@@ -1302,7 +1303,7 @@ export class ExternalConnectionService extends BaseService {
         if (changes.length === 0) {
             return this.readLiveSourceFields(connection, apiSource);
         }
-        const { definition } = getApiSourceBaseLayer(apiSource.connector);
+        const definition = getApiSourceWideDefinition(apiSource.connector);
         const state =
             await this.externalConnectionModel.getLiveSourceFieldState(
                 connectionUuid,
@@ -1362,7 +1363,7 @@ export class ExternalConnectionService extends BaseService {
         apiSource: ExternalConnectionApiSource,
     ): Promise<LiveSourceFields> {
         const { externalConnectionUuid, projectUuid } = connection;
-        const { definition } = getApiSourceBaseLayer(apiSource.connector);
+        const definition = getApiSourceWideDefinition(apiSource.connector);
         const [sourceName, state] = await Promise.all([
             this.resolveLiveSourceName(connection, apiSource),
             this.externalConnectionModel.getLiveSourceFieldState(
@@ -1503,7 +1504,10 @@ export class ExternalConnectionService extends BaseService {
     /**
      * The candidates whose explore names no other explore of the project has
      * and that no source built before names were stored holds. Names stored
-     * by other sources are checked when the name is claimed.
+     * by other sources are checked when the name is claimed. A clash on a
+     * built model's name moves on to the next candidate; a clash on a planned
+     * model's name fails instead, since a suffix taken for a model that
+     * doesn't exist yet would surprise the admin.
      */
     private async getFreeLiveSourceNames(
         connection: ExternalConnection,
@@ -1534,17 +1538,44 @@ export class ExternalConnectionService extends BaseService {
             await this.projectModel.findExploreNamesTakenByOthers(
                 projectUuid,
                 externalConnectionUuid,
-                candidates.flatMap((candidate) =>
-                    getApiSourceExploreNames(apiSource.connector, candidate),
-                ),
+                candidates.flatMap((candidate) => [
+                    ...getApiSourceExploreNames(apiSource.connector, candidate),
+                    ...getApiSourceReservedExploreNames(
+                        apiSource.connector,
+                        candidate,
+                    ),
+                ]),
             ),
         );
-        return candidates.filter(
+        const isTaken = (exploreName: string) =>
+            takenExploreNames.has(exploreName);
+        const usable = candidates.filter(
             (candidate) =>
                 !legacyNamesInUse.has(candidate) &&
-                getApiSourceExploreNames(apiSource.connector, candidate).every(
-                    (exploreName) => !takenExploreNames.has(exploreName),
+                !getApiSourceExploreNames(apiSource.connector, candidate).some(
+                    isTaken,
                 ),
+        );
+        const [first] = usable;
+        const reservedClashes =
+            first === undefined
+                ? []
+                : getApiSourceReservedExploreNames(
+                      apiSource.connector,
+                      first,
+                  ).filter(isTaken);
+        if (reservedClashes.length > 0) {
+            const names = reservedClashes.map((name) => `"${name}"`).join(', ');
+            throw new ParameterError(
+                `Can't build live data source "${connection.name}": ${names} ${reservedClashes.length > 1 ? 'are' : 'is'} kept free for a planned model of this integration, but another explore in the project already uses it. Rename that dbt model or give the source a different name.`,
+            );
+        }
+        return usable.filter(
+            (candidate) =>
+                !getApiSourceReservedExploreNames(
+                    apiSource.connector,
+                    candidate,
+                ).some(isTaken),
         );
     }
 

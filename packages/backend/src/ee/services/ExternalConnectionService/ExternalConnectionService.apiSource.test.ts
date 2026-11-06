@@ -1083,6 +1083,67 @@ describe('ExternalConnectionService live source explores', () => {
         );
     });
 
+    it("fails clearly, without a suffix, when a dbt explore has a new source's planned model name", async () => {
+        respondToScan('ok');
+        const { service, projectModel, externalConnectionModel } = buildService(
+            { takenExploreNames: ['product_analytics_persons'] },
+        );
+        await expect(
+            service.refreshApiSourceExplores(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(
+            new ParameterError(
+                `Can't build live data source "Product analytics": "product_analytics_persons" is kept free for a planned model of this integration, but another explore in the project already uses it. Rename that dbt model or give the source a different name.`,
+            ),
+        );
+        expect(
+            externalConnectionModel.claimLiveSourceName,
+        ).not.toHaveBeenCalled();
+        expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    it('checks planned model names on every candidate it could fall back to', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            namesHeldAtClaim: ['product_analytics'],
+            takenExploreNames: ['product_analytics_2_sessions'],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedExploreName(projectModel)).toBe(
+            'product_analytics_3_events',
+        );
+    });
+
+    it.each([
+        [
+            'a stored name',
+            {
+                connections: [
+                    posthogConnection({ liveSourceName: 'analytics' }),
+                ],
+                takenExploreNames: ['analytics_persons'],
+            },
+            'analytics_events',
+        ],
+        [
+            'an id-based name',
+            {
+                hasExplores: true,
+                takenExploreNames: ['posthog_conn1_sessions'],
+            },
+            'posthog_conn1_events',
+        ],
+    ])(
+        'keeps building an existing source with %s when a dbt explore has its planned model name',
+        async (_name, options, exploreName) => {
+            respondToScan('ok');
+            const { service, projectModel } = buildService(options);
+            await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+            expect(savedExploreName(projectModel)).toBe(exploreName);
+        },
+    );
+
     it('reports a failed scan when an admin refreshes the explores', async () => {
         respondToScan('fail');
         const { service, projectModel } = buildService();
