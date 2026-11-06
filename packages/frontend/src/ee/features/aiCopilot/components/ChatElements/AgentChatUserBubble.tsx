@@ -97,7 +97,12 @@ export const UserBubble: FC<Props> = ({
                     {isEmbed ? (
                         // The message permalink lives in the full app, which an
                         // embed cannot open.
-                        <Text c="dimmed" fz="xs" className={styles.timestamp}>
+                        <Text
+                            c="dimmed"
+                            fz="xs"
+                            className={styles.timestamp}
+                            data-pinned={showUserName || undefined}
+                        >
                             {timeAgo}
                         </Text>
                     ) : (
@@ -106,6 +111,7 @@ export const UserBubble: FC<Props> = ({
                             c="dimmed"
                             fz="xs"
                             className={styles.timestamp}
+                            data-pinned={showUserName || undefined}
                             to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
                         >
                             {timeAgo}

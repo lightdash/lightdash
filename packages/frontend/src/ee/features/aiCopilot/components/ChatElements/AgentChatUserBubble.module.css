@@ -10,6 +10,8 @@
     transition: opacity 150ms ease;
 }
 
+/* Under another person's name it stays visible, so the name never floats alone. */
+.timestamp[data-pinned],
 .bubble:hover .timestamp,
 .bubble:focus-within .timestamp {
     opacity: 1;
