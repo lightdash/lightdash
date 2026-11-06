@@ -1111,6 +1111,58 @@ const registerContentAccessTests = (
             ).toEqual({ ...expectedConfig, controlOrder: savedOrder });
         },
     );
+    it('keeps the saved dimension filter ids of the dashboard it overwrites', async () => {
+        const service = buildService();
+        const target = { fieldId: 'orders_status', tableName: 'orders' };
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            name: 'Dashboard',
+            spaceUuid: SPACE_UUID,
+            tiles: [],
+            filters: {
+                dimensions: [{ id: 'saved-filter-id', target }],
+                metrics: [],
+                tableCalculations: [],
+            },
+        } as AnyType);
+        vi.mocked(
+            service.promoteService.getPromotedDashboard,
+        ).mockRejectedValue(new Error('stop after filters'));
+        const user = makeUser([
+            { subject: 'ContentAsCode', action: 'create' },
+            {
+                subject: 'Dashboard',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                filters: {
+                    dimensions: [
+                        { target, operator: 'equals', values: ['shipped'] },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            } as AnyType),
+        ).rejects.toThrow('stop after filters');
+
+        expect(service.dashboardModel.find).toHaveBeenCalledWith({
+            slug: dashboardAsCode.slug,
+            projectUuid: PROJECT_UUID,
+        });
+        expect(
+            vi.mocked(service.promoteService.getPromotedDashboard).mock
+                .calls[0][1].filters.dimensions,
+        ).toEqual([expect.objectContaining({ id: 'saved-filter-id' })]);
+    });
 
     it('rejects moving a dashboard out of a restricted current space before promotion', async () => {
         const service = buildService();
