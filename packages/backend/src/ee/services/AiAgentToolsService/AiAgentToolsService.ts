@@ -860,7 +860,9 @@ export class AiAgentToolsService extends BaseService {
             exploreNames: [exploreName],
         });
         if (!explore) {
-            throw new NotFoundError('Explore not found');
+            throw new NotFoundError(
+                `Explore "${exploreName}" is not available. It may not exist, or the project's Tables configuration, user attributes or agent tags may hide it. Do not retry this explore: choose one from the available explores.`,
+            );
         }
         return explore;
     }
