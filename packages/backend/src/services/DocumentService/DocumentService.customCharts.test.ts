@@ -170,6 +170,7 @@ const setup = (existing: DocumentContent = withCharts([], 'Findings')) => {
         access: [{ userUuid, role: SpaceMemberRole.EDITOR }],
     };
     const projectService = {
+        getExplore: vi.fn().mockResolvedValue({ type: 'default' }),
         compileQuery: vi.fn().mockResolvedValue({
             compilationErrors: [],
             missingParameterReferences: new Set<string>(),

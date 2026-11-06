@@ -198,6 +198,25 @@ const addReportAdjustedWarning = (markdown: string): string => {
     )}\n\n${REPORT_ADJUSTED_WARNING}${markdown.slice(reportTitleEnd)}`;
 };
 
+/** The report with every chart reference spliced out, for a Document that rejected its charts. */
+const withoutReportCharts = (report: PreparedReport): PreparedReport => {
+    const narrative = applyDeepResearchChartRefsWithAdjustments(
+        report.markdown,
+        new Map(),
+    );
+    return {
+        markdown: addReportAdjustedWarning(narrative.markdown),
+        adjustments: {
+            repaired: report.adjustments.repaired,
+            dropped: [
+                ...report.adjustments.dropped,
+                ...narrative.adjustments.dropped,
+            ],
+        },
+        charts: new Map(),
+    };
+};
+
 const getCompletionClass = (
     status: DbAiDeepResearchRun['status'],
     hasReport: boolean,
@@ -1568,20 +1587,40 @@ export class AiDeepResearchService extends BaseService {
                 result.status === 'completed' ||
                 result.status === 'partially_completed'
             ) {
-                const report = await this.prepareReport(
+                const preparedReport = await this.prepareReport(
                     run,
                     result.report,
                     new Set(result.warehouseQueryUuids),
                 );
+                let report = preparedReport;
                 try {
                     publishedDocument = await this.publishReportDocument(
                         run,
                         report,
                     );
                 } catch (error) {
-                    this.logger.error(
-                        `Deep Research run ${run.ai_deep_research_run_uuid} could not publish its report: ${getErrorMessage(error)}`,
-                    );
+                    if (preparedReport.charts.size === 0) {
+                        this.logger.error(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} could not publish its report: ${getErrorMessage(error)}`,
+                        );
+                    } else {
+                        // A chart the Document rejects costs the report its
+                        // charts, never the narrative.
+                        this.logger.error(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} is publishing its report without charts after the Document rejected them: ${getErrorMessage(error)}`,
+                        );
+                        report = withoutReportCharts(preparedReport);
+                        try {
+                            publishedDocument =
+                                await this.publishReportDocument(run, report);
+                        } catch (retryError) {
+                            this.logger.error(
+                                `Deep Research run ${run.ai_deep_research_run_uuid} could not publish its report: ${getErrorMessage(retryError)}`,
+                            );
+                        }
+                    }
+                }
+                if (!publishedDocument) {
                     await this.aiDeepResearchRunModel.markFailed(
                         payload.aiDeepResearchRunUuid,
                         PUBLISH_FAILED_ERROR_MESSAGE,
