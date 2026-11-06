@@ -1,3 +1,10 @@
+# [3.170.0](https://github.com/lightdash/lightdash/compare/3.169.7...3.170.0) (2026-11-06)
+
+
+### Features
+
+* **ai-agent:** calmer agent UI ([#32091](https://github.com/lightdash/lightdash/issues/32091)) ([d4cddb4](https://github.com/lightdash/lightdash/commit/d4cddb4aba284dd9331755df3958643717f07c58))
+
 ## [3.169.7](https://github.com/lightdash/lightdash/compare/3.169.6...3.169.7) (2026-11-06)
 
 
