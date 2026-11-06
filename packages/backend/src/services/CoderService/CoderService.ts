@@ -5937,22 +5937,24 @@ export class CoderService extends BaseService {
                 fileOrder === undefined
                     ? undefined
                     : getControlOrderWithIds(fileOrder, sources);
-            // An order that changes nothing isn't stored, so agent reads carrying the default order round-trip clean
+            // A file order that follows the default isn't stored, so agent reads carrying the default order round-trip clean
             if (
                 controlOrder !== undefined &&
-                existingDashboard?.config?.controlOrder === undefined &&
-                isEqual(
-                    reconcileDashboardControlOrder({
-                        ...sources,
-                        controlOrder,
-                    }),
-                    reconcileDashboardControlOrder({
-                        ...sources,
-                        controlOrder: undefined,
-                    }),
-                )
+                existingDashboard?.config?.controlOrder === undefined
             ) {
-                controlOrder = undefined;
+                const mentioned = new Set(
+                    controlOrder.map(({ kind, id }) => `${kind}:${id}`),
+                );
+                const defaultOrder = reconcileDashboardControlOrder({
+                    ...sources,
+                    controlOrder: undefined,
+                }).flatMap(({ kind, id, newLine }) =>
+                    mentioned.has(`${kind}:${id}`)
+                        ? [{ kind, id, ...(newLine && { newLine: true }) }]
+                        : [],
+                );
+                if (isEqual(controlOrder, defaultOrder))
+                    controlOrder = undefined;
             }
         }
         if (dashboardConfig || controlOrder !== undefined) {

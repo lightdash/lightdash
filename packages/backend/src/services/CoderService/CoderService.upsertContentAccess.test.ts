@@ -4133,7 +4133,7 @@ describe('CoderService dashboard control order as code', () => {
             { kind: 'filter', slug: 'orders-status-1' },
             { kind: 'filter', slug: 'orders-total' },
             { kind: 'parameter', slug: 'region' },
-            { kind: 'section', slug: 'calendar' },
+            { kind: 'section', slug: 'calendar', newLine: true },
             { kind: 'filter', slug: 'orders-status-2' },
         ]);
     });
@@ -4250,6 +4250,79 @@ describe('CoderService dashboard control order as code', () => {
         );
         expect(saved.tiles[0].properties.title).toBe('Renamed tile');
         expect(saved.config).not.toHaveProperty('controlOrder');
+        // The derived slugs the agent read are stored, so they stay stable
+        expect(
+            [...saved.filters.dimensions, ...saved.filters.metrics].map(
+                ({ id, slug }) => [id, slug],
+            ),
+        ).toEqual([
+            ['first-id', 'orders-status-1'],
+            ['second-id', 'orders-status-2'],
+            ['metric-id', 'orders-total'],
+        ]);
+    });
+
+    const withCityFilter = (file: DashboardAsCode) => ({
+        ...file,
+        filters: {
+            ...file.filters,
+            dimensions: [
+                ...file.filters!.dimensions!,
+                {
+                    slug: 'orders-city',
+                    label: undefined,
+                    target: { fieldId: 'orders_city', tableName: 'orders' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['Lisbon'],
+                },
+            ],
+        },
+    });
+
+    it('stores no order when an agent adds a filter without a ref', async () => {
+        const saved = await upload(
+            withCityFilter(download(withoutOrder(), true, true)),
+            { saved: withoutOrder() as DashboardDAO },
+        );
+        expect(saved.config).not.toHaveProperty('controlOrder');
+        expect(
+            reconcileDashboardControlOrder({
+                controlOrder: undefined,
+                filters: saved.filters,
+                parameterControls: saved.config!.parameterControls!,
+                sections: saved.config!.controlSections!,
+            }).map(({ kind, slug }) => [kind, slug]),
+        ).toEqual([
+            ['filter', 'orders-status-1'],
+            ['filter', 'orders-city'],
+            ['filter', 'orders-total'],
+            ['parameter', 'region'],
+            ['section', 'calendar'],
+            ['filter', 'orders-status-2'],
+        ]);
+    });
+
+    it('stores no order when an agent adds a filter with a ref in its default place', async () => {
+        const file = withCityFilter(download(withoutOrder(), true, true));
+        const [first, ...rest] = file.config!.controlOrder!;
+        const saved = await upload(
+            {
+                ...file,
+                config: {
+                    ...file.config!,
+                    controlOrder: [
+                        first,
+                        {
+                            kind: DashboardControlRefKind.FILTER,
+                            slug: 'orders-city',
+                        },
+                        ...rest,
+                    ],
+                },
+            },
+            { saved: withoutOrder() as DashboardDAO },
+        );
+        expect(saved.config).not.toHaveProperty('controlOrder');
     });
 
     it('stores the order when an agent edit moves a ref', async () => {
@@ -4265,7 +4338,7 @@ describe('CoderService dashboard control order as code', () => {
         expect(saved.config?.controlOrder).toEqual([
             { kind: 'filter', id: 'metric-id' },
             { kind: 'parameter', id: 'region-id' },
-            { kind: 'section', id: 'section-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
             { kind: 'filter', id: 'second-id' },
             { kind: 'filter', id: 'first-id' },
         ]);
@@ -4277,7 +4350,7 @@ describe('CoderService dashboard control order as code', () => {
             { kind: 'filter', id: 'first-id' },
             { kind: 'filter', id: 'metric-id' },
             { kind: 'parameter', id: 'region-id' },
-            { kind: 'section', id: 'section-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
             { kind: 'filter', id: 'second-id' },
         ]);
     });
