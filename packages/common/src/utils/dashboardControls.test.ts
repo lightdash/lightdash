@@ -456,6 +456,44 @@ describe('reconcileDashboardControlOrder lines', () => {
         ).toEqual([]);
     });
 
+    it("passes a dropped ref's line start to the next bar control", () => {
+        expect(
+            lines({
+                ...inlineSections,
+                controlOrder: [
+                    ref(SECTION, 's1'),
+                    { ...ref(SECTION, 'gone'), newLine: true },
+                    ref(SECTION, 's2'),
+                    ref(SECTION, 's3'),
+                ],
+            }),
+        ).toEqual(['section:s2']);
+    });
+
+    it("passes a section member's line start to the next bar control", () => {
+        expect(
+            lines({
+                ...inlineSections,
+                controlOrder: [
+                    ref(SECTION, 's1'),
+                    { ...ref(FILTER, 'd1'), newLine: true },
+                    ref(SECTION, 's2'),
+                    ref(SECTION, 's3'),
+                ],
+            }),
+        ).toEqual(['section:s2']);
+    });
+
+    it('uses the default lines when every stored ref dangles or the list is empty', () => {
+        expect(
+            lines({ ...inlineSections, controlOrder: [ref(SECTION, 'gone')] }),
+        ).toEqual(['section:s1', 'section:s3']);
+        expect(lines({ ...inlineSections, controlOrder: [] })).toEqual([
+            'section:s1',
+            'section:s3',
+        ]);
+    });
+
     it('keeps a line start with its slot when a kind is reordered', () => {
         expect(
             lines(

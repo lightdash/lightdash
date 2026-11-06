@@ -196,19 +196,23 @@ export const reconcileDashboardControlOrder = (
     const order = Array.isArray(sources.controlOrder)
         ? sources.controlOrder
         : [];
+    // A line start on a dropped ref or a section member passes to the next bar control
+    let pendingLine = false;
     const mentioned = order.flatMap((ref) => {
-        if (
-            typeof ref !== 'object' ||
-            ref === null ||
-            !isKnownKind(ref.kind) ||
-            typeof ref.id !== 'string'
-        )
+        if (typeof ref !== 'object' || ref === null) return [];
+        const newLine = pendingLine || ref.newLine === true;
+        const key =
+            isKnownKind(ref.kind) && typeof ref.id === 'string'
+                ? refKey(ref.kind, ref.id)
+                : undefined;
+        const control = key === undefined ? undefined : byKey.get(key);
+        if (key === undefined || control === undefined || seen.has(key)) {
+            pendingLine = newLine;
             return [];
-        const key = refKey(ref.kind, ref.id);
-        const control = byKey.get(key);
-        if (control === undefined || seen.has(key)) return [];
+        }
         seen.add(key);
-        return [{ control, newLine: ref.newLine === true }];
+        pendingLine = control.sectionId !== null && newLine;
+        return [{ control, newLine: control.sectionId === null && newLine }];
     });
     const placed = new Set(mentioned.map(({ control }) => control));
     const hasList = mentioned.length > 0;
