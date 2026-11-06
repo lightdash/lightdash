@@ -294,6 +294,105 @@ describe('PostHog sign-in', () => {
         ).rejects.toBeInstanceOf(ParameterError);
     });
 
+    describe('reconnecting a source that reads project 7 in the US region', () => {
+        const reconnect = async (
+            region: 'us' | 'eu',
+            scopedTeams: number[],
+        ) => {
+            const built = buildService();
+            built.fetchToken.mockResolvedValue(
+                jsonResponse(200, {
+                    access_token: 'pha_2',
+                    refresh_token: 'phr_2',
+                    expires_in: 36000,
+                    scoped_teams: scopedTeams,
+                }),
+            );
+            const { session } = await built.service.startPostHogOAuth(
+                account,
+                'proj-1',
+                { region: 'us', name: 'PostHog', connectionUuid: 'conn-1' },
+            );
+            return {
+                ...built,
+                complete: () =>
+                    built.service.completePostHogOAuth(
+                        account,
+                        { ...session, region },
+                        'code-1',
+                    ),
+            };
+        };
+
+        it('refreshes the sign-in when the same project is granted', async () => {
+            const { complete, externalConnectionModel } = await reconnect(
+                'us',
+                [7],
+            );
+
+            await complete();
+
+            expect(externalConnectionModel.create).not.toHaveBeenCalled();
+            const [uuid, , config] = externalConnectionModel.update.mock
+                .calls[0] as unknown as [string, number, never];
+            expect(uuid).toBe('conn-1');
+            expect(config).toEqual(
+                expect.objectContaining({
+                    origin: 'https://us.posthog.com',
+                    apiSource: {
+                        connector: ApiConnectorType.POSTHOG,
+                        projectId: '7',
+                    },
+                }),
+            );
+            expect(JSON.parse((config as { secret: string }).secret)).toEqual(
+                expect.objectContaining({ accessToken: 'pha_2' }),
+            );
+        });
+
+        it('refuses a grant for another project', async () => {
+            const { complete, externalConnectionModel } = await reconnect(
+                'us',
+                [8],
+            );
+
+            const result = complete();
+            await expect(result).rejects.toBeInstanceOf(ParameterError);
+            await expect(result).rejects.toThrow(
+                'Pick project 7 in PostHog to reconnect "PostHog"',
+            );
+            expect(externalConnectionModel.update).not.toHaveBeenCalled();
+        });
+
+        it('refuses a sign-in in the other region', async () => {
+            const { complete, externalConnectionModel, fetchToken } =
+                await reconnect('eu', [7]);
+
+            const result = complete();
+            await expect(result).rejects.toBeInstanceOf(ParameterError);
+            await expect(result).rejects.toThrow(
+                'Pick the US PostHog region to reconnect "PostHog"',
+            );
+            expect(fetchToken.mock.calls[0][0]).toBe(
+                'https://eu.posthog.com/oauth/token/',
+            );
+            expect(externalConnectionModel.update).not.toHaveBeenCalled();
+        });
+
+        it('refuses to start in the other region', async () => {
+            const { service } = buildService();
+            await expect(
+                service.startPostHogOAuth(account, 'proj-1', {
+                    region: 'eu',
+                    name: 'PostHog',
+                    connectionUuid: 'conn-1',
+                }),
+            ).rejects.toThrow(
+                'Pick the US PostHog region to reconnect "PostHog"',
+            );
+        });
+    });
+
     it('keeps signed-in sources out of the create API', async () => {
         const { service } = buildService();
         await expect(
