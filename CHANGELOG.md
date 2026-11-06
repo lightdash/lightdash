@@ -1,3 +1,10 @@
+## [3.176.2](https://github.com/lightdash/lightdash/compare/3.176.1...3.176.2) (2026-11-06)
+
+
+### Bug Fixes
+
+* **cli:** keep vendored data app template intact in standalone binary ([#32190](https://github.com/lightdash/lightdash/issues/32190)) ([9f5a84d](https://github.com/lightdash/lightdash/commit/9f5a84d3d15e5f2ce3afed4dbb14093aaea4e506))
+
 ## [3.176.1](https://github.com/lightdash/lightdash/compare/3.176.0...3.176.1) (2026-11-06)
 
 
