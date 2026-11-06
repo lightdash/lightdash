@@ -1649,6 +1649,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectDashboardControllerV2.delete': [AgentCapability.Delete],
     'ProjectDashboardControllerV2.get': [AgentCapability.ReadDiscover],
     'ProjectDashboardControllerV2.getComments': [AgentCapability.ReadDiscover],
+    'ProjectDashboardControllerV2.getParameters': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectDashboardControllerV2.getTileParameterReferences': [
         AgentCapability.ReadDiscover,
     ],
@@ -1731,6 +1734,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'ProjectSavedChartControllerV2.delete': [AgentCapability.Delete],
     'ProjectSavedChartControllerV2.get': [AgentCapability.ReadDiscover],
+    'ProjectSavedChartControllerV2.getParameters': [
+        AgentCapability.ReadDiscover,
+    ],
     'PullRequestsController.listPullRequests': [AgentCapability.ReadDiscover],
     'QueryController.cancelAsyncQuery': [AgentCapability.ReadDiscover],
     'QueryController.downloadResults': [AgentCapability.Export],

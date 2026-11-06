@@ -2,6 +2,7 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { LightdashEventType } from '../../ee/features/embed/events/types';
 import {
     selectAppliedParameterValues,
     selectDashboardParameters,
@@ -14,9 +15,13 @@ import useDashboardContext from './useDashboardContext';
 
 const mocks = vi.hoisted(() => ({
     embedMode: undefined as string | undefined,
+    dispatchEmbedEvent: vi.fn(),
 }));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
-    default: () => ({ mode: mocks.embedMode, dispatchEmbedEvent: vi.fn() }),
+    default: () => ({
+        mode: mocks.embedMode,
+        dispatchEmbedEvent: mocks.dispatchEmbedEvent,
+    }),
 }));
 vi.mock('../../hooks/dashboard/useDashboardTileParameterReferences', () => ({
     useDashboardTileParameterReferences: () => undefined,
@@ -90,6 +95,47 @@ const renderParameters = (path = '/dashboard/dashboard-uuid') =>
 afterEach(() => {
     cleanup();
     mocks.embedMode = undefined;
+    mocks.dispatchEmbedEvent.mockClear();
+});
+
+describe('ParameterChanged embed event', () => {
+    const parameterChangedCalls = () =>
+        mocks.dispatchEmbedEvent.mock.calls.filter(
+            ([type]) => type === LightdashEventType.ParameterChanged,
+        );
+
+    it('sends the values when the viewer changes a parameter, not on load', () => {
+        const { result } = renderParameters();
+        act(() => result.current.setSavedParameters(savedParameters));
+        expect(parameterChangedCalls()).toEqual([]);
+
+        act(() => result.current.setParameter('status', 'Cancelled'));
+        expect(parameterChangedCalls()).toEqual([
+            [
+                LightdashEventType.ParameterChanged,
+                { parameters: { status: 'Cancelled' } },
+            ],
+        ]);
+    });
+
+    it('sends the first change on a dashboard with no saved parameters', () => {
+        const { result } = renderParameters();
+        act(() => result.current.setSavedParameters({}));
+        act(() => result.current.setParameter('status', 'Cancelled'));
+        expect(parameterChangedCalls()).toEqual([
+            [
+                LightdashEventType.ParameterChanged,
+                { parameters: { status: 'Cancelled' } },
+            ],
+        ]);
+    });
+
+    it('stays quiet in edit mode', () => {
+        const { result } = renderParameters('/dashboard/dashboard-uuid/edit');
+        act(() => result.current.setSavedParameters(savedParameters));
+        act(() => result.current.setParameter('status', 'Cancelled'));
+        expect(parameterChangedCalls()).toEqual([]);
+    });
 });
 
 describe('dashboard effective parameter values', () => {

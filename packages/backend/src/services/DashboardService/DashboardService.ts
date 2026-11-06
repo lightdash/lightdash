@@ -24,6 +24,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     generateSlug,
+    getContentParameters,
     getDashboardDeleteAccess,
     getErrorMessage,
     getExploreParameterDefinitions,
@@ -70,8 +71,10 @@ import {
     type ChartVersionDifference,
     type ChartVersionSummary,
     type ContentDraftStaleness,
+    type ContentParameter,
     type ContentVerificationInfo,
     type DashboardBasicDetailsWithTileTypes,
+    type DashboardContentParameter,
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
     type DashboardTileParameterReferences,
@@ -140,6 +143,7 @@ import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -1040,7 +1044,143 @@ export class DashboardService
                   tiles,
               )
             : tiles;
-        const projectDefinitions: ParameterDefinitions = Object.fromEntries(
+        const projectDefinitions =
+            await this.getProjectParameterDefinitions(projectUuid);
+        return this.listTileParameterReferences(
+            account,
+            projectUuid,
+            tiles,
+            sources,
+            projectDefinitions,
+        );
+    }
+
+    /**
+     * The parameters a saved chart uses, their definitions, and the values
+     * saved on it, for integrations building their own parameter inputs.
+     */
+    async getChartParameters(
+        account: Account,
+        projectUuid: string,
+        chartUuidOrSlug: string,
+    ): Promise<ContentParameter[]> {
+        const chart = await this.savedChartModel.get(
+            chartUuidOrSlug,
+            undefined,
+            { projectUuid },
+        );
+        const viewable = await this.getViewableChartUuids(account, [chart]);
+        if (!viewable.has(chart.uuid)) {
+            throw new ForbiddenError(
+                "You don't have access to view this chart",
+            );
+        }
+        const projectDefinitions =
+            await this.getProjectParameterDefinitions(projectUuid);
+        const result = (
+            await this.getSavedChartParameterReferences(
+                account,
+                projectUuid,
+                [chart.uuid],
+                projectDefinitions,
+            )
+        ).get(chart.uuid);
+        if (!result || result.error !== null) {
+            throw new ParameterError(
+                result?.error ??
+                    `Could not read the parameters of ${chart.uuid}`,
+            );
+        }
+        return getContentParameters({
+            parameterReferences: result.parameterReferences,
+            definitions: result.parameterDefinitions,
+            projectDefinitions,
+            savedValues: chart.parameters ?? {},
+        });
+    }
+
+    /**
+     * The parameters a dashboard's tiles use, their definitions, the values
+     * saved on the dashboard, and which tiles use each. Tiles the user can't
+     * view, or whose queries can't be read, are left out.
+     */
+    async getDashboardParameters(
+        account: RegisteredAccount,
+        projectUuid: string,
+        dashboardUuidOrSlug: string,
+    ): Promise<DashboardContentParameter[]> {
+        const dashboard = await this.getByIdOrSlug(
+            toSessionUser(account),
+            dashboardUuidOrSlug,
+            { projectUuid },
+        );
+        const tiles =
+            dashboard.tiles.flatMap<DashboardTileParameterReferencesTile>(
+                (tile) => {
+                    if (
+                        isDashboardChartTileType(tile) &&
+                        tile.properties.savedChartUuid
+                    ) {
+                        return [
+                            {
+                                tileUuid: tile.uuid,
+                                savedChartUuid: tile.properties.savedChartUuid,
+                                savedSqlUuid: null,
+                            },
+                        ];
+                    }
+                    if (isDashboardSqlChartTile(tile)) {
+                        return [
+                            {
+                                tileUuid: tile.uuid,
+                                savedChartUuid: null,
+                                savedSqlUuid: tile.properties.savedSqlUuid,
+                            },
+                        ];
+                    }
+                    return [];
+                },
+            );
+        const projectDefinitions =
+            await this.getProjectParameterDefinitions(projectUuid);
+        const tileResults = await this.listTileParameterReferences(
+            account,
+            projectUuid,
+            tiles,
+            tiles,
+            projectDefinitions,
+        );
+        const tileUuidsByName = new Map<string, string[]>();
+        const definitions = tileResults.reduce<ParameterDefinitions>(
+            (acc, result) => {
+                if (result.error !== null) return acc;
+                result.parameterReferences.forEach((name) => {
+                    tileUuidsByName.set(name, [
+                        ...(tileUuidsByName.get(name) ?? []),
+                        result.tileUuid,
+                    ]);
+                });
+                return { ...acc, ...result.parameterDefinitions };
+            },
+            {},
+        );
+        return getContentParameters({
+            parameterReferences: [...tileUuidsByName.keys()],
+            definitions,
+            projectDefinitions,
+            savedValues:
+                convertDashboardParametersToValuesMap(dashboard.parameters) ??
+                {},
+        }).map((parameter) => ({
+            ...parameter,
+            tileUuids: uniq(tileUuidsByName.get(parameter.name) ?? []),
+        }));
+    }
+
+    private async getProjectParameterDefinitions(
+        projectUuid: string,
+    ): Promise<ParameterDefinitions> {
+        return Object.fromEntries(
             (
                 await this.projectService.projectParametersModel.find(
                     projectUuid,
@@ -1050,6 +1190,16 @@ export class DashboardService
                 { ...config, type: config.type || 'string' },
             ]),
         );
+    }
+
+    /** Each tile's parameters; `sources` says where each tile's query lives, null when it can't be listed */
+    private async listTileParameterReferences(
+        account: Account,
+        projectUuid: string,
+        tiles: DashboardTileParameterReferencesTile[],
+        sources: (DashboardTileParameterReferencesTile | null)[],
+        projectDefinitions: ParameterDefinitions,
+    ): Promise<DashboardTileParameterReferences[]> {
         // One kind failing outright keeps the other kind's results
         const [chartResults, sqlResults] = await Promise.all([
             this.getSavedChartParameterReferences(

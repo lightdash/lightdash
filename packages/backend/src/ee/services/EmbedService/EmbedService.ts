@@ -40,6 +40,8 @@ import {
     getDashboardFilterableFieldKey,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
+    getEmbedExcludedParameterKeys,
+    getEmbedParameterValues,
     getEmbedWriteSpaceUuids,
     getExecutableFilterFieldIds,
     getFilterInteractivityValue,
@@ -58,7 +60,6 @@ import {
     isExternalFetchDocumentContext,
     isFilterInteractivityEnabled,
     isFilterLockedOnTab,
-    isParameterInteractivityEnabled,
     MetricQuery,
     NotFoundError,
     NotSupportedError,
@@ -1314,14 +1315,15 @@ export class EmbedService extends BaseService {
         );
     }
 
-    /** The viewer's per-tile resolution counts only while their parameter interactivity is on, like their values */
+    /** The viewer's per-tile resolution counts only while they may change every parameter */
     private static getGatedExcludedKeys(
         account: AnonymousAccount,
         excludedParameterKeys: string[] | undefined,
     ): string[] | undefined {
-        return isParameterInteractivityEnabled(account.access.parameters)
-            ? excludedParameterKeys
-            : undefined;
+        return getEmbedExcludedParameterKeys(
+            account.access.parameters,
+            excludedParameterKeys,
+        );
     }
 
     private async _getDashboardTileParameterLayer({
@@ -1605,11 +1607,10 @@ export class EmbedService extends BaseService {
 
         // Forward only the gated user parameters; AsyncQueryService combines
         // them with dashboard/project params, so pre-combining here is redundant.
-        const acceptedUserParameters =
-            isParameterInteractivityEnabled(account.access.parameters) &&
-            parameters
-                ? parameters
-                : {};
+        const acceptedUserParameters = getEmbedParameterValues(
+            account.access.parameters,
+            parameters,
+        );
 
         // Execute using AsyncQueryService method with embed context.
         // The session timezone only takes effect when timezone support is
@@ -1803,11 +1804,10 @@ export class EmbedService extends BaseService {
             },
         });
 
-        const acceptedUserParameters =
-            isParameterInteractivityEnabled(account.access.parameters) &&
-            parameters
-                ? parameters
-                : {};
+        const acceptedUserParameters = getEmbedParameterValues(
+            account.access.parameters,
+            parameters,
+        );
 
         return this.asyncQueryService.executeAsyncDashboardSqlChartQuery({
             account,
@@ -1920,11 +1920,10 @@ export class EmbedService extends BaseService {
             },
         });
 
-        const acceptedUserParameters =
-            isParameterInteractivityEnabled(account.access.parameters) &&
-            userParameters
-                ? userParameters
-                : {};
+        const acceptedUserParameters = getEmbedParameterValues(
+            account.access.parameters,
+            userParameters,
+        );
         const chartSavedValues = chart.parameters ?? {};
         const combinedParameters =
             await this.projectService.resolveDashboardTileParameters({
@@ -2464,11 +2463,10 @@ export class EmbedService extends BaseService {
             userAttributes,
         });
 
-        const acceptedUserParameters =
-            isParameterInteractivityEnabled(account.access.parameters) &&
-            userParameters
-                ? userParameters
-                : {};
+        const acceptedUserParameters = getEmbedParameterValues(
+            account.access.parameters,
+            userParameters,
+        );
         const combinedParameters = await this._combineSavedChartParameters({
             projectUuid,
             explore,
@@ -2549,11 +2547,10 @@ export class EmbedService extends BaseService {
             ...(metricQuery.additionalMetrics?.map((m) => m.name) || []),
         ];
 
-        const acceptedUserParameters =
-            isParameterInteractivityEnabled(account.access.parameters) &&
-            userParameters
-                ? userParameters
-                : {};
+        const acceptedUserParameters = getEmbedParameterValues(
+            account.access.parameters,
+            userParameters,
+        );
         const combinedParameters = await this._combineSavedChartParameters({
             projectUuid,
             explore,
@@ -2728,11 +2725,10 @@ export class EmbedService extends BaseService {
         });
 
         // Handle parameter interactivity - only accept user parameters if enabled
-        const acceptedUserParameters =
-            isParameterInteractivityEnabled(account.access.parameters) &&
-            data.parameters
-                ? data.parameters
-                : {};
+        const acceptedUserParameters = getEmbedParameterValues(
+            account.access.parameters,
+            data.parameters,
+        );
 
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
@@ -2811,11 +2807,10 @@ export class EmbedService extends BaseService {
         }
 
         // Handle parameter interactivity - only accept user parameters if enabled
-        const acceptedUserParameters =
-            isParameterInteractivityEnabled(account.access.parameters) &&
-            data.parameters
-                ? data.parameters
-                : {};
+        const acceptedUserParameters = getEmbedParameterValues(
+            account.access.parameters,
+            data.parameters,
+        );
 
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
@@ -2990,11 +2985,10 @@ export class EmbedService extends BaseService {
             };
         }
 
-        const acceptedUserParameters =
-            isParameterInteractivityEnabled(account.access.parameters) &&
-            parameters
-                ? parameters
-                : {};
+        const acceptedUserParameters = getEmbedParameterValues(
+            account.access.parameters,
+            parameters,
+        );
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
             explore,

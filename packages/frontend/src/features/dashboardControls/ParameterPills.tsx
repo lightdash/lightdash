@@ -1,4 +1,7 @@
-import { getControlTileUuids } from '@lightdash/common';
+import {
+    getControlTileUuids,
+    isParameterControlLockedInEmbed,
+} from '@lightdash/common';
 import { ActionIcon, Box, Button, Popover, Text, Tooltip } from '@mantine/core';
 import {
     IconAdjustmentsHorizontal,
@@ -20,6 +23,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
     selectDashboardEffectiveParameterValues,
+    selectEmbedDashboard,
     selectParameterControlInputs,
     selectTileParameterReferences,
     useDashboardSelector,
@@ -413,10 +417,22 @@ export const ParameterPills: FC<Props> = ({
     const bar = useParameterBarControls();
     const isViewer = useParameterEditorSelector((c) => c.isViewer);
     const editingId = useParameterEditorSelector((c) => c.editingId);
-    // A hidden control is an editor's to see; its value still applies
+    const embedParameterInteractivity = useDashboardSelector(
+        (state) => selectEmbedDashboard(state)?.parameterInteractivity,
+    );
+    // A hidden control is an editor's to see; its value still applies.
+    // An embed viewer also doesn't see the controls their token keeps from them.
     const entries = bar.entries.filter(
         (entry) =>
-            !(isViewer && entry.control.hidden) &&
+            !(
+                isViewer &&
+                (entry.control.hidden ||
+                    (embedParameterInteractivity !== undefined &&
+                        isParameterControlLockedInEmbed(
+                            embedParameterInteractivity,
+                            entry.control,
+                        )))
+            ) &&
             (sectionId === undefined ||
                 (entry.isNeedsValue
                     ? sectionId === null

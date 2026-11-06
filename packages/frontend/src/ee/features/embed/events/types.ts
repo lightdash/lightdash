@@ -1,9 +1,12 @@
+import type { ParametersValuesMap } from '@lightdash/common';
+
 /**
  * Enum of all supported Lightdash embed event types
  */
 export enum LightdashEventType {
     LocationChanged = 'locationChanged',
     FilterChanged = 'filterChanged',
+    ParameterChanged = 'parameterChanged',
     TabChanged = 'tabChanged',
     Error = 'error',
     AllTilesLoaded = 'allTilesLoaded',
@@ -21,6 +24,15 @@ export type FilterChangedPayload = {
     hasFilters: boolean;
     /** Total number of active filters */
     filterCount: number;
+};
+
+/**
+ * Payload for ParameterChanged events.
+ * Parameter values are the viewer's own inputs, not query results, so they are sent as-is.
+ */
+export type ParameterChangedPayload = {
+    /** The values the dashboard now runs with, by parameter name */
+    parameters: ParametersValuesMap;
 };
 
 /**
@@ -95,6 +107,7 @@ export type NotificationPayload = {
 
 export type LightdashEventPayload =
     | FilterChangedPayload
+    | ParameterChangedPayload
     | TabChangedPayload
     | ErrorPayload
     | AllTilesLoadedPayload
@@ -118,6 +131,7 @@ export type LightdashEmbedEvent<T extends LightdashEventPayload | undefined> = {
 type LightdashEventPayloads = {
     [LightdashEventType.LocationChanged]: LocationChangedPayload;
     [LightdashEventType.FilterChanged]: FilterChangedPayload;
+    [LightdashEventType.ParameterChanged]: ParameterChangedPayload;
     [LightdashEventType.TabChanged]: TabChangedPayload;
     [LightdashEventType.Error]: ErrorPayload;
     [LightdashEventType.AllTilesLoaded]: AllTilesLoadedPayload;
