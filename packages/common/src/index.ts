@@ -427,6 +427,7 @@ export * from './utils/convertCustomDimensionsToYaml';
 export * from './utils/convertCustomMetricsToYaml';
 export * from './utils/customDimensions';
 export * from './utils/dashboard';
+export * from './utils/dashboardControls';
 export * from './utils/dbt';
 export * from './utils/dependencyGraph';
 export * from './utils/egressIps';

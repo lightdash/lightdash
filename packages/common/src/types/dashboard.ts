@@ -281,6 +281,23 @@ export type DashboardParameterControl = {
     hidden?: boolean;
 };
 
+/**
+ * Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds
+ * may be added, so consumers must ignore a kind they don't know.
+ */
+export enum DashboardControlRefKind {
+    FILTER = 'filter',
+    PARAMETER = 'parameter',
+    DATE_ZOOM = 'dateZoom',
+    SECTION = 'section',
+}
+
+export type DashboardControlRef = {
+    kind: DashboardControlRefKind;
+    /** The control's id: filter rule id, parameter control id, date zoom control uuid or section id */
+    id: string;
+};
+
 export type DashboardConfig = {
     isDateZoomDisabled: boolean;
     isAddFilterDisabled?: boolean;
@@ -301,6 +318,9 @@ export type DashboardConfig = {
     parameterSections?: { [parameterName: string]: string };
     /** Absent: filled from the parameters tiles use. Present (even empty): exactly these. */
     parameterControls?: DashboardParameterControl[];
+    /** How controls of every kind interleave on the bar. A hint: readers reconcile
+     *  it with the controls' arrays and sections. Absent: the default order. */
+    controlOrder?: DashboardControlRef[];
 };
 
 export type DashboardOwner = {
