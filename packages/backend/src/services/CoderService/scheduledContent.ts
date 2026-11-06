@@ -77,10 +77,7 @@ export const getDashboardScheduledDeliveryFiltersWithTileUuids = (
 ): DashboardFilterRule[] | undefined => {
     if (!filters) return undefined;
     // Delivery overrides match the dashboard's filters by id first, so carry the dashboard filter's id.
-    const ids = getStableDimensionFilterIds(
-        filters,
-        dashboard.filters.dimensions,
-    );
+    const ids = getStableDimensionFilterIds(filters, dashboard.filters);
     return filters.map((filter, index) => ({
         ...filter,
         id: ids[index],

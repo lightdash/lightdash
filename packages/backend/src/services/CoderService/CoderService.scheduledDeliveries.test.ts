@@ -613,6 +613,7 @@ describe('dashboard scheduled delivery filter ids', () => {
                 { id: 'status-id', target: status },
                 { id: 'amount-id', target: amount },
             ],
+            metrics: [],
         },
     } as unknown as DashboardDAO;
     const upload = (targets: (typeof status)[]) =>
@@ -645,11 +646,35 @@ describe('dashboard scheduled delivery filter ids', () => {
         expect(ids).not.toContain('amount-id');
     });
 
+    it('matches two overrides on one field by their slugs', () => {
+        const ids = getDashboardScheduledDeliveryFiltersWithTileUuids(
+            {
+                tiles: [],
+                filters: {
+                    dimensions: [
+                        { id: 'first-id', target: status },
+                        { id: 'second-id', target: status },
+                    ],
+                    metrics: [],
+                },
+            } as unknown as DashboardDAO,
+            ['orders-status-2', 'orders-status-1'].map(
+                (slug) =>
+                    ({
+                        target: status,
+                        slug,
+                        operator: FilterOperator.EQUALS,
+                    }) as Omit<DashboardFilterRule, 'id'>,
+            ),
+        );
+        expect(ids?.map(({ id }) => id)).toEqual(['second-id', 'first-id']);
+    });
+
     it('carries no ids from a dashboard without that filter', () => {
         const ids = getDashboardScheduledDeliveryFiltersWithTileUuids(
             {
                 tiles: [],
-                filters: { dimensions: [] },
+                filters: { dimensions: [], metrics: [] },
             } as unknown as DashboardDAO,
             [{ target: status, operator: FilterOperator.EQUALS }] as Omit<
                 DashboardFilterRule,

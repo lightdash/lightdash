@@ -399,6 +399,13 @@
         },
         "DashboardConfigAsCode": {
             "properties": {
+                "controlOrder": {
+                    "description": "How filters, parameter controls and sections interleave on the bar. Absent: the default order.",
+                    "items": {
+                        "$ref": "#/$defs/DashboardControlRefAsCode"
+                    },
+                    "type": "array"
+                },
                 "controlSections": {
                     "items": {
                         "$ref": "#/$defs/DashboardControlSectionAsCode"
@@ -493,6 +500,25 @@
             },
             "required": ["isDateZoomDisabled"],
             "type": "object"
+        },
+        "DashboardControlRefAsCode": {
+            "description": "A control in `controlOrder`, by its slug in the same file",
+            "properties": {
+                "kind": {
+                    "$ref": "#/$defs/DashboardControlRefKind"
+                },
+                "slug": {
+                    "description": "Slug of a filter, parameter control or section in this file",
+                    "type": "string"
+                }
+            },
+            "required": ["slug", "kind"],
+            "type": "object"
+        },
+        "DashboardControlRefKind": {
+            "description": "Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds\nmay be added, so consumers must ignore a kind they don't know.",
+            "enum": ["filter", "parameter", "dateZoom", "section"],
+            "type": "string"
         },
         "DashboardControlSectionAsCode": {
             "properties": {
