@@ -9,6 +9,7 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
 import { compileGa4Query } from './ga4Compiler';
+import { GA4_CAPABILITIES } from './Ga4Connector';
 import {
     GA4_REPORT_EXPLORE,
     GA4_SEMANTIC_LAYER_VERSION,
@@ -25,6 +26,7 @@ const buildExplore = (definition = GA4_REPORT_EXPLORE) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.GA4,
         baseVersion: GA4_SEMANTIC_LAYER_VERSION,
+        capabilities: GA4_CAPABILITIES,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),
@@ -265,15 +267,6 @@ describe('compileGa4Query', () => {
         expect(fieldIdsByColumn).toEqual({
             sessionDefaultChannelGroup: field('session_default_channel_group'),
         });
-    });
-
-    test('refuses incompatible fields before calling the API', () => {
-        expect(() =>
-            compile(query({ dimensions: [field('item_name')] })),
-        ).toThrow(ParameterError);
-        expect(() =>
-            compile(query({ dimensions: [field('item_name')] })),
-        ).toThrow('item dimensions with item metrics');
     });
 
     test('maps custom fields to the column names the connector returns', () => {

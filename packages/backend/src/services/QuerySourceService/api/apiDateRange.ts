@@ -1,7 +1,6 @@
 import {
     FilterOperator,
     isAndFilterGroup,
-    isFilterGroup,
     isFilterRule,
     ParameterError,
     UnitOfTime,
@@ -47,8 +46,9 @@ const toFilterDate = (value: unknown): string => {
 };
 
 /**
- * Takes the filters on `dateFieldId` out of a dimension filter group: the API
- * reads them as its date range, and every other filter stays a filter.
+ * Takes the filter on `dateFieldId` out of a dimension filter group: the API
+ * reads it as its date range, and every other filter stays a filter.
+ * Expects a query that passed the shared check.
  */
 export const splitDateRangeFilter = (
     group: FilterGroup | undefined,
@@ -57,32 +57,13 @@ export const splitDateRangeFilter = (
     if (!group) {
         return { dateRule: null, otherFilters: undefined };
     }
+    // The shared check guarantees one top-level date rule, ANDed with the rest
     const items = (isAndFilterGroup(group) ? group.and : group.or) ?? [];
-    const isTopLevelAnd = isAndFilterGroup(group) || items.length === 1;
     const isDateRule = (item: FilterGroup | FilterRule) =>
         isFilterRule(item) &&
         !item.disabled &&
         item.target.fieldId === dateFieldId;
-    const hasNestedDateRule = (item: FilterGroup | FilterRule): boolean =>
-        isFilterGroup(item) &&
-        ((isAndFilterGroup(item) ? item.and : item.or) ?? []).some(
-            (child) => isDateRule(child) || hasNestedDateRule(child),
-        );
-
     const dateRules = items.filter(isDateRule).filter(isFilterRule);
-    if (
-        items.some(hasNestedDateRule) ||
-        (dateRules.length > 0 && !isTopLevelAnd)
-    ) {
-        throw new ParameterError(
-            'Filter the date with one filter combined with the others by AND, not inside an OR group.',
-        );
-    }
-    if (dateRules.length > 1) {
-        throw new ParameterError(
-            'Filter the date once: combine the date filters into one range.',
-        );
-    }
     const others = items.filter((item) => !isDateRule(item));
     return {
         dateRule: dateRules[0] ?? null,

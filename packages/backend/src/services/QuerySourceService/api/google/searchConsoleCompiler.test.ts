@@ -8,6 +8,7 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
 import { compileSearchConsoleQuery } from './searchConsoleCompiler';
+import { SEARCH_CONSOLE_CAPABILITIES } from './SearchConsoleConnector';
 import {
     SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
     SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
@@ -23,6 +24,7 @@ const explore = buildApiSourceExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.SEARCH_CONSOLE,
     baseVersion: SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
+    capabilities: SEARCH_CONSOLE_CAPABILITIES,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -163,46 +165,5 @@ describe('compileSearchConsoleQuery', () => {
             }),
         );
         expect(request.dimensionFilterGroups).toBeUndefined();
-    });
-
-    test('refuses matching several values, which needs an OR', () => {
-        expect(() =>
-            compile(
-                query({
-                    filters: {
-                        dimensions: {
-                            id: 'root',
-                            and: [
-                                rule('country', FilterOperator.EQUALS, [
-                                    'usa',
-                                    'gbr',
-                                ]),
-                            ],
-                        },
-                    },
-                }),
-            ),
-        ).toThrow('one value at a time');
-    });
-
-    test('refuses metric filters, which Search Analytics cannot apply', () => {
-        expect(() =>
-            compile(
-                query({
-                    filters: {
-                        metrics: {
-                            id: 'metrics',
-                            and: [
-                                rule(
-                                    'clicks',
-                                    FilterOperator.GREATER_THAN,
-                                    [10],
-                                ),
-                            ],
-                        },
-                    },
-                }),
-            ),
-        ).toThrow(`"${field('clicks')}" can't be filtered`);
     });
 });

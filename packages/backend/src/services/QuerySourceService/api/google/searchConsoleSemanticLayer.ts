@@ -1,4 +1,9 @@
-import { DimensionType, FilterOperator, MetricType } from '@lightdash/common';
+import {
+    DimensionType,
+    FilterOperator,
+    MetricType,
+    type ApiSourceMetricAggregation,
+} from '@lightdash/common';
 import type {
     ApiSourceDimensionDefinition,
     ApiSourceExploreDefinition,
@@ -7,13 +12,19 @@ import type {
 
 export const SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION = 1;
 
-const STRING_FILTERS = [
+export const SEARCH_CONSOLE_STRING_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.NOT_EQUALS,
     FilterOperator.INCLUDE,
     FilterOperator.NOT_INCLUDE,
     // Search Console never reports empty values, so this always holds
     FilterOperator.NOT_NULL,
+];
+
+export const SEARCH_CONSOLE_DATE_FILTERS = [
+    FilterOperator.IN_THE_PAST,
+    FilterOperator.IN_BETWEEN,
+    FilterOperator.EQUALS,
 ];
 
 const dimension = (
@@ -26,7 +37,7 @@ const dimension = (
     label,
     description,
     type: DimensionType.STRING,
-    filterOperators: STRING_FILTERS,
+    filterOperators: SEARCH_CONSOLE_STRING_FILTERS,
 });
 
 // Search Analytics can't filter on metrics
@@ -34,6 +45,7 @@ const metric = (
     name: string,
     label: string,
     type: MetricType,
+    aggregation: ApiSourceMetricAggregation,
     description: string,
     format?: string,
 ): ApiSourceMetricDefinition => ({
@@ -43,8 +55,15 @@ const metric = (
     description,
     type,
     filterOperators: [],
+    aggregation,
     ...(format ? { format } : {}),
 });
+
+// Additivity per the Search Analytics docs
+// (https://developers.google.com/webmaster-tools/v1/searchanalytics/query,
+// https://support.google.com/webmasters/answer/7042828): clicks and
+// impressions are counts, CTR is clicks / impressions and position is an
+// impression-weighted average, which summed rows can't rebuild.
 
 export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: ApiSourceExploreDefinition = {
     name: 'performance',
@@ -57,11 +76,7 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: ApiSourceExploreDefinition = {
             apiName: 'date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: [
-                FilterOperator.IN_THE_PAST,
-                FilterOperator.IN_BETWEEN,
-                FilterOperator.EQUALS,
-            ],
+            filterOperators: SEARCH_CONSOLE_DATE_FILTERS,
             description:
                 'Day of the search, in Pacific Time. Queries without a date filter read the last 28 days.',
         },
@@ -91,18 +106,25 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: ApiSourceExploreDefinition = {
             'clicks',
             'Clicks',
             MetricType.SUM,
+            { aggregation: 'additive' },
             'Clicks from Google Search.',
         ),
         metric(
             'impressions',
             'Impressions',
             MetricType.SUM,
+            { aggregation: 'additive' },
             'Times a link to the site appeared in results.',
         ),
         metric(
             'ctr',
             'Click-through rate',
             MetricType.NUMBER,
+            {
+                aggregation: 'ratio',
+                numerator: 'clicks',
+                denominator: 'impressions',
+            },
             'Clicks divided by impressions.',
             '0.00%',
         ),
@@ -110,11 +132,11 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: ApiSourceExploreDefinition = {
             'position',
             'Average position',
             MetricType.AVERAGE,
+            { aggregation: 'non_additive' },
             'Average top position in results, weighted by impressions.',
             '0.0',
         ),
     ],
-    filterGroups: { or: false, nested: false },
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 28 },

@@ -11,8 +11,8 @@ import {
 } from '@lightdash/common';
 import { getApiDateRange, splitDateRangeFilter } from '../apiDateRange';
 import {
-    assertApiSourceQuery,
     getApiName,
+    getApiSourceExplore,
     type CompiledApiSourceQuery,
 } from '../apiSourceExplore';
 import { toGa4ColumnName } from './Ga4Connector';
@@ -205,7 +205,7 @@ export const compileGa4Query = ({
     metricQuery: MetricQuery;
     today: string;
 }): CompiledApiSourceQuery => {
-    const apiSource = assertApiSourceQuery(explore, metricQuery);
+    const apiSource = getApiSourceExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const caseSensitive = explore.caseSensitive ?? true;
     const { dateRule, otherFilters } = apiSource.dateRange

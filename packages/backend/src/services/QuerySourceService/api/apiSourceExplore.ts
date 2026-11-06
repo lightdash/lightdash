@@ -7,6 +7,8 @@ import {
     ParameterError,
     type ApiConnectorType,
     type ApiSourceExplore,
+    type ApiSourceMetricAggregation,
+    type ApiSourceQueryContext,
     type Dimension,
     type DimensionType,
     type Explore,
@@ -18,6 +20,7 @@ import {
     type SortField,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
+import { type ApiConnectorCapabilities } from './ApiConnector';
 
 type ApiSourceFieldDefinition = {
     /** Stable within the explore: saved charts reference it forever, so never rename it. */
@@ -40,6 +43,12 @@ export type ApiSourceDimensionDefinition = ApiSourceFieldDefinition & {
 export type ApiSourceMetricDefinition = ApiSourceFieldDefinition & {
     type: MetricType;
     format?: string;
+    /**
+     * Whether the metric's values can be summed, checked against the API's
+     * docs. Saved charts will rely on it, so never loosen a tag without
+     * evidence. Absent (scanned metrics) means `non_additive`.
+     */
+    aggregation?: ApiSourceMetricAggregation;
 };
 
 /** One explore of an integration's semantic layer, written by hand or found by a scan. */
@@ -49,7 +58,6 @@ export type ApiSourceExploreDefinition = {
     description: string;
     dimensions: ApiSourceDimensionDefinition[];
     metrics: ApiSourceMetricDefinition[];
-    filterGroups: ApiSourceExplore['filterGroups'];
     maxDimensions: number | null;
     maxMetrics: number | null;
     dateRange: { dimension: string; defaultDays: number } | null;
@@ -64,6 +72,7 @@ export const buildApiSourceExplore = ({
     connectionUuid,
     integration,
     baseVersion,
+    capabilities,
     warehouseSqlBuilder,
 }: {
     definition: ApiSourceExploreDefinition;
@@ -72,6 +81,7 @@ export const buildApiSourceExplore = ({
     connectionUuid: string;
     integration: ApiConnectorType;
     baseVersion: number;
+    capabilities: ApiConnectorCapabilities;
     warehouseSqlBuilder: WarehouseSqlBuilder;
 }): Explore => {
     const quote = warehouseSqlBuilder.getFieldQuoteChar();
@@ -147,7 +157,11 @@ export const buildApiSourceExplore = ({
             connectionUuid,
             integration,
             baseVersion,
-            filterGroups: definition.filterGroups,
+            // Kept for readers of explores built before capabilities
+            filterGroups: {
+                or: capabilities.filters.or,
+                nested: capabilities.filters.nestedGroups,
+            },
             maxDimensions: definition.maxDimensions,
             maxMetrics: definition.maxMetrics,
             dateRange: definition.dateRange
@@ -170,6 +184,15 @@ export const buildApiSourceExplore = ({
                 with: incompatibility.with.map(toFieldId),
                 reason: incompatibility.reason,
             })),
+            capabilities: {
+                ...capabilities,
+                metrics: Object.fromEntries(
+                    definition.metrics.map((metric) => [
+                        metric.name,
+                        metric.aggregation ?? { aggregation: 'non_additive' },
+                    ]),
+                ),
+            },
         },
     };
 };
@@ -187,18 +210,28 @@ export type CompiledApiSourceQuery = {
     localSorts: SortField[];
 };
 
-/** Fails with every fixable reason the API can't answer the query. */
-export const assertApiSourceQuery = (
-    explore: Explore,
-    metricQuery: MetricQuery,
-): ApiSourceExplore => {
+/** The explore's live data source rules; fails for any other explore. */
+export const getApiSourceExplore = (explore: Explore): ApiSourceExplore => {
     const { apiSource } = explore;
     if (explore.type !== ExploreType.API_SOURCE || !apiSource) {
         throw new ParameterError(
             `"${explore.name}" isn't a live data source explore`,
         );
     }
-    const issues = getApiSourceQueryIssues(apiSource, metricQuery);
+    return apiSource;
+};
+
+/**
+ * Fails with every fixable reason the API can't answer the query, from the
+ * shared check every entry point runs, so compilers only translate.
+ */
+export const assertApiSourceQuery = (
+    explore: Explore,
+    metricQuery: MetricQuery,
+    context: ApiSourceQueryContext = {},
+): ApiSourceExplore => {
+    const apiSource = getApiSourceExplore(explore);
+    const issues = getApiSourceQueryIssues(apiSource, metricQuery, context);
     if (issues.length > 0) {
         throw new ParameterError(
             issues.map(({ message }) => message).join(' '),

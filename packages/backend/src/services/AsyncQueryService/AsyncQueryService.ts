@@ -381,6 +381,7 @@ import {
     getApiQueryOutcome,
     type ApiQueryOutcome,
 } from '../QuerySourceService/api/apiQueryOutcome';
+import { assertApiSourceQuery } from '../QuerySourceService/api/apiSourceExplore';
 import {
     compileApiSourceMetricQuery,
     toApiSourceResult,
@@ -12133,16 +12134,12 @@ export class AsyncQueryService extends ProjectService {
             );
         }
         assertRegisteredAccount(account);
-        if (queryComposer.getPivotConfiguration()) {
-            throw new ParameterError(
-                "Pivoted results aren't available from live data sources yet. Remove the pivot to run this query.",
-            );
-        }
-        if (queryComposer.getDateZoom()?.granularity) {
-            throw new ParameterError(
-                "Date zoom isn't available on live data sources yet.",
-            );
-        }
+        // The shared check, with what only the composer knows: the same
+        // refusals as the Explore controls, before any call or flag lookup
+        assertApiSourceQuery(explore, queryComposer.getMetricQuery(), {
+            isPivoted: !!queryComposer.getPivotConfiguration(),
+            dateZoomGranularity: queryComposer.getDateZoom()?.granularity,
+        });
         if (!this.getApiSourceConnector) {
             throw new ForbiddenError('Live data sources are not enabled');
         }

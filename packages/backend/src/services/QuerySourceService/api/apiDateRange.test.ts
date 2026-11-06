@@ -65,34 +65,6 @@ describe('splitDateRangeFilter', () => {
             splitDateRangeFilter({ id: 'root', and: [date] }, DATE).dateRule,
         ).toBeNull();
     });
-
-    test('refuses a date filter inside an OR group', () => {
-        const date = rule(FilterOperator.IN_THE_PAST, [7]);
-        expect(() =>
-            splitDateRangeFilter({ id: 'root', or: [date, channel] }, DATE),
-        ).toThrow(ParameterError);
-        expect(() =>
-            splitDateRangeFilter(
-                { id: 'root', and: [{ id: 'nested', or: [date, channel] }] },
-                DATE,
-            ),
-        ).toThrow('not inside an OR group');
-    });
-
-    test('refuses two date filters', () => {
-        expect(() =>
-            splitDateRangeFilter(
-                {
-                    id: 'root',
-                    and: [
-                        rule(FilterOperator.IN_THE_PAST, [7]),
-                        rule(FilterOperator.EQUALS, ['2026-11-01']),
-                    ],
-                },
-                DATE,
-            ),
-        ).toThrow('Filter the date once');
-    });
 });
 
 describe('getApiDateRange', () => {
