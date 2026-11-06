@@ -9,10 +9,6 @@ import classes from './ResultsCacheTtlProjectionHint.module.css';
 
 const MIN_IMPROVEMENT = 0.01;
 
-// Projections are estimates, so always read as approximate.
-const withApproximation = (value: string) =>
-    value.startsWith('~') ? value : `~${value}`;
-
 type Props = {
     projectUuid: string;
     days: ResultsCacheStatsDays;
@@ -79,11 +75,9 @@ export const ResultsCacheTtlProjectionHint: FC<Props> = ({
                                 </Text>
                                 <Divider orientation="vertical" />
                                 <Text fz="sm">
-                                    {`${withApproximation(
-                                        formatWarehouseTime(
-                                            Math.round(
-                                                projection.warehouseTimeSavedMs,
-                                            ),
+                                    {`~${formatWarehouseTime(
+                                        Math.round(
+                                            projection.warehouseTimeSavedMs,
                                         ),
                                     )} warehouse time saved`}
                                 </Text>
