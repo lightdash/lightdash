@@ -4395,26 +4395,146 @@ describe('CoderService dashboard control order as code', () => {
         ]);
     });
 
-    it('stores no order when an agent adds a filter without a ref', async () => {
+    const barOf = (saved: AnyType) =>
+        reconcileDashboardControlOrder({
+            controlOrder: saved.config!.controlOrder,
+            filters: saved.filters,
+            parameterControls: saved.config!.parameterControls!,
+            sections: saved.config!.controlSections!,
+        }).map(({ kind, slug, newLine }) => [kind, slug, newLine]);
+
+    // The saved dashboard as the first upload left it
+    const afterUpload = (result: AnyType) =>
+        ({
+            ...withoutOrder(),
+            filters: result.filters,
+            config: result.config,
+        }) as DashboardDAO;
+
+    it('stores an order when an agent adds a filter without a ref, the filter trailing the bar', async () => {
         const saved = await upload(
             withCityFilter(download(withoutOrder(), true, true)),
             { saved: withoutOrder() as DashboardDAO },
         );
+        expect(saved.config?.controlOrder).toBeDefined();
+        expect(barOf(saved)).toEqual([
+            ['filter', 'orders-status-1', false],
+            ['filter', 'orders-total', false],
+            ['parameter', 'region', false],
+            ['section', 'calendar', true],
+            ['filter', 'orders-status-2', false],
+            ['filter', 'orders-city', false],
+        ]);
+    });
+
+    it.each([
+        [
+            'a partial list',
+            () => ({
+                ...download(withoutOrder(), true),
+                config: {
+                    ...download(withoutOrder(), true).config!,
+                    controlOrder: [
+                        {
+                            kind: DashboardControlRefKind.PARAMETER,
+                            slug: 'region',
+                        },
+                    ],
+                },
+            }),
+        ],
+        [
+            'a filter added without a ref',
+            () => withCityFilter(download(withoutOrder(), true, true)),
+        ],
+    ])(
+        'stores the same result when %s is uploaded twice',
+        async (_name, makeFile) => {
+            const first = await upload(makeFile() as DashboardAsCode, {
+                saved: withoutOrder() as DashboardDAO,
+            });
+            const second = await upload(makeFile() as DashboardAsCode, {
+                saved: afterUpload(first),
+            });
+            expect(second.config?.controlOrder).toEqual(
+                first.config?.controlOrder,
+            );
+            expect(barOf(second)).toEqual(barOf(first));
+        },
+    );
+
+    it('stores no order for an empty list', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true),
+            [],
+        );
         expect(saved.config).not.toHaveProperty('controlOrder');
-        expect(
-            reconcileDashboardControlOrder({
-                controlOrder: undefined,
-                filters: saved.filters,
-                parameterControls: saved.config!.parameterControls!,
-                sections: saved.config!.controlSections!,
-            }).map(({ kind, slug }) => [kind, slug]),
-        ).toEqual([
-            ['filter', 'orders-status-1'],
-            ['filter', 'orders-city'],
-            ['filter', 'orders-total'],
-            ['parameter', 'region'],
-            ['section', 'calendar'],
-            ['filter', 'orders-status-2'],
+    });
+
+    it('stores no order when the full default is read back unchanged', async () => {
+        const file = download(withoutOrder(), true, true);
+        const saved = await uploadNeverReordered(
+            file,
+            file.config!.controlOrder,
+        );
+        expect(saved.config).not.toHaveProperty('controlOrder');
+    });
+
+    it('stores a partial list on create', async () => {
+        const service = buildService();
+        service.projectService = {
+            projectParametersModel: {
+                find: vi.fn(async () => [
+                    { name: 'region', config: { label: 'Region' } },
+                ]),
+            },
+        } as AnyType;
+        (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+            async () => ({}),
+        );
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([]);
+        vi.spyOn(
+            service as AnyType,
+            'assertContentAccessForMissingSpace',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID },
+            created: false,
+        } as AnyType);
+        vi.spyOn(
+            service as AnyType,
+            'assertSpaceContentAccess',
+        ).mockResolvedValue(undefined);
+        vi.mocked(service.dashboardModel.create).mockRejectedValue(
+            new Error('stop after config'),
+        );
+        const file = download(withoutOrder(), true);
+        await expect(
+            service.upsertDashboard(
+                makeSessionUser([
+                    { subject: 'ContentAsCode', action: 'manage' },
+                    { subject: 'Dashboard', action: 'create' },
+                ]),
+                PROJECT_UUID,
+                'dashboard',
+                {
+                    ...file,
+                    config: {
+                        ...file.config!,
+                        controlOrder: [
+                            {
+                                kind: DashboardControlRefKind.PARAMETER,
+                                slug: 'region',
+                            },
+                        ],
+                    },
+                },
+            ),
+        ).rejects.toThrow('stop after config');
+        const created = vi.mocked(service.dashboardModel.create).mock
+            .calls[0][1] as AnyType;
+        expect(created.config.controlOrder).toEqual([
+            { kind: 'parameter', id: created.config.parameterControls[0].id },
         ]);
     });
 

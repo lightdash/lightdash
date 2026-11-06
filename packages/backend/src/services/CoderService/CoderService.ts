@@ -191,10 +191,10 @@ import {
     type SnapshotAsCodeContent,
 } from './contentAsCodeSnapshot';
 import {
-    followsDefaultControlOrder,
     getControlOrderAsCode,
     getControlOrderWithIds,
     getFilterSlugsAsCode,
+    rendersDefaultControlOrder,
 } from './controlOrder';
 import {
     getConfigWithDateZoomTileSlugs,
@@ -5937,31 +5937,11 @@ export class CoderService extends BaseService {
                 fileOrder === undefined
                     ? undefined
                     : getControlOrderWithIds(fileOrder, sources);
-            // A file order that follows the default isn't stored, so agent reads carrying the default order round-trip clean
+            // An order that renders the default bar isn't stored, so agent reads carrying the default order round-trip clean
             if (
                 controlOrder !== undefined &&
                 existingDashboard?.config?.controlOrder === undefined &&
-                followsDefaultControlOrder(
-                    controlOrder,
-                    sources,
-                    existingDashboard
-                        ? {
-                              filters: {
-                                  dimensions:
-                                      existingDashboard.filters.dimensions,
-                                  // Stored filters can predate the metric list
-                                  metrics:
-                                      existingDashboard.filters.metrics ?? [],
-                              },
-                              parameterControls:
-                                  existingDashboard.config?.parameterControls ??
-                                  [],
-                              sections:
-                                  existingDashboard.config?.controlSections ??
-                                  [],
-                          }
-                        : null,
-                )
+                rendersDefaultControlOrder(controlOrder, sources)
             ) {
                 controlOrder = undefined;
             }
