@@ -1,3 +1,11 @@
+## [3.169.6](https://github.com/lightdash/lightdash/compare/3.169.5...3.169.6) (2026-11-06)
+
+
+### Bug Fixes
+
+* **ai:** check each chart once before saving, at its saved limit ([#32156](https://github.com/lightdash/lightdash/issues/32156)) ([dbf11c6](https://github.com/lightdash/lightdash/commit/dbf11c64a76962b8df4f684abebd324bb5dc9185))
+* **ai:** run saved charts at their saved limit ([#32150](https://github.com/lightdash/lightdash/issues/32150)) ([f6ba178](https://github.com/lightdash/lightdash/commit/f6ba17822c1bc33aa78a515fb172f0e7d53b623b))
+
 ## [3.169.5](https://github.com/lightdash/lightdash/compare/3.169.4...3.169.5) (2026-11-06)
 
 
