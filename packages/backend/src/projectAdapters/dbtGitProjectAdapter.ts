@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DbtProjectEnvironmentVariable,
     ParameterError,
     SupportedDbtVersions,
@@ -19,7 +20,14 @@ import {
     type TrackingParams,
 } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
-import { GIT_REPOSITORY_ENVIRONMENT, GitRepository } from './gitRepository';
+import {
+    GIT_REPOSITORY_ENVIRONMENT,
+    GitRepository,
+    sparseCheckoutDirectory,
+    type GitCheckoutMode,
+    type GitCheckoutStrategy,
+} from './gitRepository';
+import { assertSparseCheckoutComplete } from './sparseCheckoutGuard';
 
 export type DbtGitProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
@@ -34,11 +42,30 @@ export type DbtGitProjectAdapterArgs = {
     environmentVariableAllowlist: string[];
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
+    gitCheckout?: GitCheckoutMode;
     selector?: string;
     analytics?: LightdashAnalytics;
     gitConfigGlobalPath?: string;
     dbtDepsErrorHint?: string;
     partialParseBaselinePath: string | null;
+};
+
+const checkoutForProject = (
+    mode: GitCheckoutMode,
+    subPath: string,
+): GitCheckoutStrategy => {
+    switch (mode) {
+        case 'full':
+            return { kind: 'full' };
+        case 'sparse': {
+            const directory = sparseCheckoutDirectory(subPath);
+            return directory === null
+                ? { kind: 'full' }
+                : { kind: 'sparse', directories: [directory] };
+        }
+        default:
+            return assertUnreachable(mode, 'Unknown git checkout mode');
+    }
 };
 
 export class DbtGitProjectAdapter
@@ -57,6 +84,8 @@ export class DbtGitProjectAdapter
 
     git: SimpleGit;
 
+    private readonly checkoutStrategy: GitCheckoutStrategy;
+
     private gitRefresh: Promise<number> | null = null;
 
     private gitPreparation: Promise<DbtSourcePreparation> | null = null;
@@ -67,6 +96,7 @@ export class DbtGitProjectAdapter
         remoteRepositoryUrl,
         gitBranch,
         projectDirectorySubPath,
+        gitCheckout = 'full',
         dbtTarget,
         explicitCredentials,
         targetName,
@@ -82,6 +112,10 @@ export class DbtGitProjectAdapter
     }: DbtGitProjectAdapterArgs) {
         if (dbtTarget.kind === 'none')
             throw new ParameterError(dbtTarget.reason);
+        const checkoutStrategy = checkoutForProject(
+            gitCheckout,
+            projectDirectorySubPath,
+        );
         const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
             localRepositoryDir,
@@ -103,6 +137,7 @@ export class DbtGitProjectAdapter
             dbtDepsErrorHint,
             partialParseBaselinePath,
         });
+        this.checkoutStrategy = checkoutStrategy;
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;
         this.remoteRepositoryUrl = remoteRepositoryUrl;
@@ -158,7 +193,25 @@ export class DbtGitProjectAdapter
             this.remoteRepositoryUrl,
             this.repository,
             this.branch,
+            {},
+            this.checkoutStrategy,
         ).refresh(signal);
+        switch (this.checkoutStrategy.kind) {
+            case 'full':
+                return;
+            case 'sparse':
+                await assertSparseCheckoutComplete(
+                    this.localRepositoryDir,
+                    this.checkoutStrategy.directories[0],
+                    signal,
+                );
+                return;
+            default:
+                assertUnreachable(
+                    this.checkoutStrategy,
+                    'Unknown git checkout strategy',
+                );
+        }
     }
 
     public async prepareExploreStream(

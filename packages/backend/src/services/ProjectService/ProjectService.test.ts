@@ -213,7 +213,9 @@ import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseCon
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../../projectAdapters/githubAuthorization';
+import type { GitCheckoutMode } from '../../projectAdapters/gitRepository';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
 import {
     CompileInterruptedError,
@@ -9404,6 +9406,342 @@ describe('ProjectService', () => {
     });
 
     describe('compileProject', () => {
+        test.each([false, true])(
+            'sparse checkout rollout uses the resource organization and rechecks production overrides without restart (additional sources=%s)',
+            async (additionalSources) => {
+                const config = {
+                    ...lightdashConfigWithGoogleOAuthMock,
+                    previewFeatureFlags: { enabled: false },
+                    enabledFeatureFlags: new Set<string>(),
+                    disabledFeatureFlags: new Set<string>(),
+                };
+                const credentials = {
+                    type: WarehouseTypes.POSTGRES,
+                    host: 'localhost',
+                    port: 5432,
+                    dbname: 'fixture',
+                    schema: 'public',
+                    user: 'fixture',
+                    password: 'fixture',
+                } satisfies CreatePostgresCredentials;
+                const database = knex({ client: MockClient, dialect: 'pg' });
+                const tracker = getTracker();
+                tracker.reset();
+                let enabled = true;
+                tracker.on.select('feature_flags').response([
+                    {
+                        flag_id: FeatureFlags.DbtSparseGitCheckout,
+                        default_enabled: false,
+                    },
+                ]);
+                tracker.on
+                    .select('feature_flag_overrides')
+                    .response(({ bindings }) =>
+                        bindings.includes(FeatureFlags.DbtSparseGitCheckout) &&
+                        bindings.includes(projectSummary.organizationUuid)
+                            ? [{ enabled }]
+                            : [],
+                    );
+                const flags = new FeatureFlagModel({
+                    database,
+                    lightdashConfig: config,
+                });
+                const getFlag = vi.spyOn(flags, 'get');
+                const configured = getMockedProjectService(config, {
+                    featureFlagModel: flags,
+                });
+                const sources = vi
+                    .spyOn(configured.projectDbtSourcesModel, 'getSources')
+                    .mockResolvedValue(
+                        additionalSources
+                            ? [
+                                  {
+                                      projectDbtSourceUuid:
+                                          'additional-fixture-source',
+                                      projectUuid,
+                                      name: 'additional_fixture',
+                                      isPrimary: false,
+                                      precedence: 1,
+                                      hasCredentialError: false,
+                                      warehouseLocation: {
+                                          database: null,
+                                          schema: null,
+                                      },
+                                      createdAt: new Date(
+                                          '2026-01-01T00:00:00Z',
+                                      ),
+                                      updatedAt: new Date(
+                                          '2026-01-01T00:00:00Z',
+                                      ),
+                                      dbtConnection: {
+                                          type: DbtProjectType.GITHUB,
+                                          authorization_method:
+                                              'personal_access_token',
+                                          repository: 'fixture/additional',
+                                          branch: 'main',
+                                          project_sub_path: 'analytics/dbt',
+                                          personal_access_token: 'ghp_fixture',
+                                      },
+                                  },
+                              ]
+                            : [],
+                    );
+                const factory = vi
+                    .spyOn(projectAdapterModule, 'projectAdapterFromConfig')
+                    .mockRejectedValue(
+                        new ParameterError('Stop at the adapter boundary'),
+                    );
+                const caller: SessionUser = {
+                    ...user,
+                    organizationUuid: 'different-actor-org',
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'all', action: 'manage' },
+                    ]),
+                };
+                try {
+                    const checkMode = async (row: {
+                        enabled: boolean;
+                        mode: GitCheckoutMode;
+                    }) => {
+                        enabled = row.enabled;
+                        if (additionalSources) {
+                            factory.mockResolvedValueOnce(
+                                new DbtManifestProjectAdapter({
+                                    warehouseClient: warehouseClientMock,
+                                    cachedWarehouse: {
+                                        warehouseCatalog: undefined,
+                                        onWarehouseCatalogChange: vi.fn(),
+                                    },
+                                    dbtVersion: SupportedDbtVersions.V1_10,
+                                    parsedManifest: {
+                                        nodes: {},
+                                        metrics: {},
+                                        docs: {},
+                                        metadata: {
+                                            adapter_type: 'postgres',
+                                            generated_at:
+                                                '2026-01-01T00:00:00Z',
+                                            dbt_schema_version:
+                                                'https://schemas.getdbt.com/dbt/manifest/v11.json',
+                                        },
+                                    },
+                                }),
+                            );
+                        }
+                        projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                            {
+                                ...projectWithSensitiveFields,
+                                warehouseConnection: credentials,
+                                dbtConnection: {
+                                    type: DbtProjectType.GITHUB,
+                                    authorization_method:
+                                        'personal_access_token',
+                                    repository: 'fixture/repository',
+                                    branch: 'main',
+                                    project_sub_path: 'analytics/dbt',
+                                    personal_access_token: 'ghp_fixture',
+                                },
+                            },
+                        );
+                        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                            credentials,
+                        );
+                        await configured.compileProject(
+                            caller,
+                            projectUuid,
+                            RequestMethod.WEB_APP,
+                            'sparse-compile-job',
+                        );
+                        const gitCalls = factory.mock.calls.filter(
+                            ([connection]) =>
+                                connection.type === DbtProjectType.GITHUB,
+                        );
+                        expect(
+                            gitCalls
+                                .slice(additionalSources ? -2 : -1)
+                                .map((args) => args[8]?.gitCheckout),
+                        ).toEqual(
+                            additionalSources
+                                ? [row.mode, row.mode]
+                                : [row.mode],
+                        );
+                        expect(getFlag).toHaveBeenCalledWith({
+                            featureFlagId: FeatureFlags.DbtSparseGitCheckout,
+                            user: {
+                                organizationUuid:
+                                    projectSummary.organizationUuid,
+                            },
+                        });
+                    };
+                    await checkMode({ enabled: true, mode: 'sparse' });
+                    await checkMode({ enabled: false, mode: 'full' });
+                    await checkMode({ enabled: true, mode: 'sparse' });
+                    expect(
+                        getFlag.mock.calls.filter(
+                            ([args]) =>
+                                args.featureFlagId ===
+                                FeatureFlags.DbtSparseGitCheckout,
+                        ),
+                    ).toHaveLength(3);
+                } finally {
+                    factory.mockRestore();
+                    sources.mockRestore();
+                    getFlag.mockRestore();
+                    tracker.reset();
+                    await database.destroy();
+                }
+            },
+        );
+
+        test.each(['create', 'test-and-compile'] satisfies Array<
+            'create' | 'test-and-compile'
+        >)(
+            'sparse checkout worker %s uses its resource organization without a personal override',
+            async (operation) => {
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
+                const flags = vi.mocked(configured.featureFlagModel.get);
+                flags.mockImplementation(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.DbtSparseGitCheckout,
+                }));
+                const failure = new ParameterError(
+                    'Stop at the worker adapter boundary',
+                );
+                const factory = vi
+                    .spyOn(projectAdapterModule, 'projectAdapterFromConfig')
+                    .mockRejectedValue(failure);
+                const caller: SessionUser = {
+                    ...user,
+                    organizationUuid: 'worker-actor-org',
+                    organizationName: 'fixture organization',
+                    organizationCreatedAt: new Date('2026-01-01T00:00:00Z'),
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'all', action: 'manage' },
+                    ]),
+                };
+                const data = {
+                    name: 'fixture',
+                    type: ProjectType.DEFAULT,
+                    dbtVersion: DefaultSupportedDbtVersion,
+                    warehouseConnection: {
+                        type: WarehouseTypes.POSTGRES,
+                        host: 'localhost',
+                        port: 5432,
+                        dbname: 'fixture',
+                        schema: 'public',
+                        user: 'fixture',
+                        password: 'fixture',
+                    },
+                    dbtConnection: {
+                        type: DbtProjectType.GITHUB,
+                        authorization_method: 'personal_access_token',
+                        repository: 'fixture/repository',
+                        branch: 'main',
+                        project_sub_path: 'analytics/dbt',
+                        personal_access_token: 'ghp_fixture',
+                    },
+                } satisfies CreateProject;
+                try {
+                    switch (operation) {
+                        case 'create':
+                            await expect(
+                                configured._create(
+                                    caller,
+                                    data,
+                                    'sparse-create-job',
+                                    RequestMethod.WEB_APP,
+                                ),
+                            ).rejects.toBe(failure);
+                            expect(flags).toHaveBeenCalledWith({
+                                featureFlagId:
+                                    FeatureFlags.DbtSparseGitCheckout,
+                                user: {
+                                    organizationUuid: caller.organizationUuid,
+                                },
+                            });
+                            break;
+                        case 'test-and-compile':
+                            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                                { ...projectWithSensitiveFields, ...data },
+                            );
+                            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                                data.warehouseConnection,
+                            );
+                            await expect(
+                                configured.testAndCompileProject(
+                                    caller,
+                                    projectUuid,
+                                    RequestMethod.WEB_APP,
+                                    'sparse-test-job',
+                                ),
+                            ).rejects.toBe(failure);
+                            expect(flags).toHaveBeenCalledWith({
+                                featureFlagId:
+                                    FeatureFlags.DbtSparseGitCheckout,
+                                user: {
+                                    organizationUuid:
+                                        projectSummary.organizationUuid,
+                                },
+                            });
+                            break;
+                        default:
+                            assertUnreachable(
+                                operation,
+                                'Unknown worker test operation',
+                            );
+                    }
+                    expect(factory.mock.calls.at(-1)?.[8]?.gitCheckout).toBe(
+                        'sparse',
+                    );
+                } finally {
+                    factory.mockRestore();
+                }
+            },
+        );
+
+        test('sparse checkout enablement cannot grant cross-organization compile permission', async () => {
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            const flags = vi.mocked(configured.featureFlagModel.get);
+            flags.mockImplementation(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: featureFlagId === FeatureFlags.DbtSparseGitCheckout,
+            }));
+            const factory = vi.spyOn(
+                projectAdapterModule,
+                'projectAdapterFromConfig',
+            );
+            const caller: SessionUser = {
+                ...user,
+                organizationUuid: 'different-actor-org',
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        subject: 'all',
+                        action: 'manage',
+                        conditions: { organizationUuid: 'different-actor-org' },
+                    },
+                ]),
+            };
+            try {
+                await expect(
+                    configured.compileProject(
+                        caller,
+                        projectUuid,
+                        RequestMethod.WEB_APP,
+                        'sparse-denied-job',
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(factory).not.toHaveBeenCalled();
+                expect(flags).not.toHaveBeenCalled();
+            } finally {
+                factory.mockRestore();
+            }
+        });
+
         test('marks the job as failed when the user cannot compile', async () => {
             const compileJobUuid = 'compile-job-uuid';
             const noCompileUser: SessionUser = {
@@ -9964,6 +10302,7 @@ describe('ProjectService', () => {
                 dbtVersionOption: DefaultSupportedDbtVersion,
                 dbtPartialParse: false,
                 dbtTargetPolicy: { explicitCredentials: false },
+                gitCheckout: 'full',
             });
             vi.spyOn(internals, 'resolveCompileAdapter').mockResolvedValue({
                 adapter,
@@ -10152,6 +10491,7 @@ describe('ProjectService', () => {
                     dbtVersionOption: DefaultSupportedDbtVersion,
                     dbtPartialParse: false,
                     dbtTargetPolicy: { explicitCredentials: false },
+                    gitCheckout: 'full',
                 });
                 vi.spyOn(
                     internals,
@@ -15395,6 +15735,7 @@ type ResolveCompileAdapterArgs = {
         dbtVersionOption: DbtVersionOptionLatest;
         dbtPartialParse: boolean;
         dbtTargetPolicy: { explicitCredentials: boolean };
+        gitCheckout: GitCheckoutMode;
     };
     manifestFetchAdapters: ProjectAdapter[];
 };
@@ -15485,7 +15826,8 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
         dbtVersionOption: DbtVersionOptionLatest.LATEST,
         dbtPartialParse: false,
         dbtTargetPolicy: { explicitCredentials: false },
-    };
+        gitCheckout: 'full',
+    } satisfies ResolveCompileAdapterArgs['primary'];
     const baseArgs: ResolveCompileAdapterArgs = {
         projectUuid: 'project-uuid',
         organizationUuid: 'org-uuid',
@@ -16722,6 +17064,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
             }),
             null,
             primary.dbtTargetPolicy,
+            primary.gitCheckout,
         );
         expect(buildSourceAdapter.mock.calls[1][2]).toBe('org-uuid');
         expect(buildSourceAdapter.mock.calls[1][5]).toBe(
@@ -16742,6 +17085,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
             primary,
             null,
             primary.dbtTargetPolicy,
+            primary.gitCheckout,
         );
 
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
@@ -22937,6 +23281,7 @@ describe('compile adapter connection credentials', () => {
                     },
                     null,
                     { explicitCredentials: false },
+                    'full',
                 );
                 const expected = {
                     ...ducklakeCredentials,
@@ -23007,6 +23352,7 @@ describe('compile adapter connection credentials', () => {
                         dbtVersionOption: DbtVersionOptionLatest.LATEST,
                         dbtPartialParse: false,
                         dbtTargetPolicy: { explicitCredentials: false },
+                        gitCheckout: 'full',
                     },
                 });
                 expect(derive).toHaveBeenCalledWith(ducklakeCredentials);

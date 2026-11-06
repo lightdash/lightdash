@@ -1,7 +1,9 @@
 import {
+    assertUnreachable,
     AuthorizationError,
     getErrorMessage,
     NotFoundError,
+    ParameterError,
     UnexpectedGitError,
     UnexpectedServerError,
 } from '@lightdash/common';
@@ -50,6 +52,42 @@ export const gitErrorHandler = (e: unknown, repository: string) => {
     );
 };
 
+export const sparseCheckoutDirectory = (
+    projectSubPath: string,
+): string | null => {
+    const segments = projectSubPath.split('/');
+    if (segments.includes('..')) {
+        throw new ParameterError(
+            'Project subdirectory must stay within the Git repository',
+        );
+    }
+    const directory = segments
+        .filter((segment) => segment !== '' && segment !== '.')
+        .join('/');
+    // Cone paths become line-based patterns and Git trims outer spaces.
+    // Keep POSIX separators and reject pattern syntax and control characters.
+    if (
+        /[\u0000-\u001f\u007f]/.test(projectSubPath) ||
+        ['\\', '*', '?', '[', ']'].some((character) =>
+            projectSubPath.includes(character),
+        ) ||
+        directory.startsWith('!') ||
+        directory.startsWith(' ') ||
+        directory.endsWith(' ')
+    ) {
+        throw new ParameterError(
+            'Project subdirectory contains characters that sparse checkout does not support',
+        );
+    }
+    return directory === '' ? null : directory;
+};
+
+export type GitCheckoutMode = 'full' | 'sparse';
+
+export type GitCheckoutStrategy =
+    | { kind: 'full' }
+    | { kind: 'sparse'; directories: [string, ...string[]] };
+
 export class GitRepository {
     constructor(
         private readonly git: SimpleGit,
@@ -58,6 +96,7 @@ export class GitRepository {
         private readonly repository: string,
         private readonly branch: string,
         private readonly signalEnvironment: Record<string, string> = {},
+        private readonly checkout: GitCheckoutStrategy = { kind: 'full' },
     ) {}
     private async _cleanLocal() {
         try {
@@ -70,16 +109,33 @@ export class GitRepository {
         }
     }
 
+    private cloneOptions() {
+        const defaults = {
+            '--single-branch': null,
+            '--depth': 1,
+            '--branch': this.branch,
+            '--no-tags': null,
+            '--progress': null,
+        };
+        switch (this.checkout.kind) {
+            case 'full':
+                return defaults;
+            case 'sparse':
+                return {
+                    ...defaults,
+                    '--no-checkout': null,
+                    '--filter': 'blob:none',
+                };
+            default:
+                return assertUnreachable(
+                    this.checkout,
+                    'Unknown git checkout strategy',
+                );
+        }
+    }
+
     private async _clone() {
         try {
-            const defaultCloneOptions = {
-                '--single-branch': null,
-                '--depth': 1,
-                '--branch': this.branch,
-                '--no-tags': null,
-                '--progress': null,
-            };
-
             const startTime = Date.now();
             Logger.debug(`Git clone to ${this.localRepositoryDir}`);
             await this.git
@@ -87,9 +143,32 @@ export class GitRepository {
                 .clone(
                     this.remoteRepositoryUrl,
                     this.localRepositoryDir,
-                    defaultCloneOptions,
+                    this.cloneOptions(),
                 );
-            Logger.info(`Git clone completed in ${Date.now() - startTime}ms`);
+            switch (this.checkout.kind) {
+                case 'full':
+                    break;
+                case 'sparse':
+                    await this.git
+                        .cwd(this.localRepositoryDir)
+                        .raw([
+                            'sparse-checkout',
+                            'set',
+                            '--cone',
+                            '--',
+                            ...this.checkout.directories,
+                        ]);
+                    await this.git.raw(['checkout']);
+                    break;
+                default:
+                    assertUnreachable(
+                        this.checkout,
+                        'Unknown git checkout strategy',
+                    );
+            }
+            Logger.info(
+                `Git clone (${this.checkout.kind}) completed in ${Date.now() - startTime}ms`,
+            );
         } catch (e) {
             gitErrorHandler(e, this.repository);
         }
@@ -137,6 +216,51 @@ export class GitRepository {
         }
     }
 
+    private async cloneWithSignal(signal: AbortSignal) {
+        const startTime = Date.now();
+        await this.runGit(
+            [
+                'clone',
+                ...Object.entries(this.cloneOptions()).map(([option, value]) =>
+                    value === null ? option : `${option}=${value}`,
+                ),
+                this.remoteRepositoryUrl,
+                this.localRepositoryDir,
+            ],
+            signal,
+        );
+        switch (this.checkout.kind) {
+            case 'full':
+                break;
+            case 'sparse':
+                await this.runGit(
+                    [
+                        'sparse-checkout',
+                        'set',
+                        '--cone',
+                        '--',
+                        ...this.checkout.directories,
+                    ],
+                    signal,
+                    this.localRepositoryDir,
+                );
+                await this.runGit(
+                    ['checkout'],
+                    signal,
+                    this.localRepositoryDir,
+                );
+                break;
+            default:
+                assertUnreachable(
+                    this.checkout,
+                    'Unknown git checkout strategy',
+                );
+        }
+        Logger.info(
+            `Git clone (${this.checkout.kind}) completed in ${Date.now() - startTime}ms`,
+        );
+    }
+
     private async refreshWithSignal(signal: AbortSignal) {
         signal.throwIfAborted();
         try {
@@ -157,19 +281,7 @@ export class GitRepository {
         } catch (error) {
             signal.throwIfAborted();
             await this._cleanLocal();
-            await this.runGit(
-                [
-                    'clone',
-                    '--single-branch',
-                    '--depth=1',
-                    `--branch=${this.branch}`,
-                    '--no-tags',
-                    '--progress',
-                    this.remoteRepositoryUrl,
-                    this.localRepositoryDir,
-                ],
-                signal,
-            );
+            await this.cloneWithSignal(signal);
         }
     }
 

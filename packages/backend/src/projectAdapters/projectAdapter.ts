@@ -28,6 +28,7 @@ import {
 } from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
 import { getGithubToken } from './githubAuthorization';
+import type { GitCheckoutMode } from './gitRepository';
 import { NativeGitProjectAdapter } from './nativeGitProjectAdapter';
 
 export const projectAdapterFromConfig = async (
@@ -44,9 +45,10 @@ export const projectAdapterFromConfig = async (
         policy: DbtTargetPolicy;
     } | null,
     analytics?: LightdashAnalytics,
-    // MANIFEST-only: project dir for Lightdash config and selected model ids.
-    // Ignored by every other adapter type.
-    manifestOptions?: {
+    adapterOptions?: {
+        // GitHub dbt projects only; ignored by other adapters.
+        gitCheckout?: GitCheckoutMode;
+        // MANIFEST-only: project dir for Lightdash config and selected model ids.
         projectDir?: string;
         selectedModelIds?: string[];
         joinAvailability?: DbtJoinAvailability;
@@ -97,9 +99,9 @@ export const projectAdapterFromConfig = async (
                 ...(config.parsedManifest !== undefined
                     ? { parsedManifest: config.parsedManifest }
                     : { manifest: config.manifest }),
-                dbtProjectDir: manifestOptions?.projectDir,
-                selectedModelIds: manifestOptions?.selectedModelIds,
-                joinAvailability: manifestOptions?.joinAvailability,
+                dbtProjectDir: adapterOptions?.projectDir,
+                selectedModelIds: adapterOptions?.selectedModelIds,
+                joinAvailability: adapterOptions?.joinAvailability,
             });
 
         case DbtProjectType.DBT_CLOUD_IDE:
@@ -144,6 +146,7 @@ export const projectAdapterFromConfig = async (
                 analytics,
                 warehouseClient,
                 githubPersonalAccessToken: githubToken,
+                gitCheckout: adapterOptions?.gitCheckout,
                 githubInstallationId:
                     config.authorization_method === 'installation_id'
                         ? config.installation_id

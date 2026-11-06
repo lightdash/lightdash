@@ -6,6 +6,8 @@
  */
 export enum FeatureFlags {
     DbtExplicitCredentials = 'dbt-explicit-credentials',
+    /** Organization-scoped, off by default. Sparse clones for self-contained GitHub.com dbt subdirectories. */
+    DbtSparseGitCheckout = 'dbt-sparse-git-checkout',
     /**
      * Agent identity gates agent query identity, organisation settings and
      * Snowflake agent sign-in. Off by default; organization scope; no handler.

@@ -427,6 +427,58 @@ It does not change credential selection, revoke credentials or stop work already
 in progress. This policy does not isolate the child from host files or metadata
 endpoints; it rejects known ambient modes and filters inherited variables.
 
+### Sparse dbt Git checkout
+
+`dbt-sparse-git-checkout` is off by default, including previews. Resolve it for
+the project's organization through the standard resolver, without a user UUID;
+personal overrides do not apply. Creation, connection testing, test-and-compile,
+refresh, scheduler workers and additional sources use the same organization
+policy. It is resolved per operation, not cached across jobs. Prefer a targeted
+Console organization override. Preview testing can opt in through an organization
+override at the normal preview endpoint, or through the generic
+`LIGHTDASH_ENABLE_FEATURE_FLAGS` list. Preview mode alone does not enable it.
+Generic ENV precedence and restart rules above still apply.
+
+Enabled GitHub.com **dbt** projects in a non-root project subdirectory request a
+shallow, single-branch partial clone (`--filter=blob:none --no-checkout`), select
+the project directory with cone-mode sparse checkout, then materialize files.
+The branch and existing credential mechanism are unchanged. Root projects,
+GitHub Enterprise, GitLab, Bitbucket, Azure DevOps, native YAML, local and
+manifest projects keep their existing checkout behavior. Ordinary provider-API
+writeback is separate and unchanged. The commands are compatible with Git 2.47;
+they do not use `clone --revision`.
+
+Only opt in projects whose dbt inputs are self-contained under that directory.
+Before dbt dependencies or compilation, the guard checks `dbt_project.yml`,
+`packages.yml`, `dependencies.yml` and recursively declared in-directory local
+packages. It refuses escaping or absolute input paths, uniform resource
+identifiers (URIs), unresolved templated paths, malformed declarations, linked
+configuration files and unsafe local-package directories. It checks model, seed,
+snapshot, analysis, macro, test, docs, asset and legacy source/data path lists,
+`packages-install-path` and
+`packages[].local`. Other links in the selected tree must resolve inside it;
+output and installed-package directories are not exempt. Optional empty package
+files are allowed. Errors identify configuration files and keys, not raw YAML
+values. Guard failures do **not** silently fall back to a full clone.
+
+This is a declarative-path check, not a sandbox or proof of arbitrary dbt/Jinja
+file access. Review the project's code and dependencies before enabling it.
+References to sibling directories are unsupported in this first version; moving
+inputs under the project directory or keeping the flag off is required. Sparse
+expansion to other repository directories is deferred.
+
+Cone mode also includes files at the repository root and along the selected
+path's ancestors. Git metadata, selected files, dependency downloads and compile
+outputs still consume disk. A server may ignore filtering; this is not a hard
+network/disk budget or a guarantee that a project fits its worker's storage
+limit. Monitor checkout duration, worker disk usage/evictions and compile errors
+during rollout; public-repository savings do not establish a customer peak.
+
+Rollback: explicitly disable the organization's override, remove any conflicting
+instance-wide ENV enablement, and retry in a new operation. The next adapter
+uses the existing full checkout. A flag change does not cancel an in-flight
+compile, resize storage or change saved source configuration.
+
 ### Mixed warehouse connections
 
 `mixed-warehouse-connections` is off by default on Cloud and self-hosted. It

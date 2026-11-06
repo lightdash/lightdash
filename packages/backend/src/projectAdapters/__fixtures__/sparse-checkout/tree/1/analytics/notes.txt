@@ -1,0 +1,1 @@
+Cone checkout includes files directly inside ancestor directories.
