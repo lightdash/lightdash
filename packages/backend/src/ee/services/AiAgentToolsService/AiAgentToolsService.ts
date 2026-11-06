@@ -5037,7 +5037,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A failed sample read gives a null sample and never fails the run. */
+    /** A failed sample read gives a null sample and never fails the run; a status with a sample already keeps it. */
     private async readComposerNodeSamples(
         context: AiAgentToolsRuntimeContext,
         submissions: SourceQuerySubmission[],
@@ -5097,15 +5097,15 @@ export class AiAgentToolsService extends BaseService {
         otherUnreadSubmissions: SourceQuerySubmission[];
         sampleNodeIds: string[];
     }): Promise<ComposerRunOutcome | ComposerRunningOutcome> {
-        const rowsByNodeId = new Map<string, Record<string, AnyType>[]>();
-        const withRows = <
+        const samplesByNodeId = new Map<string, Record<string, AnyType>[]>();
+        const withUnreadNodeSamples = <
             T extends ComposerRunOutcome | ComposerRunningOutcome,
         >(
             outcome: T,
         ): T => ({
             ...outcome,
             nodeStatuses: outcome.nodeStatuses.map((status) => {
-                const rows = rowsByNodeId.get(status.nodeId);
+                const rows = samplesByNodeId.get(status.nodeId);
                 return rows && sampleNodeIds.includes(status.nodeId)
                     ? { ...status, sample: rows }
                     : status;
@@ -5116,12 +5116,18 @@ export class AiAgentToolsService extends BaseService {
             const polled = await this.pollComposerTerminal({
                 ...args,
                 terminalSubmission,
-                pageSize: COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+                pageSize: sampleNodeIds.includes(terminalSubmission.nodeId)
+                    ? COMPOSER_QUERY_PREVIEW_ROW_LIMIT
+                    : 1,
             });
-            if (polled.status !== 'success') return withRows(polled);
-            rowsByNodeId.set(terminalSubmission.nodeId, polled.terminal.rows);
+            if (polled.status !== 'success')
+                return withUnreadNodeSamples(polled);
+            samplesByNodeId.set(
+                terminalSubmission.nodeId,
+                polled.terminal.rows,
+            );
         }
-        return withRows(await this.pollComposerTerminal(args));
+        return withUnreadNodeSamples(await this.pollComposerTerminal(args));
     }
 
     private async pollComposerTerminal({

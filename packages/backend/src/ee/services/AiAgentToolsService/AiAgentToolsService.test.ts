@@ -4761,7 +4761,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             });
         });
 
-        it('keeps the rows read while waiting on another unread node when a later read fails', async () => {
+        it('keeps the rows of another unread node from the wait, without reading them again', async () => {
             let ordersReads = 0;
             const result = await runSampled(
                 (pageSize) => {
