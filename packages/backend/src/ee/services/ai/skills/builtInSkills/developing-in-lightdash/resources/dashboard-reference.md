@@ -625,7 +625,7 @@ A key accepts `all`, `except`, or `only`; tile references are tile slugs. At mos
 
 ### Control order
 
-When dashboard controls are enabled, `config.controlOrder` sets the order of controls on the filter bar, mixing kinds. Each entry is `{ kind, slug }`, where `kind` is `filter`, `parameter` or `section`, and `slug` is the control's `slug` in the same file: a dimension or metric filter's `slug`, a parameter control's `slug`, or a section's `slug` in `config.controlSections`. Filter slugs follow the parameter control rules: unique, lowercase, derived from the field when none is saved, kept on upload.
+When dashboard controls are enabled, `config.controlOrder` sets the order of controls on the filter bar, mixing kinds. Each entry is `{ kind, slug, newLine? }`, where `kind` is `filter`, `parameter` or `section`, and `slug` is the control's `slug` in the same file: a dimension or metric filter's `slug`, a parameter control's `slug`, or a section's `slug` in `config.controlSections`. Filter slugs follow the parameter control rules: unique, lowercase, derived from the field when none is saved, kept on upload.
 
 ```json
 {
@@ -633,7 +633,7 @@ When dashboard controls are enabled, `config.controlOrder` sets the order of con
         "controlOrder": [
             { "kind": "parameter", "slug": "region" },
             { "kind": "filter", "slug": "orders-status" },
-            { "kind": "section", "slug": "calendar" },
+            { "kind": "section", "slug": "calendar", "newLine": true },
             { "kind": "filter", "slug": "orders-created-at-month" }
         ]
     }
@@ -644,7 +644,8 @@ When dashboard controls are enabled, `config.controlOrder` sets the order of con
 - Reorder by moving entries. Unknown or repeated slugs are rejected, and the error lists the valid ones.
 - A section's members come from each control's `sectionSlug`, not from the list. Entries only place sections among loose controls and order members inside a section.
 - Within one kind, that kind's own array wins: two filters keep the order of `filters.dimensions` (dimensions and metrics separately), parameter controls the order of `parameterControls`, sections the order of `controlSections`. The list decides how kinds interleave.
-- Controls missing from the list go to the end of their section, or of the bar. When you add or remove a control, add or remove its entry too.
+- `newLine: true` starts a new bar line; without it, an entry shares the line of the entry before it. It is ignored inside a section. Once `controlOrder` is present, line placement comes from `newLine` and `controlSections[].inline` is ignored.
+- Controls missing from the list keep their default place while the dashboard has never been reordered, and otherwise go to the end of their section, or of the bar. When you add or remove a control, add or remove its entry too.
 - A file without `controlOrder` resets the bar to the default order: filters, then parameter controls, then sections.
 - Date zoom can't be ordered yet.
 
