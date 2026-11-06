@@ -21,7 +21,7 @@ export const ArtifactLoadingSketch: FC<Props> = ({
         'aiAgent.artifactPanel.loadingVisualization',
     );
     return (
-        <Box className={styles.root} aria-busy="true">
+        <Box className={styles.root} aria-busy="true" data-shape={shape}>
             <Box className={styles.sketch} aria-hidden="true">
                 <Box className={styles.title} />
                 <Box className={styles.subtitle} />
