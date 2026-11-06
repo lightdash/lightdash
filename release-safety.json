@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.178.0",
-  "previousVersion": "3.177.1",
-  "releaseDate": "2026-11-06T18:08:59.746Z",
+  "version": "3.179.0",
+  "previousVersion": "3.178.0",
+  "releaseDate": "2026-11-06T18:23:20.930Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,17 +17,9 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding — api path removed without deprecation",
-        "POST /api/v1/ee/projects/{projectUuid}/agent-onboarding — api path removed without deprecation",
-        "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding/latest — api path removed without deprecation",
-        "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid} — api path removed without deprecation",
-        "POST /api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/cancel — api path removed without deprecation",
-        "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/file — api path removed without deprecation",
-        "POST /api/v1/org/playground-projects/ensure — removed the enum value `agent_onboarding_wait` of the request property `trigger`"
-      ],
-      "breakingCount": 7,
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -50,27 +42,5 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": [
-    {
-      "id": "onboarding-agent-endpoints-removed",
-      "reason": "The onboarding agent is removed. Its six REST endpoints under /api/v1/ee/projects/{projectUuid}/agent-onboarding now return 404, and POST /api/v1/org/playground-projects/ensure no longer accepts the agent_onboarding_wait trigger. Project admins scripting these undocumented onboarding endpoints would see the errors; every other playground trigger behaves as before.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The web app's onboarding screens are the only client of these operations, and they are removed in the same change. During a rolling update an old homepage tab gets a 404 for the latest run and falls back to generated suggestion chips, while an old run page shows its not-found state until refresh, which is safe because no onboarding work depends on it.",
-        "covers": {
-          "rest": [
-            "POST /api/v1/ee/projects/{projectUuid}/agent-onboarding",
-            "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding",
-            "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding/latest",
-            "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}",
-            "GET /api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/file",
-            "POST /api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/cancel",
-            "POST /api/v1/org/playground-projects/ensure"
-          ],
-          "mcp": []
-        }
-      }
-    }
-  ]
+  "declaredAdvisories": []
 }

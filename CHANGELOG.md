@@ -1,3 +1,10 @@
+# [3.179.0](https://github.com/lightdash/lightdash/compare/3.178.0...3.179.0) (2026-11-06)
+
+
+### Features
+
+* remove user-groups-enabled flag, groups always on ([#32201](https://github.com/lightdash/lightdash/issues/32201)) ([9766b39](https://github.com/lightdash/lightdash/commit/9766b39348197c6ba20ff8882642611262d3794f))
+
 # [3.178.0](https://github.com/lightdash/lightdash/compare/3.177.1...3.178.0) (2026-11-06)
 
 
