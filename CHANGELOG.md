@@ -1,3 +1,10 @@
+## [3.169.3](https://github.com/lightdash/lightdash/compare/3.169.2...3.169.3) (2026-11-06)
+
+
+### Bug Fixes
+
+* use content indexes for analytics activity backfill ([#32149](https://github.com/lightdash/lightdash/issues/32149)) ([eb9c43f](https://github.com/lightdash/lightdash/commit/eb9c43fb11f1868f1e79bbaab37d1d4fd093eaba))
+
 ## [3.169.2](https://github.com/lightdash/lightdash/compare/3.169.1...3.169.2) (2026-11-06)
 
 
