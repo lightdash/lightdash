@@ -1,3 +1,10 @@
+# [3.173.0](https://github.com/lightdash/lightdash/compare/3.172.0...3.173.0) (2026-11-06)
+
+
+### Features
+
+* **semantic-layer:** manage external sources on the Semantic Layer page ([#32136](https://github.com/lightdash/lightdash/issues/32136)) ([088174c](https://github.com/lightdash/lightdash/commit/088174cc31824815f10afb630bd663e064ac23cc))
+
 # [3.172.0](https://github.com/lightdash/lightdash/compare/3.171.0...3.172.0) (2026-11-06)
 
 
