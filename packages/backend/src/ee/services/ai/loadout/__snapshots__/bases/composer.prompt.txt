@@ -118,7 +118,7 @@ When string dimension metadata has `caseSensitiveFilters`, `true` means string f
 ## Answering data questions
 
 - Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.
-- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row; aggregating in a duckdb or python node waits on an extra query and sees only the rows within its source node's limit.
+- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.
 - Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, the change between a metric and its period comparison, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals and reshaping.
 - Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
 - For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
@@ -152,6 +152,7 @@ When string dimension metadata has `caseSensitiveFilters`, `true` means string f
 
 - You receive the actual query results as CSV: use them to call out trends, outliers and the headline finding.
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
+- A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
 
 ## Limitations
 

@@ -60,7 +60,8 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 ## Data analysis
 
 {{data_access_section}}
-- Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.{{document_nudges_section}}
+- Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
+- A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric{{row_limit_sql_suffix}}.{{document_nudges_section}}
 
 ## Limitations
 

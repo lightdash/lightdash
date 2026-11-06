@@ -8,6 +8,7 @@ import {
 } from '../../../../types/metricQuery';
 import { type ParametersValuesMap } from '../../../../types/parameters';
 import {
+    MAX_SOURCE_QUERIES_PER_SUBMISSION,
     QuerySourceType,
     type ApiSourceQuery,
     type DuckdbSourceQuery,
@@ -73,7 +74,7 @@ def run(inputs, params):
     return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
 
 Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
-Rows past "limit" are dropped, so aggregate here. Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
+Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
 
 type ComposerQueriesDescriptionOptions = {
     enablePythonNodes: boolean;
@@ -96,11 +97,11 @@ const getComposerNodeKindsDescription = ({
         : ''
 }
 
-A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.`;
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.`;
 
 export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
-}: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more nodes submitted together, where ${
+}: ComposerQueriesDescriptionOptions) => `Run a pipeline: up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
 } nodes join or transform other nodes' results. One call returns one node's rows, the terminal node's, so exactly one submitted node may go unread by the others: to get several results, combine them in one duckdb node (UNION ALL or JOIN) or submit them in separate calls. Every other submitted node is listed with its columns and first rows.
 
@@ -111,7 +112,7 @@ ${getComposerNodeKindsDescription({
 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
-export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
 
 One call returns one node's rows, so exactly one submitted node may go unread by the others: combine several results in one duckdb node (UNION ALL or JOIN), or submit them in separate calls reusing earlier nodes.
 

@@ -266,6 +266,14 @@ export const toNodeSummary = (
     sample: status?.sample ?? null,
 });
 
+const describeCappedRows = (
+    node: ComposerNodeSummary,
+    maxQueryLimit: number,
+): string => {
+    const max = node.limit < maxQueryLimit ? ` (max ${maxQueryLimit})` : '';
+    return ` Reached its limit of ${node.limit}, so more rows may exist${max}.`;
+};
+
 export const hasReachedLimit = (node: ComposerNodeSummary) =>
     node.rowCount !== null && hasReachedSourceQueryLimit(node, node.rowCount);
 
@@ -331,7 +339,7 @@ export const renderComposerNodeListing = ({
     const getOutcome = (node: ComposerNodeSummary): string => {
         if (node.rowCount !== null) {
             const capped = reachedLimit.has(node.nodeId)
-                ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
+                ? describeCappedRows(node, maxQueryLimit)
                 : '';
             const reused = submittedNodeIds.has(node.nodeId)
                 ? ''

@@ -543,6 +543,33 @@ describe('getRunComposerQueries', () => {
         );
     });
 
+    it('drops the max from the capped marker once the limit is the max', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            nodeStatuses: [
+                readyNode('revenue', 5000),
+                readyNode('signups', 12),
+                readyNode('joined', 1),
+            ],
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    { ...semanticNode, limit: 5000 },
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.result).toContain(
+            '- revenue: "Revenue by month" (semanticLayer): 5000 rows, limit 5000. Reached its limit of 5000, so more rows may exist.',
+        );
+    });
+
     it('defaults the terminal node to the unread node', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
