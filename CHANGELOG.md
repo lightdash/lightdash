@@ -1,3 +1,10 @@
+## [3.169.2](https://github.com/lightdash/lightdash/compare/3.169.1...3.169.2) (2026-11-06)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** let parameters start a section ([#32154](https://github.com/lightdash/lightdash/issues/32154)) ([2e15322](https://github.com/lightdash/lightdash/commit/2e153221e015847423249c034305ec8492f2a40a))
+
 ## [3.169.1](https://github.com/lightdash/lightdash/compare/3.169.0...3.169.1) (2026-11-06)
 
 
