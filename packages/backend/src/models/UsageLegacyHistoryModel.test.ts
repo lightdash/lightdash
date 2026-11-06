@@ -266,7 +266,7 @@ describe('retained database content activity for Analytics history', () => {
                 event_ts: first.event_ts,
             });
             const later = storedRow({
-                source_id: '00000000-0000-0000-0000-000000000001',
+                source_id: '00000000-0000-0000-0000-000000000000',
                 event_ts: '2026-09-01T15:04:05.123457Z',
             });
             tracker.on.select(matches(table)).responseOnce(fullPage);
@@ -274,7 +274,12 @@ describe('retained database content activity for Analytics history', () => {
             tracker.on.select(matches(table)).responseOnce([]);
             tracker.on
                 .select(matches(table))
-                .responseOnce([storedRow({ content_id: secondContent })]);
+                .responseOnce([
+                    storedRow({
+                        content_id: secondContent,
+                        source_id: '00000000-0000-0000-0000-000000001002',
+                    }),
+                ]);
             tracker.on.select(matches(table)).response([]);
             const rows = await collect();
             expect(rows.map(({ event_ts }) => event_ts)).toEqual([
@@ -283,6 +288,9 @@ describe('retained database content activity for Analytics history', () => {
                 later.event_ts,
                 first.event_ts,
             ]);
+            expect(new Set(rows.map(({ record_id }) => record_id)).size).toBe(
+                rows.length,
+            );
             const pages = tracker.history.select.filter(matches(table));
             expect(pages).toHaveLength(5);
             for (const { sql, bindings } of pages) {
