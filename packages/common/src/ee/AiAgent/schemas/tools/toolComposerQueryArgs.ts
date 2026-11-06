@@ -104,7 +104,7 @@ export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
 }: ComposerQueriesDescriptionOptions) => `Run a pipeline: up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
-} nodes join or transform other nodes' results. A call returns the rows of every submitted node no other submitted node reads, up to ${COMPOSER_QUERY_MAX_UNREAD_NODES}, so independent results (a total and its breakdown, several lookups) go in one call; they share a ${COMPOSER_QUERY_PREVIEW_ROW_LIMIT}-row preview. Every other submitted node is listed with its columns and first rows.
+} nodes join or transform other nodes' results. One call returns the terminal node's rows; every other submitted node is listed with its columns and first rows.
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes,
@@ -114,8 +114,6 @@ ${getComposerNodeKindsDescription({
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
 export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
-
-A call returns the rows of every submitted node no other submitted node reads, up to ${COMPOSER_QUERY_MAX_UNREAD_NODES}, so independent results (a total and its breakdown, several lookups) go in one call; they share a ${COMPOSER_QUERY_PREVIEW_ROW_LIMIT}-row preview.
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
@@ -461,7 +459,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                 .nullish()
                 .default(null)
                 .describe(
-                    'The terminal node, whose rows are returned first. Null picks the last submitted node no other submitted node reads; a node id also returns that node of the pipeline, including a node from an earlier call.',
+                    'The terminal node. Null picks the last submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.',
                 ),
         })
         .build();
@@ -807,14 +805,12 @@ const composerQueryNodeSummarySchema = z.object({
         .array(z.record(z.string(), z.unknown()))
         .nullable()
         .describe(
-            `First rows of a node submitted in this call other than the terminal node: ${COMPOSER_NODE_SAMPLE_ROW_LIMIT}, or its share of the preview for a node no other node reads; null otherwise or when data access is disabled.`,
+            `First rows of a node submitted in this call other than the terminal node: ${COMPOSER_NODE_SAMPLE_ROW_LIMIT}, more for a node no other node reads; null otherwise or when data access is disabled.`,
         ),
 });
 
 export const toolComposerQueriesStructuredContentSchema = z.object({
-    terminalNodeId: nodeIdSchema.describe(
-        'The terminal node, whose rows are returned first.',
-    ),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are returned.'),
     rowCount: z
         .number()
         .int()
@@ -863,11 +859,9 @@ export const mcpQueryStructuredOutputSchema = z.object({
     status: z
         .enum(['done', 'running'])
         .describe(
-            'running when a node whose rows are returned outlived the wait; poll get_query_result with the queryUuids the result names.',
+            'running when a node outlived the wait; poll get_query_result with the queryUuids the result names.',
         ),
-    terminalNodeId: nodeIdSchema.describe(
-        'The terminal node, whose rows are previewed first.',
-    ),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are previewed.'),
     rowCount: z
         .number()
         .int()
@@ -896,7 +890,7 @@ export const mcpQueryStructuredOutputSchema = z.object({
                     .array(z.record(z.string(), z.unknown()))
                     .nullable()
                     .describe(
-                        `First rows of a done node submitted in this call other than the terminal node: ${COMPOSER_NODE_SAMPLE_ROW_LIMIT}, or its share of the preview for a node no other node reads; null for the terminal node and for reused, failed or unfinished nodes.`,
+                        `First rows of a done node submitted in this call other than the terminal node: ${COMPOSER_NODE_SAMPLE_ROW_LIMIT}, more for a node no other node reads; null for the terminal node and for reused, failed or unfinished nodes.`,
                     ),
             }),
         )
@@ -910,9 +904,7 @@ export type McpQueryStructuredContent = z.infer<
 const toolComposerQueriesSuccessMetadataSchema = z.object({
     status: z.literal('success'),
     queryUuid: z.string(),
-    terminalNodeId: nodeIdSchema.describe(
-        'The terminal node, whose rows are returned first.',
-    ),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are returned.'),
     title: z.string(),
     description: z.string().nullable(),
 });

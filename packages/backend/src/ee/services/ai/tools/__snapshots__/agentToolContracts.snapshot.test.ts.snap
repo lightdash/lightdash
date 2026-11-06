@@ -18463,7 +18463,7 @@ Each result renders as its own artifact with a "Continue exploring in SQL Runner
     },
   },
   {
-    "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb nodes join or transform other nodes' results. A call returns the rows of every submitted node no other submitted node reads, up to 5, so independent results (a total and its breakdown, several lookups) go in one call; they share a 50-row preview. Every other submitted node is listed with its columns and first rows.
+    "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb nodes join or transform other nodes' results. One call returns the terminal node's rows; every other submitted node is listed with its columns and first rows.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -18954,7 +18954,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
         },
         "terminalNodeId": {
           "default": null,
-          "description": "The terminal node, whose rows are returned first. Null picks the last submitted node no other submitted node reads; a node id also returns that node of the pipeline, including a node from an earlier call.",
+          "description": "The terminal node. Null picks the last submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
           "type": [
             "string",
             "null",
@@ -19010,7 +19010,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       ],
                     },
                     "terminalNodeId": {
-                      "description": "The terminal node, whose rows are returned first.",
+                      "description": "Node whose rows are returned.",
                       "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                       "type": "string",
                     },
@@ -19170,7 +19170,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                             "type": "null",
                           },
                         ],
-                        "description": "First rows of a node submitted in this call other than the terminal node: 5, or its share of the preview for a node no other node reads; null otherwise or when data access is disabled.",
+                        "description": "First rows of a node submitted in this call other than the terminal node: 5, more for a node no other node reads; null otherwise or when data access is disabled.",
                       },
                       "sourceType": {
                         "enum": [
@@ -19336,7 +19336,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                   "type": "integer",
                 },
                 "terminalNodeId": {
-                  "description": "The terminal node, whose rows are returned first.",
+                  "description": "Node whose rows are returned.",
                   "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                   "type": "string",
                 },
@@ -19461,7 +19461,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       ],
                     },
                     "terminalNodeId": {
-                      "description": "The terminal node, whose rows are returned first.",
+                      "description": "Node whose rows are returned.",
                       "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                       "type": "string",
                     },

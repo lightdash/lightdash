@@ -106,8 +106,8 @@ submission has at most five; one with more is rejected before it runs.
 _Avoid_: sink, end node, orphan, leaf
 
 **Terminal node**:
-The node whose result the tool returns to the agent first. The submission's
-last unread node by default, or any node of the pipeline chosen explicitly.
+The node whose result the tool returns to the agent as its preview. The
+submission's last unread node by default, or any node of the pipeline chosen explicitly.
 Labelled "Final result" in the Lineage.
 _Avoid_: output node, final node, sink
 

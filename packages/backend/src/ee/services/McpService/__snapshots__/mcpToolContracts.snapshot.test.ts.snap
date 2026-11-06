@@ -10607,8 +10607,6 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
       },
       "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
 
-A call returns the rows of every submitted node no other submitted node reads, up to 5, so independent results (a total and its breakdown, several lookups) go in one call; they share a 50-row preview.
-
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; available only when run_sql is.
@@ -11185,7 +11183,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
           },
           "terminalNodeId": {
             "default": null,
-            "description": "The terminal node, whose rows are returned first. Null picks the last submitted node no other submitted node reads; a node id also returns that node of the pipeline, including a node from an earlier call.",
+            "description": "The terminal node. Null picks the last submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
             "type": [
               "string",
               "null",
@@ -11299,7 +11297,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
                       "type": "null",
                     },
                   ],
-                  "description": "First rows of a done node submitted in this call other than the terminal node: 5, or its share of the preview for a node no other node reads; null for the terminal node and for reused, failed or unfinished nodes.",
+                  "description": "First rows of a done node submitted in this call other than the terminal node: 5, more for a node no other node reads; null for the terminal node and for reused, failed or unfinished nodes.",
                 },
                 "sourceType": {
                   "enum": [
@@ -11365,7 +11363,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
             ],
           },
           "status": {
-            "description": "running when a node whose rows are returned outlived the wait; poll get_query_result with the queryUuids the result names.",
+            "description": "running when a node outlived the wait; poll get_query_result with the queryUuids the result names.",
             "enum": [
               "done",
               "running",
@@ -11373,7 +11371,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
             "type": "string",
           },
           "terminalNodeId": {
-            "description": "The terminal node, whose rows are previewed first.",
+            "description": "Node whose rows are previewed.",
             "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
             "type": "string",
           },
