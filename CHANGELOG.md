@@ -1,3 +1,10 @@
+# [3.168.0](https://github.com/lightdash/lightdash/compare/3.167.0...3.168.0) (2026-11-06)
+
+
+### Features
+
+* **ai:** return every unread composer node's rows ([#32147](https://github.com/lightdash/lightdash/issues/32147)) ([662a9f9](https://github.com/lightdash/lightdash/commit/662a9f9fd90f663abf0bba07c49320fb2109dc16))
+
 # [3.167.0](https://github.com/lightdash/lightdash/compare/3.166.5...3.167.0) (2026-11-06)
 
 
