@@ -529,10 +529,10 @@ export type RunAsyncQueryFn = (
     executionStats: WarehouseExecutionStats | null;
 }>;
 
+/** Runs a saved explore chart at its saved limit, clamped to the AI max. */
 export type RunSavedChartQueryFn = (args: {
     chartUuid: string;
     dashboardSlug: string | null;
-    limit: number | null;
     onQueryPrepared?: (
         execution: Pick<
             ApiExecuteAsyncMetricQueryResults,
@@ -563,12 +563,11 @@ export type SqlChartSummary = {
 /** A saved SQL chart the agent may view; checks view and agent space access, like readContent. */
 export type GetSqlChartFn = (slug: string) => Promise<SqlChartSummary>;
 
-/** Runs a saved SQL chart, on its own or as a dashboard tile with the dashboard's filters. */
+/** Runs a saved SQL chart at its saved limit (clamped to the AI max), on its own or as a dashboard tile with the dashboard's filters. */
 export type RunSqlChartQueryFn = (args: {
     chartSlug: string;
     dashboardSlug: string | null;
-    limit: number;
-}) => Promise<SqlQueryRows & { sqlChart: SqlChartSummary }>;
+}) => Promise<SqlQueryRows & { sqlChart: SqlChartSummary; limit: number }>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 

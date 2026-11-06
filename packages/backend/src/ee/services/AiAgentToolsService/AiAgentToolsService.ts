@@ -4380,6 +4380,21 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    private async getSavedChartAiLimit(
+        context: AiAgentToolsRuntimeContext,
+        chartUuid: string,
+    ): Promise<number> {
+        const { metricQuery } = await this.savedChartModel.get(
+            chartUuid,
+            undefined,
+            { projectUuid: context.projectUuid },
+        );
+        return getValidAiQueryLimit(
+            metricQuery.limit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
+        );
+    }
+
     private runSavedChartQuery(
         context: AiAgentToolsRuntimeContext,
         args: Parameters<RunSavedChartQueryFn>[0],
@@ -4388,22 +4403,6 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runSavedChartQuery`,
             args,
             async () => {
-                const requestedLimit =
-                    args.limit ??
-                    (
-                        await this.savedChartModel.get(
-                            args.chartUuid,
-                            undefined,
-                            {
-                                projectUuid: context.projectUuid,
-                            },
-                        )
-                    ).metricQuery.limit;
-                const limit = getValidAiQueryLimit(
-                    requestedLimit,
-                    this.lightdashConfig.ai.copilot.maxQueryLimit,
-                );
-
                 if (!args.dashboardSlug) {
                     await this.assertSavedChartSpaceInScope(
                         context,
@@ -4412,6 +4411,10 @@ export class AiAgentToolsService extends BaseService {
                         'read',
                     );
 
+                    const limit = await this.getSavedChartAiLimit(
+                        context,
+                        args.chartUuid,
+                    );
                     await context.onWarehouseQuery?.();
                     return this.asyncQueryService.executeSavedChartQueryAndGetResults(
                         {
@@ -4458,6 +4461,10 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                const limit = await this.getSavedChartAiLimit(
+                    context,
+                    args.chartUuid,
+                );
                 await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
                     {
@@ -4538,11 +4545,11 @@ export class AiAgentToolsService extends BaseService {
 
     private runSqlChartQuery(
         context: AiAgentToolsRuntimeContext,
-        { chartSlug, dashboardSlug, limit }: Parameters<RunSqlChartQueryFn>[0],
+        { chartSlug, dashboardSlug }: Parameters<RunSqlChartQueryFn>[0],
     ): ReturnType<RunSqlChartQueryFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlChartQuery`,
-            { chartSlug, dashboardSlug, limit },
+            { chartSlug, dashboardSlug },
             async () => {
                 const sqlChart = await this.savedSqlService.getSqlChart(
                     context.user,
@@ -4554,7 +4561,7 @@ export class AiAgentToolsService extends BaseService {
                 await this.assertSqlInAgentScope(context, sqlChart.sql);
 
                 const effectiveLimit = getValidAiQueryLimit(
-                    limit,
+                    sqlChart.limit,
                     this.lightdashConfig.ai.copilot.maxQueryLimit,
                 );
                 const sqlChartQueryArgs = {
@@ -4588,6 +4595,7 @@ export class AiAgentToolsService extends BaseService {
                             effectiveLimit,
                         )),
                         sqlChart: summary,
+                        limit: effectiveLimit,
                     };
                 }
 
@@ -4632,6 +4640,7 @@ export class AiAgentToolsService extends BaseService {
                         effectiveLimit,
                     )),
                     sqlChart: summary,
+                    limit: effectiveLimit,
                 };
             },
         );

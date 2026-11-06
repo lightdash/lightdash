@@ -42,10 +42,6 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                 type: z.literal('chart'),
                 chartType: savedChartTypeSchema(),
                 chartSlug: z.string().describe('Slug of the saved chart.'),
-                limit: z.coerce
-                    .number()
-                    .nullable()
-                    .describe('Optional row limit override.'),
             }),
             z.object({
                 type: z.literal('dashboardChart'),
@@ -54,10 +50,6 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                 dashboardSlug: z
                     .string()
                     .describe('Slug of the dashboard containing the chart.'),
-                limit: z.coerce
-                    .number()
-                    .nullable()
-                    .describe('Optional row limit override.'),
             }),
             z.object({
                 type: z.literal('sql'),
@@ -127,7 +119,7 @@ const savedChartSpecSchema = savedChartStructureSchema.extend({
     limit: z
         .number()
         .describe(
-            "The executed query's row limit after the source.limit override and clamping, as printed in the header's Limit: line.",
+            "The executed query's row limit: the chart's saved limit, clamped to the AI max, as printed in the header's Limit: line.",
         ),
     tableCalculations: z.array(z.string()).describe('Table calculation names.'),
     customMetrics: z.array(z.string()).describe('Custom metric field ids.'),

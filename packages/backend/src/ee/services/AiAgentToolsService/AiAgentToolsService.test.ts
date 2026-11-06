@@ -2434,7 +2434,6 @@ describe('AiAgentToolsService', () => {
             runtime.runSavedChartQuery({
                 chartUuid: 'blocked-chart-uuid',
                 dashboardSlug: null,
-                limit: 100,
             }),
         ).rejects.toThrow(NotFoundError);
         expect(executeSavedChartQueryAndGetResults).not.toHaveBeenCalled();
@@ -2486,6 +2485,9 @@ describe('AiAgentToolsService', () => {
                     spaceUuid: 'allowed-space-uuid',
                 }),
             },
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue({ metricQuery: { limit: 100 } }),
+            },
             asyncQueryService: {
                 executeSavedChartQueryAndGetResults,
             },
@@ -2498,7 +2500,6 @@ describe('AiAgentToolsService', () => {
             runtime.runSavedChartQuery({
                 chartUuid: 'allowed-chart-uuid',
                 dashboardSlug: null,
-                limit: 100,
                 onQueryPrepared,
             }),
         ).resolves.toEqual({ rows: [] });
@@ -2520,7 +2521,7 @@ describe('AiAgentToolsService', () => {
         { savedLimit: 50, expectedLimit: 50 },
         { savedLimit: 10000, expectedLimit: 500 },
     ])(
-        'runs a saved chart with no limit at its saved limit $savedLimit, capped at the AI max',
+        'runs a saved chart at its saved limit $savedLimit, clamped to the AI max',
         async ({ savedLimit, expectedLimit }) => {
             const executeSavedChartQueryAndGetResults = vi
                 .fn()
@@ -2539,7 +2540,6 @@ describe('AiAgentToolsService', () => {
                 .runSavedChartQuery({
                     chartUuid: 'chart-uuid',
                     dashboardSlug: null,
-                    limit: null,
                 });
 
             expect(
@@ -2548,7 +2548,7 @@ describe('AiAgentToolsService', () => {
         },
     );
 
-    it('runs a dashboard chart with no limit at its saved limit', async () => {
+    it('runs a dashboard chart at its saved limit', async () => {
         const executeDashboardChartQueryAndGetResults = vi
             .fn()
             .mockResolvedValue({ rows: [] });
@@ -2580,7 +2580,6 @@ describe('AiAgentToolsService', () => {
         await service.createRuntime(makeRuntimeContext()).runSavedChartQuery({
             chartUuid: 'chart-uuid',
             dashboardSlug: 'dashboard',
-            limit: null,
         });
 
         expect(
@@ -2601,6 +2600,9 @@ describe('AiAgentToolsService', () => {
                     spaceUuid: 'allowed-space-uuid',
                 }),
             },
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue({ metricQuery: { limit: 100 } }),
+            },
             asyncQueryService: {
                 executeSavedChartQueryAndGetResults,
             },
@@ -2616,7 +2618,6 @@ describe('AiAgentToolsService', () => {
             runtime.runSavedChartQuery({
                 chartUuid: 'allowed-chart-uuid',
                 dashboardSlug: null,
-                limit: 100,
             }),
         ).rejects.toThrow('Deep Research exceeded its warehouse-query budget');
         expect(onWarehouseQuery).toHaveBeenCalledOnce();
@@ -2644,7 +2645,6 @@ describe('AiAgentToolsService', () => {
             runtime.runSavedChartQuery({
                 chartUuid: 'blocked-chart-uuid',
                 dashboardSlug: 'blocked-dashboard',
-                limit: 100,
             }),
         ).rejects.toThrow(NotFoundError);
         expect(executeDashboardChartQueryAndGetResults).not.toHaveBeenCalled();
@@ -8148,9 +8148,13 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
         slug: 'orders-by-status',
         name: 'Orders by status',
         sql: 'select status, count(*) as orders from jaffle.orders group by 1',
+        limit: 10,
         space: { uuid: 'allowed-space-uuid' },
     };
-    const makeSqlChartService = (dashboardTiles: unknown[] = []) => {
+    const makeSqlChartService = (
+        dashboardTiles: unknown[] = [],
+        savedSqlChart = sqlChart,
+    ) => {
         const executeAsyncSqlChartQuery = vi
             .fn()
             .mockResolvedValue({ queryUuid: 'chart-query' });
@@ -8159,7 +8163,7 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
             .mockResolvedValue({ queryUuid: 'dashboard-query' });
         const service = makeService({
             savedSqlService: {
-                getSqlChart: vi.fn().mockResolvedValue(sqlChart),
+                getSqlChart: vi.fn().mockResolvedValue(savedSqlChart),
             },
             dashboardService: {
                 getByIdOrSlug: vi.fn().mockResolvedValue({
@@ -8187,14 +8191,13 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
         };
     };
 
-    it('runs a saved SQL chart and returns its rows', async () => {
+    it('runs a saved SQL chart at its saved limit and returns its rows', async () => {
         const { service, executeAsyncSqlChartQuery } = makeSqlChartService();
 
         await expect(
             service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
                 chartSlug: 'orders-by-status',
                 dashboardSlug: null,
-                limit: 10,
             }),
         ).resolves.toEqual({
             queryUuid: 'chart-query',
@@ -8208,6 +8211,7 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
                 name: 'Orders by status',
                 sql: sqlChart.sql,
             },
+            limit: 10,
         });
         expect(executeAsyncSqlChartQuery).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
@@ -8218,7 +8222,30 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
         );
     });
 
-    it('runs a SQL chart tile with its dashboard filters', async () => {
+    it.each([
+        { savedLimit: 10000, expectedLimit: 500 },
+        { savedLimit: null, expectedLimit: 500 },
+    ])(
+        'clamps a SQL chart saved limit of $savedLimit to the AI max',
+        async ({ savedLimit, expectedLimit }) => {
+            const { service, executeAsyncSqlChartQuery } = makeSqlChartService(
+                [],
+                { ...sqlChart, limit: savedLimit as number },
+            );
+
+            await expect(
+                service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
+                    chartSlug: 'orders-by-status',
+                    dashboardSlug: null,
+                }),
+            ).resolves.toMatchObject({ limit: expectedLimit });
+            expect(executeAsyncSqlChartQuery).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ limit: expectedLimit }),
+            );
+        },
+    );
+
+    it('runs a SQL chart tile at its saved limit with its dashboard filters', async () => {
         const { service, executeAsyncDashboardSqlChartQuery } =
             makeSqlChartService([
                 {
@@ -8231,7 +8258,6 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
         await service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
             chartSlug: 'orders-by-status',
             dashboardSlug: 'jaffle-dashboard',
-            limit: 10,
         });
 
         expect(
@@ -8242,6 +8268,7 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
                 dashboardUuid: 'dashboard-uuid',
                 tileUuid: 'tile-uuid',
                 dashboardFilters: { dimensions: [], metrics: [] },
+                limit: 10,
             }),
         );
     });
@@ -8254,7 +8281,6 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
             service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
                 chartSlug: 'orders-by-status',
                 dashboardSlug: 'jaffle-dashboard',
-                limit: 10,
             }),
         ).rejects.toThrow('not found on dashboard jaffle-dashboard');
         expect(executeAsyncDashboardSqlChartQuery).not.toHaveBeenCalled();
@@ -8273,7 +8299,6 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
             runtime.runSqlChartQuery({
                 chartSlug: 'orders-by-status',
                 dashboardSlug: null,
-                limit: 10,
             }),
         ).rejects.toThrow('was not found');
         expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();
@@ -8295,7 +8320,6 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
         await runtime.runSqlChartQuery({
             chartSlug: 'orders-by-status',
             dashboardSlug: 'jaffle-dashboard',
-            limit: 10,
         });
 
         expect(executeAsyncDashboardSqlChartQuery).toHaveBeenCalledOnce();
@@ -8311,7 +8335,6 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
             runtime.runSqlChartQuery({
                 chartSlug: 'orders-by-status',
                 dashboardSlug: null,
-                limit: 10,
             }),
         ).rejects.toThrow('jaffle');
         expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();
