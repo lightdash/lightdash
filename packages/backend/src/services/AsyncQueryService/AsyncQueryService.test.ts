@@ -12616,21 +12616,10 @@ describe('AsyncQueryService', () => {
         const run = async ({
             credentials,
             context,
-            flagEnabled,
         }: {
             credentials: CreateWarehouseCredentials;
             context: QueryExecutionContext;
-            flagEnabled: boolean;
         }) => {
-            const getFlag = vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId ===
-                            FeatureFlags.RedshiftStalledQueryRecovery &&
-                        flagEnabled,
-                }),
-            );
             const mockProjectModel = {
                 ...projectModel,
                 ...singleRouteProjectModelMethods,
@@ -12644,9 +12633,6 @@ describe('AsyncQueryService', () => {
             };
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 projectModel: mockProjectModel as unknown as ProjectModel,
-                featureFlagModel: {
-                    get: getFlag,
-                } as unknown as FeatureFlagModel,
             });
             service.queryHistoryModel.update = vi.fn();
             const runQueryAndTransformRows = vi.spyOn(
@@ -12676,69 +12662,34 @@ describe('AsyncQueryService', () => {
             });
 
             expect(runQueryAndTransformRows).toHaveBeenCalledOnce();
-            return {
-                recoverStalledQuery:
-                    runQueryAndTransformRows.mock.calls[0][0]
-                        .recoverStalledQuery,
-                getFlag,
-            };
+            return runQueryAndTransformRows.mock.calls[0][0]
+                .recoverStalledQuery;
         };
 
         test.each([
             QueryExecutionContext.DASHBOARD,
-            QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
             QueryExecutionContext.EMBED,
-            QueryExecutionContext.CHART,
-        ])(
-            'recovers Redshift %s queries when the flag is on',
-            async (context) => {
-                const { recoverStalledQuery } = await run({
-                    credentials: redshiftCredentials,
-                    context,
-                    flagEnabled: true,
-                });
-                expect(recoverStalledQuery).toBe(true);
-            },
-        );
-
-        test('does not recover when the flag is off', async () => {
-            const { recoverStalledQuery } = await run({
-                credentials: redshiftCredentials,
-                context: QueryExecutionContext.DASHBOARD,
-                flagEnabled: false,
-            });
-            expect(recoverStalledQuery).toBe(false);
-        });
-
-        test.each([
-            QueryExecutionContext.SQL_RUNNER,
             QueryExecutionContext.EXPLORE,
+            QueryExecutionContext.SQL_RUNNER,
+            QueryExecutionContext.MCP_RUN_METRIC_QUERY,
             QueryExecutionContext.SCHEDULED_DELIVERY,
-            QueryExecutionContext.MCP_RUN_SQL,
-        ])('does not recover %s queries', async (context) => {
-            const { recoverStalledQuery, getFlag } = await run({
-                credentials: redshiftCredentials,
-                context,
-                flagEnabled: true,
-            });
-            expect(recoverStalledQuery).toBe(false);
-            expect(getFlag).not.toHaveBeenCalledWith(
-                expect.objectContaining({
-                    featureFlagId: FeatureFlags.RedshiftStalledQueryRecovery,
-                }),
-            );
+            QueryExecutionContext.CSV,
+        ])('recovers Redshift %s queries', async (context) => {
+            expect(
+                await run({ credentials: redshiftCredentials, context }),
+            ).toBe(true);
         });
 
         test('does not recover other warehouses', async () => {
-            const { recoverStalledQuery } = await run({
-                credentials: {
-                    ...redshiftCredentials,
-                    type: WarehouseTypes.POSTGRES,
-                },
-                context: QueryExecutionContext.DASHBOARD,
-                flagEnabled: true,
-            });
-            expect(recoverStalledQuery).toBe(false);
+            expect(
+                await run({
+                    credentials: {
+                        ...redshiftCredentials,
+                        type: WarehouseTypes.POSTGRES,
+                    },
+                    context: QueryExecutionContext.DASHBOARD,
+                }),
+            ).toBe(false);
         });
     });
 
