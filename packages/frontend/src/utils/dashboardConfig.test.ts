@@ -1,4 +1,5 @@
 import {
+    DashboardControlRefKind,
     MetricType,
     type AdditionalMetric,
     type DashboardConfig,
@@ -188,6 +189,7 @@ describe('buildDashboardConfig', () => {
             controlSections: true,
             parameterSections: true,
             parameterControls: true,
+            controlOrder: true,
         };
         expect(Object.keys(result).sort()).toEqual(
             Object.keys(expectedKeys).sort(),
@@ -214,6 +216,28 @@ describe('buildDashboardConfig', () => {
                 ),
             ),
         ).not.toHaveProperty('parameterControls');
+    });
+
+    it('carries the saved control order forward and keeps an absent one absent', () => {
+        const controlOrder = [
+            { kind: DashboardControlRefKind.SECTION, id: 'section-1' },
+        ];
+        expect(
+            buildDashboardConfig({
+                ...baseArgs,
+                existingConfig: { isDateZoomDisabled: false, controlOrder },
+            }).controlOrder,
+        ).toBe(controlOrder);
+        expect(
+            JSON.parse(
+                JSON.stringify(
+                    buildDashboardConfig({
+                        ...baseArgs,
+                        existingConfig: { isDateZoomDisabled: false },
+                    }),
+                ),
+            ),
+        ).not.toHaveProperty('controlOrder');
     });
 
     it('writes the parameter controls to save', () => {

@@ -93,6 +93,8 @@ export const buildDashboardConfig = ({
         parameterSections: existingConfig?.parameterSections,
         parameterControls:
             parameterControlsToSave ?? existingConfig?.parameterControls,
+        // No editor yet: carried forward as loaded
+        controlOrder: existingConfig?.controlOrder,
     };
 };
 
