@@ -1862,9 +1862,6 @@ export type LightdashConfig = {
             };
         };
     };
-    groups: {
-        enabled: boolean | undefined;
-    };
     persistentDownloadUrls: {
         enabled: boolean;
         expirationSeconds: number;
@@ -3015,10 +3012,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
 > = [
     // Add per migration; truthy env value enables the flag.
     ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
-    // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
-    // from the feature flag) — keep the config field, but translate the env
-    // var to the unified allowlist for the flag system too.
-    ['GROUPS_ENABLED', 'user-groups-enabled'],
     ['SHOW_EXECUTION_TIME', 'show-execution-time'],
     // EMBEDDING_ENABLED is also read by HealthService (exposed via the health
     // endpoint) and EmbedService (allowAll config). Keep the config field, but
@@ -3261,6 +3254,11 @@ export const parseConfig = (): LightdashConfig => {
     if (resultsCacheEnabled !== null) {
         console.warn(
             'RESULTS_CACHE_ENABLED is deprecated. Unset it and enable results caching per project in project settings.',
+        );
+    }
+    if (process.env.GROUPS_ENABLED !== undefined) {
+        console.warn(
+            'GROUPS_ENABLED is deprecated and ignored. Groups are always enabled. Use AUTH_ENABLE_GROUP_SYNC to control SSO group sync.',
         );
     }
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
@@ -3988,11 +3986,6 @@ export const parseConfig = (): LightdashConfig => {
                         ) ?? 100,
                 },
             },
-        },
-        groups: {
-            enabled: process.env.GROUPS_ENABLED
-                ? process.env.GROUPS_ENABLED === 'true'
-                : undefined,
         },
         persistentDownloadUrls: {
             // Protected links always use the persistent URL service. Signed

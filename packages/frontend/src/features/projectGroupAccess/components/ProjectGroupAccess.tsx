@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     isGroupWithMembers,
     type CreateProjectGroupAccess,
     type GroupWithMembers,
@@ -36,7 +35,6 @@ import {
     useProjectGroupRoleAssignments,
     useUpsertProjectGroupRoleAssignmentMutation,
 } from '../../../hooks/useProjectGroupRoles';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
@@ -122,17 +120,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
 
     const [isAddingGroupAccess, setIsAddingGroupAccess] = useState(false);
 
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
-    const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.data?.enabled ?? false;
-
-    const { data: groups } = useOrganizationGroups(
-        { includeMembers: 5 },
-        { enabled: isGroupManagementEnabled },
-    );
+    const { data: groups } = useOrganizationGroups({ includeMembers: 5 });
 
     const {
         data: projectGroupRoleAssignments,

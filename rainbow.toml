@@ -147,7 +147,6 @@ CUSTOM_ROLES_ENABLED = "true"
 MCP_ENABLED = "true"
 EMBEDDING_ENABLED = "true"             # the embed specs need it
 PERSISTENT_DOWNLOAD_URLS_ENABLED = "true"
-GROUPS_ENABLED = "true"
 EXTENDED_USAGE_ANALYTICS = "true"
 MICROSOFT_TEAMS_ENABLED = "true"
 APPS_RUNTIME_ENABLED = "true"          # data apps; the E2B key below makes it usable
