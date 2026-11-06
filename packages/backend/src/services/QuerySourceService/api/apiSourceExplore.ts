@@ -20,6 +20,7 @@ import {
     type MetricQuery,
     type MetricType,
     type SortField,
+    type TimeFrames,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { type ApiConnectorCapabilities } from './ApiConnector';
@@ -40,6 +41,8 @@ type ApiSourceFieldDefinition = {
 
 export type ApiSourceDimensionDefinition = ApiSourceFieldDefinition & {
     type: DimensionType;
+    /** A coarser grain of a date dimension that the API groups by itself. */
+    timeInterval?: { base: string; grain: TimeFrames };
 };
 
 export type ApiSourceMetricDefinition = ApiSourceFieldDefinition & {
@@ -98,6 +101,30 @@ export const buildApiSourceExplore = ({
         ...(field.aiHint ? { aiHint: field.aiHint } : {}),
         ...(field.groups ? { groups: field.groups } : {}),
     });
+    const intervalBases = new Set(
+        definition.dimensions.flatMap(({ timeInterval }) =>
+            timeInterval ? [timeInterval.base] : [],
+        ),
+    );
+    const toTimeIntervalProperties = (
+        dimension: ApiSourceDimensionDefinition,
+    ): Partial<Dimension> => {
+        // A base that is also its own finest grain stays selectable
+        if (!dimension.timeInterval) {
+            return intervalBases.has(dimension.name)
+                ? { isIntervalBase: true }
+                : {};
+        }
+        const baseDimension = definition.dimensions.find(
+            ({ name }) => name === dimension.timeInterval?.base,
+        );
+        return {
+            timeInterval: dimension.timeInterval.grain,
+            timeIntervalBaseDimensionName: dimension.timeInterval.base,
+            timeIntervalBaseDimensionType: baseDimension?.type,
+            groups: [baseDimension?.label ?? dimension.timeInterval.base],
+        };
+    };
     const dimensions = definition.dimensions.map(
         (dimension): Dimension => ({
             ...base,
@@ -108,6 +135,7 @@ export const buildApiSourceExplore = ({
             type: dimension.type,
             sql: toSql(dimension),
             ...toCuratedProperties(dimension),
+            ...toTimeIntervalProperties(dimension),
         }),
     );
     const metrics = definition.metrics.map(
@@ -210,7 +238,14 @@ export type CompiledApiSourceQuery = {
     fieldIdsByColumn: Record<string, FieldId>;
     /** Sorts the API can't apply; they run on the returned rows. */
     localSorts: SortField[];
+    /**
+     * Columns holding compact periods (GA4's YYYYWW ISO weeks, YYYYMM or
+     * YYYY), turned into the period's first day so they read as dates.
+     */
+    periodColumns?: Record<string, ApiSourcePeriodFormat>;
 };
+
+export type ApiSourcePeriodFormat = 'iso_week' | 'year_month' | 'year';
 
 /** The explore's live data source rules; fails for any other explore. */
 export const getApiSourceExplore = (explore: Explore): ApiSourceExplore => {

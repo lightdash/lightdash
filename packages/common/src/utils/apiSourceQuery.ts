@@ -122,7 +122,7 @@ const getFilterFieldIds = (metricQuery: MetricQuery): FieldId[] =>
     );
 
 const getUnsupportedFeatureIssues = (
-    { pushdown }: ApiSourceCapabilities,
+    { pushdown, dates }: ApiSourceCapabilities,
     metricQuery: MetricQuery,
     context: ApiSourceQueryContext,
 ): ApiSourceQueryIssue[] => {
@@ -183,6 +183,12 @@ const getUnsupportedFeatureIssues = (
                 "Pivoted results aren't available from live data sources yet. Remove the pivot to run this query.",
         },
         {
+            isUsed: !!metricQuery.timezone && dates.timezone === 'fixed',
+            code: 'live_source.refused.timezone' as const,
+            message:
+                'This live data source reports dates in its own time zone. Remove the time zone override to run this query.',
+        },
+        {
             isUsed:
                 !!context.dateZoomGranularity && isRefused(pushdown.dateZoom),
             code: 'live_source.refused.date_zoom' as const,
@@ -234,6 +240,12 @@ const POSITIVE_MATCH_OPERATORS = [
     FilterOperator.EQUALS,
     FilterOperator.INCLUDE,
 ];
+const RELATIVE_DATE_OPERATORS = [
+    FilterOperator.IN_THE_PAST,
+    FilterOperator.NOT_IN_THE_PAST,
+    FilterOperator.IN_THE_CURRENT,
+];
+
 const SUB_DAY_UNITS = [
     UnitOfTime.milliseconds,
     UnitOfTime.seconds,
@@ -388,7 +400,7 @@ const getDateRangeIssues = (
             'unitOfTime' in settings
                 ? settings.unitOfTime
                 : undefined;
-        return rule.operator === FilterOperator.IN_THE_PAST &&
+        return RELATIVE_DATE_OPERATORS.includes(rule.operator) &&
             SUB_DAY_UNITS.some((subDayUnit) => subDayUnit === unit)
             ? [
                   {

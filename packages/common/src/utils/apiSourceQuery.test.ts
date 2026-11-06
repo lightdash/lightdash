@@ -445,6 +445,73 @@ describe('getApiSourceQueryIssues with declared capabilities', () => {
         ]);
     });
 
+    test('refuses a time zone override where the source reports in its own', () => {
+        const issues = getApiSourceQueryIssues(
+            declared,
+            query({ timezone: 'America/New_York' }),
+        );
+        expect(issues.map(({ code }) => code)).toEqual([
+            'live_source.refused.timezone',
+        ]);
+        expect(
+            getApiSourceQueryIssues(
+                {
+                    ...declared,
+                    capabilities: {
+                        ...capabilities,
+                        dates: {
+                            ...capabilities.dates,
+                            timezone: 'configurable',
+                        },
+                    },
+                },
+                query({ timezone: 'America/New_York' }),
+            ),
+        ).toEqual([]);
+    });
+
+    test('refuses sub-day units on every relative date operator', () => {
+        const withDateRule = (operator: FilterOperator) =>
+            query({
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                ...rule('report_date', operator, [1]),
+                                settings: { unitOfTime: 'hours' },
+                            },
+                        ],
+                    },
+                },
+            });
+        const relaxed = {
+            ...declared,
+            fields: {
+                ...declared.fields,
+                report_date: {
+                    apiName: 'date',
+                    filterOperators: [
+                        FilterOperator.IN_THE_PAST,
+                        FilterOperator.NOT_IN_THE_PAST,
+                        FilterOperator.IN_THE_CURRENT,
+                    ],
+                },
+            },
+        };
+        [
+            FilterOperator.IN_THE_PAST,
+            FilterOperator.NOT_IN_THE_PAST,
+            FilterOperator.IN_THE_CURRENT,
+        ].forEach((operator) => {
+            expect(
+                getApiSourceQueryIssues(relaxed, withDateRule(operator)).map(
+                    ({ code }) => code,
+                ),
+            ).toContain('live_source.refused.date_operator');
+        });
+    });
+
     test('reads explores cached before capabilities as refusing every feature', () => {
         expect(getApiSourceCapabilities(apiSource).pushdown).toEqual({
             tableCalculations: 'refused',

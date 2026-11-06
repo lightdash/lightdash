@@ -20,6 +20,7 @@ export const LIVE_SOURCE_REFUSAL_CODES = [
     'live_source.refused.date_range',
     'live_source.refused.field_combination',
     'live_source.refused.too_many_fields',
+    'live_source.refused.timezone',
 ] as const;
 
 /** Lightdash refused the query before calling the API: the source can't run it. */

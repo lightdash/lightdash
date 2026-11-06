@@ -39,8 +39,9 @@ const SEARCH_CONSOLE_LIMITS = {
 };
 
 /**
- * Search Analytics ANDs one flat list of dimension filters, each matching a
- * single value, and can't filter metrics. Dates are one range in Pacific
+ * Search Analytics ANDs one flat list of dimension filters and can't filter
+ * metrics. Several values and prefix or suffix matches compile to RE2
+ * regex filters. Dates are one range in Pacific
  * Time. Everything SQL-like is refused.
  */
 export const SEARCH_CONSOLE_CAPABILITIES: ApiConnectorCapabilities = {
@@ -49,7 +50,7 @@ export const SEARCH_CONSOLE_CAPABILITIES: ApiConnectorCapabilities = {
             string: SEARCH_CONSOLE_STRING_FILTERS,
             date: SEARCH_CONSOLE_DATE_FILTERS,
         },
-        multipleValues: false,
+        multipleValues: true,
         or: false,
         nestedGroups: false,
     },

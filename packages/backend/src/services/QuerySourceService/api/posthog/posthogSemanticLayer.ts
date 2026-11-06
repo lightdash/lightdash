@@ -66,6 +66,7 @@ export const POSTHOG_DATE_FILTERS = [
     FilterOperator.NOT_EQUALS,
     FilterOperator.IN_THE_PAST,
     FilterOperator.NOT_IN_THE_PAST,
+    FilterOperator.IN_THE_CURRENT,
     FilterOperator.IN_BETWEEN,
     FilterOperator.LESS_THAN,
     FilterOperator.GREATER_THAN,

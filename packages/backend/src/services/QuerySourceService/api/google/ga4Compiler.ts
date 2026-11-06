@@ -1,18 +1,26 @@
 import {
     FilterOperator,
+    getDimensions,
+    getItemId,
     isAndFilterGroup,
     isFilterGroup,
     ParameterError,
+    TimeFrames,
     type ApiSourceExplore,
     type Explore,
     type FilterGroup,
     type FilterRule,
     type MetricQuery,
 } from '@lightdash/common';
-import { getApiDateRange, splitDateRangeFilter } from '../apiDateRange';
+import {
+    getApiDateRange,
+    splitDateRangeFilter,
+    type ApiDateBound,
+} from '../apiDateRange';
 import {
     getApiName,
     getApiSourceExplore,
+    type ApiSourcePeriodFormat,
     type CompiledApiSourceQuery,
 } from '../apiSourceExplore';
 import { toGa4ColumnName } from './Ga4Connector';
@@ -169,26 +177,36 @@ const toFilterExpression = (
     return isAnd ? { andGroup: { expressions } } : { orGroup: { expressions } };
 };
 
+// The first day the Data API accepts
+// (https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/DateRange)
+export const GA4_EARLIEST_DATE = '2015-08-14';
+
+const toGa4Date = (bound: ApiDateBound) => {
+    if ('date' in bound) {
+        return bound.date;
+    }
+    return bound.daysAgo === 0 ? 'today' : `${bound.daysAgo}daysAgo`;
+};
+
 const getDateRanges = (
     apiSource: ApiSourceExplore,
     dateRule: FilterRule | null,
     today: string,
 ) => {
-    const toGa4Date = (daysAgo: number) =>
-        daysAgo === 0 ? 'today' : `${daysAgo}daysAgo`;
-    const range = getApiDateRange({
+    const { start, end } = getApiDateRange({
         rule: dateRule,
         defaultDays: apiSource.dateRange?.defaultDays ?? 28,
         today,
+        earliestDate: GA4_EARLIEST_DATE,
     });
-    return [
-        range.kind === 'relative'
-            ? {
-                  startDate: toGa4Date(range.startDaysAgo),
-                  endDate: toGa4Date(range.endDaysAgo),
-              }
-            : { startDate: range.startDate, endDate: range.endDate },
-    ];
+    return [{ startDate: toGa4Date(start), endDate: toGa4Date(end) }];
+};
+
+// How GA4 reports the grains of the date dimension: isoYearIsoWeek, yearMonth, year
+const PERIOD_FORMATS: Partial<Record<TimeFrames, ApiSourcePeriodFormat>> = {
+    [TimeFrames.WEEK]: 'iso_week',
+    [TimeFrames.MONTH]: 'year_month',
+    [TimeFrames.YEAR]: 'year',
 };
 
 /**
@@ -227,6 +245,12 @@ export const compileGa4Query = ({
         (rule) => getMetricExpression(apiName(rule.target.fieldId), rule),
     );
     const metricIds = new Set(metricQuery.metrics);
+    const dimensionsById = new Map(
+        getDimensions(explore).map((dimension) => [
+            getItemId(dimension),
+            dimension,
+        ]),
+    );
     const request = {
         dateRanges: getDateRanges(apiSource, dateRule, today),
         dimensions: metricQuery.dimensions.map((fieldId) => ({
@@ -260,5 +284,14 @@ export const compileGa4Query = ({
             ),
         ),
         localSorts: [],
+        periodColumns: Object.fromEntries(
+            metricQuery.dimensions.flatMap((fieldId) => {
+                const { timeInterval } = dimensionsById.get(fieldId) ?? {};
+                const format = timeInterval && PERIOD_FORMATS[timeInterval];
+                return format
+                    ? [[toGa4ColumnName(apiName(fieldId)), format]]
+                    : [];
+            }),
+        ),
     };
 };

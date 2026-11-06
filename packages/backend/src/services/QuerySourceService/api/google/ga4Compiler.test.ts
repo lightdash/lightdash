@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
-import { compileGa4Query } from './ga4Compiler';
+import { compileGa4Query, GA4_EARLIEST_DATE } from './ga4Compiler';
 import { GA4_CAPABILITIES } from './Ga4Connector';
 import {
     GA4_REPORT_EXPLORE,
@@ -289,6 +289,82 @@ describe('compileGa4Query', () => {
         expect(fieldIdsByColumn.customEvent_plan_type).toBe(
             field('custom_event_plan_type'),
         );
+    });
+});
+
+describe('compileGa4Query dates', () => {
+    const dateRangesFor = (dateRule: FilterRule) =>
+        compile(
+            query({
+                filters: { dimensions: { id: 'root', and: [dateRule] } },
+            }),
+        ).request.dateRanges;
+
+    test.each([
+        [
+            {
+                ...rule('date', FilterOperator.IN_THE_CURRENT, [1]),
+                settings: { unitOfTime: 'months' },
+            },
+            { startDate: '2026-11-01', endDate: 'today' },
+        ],
+        [
+            {
+                ...rule('date', FilterOperator.IN_THE_CURRENT, [1]),
+                settings: { unitOfTime: 'weeks' },
+            },
+            { startDate: '2026-11-02', endDate: 'today' },
+        ],
+        [
+            rule('date', FilterOperator.GREATER_THAN, ['2026-10-01']),
+            { startDate: '2026-10-02', endDate: 'today' },
+        ],
+        [
+            rule('date', FilterOperator.GREATER_THAN_OR_EQUAL, ['2026-10-01']),
+            { startDate: '2026-10-01', endDate: 'today' },
+        ],
+        [
+            rule('date', FilterOperator.LESS_THAN, ['2026-10-01']),
+            { startDate: GA4_EARLIEST_DATE, endDate: '2026-09-30' },
+        ],
+        [
+            {
+                ...rule('date', FilterOperator.NOT_IN_THE_PAST, [7]),
+                settings: { unitOfTime: 'days', completed: false },
+            },
+            { startDate: GA4_EARLIEST_DATE, endDate: '8daysAgo' },
+        ],
+    ])('compiles %j to one date range', (dateRule, dateRange) => {
+        expect(dateRangesFor(dateRule)).toEqual([dateRange]);
+    });
+
+    test('groups by week, month and year of the date and reads them as dates', () => {
+        const { request, periodColumns, fieldIdsByColumn } = compile(
+            query({
+                dimensions: [
+                    field('date_week'),
+                    field('date_month'),
+                    field('date_year'),
+                ],
+            }),
+        );
+        expect(request.dimensions).toEqual([
+            { name: 'isoYearIsoWeek' },
+            { name: 'yearMonth' },
+            { name: 'year' },
+        ]);
+        expect(periodColumns).toEqual({
+            isoYearIsoWeek: 'iso_week',
+            yearMonth: 'year_month',
+            year: 'year',
+        });
+        expect(fieldIdsByColumn.yearMonth).toBe(field('date_month'));
+    });
+
+    test('keeps year and month text where it is the text dimension', () => {
+        expect(
+            compile(query({ dimensions: [field('year_month')] })).periodColumns,
+        ).toEqual({});
     });
 });
 
