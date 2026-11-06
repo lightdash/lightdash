@@ -41,8 +41,9 @@ const aggregateSteps = (
         ...step,
         shareOfFirst: shareOf(step.users, steps[0]?.users),
         dropped: index === 0 ? null : steps[index - 1].users - step.users,
+        // Undefined once nobody reached the previous step.
         dropRate:
-            index === 0
+            index === 0 || steps[index - 1].users === 0
                 ? null
                 : 100 - shareOf(step.users, steps[index - 1].users),
     }));
