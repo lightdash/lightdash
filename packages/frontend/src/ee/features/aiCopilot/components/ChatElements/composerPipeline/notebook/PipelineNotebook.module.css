@@ -39,10 +39,6 @@
     transition: opacity 200ms ease-out;
 }
 
-.lineageAnchor {
-    stroke: var(--mantine-color-ldGray-7);
-}
-
 @media (prefers-reduced-motion: reduce) {
     .lineage,
     .lineage[data-visible='true'] {

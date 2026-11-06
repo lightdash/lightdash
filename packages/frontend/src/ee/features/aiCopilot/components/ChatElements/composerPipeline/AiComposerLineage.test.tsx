@@ -393,6 +393,28 @@ describe('AiComposerLineage steps', () => {
         );
     });
 
+    it("marks a hovered reference's lineage in the graph too", async () => {
+        renderPanel({});
+        const pill = cell('joined').getByRole('button', {
+            name: 'Average amount',
+        });
+        fireEvent.mouseEnter(pill);
+        await waitFor(() =>
+            expect(nodeButton('Average amount')).toHaveAttribute(
+                'data-lineage-role',
+                'related',
+            ),
+        );
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'data-lineage-role',
+            'hovered',
+        );
+        fireEvent.mouseLeave(pill);
+        expect(nodeButton('Average amount')).not.toHaveAttribute(
+            'data-lineage-role',
+        );
+    });
+
     it('ignores a pointer sweeping across a cell title', async () => {
         renderPanel({});
         const title = cell('orders').getByText('Orders by status');

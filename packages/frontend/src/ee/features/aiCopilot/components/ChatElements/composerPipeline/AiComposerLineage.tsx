@@ -36,6 +36,7 @@ import { ComposerNodeIcon } from './ComposerNodeIcon';
 import { groupPipeline, type PipelineLayer } from './groupPipeline';
 import {
     PipelineNotebook,
+    type NodeLineage,
     type PipelineNotebookHandle,
     type PipelineNotebookProps,
 } from './notebook/PipelineNotebook';
@@ -50,6 +51,7 @@ import {
 
 type GraphDisplay = {
     selectedNodeId: string | null;
+    notebookLineage: NodeLineage | null;
     onFocusNode: (nodeId: string) => void;
     onHoverNode: (nodeId: string | null) => void;
     onClearSelection: () => void;
@@ -93,6 +95,7 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({
             className={styles.graphNode}
             data-terminal={data.isTerminal}
             data-dimmed={data.isDimmed}
+            data-lineage-role={data.lineageRole ?? undefined}
             data-selected={selected}
             aria-pressed={selected}
             aria-label={interpolateUiString(
@@ -170,6 +173,7 @@ const LineageFlow: FC<
     layers,
     onLayout,
     selectedNodeId,
+    notebookLineage,
     onFocusNode,
     onHoverNode,
     onClearSelection,
@@ -178,8 +182,13 @@ const LineageFlow: FC<
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const focusedNodeId = hoveredNodeId ?? selectedNodeId;
     const flow = useMemo(
-        () => toPipelineFlow(layers, { focusedNodeId, nodeStatuses }),
-        [layers, focusedNodeId, nodeStatuses],
+        () =>
+            toPipelineFlow(layers, {
+                focusedNodeId,
+                notebookLineage,
+                nodeStatuses,
+            }),
+        [layers, focusedNodeId, notebookLineage, nodeStatuses],
     );
     // State holds what React Flow owns (positions, sizes); data comes from props.
     const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
@@ -320,6 +329,9 @@ export const AiComposerLineage: FC<Props> = ({
     const getUiString = useUiStrings();
     const notebookRef = useRef<PipelineNotebookHandle>(null);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [notebookLineage, setNotebookLineage] = useState<NodeLineage | null>(
+        null,
+    );
     const clearSelection = () => setSelectedNodeId(null);
     // Default graph height fits its nodes, capped at the default share.
     const { ref: splitRef, height: splitHeight } = useElementSize();
@@ -363,6 +375,7 @@ export const AiComposerLineage: FC<Props> = ({
                                 onLayout={setGraphContentHeight}
                                 nodeStatuses={nodeStatuses}
                                 selectedNodeId={selectedNodeId}
+                                notebookLineage={notebookLineage}
                                 onFocusNode={(nodeId) =>
                                     notebookRef.current?.focusNode(nodeId)
                                 }
@@ -389,6 +402,7 @@ export const AiComposerLineage: FC<Props> = ({
                             nodes={layers.flatMap((layer) => layer.nodes)}
                             nodeStatuses={nodeStatuses}
                             onSelectNode={setSelectedNodeId}
+                            onLineageChange={setNotebookLineage}
                             {...notebookProps}
                         />
                     </Box>

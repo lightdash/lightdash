@@ -31,7 +31,11 @@ const duckdb = (
 const measured = (nodes: PipelineFlowNode[]) =>
     nodes.map((node) => ({ ...node, measured: { width: 160, height: 40 } }));
 
-const noDisplay = { focusedNodeId: null, nodeStatuses: {} };
+const noDisplay = {
+    focusedNodeId: null,
+    notebookLineage: null,
+    nodeStatuses: {},
+};
 
 const xOf = (nodes: PipelineFlowNode[], id: string) =>
     nodes.find((node) => node.id === id)!.position.x;
@@ -103,7 +107,7 @@ describe('toPipelineFlow', () => {
                 'joined',
             ),
             {
-                focusedNodeId: null,
+                ...noDisplay,
                 nodeStatuses: {
                     orders: {
                         status: 'success',
@@ -140,12 +144,41 @@ describe('toPipelineFlow', () => {
             'final',
         );
         const dimmed = (focusedNodeId: string) =>
-            toPipelineFlow(layers, { focusedNodeId, nodeStatuses: {} })
+            toPipelineFlow(layers, { ...noDisplay, focusedNodeId })
                 .nodes.filter((node) => node.data.isDimmed)
                 .map((node) => node.id);
 
         expect(dimmed('final')).toEqual(['unrelated']);
         expect(dimmed('revenue')).toEqual(['customers', 'unrelated']);
+    });
+
+    it("marks the notebook's lineage and the edges within it", () => {
+        const { nodes, edges } = toPipelineFlow(
+            groupPipeline(
+                [
+                    sql('a', 'A'),
+                    duckdb('b', 'B', ['a']),
+                    duckdb('final', 'Final', ['b']),
+                ],
+                'final',
+            ),
+            {
+                ...noDisplay,
+                notebookLineage: {
+                    nodeId: 'final',
+                    relatedIds: new Set(['b']),
+                },
+            },
+        );
+        expect(nodes.map(({ id, data }) => [id, data.lineageRole])).toEqual([
+            ['a', null],
+            ['b', 'related'],
+            ['final', 'hovered'],
+        ]);
+        expect(edges.map(({ id, className }) => [id, className])).toEqual([
+            ['a->b', undefined],
+            ['b->final', 'lineage-edge-active'],
+        ]);
     });
 
     it('makes one edge per read, from the read node to the reader', () => {

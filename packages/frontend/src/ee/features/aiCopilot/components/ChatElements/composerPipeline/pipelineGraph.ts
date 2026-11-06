@@ -7,6 +7,7 @@ import {
     type PipelineLayer,
     type PipelineNode,
 } from './groupPipeline';
+import { type NodeLineage } from './notebook/PipelineNotebook';
 
 type PipelineFlowNodeData = {
     title: string;
@@ -15,6 +16,8 @@ type PipelineFlowNodeData = {
     isTerminal: boolean;
     /** Another node is focused and this one is outside its lineage. */
     isDimmed: boolean;
+    /** Its place in the lineage the notebook draws. */
+    lineageRole: 'hovered' | 'related' | null;
     status: ComposerRunNodeStatus | null;
 };
 
@@ -72,11 +75,17 @@ export const toPipelineFlow = (
     display: {
         /** Hovered, else selected; everything outside its lineage dims. */
         focusedNodeId: string | null;
+        /** Mirrored from the notebook so cells off-screen still show in the graph. */
+        notebookLineage: NodeLineage | null;
         nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
     },
 ): { nodes: PipelineFlowNode[]; edges: Edge[] } => {
     const pipelineNodes = layers.flatMap((layer) => layer.nodes);
-    const { focusedNodeId } = display;
+    const { focusedNodeId, notebookLineage } = display;
+    const lineageRoleOf = (nodeId: string) => {
+        if (notebookLineage?.nodeId === nodeId) return 'hovered';
+        return notebookLineage?.relatedIds.has(nodeId) ? 'related' : null;
+    };
     const lineage =
         focusedNodeId === null
             ? null
@@ -92,6 +101,7 @@ export const toPipelineFlow = (
             query: node.query,
             isTerminal: node.isTerminal,
             isDimmed: !isLinked(node.nodeId),
+            lineageRole: lineageRoleOf(node.nodeId),
             status: display.nodeStatuses[node.nodeId] ?? null,
         },
     }));
@@ -102,9 +112,11 @@ export const toPipelineFlow = (
             target: node.nodeId,
             type: 'pipeline',
             className:
-                lineage !== null &&
-                lineage.has(readId) &&
-                lineage.has(node.nodeId)
+                (lineage !== null &&
+                    lineage.has(readId) &&
+                    lineage.has(node.nodeId)) ||
+                (lineageRoleOf(readId) !== null &&
+                    lineageRoleOf(node.nodeId) !== null)
                     ? EDGE_ACTIVE_CLASS
                     : undefined,
         })),
