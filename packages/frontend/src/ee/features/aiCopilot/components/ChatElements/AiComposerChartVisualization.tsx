@@ -23,7 +23,7 @@ import BigNumberView from '../../../../../components/DataViz/visualizations/BigN
 import ChartView from '../../../../../components/DataViz/visualizations/ChartView';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { ArtifactChartSkeleton } from './ArtifactChartSkeleton';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import {
     buildComposerChartSpec,
     buildComposerPivotSpec,
@@ -220,8 +220,8 @@ export const AiComposerChartVisualization: FC<Props> = ({
             </Frame>
         );
     }
-    if (!pivotLayout && isLoading && spec === undefined) {
-        return <ArtifactChartSkeleton withHeading={false} />;
+    if (spec === undefined && !pivot.error) {
+        return <ArtifactLoadingSketch />;
     }
     return (
         <Frame headerContent={headerContent}>
