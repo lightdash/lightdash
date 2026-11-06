@@ -1,41 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.174.0",
-  "previousVersion": "3.173.2",
-  "releaseDate": "2026-11-06T14:46:42.178Z",
+  "version": "3.174.1",
+  "previousVersion": "3.174.0",
+  "releaseDate": "2026-11-06T14:54:03.533Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 2,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261105180000_add_query_history_cache_outcome.ts",
-        "edition": "core",
-        "tables": [
-          "query_history"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      },
-      {
-        "name": "20261105180100_index_query_history_project_created_at.ts",
-        "edition": "core",
-        "tables": [
-          "pg_class",
-          "pg_index",
-          "query_history"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

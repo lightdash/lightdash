@@ -1,3 +1,10 @@
+## [3.174.1](https://github.com/lightdash/lightdash/compare/3.174.0...3.174.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **data-apps:** raise AI prompt output cap so thinking models can answer ([#32173](https://github.com/lightdash/lightdash/issues/32173)) ([2f2e210](https://github.com/lightdash/lightdash/commit/2f2e210dbb0d16095a53dc7aad39922b0cdf8c76))
+
 # [3.174.0](https://github.com/lightdash/lightdash/compare/3.173.2...3.174.0) (2026-11-06)
 
 
