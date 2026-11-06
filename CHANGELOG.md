@@ -1,3 +1,10 @@
+## [3.169.5](https://github.com/lightdash/lightdash/compare/3.169.4...3.169.5) (2026-11-06)
+
+
+### Bug Fixes
+
+* preserve intentional dashboard tile gaps ([#32160](https://github.com/lightdash/lightdash/issues/32160)) ([81dc1b4](https://github.com/lightdash/lightdash/commit/81dc1b4c1ea263a620d0c5758f5139b31a9541c9))
+
 ## [3.169.4](https://github.com/lightdash/lightdash/compare/3.169.3...3.169.4) (2026-11-06)
 
 
