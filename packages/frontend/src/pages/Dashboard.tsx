@@ -1104,6 +1104,7 @@ const Dashboard: FC = () => {
     const [gridElement, setGridElement] = useState<HTMLDivElement | null>(null);
     const fitToScreen = useFitToScreen({
         isFitToScreen,
+        isAutoFit: isFitToScreenDefault,
         isEditMode,
         gridElement,
         tiles: dashboardTiles,
@@ -1718,7 +1719,8 @@ const Dashboard: FC = () => {
                                 handleEditTile={stableEditTile}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
-                                fitToScreenRowHeight={fitToScreen.rowHeight}
+                                fitToScreenSnap={fitToScreen.snap}
+                                isFitToScreenSnapping={fitToScreen.isSnapping}
                                 gridContainerRef={setGridElement}
                                 onNewChart={
                                     isChartEditorEnabled && isEditMode
