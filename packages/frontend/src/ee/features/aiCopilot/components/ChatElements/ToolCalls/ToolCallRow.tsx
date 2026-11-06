@@ -29,7 +29,7 @@ import {
     getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
-import { getToolCallFailures } from './utils/toolCallFailure';
+import { getStepListFailures } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { isToolWithoutDescription } from './utils/toolsWithoutDescription';
 import { type ToolCallSummary } from './utils/types';
@@ -92,7 +92,7 @@ export const ToolCallRow: FC<Props> = ({
         toolCalls.some(hasCallDescription) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
     const [expanded, setExpanded] = useState(false);
-    const failures = getToolCallFailures(toolCalls, toolResults);
+    const failures = getStepListFailures(toolCalls, toolResults);
     const effectiveStatus: ToolCallRowStatus =
         failures.length > 0 ? 'error' : status;
     const failureLabel = isGrouped

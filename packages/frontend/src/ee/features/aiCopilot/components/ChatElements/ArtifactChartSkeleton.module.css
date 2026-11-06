@@ -20,7 +20,7 @@
     min-height: 0;
     display: flex;
     align-items: flex-end;
-    gap: var(--mantine-spacing-md);
+    gap: 3%;
     margin: 0 var(--mantine-spacing-xl);
     padding-top: var(--mantine-spacing-xl);
     border-bottom: 1px solid var(--mantine-color-default-border);
@@ -28,7 +28,6 @@
 
 .bar {
     flex: 1;
-    max-width: 64px;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }

@@ -53,7 +53,7 @@ import {
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
-import { getToolCallFailures } from './utils/toolCallFailure';
+import { getStepListFailures } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { type ToolCallSummary } from './utils/types';
 
@@ -789,11 +789,11 @@ export const LiveActivityCard: FC<Props> = ({
         0,
     );
     const latestFailedCount = latest
-        ? getToolCallFailures(latest.calls, toolResults).length
+        ? getStepListFailures(latest.calls, toolResults).length
         : 0;
     const failedStepCount = toolGroups.reduce(
         (sum, group) =>
-            sum + getToolCallFailures(group.calls, toolResults).length,
+            sum + getStepListFailures(group.calls, toolResults).length,
         0,
     );
     const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;

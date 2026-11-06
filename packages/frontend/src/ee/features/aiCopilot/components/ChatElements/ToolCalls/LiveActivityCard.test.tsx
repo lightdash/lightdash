@@ -558,7 +558,7 @@ describe('LiveActivityCard failed composer run', () => {
         },
     ];
 
-    it('reads as failed instead of partial query progress', () => {
+    it('stays quiet while the agent retries a failed query', () => {
         renderWithProviders(
             <LiveActivityCard
                 isLive
@@ -571,15 +571,15 @@ describe('LiveActivityCard failed composer run', () => {
                 }))}
             />,
         );
-        expect(screen.getByText('Failed')).toBeInTheDocument();
-        expect(screen.queryByText(/of 3 queries/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Failed')).not.toBeInTheDocument();
+        expect(screen.getByText('2 of 3 queries')).toBeInTheDocument();
     });
 
-    it('does not claim a chart was built when the run failed', () => {
+    it('neither counts a failed query nor claims a chart was built', () => {
         renderWithProviders(
             <LiveActivityCard isLive={false} toolGroups={failedRun} />,
         );
-        expect(screen.getByText('1 step failed')).toBeInTheDocument();
+        expect(screen.queryByText('1 step failed')).not.toBeInTheDocument();
         expect(
             screen.queryByText('How this chart was built'),
         ).not.toBeInTheDocument();
