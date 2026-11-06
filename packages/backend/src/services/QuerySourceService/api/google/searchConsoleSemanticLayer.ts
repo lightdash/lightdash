@@ -17,6 +17,9 @@ export const SEARCH_CONSOLE_STRING_FILTERS = [
     FilterOperator.NOT_EQUALS,
     FilterOperator.INCLUDE,
     FilterOperator.NOT_INCLUDE,
+    // Matched with includingRegex
+    FilterOperator.STARTS_WITH,
+    FilterOperator.ENDS_WITH,
     // Search Console never reports empty values, so this always holds
     FilterOperator.NOT_NULL,
 ];

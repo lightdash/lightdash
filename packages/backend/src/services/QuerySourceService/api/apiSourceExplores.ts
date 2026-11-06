@@ -6,6 +6,7 @@ import {
     isDimension,
     SupportedDbtAdapter,
     UnexpectedServerError,
+    WeekDay,
     type Explore,
     type ExternalConnectionApiSource,
     type ItemsMap,
@@ -20,6 +21,7 @@ import {
     assertApiSourceQuery,
     buildApiSourceExplore,
     type ApiSourceExploreDefinition,
+    type ApiSourcePeriodFormat,
     type CompiledApiSourceQuery,
 } from './apiSourceExplore';
 import { compileGa4Query } from './google/ga4Compiler';
@@ -62,12 +64,15 @@ export type ApiSourceScan = {
 // Search Console reports dates in Pacific Time, whatever the property.
 const SEARCH_CONSOLE_TIME_ZONE = 'America/Los_Angeles';
 
+// PostHog weeks start on Monday, like its week field, not on ClickHouse's
+// default Sunday
 const getSqlBuilder = (connector: ApiConnectorType) =>
-    warehouseSqlBuilderFromType(
-        connector === ApiConnectorType.POSTHOG
-            ? SupportedDbtAdapter.CLICKHOUSE
-            : SupportedDbtAdapter.DUCKDB,
-    );
+    connector === ApiConnectorType.POSTHOG
+        ? warehouseSqlBuilderFromType(
+              SupportedDbtAdapter.CLICKHOUSE,
+              WeekDay.MONDAY,
+          )
+        : warehouseSqlBuilderFromType(SupportedDbtAdapter.DUCKDB);
 
 /**
  * The naming contract of live data source explores and fields. Saved charts,
@@ -357,6 +362,42 @@ const sortRows = (rows: Record<string, unknown>[], sorts: SortField[]) =>
               return order ?? 0;
           });
 
+const DAY_MS = 86_400_000;
+
+/** The first day of a compact period such as 202644 (ISO week), 202610 or 2026. */
+export const toPeriodStart = (
+    value: unknown,
+    format: ApiSourcePeriodFormat,
+): unknown => {
+    const text = String(value);
+    const pad = (number: number) => String(number).padStart(2, '0');
+    switch (format) {
+        case 'year':
+            return /^\d{4}$/.test(text) ? `${text}-01-01` : value;
+        case 'year_month':
+            return /^\d{6}$/.test(text)
+                ? `${text.slice(0, 4)}-${text.slice(4)}-01`
+                : value;
+        case 'iso_week': {
+            if (!/^\d{6}$/.test(text)) {
+                return value;
+            }
+            // ISO week 1 holds January 4th; weeks start on Monday
+            const year = Number(text.slice(0, 4));
+            const week = Number(text.slice(4));
+            const january4 = Date.UTC(year, 0, 4);
+            const weekOneMonday =
+                january4 - ((new Date(january4).getUTCDay() + 6) % 7) * DAY_MS;
+            const monday = new Date(weekOneMonday + (week - 1) * 7 * DAY_MS);
+            return `${monday.getUTCFullYear()}-${pad(
+                monday.getUTCMonth() + 1,
+            )}-${pad(monday.getUTCDate())}`;
+        }
+        default:
+            return assertUnreachable(format, 'Unknown period format');
+    }
+};
+
 /** The connector's rows as result rows keyed by field id, sorted and limited. */
 export const toApiSourceResult = ({
     compiled,
@@ -368,12 +409,19 @@ export const toApiSourceResult = ({
     fields: ItemsMap;
 }): { rows: Record<string, unknown>[]; columns: ResultColumns } => {
     const columnEntries = Object.entries(compiled.fieldIdsByColumn);
+    const periodColumns = compiled.periodColumns ?? {};
     const resultRows = rows.map((row) =>
         Object.fromEntries(
-            columnEntries.map(([column, fieldId]) => [
-                fieldId,
-                row[column] ?? null,
-            ]),
+            columnEntries.map(([column, fieldId]) => {
+                const value = row[column] ?? null;
+                const format = periodColumns[column];
+                return [
+                    fieldId,
+                    format && value !== null
+                        ? toPeriodStart(value, format)
+                        : value,
+                ];
+            }),
         ),
     );
     const columns: ResultColumns = Object.fromEntries(

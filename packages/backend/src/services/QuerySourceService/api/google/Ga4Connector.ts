@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     DimensionType,
     ParameterError,
+    TimeFrames,
     UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -41,7 +42,7 @@ const GA4_LIMITS = {
 /**
  * runReport filters any field with AND, OR and NOT groups, and metrics too.
  * Dates are one range in the property's time zone, which the API can't
- * override. Everything SQL-like is refused.
+ * override, grouped by day, ISO week, month or year. Everything SQL-like is refused.
  */
 export const GA4_CAPABILITIES: ApiConnectorCapabilities = {
     filters: {
@@ -58,7 +59,12 @@ export const GA4_CAPABILITIES: ApiConnectorCapabilities = {
     dates: {
         rangeRequired: true,
         operators: GA4_DATE_FILTERS,
-        grains: [],
+        grains: [
+            TimeFrames.DAY,
+            TimeFrames.WEEK,
+            TimeFrames.MONTH,
+            TimeFrames.YEAR,
+        ],
         timezone: 'fixed',
     },
     pushdown: ALL_PUSHDOWN_REFUSED,

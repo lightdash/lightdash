@@ -2,6 +2,7 @@ import {
     DimensionType,
     FilterOperator,
     MetricType,
+    TimeFrames,
     type ApiSourceMetricAggregation,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -25,8 +26,15 @@ export const GA4_STRING_FILTERS = [
 ];
 export const GA4_DATE_FILTERS = [
     FilterOperator.IN_THE_PAST,
+    FilterOperator.NOT_IN_THE_PAST,
+    FilterOperator.IN_THE_CURRENT,
     FilterOperator.IN_BETWEEN,
     FilterOperator.EQUALS,
+    // Open-ended ranges, from the first day the Data API reports
+    FilterOperator.GREATER_THAN,
+    FilterOperator.GREATER_THAN_OR_EQUAL,
+    FilterOperator.LESS_THAN,
+    FilterOperator.LESS_THAN_OR_EQUAL,
 ];
 export const GA4_METRIC_FILTERS = [
     FilterOperator.EQUALS,
@@ -103,8 +111,40 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             label: 'Date',
             type: DimensionType.DATE,
             filterOperators: GA4_DATE_FILTERS,
+            // The date is its own day grain, grouped with the coarser ones
+            timeInterval: { base: 'date', grain: TimeFrames.DAY },
             description:
                 'Day of the activity, in the property time zone. Queries without a date filter read the last 28 days.',
+        },
+        {
+            name: 'date_week',
+            apiName: 'isoYearIsoWeek',
+            label: 'Date week',
+            type: DimensionType.DATE,
+            filterOperators: [],
+            timeInterval: { base: 'date', grain: TimeFrames.WEEK },
+            description:
+                'Monday of the ISO week, in the property time zone. Filter the date to choose the weeks.',
+        },
+        {
+            name: 'date_month',
+            apiName: 'yearMonth',
+            label: 'Date month',
+            type: DimensionType.DATE,
+            filterOperators: [],
+            timeInterval: { base: 'date', grain: TimeFrames.MONTH },
+            description:
+                'First day of the month, in the property time zone. Filter the date to choose the months.',
+        },
+        {
+            name: 'date_year',
+            apiName: 'year',
+            label: 'Date year',
+            type: DimensionType.DATE,
+            filterOperators: [],
+            timeInterval: { base: 'date', grain: TimeFrames.YEAR },
+            description:
+                'First day of the year, in the property time zone. Filter the date to choose the years.',
         },
         dimension(
             'year_month',
@@ -339,6 +379,11 @@ export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
             fields: ITEM_SCOPED_DIMENSIONS,
             with: SESSION_AND_EVENT_METRICS,
             reason: 'Google Analytics only reports item dimensions with item metrics.',
+        },
+        {
+            fields: ['date_month'],
+            with: ['year_month'],
+            reason: 'both read the GA4 yearMonth dimension; pick one.',
         },
     ],
 };

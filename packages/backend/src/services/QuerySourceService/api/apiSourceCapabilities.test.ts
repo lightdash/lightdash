@@ -97,6 +97,11 @@ type Case = {
     context?: ApiSourceQueryContext;
     /** Today's refusal per connector; absent means the query runs. */
     expected: Partial<Record<ApiConnectorType, string[]>>;
+    /**
+     * Where an explore cached before capabilities still refuses what a
+     * rebuilt one runs; it catches up on the next refresh.
+     */
+    stale?: Partial<Record<ApiConnectorType, string[]>>;
 };
 
 const everywhere = (message: string) => ({
@@ -248,7 +253,9 @@ const CASES: Case[] = [
                 },
             },
         }),
-        expected: {
+        // Search Console ORs the values in one regex filter
+        expected: {},
+        stale: {
             [ApiConnectorType.SEARCH_CONSOLE]: [
                 `Search Console matches one value per filter; filter "${id(ApiConnectorType.SEARCH_CONSOLE, 'dimension')}" by one value at a time.`,
             ],
@@ -369,10 +376,8 @@ const CASES: Case[] = [
                 },
             },
         }),
+        // GA4 reads it as everything before that range
         expected: {
-            [ApiConnectorType.GA4]: [
-                `"${date(ApiConnectorType.GA4)}" can't be filtered with "notInThePast". Use one of: inThePast, inBetween, equals.`,
-            ],
             [ApiConnectorType.SEARCH_CONSOLE]: [
                 `"${date(ApiConnectorType.SEARCH_CONSOLE)}" can't be filtered with "notInThePast". Use one of: inThePast, inBetween, equals.`,
             ],
@@ -405,65 +410,69 @@ const getMessages = (
     );
 };
 
-describe('live data source capabilities keep day-one refusals', () => {
+describe('live data source capabilities keep their refusals', () => {
     describe.each(SOURCES.map(({ connector }) => connector))(
         '%s',
         (connector) => {
             const explore = build(connector);
 
-            test.each(CASES)('$name', ({ query, context, expected, code }) => {
-                const metricQuery = toQuery(connector, query(connector));
-                const messages = getMessages(explore, metricQuery, context);
-                expect(messages).toEqual(expected[connector] ?? []);
-                if (code && explore.apiSource) {
+            test.each(CASES)(
+                '$name',
+                ({ query, context, expected, stale, code }) => {
+                    const metricQuery = toQuery(connector, query(connector));
+                    const messages = getMessages(explore, metricQuery, context);
+                    expect(messages).toEqual(expected[connector] ?? []);
+                    if (code && explore.apiSource) {
+                        expect(
+                            getApiSourceQueryIssues(
+                                explore.apiSource,
+                                metricQuery,
+                                context,
+                            ).map((issue) => issue.code),
+                        ).toEqual(messages.map(() => code));
+                    }
+                    // Explores cached before capabilities refuse the same, or
+                    // more where a connector learned something since
                     expect(
-                        getApiSourceQueryIssues(
-                            explore.apiSource,
+                        getMessages(
+                            withoutCapabilities(explore),
                             metricQuery,
                             context,
-                        ).map((issue) => issue.code),
-                    ).toEqual(messages.map(() => code));
-                }
-                // Explores cached before capabilities refuse exactly the same
-                expect(
-                    getMessages(
-                        withoutCapabilities(explore),
-                        metricQuery,
-                        context,
-                    ),
-                ).toEqual(messages);
-                // Every entry point throws the same joined message
-                if (messages.length > 0) {
-                    expect(() =>
-                        assertApiSourceQuery(explore, metricQuery, context),
-                    ).toThrow(ParameterError);
-                    expect(() =>
-                        assertApiSourceQuery(explore, metricQuery, context),
-                    ).toThrow(messages.join(' '));
-                    // Every refusal carries its codes for the API response
-                    try {
-                        assertApiSourceQuery(explore, metricQuery, context);
-                    } catch (error) {
-                        expect(error).toMatchObject({
-                            data: {
-                                liveSourceErrorCode: expect.stringMatching(
-                                    /^live_source\.refused\./,
-                                ),
-                            },
-                        });
+                        ),
+                    ).toEqual(stale?.[connector] ?? messages);
+                    // Every entry point throws the same joined message
+                    if (messages.length > 0) {
+                        expect(() =>
+                            assertApiSourceQuery(explore, metricQuery, context),
+                        ).toThrow(ParameterError);
+                        expect(() =>
+                            assertApiSourceQuery(explore, metricQuery, context),
+                        ).toThrow(messages.join(' '));
+                        // Every refusal carries its codes for the API response
+                        try {
+                            assertApiSourceQuery(explore, metricQuery, context);
+                        } catch (error) {
+                            expect(error).toMatchObject({
+                                data: {
+                                    liveSourceErrorCode: expect.stringMatching(
+                                        /^live_source\.refused\./,
+                                    ),
+                                },
+                            });
+                        }
                     }
-                }
-                if (messages.length > 0 && !context) {
-                    expect(() =>
-                        compileApiSourceMetricQuery({
-                            explore,
-                            metricQuery,
-                            timezone: 'UTC',
-                            now: new Date('2026-11-06T12:00:00Z'),
-                        }),
-                    ).toThrow(messages.join(' '));
-                }
-            });
+                    if (messages.length > 0 && !context) {
+                        expect(() =>
+                            compileApiSourceMetricQuery({
+                                explore,
+                                metricQuery,
+                                timezone: 'UTC',
+                                now: new Date('2026-11-06T12:00:00Z'),
+                            }),
+                        ).toThrow(messages.join(' '));
+                    }
+                },
+            );
         },
     );
 });
@@ -477,16 +486,23 @@ describe('connector capability declarations', () => {
 
             test('every field filters with its type operators', () => {
                 definitions.forEach((definition) => {
-                    definition.dimensions.forEach((dimension) => {
-                        expect([
-                            dimension.name,
-                            dimension.filterOperators,
-                        ]).toEqual([
-                            dimension.name,
-                            capabilities.filters.operators[dimension.type] ??
-                                [],
-                        ]);
-                    });
+                    // Grains of the date dimension are filtered through the date
+                    definition.dimensions
+                        .filter(
+                            ({ name, timeInterval }) =>
+                                !timeInterval || timeInterval.base === name,
+                        )
+                        .forEach((dimension) => {
+                            expect([
+                                dimension.name,
+                                dimension.filterOperators,
+                            ]).toEqual([
+                                dimension.name,
+                                capabilities.filters.operators[
+                                    dimension.type
+                                ] ?? [],
+                            ]);
+                        });
                     definition.metrics.forEach((metric) => {
                         expect([metric.name, metric.filterOperators]).toEqual([
                             metric.name,
