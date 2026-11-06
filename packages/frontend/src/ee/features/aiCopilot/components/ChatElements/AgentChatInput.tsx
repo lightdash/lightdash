@@ -43,11 +43,13 @@ import { type AnyExtension, type Editor } from '@tiptap/react';
 import {
     useCallback,
     useEffect,
+    useImperativeHandle,
     useMemo,
     useRef,
     useState,
     type ReactNode,
     type ClipboardEvent,
+    type Ref,
 } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -280,6 +282,14 @@ type SubmitArgs = SubmitContext & {
     toolHints: string[];
 };
 
+export type AgentChatInputHandle = {
+    submitWithAttachments: (
+        message: string,
+        toolHints: string[],
+        submit: AgentChatInputProps['onSubmit'],
+    ) => boolean;
+};
+
 interface AgentChatInputProps {
     onSubmit: (args: SubmitArgs) => void | Promise<unknown>;
     onStartDeepResearch?: (args: StartDeepResearchArgs) => Promise<void>;
@@ -326,6 +336,8 @@ interface AgentChatInputProps {
     threadModelName?: string | null;
     threadModelWarning?: string | null;
     imageAttachmentsUnavailableReason?: string;
+    // Lets a host's own controls submit with the composer's attachments.
+    composerRef?: Ref<AgentChatInputHandle>;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -396,6 +408,7 @@ export const AgentChatInput = ({
     footerNotice,
     toolbarStart,
     composerTray,
+    composerRef,
     threadModelName,
     threadModelWarning = null,
     imageAttachmentsUnavailableReason,
@@ -845,9 +858,9 @@ export const AgentChatInput = ({
     );
 
     const submitPrompt = useCallback(
-        (args: SubmitArgs) => {
+        (args: SubmitArgs, submit = onSubmitRef.current) => {
             if (imageSubmissionRef.current || !guardImageSubmission('chat'))
-                return;
+                return false;
             const fileUuids = threadFileAttachments.map(
                 ({ fileUuid }) => fileUuid,
             );
@@ -871,17 +884,15 @@ export const AgentChatInput = ({
             };
             if (!hasImageAttachments) {
                 // Preserve text-only synchronous clearing; the mutation owns error UI.
-                void Promise.resolve(onSubmitRef.current(args)).catch(
-                    () => undefined,
-                );
+                void Promise.resolve(submit(args)).catch(() => undefined);
                 complete();
-                return;
+                return true;
             }
             imageSubmissionRef.current = true;
             setIsSubmittingImages(true);
             void (async () => {
                 try {
-                    await onSubmitRef.current(args);
+                    await submit(args);
                     complete();
                 } catch {
                     releaseThreadFiles(fileUuids);
@@ -891,6 +902,7 @@ export const AgentChatInput = ({
                         setIsSubmittingImages(false);
                 }
             })();
+            return true;
         },
         [
             threadFileAttachments,
@@ -905,6 +917,48 @@ export const AgentChatInput = ({
             guardImageSubmission,
         ],
     );
+
+    const submitWithAttachments = useCallback(
+        (
+            message: string,
+            toolHints: string[],
+            submit?: AgentChatInputProps['onSubmit'],
+        ) => {
+            if (
+                loadingRef.current ||
+                disabledRef.current ||
+                isPreparingAttachments
+            )
+                return false;
+            return submitPrompt(
+                {
+                    message,
+                    toolHints,
+                    ...buildSubmitContext({
+                        mentionContext: {},
+                        externalSources: externalSourceAttachments,
+                        threadFiles: threadFileAttachments,
+                        elementReferences,
+                        composerNodes,
+                        theme: selectedTheme,
+                    }),
+                },
+                submit,
+            );
+        },
+        [
+            externalSourceAttachments,
+            threadFileAttachments,
+            elementReferences,
+            composerNodes,
+            isPreparingAttachments,
+            submitPrompt,
+            selectedTheme,
+        ],
+    );
+    useImperativeHandle(composerRef, () => ({ submitWithAttachments }), [
+        submitWithAttachments,
+    ]);
 
     const handleChipClick = useCallback(
         (chip: AgentSuggestion, index: number) => {
@@ -955,24 +1009,7 @@ export const AgentChatInput = ({
                 return;
             }
 
-            if (
-                loadingRef.current ||
-                disabledRef.current ||
-                isPreparingAttachments
-            )
-                return;
-            submitPrompt({
-                message: chip.label,
-                toolHints: [chip.tool],
-                ...buildSubmitContext({
-                    mentionContext: {},
-                    externalSources: externalSourceAttachments,
-                    threadFiles: threadFileAttachments,
-                    elementReferences,
-                    composerNodes,
-                    theme: selectedTheme,
-                }),
-            });
+            submitWithAttachments(chip.label, [chip.tool]);
             trackClick();
         },
         [
@@ -985,13 +1022,7 @@ export const AgentChatInput = ({
             track,
             emptyStateMode,
             navigate,
-            externalSourceAttachments,
-            threadFileAttachments,
-            elementReferences,
-            composerNodes,
-            isPreparingAttachments,
-            submitPrompt,
-            selectedTheme,
+            submitWithAttachments,
         ],
     );
 
@@ -1083,7 +1114,8 @@ export const AgentChatInput = ({
             const documentFiles: File[] = [];
             try {
                 for (const file of files) {
-                    if (await isThreadImageFile(file)) images.push(file);
+                    if (imagesEnabled && (await isThreadImageFile(file)))
+                        images.push(file);
                     else if (
                         canAttachExternalSource &&
                         isTabularThreadFileName(file.name)
@@ -1114,6 +1146,7 @@ export const AgentChatInput = ({
             }
         },
         [
+            imagesEnabled,
             canAttachExternalSource,
             canAttachThreadFile,
             attachCsvFiles,
@@ -1132,10 +1165,11 @@ export const AgentChatInput = ({
                     return file ? [file] : [];
                 },
             );
-            if (images.length === 0) return;
+            if (images.length === 0 || !imagesEnabled) return;
+            // Office apps put a bitmap beside the text the user means to paste.
+            if (event.clipboardData.getData('text/plain').trim()) return;
             event.preventDefault();
-            if (!imagesEnabled || canUseAttachControl)
-                void attachThreadImages(images);
+            if (canUseAttachControl) void attachThreadImages(images);
             else
                 showToastError({
                     title: 'Attachments are unavailable in this composer mode',

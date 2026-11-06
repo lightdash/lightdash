@@ -27,7 +27,10 @@ import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
 } from '../aiCopilot/components/AgentSelector/AgentSelectorUtils';
-import { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatInput';
+import {
+    AgentChatInput,
+    type AgentChatInputHandle,
+} from '../aiCopilot/components/ChatElements/AgentChatInput';
 import { usePendingPrompt } from '../aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { type StartDeepResearchArgs } from '../aiCopilot/deepResearch/types';
 import { useAgentSuggestions } from '../aiCopilot/hooks/useAgentSuggestions';
@@ -373,6 +376,7 @@ const DayOneAskInputInner: FC<Props> = ({
     });
     const isNewOnboarding =
         useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
+    const composerRef = useRef<AgentChatInputHandle>(null);
     const [composerValue, setComposerValue] = useState('');
     const [hasAsked, setHasAsked] = useLocalStorage({
         key: 'ld.home.hasAsked',
@@ -484,9 +488,31 @@ const DayOneAskInputInner: FC<Props> = ({
             void navigate(chip.url);
             return;
         }
-        trackAskSubmitted('starter_chip', false);
-        setHasAsked(true);
-        void Promise.resolve(submitPrompt(chip.label, [chip.tool])).catch(
+        const submitChip = ({
+            toolHints,
+            context,
+            optimisticContext,
+        }: {
+            toolHints: string[];
+            context?: AiPromptContextInput;
+            optimisticContext?: AiPromptContextItem[];
+        }) => {
+            trackAskSubmitted('starter_chip', false);
+            setHasAsked(true);
+            return submitPrompt(
+                chip.label,
+                toolHints,
+                context,
+                optimisticContext,
+            );
+        };
+        // Through the composer, so anything attached goes with the suggestion.
+        const composer = composerRef.current;
+        if (composer) {
+            composer.submitWithAttachments(chip.label, [chip.tool], submitChip);
+            return;
+        }
+        void Promise.resolve(submitChip({ toolHints: [chip.tool] })).catch(
             () => undefined,
         );
     };
@@ -523,6 +549,7 @@ const DayOneAskInputInner: FC<Props> = ({
                 <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
             ) : (
                 <AgentChatInput
+                    composerRef={composerRef}
                     key={prefillRequest}
                     defaultValue={prefill}
                     projectUuid={projectUuid ?? undefined}

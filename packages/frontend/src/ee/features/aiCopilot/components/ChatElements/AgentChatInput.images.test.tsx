@@ -1,7 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ComponentProps } from 'react';
+import { createRef, type ComponentProps } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { renderWithProviders } from '../../../../../testing/testUtils';
@@ -11,7 +11,7 @@ import {
     type ThreadImageAttachment,
 } from '../../hooks/useThreadFileAttachment';
 import { store } from '../../store';
-import { AgentChatInput } from './AgentChatInput';
+import { AgentChatInput, type AgentChatInputHandle } from './AgentChatInput';
 
 const mocks = vi.hoisted(() => {
     const ready: { callback: (file: ThreadFileAttachment) => void } = {
@@ -311,7 +311,64 @@ test('the picker is available for eligible chat and image clipboard paste alone 
     expect(mocks.images).not.toHaveBeenCalled();
 });
 
-test('flag-off drops reach the image gate, never the document endpoint', async () => {
+test('a clipboard with text and a bitmap pastes the text and attaches nothing', () => {
+    renderInput();
+    const file = new File(['png'], 'cells.png', { type: 'image/png' });
+    fireEvent.paste(screen.getByRole('textbox'), {
+        clipboardData: {
+            items: [{ kind: 'file', type: file.type, getAsFile: () => file }],
+            getData: (type: string) => (type === 'text/plain' ? 'a\tb' : ''),
+        },
+    });
+    expect(mocks.images).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox')).toHaveTextContent('a');
+});
+
+test('with the flag off an image paste is left to the editor', () => {
+    mocks.imagesEnabled = false;
+    renderInput();
+    const file = new File(['png'], 'clipboard.png', { type: 'image/png' });
+    expect(paste(file)).toBe(true);
+    expect(mocks.images).not.toHaveBeenCalled();
+});
+
+test('a host control submits through the composer with its attachments', async () => {
+    const composerRef = createRef<AgentChatInputHandle>();
+    const request = deferred();
+    const submit = vi.fn<ComponentProps<typeof AgentChatInput>['onSubmit']>(
+        () => request.promise,
+    );
+    const onSubmit = vi.fn();
+    renderInput({ composerRef, onSubmit });
+    attachReadyImage();
+    await waitFor(() =>
+        expect(screen.getByAltText('chart.png')).toBeInTheDocument(),
+    );
+    act(() => {
+        expect(
+            composerRef.current?.submitWithAttachments(
+                'Top customers',
+                ['generateQuery'],
+                submit,
+            ),
+        ).toBe(true);
+    });
+    expect(mocks.retain).toHaveBeenCalledWith(['image-1']);
+    expect(submit).toHaveBeenCalledWith(
+        expect.objectContaining({
+            message: 'Top customers',
+            toolHints: ['generateQuery'],
+            context: [{ type: 'thread_image', fileUuid: 'image-1' }],
+        }),
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+    await act(async () => {
+        request.resolve(undefined);
+        await request.promise;
+    });
+});
+
+test('flag-off drops keep the document route', async () => {
     mocks.imagesEnabled = false;
     const { container } = renderInput();
     expect(
@@ -321,8 +378,8 @@ test('flag-off drops reach the image gate, never the document endpoint', async (
     fireEvent.drop(screen.getByRole('textbox').parentElement ?? container, {
         dataTransfer: { types: ['Files'], files: [file] },
     });
-    await waitFor(() => expect(mocks.images).toHaveBeenCalledWith([file]));
-    expect(mocks.documents).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.documents).toHaveBeenCalledWith([file]));
+    expect(mocks.images).not.toHaveBeenCalled();
 });
 
 test('magic-sniffed images route before filename-based CSV fallback while documents stay unchanged', async () => {

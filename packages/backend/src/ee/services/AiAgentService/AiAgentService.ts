@@ -537,7 +537,9 @@ import {
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import {
+    hasLiveThreadImage,
     resolveThreadImages,
+    withoutFileParts,
     type ResolvedThreadImage,
 } from '../ai/threadImageContext';
 import { executeEditContent } from '../ai/tools/editContent';
@@ -9811,7 +9813,8 @@ export class AiAgentService extends BaseService {
                 ...(compaction
                     ? [Compaction.createSummaryMessage(compaction.summary)]
                     : []),
-                ...chatHistoryMessages,
+                // A title never needs the pixels, and the fast model may not accept them.
+                ...withoutFileParts(chatHistoryMessages),
             ]);
 
             // Save the title to the database
@@ -13060,7 +13063,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
     }> {
         const context = [...contextMap.values()].flat();
         const hasImages = context.some((item) => item.type === 'thread_image');
-        if (hasImages && this.lightdashConfig.uploads.s3 === null) {
+        if (
+            hasLiveThreadImage(context) &&
+            this.lightdashConfig.uploads.s3 === null
+        ) {
             throw new ParameterError(
                 'Image attachments are unavailable because durable uploads storage is not configured.',
             );

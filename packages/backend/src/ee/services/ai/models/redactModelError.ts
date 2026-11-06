@@ -5,6 +5,7 @@ import {
     type LanguageModelMiddleware,
 } from 'ai';
 import { z } from 'zod';
+import { hasBinaryModelInputs } from '../utils/aiCallTelemetry';
 import { withImageRequestSizeGuard } from './requestSizeGuard';
 
 const REDACTED = '[redacted binary payload]';
@@ -193,38 +194,45 @@ export const redactModelError = (error: unknown): unknown => {
     }
 };
 
+type ModelPrompt = Parameters<
+    NonNullable<LanguageModelMiddleware['wrapGenerate']>
+>[0]['params']['prompt'];
+
+const hasImageInput = (prompt: ModelPrompt) =>
+    prompt.some(
+        (message) =>
+            message.role !== 'system' &&
+            message.content.some(
+                (part) =>
+                    part.type === 'file' && part.mediaType.startsWith('image/'),
+            ),
+    );
+
+// The walk blocks the event loop, so calls with nothing to scrub skip it.
+const errorRedactorFor = (prompt: ModelPrompt) =>
+    hasBinaryModelInputs(prompt)
+        ? redactModelError
+        : (error: unknown): unknown => error;
+
 export const modelErrorRedactionMiddleware: LanguageModelMiddleware = {
     specificationVersion: 'v4',
-    wrapGenerate: async ({ doGenerate, params }) =>
-        withImageRequestSizeGuard(
-            params.prompt.some(
-                (message) =>
-                    message.role !== 'system' &&
-                    message.content.some(
-                        (part) =>
-                            part.type === 'file' &&
-                            part.mediaType.startsWith('image/'),
-                    ),
-            ),
+    wrapGenerate: async ({ doGenerate, params }) => {
+        const redact = errorRedactorFor(params.prompt);
+        return withImageRequestSizeGuard(
+            hasImageInput(params.prompt),
             async () => {
                 try {
                     return await doGenerate();
                 } catch (error) {
-                    throw redactModelError(error);
+                    throw redact(error);
                 }
             },
-        ),
-    wrapStream: async ({ doStream, params }) =>
-        withImageRequestSizeGuard(
-            params.prompt.some(
-                (message) =>
-                    message.role !== 'system' &&
-                    message.content.some(
-                        (part) =>
-                            part.type === 'file' &&
-                            part.mediaType.startsWith('image/'),
-                    ),
-            ),
+        );
+    },
+    wrapStream: async ({ doStream, params }) => {
+        const redact = errorRedactorFor(params.prompt);
+        return withImageRequestSizeGuard(
+            hasImageInput(params.prompt),
             async () => {
                 try {
                     const result = await doStream();
@@ -246,7 +254,7 @@ export const modelErrorRedactionMiddleware: LanguageModelMiddleware = {
                                             value.type === 'error'
                                                 ? {
                                                       ...value,
-                                                      error: redactModelError(
+                                                      error: redact(
                                                           value.error,
                                                       ),
                                                   }
@@ -254,7 +262,7 @@ export const modelErrorRedactionMiddleware: LanguageModelMiddleware = {
                                         );
                                 } catch (error) {
                                     reader.releaseLock();
-                                    controller.error(redactModelError(error));
+                                    controller.error(redact(error));
                                 }
                             },
                             async cancel(reason) {
@@ -264,10 +272,11 @@ export const modelErrorRedactionMiddleware: LanguageModelMiddleware = {
                         }),
                     };
                 } catch (error) {
-                    throw redactModelError(error);
+                    throw redact(error);
                 }
             },
-        ),
+        );
+    },
 };
 
 export const withModelErrorRedaction = (

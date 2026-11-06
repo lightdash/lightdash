@@ -57,7 +57,16 @@ export const normalizeThreadImage = async (bytes: Buffer) => {
         await decoder.clone().raw().toBuffer();
         let normalized = bytes;
         if (format === 'png') {
-            normalized = await decoder.clone().rotate().png().toBuffer();
+            // Sharp's defaults can double a photographic or indexed PNG.
+            normalized = await decoder
+                .clone()
+                .rotate()
+                .png(
+                    metadata.isPalette
+                        ? { palette: true }
+                        : { adaptiveFiltering: true, compressionLevel: 9 },
+                )
+                .toBuffer();
         } else if (
             metadata.exif ||
             metadata.xmp ||

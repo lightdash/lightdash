@@ -151,7 +151,9 @@ test('uploads binary bytes with sniffed media type, private key and fixed expira
     expect(created?.object.expires_at.getTime()).toBe(
         (created?.object.created_at.getTime() ?? 0) + 30 * 86400000,
     );
-    expect(Buffer.concat(chunks)).toEqual(await sharp(bytes).png().toBuffer());
+    expect(await sharp(Buffer.concat(chunks)).raw().toBuffer()).toEqual(
+        await sharp(bytes).raw().toBuffer(),
+    );
     expect(storage.createUploadStream).toHaveBeenCalledWith(
         created?.object.storage_key,
         expect.objectContaining({
@@ -302,4 +304,16 @@ test('expired-image cleanup drains batches using one fixed attempt cutoff', asyn
     expect(model.findImageObjectsForCleanup.mock.calls[0]?.[0]).toBe(
         model.findImageObjectsForCleanup.mock.calls[1]?.[0],
     );
+});
+
+test('without durable uploads storage cleanup deletes nothing and keeps every record', async () => {
+    const { service, model, storage } = setup(false);
+    model.findImageObjectsForCleanup.mockResolvedValueOnce([
+        cleanupObject('stranded'),
+    ]);
+    await service.sweepExpiredUnclaimed();
+    expect(model.sweepExpiredUnclaimed).toHaveBeenCalled();
+    expect(storage.deleteFile).not.toHaveBeenCalled();
+    expect(model.markImageCleanupAttempted).not.toHaveBeenCalled();
+    expect(model.markImageObjectDeleted).not.toHaveBeenCalled();
 });

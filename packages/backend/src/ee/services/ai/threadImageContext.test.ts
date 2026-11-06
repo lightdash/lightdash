@@ -9,7 +9,11 @@ import { Readable } from 'node:stream';
 import sharp from 'sharp';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type AiThreadFileWithContent } from '../../models/AiThreadFileModel';
-import { resolveThreadImages } from './threadImageContext';
+import {
+    hasLiveThreadImage,
+    resolveThreadImages,
+    withoutFileParts,
+} from './threadImageContext';
 
 vi.mock('@sentry/node', () => ({ captureException: vi.fn() }));
 beforeEach(() => vi.clearAllMocks());
@@ -287,4 +291,49 @@ test('the retained-image budget is enforced before fetching any bytes', async ()
     ).toBe(true);
     expect(Sentry.captureException).toHaveBeenCalledOnce();
     expect(storage.getFileStream).not.toHaveBeenCalled();
+});
+
+test('title history keeps the text of a turn and drops its files', () => {
+    expect(
+        withoutFileParts([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Recreate this chart' },
+                    {
+                        type: 'file',
+                        data: Buffer.from('png'),
+                        mediaType: 'image/png',
+                    },
+                ],
+            },
+            { role: 'assistant', content: 'Done' },
+        ]),
+    ).toEqual([
+        {
+            role: 'user',
+            content: [{ type: 'text', text: 'Recreate this chart' }],
+        },
+        { role: 'assistant', content: 'Done' },
+    ]);
+});
+
+test('only an unexpired image reference needs durable storage', () => {
+    const reference = (expiresAt: string): AiPromptContext[number] => ({
+        type: 'thread_image',
+        fileUuid: 'image-1',
+        fileName: 'chart.png',
+        mediaType: 'image/png',
+        sizeBytes: 3,
+        width: 1,
+        height: 1,
+        expiresAt,
+    });
+    expect(hasLiveThreadImage([])).toBe(false);
+    expect(hasLiveThreadImage([reference('2000-01-01T00:00:00.000Z')])).toBe(
+        false,
+    );
+    expect(hasLiveThreadImage([reference('2999-01-01T00:00:00.000Z')])).toBe(
+        true,
+    );
 });

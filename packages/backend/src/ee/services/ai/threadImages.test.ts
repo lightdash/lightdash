@@ -113,3 +113,34 @@ test.each(['jpeg', 'webp'] as const)(
         );
     },
 );
+
+const noise = (width: number, height: number) => {
+    const pixels = Buffer.alloc(width * height * 3);
+    for (let i = 0; i < pixels.length; i += 1)
+        pixels[i] = Math.floor(((i * 7919 + i * i) % 251) / 16) * 16;
+    return sharp(pixels, { raw: { width, height, channels: 3 } });
+};
+
+test('re-encoding an indexed PNG keeps its pixels and does not inflate it', async () => {
+    const input = await noise(256, 256)
+        .png({ palette: true, colours: 16, dither: 0 })
+        .toBuffer();
+    expect((await sharp(input).metadata()).isPalette).toBe(true);
+    const normalized = await normalizeThreadImage(input);
+    expect(normalized.bytes.length).toBeLessThanOrEqual(input.length * 1.05);
+    expect(await sharp(normalized.bytes).raw().toBuffer()).toEqual(
+        await sharp(input).raw().toBuffer(),
+    );
+});
+
+test('re-encoding a detailed truecolour PNG keeps its pixels and does not inflate it', async () => {
+    const input = await noise(256, 256)
+        .blur(1)
+        .png({ adaptiveFiltering: true, compressionLevel: 9 })
+        .toBuffer();
+    const normalized = await normalizeThreadImage(input);
+    expect(normalized.bytes.length).toBeLessThanOrEqual(input.length * 1.05);
+    expect(await sharp(normalized.bytes).raw().toBuffer()).toEqual(
+        await sharp(input).raw().toBuffer(),
+    );
+});

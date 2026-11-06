@@ -6,7 +6,7 @@ import {
     type AiPromptContext,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { type FilePart } from 'ai';
+import { type FilePart, type ModelMessage } from 'ai';
 import { addAbortSignal } from 'node:stream';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type AiThreadFileWithContent } from '../../models/AiThreadFileModel';
@@ -167,3 +167,24 @@ export const resolveThreadImages = async ({
     }
     return resolved;
 };
+
+/** Drops attached files from user turns, keeping their text and placeholders. */
+export const withoutFileParts = (messages: ModelMessage[]): ModelMessage[] =>
+    messages.map((message) =>
+        message.role === 'user' && typeof message.content !== 'string'
+            ? {
+                  ...message,
+                  content: message.content.filter(
+                      (part) => part.type === 'text',
+                  ),
+              }
+            : message,
+    );
+
+/** Expired references resolve without storage, so only live ones need it. */
+export const hasLiveThreadImage = (context: AiPromptContext) =>
+    context.some(
+        (item) =>
+            item.type === 'thread_image' &&
+            Date.parse(item.expiresAt) > Date.now(),
+    );
