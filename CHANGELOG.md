@@ -1,3 +1,11 @@
+## [3.166.5](https://github.com/lightdash/lightdash/compare/3.166.4...3.166.5) (2026-11-06)
+
+
+### Bug Fixes
+
+* **ai:** select composer custom metrics without listing them in metrics ([#32146](https://github.com/lightdash/lightdash/issues/32146)) ([6f8ccb2](https://github.com/lightdash/lightdash/commit/6f8ccb224b4cf4f8ad52905218285f5f1d730492))
+* **frontend:** remove the Beta badge from dbt sources ([#32141](https://github.com/lightdash/lightdash/issues/32141)) ([a0cfcf9](https://github.com/lightdash/lightdash/commit/a0cfcf9123f910519c920e17fe7d5303ccdc67b2))
+
 ## [3.166.4](https://github.com/lightdash/lightdash/compare/3.166.3...3.166.4) (2026-11-05)
 
 
