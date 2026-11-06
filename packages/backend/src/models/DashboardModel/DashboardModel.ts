@@ -1824,6 +1824,7 @@ export class DashboardModel {
 
     // An exact slug owned by a deleted dashboard is the same content as code
     // identity, so it comes back in the requested space with the new content.
+    // It isn't new content, so it keeps its owner; ownerEmail is applied after.
     private static async reviveDeletedDashboard(
         trx: Knex.Transaction,
         deletedDashboard: DeletedDashboardSlugOwner,
@@ -1838,7 +1839,6 @@ export class DashboardModel {
                 name: dashboard.name,
                 description: dashboard.description,
                 space_id: spaceId,
-                owner_user_uuid: dashboard.ownerUserUuid ?? null,
                 deleted_at: null,
                 deleted_by_user_uuid: null,
             })
