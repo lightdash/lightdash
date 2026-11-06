@@ -1,42 +1,60 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
-import { ResultsCacheClearScheduleForm } from './ResultsCacheClearScheduleForm';
+import { ResultsCacheDurationCard } from './ResultsCacheDurationCard';
 
 const updateSchedule = vi.fn();
+const updateSettings = vi.fn();
 
 vi.mock('../../hooks/useProjectResultsCacheSettings', () => ({
     useUpdateResultsCacheClearSchedule: () => ({
         mutate: updateSchedule,
         isLoading: false,
     }),
+    useUpdateResultsCacheSettings: () => ({
+        mutate: updateSettings,
+        isLoading: false,
+    }),
+    useResultsCacheTtlProjections: () => ({ data: undefined, isError: false }),
 }));
 
-const renderForm = (
-    clearSchedule: Parameters<
-        typeof ResultsCacheClearScheduleForm
-    >[0]['clearSchedule'],
-) =>
+type CardProps = ComponentProps<typeof ResultsCacheDurationCard>;
+
+const renderCard = (overrides: Partial<CardProps>) =>
     renderWithProviders(
-        <ResultsCacheClearScheduleForm
+        <ResultsCacheDurationCard
             projectUuid="project-uuid"
-            clearSchedule={clearSchedule}
+            days={7}
+            initialTtlSeconds={null}
+            instanceDefaultSeconds={3600}
+            clearSchedule={null}
             schedulerTimezone="UTC"
+            showDuration={false}
+            showProjections={false}
+            showSchedule
+            {...overrides}
         />,
     );
 
-describe('ResultsCacheClearScheduleForm', () => {
+const renderForm = (clearSchedule: CardProps['clearSchedule']) =>
+    renderCard({ clearSchedule });
+
+const saveButton = () => screen.getByRole('button', { name: 'Save changes' });
+
+describe('ResultsCacheDurationCard scheduled clearing', () => {
     beforeEach(() => {
         updateSchedule.mockClear();
+        updateSettings.mockClear();
     });
 
     test('starts disabled at daily 06:00 with no schedule', () => {
         renderForm(null);
 
         expect(screen.getByRole('switch')).not.toBeChecked();
-        expect(screen.getByText('No clear scheduled')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(screen.queryByText(/Next clear/)).not.toBeInTheDocument();
+        expect(saveButton()).toBeDisabled();
     });
 
     test('saves the default schedule as a daily cron when enabled', async () => {
@@ -44,7 +62,7 @@ describe('ResultsCacheClearScheduleForm', () => {
         renderForm(null);
 
         await user.click(screen.getByRole('switch'));
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(saveButton());
 
         expect(updateSchedule).toHaveBeenCalledWith(
             { enabled: true, cron: '0 6 * * *' },
@@ -65,7 +83,7 @@ describe('ResultsCacheClearScheduleForm', () => {
         expect(screen.getByText(/^Next clear:/)).toBeInTheDocument();
 
         await user.click(screen.getByRole('switch'));
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(saveButton());
 
         expect(updateSchedule).toHaveBeenCalledWith(
             { enabled: false, cron: '0 14 * * 5' },
@@ -100,7 +118,7 @@ describe('ResultsCacheClearScheduleForm', () => {
         });
 
         await user.click(screen.getByRole('switch'));
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(saveButton());
 
         expect(updateSchedule).toHaveBeenCalledWith(
             { enabled: false, cron: '0 6,14 * * *' },
@@ -123,6 +141,55 @@ describe('ResultsCacheClearScheduleForm', () => {
         expect(
             screen.getByText('Select at least one time'),
         ).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(saveButton()).toBeDisabled();
+    });
+});
+
+describe('ResultsCacheDurationCard cache duration', () => {
+    beforeEach(() => {
+        updateSchedule.mockClear();
+        updateSettings.mockClear();
+    });
+
+    test('shows the instance default as a placeholder and saves a custom duration', async () => {
+        const user = userEvent.setup();
+        renderCard({ showDuration: true, showSchedule: false });
+
+        const input = screen.getByLabelText('Cache duration (minutes)');
+        expect(input).toHaveValue('');
+        expect(input).toHaveAttribute('placeholder', '60');
+        expect(saveButton()).toBeDisabled();
+
+        await user.clear(input);
+        await user.type(input, '120');
+        await user.click(saveButton());
+
+        expect(updateSettings).toHaveBeenCalledWith(
+            { cacheTtlSeconds: 7200 },
+            expect.anything(),
+        );
+        expect(updateSchedule).not.toHaveBeenCalled();
+    });
+
+    test('saves the duration and the schedule together when both changed', async () => {
+        const user = userEvent.setup();
+        renderCard({
+            showDuration: true,
+            showSchedule: true,
+            initialTtlSeconds: 7200,
+        });
+
+        await user.clear(screen.getByLabelText('Cache duration (minutes)'));
+        await user.click(screen.getByRole('switch'));
+        await user.click(saveButton());
+
+        expect(updateSettings).toHaveBeenCalledWith(
+            { cacheTtlSeconds: null },
+            expect.anything(),
+        );
+        expect(updateSchedule).toHaveBeenCalledWith(
+            { enabled: true, cron: '0 6 * * *' },
+            expect.anything(),
+        );
     });
 });

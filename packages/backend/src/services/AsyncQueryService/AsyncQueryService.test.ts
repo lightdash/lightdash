@@ -66,6 +66,7 @@ import {
     QuerySurface,
     QueryTrigger,
     ResultColumns,
+    ResultsCacheMissReason,
     ResultsExpiredError,
     SignInSubjectBasis,
     SnowflakeAuthenticationType,
@@ -244,7 +245,12 @@ import {
     markedPersonPlanMock,
 } from '../AiAccessService/AiAccessService.mock';
 import type { ICacheService } from '../CacheService/ICacheService';
-import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
+import {
+    CacheHitCacheResult,
+    CacheLookupResult,
+    cacheMiss,
+    MissCacheResult,
+} from '../CacheService/types';
 import { DocumentService } from '../DocumentService/DocumentService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
@@ -531,6 +537,7 @@ const inMemoryDuckdbHistory = ({
         ),
         recordAiSignInCredential: vi.fn(),
         recordResultProducer: vi.fn(),
+        recordCacheOutcome: vi.fn(),
         inheritCacheInvalidation: vi.fn(),
         update: vi.fn(),
         ...overrides,
@@ -677,6 +684,7 @@ const getMockedAsyncQueryService = (
             getDuckdbExecution: vi.fn(async () => null),
             recordAiSignInCredential: vi.fn(),
             recordResultProducer: vi.fn(),
+            recordCacheOutcome: vi.fn(),
             inheritCacheInvalidation: vi.fn(),
             invalidateCachedResultsForExplores: vi.fn(async () => 1),
             update: vi.fn(),
@@ -4296,6 +4304,7 @@ describe('AsyncQueryService', () => {
                               cacheHit: false,
                               updatedAt: undefined,
                               expiresAt: undefined,
+                              missReason: null,
                           },
                 );
                 vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
@@ -4331,7 +4340,10 @@ describe('AsyncQueryService', () => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
-                findCachedResultsFile: vi.fn(async () => null),
+                lookupCachedResultsFile: vi.fn(async () => ({
+                    cacheHit: false as const,
+                    missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                })),
             } as unknown as ICacheService;
 
             vi.clearAllMocks();
@@ -4343,6 +4355,7 @@ describe('AsyncQueryService', () => {
                         cacheHit: false,
                         updatedAt: undefined,
                         expiresAt: undefined,
+                        missReason: null,
                     }) satisfies MissCacheResult,
             );
         });
@@ -4527,6 +4540,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -4740,6 +4754,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             } satisfies MissCacheResult);
 
             (
@@ -4797,6 +4812,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             } satisfies MissCacheResult);
 
             (
@@ -4849,6 +4865,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -4931,11 +4948,102 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        test('persists the cache outcome of a forced refresh on the query history', async () => {
+            vi.mocked(serviceWithCache.findResultsCache).mockResolvedValueOnce(
+                cacheMiss(ResultsCacheMissReason.EXPIRED),
+            );
+            (
+                serviceWithCache.queryHistoryModel
+                    .create as import('vitest').Mock
+            ).mockResolvedValue({ queryUuid: 'test-query-uuid' });
+            vi.spyOn(
+                serviceWithCache,
+                'runAsyncWarehouseQuery',
+            ).mockResolvedValue(undefined);
+
+            await serviceWithCache['executeAsyncQuery'](
+                {
+                    inheritedFromProjectUuid: null,
+                    aiPrincipalUuid: null,
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    invalidateCache: true,
+                    queryComposer: createQueryComposerMock(),
+                    warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(
+                serviceWithCache.queryHistoryModel.create,
+            ).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    cacheOutcome: {
+                        missReason: ResultsCacheMissReason.EXPIRED,
+                        refreshRequested: true,
+                    },
+                }),
+            );
+        });
+
+        test('persists a bypassed cache lookup as a BYPASSED miss', async () => {
+            const findResultsCache = vi.mocked(
+                serviceWithCache.findResultsCache,
+            );
+            findResultsCache.mockClear();
+            (
+                serviceWithCache.queryHistoryModel
+                    .create as import('vitest').Mock
+            ).mockResolvedValue({ queryUuid: 'test-query-uuid' });
+            vi.spyOn(
+                serviceWithCache,
+                'runAsyncWarehouseQuery',
+            ).mockResolvedValue(undefined);
+
+            await serviceWithCache['executeAsyncQuery'](
+                {
+                    inheritedFromProjectUuid: null,
+                    aiPrincipalUuid: 'ai-principal-uuid',
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    invalidateCache: false,
+                    queryComposer: createQueryComposerMock(),
+                    warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(findResultsCache).not.toHaveBeenCalled();
+            expect(
+                serviceWithCache.queryHistoryModel.create,
+            ).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    cacheOutcome: {
+                        missReason: ResultsCacheMissReason.BYPASSED,
+                        refreshRequested: false,
+                    },
+                }),
+            );
+        });
+
         test('prefers requestParameters.invalidateCache over args.invalidateCache', async () => {
             const mockCacheResult: MissCacheResult = {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -4993,7 +5101,10 @@ describe('AsyncQueryService', () => {
             // Clear cache and mocks for this service
             serviceWithoutCache.warehouseClientFactory.warehouseClients = {};
             serviceWithoutCache.cacheService = {
-                findCachedResultsFile: vi.fn(),
+                lookupCachedResultsFile: vi.fn(async () => ({
+                    cacheHit: false as const,
+                    missReason: ResultsCacheMissReason.CACHE_DISABLED,
+                })),
             } as unknown as ICacheService;
 
             (
@@ -5072,6 +5183,10 @@ describe('AsyncQueryService', () => {
                     context: QueryExecutionContext.EXPLORE,
                     organizationUuid:
                         sessionAccount.organization.organizationUuid,
+                    cacheOutcome: {
+                        missReason: ResultsCacheMissReason.CACHE_DISABLED,
+                        refreshRequested: false,
+                    },
                 }),
             );
         });
@@ -5082,6 +5197,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -6081,6 +6197,7 @@ describe('AsyncQueryService', () => {
                     cacheHit: false,
                     updatedAt: undefined,
                     expiresAt: undefined,
+                    missReason: null,
                 });
             credentials.mockResolvedValueOnce({
                 warehouseCredentials: warehouseCredentialsMock,
@@ -6268,7 +6385,11 @@ describe('AsyncQueryService', () => {
             );
             expect(result.cacheMetadata.cacheHit).toBe(false);
             expect(nextExecution).toHaveBeenCalledOnce();
-            expect(tracker.history.select).toHaveLength(1);
+            expect(
+                tracker.history.select.filter(({ sql }) =>
+                    sql.includes('cache_generation = COALESCE'),
+                ),
+            ).toHaveLength(1);
         } finally {
             tracker.reset();
             await database.destroy();
@@ -8343,7 +8464,10 @@ describe('AsyncQueryService', () => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
-                findCachedResultsFile: vi.fn(async () => null),
+                lookupCachedResultsFile: vi.fn(async () => ({
+                    cacheHit: false as const,
+                    missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                })),
             } as unknown as ICacheService;
 
             vi.clearAllMocks();
@@ -10868,7 +10992,10 @@ describe('AsyncQueryService', () => {
         beforeEach(() => {
             serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
-                findCachedResultsFile: vi.fn(async () => null),
+                lookupCachedResultsFile: vi.fn(async () => ({
+                    cacheHit: false as const,
+                    missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                })),
             } as unknown as ICacheService;
             vi.clearAllMocks();
 
@@ -10878,6 +11005,7 @@ describe('AsyncQueryService', () => {
                     cacheHit: false,
                     updatedAt: undefined,
                     expiresAt: undefined,
+                    missReason: null,
                 }));
         });
 
@@ -11163,6 +11291,7 @@ describe('AsyncQueryService', () => {
                 cacheHit: false,
                 updatedAt: undefined,
                 expiresAt: undefined,
+                missReason: null,
             };
 
             (
@@ -13338,13 +13467,17 @@ describe('AsyncQueryService', () => {
 
                 service.warehouseClientFactory.warehouseClients = {};
                 service.cacheService = {
-                    findCachedResultsFile: vi.fn(async () => null),
+                    lookupCachedResultsFile: vi.fn(async () => ({
+                        cacheHit: false as const,
+                        missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                    })),
                 } as unknown as ICacheService;
 
                 service.findResultsCache = vi.fn().mockResolvedValue({
                     cacheHit: false,
                     updatedAt: undefined,
                     expiresAt: undefined,
+                    missReason: null,
                 } satisfies MissCacheResult);
 
                 (
@@ -13418,6 +13551,7 @@ describe('AsyncQueryService', () => {
                     cacheHit: false,
                     updatedAt: undefined,
                     expiresAt: undefined,
+                    missReason: null,
                 } satisfies MissCacheResult);
                 vi.mocked(service.queryHistoryModel.create).mockResolvedValue({
                     queryUuid: 'test-query-uuid',
@@ -17439,7 +17573,14 @@ describe('runDuckdbQuery', () => {
         const pollForQueryCompletion = vi.fn(async () => legHistory(1));
         const recordDuckdbRefusal = vi.fn();
         const markDuckdbCacheHit = vi.fn();
-        const findCachedResultsFile = vi.fn(async () => cached);
+        const recordCacheOutcome = vi.fn();
+        const lookupCachedResultsFile = vi.fn(
+            async (): Promise<CacheLookupResult> =>
+                cached ?? {
+                    cacheHit: false,
+                    missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                },
+        );
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             resultsStorageClient: {
                 isEnabled: true,
@@ -17453,8 +17594,11 @@ describe('runDuckdbQuery', () => {
                 pollForQueryCompletion,
                 recordDuckdbRefusal,
                 markDuckdbCacheHit,
+                recordCacheOutcome,
             } as unknown as QueryHistoryModel,
-            cacheService: { findCachedResultsFile } as unknown as ICacheService,
+            cacheService: {
+                lookupCachedResultsFile,
+            } as unknown as ICacheService,
         } as never);
         const runWarehouseQuery = vi
             .spyOn(service, 'runAsyncWarehouseQuery')
@@ -17467,7 +17611,8 @@ describe('runDuckdbQuery', () => {
             pollForQueryCompletion,
             recordDuckdbRefusal,
             markDuckdbCacheHit,
-            findCachedResultsFile,
+            lookupCachedResultsFile,
+            recordCacheOutcome,
             update: service.queryHistoryModel.update as import('vitest').Mock,
             getByQueryUuid: service.queryHistoryModel
                 .getByQueryUuid as import('vitest').Mock,
@@ -17824,6 +17969,7 @@ describe('runDuckdbQuery', () => {
                 getByQueryUuid: vi.fn(async () => undefined),
                 recordAiSignInCredential: vi.fn(),
                 recordResultProducer: vi.fn(),
+                recordCacheOutcome: vi.fn(),
                 update: vi.fn(),
                 pollForQueryCompletion: vi.fn(
                     async ({ queryUuid }: { queryUuid: string }) => ({
@@ -17946,8 +18092,9 @@ describe('runDuckdbQuery', () => {
             service,
             run,
             runWarehouseQuery,
-            findCachedResultsFile,
+            lookupCachedResultsFile,
             markDuckdbCacheHit,
+            recordCacheOutcome,
             update,
         } = buildService(cachedResults);
         const track = vi.spyOn(
@@ -17969,11 +18116,12 @@ describe('runDuckdbQuery', () => {
         );
 
         // Keyed on the file the leg row points at, not the leg row itself
-        expect(findCachedResultsFile).toHaveBeenCalledWith(
+        expect(lookupCachedResultsFile).toHaveBeenCalledWith(
             projectUuid,
             fileKey(['s3://results-bucket/leg-results.jsonl']),
             expect.objectContaining({ userUuid: sessionAccount.user.id }),
         );
+        expect(recordCacheOutcome).not.toHaveBeenCalled();
         expect(streamQuery).not.toHaveBeenCalled();
         expect(runWarehouseQuery).not.toHaveBeenCalled();
         expect(markDuckdbCacheHit).toHaveBeenCalledWith('duckdb-query-uuid');
@@ -18010,8 +18158,9 @@ describe('runDuckdbQuery', () => {
                 run,
                 runWarehouseQuery,
                 pollForQueryCompletion,
-                findCachedResultsFile,
+                lookupCachedResultsFile,
                 markDuckdbCacheHit,
+                recordCacheOutcome,
             } = buildService(cachedResults);
             pollForQueryCompletion.mockResolvedValue({
                 ...legHistory(1),
@@ -18032,7 +18181,15 @@ describe('runDuckdbQuery', () => {
                     },
                 }),
             );
-            expect(findCachedResultsFile).not.toHaveBeenCalled();
+            expect(lookupCachedResultsFile).not.toHaveBeenCalled();
+            expect(recordCacheOutcome).toHaveBeenCalledWith(
+                'duckdb-query-uuid',
+                projectUuid,
+                {
+                    missReason: ResultsCacheMissReason.BYPASSED,
+                    refreshRequested: false,
+                },
+            );
             expect(markDuckdbCacheHit).not.toHaveBeenCalled();
             expect(runWarehouseQuery).toHaveBeenCalledOnce();
             expect(runWarehouseQuery.mock.calls[0][0].cacheKey).toMatch(
@@ -18077,7 +18234,7 @@ describe('runDuckdbQuery', () => {
         const { streamQuery, warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },
         });
-        const { run, runWarehouseQuery, findCachedResultsFile } =
+        const { run, runWarehouseQuery, recordCacheOutcome } =
             buildService(cachedResults);
 
         await run(
@@ -18093,9 +18250,42 @@ describe('runDuckdbQuery', () => {
             }),
         );
 
-        expect(findCachedResultsFile).not.toHaveBeenCalled();
+        expect(recordCacheOutcome).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            { missReason: null, refreshRequested: true },
+        );
         expect(streamQuery).toHaveBeenCalledTimes(1);
         expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('an invalidating run with nothing cached records the miss reason', async () => {
+        const { warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { run, recordCacheOutcome } = buildService(null);
+
+        await run(
+            baseArgs({
+                invalidateCache: true,
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        expect(recordCacheOutcome).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            {
+                missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                refreshRequested: true,
+            },
+        );
     });
 
     it('a guard refusal lands as the query error and is recorded on the row before anything runs', async () => {
@@ -18152,7 +18342,7 @@ describe('runDuckdbQuery', () => {
             const {
                 run,
                 runWarehouseQuery,
-                findCachedResultsFile,
+                lookupCachedResultsFile,
                 update,
                 getByQueryUuid,
             } = buildService(cachedResults);
@@ -18160,7 +18350,7 @@ describe('runDuckdbQuery', () => {
 
             await run(baseArgs({ references: queryReferences }));
 
-            expect(findCachedResultsFile).not.toHaveBeenCalled();
+            expect(lookupCachedResultsFile).not.toHaveBeenCalled();
             expect(runWarehouseQuery).not.toHaveBeenCalled();
             expect(update).not.toHaveBeenCalled();
         });
@@ -19482,6 +19672,7 @@ describe('query sources carry the execution context', () => {
             cacheHit: false,
             updatedAt: undefined,
             expiresAt: undefined,
+            missReason: null,
         } satisfies MissCacheResult);
         vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
             undefined,
@@ -22508,7 +22699,7 @@ describe('fresh stored result read boundary', () => {
             } as QueryHistory;
             Object.assign(f.service, {
                 cacheService: {
-                    findCachedResultsFile: vi.fn(async () => ({
+                    lookupCachedResultsFile: vi.fn(async () => ({
                         cacheHit: true,
                         queryUuid:
                             caseName === 'unknown'
@@ -22530,7 +22721,10 @@ describe('fresh stored result read boundary', () => {
                     f.history.requestParameters.resultProducer,
                     true,
                 ),
-            ).resolves.toMatchObject({ cacheHit: false });
+            ).resolves.toMatchObject({
+                cacheHit: false,
+                missReason: ResultsCacheMissReason.ACCESS_RESTRICTED,
+            });
             expect(check).toHaveBeenCalledTimes(caseName === 'unknown' ? 0 : 1);
             expect(
                 f.service.resultsStorageClient.getDownloadStream,
@@ -24388,6 +24582,9 @@ describe('fresh execution producer to result reader', () => {
                     cacheKey === oldKey ? candidate : undefined,
             );
             f.service.queryHistoryModel.findMostRecentByCacheKey = lookup;
+            f.service.queryHistoryModel.hasClearedResultsForCacheKey = vi.fn(
+                async () => false,
+            );
             vi.mocked(
                 f.service.projectModel.getEffectiveResultsCacheTtlSeconds,
             ).mockResolvedValue(86400);
@@ -24406,7 +24603,7 @@ describe('fresh execution producer to result reader', () => {
             });
             Object.assign(f.service, { cacheService });
             await expect(
-                cacheService.findCachedResultsFile(
+                cacheService.lookupCachedResultsFile(
                     projectUuid,
                     oldKey,
                     {
@@ -30637,5 +30834,253 @@ describe('S3 result pagination', () => {
             },
         });
         await expect(readPage(stream)).rejects.toThrow('download failed');
+    });
+});
+
+describe('findResultsCache miss reasons', () => {
+    const hit = {
+        cacheHit: true as const,
+        queryUuid: 'source',
+        resultProducer: null,
+        cacheKey: 'key',
+        cacheGeneration: 0,
+        totalRowCount: 1,
+        fileName: 'file',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        expiresAt: new Date(),
+        columns: {},
+        originalColumns: null,
+        pivotValuesColumns: null,
+        pivotTotalColumnCount: null,
+    };
+    const build = (
+        lookup: Awaited<ReturnType<ICacheService['lookupCachedResultsFile']>>,
+    ) => {
+        const lookupCachedResultsFile = vi.fn(async () => lookup);
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            cacheService: {
+                lookupCachedResultsFile,
+            } as unknown as ICacheService,
+        } as never);
+        return { service, lookupCachedResultsFile };
+    };
+
+    test('a forced refresh never returns a hit and reports a skipped valid result as null', async () => {
+        const { service } = build(hit);
+        await expect(
+            service.findResultsCache('project', 'key', buildAccount(), true),
+        ).resolves.toEqual({
+            cacheHit: false,
+            updatedAt: undefined,
+            expiresAt: undefined,
+            missReason: null,
+        });
+    });
+
+    test('a forced refresh carries the probed reason when no valid result existed', async () => {
+        const { service } = build({
+            cacheHit: false,
+            missReason: ResultsCacheMissReason.EXPIRED,
+        });
+        await expect(
+            service.findResultsCache('project', 'key', buildAccount(), true),
+        ).resolves.toMatchObject({
+            cacheHit: false,
+            missReason: ResultsCacheMissReason.EXPIRED,
+        });
+    });
+
+    test('a normal miss carries the lookup reason', async () => {
+        const { service } = build({
+            cacheHit: false,
+            missReason: ResultsCacheMissReason.CLEARED,
+        });
+        await expect(
+            service.findResultsCache('project', 'key', buildAccount(), false),
+        ).resolves.toMatchObject({
+            cacheHit: false,
+            missReason: ResultsCacheMissReason.CLEARED,
+        });
+    });
+
+    test('a normal hit is returned unchanged', async () => {
+        const { service } = build(hit);
+        await expect(
+            service.findResultsCache('project', 'key', buildAccount(), false),
+        ).resolves.toEqual(hit);
+    });
+
+    const buildWithIdentity = (canRead: boolean) => {
+        const { service } = build({
+            ...hit,
+            queryHistory: { queryUuid: 'source' } as QueryHistory,
+        });
+        const readCheck = vi
+            .spyOn(
+                service as unknown as {
+                    assertCanReadStoredResultsForQueries: () => Promise<void>;
+                },
+                'assertCanReadStoredResultsForQueries',
+            )
+            .mockImplementation(async () => {
+                if (!canRead) throw new ForbiddenError();
+            });
+        return { service, readCheck };
+    };
+
+    test('a forced refresh with identity reports a restricted result as access restricted', async () => {
+        const { service, readCheck } = buildWithIdentity(false);
+        await expect(
+            service.findResultsCache(
+                'project',
+                'key',
+                buildAccount(),
+                true,
+                null,
+                true,
+            ),
+        ).resolves.toMatchObject({
+            cacheHit: false,
+            missReason: ResultsCacheMissReason.ACCESS_RESTRICTED,
+        });
+        expect(readCheck).toHaveBeenCalledTimes(1);
+    });
+
+    test('a forced refresh with identity never returns a readable hit', async () => {
+        const { service } = buildWithIdentity(true);
+        await expect(
+            service.findResultsCache(
+                'project',
+                'key',
+                buildAccount(),
+                true,
+                null,
+                true,
+            ),
+        ).resolves.toEqual({
+            cacheHit: false,
+            updatedAt: undefined,
+            expiresAt: undefined,
+            missReason: null,
+        });
+    });
+});
+
+describe('results cache stats', () => {
+    const build = (canManage: boolean) => {
+        const getResultsCacheRecommendationRows = vi.fn(async () => []);
+        const getResultsCacheTtlReplayRows = vi.fn(async () => ({
+            totals: { runs: 4, hits: 2 },
+            runs: [],
+        }));
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            queryHistoryModel: {
+                getResultsCacheContextStats: vi.fn(async () => [
+                    {
+                        context: QueryExecutionContext.DASHBOARD,
+                        runs: 4,
+                        hits: 2,
+                        warehouseTimeOnMissesMs: 10,
+                        warehouseTimeSavedMs: 20,
+                    },
+                ]),
+                getResultsCacheRecommendationRows,
+                getResultsCacheTtlReplayRows,
+            } as unknown as QueryHistoryModel,
+            projectModel: {
+                getSummary: vi.fn(async () => ({
+                    organizationUuid: 'org',
+                    projectUuid: 'project',
+                })),
+                getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+            } as unknown as ProjectModel,
+        } as never);
+        vi.spyOn(
+            service as unknown as {
+                createAuditedAbility: () => {
+                    cannot: (action: string) => boolean;
+                };
+            },
+            'createAuditedAbility',
+        ).mockReturnValue({
+            cannot: (action: string) => action !== 'manage' || !canManage,
+        });
+        return {
+            service,
+            getResultsCacheRecommendationRows,
+            getResultsCacheTtlReplayRows,
+        };
+    };
+
+    test('returns stats for project admins', async () => {
+        const stats = await build(true).service.getResultsCacheStats(
+            buildAccount(),
+            'project',
+            7,
+        );
+        expect(stats.summary).toMatchObject({ runs: 4, hits: 2, hitRate: 0.5 });
+    });
+
+    test('forbids users who cannot manage the project', async () => {
+        await expect(
+            build(false).service.getResultsCacheStats(
+                buildAccount(),
+                'project',
+                7,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('passes scheduled contexts and thresholds to the recommendation query', async () => {
+        const { service, getResultsCacheRecommendationRows } = build(true);
+        await service.getResultsCacheStats(buildAccount(), 'project', 7);
+        expect(getResultsCacheRecommendationRows).toHaveBeenCalledWith(
+            'project',
+            7,
+            expect.objectContaining({
+                scheduledContexts: expect.arrayContaining([
+                    QueryExecutionContext.SCHEDULED_DELIVERY,
+                ]),
+                minMisses: 5,
+            }),
+        );
+    });
+
+    test('returns TTL projections based on the effective TTL', async () => {
+        await expect(
+            build(true).service.getResultsCacheTtlProjections(
+                buildAccount(),
+                'project',
+                7,
+            ),
+        ).resolves.toMatchObject({
+            kind: 'projections',
+            currentTtlSeconds: 86400,
+        });
+    });
+
+    test('replays TTL projections over the selected period', async () => {
+        const { service, getResultsCacheTtlReplayRows } = build(true);
+        await service.getResultsCacheTtlProjections(
+            buildAccount(),
+            'project',
+            30,
+        );
+        expect(getResultsCacheTtlReplayRows).toHaveBeenCalledWith(
+            'project',
+            30,
+            expect.any(Number),
+        );
+    });
+
+    test('forbids TTL projections for users who cannot manage the project', async () => {
+        await expect(
+            build(false).service.getResultsCacheTtlProjections(
+                buildAccount(),
+                'project',
+                7,
+            ),
+        ).rejects.toThrow(ForbiddenError);
     });
 });
