@@ -9,6 +9,7 @@ import {
     type ApiSourceQueryContext,
     type Explore,
     type FilterRule,
+    type LiveSourceRefusalCode,
     type MetricQuery,
 } from '@lightdash/common';
 import { assertApiSourceQuery } from './apiSourceExplore';
@@ -90,6 +91,8 @@ const rule = (
 
 type Case = {
     name: string;
+    /** The refusal's code wherever it is refused; per message when they differ. */
+    code?: LiveSourceRefusalCode;
     query: (connector: ApiConnectorType) => Partial<MetricQuery>;
     context?: ApiSourceQueryContext;
     /** Today's refusal per connector; absent means the query runs. */
@@ -112,6 +115,7 @@ const CASES: Case[] = [
     { name: 'a plain query', query: () => ({}), expected: {} },
     {
         name: 'a table calculation',
+        code: 'live_source.refused.table_calculation',
         query: () => ({
             tableCalculations: [{ name: 'tc', displayName: 'TC', sql: '1' }],
         }),
@@ -121,6 +125,7 @@ const CASES: Case[] = [
     },
     {
         name: 'a custom metric',
+        code: 'live_source.refused.custom_metric',
         query: (connector) => ({
             additionalMetrics: [
                 {
@@ -137,6 +142,7 @@ const CASES: Case[] = [
     },
     {
         name: 'a custom dimension',
+        code: 'live_source.refused.custom_dimension',
         query: (connector) => ({
             customDimensions: [
                 {
@@ -155,6 +161,7 @@ const CASES: Case[] = [
     },
     {
         name: 'a pivot',
+        code: 'live_source.refused.pivot',
         query: () => ({}),
         context: { isPivoted: true },
         expected: everywhere(
@@ -163,6 +170,7 @@ const CASES: Case[] = [
     },
     {
         name: 'date zoom',
+        code: 'live_source.refused.date_zoom',
         query: () => ({}),
         context: { dateZoomGranularity: 'Week' },
         expected: everywhere(
@@ -171,6 +179,7 @@ const CASES: Case[] = [
     },
     {
         name: 'an OR group',
+        code: 'live_source.refused.or_group',
         query: (connector) => ({
             filters: {
                 dimensions: {
@@ -196,6 +205,7 @@ const CASES: Case[] = [
     },
     {
         name: 'a nested group',
+        code: 'live_source.refused.nested_group',
         query: (connector) => ({
             filters: {
                 dimensions: {
@@ -223,6 +233,7 @@ const CASES: Case[] = [
     },
     {
         name: 'several values in one filter',
+        code: 'live_source.refused.multiple_values',
         query: (connector) => ({
             filters: {
                 dimensions: {
@@ -245,6 +256,7 @@ const CASES: Case[] = [
     },
     {
         name: 'a metric filter',
+        code: 'live_source.refused.metric_filter',
         query: (connector) => ({
             filters: {
                 metrics: {
@@ -293,6 +305,7 @@ const CASES: Case[] = [
     },
     {
         name: 'two date filters',
+        code: 'live_source.refused.date_range',
         query: (connector) => ({
             filters: {
                 dimensions: {
@@ -317,6 +330,7 @@ const CASES: Case[] = [
     },
     {
         name: 'a date in the past hours',
+        code: 'live_source.refused.date_operator',
         query: (connector) => ({
             filters: {
                 dimensions: {
@@ -340,6 +354,7 @@ const CASES: Case[] = [
     },
     {
         name: 'a date operator the API lacks',
+        code: 'live_source.refused.date_operator',
         query: (connector) => ({
             filters: {
                 dimensions: {
@@ -396,10 +411,19 @@ describe('live data source capabilities keep day-one refusals', () => {
         (connector) => {
             const explore = build(connector);
 
-            test.each(CASES)('$name', ({ query, context, expected }) => {
+            test.each(CASES)('$name', ({ query, context, expected, code }) => {
                 const metricQuery = toQuery(connector, query(connector));
                 const messages = getMessages(explore, metricQuery, context);
                 expect(messages).toEqual(expected[connector] ?? []);
+                if (code && explore.apiSource) {
+                    expect(
+                        getApiSourceQueryIssues(
+                            explore.apiSource,
+                            metricQuery,
+                            context,
+                        ).map((issue) => issue.code),
+                    ).toEqual(messages.map(() => code));
+                }
                 // Explores cached before capabilities refuse exactly the same
                 expect(
                     getMessages(
@@ -412,7 +436,22 @@ describe('live data source capabilities keep day-one refusals', () => {
                 if (messages.length > 0) {
                     expect(() =>
                         assertApiSourceQuery(explore, metricQuery, context),
-                    ).toThrow(new ParameterError(messages.join(' ')));
+                    ).toThrow(ParameterError);
+                    expect(() =>
+                        assertApiSourceQuery(explore, metricQuery, context),
+                    ).toThrow(messages.join(' '));
+                    // Every refusal carries its codes for the API response
+                    try {
+                        assertApiSourceQuery(explore, metricQuery, context);
+                    } catch (error) {
+                        expect(error).toMatchObject({
+                            data: {
+                                liveSourceErrorCode: expect.stringMatching(
+                                    /^live_source\.refused\./,
+                                ),
+                            },
+                        });
+                    }
                 }
                 if (messages.length > 0 && !context) {
                     expect(() =>

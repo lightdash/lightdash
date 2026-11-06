@@ -52,6 +52,7 @@ import {
     getAccountUserTimezone,
     getAgentConnectionGrantRef,
     getAiExecutionCredentialUuid,
+    getApiSourceQueryIssues,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
     getDateZoomFromRequestParameters,
@@ -148,7 +149,9 @@ import {
     type ApiExecuteAsyncSavedChartQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiQueryHistoryListResponse,
+    type ApiSourceExplore,
     type ApiSourcePayload,
+    type ApiSourceQueryIssue,
     type CacheMetadata,
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
@@ -173,6 +176,7 @@ import {
     type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
+    type LiveSourceUpstreamErrorCode,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
     type Organization,
@@ -379,9 +383,11 @@ import type {
 } from '../QuerySourceService/api/ApiConnector';
 import {
     getApiQueryOutcome,
+    getLiveSourceUpstreamErrorCode,
+    isLiveSourceErrorReportable,
     type ApiQueryOutcome,
 } from '../QuerySourceService/api/apiQueryOutcome';
-import { assertApiSourceQuery } from '../QuerySourceService/api/apiSourceExplore';
+import { toApiSourceQueryError } from '../QuerySourceService/api/apiSourceExplore';
 import {
     compileApiSourceMetricQuery,
     toApiSourceResult,
@@ -12114,6 +12120,50 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    /**
+     * Logs every refusal of a live data source query by code, so the team
+     * sees which limits users hit. Never fails the query it describes.
+     */
+    private trackApiSourceRefusals({
+        account,
+        organizationUuid,
+        projectUuid,
+        exploreName,
+        apiSource,
+        issues,
+        context,
+        querySurface,
+    }: {
+        account: Account;
+        organizationUuid: string;
+        projectUuid: string;
+        exploreName: string;
+        apiSource: ApiSourceExplore;
+        issues: ApiSourceQueryIssue[];
+        context: QueryExecutionContext;
+        querySurface: QuerySurface | undefined;
+    }): void {
+        issues.forEach(({ code, fieldId }) => {
+            this.logger.info(
+                `Live source query refused: code=${code} integration=${apiSource.integration} connection=${apiSource.connectionUuid} explore=${exploreName} field=${fieldId ?? '-'} surface=${querySurface ?? '-'} context=${context}`,
+            );
+            this.analytics.trackAccount(account, {
+                event: 'live_source.query_refused',
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    externalConnectionUuid: apiSource.connectionUuid,
+                    integration: apiSource.integration,
+                    exploreName,
+                    code,
+                    fieldId,
+                    querySurface: querySurface ?? null,
+                    context,
+                },
+            });
+        });
+    }
+
     private async executePreparedApiSourceQuery(
         args: PreparedAsyncQueryArgs,
         requestParameters: ExecuteAsyncQueryRequestParams,
@@ -12136,10 +12186,27 @@ export class AsyncQueryService extends ProjectService {
         assertRegisteredAccount(account);
         // The shared check, with what only the composer knows: the same
         // refusals as the Explore controls, before any call or flag lookup
-        assertApiSourceQuery(explore, queryComposer.getMetricQuery(), {
-            isPivoted: !!queryComposer.getPivotConfiguration(),
-            dateZoomGranularity: queryComposer.getDateZoom()?.granularity,
-        });
+        const issues = getApiSourceQueryIssues(
+            apiSource,
+            queryComposer.getMetricQuery(),
+            {
+                isPivoted: !!queryComposer.getPivotConfiguration(),
+                dateZoomGranularity: queryComposer.getDateZoom()?.granularity,
+            },
+        );
+        if (issues.length > 0) {
+            this.trackApiSourceRefusals({
+                account,
+                organizationUuid,
+                projectUuid,
+                exploreName: explore.name,
+                apiSource,
+                issues,
+                context,
+                querySurface,
+            });
+            throw toApiSourceQueryError(issues);
+        }
         if (!this.getApiSourceConnector) {
             throw new ForbiddenError('Live data sources are not enabled');
         }
@@ -12387,6 +12454,7 @@ export class AsyncQueryService extends ProjectService {
             context,
             queryCreatedAt,
             fields: history.fields,
+            exploreName: history.explore?.name ?? null,
             toResult,
         }).catch((e) => {
             this.logger.error(
@@ -12411,6 +12479,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         queryCreatedAt,
         fields,
+        exploreName,
         toResult,
     }: {
         account: Account;
@@ -12424,6 +12493,8 @@ export class AsyncQueryService extends ProjectService {
         context: QueryExecutionContext;
         queryCreatedAt: Date;
         fields: ItemsMap | null;
+        /** The live explore a compiled metric query reads; null for a raw api query. */
+        exploreName: string | null;
         toResult: ApiResultShaper;
     }): Promise<void> {
         const { connector: connectorType } = connector.describe();
@@ -12581,10 +12652,46 @@ export class AsyncQueryService extends ProjectService {
                 } catch (e) {
                     const message = getErrorMessage(e);
                     const outcome = getApiQueryOutcome(e);
-                    span.setAttributes({ 'lightdash.error': message });
+                    const errorCode = getLiveSourceUpstreamErrorCode(outcome);
+                    span.setAttributes({
+                        'lightdash.error': message,
+                        ...(errorCode
+                            ? { 'lightdash.liveSourceErrorCode': errorCode }
+                            : {}),
+                    });
                     this.logger.warn(
-                        `Api query ${queryUuid} failed: ${message}`,
+                        `Api query ${queryUuid} failed: code=${errorCode ?? '-'} integration=${connectorType} explore=${exploreName ?? '-'} context=${context}: ${message}`,
                     );
+                    // Only compiled queries: a request the agent wrote itself
+                    // failing is the agent's to fix, not ours
+                    if (
+                        exploreName !== null &&
+                        errorCode !== null &&
+                        isLiveSourceErrorReportable(errorCode)
+                    ) {
+                        Sentry.withScope((scope) => {
+                            scope.setTag(
+                                'lightdash.apiConnector',
+                                connectorType,
+                            );
+                            scope.setTag(
+                                'lightdash.liveSourceErrorCode',
+                                errorCode,
+                            );
+                            scope.setFingerprint([
+                                'live-source-upstream',
+                                connectorType,
+                                errorCode,
+                            ]);
+                            scope.setContext('live_source', {
+                                queryUuid,
+                                projectUuid,
+                                exploreName,
+                                context,
+                            });
+                            Sentry.captureException(e);
+                        });
+                    }
                     await this.queryHistoryModel.updateStatusToError(
                         queryUuid,
                         projectUuid,
@@ -12610,6 +12717,7 @@ export class AsyncQueryService extends ProjectService {
                         connector: connectorType,
                         queryCreatedAt,
                         outcome,
+                        liveSourceErrorCode: errorCode,
                         errorMessage: message,
                         totalRowCount: null,
                         columnsCount: null,
@@ -12692,6 +12800,7 @@ export class AsyncQueryService extends ProjectService {
         connector,
         queryCreatedAt,
         outcome,
+        liveSourceErrorCode = null,
         errorMessage,
         totalRowCount,
         columnsCount,
@@ -12706,6 +12815,7 @@ export class AsyncQueryService extends ProjectService {
         connector: ApiConnectorType;
         queryCreatedAt: Date;
         outcome: ApiQueryOutcome;
+        liveSourceErrorCode?: LiveSourceUpstreamErrorCode | null;
         errorMessage: string | null;
         totalRowCount: number | null;
         columnsCount: number | null;
@@ -12752,6 +12862,7 @@ export class AsyncQueryService extends ProjectService {
                         columnsCount,
                         apiConnector: connector,
                         apiQueryOutcome: outcome,
+                        ...(liveSourceErrorCode ? { liveSourceErrorCode } : {}),
                         ...(truncated !== null ? { truncated } : {}),
                     },
                 });

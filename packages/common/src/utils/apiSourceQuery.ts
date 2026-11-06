@@ -15,6 +15,7 @@ import {
     type FilterGroup,
     type FilterRule,
 } from '../types/filter';
+import { type LiveSourceRefusalCode } from '../types/liveSourceErrors';
 import {
     isPeriodOverPeriodAdditionalMetric,
     type MetricQuery,
@@ -24,6 +25,7 @@ import assertUnreachable from './assertUnreachable';
 
 /** Why a metric query can't run on a live data source explore, with what to change. */
 export type ApiSourceQueryIssue = {
+    code: LiveSourceRefusalCode;
     fieldId: FieldId | null;
     message: string;
 };
@@ -144,45 +146,52 @@ const getUnsupportedFeatureIssues = (
             isUsed:
                 metricQuery.tableCalculations.length > 0 &&
                 isRefused(pushdown.tableCalculations),
+            code: 'live_source.refused.table_calculation' as const,
             message: toFeatureMessage('Table calculations'),
         },
         {
             isUsed:
                 tableCalculationFilters.length > 0 &&
                 isRefused(pushdown.tableCalculations),
+            code: 'live_source.refused.table_calculation' as const,
             message: toFeatureMessage('Table calculation filters'),
         },
         {
             isUsed:
                 customMetrics.length > 0 && isRefused(pushdown.customMetrics),
+            code: 'live_source.refused.custom_metric' as const,
             message: toFeatureMessage('Custom metrics'),
         },
         {
             isUsed:
                 periodOverPeriodMetrics.length > 0 &&
                 isRefused(pushdown.periodOverPeriod),
+            code: 'live_source.refused.period_over_period' as const,
             message: toFeatureMessage('Period-over-period comparisons'),
         },
         {
             isUsed:
                 (metricQuery.customDimensions ?? []).length > 0 &&
                 isRefused(pushdown.customDimensions),
+            code: 'live_source.refused.custom_dimension' as const,
             message: toFeatureMessage('Custom dimensions'),
         },
         {
             isUsed: !!context.isPivoted && isRefused(pushdown.pivots),
+            code: 'live_source.refused.pivot' as const,
             message:
                 "Pivoted results aren't available from live data sources yet. Remove the pivot to run this query.",
         },
         {
             isUsed:
                 !!context.dateZoomGranularity && isRefused(pushdown.dateZoom),
+            code: 'live_source.refused.date_zoom' as const,
             message: "Date zoom isn't available on live data sources yet.",
         },
     ];
     return features
         .filter(({ isUsed }) => isUsed)
-        .map(({ message }) => ({ fieldId: null, message }));
+        .map(({ code, message }) => ({ code, fieldId: null, message }));
 };
 
 const getUnknownFieldIssues = (
@@ -198,6 +207,7 @@ const getUnknownFieldIssues = (
     return [...fieldIds]
         .filter((fieldId) => !getFieldRule(apiSource, fieldId))
         .map((fieldId) => ({
+            code: 'live_source.refused.unknown_field',
             fieldId,
             message: `"${fieldId}" isn't available from this live data source.`,
         }));
@@ -246,6 +256,7 @@ const getFilterIssues = (
         ...(shape.usesOr && !filters.or
             ? [
                   {
+                      code: 'live_source.refused.or_group' as const,
                       fieldId: null,
                       message:
                           'This live data source only combines filters with AND. Replace the OR group with separate queries.',
@@ -255,6 +266,7 @@ const getFilterIssues = (
         ...(shape.isNested && !filters.nestedGroups
             ? [
                   {
+                      code: 'live_source.refused.nested_group' as const,
                       fieldId: null,
                       message:
                           "This live data source can't nest filter groups. Put every filter in one group.",
@@ -270,13 +282,23 @@ const getFilterIssues = (
             if (!fieldRule) {
                 return [];
             }
-            const operators =
-                kind === 'metrics' && !capabilities.metricFilters
-                    ? []
-                    : fieldRule.filterOperators;
+            const isMetricFilterRefused =
+                kind === 'metrics' && !capabilities.metricFilters;
+            const operators = isMetricFilterRefused
+                ? []
+                : fieldRule.filterOperators;
+            const getOperatorRefusalCode = (): LiveSourceRefusalCode => {
+                if (isMetricFilterRefused) {
+                    return 'live_source.refused.metric_filter';
+                }
+                return fieldId === apiSource.dateRange?.fieldId
+                    ? 'live_source.refused.date_operator'
+                    : 'live_source.refused.filter_operator';
+            };
             if (!operators.includes(rule.operator)) {
                 return [
                     {
+                        code: getOperatorRefusalCode(),
                         fieldId,
                         message:
                             operators.length === 0
@@ -297,6 +319,7 @@ const getFilterIssues = (
             ) {
                 return [
                     {
+                        code: 'live_source.refused.multiple_values',
                         fieldId,
                         message: `${INTEGRATION_LABELS[apiSource.integration]} matches one value per filter; filter "${fieldId}" by one value at a time.`,
                     },
@@ -340,6 +363,7 @@ const getDateRangeIssues = (
     ) {
         return [
             {
+                code: 'live_source.refused.date_range',
                 fieldId: dateRange.fieldId,
                 message:
                     'Filter the date with one filter combined with the others by AND, not inside an OR group.',
@@ -349,6 +373,7 @@ const getDateRangeIssues = (
     if (dateRules.length > 1) {
         return [
             {
+                code: 'live_source.refused.date_range',
                 fieldId: dateRange.fieldId,
                 message:
                     'Filter the date once: combine the date filters into one range.',
@@ -367,6 +392,7 @@ const getDateRangeIssues = (
             SUB_DAY_UNITS.some((subDayUnit) => subDayUnit === unit)
             ? [
                   {
+                      code: 'live_source.refused.date_operator' as const,
                       fieldId: dateRange.fieldId,
                       message: `Live data sources report by day; filter in days or longer, not ${String(unit)}.`,
                   },
@@ -392,6 +418,7 @@ const getIncompatibilityIssues = (
         }
         return [
             {
+                code: 'live_source.refused.field_combination',
                 fieldId: field,
                 message: `"${field}" can't be combined with "${other}": ${incompatibility.reason}`,
             },
@@ -418,6 +445,7 @@ const getSizeIssues = (
     return limits
         .filter(({ count, max }) => max !== null && count > max)
         .map(({ count, max, noun }) => ({
+            code: 'live_source.refused.too_many_fields',
             fieldId: null,
             message: `This live data source allows at most ${max} ${noun} per query; this one has ${count}.`,
         }));
