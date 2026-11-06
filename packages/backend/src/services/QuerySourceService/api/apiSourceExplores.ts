@@ -62,7 +62,26 @@ const getSqlBuilder = (connector: ApiConnectorType) =>
             : SupportedDbtAdapter.DUCKDB,
     );
 
-/** Stable per source: saved charts reference its field ids forever. */
+/**
+ * The naming contract of live data source explores and fields. Saved charts,
+ * dashboard filters, scheduled deliveries and field edits store these ids, so
+ * they must never change once a customer has content on them:
+ *
+ * - explore = `<prefix>_<model>`, e.g. `google_analytics_report`
+ * - field id = `<explore>_<field>`, e.g. `google_analytics_report_sessions`
+ * - the prefix is the source name, fixed when the source is first built and
+ *   stored (`liveSourceName`); a future configurable prefix follows the
+ *   same rule
+ * - display names change no id: the source's display name seeds the prefix
+ *   only at first build, and model or field labels never feed ids, so
+ *   renaming a source or relabelling a field keeps every chart working
+ * - models are only ever added: today's model of each integration stays
+ *   as its permanent wide model, and planned models reserve their names
+ *   up front (`plannedModelNames`) so a dbt explore can't take them first
+ *
+ * `apiSourceNames.test.ts` snapshots every integration's explore names and
+ * field ids; a failing snapshot means saved content would break.
+ */
 export const getApiSourceExploreName = (
     sourceName: string,
     definitionName: string,
@@ -83,48 +102,77 @@ export const getLiveSourceNameBase = (
     return /^[a-z][a-z0-9_]*$/.test(base) ? base : connector;
 };
 
-/** The hand-written explore of an integration, before any scan. */
+/**
+ * The hand-written models of an integration, before any scan. The first is
+ * the wide model: scans and field edits apply to it. Planned models aren't
+ * built yet, but their explore names are reserved for every new source.
+ */
+export type ApiSourceBaseLayer = {
+    baseVersion: number;
+    definitions: readonly [
+        ApiSourceExploreDefinition,
+        ...ApiSourceExploreDefinition[],
+    ];
+    plannedModelNames: readonly string[];
+};
+
 export const getApiSourceBaseLayer = (
     connector: ApiConnectorType,
-): { baseVersion: number; definition: ApiSourceExploreDefinition } => {
+): ApiSourceBaseLayer => {
     switch (connector) {
         case ApiConnectorType.GA4:
             return {
                 baseVersion: GA4_SEMANTIC_LAYER_VERSION,
-                definition: GA4_REPORT_EXPLORE,
+                definitions: [GA4_REPORT_EXPLORE],
+                plannedModelNames: ['ecommerce'],
             };
         case ApiConnectorType.SEARCH_CONSOLE:
             return {
                 baseVersion: SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
-                definition: SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
+                definitions: [SEARCH_CONSOLE_PERFORMANCE_EXPLORE],
+                plannedModelNames: ['search_appearance'],
             };
         case ApiConnectorType.POSTHOG:
             return {
                 baseVersion: POSTHOG_SEMANTIC_LAYER_VERSION,
-                definition: POSTHOG_EVENTS_EXPLORE,
+                definitions: [POSTHOG_EVENTS_EXPLORE],
+                plannedModelNames: ['persons', 'sessions'],
             };
         default:
             return assertUnreachable(connector, 'Unknown api connector');
     }
 };
 
-/** The explore names a source with this name would get. */
+/** The wide model of an integration, which scans and field edits apply to. */
+export const getApiSourceWideDefinition = (
+    connector: ApiConnectorType,
+): ApiSourceExploreDefinition =>
+    getApiSourceBaseLayer(connector).definitions[0];
+
+/** The explore names a source with this name gets today. */
 export const getApiSourceExploreNames = (
     connector: ApiConnectorType,
     sourceName: string,
-): string[] => [
-    getApiSourceExploreName(
-        sourceName,
-        getApiSourceBaseLayer(connector).definition.name,
-    ),
-];
+): string[] =>
+    getApiSourceBaseLayer(connector).definitions.map(({ name }) =>
+        getApiSourceExploreName(sourceName, name),
+    );
+
+/** The explore names kept free for the integration's planned models. */
+export const getApiSourceReservedExploreNames = (
+    connector: ApiConnectorType,
+    sourceName: string,
+): string[] =>
+    getApiSourceBaseLayer(connector).plannedModelNames.map((modelName) =>
+        getApiSourceExploreName(sourceName, modelName),
+    );
 
 /** The fields a scan found beyond the integration's built-in ones. */
 export const toScannedLiveSourceFields = (
     connector: ApiConnectorType,
     scan: ApiSourceScan,
 ): ScannedLiveSourceField[] => {
-    const { definition } = getApiSourceBaseLayer(connector);
+    const definition = getApiSourceWideDefinition(connector);
     const getScannedDefinition = (): ApiSourceExploreDefinition => {
         switch (connector) {
             case ApiConnectorType.GA4:
@@ -176,7 +224,7 @@ export const toScannedLiveSourceFields = (
 export const buildApiSourceExplores = ({
     connectionUuid,
     sourceName,
-    name,
+    name: label,
     apiSource,
     scannedFields,
     edits,
@@ -188,23 +236,27 @@ export const buildApiSourceExplores = ({
     scannedFields: ScannedLiveSourceField[];
     edits: LiveSourceFieldEdits;
 }): Explore[] => {
-    const { baseVersion, definition } = getApiSourceBaseLayer(
-        apiSource.connector,
-    );
-    return [
+    const {
+        baseVersion,
+        definitions: [wide, ...others],
+    } = getApiSourceBaseLayer(apiSource.connector);
+    const build = (definition: ApiSourceExploreDefinition, isWide: boolean) =>
         buildApiSourceExplore({
-            definition: applyLiveSourceFieldEdits({
-                base: definition,
-                scannedFields,
-                edits,
-            }),
+            definition,
             exploreName: getApiSourceExploreName(sourceName, definition.name),
-            label: name,
+            // The wide model keeps the source's name; the others add theirs
+            label: isWide ? label : `${label} ${definition.label}`,
             connectionUuid,
             integration: apiSource.connector,
             baseVersion,
             warehouseSqlBuilder: getSqlBuilder(apiSource.connector),
-        }),
+        });
+    return [
+        build(
+            applyLiveSourceFieldEdits({ base: wide, scannedFields, edits }),
+            true,
+        ),
+        ...others.map((definition) => build(definition, false)),
     ];
 };
 
