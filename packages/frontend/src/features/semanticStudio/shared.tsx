@@ -366,19 +366,29 @@ export const AddSourceButton: FC<{
         kind,
     );
     if (options.length === 0) return null;
+    const button = {
+        size: 'xs',
+        variant: 'subtle',
+        color: 'gray',
+        className: classes.pressable,
+        leftSection: <MantineIcon icon={IconPlus} size={14} />,
+        children: 'Add',
+    } as const;
+    // A menu of one is a detour: Add goes straight to the only option.
+    if (menuOptions.length === 1) {
+        const [only] = options;
+        const path = pathOf(only);
+        return path ? (
+            <Button {...button} component={Link} to={path} />
+        ) : (
+            <Button {...button} onClick={() => addInPlace(only)} />
+        );
+    }
     return (
         <>
             <Menu position="bottom-start">
                 <Menu.Target>
-                    <Button
-                        size="xs"
-                        variant="subtle"
-                        color="gray"
-                        className={classes.pressable}
-                        leftSection={<MantineIcon icon={IconPlus} size={14} />}
-                    >
-                        Add
-                    </Button>
+                    <Button {...button} />
                 </Menu.Target>
                 <Menu.Dropdown>
                     {menuOptions.map(({ option, disabled }) => {
