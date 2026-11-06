@@ -200,6 +200,10 @@ describe('AiComposerLineage graph', () => {
             nodeButton(title).closest('.react-flow__node')!;
         fireEvent.mouseEnter(flowNode('Orders by status'));
         await waitFor(() => expect(linkedNodeIds()).toEqual(['joined']));
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'data-lineage-role',
+            'related',
+        );
         expect(nodeButton('Unrelated')).toHaveAttribute('data-dimmed', 'true');
         expect(nodeButton('Average amount')).toHaveAttribute(
             'data-dimmed',
