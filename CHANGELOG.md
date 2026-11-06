@@ -1,3 +1,10 @@
+## [3.173.1](https://github.com/lightdash/lightdash/compare/3.173.0...3.173.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **ai-agent:** highlight notebook lineage in composer graph ([#32174](https://github.com/lightdash/lightdash/issues/32174)) ([18454ab](https://github.com/lightdash/lightdash/commit/18454ab9afb95bdb6d8765eaf67517d805631b1a))
+
 # [3.173.0](https://github.com/lightdash/lightdash/compare/3.172.0...3.173.0) (2026-11-06)
 
 

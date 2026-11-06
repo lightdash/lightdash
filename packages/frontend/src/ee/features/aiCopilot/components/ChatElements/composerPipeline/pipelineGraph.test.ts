@@ -31,7 +31,11 @@ const duckdb = (
 const measured = (nodes: PipelineFlowNode[]) =>
     nodes.map((node) => ({ ...node, measured: { width: 160, height: 40 } }));
 
-const noDisplay = { focusedNodeId: null, nodeStatuses: {} };
+const noDisplay = {
+    focusedNodeId: null,
+    notebookLineage: null,
+    nodeStatuses: {},
+};
 
 const xOf = (nodes: PipelineFlowNode[], id: string) =>
     nodes.find((node) => node.id === id)!.position.x;
@@ -103,7 +107,7 @@ describe('toPipelineFlow', () => {
                 'joined',
             ),
             {
-                focusedNodeId: null,
+                ...noDisplay,
                 nodeStatuses: {
                     orders: {
                         status: 'success',
@@ -140,12 +144,44 @@ describe('toPipelineFlow', () => {
             'final',
         );
         const dimmed = (focusedNodeId: string) =>
-            toPipelineFlow(layers, { focusedNodeId, nodeStatuses: {} })
+            toPipelineFlow(layers, { ...noDisplay, focusedNodeId })
                 .nodes.filter((node) => node.data.isDimmed)
                 .map((node) => node.id);
 
         expect(dimmed('final')).toEqual(['unrelated']);
         expect(dimmed('revenue')).toEqual(['customers', 'unrelated']);
+    });
+
+    it("marks the notebook's lineage, its edges, and keeps it undimmed", () => {
+        const layers = groupPipeline(
+            [
+                sql('a', 'A'),
+                duckdb('b', 'B', ['a']),
+                duckdb('final', 'Final', ['a', 'b']),
+                sql('other', 'Other'),
+            ],
+            'final',
+        );
+        const { nodes, edges } = toPipelineFlow(layers, {
+            ...noDisplay,
+            focusedNodeId: 'other',
+            notebookLineage: {
+                nodeId: 'b',
+                relatedIds: new Set(['a', 'final']),
+            },
+        });
+        expect(
+            nodes.map(({ id, data }) => [id, data.lineageRole, data.isDimmed]),
+        ).toEqual([
+            ['a', 'related', false],
+            ['other', null, false],
+            ['b', 'hovered', false],
+            ['final', 'related', false],
+        ]);
+        // a->final joins two related nodes but not the hovered one.
+        expect(
+            edges.filter((edge) => edge.className).map((edge) => edge.id),
+        ).toEqual(['a->b', 'b->final']);
     });
 
     it('makes one edge per read, from the read node to the reader', () => {

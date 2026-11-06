@@ -17,6 +17,12 @@ export type PipelineNode = {
     query: SourceQuery;
 };
 
+/** A node and the nodes it directly reads or feeds. */
+export type NodeLineage = {
+    nodeId: string;
+    relatedIds: ReadonlySet<string>;
+};
+
 export type PipelineLayerKind = 'sources' | 'transformations' | 'result';
 
 export type PipelineLayer = {
