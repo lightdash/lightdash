@@ -36,6 +36,21 @@ export const FIT_TO_SCREEN_GRID_BOTTOM_PADDING = GRID_MARGIN[1];
 const FIT_TO_SCREEN_MAX_VIEWPORTS = 2;
 const FIT_TO_SCREEN_BREAKPOINTS = new Set(['lg', 'md']);
 
+/**
+ * Auto fit (the always-on experiment) is gentler than the toggle: the whole
+ * grid is only squashed down to this fraction of the default row height, so
+ * big numbers keep their minimum legible size.
+ */
+export const AUTO_FIT_WHOLE_GRID_MIN_SCALE = 0.75;
+/**
+ * When the whole grid can't fit, a fold where no tile straddles the row can be
+ * snapped to the viewport bottom instead, as long as it's a nudge: the row
+ * height stays within this band of the default.
+ */
+export const AUTO_FIT_FOLD_SCALE_RANGE = { min: 0.8, max: 1.25 };
+/** How long the tiles spring to a new snap target, matched by the CSS easing */
+export const FIT_TO_SCREEN_SNAP_DURATION_MS = 700;
+
 export const isFitToScreenBreakpoint = (breakpoint: string): boolean =>
     FIT_TO_SCREEN_BREAKPOINTS.has(breakpoint);
 
@@ -86,6 +101,73 @@ export const canFitGridToScreen = (
     availableHeight > 0 &&
     getGridHeight(totalRows, DEFAULT_ROW_HEIGHT) <=
         availableHeight * FIT_TO_SCREEN_MAX_VIEWPORTS;
+
+/**
+ * Rows the grid can be cut at without slicing a tile: tile bottoms no other
+ * tile straddles. Gaps don't count, so a fold lands flush on the tiles above.
+ */
+export const getGridCleanCutRows = (
+    tiles: Pick<DashboardTile, 'y' | 'h'>[],
+): number[] => {
+    const bottoms = new Set(tiles.map((tile) => tile.y + tile.h));
+    return [...bottoms]
+        .filter((row) =>
+            tiles.every((tile) => tile.y >= row || tile.y + tile.h <= row),
+        )
+        .sort((a, b) => a - b);
+};
+
+export type FitToScreenSnap = {
+    /** Rows that fill the viewport: the whole grid, or the fold snapped to it */
+    rows: number;
+    rowHeight: number;
+    isWholeGrid: boolean;
+};
+
+/**
+ * Auto fit: fill the viewport with the whole grid when that's a gentle enough
+ * squash, otherwise with the clean fold whose row height is nearest the
+ * default. Null leaves the grid at its natural height.
+ */
+export const getAutoFitToScreenSnap = (
+    availableHeight: number,
+    tiles: Pick<DashboardTile, 'y' | 'h'>[],
+): FitToScreenSnap | null => {
+    const totalRows = getGridTotalRows(tiles);
+    if (totalRows <= 0 || availableHeight <= 0) return null;
+
+    const wholeRowHeight = getFitToScreenRowHeight(availableHeight, totalRows);
+    if (wholeRowHeight >= DEFAULT_ROW_HEIGHT * AUTO_FIT_WHOLE_GRID_MIN_SCALE) {
+        return {
+            rows: totalRows,
+            rowHeight: wholeRowHeight,
+            isWholeGrid: true,
+        };
+    }
+
+    const folds = getGridCleanCutRows(tiles)
+        .filter((rows) => rows < totalRows)
+        .map((rows) => ({
+            rows,
+            rowHeight: getFitToScreenRowHeight(availableHeight, rows),
+            isWholeGrid: false,
+        }))
+        .filter(
+            ({ rowHeight }) =>
+                rowHeight >=
+                    DEFAULT_ROW_HEIGHT * AUTO_FIT_FOLD_SCALE_RANGE.min &&
+                rowHeight <= DEFAULT_ROW_HEIGHT * AUTO_FIT_FOLD_SCALE_RANGE.max,
+        );
+    return folds.reduce<FitToScreenSnap | null>(
+        (best, fold) =>
+            best === null ||
+            Math.abs(fold.rowHeight - DEFAULT_ROW_HEIGHT) <
+                Math.abs(best.rowHeight - DEFAULT_ROW_HEIGHT)
+                ? fold
+                : best,
+        null,
+    );
+};
 
 /** Row height that makes `totalRows` rows fill `availableHeight` exactly */
 export const getFitToScreenRowHeight = (
