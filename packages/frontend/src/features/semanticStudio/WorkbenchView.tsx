@@ -719,9 +719,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             <ExternalSourceManager
                 projectUuid={view.project.id}
                 enabled={view.permissions.files}
-                onCreated={(exploreName) =>
-                    view.select({ type: 'explore', exploreId: exploreName })
-                }
                 onRemoved={() =>
                     view.select(
                         { type: 'kind', kind: 'files' },

@@ -31,12 +31,10 @@ export const ExternalSourceManager: FC<{
     projectUuid: string;
     /** Whether the person manages external sources; otherwise a no-op. */
     enabled: boolean;
-    /** Opens the explore a new source created. */
-    onCreated: (exploreName: string) => void;
     /** Where to go after a source is deleted, so its page doesn't linger. */
     onRemoved: () => void;
     children: ReactNode;
-}> = ({ projectUuid, enabled, onCreated, onRemoved, children }) => {
+}> = ({ projectUuid, enabled, onRemoved, children }) => {
     const [dialog, setDialog] = useState<Dialog>({ kind: 'closed' });
     const close = () => setDialog({ kind: 'closed' });
     const actions = useMemo(
@@ -61,10 +59,6 @@ export const ExternalSourceManager: FC<{
                 projectUuid={projectUuid}
                 opened={dialog.kind === 'add'}
                 onClose={close}
-                onCreated={(exploreName) => {
-                    close();
-                    onCreated(exploreName);
-                }}
             />
             {sourceRef && dialog.kind === 'rename' ? (
                 <RenameExternalSourceModal
