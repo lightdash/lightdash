@@ -51,6 +51,7 @@ import {
     toPipelineFlow,
     type PipelineFlowNode,
 } from './pipelineGraph';
+import { useComposerNodeTypeLabel } from './useComposerNodeLiveSource';
 
 type GraphDisplay = {
     selectedNodeId: string | null;
@@ -91,6 +92,7 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({
     selected,
 }) => {
     const getUiString = useUiStrings();
+    const typeLabel = useComposerNodeTypeLabel(data.query);
     return (
         <Paper
             component="button"
@@ -130,7 +132,7 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({
                         {data.title}
                     </Text>
                     <Text component="span" className={styles.graphNodeType}>
-                        {data.typeLabel}
+                        {typeLabel}
                     </Text>
                 </Box>
             </Group>

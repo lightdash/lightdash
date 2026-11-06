@@ -3,7 +3,6 @@ import { type SourceQuery } from '@lightdash/common';
 import type { Edge, Node } from '@xyflow/react';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import {
-    nodeTypeLabelOf,
     type NodeLineage,
     type PipelineLayer,
     type PipelineNode,
@@ -11,7 +10,6 @@ import {
 
 type PipelineFlowNodeData = {
     title: string;
-    typeLabel: string;
     query: SourceQuery;
     isTerminal: boolean;
     /** Another node is focused and this one is outside its lineage. */
@@ -97,7 +95,6 @@ export const toPipelineFlow = (
         position: { x: 0, y: 0 },
         data: {
             title: node.title,
-            typeLabel: nodeTypeLabelOf(node.query),
             query: node.query,
             isTerminal: node.isTerminal,
             isDimmed:

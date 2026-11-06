@@ -31,6 +31,8 @@ export type PipelineLayer = {
     nodes: PipelineNode[];
 };
 
+export const LIVE_DATA_SOURCE_LABEL = 'Live data source';
+
 /** User-facing node type: where a source reads from, or the transformation engine. */
 export const nodeTypeLabelOf = (query: SourceQuery): string => {
     switch (query.sourceType) {
@@ -43,7 +45,7 @@ export const nodeTypeLabelOf = (query: SourceQuery): string => {
         case QuerySourceType.PYTHON:
             return 'Python';
         case QuerySourceType.API:
-            return 'Live data source';
+            return LIVE_DATA_SOURCE_LABEL;
         case QuerySourceType.DUCKDB:
             return 'DuckDB';
         default:
