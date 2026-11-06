@@ -5869,9 +5869,11 @@ export class CoderService extends BaseService {
                 : { ...config, parameterControls: existingControls };
         }
         // Files can't set the control order yet, so the saved one stays
-        if (dashboardConfig) {
-            const { controlOrder: _ignored, ...config } = dashboardConfig;
-            const savedOrder = existingDashboard?.config?.controlOrder;
+        const savedOrder = existingDashboard?.config?.controlOrder;
+        if (dashboardConfig || savedOrder !== undefined) {
+            const { controlOrder: _ignored, ...config } = dashboardConfig ?? {
+                isDateZoomDisabled: false,
+            };
             dashboardConfig = {
                 ...config,
                 ...(savedOrder !== undefined && { controlOrder: savedOrder }),
