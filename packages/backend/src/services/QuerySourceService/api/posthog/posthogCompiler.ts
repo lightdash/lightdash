@@ -87,7 +87,12 @@ export const compilePostHogQuery = ({
     // Field ids can outgrow the connector's column names, so columns are
     // renamed by position; sorting happens here, the connector adds the limit.
     const quote = warehouseSqlBuilder.getFieldQuoteChar();
-    const fieldIds = [...query.dimensions, ...query.metrics];
+    // Table calculations are columns of the inner query, named by name
+    const fieldIds = [
+        ...query.dimensions,
+        ...query.metrics,
+        ...query.tableCalculations.map(({ name }) => name),
+    ];
     const columnByFieldId = new Map(
         fieldIds.map((fieldId, index) => [fieldId, `c${index}`]),
     );

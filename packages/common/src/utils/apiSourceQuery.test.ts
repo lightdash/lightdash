@@ -2,7 +2,7 @@ import {
     type ApiSourceCapabilities,
     type ApiSourceExplore,
 } from '../types/apiSourceExplore';
-import { MetricType } from '../types/field';
+import { CustomDimensionType, DimensionType, MetricType } from '../types/field';
 import { FilterOperator, type FilterGroup } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
 import { ApiConnectorType } from '../types/querySources';
@@ -381,6 +381,43 @@ describe('getApiSourceQueryIssues with declared capabilities', () => {
             ),
         ).toEqual([
             "Period-over-period comparisons can't run on live data sources yet. Remove them from the query.",
+        ]);
+    });
+
+    test('accepts fields the query defines only where the source runs them', () => {
+        const issues = getApiSourceQueryIssues(
+            declared,
+            query({
+                dimensions: ['report_channel', 'custom_dimension'],
+                metrics: ['report_sessions', 'report_custom'],
+                sorts: [{ fieldId: 'double', descending: true }],
+                tableCalculations: [
+                    { name: 'double', displayName: 'Double', sql: '1' },
+                ],
+                additionalMetrics: [
+                    {
+                        name: 'custom',
+                        table: 'report',
+                        type: MetricType.SUM,
+                        sql: '1',
+                    },
+                ],
+                customDimensions: [
+                    {
+                        id: 'custom_dimension',
+                        name: 'Custom',
+                        table: 'report',
+                        type: CustomDimensionType.SQL,
+                        sql: '1',
+                        dimensionType: DimensionType.STRING,
+                    },
+                ],
+            }),
+        );
+        // Custom dimensions are refused here, so the field is unknown too
+        expect(issues.map(({ code, fieldId }) => [code, fieldId])).toEqual([
+            ['live_source.refused.custom_dimension', null],
+            ['live_source.refused.unknown_field', 'custom_dimension'],
         ]);
     });
 
