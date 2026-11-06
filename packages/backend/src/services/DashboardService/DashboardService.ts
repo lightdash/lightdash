@@ -1026,18 +1026,18 @@ export class DashboardService
         }));
     }
 
+    private static assertControlOrder(order: unknown) {
+        if (order !== undefined && !isDashboardControlOrder(order))
+            throw new ParameterError(
+                'controlOrder must be a list of { kind, id, newLine? } objects',
+            );
+    }
+
     /**
      * The parameters each tile's query uses, read from its saved query and
      * explore without compiling. A tile that can't be loaded or viewed
      * reports its own error.
      */
-    private static assertControlOrder(order: unknown) {
-        if (order !== undefined && !isDashboardControlOrder(order))
-            throw new ParameterError(
-                'controlOrder must be a list of { kind, id } objects',
-            );
-    }
-
     async areDashboardControlsEnabled(
         user: SessionUser,
         organizationUuid: string,
