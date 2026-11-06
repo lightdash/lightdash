@@ -4279,6 +4279,55 @@ describe('CoderService dashboard control order as code', () => {
         },
     });
 
+    it('stores no order when an agent swaps same-slot filters but keeps the list', async () => {
+        const dashboard = withoutOrder();
+        const unsectioned = {
+            ...dashboard,
+            filters: {
+                ...dashboard.filters,
+                dimensions: dashboard.filters.dimensions.map(
+                    ({ sectionId: _section, ...filter }) => filter,
+                ),
+            },
+        } as DashboardDAO;
+        const file = download(unsectioned, true, true);
+        const saved = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [...file.filters!.dimensions!].reverse(),
+                },
+            },
+            { saved: unsectioned },
+        );
+        expect(saved.config).not.toHaveProperty('controlOrder');
+        expect(saved.filters.dimensions.map(({ id }) => id)).toEqual([
+            'second-id',
+            'first-id',
+        ]);
+    });
+
+    it('stores no order when a member ref is listed away from its section', async () => {
+        const file = download(withoutOrder(), true, true);
+        const order = file.config!.controlOrder!;
+        const member = order.find(({ slug }) => slug === 'orders-status-2')!;
+        const saved = await upload(
+            {
+                ...file,
+                config: {
+                    ...file.config!,
+                    controlOrder: [
+                        member,
+                        ...order.filter((ref) => ref !== member),
+                    ],
+                },
+            },
+            { saved: withoutOrder() as DashboardDAO },
+        );
+        expect(saved.config).not.toHaveProperty('controlOrder');
+    });
+
     it('stores no order when an agent adds a filter without a ref', async () => {
         const saved = await upload(
             withCityFilter(download(withoutOrder(), true, true)),

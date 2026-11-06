@@ -1,14 +1,17 @@
 import {
     assertUnreachable,
     DashboardControlRefKind,
+    getDashboardControls,
     getDashboardFilterSlugs,
     ParameterError,
     reconcileDashboardControlOrder,
+    type DashboardControl,
     type DashboardControlRef,
     type DashboardControlRefAsCode,
     type DashboardControlSources,
     type DashboardFilterRule,
 } from '@lightdash/common';
+import { groupBy, isEqual, mapValues } from 'es-toolkit/compat';
 import { getParameterControlsWithSlugs } from './parameterControlSlugs';
 import { sectionSlugs } from './sectionSlugs';
 
@@ -142,4 +145,51 @@ export const getControlOrderWithIds = (
             ...(newLine === true && { newLine: true }),
         };
     });
+};
+
+const slotOf = (control: DashboardControl) =>
+    control.kind === DashboardControlRefKind.FILTER
+        ? `${control.kind}:${control.group}`
+        : control.kind;
+
+/** Whether an order puts the controls it mentions in the same bar slots as the default order */
+export const followsDefaultControlOrder = (
+    controlOrder: DashboardControlRef[],
+    controls: OrderedControls,
+): boolean => {
+    const byKey = new Map(
+        getDashboardControls({ ...controls, controlOrder: undefined }).map(
+            (control) => [`${control.kind}:${control.id}`, control],
+        ),
+    );
+    // Per container, each ref's slot and line start, as reconcile places them
+    const toSlots = (refs: DashboardControlRef[]) => {
+        let pendingLine = false;
+        const placed = refs.flatMap((ref) => {
+            const control = byKey.get(`${ref.kind}:${ref.id}`);
+            const newLine = pendingLine || ref.newLine === true;
+            if (control === undefined) {
+                pendingLine = newLine;
+                return [];
+            }
+            pendingLine = control.sectionId !== null && newLine;
+            return [
+                {
+                    container: control.sectionId ?? '',
+                    slot: `${slotOf(control)}:${control.sectionId === null && newLine}`,
+                },
+            ];
+        });
+        return mapValues(groupBy(placed, 'container'), (group) =>
+            group.map(({ slot }) => slot),
+        );
+    };
+    const mentioned = new Set(
+        controlOrder.map(({ kind, id }) => `${kind}:${id}`),
+    );
+    const defaultOrder = reconcileDashboardControlOrder({
+        ...controls,
+        controlOrder: undefined,
+    }).filter(({ kind, id }) => mentioned.has(`${kind}:${id}`));
+    return isEqual(toSlots(controlOrder), toSlots(defaultOrder));
 };
