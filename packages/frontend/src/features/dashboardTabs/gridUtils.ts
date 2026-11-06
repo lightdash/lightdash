@@ -45,9 +45,13 @@ export const AUTO_FIT_WHOLE_GRID_MIN_SCALE = 0.75;
 /**
  * When the whole grid can't fit, a fold where no tile straddles the row can be
  * snapped to the viewport bottom instead, as long as it's a nudge: the row
- * height stays within this band of the default.
+ * height stays within this band of the default. Rows never squash below the
+ * whole-grid floor; stretching further than this would just pad the page.
  */
-export const AUTO_FIT_FOLD_SCALE_RANGE = { min: 0.8, max: 1.25 };
+export const AUTO_FIT_FOLD_SCALE_RANGE = {
+    min: AUTO_FIT_WHOLE_GRID_MIN_SCALE,
+    max: 1.25,
+};
 /** How long the tiles spring to a new snap target, matched by the CSS easing */
 export const FIT_TO_SCREEN_SNAP_DURATION_MS = 700;
 
