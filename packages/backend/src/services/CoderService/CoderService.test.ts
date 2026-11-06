@@ -678,6 +678,81 @@ describe('CoderService', () => {
         });
     });
 
+    describe('metric and table calculation filter tile targets', () => {
+        const rule = (tileTargets: Record<string, AnyType>) => ({
+            id: 'metric-filter-id',
+            target: { fieldId: 'orders_total', tableName: 'orders' },
+            tileTargets,
+        });
+        const savedDashboard = {
+            filters: {
+                dimensions: [],
+                metrics: [rule({ 'uuid-1': { fieldId: 'orders_total' } })],
+                tableCalculations: [rule({ 'uuid-1': false })],
+            },
+            tiles: [
+                {
+                    uuid: 'uuid-1',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'revenue' },
+                },
+            ],
+        } as AnyType;
+        const otherProjectTiles = [
+            {
+                uuid: 'other-uuid',
+                type: DashboardTileTypes.SAVED_CHART,
+                tileSlug: 'revenue',
+                properties: { chartSlug: 'revenue' },
+            },
+        ] as AnyType;
+
+        it('writes tile slugs on download and keeps the ids', () => {
+            const result = CoderService.getFiltersWithTileSlugs(savedDashboard);
+            expect(result.metrics[0]).toEqual(
+                rule({ revenue: { fieldId: 'orders_total' } }),
+            );
+            expect(result.tableCalculations[0]).toEqual(
+                rule({ revenue: false }),
+            );
+        });
+
+        it('maps tile slugs to the uuids of another project on upload', () => {
+            const asCode = CoderService.getFiltersWithTileSlugs(savedDashboard);
+            const result = CoderService.getFiltersWithTileUuids(
+                { filters: asCode } as AnyType,
+                otherProjectTiles,
+                [],
+            );
+            expect(result.metrics[0]).toEqual(
+                rule({ 'other-uuid': { fieldId: 'orders_total' } }),
+            );
+            expect(result.tableCalculations[0]).toEqual(
+                rule({ 'other-uuid': false }),
+            );
+        });
+
+        it('keeps uuid keys of an old file when the tile is on the dashboard', () => {
+            const result = CoderService.getFiltersWithTileUuids(
+                {
+                    filters: {
+                        metrics: [
+                            rule({
+                                'uuid-1': { fieldId: 'orders_total' },
+                                'missing-uuid': { fieldId: 'orders_total' },
+                            }),
+                        ],
+                    },
+                } as AnyType,
+                [{ ...otherProjectTiles[0], uuid: 'uuid-1' }] as AnyType,
+                [],
+            );
+            expect(result.metrics[0].tileTargets).toEqual({
+                'uuid-1': { fieldId: 'orders_total' },
+            });
+        });
+    });
+
     describe('stable dimension filter ids on upload', () => {
         const status = { fieldId: 'orders_status', tableName: 'orders' };
         const amount = { fieldId: 'orders_amount', tableName: 'orders' };
