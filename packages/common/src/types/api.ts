@@ -419,8 +419,8 @@ import { type ResultColumns, type ResultRow } from './results';
 import {
     type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
-    type ApiResultsCacheStatusResponse,
     type ApiResultsCacheStatsResponse,
+    type ApiResultsCacheStatusResponse,
     type ApiResultsCacheTtlProjectionsResponse,
 } from './resultsCacheProjectSettings';
 import {
