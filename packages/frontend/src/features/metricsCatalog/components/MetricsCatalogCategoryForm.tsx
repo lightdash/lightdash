@@ -10,9 +10,7 @@ import {
     Popover,
     useMantineTheme,
 } from '@mantine/core';
-import differenceBy from 'lodash/differenceBy';
-import filter from 'lodash/filter';
-import includes from 'lodash/includes';
+import { differenceBy, filter, includes } from 'es-toolkit/compat';
 import {
     memo,
     useCallback,

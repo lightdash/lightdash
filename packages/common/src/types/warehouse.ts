@@ -492,6 +492,8 @@ export type WarehouseExecuteAsyncQueryArgs = {
     values?: AnyType[]; // same as queryParams but in array form
     queryParams?: Record<string, AnyType>; // same as values but in object form
     sql: string;
+    // Redshift only: retry a read-only query that stalls before it reaches the warehouse.
+    recoverStalledQuery?: boolean;
 };
 
 export type WarehouseQueryEstimate = {
@@ -609,6 +611,7 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             tags: Record<string, string>;
             timezone?: string;
             maximumBytesBilled?: number;
+            recoverStalledQuery?: boolean;
             onPhaseTiming?: (
                 phase: WarehouseQueryPhase,
                 durationMs: number,
@@ -631,6 +634,12 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
     estimateQuery?(
         args: WarehouseExecuteAsyncQueryArgs,
     ): Promise<WarehouseQueryEstimate>;
+
+    /** Result fields without running the query; empty when it has no result schema. */
+    getQueryFields?(
+        sql: string,
+        options: { tags: Record<string, string>; values?: AnyType[] },
+    ): Promise<WarehouseResults['fields']>;
 
     /**
      * Runs a query and returns all the results

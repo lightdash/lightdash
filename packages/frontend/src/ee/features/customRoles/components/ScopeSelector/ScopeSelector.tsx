@@ -118,12 +118,12 @@ const AgentScopeHeading = ({
     return (
         <>
             {!previousGroup && (
-                <Title order={5} mt="md">
+                <Title order={6} mt="md">
                     Agent permissions
                 </Title>
             )}
             {group !== previousGroup && (
-                <Text size="sm" fw={500} mt="md">
+                <Text fz="xs" fw={500} c="dimmed" mt="sm">
                     {group.label}
                 </Text>
             )}
@@ -143,7 +143,7 @@ const ScopeGroupHeader = ({
     onToggle: () => void;
 }) => (
     <Group justify="space-between" flex="0 0 auto">
-        <Title order={5}>{name}</Title>
+        <Title order={6}>{name}</Title>
         <Checkbox
             label={fullySelected ? 'Deselect all' : 'Select all'}
             checked={fullySelected}
@@ -560,15 +560,9 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
         <Stack gap="sm" h="100%">
             <Stack gap="sm" flex="0 0 auto">
                 <Group justify="space-between">
-                    <Stack gap="two">
-                        <Title order={5}>Permissions</Title>
-                        <Text
-                            c={form.errors.scopes ? 'red' : 'default'}
-                            fz="sm"
-                        >
-                            Select at least one permission for this role
-                        </Text>
-                    </Stack>
+                    <Text c={form.errors.scopes ? 'red' : 'dimmed'} fz="xs">
+                        Select at least one permission for this role
+                    </Text>
 
                     <TextInput
                         placeholder="Search permissions by name or group..."
@@ -620,13 +614,13 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
             </Stack>
 
             {filteredScopes.length === 0 ? (
-                <Paper p="xl" flex="0 0 auto">
-                    <Text ta="center" fz="sm">
+                <Paper variant="dotted" p="xl" flex="0 0 auto">
+                    <Text ta="center" fz="sm" c="dimmed">
                         No permissions found matching your search.
                     </Text>
                 </Paper>
             ) : (
-                <Paper flex={1} display="flex" dir="column" mih={0}>
+                <Box flex={1} display="flex" mih={0}>
                     <Flex gap="xs" flex={1} mih={0}>
                         {/* Left Sidebar - Group List */}
                         <Flex
@@ -686,7 +680,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                             )}
                         </Flex>
                     </Flex>
-                </Paper>
+                </Box>
             )}
         </Stack>
     );

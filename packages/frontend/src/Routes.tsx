@@ -6,7 +6,6 @@ import AppRoute from './components/AppRoute';
 import ProjectLayout from './components/common/ProjectLayout';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
-import NavBar from './components/NavBar';
 import { NavBarLayout } from './components/NavBarLayout';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
@@ -67,12 +66,9 @@ const PUBLIC_ROUTES: RouteObject[] = [
             );
             return {
                 Component: () => (
-                    <>
-                        <NavBar />
-                        <TrackPage name={PageName.ORGANIZATION_SETUP}>
-                            <OrganizationSetup />
-                        </TrackPage>
-                    </>
+                    <TrackPage name={PageName.ORGANIZATION_SETUP}>
+                        <OrganizationSetup />
+                    </TrackPage>
                 ),
             };
         },
@@ -770,6 +766,23 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'semantic-layer/*',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const SemanticStudio = await loadLazyRouteDefault(
+                './features/semanticStudio/SemanticStudioPage',
+                () => import('./features/semanticStudio/SemanticStudioPage'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.SEMANTIC_STUDIO}>
+                        <SemanticStudio />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
         path: 'funnel-builder',
         handle: { hideAILauncher: true },
         lazy: async () => {
@@ -945,7 +958,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/generalSettings/roadmap" replace />,
             },
             {
-                element: <NavBarLayout />,
                 children: [
                     {
                         path: '/get-started',
@@ -985,6 +997,42 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         },
                     },
                     {
+                        path: '/onboarding/models/:projectUuid',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingModels = await loadLazyRouteDefault(
+                                './pages/OnboardingModels',
+                                () => import('./pages/OnboardingModels'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.ONBOARDING_MODELS}
+                                    >
+                                        <OnboardingModels />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
+                        path: '/onboarding/tools/:projectUuid',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingTools = await loadLazyRouteDefault(
+                                './pages/OnboardingTools',
+                                () => import('./pages/OnboardingTools'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.ONBOARDING_TOOLS}>
+                                        <OnboardingTools />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
                         path: '/onboarding/dbt/:method?',
                         handle: { hideAILauncher: true },
                         lazy: async () => {
@@ -1001,6 +1049,11 @@ const PRIVATE_ROUTES: RouteObject[] = [
                             };
                         },
                     },
+                ],
+            },
+            {
+                element: <NavBarLayout />,
+                children: [
                     {
                         path: '/onboarding/invite-expert',
                         handle: { hideAILauncher: true },

@@ -1,6 +1,6 @@
 import {
+    isStepCount,
     readUIMessageStream,
-    stepCountIs,
     streamText,
     tool,
     wrapLanguageModel,
@@ -1348,7 +1348,7 @@ describe('applyStreamingCapability', () => {
         const result = streamText({
             model,
             tools: { getWeather },
-            stopWhen: stepCountIs(5),
+            stopWhen: isStepCount(5),
             prompt: 'Weather in Tallinn?',
         });
 

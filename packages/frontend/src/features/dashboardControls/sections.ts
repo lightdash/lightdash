@@ -494,13 +494,53 @@ const underPointer: CollisionDetection = (args) => {
 
 // A dragged capsule lands only on another capsule, or a gap between section lines
 export const SECTION_DRAG = 'section';
-export const underPointerFor: CollisionDetection = (args) =>
-    underPointer({
-        ...args,
-        droppableContainers: args.droppableContainers.filter((container) =>
-            args.active.data?.current?.kind === SECTION_DRAG
-                ? container.data?.current?.kind === SECTION_DRAG
-                : // The gaps between section lines take capsules only
-                  container.data?.current?.isLineGap !== true,
-        ),
-    });
+export const underPointerFor: CollisionDetection = (args) => {
+    const isSectionDrag = args.active.data?.current?.kind === SECTION_DRAG;
+    const droppableContainers = args.droppableContainers.filter((container) =>
+        isSectionDrag
+            ? container.data?.current?.kind === SECTION_DRAG
+            : // The gaps between section lines take capsules only
+              container.data?.current?.isLineGap !== true,
+    );
+    const pointer = args.pointerCoordinates;
+    if (isSectionDrag && pointer !== null) {
+        const within = pointerWithin({ ...args, droppableContainers });
+        if (within.length > 0) return within;
+        // The empty space among the capsules lands beside the nearest one in
+        // the row the pointer is on (capsules top-align, so a row shares its
+        // top); above or below them all is left to the line gaps
+        const capsules = droppableContainers.flatMap((container) => {
+            const rect = args.droppableRects.get(container.id);
+            return rect === undefined || container.data.current?.isLineGap
+                ? []
+                : [{ container, rect }];
+        });
+        const above = capsules.filter(({ rect }) => rect.top <= pointer.y);
+        const rowTop = Math.max(...above.map(({ rect }) => rect.top));
+        const isAmongCapsules =
+            above.length > 0 &&
+            capsules.some(({ rect }) => rect.bottom >= pointer.y);
+        const nearest = above
+            .filter(({ rect }) => rect.top >= rowTop - 1)
+            .map(({ container, rect }) => ({
+                container,
+                distance: Math.max(
+                    rect.left - pointer.x,
+                    pointer.x - rect.right,
+                    0,
+                ),
+            }))
+            .sort((a, b) => a.distance - b.distance)[0];
+        if (isAmongCapsules && nearest !== undefined)
+            return [
+                {
+                    id: nearest.container.id,
+                    data: {
+                        droppableContainer: nearest.container,
+                        value: nearest.distance,
+                    },
+                },
+            ];
+    }
+    return underPointer({ ...args, droppableContainers });
+};

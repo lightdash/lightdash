@@ -16,8 +16,8 @@ import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import {
     generateText,
+    isStepCount,
     smoothStream,
-    stepCountIs,
     streamText,
     StreamTextResult,
     type LanguageModelUsage,
@@ -128,7 +128,7 @@ import { getListWorkstreams } from '../tools/listWorkstreams';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
 import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
-import { getLoadSkill } from '../tools/loadSkill';
+import { getLoadedSkillKeys, getLoadSkill } from '../tools/loadSkill';
 import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadAttachments } from '../tools/readAttachments';
 import { getReadContent } from '../tools/readContent';
@@ -160,6 +160,7 @@ import type {
     AiStreamAgentResponseArgs,
     UnavailableMcpServer,
 } from '../types/aiAgent';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import { AgentContext } from '../utils/AgentContext';
 import {
     AiAgentEmptyResponseError,
@@ -514,7 +515,6 @@ const DOCUMENT_SAVE_TOOLS = new Set(['createContent', 'editContent']);
 const areDocumentNudgesEnabled = (args: AiAgentArgs): boolean =>
     args.enableDocuments &&
     args.enableDataAccess &&
-    args.enableContentTools &&
     args.execution.mode === 'standard';
 
 const isDocumentInput = (input: unknown): boolean =>
@@ -1250,6 +1250,7 @@ export const getDataAnswerFastResponse = (
 /** Ends a document write-up once the document saved without warnings. */
 export const getDocumentWriteFastResponse = (
     steps: ReadonlyArray<FastChartStep>,
+    siteUrl: string,
 ): string | null => {
     const documentCallIds = new Set(
         steps
@@ -1290,13 +1291,14 @@ export const getDocumentWriteFastResponse = (
     )
         return null;
     const name = metadata.name.replace(/[[\]\\]/g, '\\$&').trim();
-    return `Saved [${name || 'the document'}](${metadata.href}).`;
+    return `Saved [${name || 'the document'}](${toAbsoluteHref(siteUrl, metadata.href)}).`;
 };
 
 const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
     steps: ReadonlyArray<FastChartStep>,
+    siteUrl: string,
 ) => {
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
@@ -1306,7 +1308,7 @@ const getTurnFastResponse = (
     if (turnIntent === 'data_app_create' || turnIntent === 'data_app_iterate')
         return getDataAppBuildFastResponse(steps);
     if (turnIntent === 'document_write')
-        return getDocumentWriteFastResponse(steps);
+        return getDocumentWriteFastResponse(steps, siteUrl);
     return null;
 };
 
@@ -1392,7 +1394,7 @@ const CONTENT_STREAM_CHUNK_TYPES = new Set<TextStreamPart<ToolSet>['type']>([
 
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
-    stopWhen: stepCountIs(DEFAULT_AGENT_MAX_STEPS),
+    stopWhen: isStepCount(DEFAULT_AGENT_MAX_STEPS),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
@@ -1495,7 +1497,7 @@ export const buildPrepareStep = ({
     intentToolGate?: IntentToolGate;
     logger: ReturnType<typeof createAiAgentLogger>;
     // Ids of tool calls the AI SDK dropped for invalid input, recorded by
-    // onStepFinish/onChunk as the turn progresses (shared mutable set).
+    // onStepEnd/onChunk as the turn progresses (shared mutable set).
     invalidToolCallIds: ReadonlySet<string>;
     agentContext?: AgentContext;
 }) => {
@@ -1955,27 +1957,36 @@ export const getAgentTools = (
         readContent: () =>
             getReadContent({
                 readContent: dependencies.readContent,
+                siteUrl: args.siteUrl,
                 documentsEnabled,
             }),
         editContent: () =>
             getEditContent({
                 editContent: dependencies.editContent,
+                siteUrl: args.siteUrl,
                 documentsEnabled,
+                chartsEnabled: args.enableContentTools,
                 artifacts: dependencies.chartExportArtifacts,
                 sqlChartSaving: getSqlChartSaving(),
             }),
         listContent: () =>
-            getListContent({ listContent: dependencies.listContent }),
+            getListContent({
+                listContent: dependencies.listContent,
+                siteUrl: args.siteUrl,
+            }),
         createContent: () =>
             getCreateContent({
                 createContent: dependencies.createContent,
+                siteUrl: args.siteUrl,
                 documentsEnabled,
+                chartsEnabled: args.enableContentTools,
                 artifacts: dependencies.chartExportArtifacts,
                 sqlChartSaving: getSqlChartSaving(),
             }),
         createScheduledDelivery: () =>
             getCreateScheduledDelivery({
                 createScheduledDelivery: dependencies.createScheduledDelivery,
+                siteUrl: args.siteUrl,
             }),
         runContentQuery: () =>
             getRunContentQuery({
@@ -2213,7 +2224,6 @@ export const getAgentTools = (
                 enableDataAccess: args.enableDataAccess,
                 canRunSql: args.canRunSql,
                 enablePythonNodes: args.enableComposerQueries,
-                apiConnections: args.composerApiConnections,
                 enableFunnelNodes: args.enableFunnelNodes,
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
@@ -2264,6 +2274,7 @@ export const getAgentTools = (
                     listed.has(name.trim().toLowerCase())
                         ? dependencies.loadSkill(name, options)
                         : undefined,
+                loadedSkillKeys: getLoadedSkillKeys(args.messageHistory),
             });
         },
         loadProjectContext: () =>
@@ -2374,7 +2385,7 @@ export const getAgentTools = (
 
 // Fires an `in_progress` task update the moment a tool's execute() runs — i.e. as
 // soon as the model emits the call, before the (possibly slow) tool finishes.
-// generateText() only surfaces tool progress in onStepFinish, which lands after
+// generateText() only surfaces tool progress in onStepEnd, which lands after
 // the tool already returned, so without this the Slack/UI card stays empty until
 // the first tool completes. The streaming path emits this from its 'tool-call'
 // chunk instead, so this wrap is only applied in the non-streaming path.
@@ -2527,6 +2538,8 @@ const getCapabilitySectionArgs = (
 ): CapabilitySectionArgs => ({
     promptSections: loadout.promptSections,
     availableSkills: getAvailableSkills(args, loadout),
+    // The content tools also load for Documents alone; chart guidance needs chart saves.
+    canSaveCharts: args.enableContentTools,
     enableDocumentNudges: areDocumentNudgesEnabled(args),
     // Custom charts reach Documents through findCustomChartTypes and
     // exportChartAsCode, so the guidance needs both tools.
@@ -2646,7 +2659,7 @@ export const getAgentMessages = (
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
-        enableComposerApiNodes: args.composerApiConnections.length > 0,
+        liveSources: args.liveSources,
         enableComposerFunnelNodes: args.enableFunnelNodes,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
@@ -3042,13 +3055,14 @@ const runGenerateAgentResponse = async ({
                 };
             },
             stopWhen: [
-                stepCountIs(args.execution.maxSteps),
+                isStepCount(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
                     getTurnFastResponse(
                         args.enableDataAnswerFastResponse,
                         preparedContext?.turnIntent,
                         steps,
+                        args.siteUrl,
                     ) !== null,
             ],
             abortSignal,
@@ -3058,13 +3072,13 @@ const runGenerateAgentResponse = async ({
             tools,
             allowSystemInMessages: true,
             messages,
-            experimental_onToolCallStart: ({ toolCall }) => {
+            onToolExecutionStart: ({ toolCall }) => {
                 timing.recordToolCallStart(
                     toolCall.toolCallId,
                     toolCall.toolName,
                 );
             },
-            experimental_onToolCallFinish: (event) => {
+            onToolExecutionEnd: (event) => {
                 notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
                 const toolTiming = timing.recordToolCallEnd(
@@ -3100,7 +3114,7 @@ const runGenerateAgentResponse = async ({
                     });
                 }
             },
-            onStepFinish: async (step) => {
+            onStepEnd: async (step) => {
                 const stepUsage = await recordStepUsage(step);
                 // completeStep opens the next step; these calls belong to this one.
                 const stepIndex = timing.getCurrentStepIndex();
@@ -3289,6 +3303,7 @@ const runGenerateAgentResponse = async ({
                   args.enableDataAnswerFastResponse,
                   preparedContext?.turnIntent,
                   result.steps,
+                  args.siteUrl,
               ) ?? result.text);
 
         logger(
@@ -3484,13 +3499,14 @@ const runStreamAgentResponse = async ({
             ...args.callOptions,
             prepareStep,
             stopWhen: [
-                stepCountIs(args.execution.maxSteps),
+                isStepCount(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
                     getTurnFastResponse(
                         args.enableDataAnswerFastResponse,
                         preparedContext?.turnIntent,
                         steps,
+                        args.siteUrl,
                     ) !== null,
             ],
             providerOptions: args.providerOptions,
@@ -3499,7 +3515,7 @@ const runStreamAgentResponse = async ({
             tools,
             allowSystemInMessages: true,
             messages,
-            experimental_onToolCallFinish: (event) => {
+            onToolExecutionEnd: (event) => {
                 notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
             },
@@ -3657,6 +3673,7 @@ const runStreamAgentResponse = async ({
                                         toolResults: fastToolResults,
                                     },
                                 ],
+                                args.siteUrl,
                             );
                         }
                         logger(
@@ -3795,7 +3812,7 @@ const runStreamAgentResponse = async ({
                         assertUnreachable(event.chunk, 'Unknown chunk type');
                 }
             },
-            onStepFinish: async (step) => {
+            onStepEnd: async (step) => {
                 await recordStepUsage(step);
                 trackAgentStep(
                     args,
@@ -3829,12 +3846,7 @@ const runStreamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: async ({
-                totalUsage,
-                steps,
-                finishReason,
-                finalStep,
-            }) => {
+            onEnd: async ({ totalUsage, steps, finishReason, finalStep }) => {
                 logger(
                     'On Finish',
                     `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,
@@ -3850,6 +3862,7 @@ const runStreamAgentResponse = async ({
                           args.enableDataAnswerFastResponse,
                           preparedContext?.turnIntent,
                           steps,
+                          args.siteUrl,
                       ) ?? modelResponse);
                 const completeResponse =
                     agentContext.responseBlocks.render(responseText);

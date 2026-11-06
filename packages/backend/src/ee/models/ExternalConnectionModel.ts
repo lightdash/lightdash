@@ -8,6 +8,7 @@ import {
     getAppDisplayName,
     NotFoundError,
     ParameterError,
+    type ApiSourceSchemaScan,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionApiSource,
@@ -27,6 +28,12 @@ import {
     type DbApp as DbDataApp,
 } from '../../database/entities/apps';
 import { SpaceTableName } from '../../database/entities/spaces';
+import {
+    parseLiveSourceFieldState,
+    type LiveSourceFieldEdits,
+    type LiveSourceFieldState,
+    type LiveSourceScan,
+} from '../../services/QuerySourceService/api/liveSourceFields';
 import {
     normalizeCredentialUrlHref,
     normalizeCredentialUrlOrigin,
@@ -72,6 +79,77 @@ const parseApiSource = (value: unknown): ExternalConnectionApiSource | null => {
     if (value === null) return null;
     const parsed = apiSourceSchema.safeParse(value);
     return parsed.success ? parsed.data : null;
+};
+
+const apiSourceSchemaScanSchema = z.discriminatedUnion('status', [
+    z.object({ status: z.literal('pending'), requestedAt: z.coerce.date() }),
+    z.object({
+        status: z.literal('ready'),
+        scannedAt: z.coerce.date(),
+        windowDays: z.number(),
+        events: z.array(z.object({ name: z.string(), count: z.number() })),
+        eventsTruncated: z.boolean(),
+        propertyKeys: z.array(z.string()).nullable(),
+    }),
+    z.object({
+        status: z.literal('failed'),
+        scannedAt: z.coerce.date(),
+        error: z.string(),
+    }),
+]);
+
+export const API_SOURCE_SCHEMA_SCAN_TIMEOUT_MS = 5 * 60 * 1000;
+// Leaves room for queue wait; a scan pending longer lost its worker
+const STALE_PENDING_SCAN_MS = 3 * API_SOURCE_SCHEMA_SCAN_TIMEOUT_MS;
+
+export const parseApiSourceSchemaScan = (
+    value: unknown,
+    now: Date = new Date(),
+): ApiSourceSchemaScan | null => {
+    if (value === null) return null;
+    const parsed = apiSourceSchemaScanSchema.safeParse(value);
+    if (!parsed.success) return null;
+    const scan = parsed.data;
+    if (
+        scan.status === 'pending' &&
+        now.getTime() - scan.requestedAt.getTime() > STALE_PENDING_SCAN_MS
+    ) {
+        return {
+            status: 'failed',
+            scannedAt: scan.requestedAt,
+            error: 'The schema scan did not finish',
+        };
+    }
+    return scan;
+};
+
+/**
+ * Keys the server keeps inside `api_source` next to the connector settings.
+ * Settings writes replace the settings only, so these survive every update.
+ */
+const SERVER_OWNED_API_SOURCE_KEYS = [
+    'sourceName',
+    'lastScan',
+    'fields',
+] as const;
+
+const readSourceName = (value: unknown): string | null => {
+    const parsed = z.object({ sourceName: z.string() }).safeParse(value);
+    return parsed.success ? parsed.data.sourceName : null;
+};
+
+/** Connector settings only: drops any server-owned key a caller sent. */
+const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
+    JSON.stringify(apiSourceSchema.parse(apiSource));
+
+/** A deleted live source, kept so a new one for the same target can reuse its name. */
+export type DeletedLiveSource = {
+    externalConnectionUuid: string;
+    origin: string;
+    apiSource: ExternalConnectionApiSource;
+    sourceName: string | null;
+    /** Null when the source was deleted before fields could be curated. */
+    fieldEdits: LiveSourceFieldEdits | null;
 };
 
 const kindOf = (
@@ -135,6 +213,7 @@ export class ExternalConnectionModel {
             customHeaders: row.custom_headers,
             kind: row.connection_kind,
             apiSource: parseApiSource(row.api_source),
+            liveSourceName: readSourceName(row.api_source),
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
@@ -253,7 +332,7 @@ export class ExternalConnectionModel {
                                 ? JSON.stringify(data.customHeaders)
                                 : null,
                         api_source: data.apiSource
-                            ? JSON.stringify(data.apiSource)
+                            ? toApiSourceSettingsJson(data.apiSource)
                             : null,
                         created_by_user_uuid: userUuid,
                         updated_by_user_uuid: userUuid,
@@ -810,7 +889,14 @@ export class ExternalConnectionModel {
                         : null;
             if (data.apiSource !== undefined)
                 updatePayload.api_source = data.apiSource
-                    ? JSON.stringify(data.apiSource)
+                    ? trx.raw(
+                          `?::jsonb || COALESCE((SELECT jsonb_object_agg(key, value) FROM jsonb_each(??) WHERE key = ANY(?::text[])), '{}'::jsonb)`,
+                          [
+                              toApiSourceSettingsJson(data.apiSource),
+                              `${ExternalConnectionsTableName}.api_source`,
+                              [...SERVER_OWNED_API_SOURCE_KEYS],
+                          ],
+                      )
                     : null;
 
             await trx(ExternalConnectionsTableName)
@@ -863,6 +949,155 @@ export class ExternalConnectionModel {
             throw new NotFoundError('External connection not found');
         }
         return updated;
+    }
+
+    /**
+     * Gives a live source the first candidate no other active source of the
+     * project holds, once; a name already set is kept. The project lock makes
+     * two sources named at the same time pick different names. Null when
+     * every candidate is held.
+     */
+    async claimLiveSourceName(
+        projectUuid: string,
+        uuid: string,
+        candidates: string[],
+    ): Promise<string | null> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `live_source_name:${projectUuid}`,
+            ]);
+            const rows = await trx(ExternalConnectionsTableName)
+                .select('external_connection_uuid', 'api_source')
+                .where('project_uuid', projectUuid)
+                .whereNull('deleted_at')
+                .whereNotNull('api_source');
+            const current = rows.find(
+                (row) => row.external_connection_uuid === uuid,
+            );
+            const currentName = readSourceName(current?.api_source);
+            if (currentName) {
+                return currentName;
+            }
+            const held = new Set(
+                rows.flatMap((row) => {
+                    const name = readSourceName(row.api_source);
+                    return name ? [name] : [];
+                }),
+            );
+            const sourceName =
+                candidates.find((candidate) => !held.has(candidate)) ?? null;
+            if (sourceName) {
+                await trx(ExternalConnectionsTableName)
+                    .where('external_connection_uuid', uuid)
+                    .update({
+                        api_source: trx.raw(
+                            `jsonb_set(api_source, '{sourceName}', to_jsonb(?::text))`,
+                            [sourceName],
+                        ) as unknown as string,
+                    });
+            }
+            return sourceName;
+        });
+    }
+
+    async getLiveSourceFieldState(uuid: string): Promise<LiveSourceFieldState> {
+        const row = await this.database(ExternalConnectionsTableName)
+            .select('api_source')
+            .where('external_connection_uuid', uuid)
+            .first();
+        return parseLiveSourceFieldState(row?.api_source ?? null);
+    }
+
+    async saveLiveSourceScan(
+        uuid: string,
+        scan: LiveSourceScan,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .update({
+                api_source: this.database.raw(
+                    `jsonb_set(api_source, '{lastScan}', ?::jsonb)`,
+                    [JSON.stringify(scan)],
+                ) as unknown as string,
+            });
+    }
+
+    /** Starts curation with these edits; a source already curated keeps its own. */
+    async initLiveSourceFieldEdits(
+        uuid: string,
+        edits: LiveSourceFieldEdits,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .whereRaw("NOT jsonb_exists(api_source, 'fields')")
+            .update({
+                api_source: this.database.raw(
+                    `jsonb_set(api_source, '{fields}', ?::jsonb)`,
+                    [JSON.stringify(edits)],
+                ) as unknown as string,
+            });
+    }
+
+    /**
+     * Applies field edits under a row lock, so two editors never lose each
+     * other's changes. Returns the edits as saved.
+     */
+    async updateLiveSourceFieldEdits(
+        uuid: string,
+        update: (current: LiveSourceFieldEdits) => LiveSourceFieldEdits,
+    ): Promise<LiveSourceFieldEdits> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx(ExternalConnectionsTableName)
+                .select('api_source')
+                .where('external_connection_uuid', uuid)
+                .whereNull('deleted_at')
+                .forUpdate()
+                .first();
+            if (!row?.api_source) {
+                throw new NotFoundError('Live data source not found');
+            }
+            const next = update(
+                parseLiveSourceFieldState(row.api_source).fields ?? {},
+            );
+            await trx(ExternalConnectionsTableName)
+                .where('external_connection_uuid', uuid)
+                .update({
+                    api_source: trx.raw(
+                        `jsonb_set(api_source, '{fields}', ?::jsonb)`,
+                        [JSON.stringify(next)],
+                    ) as unknown as string,
+                });
+            return next;
+        });
+    }
+
+    /** Deleted live sources of a project, most recently deleted first. */
+    async listDeletedLiveSources(
+        projectUuid: string,
+    ): Promise<DeletedLiveSource[]> {
+        const rows = await this.database(ExternalConnectionsTableName)
+            .select('external_connection_uuid', 'origin', 'api_source')
+            .where('project_uuid', projectUuid)
+            .whereNotNull('deleted_at')
+            .whereNotNull('api_source')
+            .orderBy('deleted_at', 'desc');
+        return rows.flatMap((row) => {
+            const apiSource = parseApiSource(row.api_source);
+            return apiSource
+                ? [
+                      {
+                          externalConnectionUuid: row.external_connection_uuid,
+                          origin: row.origin,
+                          apiSource,
+                          sourceName: readSourceName(row.api_source),
+                          fieldEdits: parseLiveSourceFieldState(row.api_source)
+                              .fields,
+                      },
+                  ]
+                : [];
+        });
     }
 
     async softDelete(uuid: string): Promise<void> {
@@ -1429,5 +1664,29 @@ export class ExternalConnectionModel {
                     ? null
                     : Math.round(Number(row.median_duration_ms)),
         }));
+    }
+
+    async setApiSourceSchema(
+        connectionUuid: string,
+        scan: ApiSourceSchemaScan,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', connectionUuid)
+            .update({ api_source_schema: JSON.stringify(scan) });
+    }
+
+    async getApiSourceSchemas(
+        connectionUuids: string[],
+    ): Promise<Map<string, ApiSourceSchemaScan | null>> {
+        if (connectionUuids.length === 0) return new Map();
+        const rows = await this.database(ExternalConnectionsTableName)
+            .whereIn('external_connection_uuid', connectionUuids)
+            .select('external_connection_uuid', 'api_source_schema');
+        return new Map(
+            rows.map((row) => [
+                row.external_connection_uuid,
+                parseApiSourceSchemaScan(row.api_source_schema),
+            ]),
+        );
     }
 }

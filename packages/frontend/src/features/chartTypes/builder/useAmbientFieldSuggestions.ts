@@ -9,9 +9,9 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
 import { type LightdashApi } from '../../../api';
+import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { suggestChartTypeFields } from '../../../ee/features/ambientAi/hooks/useChartTypeSuggestions';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
-import { useAiAccessGate } from '../../aiAccess/useAiAccessGate';
 import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
 import { type LoadedExplore } from './useExplorePreviewData';
@@ -161,9 +161,18 @@ export const useAmbientFieldSuggestions = ({
 }): AmbientFieldSuggestions => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid, {
+        enabled:
+            enabled && !!projectUuid && !!(sourceKey || suggestedExploreName),
+    });
     const history = useRef<SourceSuggestions | null>(null);
     useEffect(() => {
-        if (!enabled || !projectUuid || !suggestedExploreName || !fields) {
+        if (
+            !isAmbientAiEnabled ||
+            !projectUuid ||
+            !suggestedExploreName ||
+            !fields
+        ) {
             return;
         }
         if (fields.length === 0 || suggestedExploreName === explore?.name) {
@@ -180,7 +189,7 @@ export const useAmbientFieldSuggestions = ({
         );
     }, [
         queryClient,
-        enabled,
+        isAmbientAiEnabled,
         projectUuid,
         suggestedExploreName,
         explore?.name,
@@ -189,7 +198,7 @@ export const useAmbientFieldSuggestions = ({
         lightdashApi,
     ]);
     const request =
-        enabled && projectUuid && sourceKey && explore && fields
+        isAmbientAiEnabled && projectUuid && sourceKey && explore && fields
             ? { projectUuid, sourceKey, explore, fields, context }
             : null;
     const { data } = useQuery({
@@ -252,10 +261,7 @@ export const useAmbientFieldSuggestions = ({
         staleTime: Infinity,
         cacheTime: 0,
     });
-    const { disabled: accessDisabled } = useAiAccessGate(
-        projectUuid ?? undefined,
-    );
-    const current = accessDisabled
+    const current = !isAmbientAiEnabled
         ? null
         : data?.sourceKey === sourceKey
           ? data
@@ -264,12 +270,18 @@ export const useAmbientFieldSuggestions = ({
             : null;
 
     const pendingFields = useMemo(() => {
-        if (!enabled || !projectUuid || !sourceKey || !explore || !fields) {
+        if (
+            !isAmbientAiEnabled ||
+            !projectUuid ||
+            !sourceKey ||
+            !explore ||
+            !fields
+        ) {
             return [];
         }
         const asked = new Set(current?.askedFieldNames ?? []);
         return fields.filter((field) => !asked.has(field.name));
-    }, [enabled, projectUuid, sourceKey, explore, fields, current]);
+    }, [isAmbientAiEnabled, projectUuid, sourceKey, explore, fields, current]);
     const pendingKey = pendingFields.map((field) => field.name).join('\n');
 
     const picks = useMemo(() => current?.picks ?? {}, [current]);

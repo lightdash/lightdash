@@ -6,6 +6,7 @@ import {
     type QueryRowsResponse,
 } from '@google-cloud/bigquery';
 import {
+    BIGQUERY_UNSUPPORTED_KEYFILE_MESSAGE,
     BigqueryAuthenticationType,
     BigqueryTokenError,
     DimensionType,
@@ -404,6 +405,90 @@ describe('BigqueryWarehouseClient.estimateQuery', () => {
         expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledWith(
             expect.not.objectContaining({ dryRun: true }),
         );
+    });
+});
+
+describe('BigqueryWarehouseClient.getQueryFields', () => {
+    const withDryRun = (dryRun: () => Promise<unknown>) => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const createQueryJob = vi.fn(dryRun);
+        warehouse.client.createQueryJob =
+            createQueryJob as unknown as BigQuery['createQueryJob'];
+        return { warehouse, createQueryJob };
+    };
+
+    it('maps the dry-run schema to the fields a real run reports', async () => {
+        const { warehouse, createQueryJob } = withDryRun(async () => [
+            {
+                metadata: {
+                    statistics: {
+                        query: {
+                            schema: {
+                                fields: [
+                                    { name: 'customer', type: 'STRING' },
+                                    { name: 'orders', type: 'INT64' },
+                                    {
+                                        name: 'revenue',
+                                        type: 'NUMERIC',
+                                        scale: '2',
+                                    },
+                                    { name: 'ordered_at', type: 'TIMESTAMP' },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            warehouse.getQueryFields('select 1', { tags: { a: 'b' } }),
+        ).resolves.toEqual({
+            customer: { type: DimensionType.STRING },
+            orders: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'integer' },
+            },
+            revenue: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'decimal', scale: 2 },
+            },
+            ordered_at: { type: DimensionType.TIMESTAMP },
+        });
+        expect(createQueryJob).toHaveBeenCalledWith(
+            expect.objectContaining({ query: 'select 1', dryRun: true }),
+        );
+    });
+
+    it('returns no fields when the dry run has no result schema', async () => {
+        const { warehouse } = withDryRun(async () => [
+            { metadata: { statistics: { query: {} } } },
+        ]);
+
+        await expect(
+            warehouse.getQueryFields('create table t as select 1', {
+                tags: {},
+            }),
+        ).resolves.toEqual({});
+    });
+
+    it('surfaces dry-run errors as warehouse query errors', async () => {
+        const { warehouse } = withDryRun(async () => {
+            throw Object.assign(new Error('Not found'), {
+                errors: [
+                    {
+                        reason: 'notFound',
+                        message: 'Not found: Table p:d.missing',
+                    },
+                ],
+            });
+        });
+
+        const result = warehouse.getQueryFields('select * from missing', {
+            tags: {},
+        });
+        await expect(result).rejects.toThrow(WarehouseQueryError);
+        await expect(result).rejects.toThrow('Not found: Table p:d.missing');
     });
 });
 
@@ -1200,6 +1285,16 @@ describe('BigqueryWarehouseClient key file credentials', () => {
                     },
                 }),
         ).toThrow(WarehouseConnectionError);
+    });
+
+    it('rejects an unsupported key file before listing datasets', async () => {
+        await expect(
+            BigqueryWarehouseClient.getDatasetsWithKeyfile({
+                type: 'external_account',
+                audience: 'audience',
+                credential_source: { file: '/var/run/token' },
+            }),
+        ).rejects.toThrow(BIGQUERY_UNSUPPORTED_KEYFILE_MESSAGE);
     });
 });
 

@@ -20,11 +20,10 @@ import {
     Stack,
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
-import { IconDots, IconTableExport, IconX } from '@tabler/icons-react';
+import { IconDots, IconTableExport } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type RefObject } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import TruncatedText from '../../../../../components/common/TruncatedText';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
@@ -39,6 +38,8 @@ import {
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
 import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
+import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 import { AiComposerLineage } from './composerPipeline/AiComposerLineage';
 import {
     AiComposerVizConfigPanel,
@@ -61,6 +62,8 @@ type Props = {
     source: ComposerPanelSource;
     title: string;
     description: string | null;
+    /** The turn edited the previous result rather than building a new one. */
+    isRevision: boolean;
     config: AiComposerChartArtifactConfig;
     /** The run started on open; null while it starts or when it failed. */
     run: ApiAiAgentComposerArtifactVizQuery | null;
@@ -85,6 +88,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     source,
     title,
     description,
+    isRevision,
     config,
     run,
     runError,
@@ -229,19 +233,19 @@ export const AiComposerArtifactPanel: FC<Props> = ({
 
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
-            <Stack gap={0} flex={1} miw={0}>
-                <TruncatedText fz="sm" fw={600} maxWidth="100%">
-                    {title}
-                </TruncatedText>
-                {description && (
-                    <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
-                        {description}
-                    </TruncatedText>
-                )}
-            </Stack>
-            <Group gap="xs" className={styles.headRight}>
+            <ArtifactPanelHeading
+                title={title}
+                description={description ?? null}
+                marker={isRevision ? { kind: 'revision' } : null}
+                descriptionDisplay="expandable"
+            />
+            <Group gap={4} className={styles.headRight}>
                 <SegmentedControl
-                    size="xs"
+                    mr={4}
+                    classNames={{
+                        root: styles.viewToggle,
+                        label: styles.viewToggleLabel,
+                    }}
                     value={view}
                     onChange={(next) =>
                         setView(next === 'lineage' ? 'lineage' : 'chart')
@@ -296,11 +300,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         </Menu.Dropdown>
                     </Menu>
                 )}
-                {onClose && (
-                    <ActionIcon size="sm" onClick={onClose} aria-label="Close">
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                )}
+                <ArtifactWindowControls onClose={onClose} separated />
             </Group>
         </Box>
     );

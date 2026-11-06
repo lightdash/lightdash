@@ -710,6 +710,24 @@ describe('account', () => {
                 ]);
             });
 
+            it('returns the source spaces of a read-only AI agent token', () => {
+                const account = buildJwtAccount({
+                    content: {
+                        type: 'aiAgent',
+                        agentUuid: 'agent-uuid',
+                    },
+                    writeActions: {
+                        serviceAccountUserUuid: 'service-account-user-uuid',
+                        sourceSpaceUuids: ['source-space-uuid'],
+                    },
+                    embedWriteUser: mockSessionUser,
+                });
+
+                expect(getEmbedActorChartSpaceUuids(account)).toEqual([
+                    'source-space-uuid',
+                ]);
+            });
+
             it('ignores source spaces for non-dashboard tokens', () => {
                 const account = buildJwtAccount({
                     content: {

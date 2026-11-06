@@ -1,6 +1,6 @@
-import type { GenerateTextOnStepFinishCallback, ToolSet } from 'ai';
+import type { GenerateTextOnStepEndCallback, ToolSet } from 'ai';
 
-type Step = Parameters<GenerateTextOnStepFinishCallback<ToolSet>>[0];
+type Step = Parameters<GenerateTextOnStepEndCallback<ToolSet>>[0];
 
 export type AutopilotContextStep = {
     step: number;

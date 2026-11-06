@@ -129,6 +129,7 @@ import {
     selectInvalidateCache,
     selectIsDateZoomAppliedToTile,
     useDashboardSelector,
+    useTileDashboardParameterInputs,
 } from '../../features/dashboard/store';
 import { useTileQueryQueueVisibility } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
@@ -753,6 +754,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const appliedParameterValues = useDashboardSelector(
             selectAppliedParameterValues,
         );
+        const tileParameterInputs = useTileDashboardParameterInputs(
+            tileUuid,
+            appliedParameterValues,
+        );
         const { mutate: exportSavedChartImage } = useSavedChartImageExport();
         const canExportSavedDataAppVizImage =
             isSavedDataAppVizDashboardImageExportAvailable({
@@ -763,7 +768,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 ).every((filters) => filters.length === 0),
                 hasParameterOverrides: hasDashboardTileParameterOverrides({
                     usedParameterValues: usedParametersValues ?? {},
-                    dashboardValues: appliedParameterValues,
+                    dashboardValues: tileParameterInputs.dashboardValues,
                     chartSavedValues: chart.parameters ?? {},
                 }),
                 hasUnpublishedChanges: !!chart.hasUnpublishedChanges,
@@ -1524,12 +1529,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     key,
                                                                     definitions:
                                                                         parameterDefinitions,
-                                                                    dashboardValues:
-                                                                        appliedParameterValues,
+                                                                    ...tileParameterInputs,
                                                                     chartSavedValues:
                                                                         chart.parameters ??
                                                                         {},
-                                                                    isTargeted: true,
                                                                 },
                                                             ),
                                                             getUiString,

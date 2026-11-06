@@ -5,7 +5,7 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_LOAD_SKILL_DESCRIPTION =
-    "Load a skill by name. The result lists the skill's resources; load only the one you need with `resourceName`.";
+    "Load a skill by name. The result lists the skill's resources; load only the one you need with `resourceName`. A skill or resource already loaded in this thread returns a pointer to the earlier result instead of a second copy.";
 
 export const toolLoadSkillArgsSchema = z.object({
     name: z.string().min(1).describe('Exact name of the skill to load.'),
@@ -70,6 +70,16 @@ export const toolLoadSkillStructuredContentSchema = z.discriminatedUnion(
                 name: z.string(),
                 content: z.string().describe('The resource file contents.'),
             }),
+        }),
+        z.object({
+            kind: z.literal('already_loaded'),
+            skill: z.string().describe('Name of the skill.'),
+            resource: z
+                .string()
+                .nullable()
+                .describe(
+                    'Resource name when a resource was requested; null for the skill itself.',
+                ),
         }),
     ],
 );

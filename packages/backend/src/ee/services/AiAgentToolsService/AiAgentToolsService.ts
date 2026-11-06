@@ -19,6 +19,7 @@ import {
     documentAsCodeSchema,
     doesPatchTouchSqlChartSql,
     Explore,
+    ExploreType,
     FeatureFlags,
     filterExploreByTags,
     filterStaticFilterAutocompleteValues,
@@ -859,7 +860,9 @@ export class AiAgentToolsService extends BaseService {
             exploreNames: [exploreName],
         });
         if (!explore) {
-            throw new NotFoundError('Explore not found');
+            throw new NotFoundError(
+                `Explore "${exploreName}" is not available. It may not exist, or the project's Tables configuration, user attributes or agent tags may hide it. Do not retry this explore: choose one from the available explores.`,
+            );
         }
         return explore;
     }
@@ -1363,12 +1366,6 @@ export class AiAgentToolsService extends BaseService {
         return types;
     }
 
-    private async customChartTypesEnabled(
-        context: AiAgentToolsRuntimeContext,
-    ): Promise<boolean> {
-        return this.appGenerateService.chartTypesEnabledFor(context.user);
-    }
-
     static readonly CUSTOM_CHART_TYPES_INLINE_LIMIT = 10;
 
     static readonly CUSTOM_CHART_TYPES_SEARCH_LIMIT = 10;
@@ -1377,9 +1374,6 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
     ): ReturnType<ListCustomChartTypesFn> {
         return this.getRuntimeCached(context, 'customChartTypes', async () => {
-            if (!(await this.customChartTypesEnabled(context))) {
-                return { types: [], totalCount: 0 };
-            }
             const { data, pagination } =
                 await this.appModel.listDataAppVisualizations(
                     context.projectUuid,
@@ -1405,9 +1399,6 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.findCustomChartTypes`,
             args,
             async () => {
-                if (!(await this.customChartTypesEnabled(context))) {
-                    return [];
-                }
                 if ('slug' in args) {
                     const row =
                         await this.appModel.findDataAppVisualizationBySlug(
@@ -1571,9 +1562,6 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         slug: string,
     ): ReturnType<ResolveCustomChartTypeFn> {
-        if (!(await this.customChartTypesEnabled(context))) {
-            return null;
-        }
         const row = await this.appModel.findDataAppVisualizationBySlug(
             context.projectUuid,
             slug,
@@ -2470,10 +2458,11 @@ export class AiAgentToolsService extends BaseService {
               );
     }
 
-    /** Spaces the user can save charts into, as the app's save modal would list them. */
+    /** Spaces the user can save charts (or Documents) into, as the app's save modal would list them. */
     private async getEditableSpaceUuids(
         user: SessionUser,
         spaceUuids: string[],
+        subjectType: 'SavedChart' | 'Document' = 'SavedChart',
     ): Promise<Set<string>> {
         if (spaceUuids.length === 0) {
             return new Set();
@@ -2483,7 +2472,7 @@ export class AiAgentToolsService extends BaseService {
                 'create',
                 user,
                 spaceUuids,
-                { subjectType: 'SavedChart' },
+                { subjectType },
             ),
         );
     }
@@ -2491,20 +2480,38 @@ export class AiAgentToolsService extends BaseService {
     /**
      * Mirrors the app's save button, not the project role: with a project, a space the user can save into
      * (or the right to create one) is enough; without one, only the role is known, as before a project is chosen.
+     * `spaceUuids` limits the check to the spaces the run may write to, such as an embed token's write spaces.
      */
-    async canAuthorContent(context: {
-        user: SessionUser;
-        projectUuid: UUID | undefined;
-    }): Promise<boolean> {
-        const { user, projectUuid } = context;
+    private async canSaveIntoProject(
+        context: {
+            user: SessionUser;
+            projectUuid: UUID | undefined;
+            spaceUuids: string[] | null;
+        },
+        roleSubjects: ('SavedChart' | 'Dashboard' | 'Document')[],
+        spaceSubject: 'SavedChart' | 'Document',
+    ): Promise<boolean> {
+        const { user, projectUuid, spaceUuids } = context;
         const { organizationUuid } = user;
         const ability = this.createAuditedAbility(user);
-        const roleCanSaveContent =
+        const roleCanSave =
             organizationUuid !== undefined &&
-            (ability.can('create', 'SavedChart') ||
-                ability.can('create', 'Dashboard'));
-        if (!roleCanSaveContent || projectUuid === undefined) {
-            return roleCanSaveContent;
+            roleSubjects.some((roleSubject) =>
+                ability.can('create', roleSubject),
+            );
+        if (!roleCanSave || projectUuid === undefined) {
+            return roleCanSave;
+        }
+        if (spaceUuids !== null) {
+            return (
+                (
+                    await this.getEditableSpaceUuids(
+                        user,
+                        spaceUuids,
+                        spaceSubject,
+                    )
+                ).size > 0
+            );
         }
         if (
             ability.can(
@@ -2518,8 +2525,31 @@ export class AiAgentToolsService extends BaseService {
         const editableSpaceUuids = await this.getEditableSpaceUuids(
             user,
             spaces.map((space) => space.uuid),
+            spaceSubject,
         );
         return editableSpaceUuids.size > 0;
+    }
+
+    /** Whether the user can save a chart or dashboard in the project. */
+    async canAuthorContent(context: {
+        user: SessionUser;
+        projectUuid: UUID | undefined;
+        spaceUuids: string[] | null;
+    }): Promise<boolean> {
+        return this.canSaveIntoProject(
+            context,
+            ['SavedChart', 'Dashboard'],
+            'SavedChart',
+        );
+    }
+
+    /** Whether the user can save a Document in one of the project's Spaces; personal Documents don't count. */
+    async canAuthorDocuments(context: {
+        user: SessionUser;
+        projectUuid: UUID | undefined;
+        spaceUuids: string[] | null;
+    }): Promise<boolean> {
+        return this.canSaveIntoProject(context, ['Document'], 'Document');
     }
 
     private async listDataAppThemes(
@@ -4242,6 +4272,11 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         args: Parameters<UpdateUserNameFn>[0],
     ): ReturnType<UpdateUserNameFn> {
+        if (context.user.serviceAccount) {
+            throw new ForbiddenError(
+                'A service account name cannot be changed from an agent session',
+            );
+        }
         await this.userService.updateUser(context.user, {
             firstName: args.firstName.trim(),
             lastName: args.lastName.trim(),
@@ -4494,11 +4529,11 @@ export class AiAgentToolsService extends BaseService {
 
     private runSqlChartQuery(
         context: AiAgentToolsRuntimeContext,
-        { chartSlug, dashboardSlug, limit }: Parameters<RunSqlChartQueryFn>[0],
+        { chartSlug, dashboardSlug }: Parameters<RunSqlChartQueryFn>[0],
     ): ReturnType<RunSqlChartQueryFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlChartQuery`,
-            { chartSlug, dashboardSlug, limit },
+            { chartSlug, dashboardSlug },
             async () => {
                 const sqlChart = await this.savedSqlService.getSqlChart(
                     context.user,
@@ -4510,7 +4545,7 @@ export class AiAgentToolsService extends BaseService {
                 await this.assertSqlInAgentScope(context, sqlChart.sql);
 
                 const effectiveLimit = getValidAiQueryLimit(
-                    limit,
+                    sqlChart.limit,
                     this.lightdashConfig.ai.copilot.maxQueryLimit,
                 );
                 const sqlChartQueryArgs = {
@@ -4544,6 +4579,7 @@ export class AiAgentToolsService extends BaseService {
                             effectiveLimit,
                         )),
                         sqlChart: summary,
+                        limit: effectiveLimit,
                     };
                 }
 
@@ -4588,6 +4624,7 @@ export class AiAgentToolsService extends BaseService {
                         effectiveLimit,
                     )),
                     sqlChart: summary,
+                    limit: effectiveLimit,
                 };
             },
         );
@@ -4722,6 +4759,7 @@ export class AiAgentToolsService extends BaseService {
         {
             queries,
             terminalNodeId,
+            otherUnreadNodeIds,
             sampleNodeIds,
             onNodeStatus,
             deadlineMs,
@@ -4778,6 +4816,11 @@ export class AiAgentToolsService extends BaseService {
                                 context.userAttributeOverrides ?? {},
                             invalidateCache:
                                 context.invalidateQueryCache ?? false,
+                            aiAttribution: {
+                                aiAgentUuid: context.agentUuid ?? null,
+                                threadUuid: context.threadUuid ?? null,
+                                promptUuid: context.promptUuid ?? null,
+                            },
                         }));
                 } catch (error) {
                     const message =
@@ -4880,9 +4923,10 @@ export class AiAgentToolsService extends BaseService {
                     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
                 );
 
-                // Polling only the terminal node is sufficient: its execution
-                // waits on every referenced result and fails if any upstream
-                // query fails.
+                const otherUnreadSubmissions = submissions.filter(
+                    (submission) =>
+                        otherUnreadNodeIds.includes(submission.nodeId),
+                );
 
                 // A failed run marks the nodes its status read did not settle.
                 const emitUnfinishedAsError = (message: string) => {
@@ -4917,9 +4961,13 @@ export class AiAgentToolsService extends BaseService {
 
                 let outcome: ComposerRunOutcome;
                 try {
-                    const polled = await this.pollComposerTerminal({
+                    // Polling the unread nodes suffices: a node waits on every
+                    // result it reads and fails if any of them fails.
+                    const polled = await this.pollComposerResultNodes({
                         context,
                         submissions,
+                        otherUnreadSubmissions,
+                        sampleNodeIds,
                         terminalSubmission,
                         pageSize,
                         deadlineMs,
@@ -4993,7 +5041,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A failed sample read gives a null sample and never fails the run. */
+    /** A failed sample read gives a null sample and never fails the run; a status with a sample already keeps it. */
     private async readComposerNodeSamples(
         context: AiAgentToolsRuntimeContext,
         submissions: SourceQuerySubmission[],
@@ -5008,7 +5056,8 @@ export class AiAgentToolsService extends BaseService {
                 if (
                     !submission ||
                     status.state !== QueryHistoryStatus.READY ||
-                    !sampleNodeIds.includes(status.nodeId)
+                    !sampleNodeIds.includes(status.nodeId) ||
+                    status.sample !== null
                 )
                     return status;
                 try {
@@ -5038,6 +5087,51 @@ export class AiAgentToolsService extends BaseService {
                 }
             }),
         );
+    }
+
+    /**
+     * Waits for the other unread nodes first, so the terminal's status read sees them settled.
+     * Their rows come from that wait, so a failed read fails the run instead of dropping rows.
+     */
+    private async pollComposerResultNodes({
+        otherUnreadSubmissions,
+        sampleNodeIds,
+        ...args
+    }: Parameters<AiAgentToolsService['pollComposerTerminal']>[0] & {
+        otherUnreadSubmissions: SourceQuerySubmission[];
+        sampleNodeIds: string[];
+    }): Promise<ComposerRunOutcome | ComposerRunningOutcome> {
+        const samplesByNodeId = new Map<string, Record<string, AnyType>[]>();
+        const withUnreadNodeSamples = <
+            T extends ComposerRunOutcome | ComposerRunningOutcome,
+        >(
+            outcome: T,
+        ): T => ({
+            ...outcome,
+            nodeStatuses: outcome.nodeStatuses.map((status) => {
+                const rows = samplesByNodeId.get(status.nodeId);
+                return rows && sampleNodeIds.includes(status.nodeId)
+                    ? { ...status, sample: rows }
+                    : status;
+            }),
+        });
+        for (const terminalSubmission of otherUnreadSubmissions) {
+            // eslint-disable-next-line no-await-in-loop
+            const polled = await this.pollComposerTerminal({
+                ...args,
+                terminalSubmission,
+                pageSize: sampleNodeIds.includes(terminalSubmission.nodeId)
+                    ? COMPOSER_QUERY_PREVIEW_ROW_LIMIT
+                    : 1,
+            });
+            if (polled.status !== 'success')
+                return withUnreadNodeSamples(polled);
+            samplesByNodeId.set(
+                terminalSubmission.nodeId,
+                polled.terminal.rows,
+            );
+        }
+        return withUnreadNodeSamples(await this.pollComposerTerminal(args));
     }
 
     private async pollComposerTerminal({
@@ -5392,23 +5486,45 @@ export class AiAgentToolsService extends BaseService {
                         : undefined;
 
                 const startedAt = Date.now();
+                const queryContext =
+                    context.source === 'mcp'
+                        ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
+                        : QueryExecutionContext.AI;
+                const explore = await this.getExploreForRuntime(context, {
+                    table: args.table,
+                }).catch(() => null);
+                // Live sources answer through their API, which only the async query path reaches
                 const results =
-                    await this.projectService.searchFieldUniqueValues(
-                        context.account,
-                        context.projectUuid,
-                        args.table,
-                        args.fieldId,
-                        args.query,
-                        100,
-                        andFilters,
-                        false,
-                        undefined,
-                        context.userAttributeOverrides,
-                        context.source === 'mcp'
-                            ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
-                            : QueryExecutionContext.AI,
-                        context.querySurface,
-                    );
+                    explore?.type === ExploreType.API_SOURCE
+                        ? await this.asyncQueryService.searchFieldValuesAndWait(
+                              {
+                                  account: context.account,
+                                  projectUuid: context.projectUuid,
+                                  table: args.table,
+                                  fieldId: args.fieldId,
+                                  search: args.query,
+                                  limit: 100,
+                                  filters: andFilters,
+                                  context: queryContext,
+                                  querySurface: context.querySurface,
+                                  userAttributeOverrides:
+                                      context.userAttributeOverrides,
+                              },
+                          )
+                        : await this.projectService.searchFieldUniqueValues(
+                              context.account,
+                              context.projectUuid,
+                              args.table,
+                              args.fieldId,
+                              args.query,
+                              100,
+                              andFilters,
+                              false,
+                              undefined,
+                              context.userAttributeOverrides,
+                              queryContext,
+                              context.querySurface,
+                          );
                 const output =
                     context.source === 'mcp' ? results : results.results;
                 Logger.info(

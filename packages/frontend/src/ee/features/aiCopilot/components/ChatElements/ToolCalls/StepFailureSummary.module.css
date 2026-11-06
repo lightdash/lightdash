@@ -1,0 +1,36 @@
+.summary {
+    margin: var(--mantine-spacing-xs) 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-red-light) 40%,
+        transparent
+    );
+}
+
+.title {
+    min-width: 0;
+}
+
+.icon {
+    flex-shrink: 0;
+    color: var(--mantine-color-red-text);
+}
+
+/* Nested to win over the theme's block Code padding. */
+.summary .error {
+    padding: rem(6px) var(--mantine-spacing-xs);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-text);
+    background-color: var(--mantine-color-body);
+    border: 0;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.action {
+    flex-shrink: 0;
+    margin-left: auto;
+}

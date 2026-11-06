@@ -17,9 +17,17 @@ import {
     Loader,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
-import { createReactComponent, IconCode, type Icon } from '@tabler/icons-react';
-import { useContext, useMemo, type FC } from 'react';
+import {
+    createReactComponent,
+    IconChevronRight,
+    IconCode,
+    IconTable,
+    type Icon,
+} from '@tabler/icons-react';
+import { clsx } from 'clsx';
+import { useContext, useId, useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import InlineErrorState from '../../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
@@ -28,13 +36,16 @@ import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
 import { FunnelDetailsVariantContext } from '../FunnelDetailsVariantContext';
 import { FunnelNodeDetails } from '../FunnelNodeDetails';
 import { SemanticNodeDetails } from '../SemanticNodeDetails';
+import { isLongCode } from './codeCollapse';
 import styles from './PipelineNotebook.module.css';
 import { hasQueryDetails, type QueryPanel } from './semanticQueryOf';
 import { useNodeExplore } from './useNodeExplore';
 
+type CellCode = { code: string; language: 'sql' | 'python' };
+
 const codeOf = (
     query: Exclude<SourceQuery, SemanticLayerSourceQuery | FunnelSourceQuery>,
-): { code: string; language: 'sql' | 'python' } => {
+): CellCode => {
     switch (query.sourceType) {
         case QuerySourceType.SQL:
             return { code: formatSql(query.sql), language: 'sql' };
@@ -51,6 +62,56 @@ const codeOf = (
         default:
             return assertUnreachable(query, 'Unknown source type');
     }
+};
+
+// Long code opens as a short preview; copy still copies all of it.
+const NotebookCode: FC<CellCode> = ({ code, language }) => {
+    const getUiString = useUiStrings();
+    const codeId = useId();
+    const [expanded, setExpanded] = useState(false);
+    if (!isLongCode(code)) {
+        return <CodeBlock code={code} language={language} />;
+    }
+    return (
+        <>
+            <Box
+                id={codeId}
+                className={styles.collapsibleCode}
+                data-collapsed={!expanded}
+            >
+                <CodeBlock
+                    code={code}
+                    language={language}
+                    expanded={expanded}
+                    classNames={{ showCodeButton: styles.nativeExpandButton }}
+                />
+            </Box>
+            <UnstyledButton
+                className={styles.codeToggle}
+                aria-expanded={expanded}
+                aria-controls={codeId}
+                onClick={() => setExpanded((open) => !open)}
+            >
+                <MantineIcon
+                    icon={IconChevronRight}
+                    size={14}
+                    className={clsx(
+                        styles.chevron,
+                        expanded && styles.chevronOpen,
+                    )}
+                />
+                <Text component="span" fz="xs" c="dimmed">
+                    {getUiString(
+                        expanded
+                            ? 'aiAgent.composer.node.showLessCode'
+                            : language === 'sql'
+                              ? 'aiAgent.composer.node.showFullSql'
+                              : 'aiAgent.composer.node.showFullCode',
+                    )}
+                </Text>
+            </UnstyledButton>
+        </>
+    );
 };
 
 // Semantic nodes carry no SQL; mount only once shown, compiling is a fetch.
@@ -70,7 +131,7 @@ const CompiledSql: FC<{
         pivotConfiguration: query.pivotConfiguration,
     });
     if (data) {
-        return <CodeBlock code={formatSql(data.query)} language="sql" />;
+        return <NotebookCode code={formatSql(data.query)} language="sql" />;
     }
     if (error) {
         return (
@@ -239,7 +300,7 @@ export const CellQueryPanels: FC<CellQueryProps> = ({ query, ...props }) => {
                 return (
                     props.canViewSql && (
                         <Box className={styles.codePanel}>
-                            <CodeBlock {...codeOf(query)} />
+                            <NotebookCode {...codeOf(query)} />
                         </Box>
                     )
                 );

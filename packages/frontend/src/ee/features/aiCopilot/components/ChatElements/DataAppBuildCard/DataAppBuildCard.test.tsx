@@ -76,6 +76,11 @@ describe('DataAppBuildCard', () => {
                     kind: 'building',
                     name: null,
                     statusMessage: 'Building your app',
+                    step: {
+                        index: 1,
+                        labelKey: 'aiAgent.dataAppBuild.stage.writing',
+                    },
+                    startedAt: new Date(),
                     narration: {
                         reasoning: ['Totals should reconcile against revenue'],
                         activity: ['Ran 5 queries'],
@@ -88,6 +93,7 @@ describe('DataAppBuildCard', () => {
         );
         expect(screen.getByText('Building data app')).toBeVisible();
         expect(screen.getByText('Building your app')).toBeVisible();
+        expect(screen.getByText('Step 2 of 4 · Writing the app')).toBeVisible();
         expect(screen.getByText('Reasoning')).toBeVisible();
         expect(screen.getByText('Activity')).toBeVisible();
         expect(
@@ -119,6 +125,7 @@ describe('DataAppBuildCard', () => {
             />,
         );
         expect(screen.getByText('Weekly revenue by region')).toBeVisible();
+        expect(screen.getByText('Ready')).toBeVisible();
         expect(screen.getByText('v1 · built in 6m 12s')).toBeVisible();
         expect(screen.getByText('Your app is ready.')).toBeVisible();
         await userEvent.click(screen.getByRole('button', { name: 'View' }));

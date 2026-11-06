@@ -152,6 +152,10 @@
     min-height: 0;
 }
 
+.promptStack {
+    min-height: 0;
+}
+
 .promptRows {
     min-height: 0;
     overflow-y: auto;

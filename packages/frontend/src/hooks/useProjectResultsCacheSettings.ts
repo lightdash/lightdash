@@ -3,6 +3,7 @@ import {
     type ApiExploresResultsCacheInvalidationResponse,
     type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
+    type ApiResultsCacheStatusResponse,
     type InvalidateExploresResultsCache,
     type UpdateResultsCacheClearSchedule,
     type UpdateResultsCacheProjectSettings,
@@ -16,6 +17,35 @@ const queryKey = (projectUuid: string) => [
     'results_cache_settings',
     projectUuid,
 ];
+
+const statusQueryKey = (projectUuid: string) => [
+    'results_cache_status',
+    projectUuid,
+];
+
+const getResultsCacheStatus = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
+    lightdashApi<ApiResultsCacheStatusResponse['results']>({
+        url: `/projects/${projectUuid}/results-cache-config/status`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const useResultsCacheStatus = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiResultsCacheStatusResponse['results'], ApiError>({
+        queryKey: statusQueryKey(projectUuid ?? ''),
+        queryFn: () => getResultsCacheStatus(lightdashApi, projectUuid!),
+        enabled: !!projectUuid,
+        // Only changes through the settings mutation, which invalidates it
+        staleTime: Infinity,
+    });
+};
+
+export const useIsResultsCacheEnabled = (projectUuid: string | undefined) =>
+    useResultsCacheStatus(projectUuid).data?.enabled === true;
 
 const getResultsCacheSettings = async (
     lightdashApi: LightdashApi,
@@ -61,15 +91,23 @@ export const useUpdateResultsCacheSettings = (projectUuid: string) => {
         UpdateResultsCacheProjectSettings
     >((data) => updateResultsCacheSettings(lightdashApi, projectUuid, data), {
         mutationKey: ['results_cache_settings_update', projectUuid],
-        onSuccess: async () => {
+        onSuccess: async (_, data) => {
             showToastSuccess({
-                title: 'Cache duration updated',
+                title:
+                    data.cacheEnabled === undefined
+                        ? 'Cache duration updated'
+                        : `Results caching ${
+                              data.cacheEnabled ? 'enabled' : 'disabled'
+                          }`,
             });
-            await queryClient.invalidateQueries(queryKey(projectUuid));
+            await Promise.all([
+                queryClient.invalidateQueries(queryKey(projectUuid)),
+                queryClient.invalidateQueries(statusQueryKey(projectUuid)),
+            ]);
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update cache duration',
+                title: 'Failed to update results caching',
                 apiError: error,
             });
         },

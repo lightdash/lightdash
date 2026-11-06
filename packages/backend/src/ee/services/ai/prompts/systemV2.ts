@@ -11,6 +11,7 @@ import moment from 'moment';
 import type { DeferredPromptSection, PromptSection } from '../loadout';
 import { AiAgentSkillReference } from '../skills/types';
 import {
+    AgentLiveSource,
     AiAgentDeepResearchRunContext,
     AiAgentRequestingUser,
     AiAgentThreadBindingContext,
@@ -33,6 +34,7 @@ import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
 import { getKnowledgeDocumentsSection } from './systemV2KnowledgeDocuments';
+import { getLiveSourcesSection } from './systemV2LiveSources';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     getComposerQueryPath,
@@ -83,6 +85,8 @@ export type CapabilitySectionArgs = {
     // Sections the loadout renders; everything else in the prompt is wording.
     promptSections?: ReadonlySet<PromptSection>;
     availableSkills?: AiAgentSkillReference[];
+    // False when the content tools load for Documents alone. Defaults to true.
+    canSaveCharts?: boolean;
     enableDocumentNudges?: boolean;
     enableDocumentCustomCharts?: boolean;
     slackChannelId?: string | null;
@@ -103,6 +107,7 @@ const getCapabilitySections = (
 ): Record<DeferredPromptSection, string> => {
     const sections = args.promptSections ?? NO_PROMPT_SECTIONS;
     const canRunQuery = args.canRunQuery ?? false;
+    const canSaveCharts = args.canSaveCharts ?? true;
     const composer = sections.has('queryingComposer');
     return {
         runSql: sections.has('runSql')
@@ -116,10 +121,12 @@ const getCapabilitySections = (
             : '',
         contentTools: sections.has('contentTools')
             ? [
-                  getContentToolsSection({
-                      canRunQuery,
-                      viaComposerQueries: composer,
-                  }),
+                  canSaveCharts
+                      ? getContentToolsSection({
+                            canRunQuery,
+                            viaComposerQueries: composer,
+                        })
+                      : '',
                   sections.has('documents')
                       ? getDocumentToolsSection({
                             customCharts:
@@ -185,8 +192,7 @@ export const getSystemPromptV2 = (
         canRunSql?: boolean;
         // Python nodes in query; only meaningful for the composer base.
         enableComposerPythonNodes?: boolean;
-        // Api nodes in query; only meaningful for the composer base.
-        enableComposerApiNodes?: boolean;
+        liveSources?: AgentLiveSource[];
         // Funnel nodes in query; only meaningful for the composer base.
         enableComposerFunnelNodes?: boolean;
         unauthenticatedMcpServerNames?: string[];
@@ -212,7 +218,7 @@ export const getSystemPromptV2 = (
         canRunSql = false,
         canRunQuery = false,
         enableComposerPythonNodes = false,
-        enableComposerApiNodes = false,
+        liveSources = [],
         enableComposerFunnelNodes = false,
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
@@ -220,7 +226,10 @@ export const getSystemPromptV2 = (
     } = args;
 
     const capabilitySections = getCapabilitySections(args);
-    const contentToolsEnabled = promptSections.has('contentTools');
+    const contentToolsEnabled =
+        promptSections.has('contentTools') && (args.canSaveCharts ?? true);
+    const documentToolsEnabled =
+        promptSections.has('contentTools') && promptSections.has('documents');
     const composer = promptSections.has('queryingComposer');
     const getCapabilitySection = (section: DeferredPromptSection) =>
         deferredSections.has(section) ? '' : capabilitySections[section];
@@ -240,7 +249,6 @@ export const getSystemPromptV2 = (
               ...getComposerQueryPath(canRunSql),
               queryLanguageSections: getQueryingComposerSection({
                   enablePythonNodes: enableComposerPythonNodes,
-                  enableApiNodes: enableComposerApiNodes,
                   enableFunnelNodes: enableComposerFunnelNodes,
                   canRunSql,
                   slackChannelId,
@@ -266,7 +274,7 @@ export const getSystemPromptV2 = (
                   '## Deep Research in this conversation',
                   'This state is current for this user turn. Keep active progress separate from report findings: present findings only from an available report, and let a running investigation continue without implicitly starting a duplicate run or offering to cancel, restart or change it.',
                   'For questions about report findings, call `listKnowledgeDocuments`, identify the matching Deep Research report, then call `getKnowledgeDocumentContent`. If more than one report could match, ask which research question the user means.',
-                  contentToolsEnabled
+                  documentToolsEnabled
                       ? 'A published report is a Document you can update. Only when the user clearly asks to change the report itself (for example to add, extend or fix a section or chart), `readContent` it by its Document slug, then `editContent` it: change only what was asked and keep every other section and chart exactly as it is. Each edit saves a new version of the same Document. Otherwise answer in the conversation; if it is unclear whether the user wants the report updated, ask.'
                       : 'You cannot update a published report here. If the user asks to change one, say that updating reports requires the "Create and edit content" setting on this agent, which an admin can turn on, and that they can also edit the Document directly. Do not offer to rewrite or regenerate the report.',
                   xmlBuilder(
@@ -367,9 +375,13 @@ export const getSystemPromptV2 = (
         )
         .replace('{{discovery_outcomes}}', () => queryPath.discoveryOutcomes)
         .replace('{{query_step}}', () => queryPath.queryStep)
-        .replace(
-            '{{query_language_sections}}',
-            () => queryPath.queryLanguageSections,
+        .replace('{{query_language_sections}}', () =>
+            [
+                queryPath.queryLanguageSections,
+                getLiveSourcesSection(liveSources),
+            ]
+                .filter(Boolean)
+                .join('\n\n'),
         )
         .replace('{{self_improvement_section}}', '')
         .replace('{{answer_tool_guidance}}', answerToolGuidance)
@@ -433,6 +445,7 @@ export const getSystemPromptV2 = (
             '{{memories_section}}',
             promptSections.has('memories') ? MEMORIES_SECTION : '',
         )
+        .replace('{{row_limit_sql_suffix}}', canRunSql ? ', then SQL' : '')
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
         // Composer chart types come from the visualize tool's schema.
         .replace(

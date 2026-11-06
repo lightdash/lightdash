@@ -16,7 +16,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
-import uniqBy from 'lodash/uniqBy';
+import { uniqBy } from 'es-toolkit/compat';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -185,9 +185,7 @@ const AddFieldMenu: FC<{
         <Tooltip
             fz="xs"
             label={getUiString(
-                hasAddable
-                    ? 'filters.rail.addField'
-                    : 'filters.rail.noOtherField',
+                hasAddable ? 'controls.addField' : 'controls.noOtherField',
             )}
             disabled={isOpen}
         >
@@ -209,7 +207,7 @@ const AddFieldMenu: FC<{
                             variant="default"
                             className={addFilterClasses.dashed}
                             {...addFieldMarker}
-                            aria-label={getUiString('filters.rail.addField')}
+                            aria-label={getUiString('controls.addField')}
                             disabled={!hasAddable}
                             onClick={() => setIsOpen((open) => !open)}
                         >
@@ -239,7 +237,7 @@ const AddFieldMenu: FC<{
                                 selectedField={undefined}
                                 withLabel={false}
                                 placeholder={getUiString(
-                                    'filters.rail.searchFields',
+                                    'controls.searchFields',
                                 )}
                                 defaultOpened
                                 onChange={pick}
@@ -396,11 +394,11 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
 
     return (
         <>
-            <Tooltip fz="xs" label={getUiString('filters.rail.backToFilter')}>
+            <Tooltip fz="xs" label={getUiString('controls.backToFilter')}>
                 <ActionIcon
                     variant="subtle"
                     size="sm"
-                    aria-label={getUiString('filters.rail.backToFilter')}
+                    aria-label={getUiString('controls.backToFilter')}
                     onClick={endMapping}
                 >
                     <MantineIcon icon={IconArrowLeft} />
@@ -427,7 +425,7 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
             </Box>
             {/* One sentence: "[pill] filters 4 of 6 tiles using [chips]" */}
             <Text fz="sm" className={classes.words}>
-                {getUiString('filters.rail.mappingFilters')}
+                {getUiString('controls.mappingFilters')}
             </Text>
             <Text
                 fz="sm"
@@ -439,7 +437,7 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
                 <span>{summary}</span>
             </Text>
             <Text fz="sm" className={classes.words}>
-                {getUiString('filters.rail.mappingUsing')}
+                {getUiString('controls.mappingUsing')}
             </Text>
             {chips.map(({ fieldId, label, name, tableLabel, field }) => {
                 const isSelected = highlightedFieldId === fieldId;

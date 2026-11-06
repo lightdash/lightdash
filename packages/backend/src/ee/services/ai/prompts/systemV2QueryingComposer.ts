@@ -21,13 +21,11 @@ ${
 
 export const getQueryingComposerSection = ({
     enablePythonNodes,
-    enableApiNodes,
     enableFunnelNodes,
     canRunSql,
     slackChannelId,
 }: {
     enablePythonNodes: boolean;
-    enableApiNodes: boolean;
     enableFunnelNodes: boolean;
     canRunSql: boolean;
     slackChannelId: string | null;
@@ -36,7 +34,7 @@ export const getQueryingComposerSection = ({
         '## Answering data questions',
         '',
         '- Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.',
-        "- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row; aggregating in a duckdb or python node waits on an extra query and sees only the rows within its source node's limit.",
+        '- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.',
         ...(canRunSql
             ? [
                   "- Explores are governed and reusable, so use a `sql` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.",
@@ -46,11 +44,6 @@ export const getQueryingComposerSection = ({
         ...(enablePythonNodes
             ? [
                   '- Run statistics, forecasts and other algorithms that SQL expresses poorly in a python node. Every datetime it reads and returns is tz-naive UTC wall clock, so compare with naive literals and never localize. Its returned DataFrame comes back typed: a datetime column named like a timestamp input stays a timestamp, any other holding only midnights becomes dates; NaN, infinity and NaT become null. stdout is discarded; an exception returns its traceback.',
-              ]
-            : []),
-        ...(enableApiNodes
-            ? [
-                  '- Answer questions about product usage tracked in PostHog (events, users, sessions) with an api node running HogQL, and prefer an explore when one already models that data. Join api rows with semanticLayer rows in a duckdb node, matching their grain and date truncation first.',
               ]
             : []),
         ...(enableFunnelNodes

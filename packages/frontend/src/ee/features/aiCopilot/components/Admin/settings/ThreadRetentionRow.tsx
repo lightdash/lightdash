@@ -1,9 +1,10 @@
 import { type RetentionWindowHours } from '@lightdash/common';
-import { Box, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { Group, Loader, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import MantineModal from '../../../../../../components/common/MantineModal';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import {
     useAiThreadRetentionPreview,
     useUpdateAiOrganizationSettings,
@@ -27,37 +28,26 @@ export const ThreadRetentionRow = ({
 
     return (
         <>
-            <Group
-                justify="space-between"
-                wrap="nowrap"
-                align="flex-start"
-                gap="md"
-            >
-                <Box maw={620}>
-                    <Title order={5} mb={4}>
-                        Thread retention
-                    </Title>
-                    <Text c="dimmed" fz="xs">
-                        Automatically delete agent threads after a period of
-                        inactivity. Agents can shorten this window but not
-                        extend it.
-                    </Text>
-                </Box>
-                <ThreadRetentionSelect
-                    value={current}
-                    disabled={isUpdatingSettings}
-                    onChange={(hours) => {
-                        const tightens =
-                            hours !== null &&
-                            (current === null || hours < current);
-                        if (tightens) {
-                            setPendingRetentionHours(hours);
-                        } else {
-                            updateSettings({ threadRetentionHours: hours });
-                        }
-                    }}
-                />
-            </Group>
+            <SettingRow
+                title="Thread retention"
+                description="Automatically delete agent threads after a period of inactivity. Agents can shorten this window but not extend it."
+                control={
+                    <ThreadRetentionSelect
+                        value={current}
+                        disabled={isUpdatingSettings}
+                        onChange={(hours) => {
+                            const tightens =
+                                hours !== null &&
+                                (current === null || hours < current);
+                            if (tightens) {
+                                setPendingRetentionHours(hours);
+                            } else {
+                                updateSettings({ threadRetentionHours: hours });
+                            }
+                        }}
+                    />
+                }
+            />
             <MantineModal
                 opened={pendingRetentionHours !== undefined}
                 onClose={() => setPendingRetentionHours(undefined)}

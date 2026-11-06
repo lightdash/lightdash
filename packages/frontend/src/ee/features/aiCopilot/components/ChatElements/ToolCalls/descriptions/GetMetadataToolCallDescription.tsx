@@ -1,6 +1,7 @@
 import type { ToolGetMetadataArgs } from '@lightdash/common';
 import { Group, rem, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { ExploreChip } from '../ExploreChip';
 import { ToolCallChip } from '../ToolCallChip';
 
 type GetMetadataToolCallDescriptionProps = {
@@ -10,10 +11,13 @@ type GetMetadataToolCallDescriptionProps = {
 export const GetMetadataToolCallDescription: FC<
     GetMetadataToolCallDescriptionProps
 > = ({ requests }) => {
-    const names = (requests ?? []).flatMap((request) =>
+    const items = (requests ?? []).flatMap((request) =>
         request.type === 'explore'
-            ? request.exploreIds
-            : request.fields.map((field) => field.fieldId),
+            ? request.exploreIds.map((name) => ({ isExplore: true, name }))
+            : request.fields.map((field) => ({
+                  isExplore: false,
+                  name: field.fieldId,
+              })),
     );
     return (
         <Text c="dimmed" size="xs" component="div">
@@ -24,11 +28,19 @@ export const GetMetadataToolCallDescription: FC<
                 display="inline-flex"
             >
                 Read metadata for
-                {names.map((name, i) => (
-                    <ToolCallChip key={`${name}-${i}`} ff="monospace">
-                        {name}
-                    </ToolCallChip>
-                ))}
+                {items.map(({ isExplore, name }, i) =>
+                    isExplore ? (
+                        <ExploreChip
+                            key={`${name}-${i}`}
+                            ff="monospace"
+                            exploreName={name}
+                        />
+                    ) : (
+                        <ToolCallChip key={`${name}-${i}`} ff="monospace">
+                            {name}
+                        </ToolCallChip>
+                    ),
+                )}
             </Group>
         </Text>
     );

@@ -104,7 +104,7 @@ const AnalyticsProcessingSummary = ({
                 </Tooltip>
             </Group>
             {(processing.status === 'running' || historyPending) && !stale && (
-                <Text fz="sm" c="dimmed">
+                <Text fz="xs" c="dimmed">
                     Recent activity is prepared first. You can explore available
                     data while older history is added in background batches.
                 </Text>

@@ -80,7 +80,7 @@ Not covered:
    `ATHENA_REGION` and `ATHENA_S3_STAGING_DIR`. Athena runs only when the
    bundle and `ATHENA_WORKGROUP` are both present. Its queries read three-row
    fixture tables, so each scans well under 1 KB.
-6. Set `LIGHTDASH_ENABLE_FEATURE_FLAGS=multi-connection-projects,mixed-warehouse-connections,cross-source-dbt-refs`
+6. Set `LIGHTDASH_ENABLE_FEATURE_FLAGS=multi-connection-projects,mixed-warehouse-connections`
    with an Enterprise licence key, and restart the instance.
 7. Build the CLI: `pnpm -F @lightdash/cli build`.
 

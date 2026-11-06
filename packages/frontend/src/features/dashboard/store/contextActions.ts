@@ -377,7 +377,10 @@ export const createDashboardContextActions = (
             dispatch(dashboardParametersActions.setParameter({ key, value })),
         clearAllParameters: () =>
             dispatch(dashboardParametersActions.clearAllParameters()),
-        addParameterReferences: (tileUuid: string, references: string[]) =>
+        addParameterReferences: (
+            tileUuid: string,
+            references: string[] | null,
+        ) =>
             dispatch(
                 dashboardParametersActions.addParameterReferences({
                     tileUuid,
@@ -390,6 +393,16 @@ export const createDashboardContextActions = (
         ) =>
             dispatch(
                 dashboardParametersActions.setTileChartSavedParameters({
+                    tileUuid,
+                    values,
+                }),
+            ),
+        setTileVirtualViewSavedParameters: (
+            tileUuid: string,
+            values: ParametersValuesMap,
+        ) =>
+            dispatch(
+                dashboardParametersActions.setTileVirtualViewSavedParameters({
                     tileUuid,
                     values,
                 }),

@@ -1,0 +1,589 @@
+.page,
+.splitRoot {
+    /* NumberInput controls sit beside the input, so they need the border token too */
+    --input-bd: var(--mantine-color-default-border);
+}
+
+.page {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: var(--mantine-spacing-xl);
+    position: relative;
+    isolation: isolate;
+    background: color-mix(
+        in srgb,
+        var(--ld-color-page) 96%,
+        var(--mantine-color-orange-1) 4%
+    );
+}
+
+.content {
+    width: 100%;
+    max-width: 36rem;
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+}
+
+.card {
+    padding: var(--mantine-spacing-xl);
+}
+
+.content[data-size='wide'] {
+    max-width: 56rem;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-md);
+    margin-bottom: var(--mantine-spacing-xl);
+}
+
+.wordmark {
+    width: 96px;
+    height: auto;
+    color: var(--mantine-color-text);
+}
+
+@media (width < $mantine-breakpoint-sm) {
+    .page {
+        padding: var(--mantine-spacing-sm);
+    }
+
+    .card {
+        padding: var(--mantine-spacing-lg);
+    }
+}
+
+.progress {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--mantine-color-default-border);
+}
+
+.indicator[aria-current='step'] {
+    width: 16px;
+    background: var(--mantine-color-ldGray-7);
+}
+
+.header[data-with-progress='true'] {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+}
+
+.journeyBar {
+    display: grid;
+    grid-auto-columns: 1fr;
+    grid-auto-flow: column;
+    gap: 4px;
+    margin: 0 0 var(--mantine-spacing-lg);
+    padding: 0;
+    list-style: none;
+}
+
+.journeySegment {
+    position: relative;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--mantine-color-ldGray-2);
+}
+
+.journeySegment::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--mantine-color-text);
+    transform: scaleX(0);
+    transform-origin: left;
+}
+
+.journeySegment[data-state='done']::after {
+    transform: none;
+}
+
+.journeySegment[data-state='current']::after {
+    transform: none;
+    animation: segmentFill 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes segmentFill {
+    from {
+        transform: scaleX(0);
+    }
+}
+
+.accountSwitch {
+    display: flex;
+    justify-content: center;
+    margin-top: var(--mantine-spacing-sm);
+}
+
+.page::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--mantine-color-ldGray-5);
+    opacity: 0.35;
+    --pixels: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='96'%3E%3Cg fill='%23000'%3E%3Crect x='0' y='88' width='8' height='8'/%3E%3Crect x='8' y='88' width='8' height='8' fill-opacity='.6'/%3E%3Crect x='0' y='80' width='8' height='8' fill-opacity='.7'/%3E%3Crect x='24' y='88' width='8' height='8' fill-opacity='.45'/%3E%3Crect x='16' y='72' width='8' height='8' fill-opacity='.35'/%3E%3Crect x='8' y='64' width='8' height='8' fill-opacity='.25'/%3E%3Crect x='40' y='80' width='8' height='8' fill-opacity='.25'/%3E%3Crect x='0' y='48' width='8' height='8' fill-opacity='.15'/%3E%3Crect x='32' y='56' width='8' height='8' fill-opacity='.12'/%3E%3Crect x='64' y='88' width='8' height='8' fill-opacity='.15'/%3E%3C/g%3E%3C/svg%3E");
+    mask-image: var(--pixels);
+    mask-repeat: no-repeat;
+    mask-position: left 32px bottom 32px;
+    mask-size: 120px 96px;
+}
+
+@media (width < $mantine-breakpoint-sm) {
+    .page::after {
+        display: none;
+    }
+}
+
+.content[data-size='split'] {
+    max-width: 62rem;
+}
+
+.card[data-split='true'] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+    padding: 0;
+    overflow: hidden;
+}
+
+.card[data-split='true'] > .main {
+    padding: var(--mantine-spacing-xl);
+}
+
+.aside {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: var(--mantine-spacing-xl);
+    border-left: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
+}
+
+.asideInner {
+    position: relative;
+    width: 100%;
+    margin-block: auto;
+}
+
+@media (width < $mantine-breakpoint-md) {
+    .card[data-split='true'] {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .aside {
+        border-left: none;
+        border-top: 1px solid var(--mantine-color-default-border);
+    }
+}
+
+.card[data-split='true'] {
+    height: min(46rem, calc(100dvh - 10rem));
+}
+
+.card[data-split='true'] > .main,
+.card[data-split='true'] > .aside {
+    overflow-y: auto;
+}
+
+.stack {
+    position: relative;
+}
+
+.stack[data-depth='1'] {
+    margin-top: 14px;
+}
+
+.stack > .card {
+    position: relative;
+    z-index: 1;
+}
+
+.ghost {
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    transform-origin: top center;
+}
+
+.content[data-size='compact'] .ghost {
+    display: none;
+}
+
+.content[data-size='compact'] .stack[data-depth='1'] {
+    margin-top: 0;
+}
+
+.ghost {
+    transform: translateY(-12px) scale(0.97);
+    opacity: 0.7;
+    view-transition-name: onboarding-ghost;
+}
+
+@media (width < $mantine-breakpoint-md) {
+    .card[data-split='true'] {
+        height: auto;
+    }
+}
+
+.content[data-journey='true'] {
+    max-width: 64rem;
+}
+
+.content[data-journey='true'] .stack {
+    margin-top: 14px;
+}
+
+.content[data-journey='true'] .card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    height: min(46rem, calc(100dvh - 10rem));
+    padding: 0;
+    overflow: hidden;
+}
+
+.content[data-journey='true'] .card[data-split='true'] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
+}
+
+.content[data-journey='true'] .card > .main {
+    display: flex;
+    flex-direction: column;
+    padding: var(--mantine-spacing-xl);
+    overflow-y: auto;
+}
+
+.content[data-journey='true'][data-size='compact'] {
+    max-width: 26rem;
+}
+
+.content[data-journey='true'][data-size='compact'] .card {
+    height: auto;
+}
+
+@media (width < $mantine-breakpoint-md) {
+    .content[data-journey='true'] .card,
+    .content[data-journey='true'] .card[data-split='true'] {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+    }
+
+    .content[data-journey='true'] .stack {
+        margin-top: 0;
+    }
+}
+
+.card {
+    view-transition-name: onboarding-card;
+}
+
+.wordmark {
+    view-transition-name: onboarding-wordmark;
+}
+
+.journeyBar {
+    view-transition-name: onboarding-journey;
+}
+
+.card h1 {
+    view-transition-name: onboarding-title;
+}
+
+.card :global(.mantine-Button-section[data-position='right']),
+.splitForm :global(.mantine-Button-section[data-position='right']) {
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.card
+    :global(.mantine-Button-root):hover
+    :global(.mantine-Button-section[data-position='right']),
+.splitForm
+    :global(.mantine-Button-root):hover
+    :global(.mantine-Button-section[data-position='right']) {
+    transform: translateX(3px);
+}
+
+.card :global(.mantine-Button-root),
+.splitForm :global(.mantine-Button-root) {
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease,
+        transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.card :global(.mantine-Button-root):not(:disabled):active {
+    transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .journeySegment[data-state='current']::after {
+        animation: none;
+    }
+}
+
+:global(html)::view-transition-group(onboarding-card),
+:global(html)::view-transition-group(onboarding-ghost),
+:global(html)::view-transition-group(onboarding-title),
+:global(html)::view-transition-group(onboarding-journey) {
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The card keeps its frame while it resizes; content fades instead of stretching */
+:global(html)::view-transition-image-pair(onboarding-card) {
+    overflow: clip;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+}
+
+:global(html)::view-transition-old(onboarding-card),
+:global(html)::view-transition-new(onboarding-card) {
+    width: 100%;
+    height: 100%;
+    object-fit: none;
+    object-position: top left;
+}
+
+:global(html)::view-transition-old(onboarding-card) {
+    animation: vtContentOut 150ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+:global(html)::view-transition-new(onboarding-card) {
+    animation: vtContentIn 250ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
+}
+
+:global(html[data-onboarding-direction='back'])::view-transition-new(
+    onboarding-card
+) {
+    animation-name: vtContentInBack;
+}
+
+:global(html)::view-transition-old(onboarding-title) {
+    animation: vtTitleOut 150ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+:global(html)::view-transition-new(onboarding-title) {
+    animation: vtTitleIn 250ms cubic-bezier(0.22, 1, 0.36, 1) 40ms both;
+}
+
+:global(html)::view-transition-old(onboarding-title),
+:global(html)::view-transition-new(onboarding-title) {
+    height: 100%;
+    object-fit: none;
+    object-position: left center;
+}
+
+@keyframes vtContentOut {
+    to {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+}
+
+@keyframes vtContentIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+}
+
+@keyframes vtContentInBack {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes vtTitleOut {
+    to {
+        opacity: 0;
+        transform: translateY(-8px);
+        filter: blur(2px);
+    }
+}
+
+@keyframes vtTitleIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+        filter: blur(2px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :global(html)::view-transition-group(*),
+    :global(html)::view-transition-old(*),
+    :global(html)::view-transition-new(*) {
+        animation: none !important;
+    }
+}
+
+.splitRoot {
+    display: flex;
+    min-height: 100dvh;
+    background: var(--mantine-color-body);
+}
+
+.splitVisual {
+    --split-guide: var(--mantine-color-ldGray-2);
+
+    position: relative;
+    flex: 0 0 44%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: rem(72px);
+    overflow: hidden;
+    background: var(--mantine-color-ldGray-0);
+    view-transition-name: onboarding-visual;
+}
+
+.splitVisual::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(var(--split-guide), var(--split-guide)),
+        linear-gradient(var(--split-guide), var(--split-guide)),
+        linear-gradient(var(--split-guide), var(--split-guide)),
+        linear-gradient(var(--split-guide), var(--split-guide));
+    background-repeat: no-repeat;
+    background-size:
+        1px 100%,
+        1px 100%,
+        100% 1px,
+        100% 1px;
+    background-position:
+        rem(48px) 0,
+        calc(100% - rem(48px)) 0,
+        0 rem(48px),
+        0 calc(100% - rem(48px));
+    pointer-events: none;
+}
+
+.splitVisualInner {
+    position: relative;
+    width: 100%;
+    max-width: rem(440px);
+}
+
+/* Background work floats over the page so the visuals keep their space */
+.activityToast {
+    position: fixed;
+    right: var(--mantine-spacing-lg);
+    bottom: var(--mantine-spacing-lg);
+    z-index: 200;
+    width: min(rem(360px), calc(100vw - var(--mantine-spacing-lg) * 2));
+    animation: toastIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .activityToast {
+        animation: none;
+    }
+}
+
+.splitForm {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    padding: rem(48px) var(--mantine-spacing-xl);
+}
+
+.splitContent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xl);
+    width: 100%;
+    max-width: rem(560px);
+}
+
+.splitHeader .wordmark {
+    flex-shrink: 0;
+    width: auto;
+    height: rem(22px);
+}
+
+.account {
+    min-width: 0;
+}
+
+.accountButton {
+    flex-shrink: 0;
+}
+
+/* A fixed drop, not centering, so the title stays put when the form swaps for progress */
+.splitBody {
+    margin-top: clamp(0px, calc(20dvh - 6rem), 4rem);
+}
+
+.splitForm h1 {
+    view-transition-name: onboarding-title;
+}
+
+.splitForm :global(.mantine-Button-root):not(:disabled):active {
+    transform: scale(0.97);
+}
+
+@media (max-width: $mantine-breakpoint-md) {
+    .splitVisual {
+        display: none;
+    }
+
+    /* The page scrolls here, so leave room to lift the last button clear of the toast */
+    .splitRoot:has(.activityToast) .splitForm {
+        padding-bottom: rem(176px);
+    }
+}
+
+/* The page scrolls here, not a padded card, so the form footer pins flush to the viewport */
+.splitForm .splitContent :global([data-form-footer]) {
+    bottom: 0;
+    margin-inline: 0;
+    margin-bottom: 0;
+    padding-inline: 0;
+}
+
+/* Desktop keeps the page in view: only the form column scrolls, under its pinned footer */
+@media (min-width: $mantine-breakpoint-md) {
+    .splitRoot {
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    .splitForm {
+        overflow-y: auto;
+        padding-bottom: 0;
+    }
+}

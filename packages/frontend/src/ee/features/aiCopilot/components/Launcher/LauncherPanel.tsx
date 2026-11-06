@@ -372,6 +372,7 @@ const NewThreadPanel: FC<{
                 {concreteAgent && (
                     <Stack px="md" pb="xs">
                         <AiAgentNewThreadMcpConnections
+                            placement="standalone"
                             projectUuid={projectUuid}
                             agentUuid={concreteAgent.uuid}
                             onSuggestedPrompt={setComposerSeed}

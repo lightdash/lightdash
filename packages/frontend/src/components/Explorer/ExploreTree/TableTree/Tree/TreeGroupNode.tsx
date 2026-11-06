@@ -8,7 +8,7 @@ import {
     HoverCard,
 } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
-import intersectionBy from 'lodash/intersectionBy';
+import { intersectionBy } from 'es-toolkit/compat';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import {

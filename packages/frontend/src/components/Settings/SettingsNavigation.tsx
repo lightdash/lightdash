@@ -1,4 +1,5 @@
-import { Box, Highlight, Stack, Text, Title } from '@mantine/core';
+import { Box, Highlight, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { IconArrowUpRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { matchPath, useLocation } from 'react-router';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
@@ -9,6 +10,18 @@ import {
 import { BetaBadge } from '../common/BetaBadge';
 import MantineIcon from '../common/MantineIcon';
 import RouterNavLink from '../common/RouterNavLink';
+
+/** Marks an entry that now opens a page outside settings. */
+const MovedMark: FC<{ to: string }> = ({ to }) => (
+    <Tooltip label={`Moved to ${to}`} withinPortal position="right">
+        <MantineIcon
+            icon={IconArrowUpRight}
+            color="dimmed"
+            size={14}
+            aria-label={`Moved to ${to}`}
+        />
+    </Tooltip>
+);
 
 type SettingsNavigationProps = {
     sections: SettingsNavigationSection[];
@@ -45,7 +58,13 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
                     exact={item.exact}
                     onClick={item.onClick}
                     leftSection={leftSection}
-                    rightSection={item.isBeta ? <BetaBadge /> : undefined}
+                    rightSection={
+                        item.movedTo ? (
+                            <MovedMark to={item.movedTo} />
+                        ) : item.isBeta ? (
+                            <BetaBadge />
+                        ) : undefined
+                    }
                     // Navigation anchors for scope walkthroughs (data-tour-via):
                     //   data-tour-nav="validator" data-tour-hint="Open the Validator"
                     //   data-tour-nav="recently-deleted" data-tour-hint="Open Recently deleted"

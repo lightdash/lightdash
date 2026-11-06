@@ -8,6 +8,7 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
+import { dashboardParametersActions } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import type * as AddControlModule from './AddControl';
 import { ControlsBar } from './ControlsBar';
@@ -68,6 +69,9 @@ vi.mock('./MappingRow', () => ({
 }));
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
+}));
+vi.mock('./ParameterPills', () => ({
+    ParameterPills: () => <div data-testid="parameter-pills" />,
 }));
 // Reads the override the bar provides over the context, as the real one does: no capsules on a first load
 vi.mock('./SectionedFilters', async () => {
@@ -320,16 +324,40 @@ describe('ControlsBar', () => {
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
     });
 
-    it('renders the shipped parameters only when the tab has parameters', () => {
+    it('drops the shipped parameter group: parameters are pills after the filters', () => {
+        const store = createDashboardTestStore();
+        store.dispatch(
+            dashboardParametersActions.syncParameterControls({
+                controls: [],
+                isSaved: true,
+            }),
+        );
+        renderWithProviders(
+            <DashboardStoreTestProvider store={store}>
+                <ControlsBar
+                    {...baseProps}
+                    parameters={{
+                        region: { label: 'Region', options: ['EMEA'] },
+                    }}
+                />
+            </DashboardStoreTestProvider>,
+        );
+
+        expect(screen.queryByTestId('parameters')).not.toBeInTheDocument();
+        expect(
+            screen
+                .getByTestId('filter-pills')
+                .nextElementSibling?.getAttribute('data-testid'),
+        ).toBe('parameter-pills');
+    });
+
+    it('keeps legacy parameter pills while controls are unavailable', () => {
         renderWithProviders(
             <ControlsBar
                 {...baseProps}
-                parameters={{
-                    region: { label: 'Region', options: ['EMEA'] },
-                }}
+                parameters={{ region: { label: 'Region' } }}
             />,
         );
-
         expect(screen.getByTestId('parameters')).toHaveTextContent('region');
     });
 

@@ -308,6 +308,11 @@ const sqlApprovalToolCallSql = (alias: string): string =>
         queries: [{ sourceType: QuerySourceType.SQL }],
     })}'::jsonb))`;
 
+/** Which embedded threads a token can see: by its write spaces, or by its viewer when it has none. */
+export type EmbedThreadScope =
+    | { type: 'writeSpaces'; writeSpaceUuids: string[] }
+    | { type: 'externalUser'; externalUserId: string };
+
 export type AiPromptResponseState = {
     respondedAt: string | null;
     response: string | null;
@@ -3031,6 +3036,31 @@ export class AiAgentModel {
         return this.getUserAccess(agentUuid, { trx });
     }
 
+    /** Undefined when the agent is not in the project; empty when it is not space-restricted. */
+    async findSpaceAccess(
+        agentUuid: AiAgent['uuid'],
+        projectUuid: string,
+    ): Promise<NonNullable<AiAgent['spaceAccess']> | undefined> {
+        const row: { space_uuids: string[] } | undefined = await this.database(
+            AiAgentTableName,
+        )
+            .leftJoin(
+                AiAgentSpaceAccessTableName,
+                `${AiAgentSpaceAccessTableName}.ai_agent_uuid`,
+                `${AiAgentTableName}.ai_agent_uuid`,
+            )
+            .where(`${AiAgentTableName}.ai_agent_uuid`, agentUuid)
+            .andWhere(`${AiAgentTableName}.project_uuid`, projectUuid)
+            .groupBy(`${AiAgentTableName}.ai_agent_uuid`)
+            .select(
+                this.database.raw(
+                    `COALESCE(array_agg(${AiAgentSpaceAccessTableName}.space_uuid::text) FILTER (WHERE ${AiAgentSpaceAccessTableName}.space_uuid IS NOT NULL), '{}') AS space_uuids`,
+                ),
+            )
+            .first();
+        return row?.space_uuids;
+    }
+
     private async getSpaceAccess(
         agentUuid: AiAgent['uuid'],
         { trx = this.database }: { trx?: Knex } = {},
@@ -3790,14 +3820,14 @@ export class AiAgentModel {
         threadUuid,
         userUuid,
         createdFrom,
-        embedWriteSpaceUuids,
+        embedThreadScope,
     }: {
         organizationUuid: string;
         agentUuid: string;
         threadUuid?: string;
         userUuid?: string;
         createdFrom?: AiThreadCreatedFrom[];
-        embedWriteSpaceUuids?: string[];
+        embedThreadScope?: EmbedThreadScope;
     }): Promise<
         AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
     > {
@@ -3825,9 +3855,9 @@ export class AiAgentModel {
             void query.andWhere(`${UserTableName}.user_uuid`, userUuid);
         }
 
-        if (embedWriteSpaceUuids) {
+        if (embedThreadScope) {
             void query.andWhere(
-                this.embedThreadSpacesWithin(embedWriteSpaceUuids),
+                this.embedThreadScopeCondition(embedThreadScope),
             );
         }
 
@@ -7162,6 +7192,7 @@ export class AiAgentModel {
                 embed_space_uuids: data.embedSpaceUuids?.length
                     ? data.embedSpaceUuids
                     : null,
+                embed_external_user_id: data.embedExternalUserId ?? null,
             });
 
             return row.ai_thread_uuid;
@@ -7180,6 +7211,7 @@ export class AiAgentModel {
             .select({
                 createdFrom: `${AiThreadTableName}.created_from`,
                 embedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
+                embedExternalUserId: `${AiWebAppThreadTableName}.embed_external_user_id`,
             })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first();
@@ -7287,23 +7319,34 @@ export class AiAgentModel {
         return { threadBinding, threadContext: row.thread_context };
     }
 
-    // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
-    private embedThreadSpacesWithin(writeSpaceUuids: string[]) {
-        const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
-        return this.database.raw(
-            `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
-            [writeSpaceUuids],
-        );
+    private embedThreadScopeCondition(scope: EmbedThreadScope) {
+        switch (scope.type) {
+            case 'writeSpaces': {
+                // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
+                const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
+                return this.database.raw(
+                    `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
+                    [scope.writeSpaceUuids],
+                );
+            }
+            case 'externalUser':
+                return this.database.raw(
+                    `(${AiWebAppThreadTableName}.embed_space_uuid IS NULL AND ${AiWebAppThreadTableName}.embed_space_uuids IS NULL AND ${AiWebAppThreadTableName}.embed_external_user_id = ?)`,
+                    [scope.externalUserId],
+                );
+            default:
+                return assertUnreachable(scope, 'Unknown embed thread scope');
+        }
     }
 
-    async isWebAppThreadInEmbedSpaces(
+    async isWebAppThreadInEmbedScope(
         threadUuid: string,
-        writeSpaceUuids: string[],
+        scope: EmbedThreadScope,
     ): Promise<boolean> {
         const row = await this.database(AiWebAppThreadTableName)
             .select('ai_thread_uuid')
             .where('ai_thread_uuid', threadUuid)
-            .andWhere(this.embedThreadSpacesWithin(writeSpaceUuids))
+            .andWhere(this.embedThreadScopeCondition(scope))
             .first();
 
         return row !== undefined;

@@ -10,7 +10,7 @@ import {
     type DbtProjectConfig,
     type SslConfiguration,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { normalizeDatabricksHostLenient } from '../controllers/authentication/strategies/databricksStrategy';
 
 export const DEFAULT_DBT_CLOUD_DISCOVERY_ENDPOINT =

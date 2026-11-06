@@ -91,8 +91,8 @@ import {
     warehouseClientFromCredentials,
     type WarehouseClientOptions,
 } from '@lightdash/warehouses';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { createHash } from 'node:crypto';
 import { DatabaseError } from 'pg';
@@ -544,6 +544,24 @@ type PreviewChartUuidMapping = {
     sourceChartUuid: string;
     previewChartUuid: string;
 };
+
+// Only shapes the query for a live source in a project without a warehouse; it can never open a connection
+export const LIVE_SOURCE_ONLY_CREDENTIALS: CreateWarehouseCredentials = {
+    type: WarehouseTypes.DUCKDB,
+    connectionType: DuckdbConnectionType.MOTHERDUCK,
+    database: '',
+    schema: '',
+    token: '',
+};
+
+/** The deprecated RESULTS_CACHE_ENABLED env var, when set, overrides every project's setting. */
+export const resolveResultsCacheEnabled = (
+    instanceCacheEnabled: boolean | null,
+    projectCacheEnabled: boolean,
+): { cacheEnabled: boolean; cacheEnabledSetByInstance: boolean } => ({
+    cacheEnabled: instanceCacheEnabled ?? projectCacheEnabled,
+    cacheEnabledSetByInstance: instanceCacheEnabled !== null,
+});
 
 export class ProjectModel {
     /** Serializes create-or-get across API pods without relying on a slug. */
@@ -1495,6 +1513,10 @@ export class ProjectModel {
                               use_project_timezone_in_filters:
                                   copiedProjects[0]
                                       .use_project_timezone_in_filters,
+                              results_cache_enabled:
+                                  copiedProjects[0].results_cache_enabled,
+                              results_cache_ttl_seconds:
+                                  copiedProjects[0].results_cache_ttl_seconds,
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
@@ -1642,6 +1664,8 @@ export class ProjectModel {
     }
 
     async getResultsCacheSettings(projectUuid: string): Promise<{
+        cacheEnabled: boolean;
+        cacheEnabledSetByInstance: boolean;
         cacheTtlSeconds: number | null;
         cacheGeneration: number;
         lastInvalidatedAt: Date | null;
@@ -1652,6 +1676,7 @@ export class ProjectModel {
         const row = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
             .select(
+                'results_cache_enabled',
                 'results_cache_ttl_seconds',
                 'results_cache_generation',
                 'results_cache_invalidated_at',
@@ -1668,6 +1693,10 @@ export class ProjectModel {
         }
 
         return {
+            ...resolveResultsCacheEnabled(
+                this.lightdashConfig.results.cacheEnabled,
+                row.results_cache_enabled,
+            ),
             cacheTtlSeconds: row.results_cache_ttl_seconds,
             cacheGeneration: row.results_cache_generation,
             lastInvalidatedAt: row.results_cache_invalidated_at,
@@ -1706,11 +1735,27 @@ export class ProjectModel {
 
     async updateResultsCacheSettings(
         projectUuid: string,
-        settings: { cacheTtlSeconds: number | null },
+        settings: { cacheEnabled?: boolean; cacheTtlSeconds?: number | null },
     ): Promise<void> {
         const affectedRows = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
-            .update({ results_cache_ttl_seconds: settings.cacheTtlSeconds });
+            .update({
+                results_cache_enabled: settings.cacheEnabled,
+                results_cache_ttl_seconds: settings.cacheTtlSeconds,
+                // Turning caching off or on clears the cache so stale results are never reused
+                ...(settings.cacheEnabled !== undefined
+                    ? {
+                          results_cache_generation: this.database.raw(
+                              'CASE WHEN results_cache_enabled IS DISTINCT FROM ? THEN results_cache_generation + 1 ELSE results_cache_generation END',
+                              [settings.cacheEnabled],
+                          ) as unknown as number,
+                          results_cache_invalidated_at: this.database.raw(
+                              'CASE WHEN results_cache_enabled IS DISTINCT FROM ? THEN NOW() ELSE results_cache_invalidated_at END',
+                              [settings.cacheEnabled],
+                          ) as unknown as Date,
+                      }
+                    : {}),
+            });
         if (affectedRows === 0) {
             throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
@@ -1742,6 +1787,7 @@ export class ProjectModel {
             cron: string;
             schedulerTimezone: string;
             nextRunAt: Date;
+            cacheEnabled: boolean;
         }[]
     > {
         const rows = await this.database(ProjectTableName)
@@ -1763,6 +1809,7 @@ export class ProjectModel {
                     results_cache_clear_cron: string;
                     scheduler_timezone: string;
                     results_cache_clear_next_run_at: Date;
+                    results_cache_enabled: boolean;
                 }[]
             >(
                 `${ProjectTableName}.project_uuid`,
@@ -1770,6 +1817,7 @@ export class ProjectModel {
                 `${ProjectTableName}.results_cache_clear_cron`,
                 `${ProjectTableName}.scheduler_timezone`,
                 `${ProjectTableName}.results_cache_clear_next_run_at`,
+                `${ProjectTableName}.results_cache_enabled`,
             );
         return rows.map((row) => ({
             projectUuid: row.project_uuid,
@@ -1777,6 +1825,10 @@ export class ProjectModel {
             cron: row.results_cache_clear_cron,
             schedulerTimezone: row.scheduler_timezone,
             nextRunAt: row.results_cache_clear_next_run_at,
+            cacheEnabled: resolveResultsCacheEnabled(
+                this.lightdashConfig.results.cacheEnabled,
+                row.results_cache_enabled,
+            ).cacheEnabled,
         }));
     }
 
@@ -1810,12 +1862,23 @@ export class ProjectModel {
     async getEffectiveResultsCacheTtlSeconds(
         projectUuid: string,
     ): Promise<number> {
-        const { cacheTtlSeconds } =
+        return (await this.getResultsCacheState(projectUuid)).ttlSeconds;
+    }
+
+    async getResultsCacheState(projectUuid: string): Promise<{
+        enabled: boolean;
+        cacheGeneration: number;
+        ttlSeconds: number;
+    }> {
+        const { cacheEnabled, cacheGeneration, cacheTtlSeconds } =
             await this.getResultsCacheSettings(projectUuid);
-        return (
-            cacheTtlSeconds ??
-            this.lightdashConfig.results.cacheStateTimeSeconds
-        );
+        return {
+            enabled: cacheEnabled,
+            cacheGeneration,
+            ttlSeconds:
+                cacheTtlSeconds ??
+                this.lightdashConfig.results.cacheStateTimeSeconds,
+        };
     }
 
     async updateExpiresAt(projectUuid: string, expiresAt: Date): Promise<void> {
@@ -6178,7 +6241,28 @@ export class ProjectModel {
                 'Extra connection credentials load per user',
             );
         }
-        return this.getWarehouseCredentialsForProject(projectUuid);
+        return this.getWarehouseCredentialsForProject(projectUuid).catch(
+            (error: unknown) =>
+                this.liveSourceCredentialsOrThrow(error, projectUuid, binding),
+        );
+    }
+
+    async liveSourceCredentialsOrThrow(
+        error: unknown,
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<CreateWarehouseCredentials> {
+        if (!(error instanceof NotFoundError) || binding.kind !== 'explore') {
+            throw error;
+        }
+        const explore = await this.getExploreFromCache(
+            projectUuid,
+            binding.exploreName,
+        ).catch(() => null);
+        if (explore?.type === ExploreType.API_SOURCE) {
+            return LIVE_SOURCE_ONLY_CREDENTIALS;
+        }
+        throw error;
     }
 
     /** The column is the only source; a version copied into stored credentials is ignored. */
@@ -8762,6 +8846,114 @@ export class ProjectModel {
                 .whereIn('name', names)
                 .delete();
         });
+    }
+
+    /**
+     * Replaces every explore of one live data source. Sources are soft
+     * deleted and explores have no foreign key, so explores are always
+     * written and removed per source.
+     */
+    async replaceApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+        explores: Explore[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            const clashing = await trx(CachedExploreTableName)
+                .select('name')
+                .where('project_uuid', projectUuid)
+                .whereIn(
+                    'name',
+                    explores.map(({ name }) => name),
+                )
+                .whereRaw(
+                    "(explore->>'type' IS DISTINCT FROM ? OR explore->'apiSource'->>'connectionUuid' IS DISTINCT FROM ?)",
+                    [ExploreType.API_SOURCE, connectionUuid],
+                );
+            if (clashing.length > 0) {
+                throw new AlreadyExistsError(
+                    `Explore "${clashing[0].name}" already exists`,
+                );
+            }
+            await ProjectModel.deleteApiSourceExploreRows(
+                trx,
+                projectUuid,
+                connectionUuid,
+            );
+            if (explores.length > 0) {
+                await trx(CachedExploreTableName).insert(
+                    explores.map((explore) => ({
+                        project_uuid: projectUuid,
+                        name: explore.name,
+                        table_names: Object.keys(explore.tables),
+                        explore,
+                    })),
+                );
+            }
+        });
+    }
+
+    /** Which of these explore names belong to something other than this live source. */
+    async findExploreNamesTakenByOthers(
+        projectUuid: string,
+        connectionUuid: string,
+        names: string[],
+    ): Promise<string[]> {
+        if (names.length === 0) {
+            return [];
+        }
+        return this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('name', names)
+            .whereRaw(
+                "(explore->>'type' IS DISTINCT FROM ? OR explore->'apiSource'->>'connectionUuid' IS DISTINCT FROM ?)",
+                [ExploreType.API_SOURCE, connectionUuid],
+            )
+            .pluck('name');
+    }
+
+    async hasApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(CachedExploreTableName)
+            .select('name')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ])
+            .first();
+        return row !== undefined;
+    }
+
+    async deleteApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            await ProjectModel.deleteApiSourceExploreRows(
+                trx,
+                projectUuid,
+                connectionUuid,
+            );
+        });
+    }
+
+    private static async deleteApiSourceExploreRows(
+        trx: Transaction,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await trx(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ])
+            .delete();
     }
 
     static async lockAndEnsureCachedExplores(

@@ -1,4 +1,9 @@
-import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
+import { subject } from '@casl/ability';
+import {
+    FeatureFlags,
+    OrganizationAccessStatus,
+    ProjectType,
+} from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
@@ -8,6 +13,8 @@ import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import MantineBaseProvider from '../../providers/MantineBaseProvider';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
@@ -18,6 +25,7 @@ import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
 import { PreviewBanner } from './PreviewBanner';
+import { SampleDataBanner } from './SampleDataBanner';
 import { TrialWarningBanner } from './TrialWarningBanner';
 
 enum NavBarMode {
@@ -105,9 +113,24 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             organizationAccess?.status ===
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
+    const { user } = useApp();
+    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const showSampleDataBanner =
+        newOnboardingFlag.data?.enabled === true &&
+        !isImpersonating &&
+        isCurrentProjectPlayground &&
+        user.data?.ability.can(
+            'create',
+            subject('Project', {
+                organizationUuid: user.data.organizationUuid,
+                type: ProjectType.DEFAULT,
+            }),
+        ) === true;
+
     const hasBanner =
         isImpersonating ||
         (isCurrentProjectPreview && !isTrainingCopy) ||
+        showSampleDataBanner ||
         showTrialWarning;
 
     // Calculate placeholder height: navbar + banner.
@@ -145,6 +168,8 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                                 : null
                         }
                     />
+                ) : showSampleDataBanner ? (
+                    <SampleDataBanner />
                 ) : (
                     organizationAccess && (
                         <TrialWarningBanner access={organizationAccess} />

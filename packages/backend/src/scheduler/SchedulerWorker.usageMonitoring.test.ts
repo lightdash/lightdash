@@ -12,6 +12,16 @@ vi.mock('../analytics/eventStream/UsageEventsCompactor', () => ({
 }));
 
 class UsageTestWorker extends SchedulerWorker {
+    getCrons() {
+        return this.getCronItems();
+    }
+
+    getHistoryTask() {
+        return this.getTaskList()[
+            SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY
+        ]!;
+    }
+
     getUsageTask() {
         return this.getTaskList()[SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]!;
     }
@@ -38,6 +48,7 @@ describe('usage processing task scope', () => {
             const retryFailedUsageEventHistory = vi.fn();
             const scheduleAnalyticsContentReconciliation = vi.fn();
             const worker = new UsageTestWorker({
+                projectService: { isAnalyticsProjectEnabled: () => true },
                 schedulerClient: {
                     scheduleUsageEventHistory,
                     retryFailedUsageEventHistory,
@@ -149,6 +160,7 @@ describe('usage event history continuation', () => {
             const scheduleUsageEventHistory = vi.fn();
             const scheduleAnalyticsContentReconciliation = vi.fn();
             const worker = new UsageTestWorker({
+                projectService: { isAnalyticsProjectEnabled: () => true },
                 lightdashConfig: {
                     ...lightdashConfigMock,
                     usageEvents: { enabled: true, s3: { bucket: 'test' } },
@@ -200,6 +212,7 @@ describe('analytics content enqueue failures', () => {
                 .mockRejectedValue(new Error('queue unavailable'));
             vi.spyOn(Logger, 'error').mockImplementation(() => Logger);
             const worker = new UsageTestWorker({
+                projectService: { isAnalyticsProjectEnabled: () => true },
                 lightdashConfig: {
                     ...lightdashConfigMock,
                     usageEvents: {
@@ -240,6 +253,7 @@ it('still reconciles content when queuing the next history batch fails', async (
     const scheduleUsageEventHistory = vi.fn().mockRejectedValue(failure);
     const scheduleAnalyticsContentReconciliation = vi.fn();
     const worker = new UsageTestWorker({
+        projectService: { isAnalyticsProjectEnabled: () => true },
         lightdashConfig: {
             ...lightdashConfigMock,
             usageEvents: { enabled: true, s3: { bucket: 'test' } },
@@ -266,16 +280,30 @@ it('still reconciles content when queuing the next history batch fails', async (
 
 describe('usage monitoring worker configuration', () => {
     it.each([
-        { capture: true, storage: true, task: true, expected: true },
+        {
+            capture: true,
+            storage: true,
+            task: true,
+            available: true,
+            expected: true,
+        },
+        {
+            capture: true,
+            storage: true,
+            task: true,
+            available: false,
+            expected: false,
+        },
         { capture: false, storage: true, task: true, expected: false },
         { capture: true, storage: false, task: true, expected: false },
         { capture: true, storage: true, task: false, expected: false },
     ])(
         'publishes enabled=$expected before waiting for the queue ($capture/$storage/$task)',
-        async ({ capture, storage, task, expected }) => {
+        async ({ capture, storage, task, available = true, expected }) => {
             const setEnabled = vi.fn();
             const startupError = new Error('queue unavailable');
             const worker = new SchedulerWorker({
+                projectService: { isAnalyticsProjectEnabled: () => available },
                 lightdashConfig: {
                     ...lightdashConfigMock,
                     scheduler: {
@@ -297,6 +325,42 @@ describe('usage monitoring worker configuration', () => {
             } as unknown as SchedulerWorkerArguments);
             await expect(worker.run()).rejects.toBe(startupError);
             expect(setEnabled).toHaveBeenCalledExactlyOnceWith(expected);
+        },
+    );
+});
+
+describe('disabled analytics processing', () => {
+    it.each([true, false])(
+        'does not start compaction or history when instance access is disabled (capture=%s)',
+        async (capture) => {
+            vi.clearAllMocks();
+            const worker = new UsageTestWorker({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    usageEvents: {
+                        ...lightdashConfigMock.usageEvents,
+                        enabled: capture,
+                        s3: { bucket: 'test' },
+                    },
+                },
+                projectService: { isAnalyticsProjectEnabled: () => false },
+            } as unknown as SchedulerWorkerArguments);
+            await worker.getUsageTask()({} as never, {} as never);
+            expect(UsageEventsCompactor).not.toHaveBeenCalled();
+            expect(
+                worker
+                    .getCrons()
+                    .some(
+                        (item) =>
+                            item.task === SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+                    ),
+            ).toBe(false);
+            await expect(
+                worker.getHistoryTask()(
+                    { organizationUuid: 'org' } as never,
+                    {} as never,
+                ),
+            ).rejects.toThrow(/not (enabled|configured)/);
         },
     );
 });

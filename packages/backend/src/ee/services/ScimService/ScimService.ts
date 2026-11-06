@@ -37,7 +37,7 @@ import {
     ScimUserRole,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { groupBy } from 'lodash';
+import { groupBy } from 'es-toolkit/compat';
 import {
     InvalidScimPatch,
     ScimResource as PatchLibScimResource,

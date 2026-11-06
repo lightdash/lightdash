@@ -224,6 +224,8 @@ import {
     hasReachedLimit,
     isSaved,
     renderComposerNodeListing,
+    renderOtherUnreadNodesNote,
+    shareComposerPreview,
     toNodeColumns,
     toNodeSummary,
 } from '../ai/tools/composerQueryPipeline';
@@ -243,6 +245,8 @@ import { getResolveUrl } from '../ai/tools/resolveUrl';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
+import type { DocumentContentResult } from '../ai/types/aiAgentDependencies';
+import { toAbsoluteHref } from '../ai/utils/absoluteHref';
 import {
     renderAppliedParameters,
     summarizeAppliedParameters,
@@ -1013,6 +1017,14 @@ export class McpService extends BaseService {
         }
     }
 
+    private documentToolText(document: DocumentContentResult): string {
+        const href = toAbsoluteHref(
+            this.lightdashConfig.siteUrl,
+            document.href,
+        );
+        return `<document href="${href}" />\n---\n${JSON.stringify({ ...document, href }, null, 2)}`;
+    }
+
     private async buildScopedResponse(
         context: McpProtocolContext,
         toolResult: string,
@@ -1601,14 +1613,18 @@ export class McpService extends BaseService {
             reusableNodes,
             scopeName: 'session',
             enablePythonNodes: true,
-            apiConnections: [],
             enableFunnelNodes: false,
             canRunSql: await this.isRunSqlEnabled(user, projectUuid),
             sqlDisabledMessage:
                 'This pipeline contains "sql" nodes but run_sql is not allowed here. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
         });
         if ('error' in built) return mcpQueryTool.result.error(built.error);
-        const { queries, terminalNodeId, appliedParameters } = built.pipeline;
+        const {
+            queries,
+            terminalNodeId,
+            otherUnreadNodeIds,
+            appliedParameters,
+        } = built.pipeline;
         // Reused nodes are held to this call's scope too.
         explores.push(
             ...(await loadExplores(
@@ -1640,6 +1656,7 @@ export class McpService extends BaseService {
         const run = await toolsRuntime.runComposerQueriesUntilDeadline({
             queries,
             terminalNodeId,
+            otherUnreadNodeIds,
             sampleNodeIds: [...submittedNodeIds].filter(
                 (nodeId) => nodeId !== terminalNodeId,
             ),
@@ -1694,8 +1711,13 @@ export class McpService extends BaseService {
         const queryUuids = new Map(
             run.submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
         );
+        const { nodeStatuses, terminalRowLimit } = shareComposerPreview(
+            run.nodeStatuses,
+            otherUnreadNodeIds,
+            run.status === 'success' ? run.terminal.rowCount : 0,
+        );
         const nodes = queries.map((node) => {
-            const nodeStatus = run.nodeStatuses.find(
+            const nodeStatus = nodeStatuses.find(
                 ({ nodeId }) => nodeId === node.nodeId,
             );
             const summary = toNodeSummary(
@@ -1725,7 +1747,7 @@ export class McpService extends BaseService {
         const nodeSummary = renderComposerNodeListing({
             queries,
             nodes,
-            nodeStatuses: run.nodeStatuses,
+            nodeStatuses,
             reusableNodes,
             submittedNodeIds,
             maxQueryLimit: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
@@ -1734,6 +1756,16 @@ export class McpService extends BaseService {
         const terminalQueryUuid = queryUuids.get(terminalNodeId) ?? '';
 
         if (run.status === 'running') {
+            // The terminal's rows come only from get_query_result, even when it is done.
+            const pollQueryUuids = [
+                terminalNodeId,
+                ...otherUnreadNodeIds.filter((nodeId) =>
+                    nodes.some(
+                        (node) =>
+                            node.nodeId === nodeId && node.status === 'running',
+                    ),
+                ),
+            ].map((nodeId) => queryUuids.get(nodeId) ?? '');
             const structuredContent: McpQueryStructuredContent = {
                 sessionId,
                 status: 'running',
@@ -1742,12 +1774,12 @@ export class McpService extends BaseService {
                 nodes,
             };
             return mcpQueryTool.result.structured(
-                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${terminalQueryUuid}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes in this pipeline:\n${nodeSummary}`,
+                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with ${pollQueryUuids.length > 1 ? 'each queryUuid' : 'queryUuid'}: ${pollQueryUuids.join(', ')}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes in this pipeline:\n${nodeSummary}`,
                 structuredContent,
             );
         }
 
-        const preview = buildComposerPreview(run.terminal);
+        const preview = buildComposerPreview(run.terminal, terminalRowLimit);
         const structuredContent: McpQueryStructuredContent = {
             sessionId,
             status: 'done',
@@ -1756,7 +1788,9 @@ export class McpService extends BaseService {
             nodes,
         };
         const text = [
-            `Query complete. Terminal node "${terminalNodeId}" returned ${run.terminal.rowCount} rows.`,
+            `Query complete. Terminal node "${terminalNodeId}" returned ${run.terminal.rowCount} rows.${renderOtherUnreadNodesNote(
+                otherUnreadNodeIds,
+            )}`,
             sessionNote,
             `Nodes in this pipeline:\n${nodeSummary}`,
             ...appliedParameters.map(
@@ -3423,6 +3457,7 @@ export class McpService extends BaseService {
 
                 const createContentTool = getCreateContent({
                     createContent: toolsRuntime.createContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                     sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {
@@ -3431,7 +3466,7 @@ export class McpService extends BaseService {
                     );
                     return this.buildScopedResponse(
                         ctx,
-                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        this.documentToolText(document),
                         document,
                         projectUuid,
                         args.agentUuid,
@@ -3483,6 +3518,7 @@ export class McpService extends BaseService {
 
                 const editContentTool = getEditContent({
                     editContent: toolsRuntime.editContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                     sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {
@@ -3500,7 +3536,7 @@ export class McpService extends BaseService {
                     );
                     return this.buildScopedResponse(
                         ctx,
-                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        this.documentToolText(document),
                         document,
                         projectUuid,
                         args.agentUuid,
@@ -3559,6 +3595,7 @@ export class McpService extends BaseService {
                 const createScheduledDeliveryTool = getCreateScheduledDelivery({
                     createScheduledDelivery:
                         toolsRuntime.createScheduledDelivery,
+                    siteUrl: this.lightdashConfig.siteUrl,
                 });
                 const result = await createScheduledDeliveryTool.execute!(
                     args,
@@ -4127,6 +4164,7 @@ export class McpService extends BaseService {
 
                 const listContentTool = getListContent({
                     listContent: toolsRuntime.listContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                 });
                 const result = await listContentTool.execute!(argsWithProject, {
                     toolCallId: '',
@@ -4172,6 +4210,7 @@ export class McpService extends BaseService {
 
                 const readContentTool = getReadContent({
                     readContent: toolsRuntime.readContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                 });
                 if (args.type === 'document') {
                     const document = await toolsRuntime.readDocumentContent(
@@ -4180,7 +4219,7 @@ export class McpService extends BaseService {
                     );
                     return this.buildScopedResponse(
                         ctx,
-                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        this.documentToolText(document),
                         document,
                         projectUuid,
                         args.agentUuid,
@@ -6382,6 +6421,7 @@ export class McpService extends BaseService {
             this.aiAgentToolsService.canAuthorContent({
                 user,
                 projectUuid: headerProjectUuid,
+                spaceUuids: null,
             })
         );
     }

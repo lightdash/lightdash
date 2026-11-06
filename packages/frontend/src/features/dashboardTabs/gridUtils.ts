@@ -129,6 +129,7 @@ export const convertLayoutToBaseCoordinates = (
 };
 
 export type ResponsiveGridLayoutProps = {
+    compactType: null;
     draggableCancel: string;
     useCSSTransforms: boolean;
     measureBeforeMount: boolean;
@@ -229,6 +230,7 @@ export const getResponsiveGridLayoutProps = ({
      */
     stackVerticallyOnSmallestBreakpoint?: boolean;
 } = {}): ResponsiveGridLayoutProps => ({
+    compactType: null,
     draggableCancel: '.non-draggable',
     useCSSTransforms: enableAnimation,
     measureBeforeMount: !enableAnimation,

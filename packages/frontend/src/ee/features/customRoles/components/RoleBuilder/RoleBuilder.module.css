@@ -1,7 +1,7 @@
 .container {
     display: flex;
+    flex: 1;
     flex-direction: column;
-    height: 100%;
     min-height: 0;
 }
 
@@ -80,6 +80,17 @@
 
 .roleLevelIndicator[data-selected='true'] {
     border-color: transparent;
+}
+
+.permissionsSection {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+}
+
+/* Lets the section stack grow so the permissions card can fill it. */
+.permissionsSection > * {
+    flex: 1;
 }
 
 .permissionsCard {

@@ -81,8 +81,8 @@ _group_ (that is `requiredGroupId`).
   opening it. A pointer down in the portalled editor never drags. While a
   filter is edited, or the fields load, no pill drags. Cursor `grab`, then
   `grabbing` (`.pillDrag`).
-- Keyboard reorder: in edit mode Alt+ArrowLeft / Alt+ArrowRight on a pill,
-  and Move left / Move right in its Settings view, move it one place among
+- Keyboard reorder: in edit mode Alt+ArrowLeft / Alt+ArrowRight on a
+  focused pill moves it one place among
   `getMoveNeighbours` (its kind, its section or the unsectioned run, shown
   on the tab). `moveFilter(id, 'left' | 'right')` finds the neighbour from
   the provider's latest state and writes the dashboard at once, as a

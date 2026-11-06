@@ -20,7 +20,11 @@ const SEARCH_THRESHOLD = 8;
 // tile select lists them; a SQL tile's columns through a plain select
 type SelectOptions =
     | { kind: 'fields'; fields: DashboardFilterableField[] }
-    | { kind: 'columns'; columns: string[] };
+    | { kind: 'columns'; columns: string[] }
+    | {
+          kind: 'options';
+          options: { value: string; label: string; disabled: boolean }[];
+      };
 
 type Props = {
     'aria-label': string;
@@ -33,6 +37,7 @@ type Props = {
     // Accessible name of the clear button
     clearLabel: string;
     onChange: (value: string | null) => void;
+    onReselect?: (value: string) => void;
 };
 
 // A closed select costs a combobox, a popover and every option in the DOM,
@@ -47,6 +52,7 @@ export const LazySelect: FC<Props> = ({
     placeholder,
     clearLabel,
     onChange,
+    onReselect,
 }) => {
     const [isActivated, setIsActivated] = useState(false);
     const [isListOpen, setIsListOpen] = useState(true);
@@ -67,7 +73,10 @@ export const LazySelect: FC<Props> = ({
     };
 
     const searchable =
-        options.kind === 'fields' || options.columns.length > SEARCH_THRESHOLD;
+        options.kind === 'fields' ||
+        (options.kind === 'columns'
+            ? options.columns.length
+            : options.options.length) > SEARCH_THRESHOLD;
     const valueField =
         options.kind === 'fields' && value !== null
             ? options.fields.find((field) => getItemId(field) === value)
@@ -109,8 +118,11 @@ export const LazySelect: FC<Props> = ({
         const label =
             options.kind === 'fields'
                 ? valueField && getFieldSelectLabel(valueField, false)
-                : (options.columns.find((column) => column === value) ??
-                  undefined);
+                : options.kind === 'columns'
+                  ? (options.columns.find((column) => column === value) ??
+                    undefined)
+                  : options.options.find((option) => option.value === value)
+                        ?.label;
         return (
             <InputBase
                 ref={triggerRef}
@@ -185,9 +197,18 @@ export const LazySelect: FC<Props> = ({
             {...sharedProps}
             ref={inputRef}
             allowDeselect={false}
-            data={options.columns}
+            data={
+                options.kind === 'columns' ? options.columns : options.options
+            }
             value={value}
             onChange={onChange}
+            onOptionSubmit={
+                onReselect
+                    ? (selected) => {
+                          if (selected === value) onReselect(selected);
+                      }
+                    : undefined
+            }
         />
     );
 };

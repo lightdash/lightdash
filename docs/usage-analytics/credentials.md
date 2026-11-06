@@ -3,13 +3,13 @@
 See [architecture](architecture.md) for the full pipeline and
 [local testing](local-testing.md) for project provisioning.
 
-The stack is connector + `analytics-project` flag → bucket access → project
+The stack is validated commercial availability → bucket access → project
 provisioning with both system explores → internal documentation. Dedicated
 read-only credentials are deferred to PROD-11103. The credential provider itself
 does not expose an HTTP endpoint or public connector. Its caller must authorize
-the project's org and check the shared flag before constructing the resolver;
+the project's org and check deployment availability before constructing the resolver;
 the source org is always the persisted, authorized project org. See
-[live testing](live-testing.md) for feature-flagged production testing with the
+[live testing](live-testing.md) for production testing with the
 existing writer identity; dedicated reader credentials are deferred.
 
 ## Reuse existing writer configuration

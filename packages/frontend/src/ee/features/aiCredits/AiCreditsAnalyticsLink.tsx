@@ -2,7 +2,7 @@ import {
     ANALYTICS_AI_USAGE_DASHBOARD_SLUG,
     type AnalyticsProjectStatus,
 } from '@lightdash/common';
-import { Anchor, Group, Paper, Stack, Text } from '@mantine/core';
+import { Anchor, Group, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -20,11 +20,11 @@ const DETAIL =
     'token usage over past periods, by feature, user, project and agent';
 
 const ArrowLink: FC<{ to: string; children: string }> = ({ to, children }) => (
-    <Group gap={4} wrap="nowrap">
-        <Anchor component={Link} to={to} fz="sm">
+    <Group gap="xxs" wrap="nowrap">
+        <Anchor component={Link} to={to} fz="xs">
             {children}
         </Anchor>
-        <MantineIcon icon={IconArrowRight} color="dimmed" />
+        <MantineIcon icon={IconArrowRight} color="dimmed" size="sm" />
     </Group>
 );
 
@@ -33,7 +33,7 @@ const AnalyticsProjectPointer: FC<{ project: AnalyticsProject | null }> = ({
 }) => {
     if (project === null) {
         return (
-            <Text fz="sm" c="dimmed">
+            <Text fz="xs" c="dimmed">
                 Explore {DETAIL} in your organization&apos;s analytics project
                 once it is set up.
             </Text>
@@ -60,14 +60,5 @@ export const AiCreditsAnalyticsLink: FC = () => {
     // The status request is refused when analytics is off for the organization, so there is nothing to point at.
     if (isLoading || isError) return null;
 
-    return (
-        <Paper p="md">
-            <Stack gap={4}>
-                <Text fz="sm" fw={500}>
-                    Looking for more detail?
-                </Text>
-                <AnalyticsProjectPointer project={data?.project ?? null} />
-            </Stack>
-        </Paper>
-    );
+    return <AnalyticsProjectPointer project={data?.project ?? null} />;
 };

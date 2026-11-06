@@ -26,6 +26,7 @@ import {
     selectTileParameterReferences,
     useDashboardDateZoomConfig,
     useDashboardSelector,
+    useTileDashboardParameterInputs,
 } from '../../features/dashboard/store';
 import { useTileQueryQueue } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { waitForQueryToFinish } from '../../features/dashboard/tileQueryQueue/waitForQueryToFinish';
@@ -40,6 +41,7 @@ import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import { useSessionTimezone } from '../useSessionTimezone';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
+import { useTileVirtualViewSavedParameters } from './useTileVirtualViewSavedParameters';
 
 const executeAsyncDashboardChartQuery = async (
     lightdashApi: LightdashApi,
@@ -68,6 +70,7 @@ const postEmbedDashboardTileQuery = async (
         | 'invalidateCache'
         | 'dateZoom'
         | 'parameters'
+        | 'excludedParameterKeys'
     >,
 ): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>
     lightdashApi<ApiExecuteAsyncDashboardChartQueryResults>({
@@ -97,7 +100,9 @@ export const useDashboardChartReadyQuery = (
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const parameterValues = useDashboardSelector(selectParameterValues);
+    const appliedParameterValues = useDashboardSelector(selectParameterValues);
+    const { dashboardValues: parameterValues, excludedParameterKeys } =
+        useTileDashboardParameterInputs(tileUuid, appliedParameterValues);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -178,6 +183,8 @@ export const useDashboardChartReadyQuery = (
             );
         }
     }, [explore, addParameterDefinitions]);
+
+    useTileVirtualViewSavedParameters(tileUuid, explore);
 
     const dateZoomCapabilities = useMemo(() => {
         if (!chartQuery.data || !explore) return undefined;
@@ -356,6 +363,7 @@ export const useDashboardChartReadyQuery = (
                           dateZoom,
                           invalidateCache,
                           parameters: parameterValues,
+                          excludedParameterKeys,
                           pivotResults: true,
                           timezone: sessionTimezone ?? undefined,
                       })
@@ -372,6 +380,7 @@ export const useDashboardChartReadyQuery = (
                               dateZoom,
                               invalidateCache,
                               parameters: parameterValues,
+                              excludedParameterKeys,
                               pivotResults: true,
                               ...(includeUnpublishedDraft && {
                                   includeUnpublishedDraft: true,
@@ -446,8 +455,8 @@ export const useDashboardChartReadyQuery = (
             );
             markTileLoaded(tileUuid);
         } else if (queryResult.error) {
-            // On error, there are no references, but we count the tile as loaded
-            addParameterReferences(tileUuid, []);
+            // On error, there are no references to report, but we count the tile as loaded
+            addParameterReferences(tileUuid, null);
             markTileLoaded(tileUuid);
         }
     }, [

@@ -5,7 +5,7 @@ import {
     type DateGranularity,
     type LanguageMap,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { type DashboardStoreState } from '.';
 import {
     parseDashboardParametersUrl,
@@ -111,6 +111,12 @@ export const buildInitialDashboardState = ({
                 isEditMode,
                 parameterLabelOverrides,
                 parameters: parameters ?? {},
+                parameterPicks: Object.fromEntries(
+                    Object.entries(parameters ?? {}).map(([key, { value }]) => [
+                        key,
+                        value,
+                    ]),
+                ),
                 parametersHaveChanged: !isEqual(parameters ?? {}, {}),
             },
             dateZoom: {

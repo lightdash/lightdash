@@ -2,6 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { getToolCallChipLabel } from './getToolCallChipLabel';
 
 describe('getToolCallChipLabel', () => {
+    it('labels composer queries by their node titles', () => {
+        expect(
+            getToolCallChipLabel('query', {
+                title: null,
+                queries: [
+                    { nodeId: 'a', title: 'Monthly revenue' },
+                    { nodeId: 'b', title: 'Revenue by method' },
+                ],
+            }),
+        ).toBe('Monthly revenue, Revenue by method');
+    });
+
+    it('labels field greps with plain terms instead of regex', () => {
+        expect(
+            getToolCallChipLabel('grepFields', {
+                patterns: ['^number_of_orders|order_count|count$', 'name.*'],
+            }),
+        ).toBe('number_of_orders, order_count, count, name');
+    });
+
     it('labels document reads by UUID when no slug is supplied', () => {
         expect(
             getToolCallChipLabel('readContent', {

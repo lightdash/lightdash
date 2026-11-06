@@ -11,6 +11,7 @@ import {
     DirectAccessResourceType,
     PromotionAction,
     SpaceMemberRole,
+    type DashboardParameterControl,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import {
@@ -18,7 +19,13 @@ import {
     withAgentActionScope,
 } from '../AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from './CoderService';
-import { withTileWarnings } from './dashboardReferences';
+import {
+    getConfigWithParameterControlTileSlugs,
+    getConfigWithParameterControlTileUuids,
+    withTileWarnings,
+} from './dashboardReferences';
+import { getParameterControlsWithIds } from './parameterControlSlugs';
+import { getDashboardWithSectionIds } from './sectionSlugs';
 
 describe('CoderService', () => {
     describe('getMissingIds', () => {
@@ -391,6 +398,7 @@ describe('CoderService', () => {
 
         it('renders a dashboard draft move as the target space slug', async () => {
             const result = await service.getDashboardAsCodeWithOverlay(
+                defaultSessionUser,
                 publishedDashboard.uuid,
                 { spaceUuid: 'draft-space' },
             );
@@ -973,6 +981,173 @@ describe('CoderService', () => {
             );
 
             expect(result).toEqual({ isDateZoomDisabled: false });
+        });
+    });
+
+    describe('parameter control tile targets', () => {
+        const control = (
+            id: string,
+            tileTargets?: Record<string, boolean>,
+        ): DashboardParameterControl => ({
+            id,
+            label: `Week starts on, ${id}`,
+            value: 'monday',
+            valueType: { type: 'string', multiple: false },
+            parameters: {
+                week_start: tileTargets
+                    ? { except: Object.keys(tileTargets) }
+                    : 'all',
+            },
+        });
+        const tilesWithUuids = [
+            {
+                uuid: 'uuid-1',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { chartSlug: 'slug-1' },
+            },
+            {
+                uuid: 'uuid-2',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { chartSlug: 'slug-2' },
+            },
+        ];
+
+        it('exports tile uuids as tile slugs, dropping tiles that no longer exist', () => {
+            const result = getConfigWithParameterControlTileSlugs(
+                { tiles: tilesWithUuids } as AnyType,
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        control('sales', {
+                            'uuid-1': false,
+                            'orphaned-uuid': false,
+                        }),
+                        control('ops'),
+                    ],
+                },
+            );
+
+            expect(result?.parameterControls).toEqual([
+                control('sales', { 'slug-1': false }),
+                control('ops'),
+            ]);
+        });
+
+        it('retains references to non-chart tiles in the portable config', () => {
+            const markdown = {
+                uuid: 'markdown-1',
+                type: DashboardTileTypes.MARKDOWN,
+                properties: { title: 'Text' },
+            };
+            const result = getConfigWithParameterControlTileSlugs(
+                { tiles: [markdown] } as AnyType,
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        control('sales', { 'markdown-1': false }),
+                    ],
+                },
+            );
+            expect(result?.parameterControls).toEqual([
+                control('sales', { 'tile-markdown-1': false }),
+            ]);
+        });
+
+        it('leaves a config without parameter controls unchanged', () => {
+            const config = { isDateZoomDisabled: false };
+            expect(
+                getConfigWithParameterControlTileSlugs(
+                    { tiles: [] } as AnyType,
+                    config,
+                ),
+            ).toBe(config);
+        });
+
+        it('resolves tile slugs back to tile uuids, aliases of one tile included', () => {
+            const result = getConfigWithParameterControlTileUuids(
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        control('sales', {
+                            'slug-1': false,
+                            'tile-two': false,
+                        }),
+                    ],
+                },
+                [
+                    tilesWithUuids[0],
+                    { ...tilesWithUuids[1], tileSlug: 'tile-two' },
+                ] as AnyType,
+            );
+
+            expect(result.parameterControls).toEqual([
+                control('sales', { 'uuid-1': false, 'uuid-2': false }),
+            ]);
+        });
+
+        it('rejects a tile target whose slug does not match a tile, naming the control', () => {
+            expect(() =>
+                getConfigWithParameterControlTileUuids(
+                    {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            control('sales', { 'missing-slug': false }),
+                        ],
+                    },
+                    tilesWithUuids as AnyType,
+                ),
+            ).toThrow(
+                'Tile with slug missing-slug not found for parameter control "Week starts on, sales"',
+            );
+        });
+
+        it('rejects an ambiguous tile slug', () => {
+            expect(() =>
+                getConfigWithParameterControlTileUuids(
+                    {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            control('sales', { 'slug-1': false }),
+                        ],
+                    },
+                    [
+                        tilesWithUuids[0],
+                        { ...tilesWithUuids[0], uuid: 'another' },
+                    ] as AnyType,
+                ),
+            ).toThrow('Tile slug slug-1 is ambiguous');
+        });
+
+        it('mints a missing control id and keeps a given one', () => {
+            const result = getConfigWithParameterControlTileUuids(
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        { ...control('sales'), id: '' },
+                        control('ops'),
+                    ],
+                },
+                tilesWithUuids as AnyType,
+            );
+            expect(result.parameterControls?.[0].id).toMatch(/^[0-9a-f-]{36}$/);
+            expect(result.parameterControls?.[1].id).toBe('ops');
+        });
+
+        it('rejects two controls with the same id', () => {
+            expect(() =>
+                getConfigWithParameterControlTileUuids(
+                    {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            control('sales'),
+                            { ...control('ops'), id: 'sales' },
+                        ],
+                    },
+                    tilesWithUuids as AnyType,
+                ),
+            ).toThrow(
+                'Parameter control id sales is used by more than one control',
+            );
         });
     });
 
@@ -1706,6 +1881,147 @@ describe('CoderService', () => {
                     new Map(),
                 ),
             ).toThrow('Space space-uuid not found');
+        });
+
+        it('round-trips controls when generated tile slugs collide with chart slugs', () => {
+            const tiles = ['sales', 'sales', 'sales-1'].map(
+                (chartSlug, index) => ({
+                    uuid: `tile-${index}`,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    x: 0,
+                    y: index,
+                    h: 2,
+                    w: 4,
+                    tabUuid: null,
+                    properties: {
+                        chartSlug,
+                        chartName: chartSlug,
+                        title: chartSlug,
+                    },
+                }),
+            );
+            const dashboard = {
+                description: null,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter',
+                            sectionId: 'section-id',
+                            tileTargets: {
+                                'tile-0': { fieldId: 'f', tableName: 't' },
+                            },
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                name: 'Dashboard',
+                slug: 'dashboard',
+                spaceUuid: 'space-uuid',
+                tabs: [],
+                tiles,
+                uuid: 'dashboard-uuid',
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [
+                        { id: 'section-id', name: 'Currency comparison' },
+                    ],
+                    dateZoomConfig: {
+                        controls: [],
+                        tileTargets: {
+                            'tile-2': {
+                                controlUuid: 'c',
+                                fieldId: 'f',
+                                tableName: 't',
+                            },
+                        },
+                    },
+                    parameterControls: [
+                        {
+                            id: 'region',
+                            sectionId: 'section-id',
+                            label: 'Region',
+                            value: 'EU',
+                            valueType: { type: 'string', multiple: false },
+                            parameters: {
+                                region: { only: ['tile-0', 'tile-2'] },
+                            },
+                        },
+                    ],
+                },
+            };
+            const exported = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                dashboard,
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+                true,
+            );
+            expect(exported.config.controlSections).toEqual([
+                { slug: 'currency-comparison', name: 'Currency comparison' },
+            ]);
+            expect(exported.filters.dimensions[0].sectionSlug).toBe(
+                'currency-comparison',
+            );
+            expect(exported.config.parameterControls[0].sectionSlug).toBe(
+                'currency-comparison',
+            );
+            const restoredSections = getDashboardWithSectionIds(
+                exported,
+                dashboard.config as unknown as DashboardDAO['config'],
+            );
+            const importedTiles = exported.tiles.map(
+                (tile: AnyType, index: number) => ({
+                    ...tile,
+                    uuid: `imported-${index}`,
+                }),
+            );
+            expect(
+                new Set(importedTiles.map((tile: AnyType) => tile.tileSlug))
+                    .size,
+            ).toBe(3);
+            expect(exported.config.parameterControls[0]).toMatchObject({
+                slug: 'region',
+            });
+            expect(exported.config.parameterControls[0].id).toBeUndefined();
+            const imported = getConfigWithParameterControlTileUuids(
+                {
+                    ...restoredSections.config!,
+                    parameterControls: getParameterControlsWithIds(
+                        restoredSections.config!.parameterControls!,
+                        dashboard.config
+                            .parameterControls as DashboardParameterControl[],
+                    ),
+                },
+                importedTiles,
+            );
+            expect(imported.parameterControls?.[0].id).toBe('region');
+            expect(imported.parameterControls?.[0].parameters.region).toEqual({
+                only: ['imported-0', 'imported-2'],
+            });
+            expect(
+                Object.keys(exported.filters.dimensions[0].tileTargets),
+            ).toEqual([importedTiles[0].tileSlug]);
+            expect(
+                Object.keys(exported.config.dateZoomConfig.tileTargets),
+            ).toEqual([importedTiles[2].tileSlug]);
+            const legacy = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                { ...dashboard, config: { isDateZoomDisabled: false } },
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+            );
+            expect(legacy.tiles.map((tile: AnyType) => tile.tileSlug)).toEqual([
+                'sales-1',
+                'sales-2',
+                'sales-1',
+            ]);
         });
 
         it('exports tabs and tile references as portable slugs', () => {

@@ -7,8 +7,14 @@ import {
     type LoadoutInput,
 } from './types';
 
+const hasContentReads = (input: LoadoutInput): boolean =>
+    input.enableDataAccess && input.enableContentReads;
+
 const hasContentTools = (input: LoadoutInput): boolean =>
     input.enableDataAccess && input.enableContentTools;
+
+const hasDocumentTools = (input: LoadoutInput): boolean =>
+    input.enableDataAccess && input.enableDocuments;
 
 const hasProjectContextTool = (input: LoadoutInput): boolean =>
     input.projectContextEnabled || input.aiAgentMemoryEnabled;
@@ -20,14 +26,15 @@ export const hasDecisionsInStandardMode = (
 export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
     contentReads: {
         description: 'Read and query saved charts and dashboards',
-        when: hasContentTools,
+        when: hasContentReads,
         tools: ['readContent', 'listContent', 'runContentQuery'],
         section: null,
         skills: [],
     },
     contentTools: {
-        description: 'Edit and create saved charts and dashboards',
-        when: hasContentTools,
+        description:
+            'Edit and create saved charts and dashboards, or Documents alone',
+        when: (input) => hasContentTools(input) || hasDocumentTools(input),
         tools: ['editContent', 'createContent'],
         section: {
             id: 'contentTools',
@@ -47,8 +54,8 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         skills: [],
     },
     legacyDashboards: {
-        description: 'Read dashboard charts when content tools are off',
-        when: (input) => !hasContentTools(input),
+        description: 'Read dashboard charts when content reads are off',
+        when: (input) => !hasContentReads(input),
         tools: ['getDashboardCharts'],
         section: null,
         skills: [],
@@ -63,7 +70,7 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
     },
     documents: {
         description: 'Document authoring guidance inside the content section',
-        when: (input) => hasContentTools(input) && input.enableDocuments,
+        when: hasDocumentTools,
         tools: [],
         section: { id: 'documents', documents: [] },
         skills: [],
@@ -194,7 +201,8 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
     userIdentity: {
         description:
             'Tell the agent who it is talking to and let it fix their name',
-        when: (input) => !!input.requestingUser,
+        when: (input) =>
+            !!input.requestingUser && !input.requestingUser.isServiceAccount,
         tools: ['updateUserName'],
         section: { id: 'requestingUser', documents: ['updateUserName'] },
         skills: [],

@@ -214,3 +214,28 @@ describe('AppInspectorPanel external requests tab', () => {
         expect(onClearQueries).not.toHaveBeenCalled();
     });
 });
+
+describe('AppInspectorPanel docked placement', () => {
+    it('collapses to one toggle with both counts and expands to the tabs', () => {
+        renderPanel({
+            placement: 'docked',
+            externalRequests: [baseExternalRequest],
+        });
+
+        const toggle = screen.getByRole('button', {
+            name: 'Show network activity',
+        });
+        expect(toggle).toHaveTextContent('Queries 1');
+        expect(toggle).toHaveTextContent('Requests 1');
+        expect(
+            screen.queryByRole('button', { name: 'Close inspector panel' }),
+        ).toBeNull();
+
+        fireEvent.click(toggle);
+
+        expect(screen.getByText('Queries (1)')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Close inspector panel' }),
+        ).toBeInTheDocument();
+    });
+});

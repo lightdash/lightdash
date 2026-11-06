@@ -129,16 +129,17 @@ describe('toLlmJsonSchema', () => {
     });
 
     test('keeps large shared schemas as refs and normalizes them', () => {
-        const shared = z.object({
-            value: z.string().nullable().describe('A'.repeat(200)),
-        });
+        const shared = z
+            .object({
+                value: z.string().nullable().describe('A'.repeat(200)),
+            })
+            .meta({ id: 'KeepsLargeShared' });
         const schema = toLlmJsonSchema(
             z.object({ first: shared, second: shared }),
-            { reused: 'ref' },
         );
 
         expect(schema.properties?.first).toEqual({
-            $ref: '#/definitions/__schema0',
+            $ref: '#/definitions/KeepsLargeShared',
         });
         expect(Object.values(schema.definitions ?? {})[0]).toMatchObject({
             additionalProperties: false,
@@ -147,35 +148,17 @@ describe('toLlmJsonSchema', () => {
     });
 
     test('inlines small shared schemas instead of referencing them', () => {
-        const connector = z.union([z.literal('and'), z.literal('or')]);
+        const connector = z
+            .union([z.literal('and'), z.literal('or')])
+            .meta({ id: 'Connector' });
         const schema = toLlmJsonSchema(
             z.object({ first: connector, second: connector.nullable() }),
-            { reused: 'ref' },
         );
 
         expect(schema).not.toHaveProperty('definitions');
         expect(schema.properties).toEqual({
             first: { type: 'string', enum: ['and', 'or'] },
             second: { type: ['string', 'null'], enum: ['and', 'or', null] },
-        });
-    });
-
-    test('merges the allOf wrapper Zod uses for described shared schemas', () => {
-        const shared = z.record(z.string(), z.string()).nullable();
-        const schema = toLlmJsonSchema(
-            z.object({
-                first: shared.default(null).describe('First'),
-                second: shared.describe('Second'),
-            }),
-            { reused: 'ref' },
-        );
-
-        expect(schema).not.toHaveProperty('definitions');
-        expect(schema.properties?.first).toEqual({
-            type: ['object', 'null'],
-            additionalProperties: { type: 'string' },
-            default: null,
-            description: 'First',
         });
     });
 

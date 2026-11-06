@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { BufferedEventStreamWriter } from './BufferedEventStreamWriter';
@@ -17,7 +16,7 @@ const storage = {
 const config = {
     ...lightdashConfigMock,
     enabledFeatureFlags: new Set<string>(),
-    disabledFeatureFlags: new Set([FeatureFlags.AnalyticsProject]),
+    disabledFeatureFlags: new Set(['analytics-project']),
     usageEvents: {
         ...lightdashConfigMock.usageEvents,
         enabled: true,
@@ -28,7 +27,7 @@ const config = {
 describe('createEventStreamWriter', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('creates a writer even when the analytics project flag is disabled', () => {
+    it('ignores retired rollout overrides when usage capture is enabled', () => {
         expect(createEventStreamWriter(config, metrics)).toBeInstanceOf(
             BufferedEventStreamWriter,
         );

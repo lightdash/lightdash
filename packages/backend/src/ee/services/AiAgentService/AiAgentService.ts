@@ -145,6 +145,7 @@ import {
     isAiWritebackRunInProgress,
     isComposerQueryToolName,
     isDashboardChartTileType,
+    isEmbedReadOnlyAiAgentToken,
     isGithubMcpServerUrl,
     isGitProjectType,
     isJwtUser,
@@ -216,7 +217,6 @@ import {
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
-    type ComposerApiConnection,
     type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
@@ -261,9 +261,9 @@ import {
 import { createCanvas, loadImage } from 'canvas';
 import { randomBytes, randomUUID } from 'crypto';
 import { type EChartsOption } from 'echarts';
+import { isEqual, uniq } from 'es-toolkit/compat';
 import { EventEmitter } from 'events';
 import fs from 'fs/promises';
-import _ from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
@@ -400,6 +400,7 @@ import {
     type AiMcpCredential,
     type AiMcpServerWithSensitiveData,
     type AiPromptResponseState,
+    type EmbedThreadScope,
 } from '../../models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from '../../models/AiAgentReviewNotificationModel';
@@ -553,6 +554,7 @@ import {
 import {
     AiAgentArgs,
     AiAgentDependencies,
+    type AgentLiveSource,
     type AiAgentDeepResearchRunContext,
     type AiAgentExecutionConfig,
     type AiAgentMcpServer,
@@ -926,10 +928,11 @@ type MessageQueryPipelineRef = {
 };
 
 type EmbedAiAgentRuntimeOptions = {
-    // A thread belongs to every write space of the token that created it.
+    // Empty for read-only tokens.
     writeSpaceUuids: string[];
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
+    threadScope: EmbedThreadScope;
     spaceAccess: string[];
     // Source spaces the agent may read but not write to.
     readOnlySpaceUuids: string[];
@@ -3161,10 +3164,15 @@ export class AiAgentService extends BaseService {
         const { writeActions, content } = account.authentication.data;
         const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
         const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
+        const externalUserId =
+            account.authentication.data.user?.externalId || null;
+        const isReadOnly = isEmbedReadOnlyAiAgentToken(
+            account.authentication.data,
+        );
 
         if (
             content.type !== 'aiAgent' ||
-            writeSpaceUuids.length === 0 ||
+            (writeSpaceUuids.length === 0 && !isReadOnly) ||
             !account.embedWriteUser ||
             account.embedWriteContext?.canUseAiAgent !== true ||
             account.embed.projectUuid !== projectUuid
@@ -3175,13 +3183,24 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        let threadScope: EmbedThreadScope;
+        if (!isReadOnly) {
+            threadScope = { type: 'writeSpaces', writeSpaceUuids };
+        } else if (externalUserId !== null) {
+            threadScope = { type: 'externalUser', externalUserId };
+        } else {
+            throw new ForbiddenError(
+                'Embed tokens without write spaces must include user.externalId',
+            );
+        }
+
         return {
             user: account.embedWriteUser,
             tokenAgentUuid: content.agentUuid,
             runtimeOptions: {
                 writeSpaceUuids,
-                externalUserId:
-                    account.authentication.data.user?.externalId || null,
+                externalUserId,
+                threadScope,
                 spaceAccess: chartSpaceUuids,
                 readOnlySpaceUuids: chartSpaceUuids.filter(
                     (uuid) => !writeSpaceUuids.includes(uuid),
@@ -3192,24 +3211,26 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    // Read-only tokens have no write spaces, so their readable spaces decide.
     private static isAgentAvailableInEmbedSpaces(
         agent: AiAgent,
-        writeSpaceUuids: string[],
+        runtimeOptions: EmbedAiAgentRuntimeOptions,
     ) {
-        return writeSpaceUuids.some((spaceUuid) =>
+        const embedSpaceUuids =
+            runtimeOptions.writeSpaceUuids.length > 0
+                ? runtimeOptions.writeSpaceUuids
+                : runtimeOptions.spaceAccess;
+        return embedSpaceUuids.some((spaceUuid) =>
             hasAiAgentAccessToSpace(agent, spaceUuid),
         );
     }
 
     private static assertAgentAvailableInEmbedSpaces(
         agent: AiAgent,
-        writeSpaceUuids: string[],
+        runtimeOptions: EmbedAiAgentRuntimeOptions,
     ) {
         if (
-            !AiAgentService.isAgentAvailableInEmbedSpaces(
-                agent,
-                writeSpaceUuids,
-            )
+            !AiAgentService.isAgentAvailableInEmbedSpaces(agent, runtimeOptions)
         ) {
             throw new ForbiddenError(
                 'AI agent is not available in the embedded space',
@@ -3231,10 +3252,7 @@ export class AiAgentService extends BaseService {
         }
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
-        AiAgentService.assertAgentAvailableInEmbedSpaces(
-            agent,
-            runtimeOptions.writeSpaceUuids,
-        );
+        AiAgentService.assertAgentAvailableInEmbedSpaces(agent, runtimeOptions);
         return {
             user,
             agent,
@@ -3295,12 +3313,12 @@ export class AiAgentService extends BaseService {
     ) {
         if (!runtimeOptions) return;
 
-        const isInEmbedSpaces =
-            await this.aiAgentModel.isWebAppThreadInEmbedSpaces(
+        const isInEmbedScope =
+            await this.aiAgentModel.isWebAppThreadInEmbedScope(
                 threadUuid,
-                runtimeOptions.writeSpaceUuids,
+                runtimeOptions.threadScope,
             );
-        if (!isInEmbedSpaces) {
+        if (!isInEmbedScope) {
             throw new ForbiddenError(
                 'AI agent thread is outside the embedded space',
             );
@@ -3350,7 +3368,7 @@ export class AiAgentService extends BaseService {
                     agent.uuid === tokenAgentUuid &&
                     AiAgentService.isAgentAvailableInEmbedSpaces(
                         agent,
-                        runtimeOptions.writeSpaceUuids,
+                        runtimeOptions,
                     ),
             )
             .map((agent) => this.forEmbedViewer(agent));
@@ -3558,6 +3576,7 @@ export class AiAgentService extends BaseService {
             await this.aiAgentToolsService.canAuthorContent({
                 user,
                 projectUuid,
+                spaceUuids: null,
             });
         const canManageContent =
             agent.enableContentTools && canCreateDashboards;
@@ -4587,7 +4606,7 @@ export class AiAgentService extends BaseService {
             liveStatuses.map((status) => [status.threadUuid, status]),
         );
 
-        const slackUserIds = _.uniq(
+        const slackUserIds = uniq(
             threads
                 .filter((thread) => thread.createdFrom === 'slack')
                 .filter((thread) => thread.user.slackUserId !== null)
@@ -4702,7 +4721,7 @@ export class AiAgentService extends BaseService {
             liveStatuses.map((status) => [status.threadUuid, status]),
         );
 
-        const slackUserIds = _.uniq(
+        const slackUserIds = uniq(
             threads
                 .filter((thread) => thread.createdFrom === 'slack')
                 .filter((thread) => thread.user.slackUserId !== null)
@@ -4809,7 +4828,7 @@ export class AiAgentService extends BaseService {
 
         const signals = await this.aiAgentModel.findThreadLiveStateSignals({
             organizationUuid,
-            threadUuids: _.uniq(threadUuids),
+            threadUuids: uniq(threadUuids),
             projectUuid,
             userUuid: user.userUuid,
             agentUuids: accessibleAgentUuids,
@@ -4887,7 +4906,7 @@ export class AiAgentService extends BaseService {
             };
         }
 
-        const slackUserIds = _.uniq(
+        const slackUserIds = uniq(
             messages
                 .filter((message) => message.role === 'user')
                 .filter((message) => message.user.slackUserId !== null)
@@ -5424,6 +5443,7 @@ export class AiAgentService extends BaseService {
             createdFrom,
             agentUuid,
             embedSpaceUuids: runtimeOptions?.writeSpaceUuids,
+            embedExternalUserId: runtimeOptions?.externalUserId ?? null,
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
@@ -6006,16 +6026,20 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
+            const { enabled: isNewOnboarding } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.NewOnboarding,
+                });
             await this.createAgent(
                 user,
                 {
-                    name: 'Aurora',
+                    name: isNewOnboarding ? 'Analytics agent' : 'Aurora',
                     projectUuid,
                     description: null,
                     integrations: [],
                     tags: null,
-                    instruction:
-                        "You are Aurora, this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
+                    instruction: `You are ${isNewOnboarding ? '' : 'Aurora, '}this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
                     imageUrl: null,
                     groupAccess: [],
                     userAccess: [],
@@ -6498,10 +6522,11 @@ export class AiAgentService extends BaseService {
                 (toolName) =>
                     canRunSql || !isDeepResearchRawSqlMcpTool(toolName),
             );
-            const canUseContentTools = await this.canUseContentTools(
+            const canUseContentWriteTools = await this.canUseContentWriteTools(
                 user,
                 agent,
                 projectUuid,
+                null,
             );
             const knowledgeDocuments =
                 await this.aiAgentDocumentModel.findAllForAgent({
@@ -6570,7 +6595,7 @@ export class AiAgentService extends BaseService {
                     canManageAgent,
                     canRunSql,
                     canUseDataTools: agent.enableDataAccess,
-                    canUseContentTools,
+                    canUseContentTools: canUseContentWriteTools,
                     canUseSelfImprovementTools: canManageAgent,
                     autoApproveSql: true,
                 },
@@ -7680,7 +7705,7 @@ export class AiAgentService extends BaseService {
                 : agent.modelConfig) ?? null;
         const pinOrModelChanged =
             nextProviderCredentialUuid !== agent.providerCredentialUuid ||
-            !_.isEqual(nextModelConfig, agent.modelConfig ?? null);
+            !isEqual(nextModelConfig, agent.modelConfig ?? null);
         if (nextProviderCredentialUuid && pinOrModelChanged) {
             await this.aiOrganizationSettingsService.validateAgentProviderCredential(
                 organizationUuid,
@@ -8236,6 +8261,13 @@ export class AiAgentService extends BaseService {
         if (!hasAccess) {
             throw new ForbiddenError(
                 'Insufficient permissions to access this agent thread',
+            );
+        }
+
+        // A reply generated here would never reach the Slack conversation.
+        if (thread.createdFrom === 'slack') {
+            throw new ForbiddenError(
+                'This thread was created in Slack. Continue the conversation in Slack.',
             );
         }
 
@@ -9221,7 +9253,7 @@ export class AiAgentService extends BaseService {
             agentUuid,
             userUuid: user.userUuid,
             createdFrom: ['web_app'],
-            embedWriteSpaceUuids: runtimeOptions.writeSpaceUuids,
+            embedThreadScope: runtimeOptions.threadScope,
         });
 
         return this.withVisibleThreadContext(account, agent, threads);
@@ -10402,6 +10434,8 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    // Re-renders stay unattributed: prompt ids mark tool runs only.
+                    aiAttribution: null,
                 });
             const submissions = allSubmissions.filter(
                 ({ nodeId }) => nodeId !== stageNodeId,
@@ -11047,6 +11081,8 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        // Re-renders stay unattributed: prompt ids mark tool runs only.
+                        aiAttribution: null,
                     },
                 );
                 return {
@@ -11743,10 +11779,10 @@ export class AiAgentService extends BaseService {
     }
 
     /** The project's API connections the user may query, offered as composer api nodes. */
-    private async getComposerApiConnections(
+    private async getAgentLiveSources(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<ComposerApiConnection[]> {
+    ): Promise<AgentLiveSource[]> {
         const { enabled } = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.ApiQuerySources,
@@ -13144,7 +13180,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
     /**
      * The editDbtProject tool enqueues this pipeline job mid-step, so the job
      * can start — and a fast pre-flight failure can call updateToolResult —
-     * before onStepFinish has inserted the tool-result row. updateToolResult is
+     * before onStepEnd has inserted the tool-result row. updateToolResult is
      * an UPDATE, so it would silently match no rows and leave the card stuck.
      * Poll until the row exists (bounded), mirroring
      * waitForOriginalResponseWritten for the model-response field.
@@ -13251,7 +13287,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 return;
             }
 
-            // This job is enqueued mid-step, so it can outrun the onStepFinish
+            // This job is enqueued mid-step, so it can outrun the onStepEnd
             // insert of its own tool-result row — wait for it before any
             // updateToolResult below would otherwise no-op and strand the card.
             await this.waitForToolResultWritten(promptUuid, toolCallId);
@@ -13603,7 +13639,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
                 return;
             }
-            // The build can end before onStepFinish inserts the row.
+            // The build can end before onStepEnd inserts the row.
             await this.waitForToolResultWritten(
                 aiAgentToolCall.promptUuid,
                 aiAgentToolCall.toolCallId,
@@ -15893,16 +15929,44 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
-    /** The agent offers content editing when the setting is on and the user can save content in the project. */
-    private async canUseContentTools(
+    /** The agent offers content reading when the setting is on; each read checks the user's view access. */
+    private static canReadContent(
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+    ): boolean {
+        return agent.enableContentTools && agent.enableDataAccess;
+    }
+
+    /** The agent offers chart and dashboard write tools when the setting is on and the user can save one where the run may write. */
+    private async canUseContentWriteTools(
         user: SessionUser,
         agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
         projectUuid: string,
+        writeSpaceUuids: string[] | null,
     ): Promise<boolean> {
         return (
-            agent.enableContentTools &&
-            agent.enableDataAccess &&
-            this.aiAgentToolsService.canAuthorContent({ user, projectUuid })
+            AiAgentService.canReadContent(agent) &&
+            this.aiAgentToolsService.canAuthorContent({
+                user,
+                projectUuid,
+                spaceUuids: writeSpaceUuids,
+            })
+        );
+    }
+
+    /** The agent offers Documents when the setting is on and the user can save a Document in a Space where the run may write. */
+    private async canUseDocumentTools(
+        user: SessionUser,
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+        projectUuid: string,
+        writeSpaceUuids: string[] | null,
+    ): Promise<boolean> {
+        return (
+            AiAgentService.canReadContent(agent) &&
+            this.aiAgentToolsService.canAuthorDocuments({
+                user,
+                projectUuid,
+                spaceUuids: writeSpaceUuids,
+            })
         );
     }
 
@@ -15927,7 +15991,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         if (
             documentSlug === null ||
             pinsOtherContent ||
-            !(await this.canUseContentTools(user, agent, prompt.projectUuid))
+            !(await this.canUseDocumentTools(
+                user,
+                agent,
+                prompt.projectUuid,
+                null,
+            ))
         ) {
             return null;
         }
@@ -16031,7 +16100,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             },
         };
         const output = await executeEditContent(
-            { editContent: document.editContent, documentsEnabled: true },
+            {
+                editContent: document.editContent,
+                siteUrl: this.lightdashConfig.siteUrl,
+                documentsEnabled: true,
+            },
             toolCall.input,
         );
         if (output.metadata.status !== 'success') {
@@ -16760,6 +16833,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     ? await this.aiAgentToolsService.canAuthorContent({
                           user,
                           projectUuid: promptProject.projectUuid,
+                          spaceUuids:
+                              options.runtimeOptions?.writeSpaceUuids ?? null,
                       })
                     : false;
                 const canCreateScheduledDeliveries =
@@ -16772,12 +16847,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         }),
                     );
 
+                // A project with only live sources has no warehouse to run SQL on
                 const warehouseCredentials = canRunSql
-                    ? await this.projectModel.getWarehouseCredentialsForBinding(
-                          prompt.projectUuid,
-                          { kind: 'connection', warehouseConnectionUuid: null },
-                      )
+                    ? await this.projectModel
+                          .getWarehouseCredentialsForBinding(
+                              prompt.projectUuid,
+                              {
+                                  kind: 'connection',
+                                  warehouseConnectionUuid: null,
+                              },
+                          )
+                          .catch((error: unknown) => {
+                              if (error instanceof NotFoundError) return null;
+                              throw error;
+                          })
                     : null;
+                if (!warehouseCredentials) canRunSql = false;
                 const warehouseConnections = canRunSql
                     ? await this.projectModel.getWarehouseConnectionsMetadata(
                           prompt.projectUuid,
@@ -16877,11 +16962,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
-                const composerApiConnections = enableComposerQueries
-                    ? await this.getComposerApiConnections(
-                          user,
-                          prompt.projectUuid,
-                      )
+                const liveSources = hasTrustedPromptUserIdentity
+                    ? await this.getAgentLiveSources(user, prompt.projectUuid)
                     : [];
                 const enableFunnelNodes =
                     enableComposerQueries &&
@@ -16940,9 +17022,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     }
                 }
 
+                // Stored context is readable on any connection; only writeback needs Git.
                 const projectContextEnabled =
-                    aiWritebackEnabled &&
-                    writebackConnectionSupport.supportsProjectContext &&
+                    hasTrustedPromptUserIdentity &&
                     (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
                         user,
                     ));
@@ -16993,15 +17075,30 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const repoFsSupportsCodeSearch =
                     promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
-                const canUseContentTools =
+                const canReadContent =
                     hasTrustedPromptUserIdentity &&
-                    (await this.canUseContentTools(
-                        user,
-                        agentSettings,
-                        promptProject.projectUuid,
-                    ));
+                    AiAgentService.canReadContent(agentSettings);
+                const writeSpaceUuids =
+                    options.runtimeOptions?.writeSpaceUuids ?? null;
+                const [canUseContentWriteTools, canUseDocumentTools] =
+                    hasTrustedPromptUserIdentity
+                        ? await Promise.all([
+                              this.canUseContentWriteTools(
+                                  user,
+                                  agentSettings,
+                                  promptProject.projectUuid,
+                                  writeSpaceUuids,
+                              ),
+                              this.canUseDocumentTools(
+                                  user,
+                                  agentSettings,
+                                  promptProject.projectUuid,
+                                  writeSpaceUuids,
+                              ),
+                          ])
+                        : [false, false];
                 const enableGenerateDataApp =
-                    canUseContentTools &&
+                    canUseContentWriteTools &&
                     (await this.aiAgentToolsService.canGenerateDataApp({
                         user,
                         projectUuid: promptProject.projectUuid,
@@ -17096,7 +17193,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     suppressWritebackPreview: options.suppressWritebackPreview,
                     dbtSourceUuid: options.dbtSourceUuid,
                     onWarehouseQuery: responseExecution.onWarehouseQuery,
-                    enableDocuments: canUseContentTools,
+                    enableDocuments: canUseDocumentTools,
                     enableRuntimeCache: !!decisions,
                     // Battle sides must not warm one another's result cache. Normal
                     // threads retain production cache behavior.
@@ -17249,6 +17346,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             .join(' '),
                         role,
                         groups: userGroups.map((group) => group.name),
+                        isServiceAccount: !!user.serviceAccount,
                     };
                 }
 
@@ -17354,8 +17452,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         this.lightdashConfig.ai.copilot.telemetryEnabled,
                     enableDataAccess: agentSettings.enableDataAccess,
                     enableSelfImprovement: agentSettings.enableSelfImprovement,
-                    enableContentTools: canUseContentTools,
-                    enableDocuments: canUseContentTools,
+                    enableContentReads: canReadContent,
+                    enableContentTools: canUseContentWriteTools,
+                    enableDocuments: canUseDocumentTools,
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
@@ -17367,7 +17466,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
-                    composerApiConnections,
+                    liveSources,
                     enableFunnelNodes,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
@@ -17995,7 +18094,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                                 : result.toUIMessageStream(),
                         );
                     },
-                    onFinish: () => {
+                    onEnd: () => {
                         clearKeepalive();
                         stepProgressEmitter?.removeAllListeners(
                             'artifactReady',

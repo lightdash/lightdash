@@ -25,7 +25,6 @@ import {
     OrganizationMemberRole,
     ParameterError,
     ParseError,
-    SCHEDULER_TASKS,
     SentryConfig,
     SNOWFLAKE_AI_CALLBACK_PATH,
     SupportedDbtVersions,
@@ -1236,11 +1235,6 @@ const validateTaskList = (tasks: string[], envVarName: string) => {
 };
 
 const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
-    const defaultTasks = ALL_TASK_NAMES.filter(
-        (task) =>
-            task !== SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT &&
-            task !== SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
-    );
     const includeTasks = getArrayFromCommaSeparatedList(
         'SCHEDULER_INCLUDE_TASKS',
     );
@@ -1248,9 +1242,8 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
         'SCHEDULER_EXCLUDE_TASKS',
     );
 
-    // Content updates run only in a worker that explicitly includes them.
     if (includeTasks.length === 0 && excludeTasks.length === 0) {
-        return defaultTasks;
+        return ALL_TASK_NAMES;
     }
 
     if (includeTasks.length > 0 && excludeTasks.length > 0) {
@@ -1278,10 +1271,12 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
 
     if (validIncludeTasks.length === 0 && validExcludeTasks.length > 0) {
         // Only exclude set: include all and exclude the ones from the variable
-        return defaultTasks.filter((task) => !validExcludeTasks.includes(task));
+        return ALL_TASK_NAMES.filter(
+            (task) => !validExcludeTasks.includes(task),
+        );
     }
 
-    return defaultTasks;
+    return ALL_TASK_NAMES;
 };
 
 // Default-on: streaming is disabled only when the env var is the literal 'false'
@@ -1756,10 +1751,6 @@ export type LightdashConfig = {
         sourceFetchConcurrency: number | undefined;
         sourceFetchDiskBudgetBytes: number | undefined;
         sourceFetchDiskPerSourceBytes: number;
-        crossSourcePrepareTimeoutMs: number;
-        crossSourceLsTimeoutMs: number;
-        crossSourceResolutionTimeoutMs: number;
-        crossSourceMaxPasses: number;
     };
     database: {
         connectionUri: string | undefined;
@@ -1807,7 +1798,8 @@ export type LightdashConfig = {
     s3?: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
     results: {
-        cacheEnabled: boolean;
+        /** @deprecated When set, forces results caching on or off for every project. */
+        cacheEnabled: boolean | null;
         autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
@@ -1854,6 +1846,16 @@ export type LightdashConfig = {
             cleanup: {
                 enabled: boolean;
                 retentionDays: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
+            };
+        };
+        appStateHistory: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                keepVersions: number;
                 batchSize: number;
                 delayMs: number;
                 maxBatches: number;
@@ -3045,6 +3047,15 @@ const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
     // Add per migration; truthy env value disables the flag.
 ];
 
+// Unset means each project decides; any other value forces caching on or off for every project
+const parseResultsCacheEnabled = (
+    value: string | undefined,
+): boolean | null => {
+    const normalized = value?.trim().toLowerCase();
+    if (!normalized) return null;
+    return ['1', 'true'].includes(normalized);
+};
+
 const parseCertificateFingerprints = (value: string | undefined): string[] =>
     (value ?? '')
         .split(',')
@@ -3256,6 +3267,14 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
     const usageEventsS3 = parseUsageEventsS3Config();
     const usageEventsEnabled = licenseKey !== null && usageEventsS3 !== null;
+    const resultsCacheEnabled = parseResultsCacheEnabled(
+        process.env.RESULTS_CACHE_ENABLED,
+    );
+    if (resultsCacheEnabled !== null) {
+        console.warn(
+            'RESULTS_CACHE_ENABLED is deprecated. Unset it and enable results caching per project in project settings.',
+        );
+    }
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
@@ -3717,21 +3736,6 @@ export const parseConfig = (): LightdashConfig => {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
-            crossSourceMaxPasses:
-                getIntegerFromEnvironmentVariable(
-                    'DBT_CROSS_SOURCE_MAX_PASSES',
-                ) ?? 3,
-            crossSourcePrepareTimeoutMs:
-                getIntegerFromEnvironmentVariable(
-                    'DBT_SOURCE_PREPARE_TIMEOUT_MS',
-                ) ?? 180000,
-            crossSourceLsTimeoutMs:
-                getIntegerFromEnvironmentVariable('DBT_SOURCE_LS_TIMEOUT_MS') ??
-                300000,
-            crossSourceResolutionTimeoutMs:
-                getIntegerFromEnvironmentVariable(
-                    'DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS',
-                ) ?? 1200000,
             sourceFetchDiskBudgetBytes: getIntegerFromEnvironmentVariable(
                 'DBT_SOURCE_FETCH_DISK_BUDGET_BYTES',
             ),
@@ -3847,7 +3851,7 @@ export const parseConfig = (): LightdashConfig => {
         },
         s3: parseBaseS3Config(),
         results: {
-            cacheEnabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+            cacheEnabled: resultsCacheEnabled,
             autocompleteEnabled:
                 process.env.AUTOCOMPLETE_CACHE_ENABLED === 'true',
             cacheStateTimeSeconds: parseInt(
@@ -3966,6 +3970,33 @@ export const parseConfig = (): LightdashConfig => {
                     maxBatches:
                         getIntegerFromEnvironmentVariable(
                             'SCIM_REQUEST_LOG_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
+                },
+            },
+            appStateHistory: {
+                cleanup: {
+                    enabled:
+                        process.env.APP_STATE_HISTORY_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_RETENTION_DAYS',
+                        ) ?? 90,
+                    keepVersions:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_KEEP_VERSIONS',
+                        ) ?? 50,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_MAX_BATCHES',
                         ) ?? 100,
                 },
             },

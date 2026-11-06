@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine/core';
 import {
+    IconAsterisk,
     IconCircleCheck,
     IconCircleDashed,
     IconGripVertical,
@@ -15,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import {
     forwardRef,
+    useId,
     useMemo,
     type ComponentPropsWithoutRef,
     type MouseEvent,
@@ -67,7 +69,8 @@ type Props = Omit<
     /** Shown in place of the field icon (default: the field's icon). */
     fieldIconOverride?: ReactNode;
     /** One default pill: muted when not in effect, a bold value when in
-     * effect, dashed when temporary; no requirement or no-tiles cue (default false). */
+     * effect, dashed when temporary, an asterisk on the left when required
+     * with no value (default false). */
     isPlain?: boolean;
     onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 };
@@ -135,6 +138,14 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                   ? getFieldColor(field)
                   : 'dimmed';
         const hasRequirementIcon = showRequirementIcon && !isPlain;
+        // A plain pill's mark; a locked pill shows only its lock: no viewer
+        // can set it
+        const hasRequiredMark =
+            isPlain &&
+            isRequirementUnmet &&
+            !isLocked &&
+            readOnlyLockLabel === null;
+        const requiredMarkId = useId();
 
         const removeAction = onRemove && (
             <ActionIcon
@@ -152,6 +163,8 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             <Button
                 ref={ref}
                 {...others}
+                // The mark is not read in the name: the pill describes itself by it
+                aria-describedby={hasRequiredMark ? requiredMarkId : undefined}
                 data-dashboard-filter-control
                 {...(isPlain
                     ? {
@@ -181,6 +194,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                 leftSection={
                     (isDraggable ||
                         hasRequirementIcon ||
+                        hasRequiredMark ||
                         field ||
                         fieldIconOverride) && (
                         <Group gap={4} wrap="nowrap">
@@ -237,6 +251,26 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                                     />
                                 </Tooltip>
                             )}
+                            {hasRequiredMark && (
+                                <Tooltip fz="xs" label={requirementTooltip}>
+                                    <span
+                                        className={classes.lockSlotActive}
+                                        data-requirement-icon
+                                        data-own-tooltip
+                                        aria-hidden
+                                    >
+                                        <span id={requiredMarkId} hidden>
+                                            {requirementTooltip}
+                                        </span>
+                                        <MantineIcon
+                                            size="sm"
+                                            icon={IconAsterisk}
+                                            color="dimmed"
+                                            className={classes.statusIcon}
+                                        />
+                                    </span>
+                                </Tooltip>
+                            )}
                             {fieldIconOverride ??
                                 (field && (
                                     <FieldIcon
@@ -259,6 +293,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                                         : classes.lockSlot
                                 }${areActionsHidden ? ` ${classes.hiddenAction}` : ''}`}
                                 data-reserved={isLockSpaceReserved || undefined}
+                                data-own-tooltip
                                 inert={areActionsHidden || undefined}
                             >
                                 <Tooltip fz="xs" label={lockLabel}>

@@ -274,7 +274,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                         <Menu position="bottom-end">
                             <Menu.Target>
                                 <ActionIcon variant="transparent" size="sm">
-                                    <MantineIcon icon={IconDots} size={16} />
+                                    <MantineIcon icon={IconDots} />
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
@@ -293,7 +293,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                         leftSection={
                                             <MantineIcon
                                                 icon={IconExternalLink}
-                                                size={14}
                                             />
                                         }
                                     >
@@ -304,10 +303,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                     component={Link}
                                     to={`/projects/${app.projectUuid}/apps/${app.appUuid}`}
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconCode}
-                                            size={14}
-                                        />
+                                        <MantineIcon icon={IconCode} />
                                     }
                                 >
                                     Continue building
@@ -315,10 +311,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                 <Menu.Divider />
                                 <Menu.Item
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconEdit}
-                                            size={14}
-                                        />
+                                        <MantineIcon icon={IconEdit} />
                                     }
                                     onClick={() => setAppToRename(app)}
                                 >
@@ -329,12 +322,10 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                         app.spaceUuid ? (
                                             <MantineIcon
                                                 icon={IconFolderSymlink}
-                                                size={14}
                                             />
                                         ) : (
                                             <MantineIcon
                                                 icon={IconFolderPlus}
-                                                size={14}
                                             />
                                         )
                                     }
@@ -348,10 +339,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                 <Menu.Item
                                     color="red"
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconTrash}
-                                            size={14}
-                                        />
+                                        <MantineIcon icon={IconTrash} />
                                     }
                                     onClick={() => setAppToDelete(app)}
                                 >
@@ -404,7 +392,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             search,
         },
         renderTopToolbar: () => (
-            <Group px="md" py="sm" gap="xs" wrap="nowrap">
+            <Group px="lg" py="sm" gap="xs" wrap="nowrap">
                 <ContentTableSearchInput
                     placeholder="Search apps..."
                     tooltipLabel="Search by app, project, or space"
@@ -445,7 +433,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
     return (
         <SettingsPage
             title="My apps"
-            description="Manage the data apps you can access and edit."
+            description="Manage the data apps you've created."
         >
             <ContentTable table={table} />
             {appToDelete && (

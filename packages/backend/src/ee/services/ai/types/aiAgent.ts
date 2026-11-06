@@ -18,7 +18,7 @@ import {
     type AiDeepResearchWorkerTask,
     type AiDeepResearchWorkerTaskInput,
     type AiSemanticChartArtifactConfig,
-    type ComposerApiConnection,
+    type ApiConnectorType,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -120,6 +120,13 @@ import {
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
 
+/** A live data source the agent can read the fields of. */
+export type AgentLiveSource = {
+    connectionUuid: string;
+    name: string;
+    connector: ApiConnectorType;
+};
+
 export type AiAgentMcpServer = AiMcpServer & {
     resolvedCredential: AiMcpCredentialPayload | null;
     resolvedCredentialScope: 'shared' | 'user' | null;
@@ -143,6 +150,8 @@ export type AiAgentRequestingUser = {
     name: string;
     role: AiAgentRequestingUserRole | null;
     groups: string[];
+    // A service account is shared by everyone using its token.
+    isServiceAccount: boolean;
 };
 
 /** The resource a thread is bound to, resolved for the prompt. The resource is null once it no longer exists. */
@@ -274,7 +283,11 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    // Content setting on; read tools enforce view access per item, so authoring isn't required.
+    enableContentReads: boolean;
+    // Content setting on + user may save a chart or dashboard.
     enableContentTools: boolean;
+    // Content setting on + user may save a Document in a Space; independent of charts.
     enableDocuments: boolean;
     // Data apps enabled + user may create them + content tools (trusted identity).
     enableGenerateDataApp: boolean;
@@ -300,8 +313,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
-    // Project API connections composer api nodes may query; empty disables them.
-    composerApiConnections: ComposerApiConnection[];
+    // The project's live data sources the user can view, listed in the prompt
+    // for the field tools.
+    liveSources: AgentLiveSource[];
     // Composer funnel nodes: composer queries on and the funnel builder enabled.
     enableFunnelNodes: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.

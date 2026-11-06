@@ -6,14 +6,7 @@ import {
 import { Box, Text, Tooltip } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconCheck } from '@tabler/icons-react';
-import {
-    memo,
-    useState,
-    type FC,
-    type KeyboardEvent,
-    type MouseEvent,
-    type PointerEvent,
-} from 'react';
+import { memo, type FC, type KeyboardEvent, type MouseEvent } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -29,7 +22,8 @@ import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
-import { useTileHover } from './useTileHover';
+import { usePillActionHover } from './usePillActionHover';
+import { getFilterHoverTileUuids, useTileHover } from './useTileHover';
 
 // An editor's pill, a viewer's on a saved filter, or a viewer's on a filter of
 // their own (dashed, with an X)
@@ -96,26 +90,23 @@ export const FilterPill: FC<Props> = memo(
         const isPicked =
             isSelectable && selection.selectedIds.includes(filter.id);
         const tileHover = useTileHover(
-            filter,
+            filter.id,
             kind === 'editor' && !isSidebarOpen,
-            getFieldsByTile,
+            (state) =>
+                getFilterHoverTileUuids(filter, state, getFieldsByTile()),
         );
-        // The lock and the X have tooltips of their own: the pill's waits meanwhile
-        const [isOnAction, setIsOnAction] = useState(false);
-        const trackAction = (event: PointerEvent<HTMLElement>) =>
-            setIsOnAction(
-                event.type === 'pointerover' &&
-                    event.target instanceof Element &&
-                    event.target.closest('button:not([data-controls-pill])') !==
-                        null,
-            );
+        // The X, the lock and the required mark (`data-own-tooltip`) have
+        // tooltips of their own: the pill's waits meanwhile
+        const { isOnAction, trackAction } = usePillActionHover(
+            '[data-controls-pill]',
+        );
         // Dashed pills say why first, in the tooltip the pill already has:
         // the select hint, else the tables one. The open pill has its editor
         const dashedNote =
             isSelected && isSidebarOpen
                 ? null
                 : kind === 'viewerOwn'
-                  ? getUiString('filters.rail.onlyYouSeeFilter')
+                  ? getUiString('controls.onlyYouSeeFilter')
                   : isDraft
                     ? 'Not saved yet'
                     : null;
@@ -239,9 +230,7 @@ export const FilterPill: FC<Props> = memo(
                                           removeFilterById(filter.id);
                                       }
                             }
-                            removeLabel={getUiString(
-                                'filters.rail.removeFilter',
-                            )}
+                            removeLabel={getUiString('controls.removeFilter')}
                             // One tooltip at a time: the hint takes the pill's
                             isTablesTooltipDisabled={isSelected || isSelectable}
                             tablesTooltipNote={tablesTooltipNote}

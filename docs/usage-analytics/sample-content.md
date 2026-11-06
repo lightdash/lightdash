@@ -2,8 +2,8 @@
 
 The backend-owned bundle in `packages/backend/src/analytics/systemExplores/sampleContent.ts`
 defines managed dashboards using system explores, including AI usage, Query activity
-and AI tokens and billing coverage. It is compiled with the backend. A dedicated
-analytics content worker installs new model and dashboard definitions after nightly
+and AI tokens and billing coverage. It is compiled with the backend. A background
+job on the existing scheduler installs new model and dashboard definitions after nightly
 processing; see [automatic content updates](content-sync.md).
 
 New built-in dashboards are created together in the **Default dashboards** space.
@@ -77,7 +77,7 @@ This makes newly shipped explores, dimensions and metrics available in existing
 analytics projects without recreating the project. After creation, settings stays open and shows dashboard
 shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
 `POST /api/v1/org/analytics-project/sample-content`. Both paths require the existing
-analytics feature flag and org-admin guard. The server
+deployment availability and org-admin guard. The server
 resolves the organization and its marked analytics project; no target IDs or
 content definitions are accepted from the caller.
 

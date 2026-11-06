@@ -85,6 +85,29 @@ export class OnboardingAgentController extends BaseController {
     }
 
     /**
+     * Get the most recent agent onboarding run for a project, finished or not.
+     * @summary Get latest agent onboarding run
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/latest')
+    @OperationId('getLatestAgentOnboardingRun')
+    async getLatestRun(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiAgentOnboardingActiveRunResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getOnboardingAgentService().getLatestRun(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
      * Get the durable state and progress events of an agent onboarding run.
      * @summary Get agent onboarding run
      */

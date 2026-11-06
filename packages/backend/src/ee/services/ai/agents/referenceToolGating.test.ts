@@ -1,4 +1,4 @@
-import { generateText, stepCountIs, tool, type ToolSet } from 'ai';
+import { generateText, isStepCount, tool, type ToolSet } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
@@ -80,7 +80,7 @@ describe('intent toolbox', () => {
             tools: gate.tools,
             prompt: 'Use another tool if needed.',
             prepareStep: () => ({ activeTools: gate.activeTools() }),
-            stopWhen: stepCountIs(3),
+            stopWhen: isStepCount(3),
         });
         expect(result.text).toBe('Full toolbox restored.');
         expect(calls).toBe(2);
@@ -289,7 +289,7 @@ describe('deferred prompt sections', () => {
             tools: gate.tools,
             prompt: 'Save this as a chart.',
             prepareStep: () => ({ activeTools: gate.activeTools() }),
-            stopWhen: stepCountIs(3),
+            stopWhen: isStepCount(3),
         });
         expect(secondPrompt).toContain('## Content tools');
     });

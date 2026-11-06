@@ -2,10 +2,11 @@ import {
     type AiBillableFeature,
     type AiCreditDailyUsage,
 } from '@lightdash/common';
-import { Group, Paper, Skeleton, Stack, Text, Title } from '@mantine/core';
+import { Group, Paper, Skeleton, Stack, Text } from '@mantine/core';
 import { type EChartsOption } from 'echarts';
 import { useMemo, type FC } from 'react';
 import InlineErrorState from '../../../components/common/InlineErrorState';
+import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
 import EChartsReact from '../../../components/EChartsReactWrapper';
 import { AiCreditSeriesIcon } from './AiCreditSeriesIcon';
 import { dropFutureDays, formatCredits } from './creditUsage';
@@ -149,29 +150,26 @@ export const AiCreditsDailyUsage: FC = () => {
     );
 
     return (
-        <Paper p="md">
-            <Stack gap="md">
-                <Title order={5}>Daily usage by feature</Title>
-                {isInitialLoading ? (
-                    <Skeleton h={200} />
-                ) : isError || usage === undefined ? (
-                    <InlineErrorState
-                        message="Daily AI credit usage could not be loaded."
-                        onRetry={() => void refetch()}
-                    />
-                ) : series.length === 0 ? (
-                    <Paper variant="dotted" p="md">
-                        <Text fz="sm" c="dimmed" ta="center">
-                            No usage yet this period
-                        </Text>
-                    </Paper>
-                ) : (
-                    <>
-                        <UsageChart usage={usage} series={series} />
-                        <UsageLegend series={series} />
-                    </>
-                )}
-            </Stack>
-        </Paper>
+        <SettingsCard>
+            {isInitialLoading ? (
+                <Skeleton h={200} />
+            ) : isError || usage === undefined ? (
+                <InlineErrorState
+                    message="Daily AI credit usage could not be loaded."
+                    onRetry={() => void refetch()}
+                />
+            ) : series.length === 0 ? (
+                <Paper variant="dotted" p="md">
+                    <Text fz="sm" c="dimmed" ta="center">
+                        No usage yet this period
+                    </Text>
+                </Paper>
+            ) : (
+                <Stack gap="md">
+                    <UsageChart usage={usage} series={series} />
+                    <UsageLegend series={series} />
+                </Stack>
+            )}
+        </SettingsCard>
     );
 };

@@ -105,35 +105,6 @@ export const seedDbtPartialParse = async (
     }
 };
 
-export const getDbtPartialParseExternalNodesDigest = async (
-    baselinePath: string,
-    targetDirectory: string,
-): Promise<string | null> => {
-    try {
-        const saved: unknown = JSON.parse(
-            await fs.readFile(`${baselinePath}${DIGEST_EXTENSION}`, 'utf8'),
-        );
-        if (
-            typeof saved !== 'object' ||
-            saved === null ||
-            !('payloadDigest' in saved) ||
-            typeof saved.payloadDigest !== 'string' ||
-            !('partialParseDigest' in saved)
-        )
-            return null;
-        const digest = createHash('sha256')
-            .update(
-                await fs.readFile(
-                    path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
-                ),
-            )
-            .digest('hex');
-        return saved.partialParseDigest === digest ? saved.payloadDigest : null;
-    } catch {
-        return null;
-    }
-};
-
 export const pruneDbtPartialParseBaselines = async (
     root: string,
     now: number,
@@ -210,7 +181,6 @@ export const saveDbtPartialParse = async (
     baselinePath: string,
     targetDirectory: string,
     limits: BaselineLimits = getDbtPartialParseBaselineLimits(),
-    externalNodesDigest: string | null = null,
 ): Promise<void> => {
     const root = path.dirname(baselinePath);
     const temporaryPath = `${baselinePath}.${randomUUID()}.tmp`;
@@ -222,23 +192,6 @@ export const saveDbtPartialParse = async (
         );
         await fs.chmod(temporaryPath, 0o600);
         await fs.rename(temporaryPath, baselinePath);
-        if (externalNodesDigest !== null) {
-            const partialParseDigest = createHash('sha256')
-                .update(
-                    await fs.readFile(
-                        path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
-                    ),
-                )
-                .digest('hex');
-            await fs.writeFile(
-                `${baselinePath}${DIGEST_EXTENSION}`,
-                JSON.stringify({
-                    payloadDigest: externalNodesDigest,
-                    partialParseDigest,
-                }),
-                { mode: 0o600 },
-            );
-        }
         await pruneDbtPartialParseBaselines(root, Date.now(), limits);
     } catch (error) {
         await fs.rm(temporaryPath, { force: true }).catch(() => undefined);

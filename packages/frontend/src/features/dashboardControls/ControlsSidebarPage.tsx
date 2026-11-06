@@ -3,6 +3,8 @@ import Page from '../../components/common/Page/Page';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
 import { FieldTilesBar } from './FieldTilesBar';
 import { LinkPrompts } from './LinkPrompts';
+import { ParameterTileOverlays } from './ParameterTileOverlay';
+import { ParameterTilesBar } from './ParameterTilesBar';
 import { TabCounts } from './TabCounts';
 import { TileOverlays } from './TileOverlay';
 
@@ -17,5 +19,7 @@ export const ControlsSidebarPage: FC<Props> = (props) => (
         <TileOverlays />
         <TabCounts hasTabSlots />
         <FieldTilesBar />
+        <ParameterTileOverlays />
+        <ParameterTilesBar />
     </ControlsSidebarProvider>
 );

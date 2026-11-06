@@ -1,5 +1,6 @@
 import {
     buildComposerArtifactPipeline,
+    COMPOSER_QUERY_MAX_UNREAD_NODES,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     getDimensions,
     getItemId,
@@ -12,7 +13,6 @@ import {
     toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
-    type ComposerApiConnection,
     type ComposerNodeScopeName,
     type ComposerPipelineNode,
     type DimensionType,
@@ -34,16 +34,12 @@ import { validateQueryParameters } from '../utils/validators';
 import { resolveComposerQueryNode } from './composerSemanticLayerNode';
 import { validateSelectOnly } from './runSql';
 
-/**
- * Resolves which node the artifact should show: the explicit terminalNodeId
- * when given, otherwise the submission's unread node (the one node no other
- * submitted node reads). A submission with several unread nodes is rejected.
- */
-export const resolveTerminalNodeId = (
+/** Resolves the nodes whose rows are returned: every unread node, and the terminal (terminalNodeId, else the last unread node). */
+export const resolveResultNodes = (
     submitted: SubmittedSourceQuery[],
     terminalNodeId: string | null,
     pipeline: SourceQuery[],
-): string => {
+): { terminalNodeId: string; otherUnreadNodeIds: string[] } => {
     const nodeIds = new Set(submitted.map((query) => query.nodeId));
     const read = new Set(
         submitted.flatMap((query) =>
@@ -55,27 +51,31 @@ export const resolveTerminalNodeId = (
     const unread = submitted
         .map((query) => query.nodeId)
         .filter((nodeId) => !read.has(nodeId));
-    if (unread.length > 1) {
+    if (unread.length > COMPOSER_QUERY_MAX_UNREAD_NODES) {
         throw new ParameterError(
-            `A pipeline returns one node's rows, and no node reads ${unread.join(
+            `A call returns the rows of at most ${COMPOSER_QUERY_MAX_UNREAD_NODES} nodes, and no node reads ${unread.join(
                 ', ',
-            )}. Combine them in one duckdb node (UNION ALL or JOIN), or submit them in separate calls; a later call can read any node from an earlier call by node id.`,
+            )}. Combine some of them in one duckdb node (UNION ALL or JOIN), or submit them in separate calls; a later call can read any node from an earlier call by node id.`,
         );
     }
-    if (terminalNodeId === null) {
-        if (unread.length === 0) {
-            throw new ParameterError(
-                'Every node is read by another node, so the pipeline has a cycle. Remove the cycle.',
-            );
-        }
-        return unread[0];
+    const terminal = terminalNodeId ?? unread.at(-1);
+    if (terminal === undefined) {
+        throw new ParameterError(
+            'Every node is read by another node, so the pipeline has a cycle. Remove the cycle.',
+        );
     }
-    if (!pipeline.some((node) => node.nodeId === terminalNodeId)) {
+    if (
+        terminalNodeId !== null &&
+        !pipeline.some((node) => node.nodeId === terminalNodeId)
+    ) {
         throw new ParameterError(
             `terminalNodeId "${terminalNodeId}" does not name a node in this pipeline`,
         );
     }
-    return terminalNodeId;
+    return {
+        terminalNodeId: terminal,
+        otherUnreadNodeIds: unread.filter((nodeId) => nodeId !== terminal),
+    };
 };
 
 /** Why a funnel node cannot run against the explores; null when its fields exist. */
@@ -109,6 +109,8 @@ export type ComposerAppliedParameters = ToolRunQueryAppliedParameters & {
 export type ComposerQueryPipeline = {
     queries: ComposerPipelineNode[];
     terminalNodeId: string;
+    /** Unread nodes besides the terminal; their rows are returned too. */
+    otherUnreadNodeIds: string[];
     appliedParameters: ComposerAppliedParameters[];
 };
 
@@ -125,7 +127,6 @@ export const buildComposerQueryPipeline = ({
     reusableNodes,
     scopeName = 'thread',
     enablePythonNodes,
-    apiConnections,
     enableFunnelNodes,
     canRunSql,
     sqlDisabledMessage,
@@ -136,7 +137,6 @@ export const buildComposerQueryPipeline = ({
     reusableNodes: ThreadComposerQueryNode[];
     scopeName?: ComposerNodeScopeName;
     enablePythonNodes: boolean;
-    apiConnections: ComposerApiConnection[];
     enableFunnelNodes: boolean;
     canRunSql: boolean;
     sqlDisabledMessage: string;
@@ -194,11 +194,7 @@ export const buildComposerQueryPipeline = ({
             : null;
         return applied ? [{ nodeId: node.nodeId, ...applied }] : [];
     });
-    const resolvedTerminalNodeId = resolveTerminalNodeId(
-        submitted,
-        terminalNodeId,
-        queries,
-    );
+    const resultNodes = resolveResultNodes(submitted, terminalNodeId, queries);
 
     if (
         !enablePythonNodes &&
@@ -206,15 +202,6 @@ export const buildComposerQueryPipeline = ({
     ) {
         return {
             error: 'This pipeline contains "python" nodes but python queries are not enabled. Rebuild the pipeline with duckdb nodes instead.',
-        };
-    }
-
-    if (
-        apiConnections.length === 0 &&
-        queries.some((node) => node.sourceType === QuerySourceType.API)
-    ) {
-        return {
-            error: 'This pipeline contains "api" nodes but api queries are not enabled. Rebuild the pipeline without them.',
         };
     }
 
@@ -236,16 +223,12 @@ export const buildComposerQueryPipeline = ({
         .find((error) => error !== null);
     if (funnelFieldError) return { error: funnelFieldError };
 
-    const unknownConnectionNode = queries.find(
-        (node) =>
-            node.sourceType === QuerySourceType.API &&
-            !apiConnections.some(
-                ({ connectionUuid }) => connectionUuid === node.connectionUuid,
-            ),
+    const apiNode = queries.find(
+        (node) => node.sourceType === QuerySourceType.API,
     );
-    if (unknownConnectionNode) {
+    if (apiNode) {
         return {
-            error: `Node "${unknownConnectionNode.nodeId}" names a connection that is not available. Use one of the connectionUuid values listed in the tool description.`,
+            error: `Node "${apiNode.nodeId}" is an "api" node, which is no longer supported. Query a live data source with a semanticLayer node on its explore.`,
         };
     }
 
@@ -260,7 +243,7 @@ export const buildComposerQueryPipeline = ({
     return {
         pipeline: {
             queries,
-            terminalNodeId: resolvedTerminalNodeId,
+            ...resultNodes,
             appliedParameters,
         },
     };
@@ -273,17 +256,20 @@ export type ComposerPreview = {
     truncated: boolean;
 };
 
-export const buildComposerPreview = (terminal: {
-    columns: ResultColumns;
-    rows: Record<string, AnyType>[];
-    rowCount: number;
-}): ComposerPreview => {
+export const buildComposerPreview = (
+    terminal: {
+        columns: ResultColumns;
+        rows: Record<string, AnyType>[];
+        rowCount: number;
+    },
+    rowLimit: number,
+): ComposerPreview => {
     const columns = Object.values(terminal.columns).map(
         ({ reference, type }) => ({ reference, type }),
     );
     const references = columns.map((column) => column.reference);
     const rows = terminal.rows
-        .slice(0, COMPOSER_QUERY_PREVIEW_ROW_LIMIT)
+        .slice(0, rowLimit)
         .map((row) =>
             Object.fromEntries(references.map((col) => [col, row[col]])),
         );
@@ -291,7 +277,59 @@ export const buildComposerPreview = (terminal: {
         columns,
         rows,
         csv: stringify(rows, { header: true, columns: references }),
-        truncated: terminal.rowCount > COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+        truncated: terminal.rowCount > rowLimit,
+    };
+};
+
+/**
+ * Splits the preview across the terminal and the other unread nodes: a small
+ * result keeps every row, the rest share what is left.
+ */
+export const splitPreviewRows = (rowCounts: number[]): number[] => {
+    const smallestFirst = rowCounts
+        .map((_, index) => index)
+        .sort((a, b) => rowCounts[a] - rowCounts[b]);
+    const budgets = rowCounts.map(() => 0);
+    let remaining = COMPOSER_QUERY_PREVIEW_ROW_LIMIT;
+    smallestFirst.forEach((index, position) => {
+        const share = Math.floor(remaining / (smallestFirst.length - position));
+        budgets[index] = Math.min(rowCounts[index], share);
+        remaining -= budgets[index];
+    });
+    return budgets;
+};
+
+export const renderOtherUnreadNodesNote = (otherUnreadNodeIds: string[]) =>
+    otherUnreadNodeIds.length > 0
+        ? ` Unread nodes ${otherUnreadNodeIds.join(', ')} returned rows too, listed with their nodes.`
+        : '';
+
+/** Trims the other unread nodes' node samples to their share of the preview and returns the terminal's share. */
+export const shareComposerPreview = (
+    nodeStatuses: ComposerNodeStatus[],
+    otherUnreadNodeIds: string[],
+    terminalRowCount: number,
+): { nodeStatuses: ComposerNodeStatus[]; terminalRowLimit: number } => {
+    const unread = nodeStatuses.filter(({ nodeId }) =>
+        otherUnreadNodeIds.includes(nodeId),
+    );
+    const [terminalRowLimit, ...unreadRowLimits] = splitPreviewRows([
+        terminalRowCount,
+        ...unread.map(({ rowCount, sample }) =>
+            sample === null ? 0 : (rowCount ?? 0),
+        ),
+    ]);
+    return {
+        terminalRowLimit,
+        nodeStatuses: nodeStatuses.map((status) => {
+            const index = unread.indexOf(status);
+            return index === -1 || status.sample === null
+                ? status
+                : {
+                      ...status,
+                      sample: status.sample.slice(0, unreadRowLimits[index]),
+                  };
+        }),
     };
 };
 
@@ -328,6 +366,14 @@ export const toNodeSummary = (
             : null,
     sample: status?.sample ?? null,
 });
+
+const describeCappedRows = (
+    node: ComposerNodeSummary,
+    maxQueryLimit: number,
+): string => {
+    const max = node.limit < maxQueryLimit ? ` (max ${maxQueryLimit})` : '';
+    return ` Reached its limit of ${node.limit}, so more rows may exist${max}.`;
+};
 
 export const hasReachedLimit = (node: ComposerNodeSummary) =>
     node.rowCount !== null && hasReachedSourceQueryLimit(node, node.rowCount);
@@ -394,7 +440,7 @@ export const renderComposerNodeListing = ({
     const getOutcome = (node: ComposerNodeSummary): string => {
         if (node.rowCount !== null) {
             const capped = reachedLimit.has(node.nodeId)
-                ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
+                ? describeCappedRows(node, maxQueryLimit)
                 : '';
             const reused = submittedNodeIds.has(node.nodeId)
                 ? ''

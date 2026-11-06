@@ -6116,6 +6116,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "DashboardParameterValue": {
+                "properties": {
+                    "value": {
+                        "$ref": "#/components/schemas/ParameterValue"
+                    },
+                    "parameterName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "parameterName"],
+                "type": "object"
+            },
+            "Record_string.DashboardParameterValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardParameterValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardParameters": {
+                "$ref": "#/components/schemas/Record_string.DashboardParameterValue_"
+            },
             "DateGranularity": {
                 "enum": [
                     "Second",
@@ -6129,11 +6152,13 @@
                 ],
                 "type": "string"
             },
-            "DateZoomControl": {
+            "DateZoomControlAsCode": {
                 "properties": {
+                    "sectionSlug": {
+                        "type": "string"
+                    },
                     "sectionId": {
-                        "type": "string",
-                        "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling."
+                        "type": "string"
                     },
                     "hidden": {
                         "type": "boolean"
@@ -6183,72 +6208,174 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "DateZoomConfig": {
-                "properties": {
-                    "tileTargets": {
-                        "$ref": "#/components/schemas/Record_string.DateZoomTileTarget_"
-                    },
-                    "controls": {
-                        "items": {
-                            "$ref": "#/components/schemas/DateZoomControl"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["tileTargets", "controls"],
-                "type": "object"
-            },
-            "DashboardControlSection": {
+            "DashboardControlSectionAsCode": {
                 "properties": {
                     "inline": {
-                        "type": "boolean",
-                        "description": "Sits on the bar line of the section before it; absent, starts a line of its own"
+                        "type": "boolean"
                     },
                     "collapsed": {
-                        "type": "boolean",
-                        "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section"
+                        "type": "boolean"
                     },
                     "name": {
                         "type": "string"
                     },
                     "id": {
                         "type": "string",
-                        "description": "uuid, stable across dashboard versions"
+                        "description": "Legacy section identifier accepted on upload."
+                    },
+                    "slug": {
+                        "type": "string"
                     }
                 },
-                "required": ["name", "id"],
+                "required": ["name"],
                 "type": "object"
             },
-            "DashboardConfig": {
+            "Required_Pick_LightdashProjectParameter.type-or-multiple__": {
                 "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["string", "number", "date"]
+                    },
+                    "multiple": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["type", "multiple"],
+                "type": "object",
+                "description": "Make all properties in T required"
+            },
+            "DashboardParameterTarget_string_": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "only": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["only"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "except": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["except"],
+                        "type": "object"
+                    },
+                    {
+                        "type": "string",
+                        "enum": ["all"]
+                    }
+                ]
+            },
+            "Record_string.DashboardParameterTarget_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardParameterTarget_string_"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardParameterControlAsCode": {
+                "properties": {
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.DashboardParameterTarget_"
+                    },
+                    "sectionSlug": {
+                        "type": "string"
+                    },
+                    "sectionId": {
+                        "type": "string"
+                    },
+                    "valueType": {
+                        "$ref": "#/components/schemas/Required_Pick_LightdashProjectParameter.type-or-multiple__"
+                    },
+                    "value": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ParameterValue"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Legacy project-local identifier accepted on upload."
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Portable control identifier; matching an existing slug preserves its id."
+                    }
+                },
+                "required": ["parameters", "valueType", "value", "label"],
+                "type": "object"
+            },
+            "DashboardConfigAsCode": {
+                "properties": {
+                    "parameterControls": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardParameterControlAsCode"
+                        },
+                        "type": "array"
+                    },
+                    "parameterSectionSlugs": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
                     "parameterSections": {
                         "properties": {},
                         "additionalProperties": {
                             "type": "string"
                         },
-                        "type": "object",
-                        "description": "Parameter name to section id. Parameters have no saved object of their own."
+                        "type": "object"
                     },
                     "controlSections": {
                         "items": {
-                            "$ref": "#/components/schemas/DashboardControlSection"
+                            "$ref": "#/components/schemas/DashboardControlSectionAsCode"
                         },
-                        "type": "array",
-                        "description": "Named sets of controls, in display order. Controls point at a section\nby id; controls with no section render first, unsectioned."
+                        "type": "array"
                     },
                     "customMetrics": {
                         "items": {
                             "$ref": "#/components/schemas/AdditionalMetric"
                         },
-                        "type": "array",
-                        "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere."
+                        "type": "array"
                     },
                     "requiredFiltersNote": {
-                        "type": "string",
-                        "description": "Editor-authored note shown to viewers while filter rules are unmet"
+                        "type": "string"
                     },
                     "dateZoomConfig": {
-                        "$ref": "#/components/schemas/DateZoomConfig"
+                        "properties": {
+                            "tileTargets": {
+                                "$ref": "#/components/schemas/Record_string.DateZoomTileTarget_"
+                            },
+                            "controls": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DateZoomControlAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["tileTargets", "controls"],
+                        "type": "object"
                     },
                     "defaultDateZoomGranularity": {
                         "anyOf": [
@@ -6294,48 +6421,6 @@
                 },
                 "required": ["isDateZoomDisabled"],
                 "type": "object"
-            },
-            "DashboardParameterValue": {
-                "properties": {
-                    "value": {
-                        "$ref": "#/components/schemas/ParameterValue"
-                    },
-                    "parameterName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["value", "parameterName"],
-                "type": "object"
-            },
-            "Record_string.DashboardParameterValue_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DashboardParameterValue"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DashboardParameters": {
-                "$ref": "#/components/schemas/Record_string.DashboardParameterValue_"
-            },
-            "Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/DashboardParameters"
-                    }
-                },
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_": {
-                "$ref": "#/components/schemas/Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__",
-                "description": "Construct a type with the properties of T except for those in type K."
             },
             "DashboardTabAsCode": {
                 "properties": {
@@ -6777,7 +6862,7 @@
                 "type": "object",
                 "description": "Deliberately an index-signature literal, not `Record<string, ...>`. When\nTSOA first resolves `Record<string, DashboardTileTarget>` inside a mapped\ntype (e.g. `Omit<DashboardFilterRule, 'id'>` in content-as-code types), it\ncaches an EMPTY model under the shared `Record_string.DashboardTileTarget_`\nname, and request validation then strips every tileTargets entry from\nbodies — silently breaking dashboard filters on SQL chart tiles. The\nindex-signature form resolves correctly in every context."
             },
-            "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
+            "Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__": {
                 "properties": {
                     "target": {
                         "$ref": "#/components/schemas/DashboardFieldTarget",
@@ -6834,14 +6919,17 @@
                     "sectionId": {
                         "type": "string",
                         "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling."
+                    },
+                    "sectionSlug": {
+                        "type": "string"
                     }
                 },
                 "required": ["target", "operator"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_DashboardFilterRule.id_": {
-                "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__",
+            "Omit_DashboardFilterRuleAsCode.id_": {
+                "$ref": "#/components/schemas/Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_": {
@@ -6926,109 +7014,126 @@
                     }
                 ]
             },
-            "DashboardAsCode": {
+            "DashboardFilterRuleAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_"
+                        "$ref": "#/components/schemas/DashboardFilterRule"
                     },
                     {
                         "properties": {
-                            "access": {
-                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
-                                "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
-                            },
-                            "verification": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/ContentVerificationInfo"
-                                    }
-                                ],
-                                "nullable": true,
-                                "description": "Detailed verification info (who/when). Read-only; ignored on upload."
-                            },
-                            "verified": {
-                                "type": "boolean",
-                                "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
-                            },
-                            "ownerEmail": {
-                                "type": "string",
-                                "nullable": true,
-                                "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
-                            },
-                            "filters": {
-                                "properties": {
-                                    "tableCalculations": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/DashboardFilterRule"
-                                        },
-                                        "type": "array"
-                                    },
-                                    "metrics": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/DashboardFilterRule"
-                                        },
-                                        "type": "array"
-                                    },
-                                    "dimensions": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/Omit_DashboardFilterRule.id_"
-                                        },
-                                        "type": "array"
-                                    }
-                                },
-                                "type": "object"
-                            },
-                            "downloadedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "spaceSlug": {
+                            "sectionSlug": {
                                 "type": "string"
-                            },
-                            "contentType": {
-                                "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
-                            },
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "tiles": {
-                                "items": {
-                                    "$ref": "#/components/schemas/DashboardTileAsCode"
-                                },
-                                "type": "array"
-                            },
-                            "updatedAt": {
-                                "type": "string",
-                                "format": "date-time",
-                                "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
-                            },
-                            "tabs": {
-                                "items": {
-                                    "$ref": "#/components/schemas/DashboardTabAsCode"
-                                },
-                                "type": "array"
-                            },
-                            "slug": {
-                                "type": "string",
-                                "pattern": "^[a-z0-9-]+$"
-                            },
-                            "name": {
-                                "type": "string",
-                                "minLength": 1
                             }
                         },
-                        "required": [
-                            "spaceSlug",
-                            "version",
-                            "tiles",
-                            "tabs",
-                            "slug",
-                            "name"
-                        ],
                         "type": "object"
                     }
                 ]
+            },
+            "DashboardAsCode": {
+                "properties": {
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                    },
+                    "verified": {
+                        "type": "boolean",
+                        "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
+                    },
+                    "ownerEmail": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
+                    },
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardFilterRuleAsCode"
+                                },
+                                "type": "array"
+                            },
+                            "metrics": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardFilterRuleAsCode"
+                                },
+                                "type": "array"
+                            },
+                            "dimensions": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Omit_DashboardFilterRuleAsCode.id_"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "downloadedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "spaceSlug": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTileAsCode"
+                        },
+                        "type": "array"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
+                    },
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTabAsCode"
+                        },
+                        "type": "array"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfigAsCode"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/DashboardParameters"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "spaceSlug",
+                    "version",
+                    "tiles",
+                    "tabs",
+                    "slug",
+                    "name"
+                ],
+                "type": "object"
             },
             "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
@@ -8287,6 +8392,73 @@
                         "type": "object"
                     }
                 ]
+            },
+            "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
+                "properties": {
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget",
+                        "description": "Target field for the filter"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "settings": {
+                        "description": "Additional settings for date/time filters"
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "values": {
+                        "items": {},
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
+                    "tileTargets": {
+                        "$ref": "#/components/schemas/DashboardTileTargets"
+                    },
+                    "singleValue": {
+                        "type": "boolean"
+                    },
+                    "requiredGroupId": {
+                        "type": "string",
+                        "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value."
+                    },
+                    "lockedTabUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Tab UUIDs where this filter is locked. When the active tab is in this\nlist, viewers see the filter but cannot change it, and URL / embed\nfilter overrides targeting the same field are ignored on that tab.\nEmpty or omitted means the filter is not locked anywhere."
+                    },
+                    "sectionId": {
+                        "type": "string",
+                        "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling."
+                    }
+                },
+                "required": ["target", "operator"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DashboardFilterRule.id_": {
+                "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
             "DashboardScheduledDeliveryAsCode": {
                 "allOf": [
@@ -9553,6 +9725,195 @@
             "PromotedSpace": {
                 "$ref": "#/components/schemas/SpaceSummaryBase"
             },
+            "DateZoomControl": {
+                "properties": {
+                    "sectionId": {
+                        "type": "string",
+                        "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling."
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "granularity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["granularity", "name", "uuid"],
+                "type": "object"
+            },
+            "DateZoomConfig": {
+                "properties": {
+                    "tileTargets": {
+                        "$ref": "#/components/schemas/Record_string.DateZoomTileTarget_"
+                    },
+                    "controls": {
+                        "items": {
+                            "$ref": "#/components/schemas/DateZoomControl"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tileTargets", "controls"],
+                "type": "object"
+            },
+            "DashboardControlSection": {
+                "properties": {
+                    "inline": {
+                        "type": "boolean",
+                        "description": "Sits on the bar line of the section before it; absent, starts a line of its own"
+                    },
+                    "collapsed": {
+                        "type": "boolean",
+                        "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "uuid, stable across dashboard versions"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Portable identity supplied by content as code."
+                    }
+                },
+                "required": ["name", "id"],
+                "type": "object"
+            },
+            "DashboardParameterControl": {
+                "properties": {
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.DashboardParameterTarget_"
+                    },
+                    "sectionId": {
+                        "type": "string"
+                    },
+                    "valueType": {
+                        "$ref": "#/components/schemas/Required_Pick_LightdashProjectParameter.type-or-multiple__"
+                    },
+                    "value": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ParameterValue"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Portable identity supplied by content as code."
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["parameters", "valueType", "value", "label", "id"],
+                "type": "object"
+            },
+            "DashboardConfig": {
+                "properties": {
+                    "parameterControls": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardParameterControl"
+                        },
+                        "type": "array",
+                        "description": "Absent: filled from the parameters tiles use. Present (even empty): exactly these."
+                    },
+                    "parameterSections": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object",
+                        "description": "Parameter name to section id. Parameters have no saved object of their own."
+                    },
+                    "controlSections": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardControlSection"
+                        },
+                        "type": "array",
+                        "description": "Named sets of controls, in display order. Controls point at a section\nby id; controls with no section render first, unsectioned."
+                    },
+                    "customMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array",
+                        "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere."
+                    },
+                    "requiredFiltersNote": {
+                        "type": "string",
+                        "description": "Editor-authored note shown to viewers while filter rules are unmet"
+                    },
+                    "dateZoomConfig": {
+                        "$ref": "#/components/schemas/DateZoomConfig"
+                    },
+                    "defaultDateZoomGranularity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "dateZoomGranularities": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/DateGranularity"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    },
+                    "parameterOrder": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "pinnedParameters": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "isAddFilterDisabled": {
+                        "type": "boolean"
+                    },
+                    "isDateZoomDisabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["isDateZoomDisabled"],
+                "type": "object"
+            },
             "DashboardFilters": {
                 "properties": {
                     "tableCalculations": {
@@ -9989,14 +10350,14 @@
                         ],
                         "nullable": true
                     },
+                    "uuid": {
+                        "type": "string"
+                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
-                    },
-                    "uuid": {
-                        "type": "string"
                     },
                     "tiles": {
                         "items": {
@@ -10125,8 +10486,8 @@
                     "filters",
                     "updatedAt",
                     "verification",
-                    "tabs",
                     "uuid",
+                    "tabs",
                     "tiles",
                     "organizationUuid",
                     "projectUuid",
@@ -11073,7 +11434,7 @@
             "Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.tiles-or-description__": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
+                        "$ref": "#/components/schemas/DashboardConfigAsCode"
                     },
                     "verified": {
                         "type": "boolean",
@@ -11097,19 +11458,19 @@
                         "properties": {
                             "tableCalculations": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardFilterRule"
+                                    "$ref": "#/components/schemas/DashboardFilterRuleAsCode"
                                 },
                                 "type": "array"
                             },
                             "metrics": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardFilterRule"
+                                    "$ref": "#/components/schemas/DashboardFilterRuleAsCode"
                                 },
                                 "type": "array"
                             },
                             "dimensions": {
                                 "items": {
-                                    "$ref": "#/components/schemas/Omit_DashboardFilterRule.id_"
+                                    "$ref": "#/components/schemas/Omit_DashboardFilterRuleAsCode.id_"
                                 },
                                 "type": "array"
                             }
@@ -15229,6 +15590,11 @@
                     "hasSecret": {
                         "type": "boolean"
                     },
+                    "liveSourceName": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Prefix of a live source's explore names, such as `posthog`. Set once on\nits first build and never changed, because saved charts reference it.\nOptional for compatibility with older servers during rolling upgrades."
+                    },
                     "apiSource": {
                         "allOf": [
                             {
@@ -15949,6 +16315,121 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSourceSchemaEvent": {
+                "properties": {
+                    "count": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["count", "name"],
+                "type": "object"
+            },
+            "ApiSourceSchemaScan": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "requestedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["requestedAt", "status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "propertyKeys": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true,
+                                "description": "Null when the property scan failed."
+                            },
+                            "eventsTruncated": {
+                                "type": "boolean"
+                            },
+                            "events": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiSourceSchemaEvent"
+                                },
+                                "type": "array",
+                                "description": "Busiest first; capped, see eventsTruncated."
+                            },
+                            "windowDays": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "scannedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["ready"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "propertyKeys",
+                            "eventsTruncated",
+                            "events",
+                            "windowDays",
+                            "scannedAt",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "scannedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["failed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["error", "scannedAt", "status"],
+                        "type": "object"
+                    }
+                ],
+                "description": "What a live source's schema scan found, kept so onboarding and the AI agent know its data up front."
+            },
+            "ApiExternalConnectionSchemaResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiSourceSchemaScan"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null when the connection was never scanned."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ExternalConnectionLinkedApp": {
                 "properties": {
                     "aliases": {
@@ -16144,6 +16625,176 @@
             "UpdateExternalConnection": {
                 "$ref": "#/components/schemas/Partial_CreateExternalConnection_",
                 "description": "Omitted/blank `secret` means the stored secret is left unchanged."
+            },
+            "LiveSourceFieldEditor": {
+                "properties": {
+                    "at": {
+                        "type": "string",
+                        "description": "ISO timestamp."
+                    },
+                    "userName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["at", "userName", "userUuid"],
+                "type": "object",
+                "description": "Who last edited a live source field."
+            },
+            "LiveSourceField": {
+                "properties": {
+                    "lastEdit": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceFieldEditor"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "inUse": {
+                        "type": "boolean"
+                    },
+                    "isRequired": {
+                        "type": "boolean",
+                        "description": "Every query needs it, so it can't be taken out of use."
+                    },
+                    "isInternal": {
+                        "type": "boolean",
+                        "description": "The integration's own bookkeeping field, hidden by default."
+                    },
+                    "isBuiltIn": {
+                        "type": "boolean",
+                        "description": "Written by Lightdash for the integration, not found by a scan."
+                    },
+                    "group": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["dimension", "metric"]
+                    },
+                    "apiName": {
+                        "type": "string",
+                        "description": "What the integration calls the field, shown as \"Source\"."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Stable within the explore; the field id is `<explore name>_<name>`."
+                    }
+                },
+                "required": [
+                    "lastEdit",
+                    "usedByChartCount",
+                    "inUse",
+                    "isRequired",
+                    "isInternal",
+                    "isBuiltIn",
+                    "group",
+                    "aiHint",
+                    "description",
+                    "label",
+                    "type",
+                    "kind",
+                    "apiName",
+                    "name"
+                ],
+                "type": "object",
+                "description": "One field of a live data source, in use or available."
+            },
+            "LiveSourceFields": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceField"
+                        },
+                        "type": "array"
+                    },
+                    "scannedAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "ISO timestamp of the last scan, or null when the source was never scanned."
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fields", "scannedAt", "exploreName"],
+                "type": "object"
+            },
+            "ApiLiveSourceFieldsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceFields"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "LiveSourceFieldChange": {
+                "properties": {
+                    "group": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "inUse": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "One field change; unset keys stay as they are, null clears an override."
+            },
+            "ApiUpdateLiveSourceFieldsRequest": {
+                "properties": {
+                    "changes": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceFieldChange"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["changes"],
+                "type": "object"
             },
             "ApiAppExternalConnectionListResponse": {
                 "properties": {
@@ -17023,7 +17674,7 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "description": "Extra spaces whose charts dashboards may reference; the write actor still needs view access."
+                        "description": "Extra spaces whose charts dashboards may reference; the write actor still needs view access. AI agent tokens may list only source spaces to read without writing."
                     },
                     "writeSpaceUuids": {
                         "items": {
@@ -17061,7 +17712,8 @@
                     "user": {
                         "properties": {
                             "externalId": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Must be unique per viewer within the organization: it owns the threads of read-only AI agent tokens."
                             },
                             "email": {
                                 "type": "string"
@@ -19305,7 +19957,8 @@
                     "virtual",
                     "default",
                     "pre_aggregate",
-                    "external_source"
+                    "external_source",
+                    "api_source"
                 ],
                 "type": "string"
             },
@@ -19538,6 +20191,128 @@
                 "type": "object",
                 "description": "Back-reference stamped on explores generated from an external source table.\nThe source type is denormalized so the sidebar can pick an icon without\nfetching the source list."
             },
+            "ApiSourceFieldRule": {
+                "properties": {
+                    "filterOperators": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterOperator"
+                        },
+                        "type": "array",
+                        "description": "Empty when the API can't filter on the field."
+                    },
+                    "apiName": {
+                        "type": "string",
+                        "description": "The API's own name for the field, e.g. GA4 `sessionDefaultChannelGroup`."
+                    }
+                },
+                "required": ["filterOperators", "apiName"],
+                "type": "object",
+                "description": "What the API can do with one field of a live data source explore."
+            },
+            "Record_FieldId.ApiSourceFieldRule_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ApiSourceFieldRule"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiSourceIncompatibility": {
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    },
+                    "with": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["reason", "with", "fields"],
+                "type": "object",
+                "description": "Fields the API refuses to return in the same query."
+            },
+            "ApiSourceExplore": {
+                "properties": {
+                    "incompatible": {
+                        "items": {
+                            "$ref": "#/components/schemas/ApiSourceIncompatibility"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/Record_FieldId.ApiSourceFieldRule_"
+                    },
+                    "dateRange": {
+                        "properties": {
+                            "defaultDays": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            }
+                        },
+                        "required": ["defaultDays", "fieldId"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "The API needs a date range; queries without a filter on `fieldId` use the last `defaultDays`."
+                    },
+                    "maxMetrics": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "maxDimensions": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "filterGroups": {
+                        "properties": {
+                            "nested": {
+                                "type": "boolean"
+                            },
+                            "or": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["nested", "or"],
+                        "type": "object"
+                    },
+                    "baseVersion": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Version of the integration's semantic layer that built the explore."
+                    },
+                    "integration": {
+                        "$ref": "#/components/schemas/ApiConnectorType"
+                    },
+                    "connectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "incompatible",
+                    "fields",
+                    "dateRange",
+                    "maxMetrics",
+                    "maxDimensions",
+                    "filterGroups",
+                    "baseVersion",
+                    "integration",
+                    "connectionUuid"
+                ],
+                "type": "object",
+                "description": "Present on every `ExploreType.API_SOURCE` explore: which live data source it\nreads and the rules a metric query must follow to compile into one API call."
+            },
             "Explore": {
                 "properties": {
                     "warnings": {
@@ -19546,6 +20321,10 @@
                         },
                         "type": "array",
                         "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
+                    },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ApiSourceExplore",
+                        "description": "Present ⇒ queried live through a live data source's API."
                     },
                     "externalSource": {
                         "$ref": "#/components/schemas/ExternalSourceRef",
@@ -20439,7 +21218,7 @@
                 },
                 "type": "object"
             },
-            "Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-limit_": {
+            "Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-excludedParameterKeys-or-limit_": {
                 "properties": {
                     "limit": {
                         "type": "number",
@@ -20466,6 +21245,13 @@
                     },
                     "dateZoom": {
                         "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "excludedParameterKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The keys this tile keeps as its own, sent with `parameters` when the\napp resolved the tile's parameter controls. A signed-in user's\nrequest is then used as sent, not resolved from the saved controls."
                     }
                 },
                 "required": ["dashboardFilters", "dashboardSorts"],
@@ -20759,7 +21545,7 @@
                     }
                 ]
             },
-            "Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-limit_": {
+            "Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-excludedParameterKeys-or-limit_": {
                 "properties": {
                     "limit": {
                         "type": "number",
@@ -20779,6 +21565,13 @@
                     },
                     "invalidateCache": {
                         "type": "boolean"
+                    },
+                    "excludedParameterKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "As on the dashboard chart request"
                     }
                 },
                 "required": ["dashboardFilters", "dashboardSorts"],
@@ -22119,6 +22912,94 @@
                 "required": ["agentUuid", "anomalyId"],
                 "type": "object"
             },
+            "ApiDataAppInstructionInvestigateResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__jobId-string__"
+            },
+            "DataAppInstructionInvestigateRequest": {
+                "properties": {
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppAnalysisSource"
+                        },
+                        "type": "array"
+                    },
+                    "instruction": {
+                        "type": "string"
+                    }
+                },
+                "required": ["agentUuid", "sources", "instruction"],
+                "type": "object",
+                "description": "An app-authored investigation: a written instruction (e.g. a recommendation\npill) the agent follows using the named sources as its starting data. Unlike\nanomaly investigations nothing anchors it to a stored detection; the viewer\ngates, budgets and read-only tool set are the same."
+            },
+            "DataAppInstructionInvestigateResult": {
+                "properties": {
+                    "partial": {
+                        "type": "boolean"
+                    },
+                    "queriesRun": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "instruction": {
+                        "type": "string"
+                    },
+                    "explanation": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "partial",
+                    "queriesRun",
+                    "threadUuid",
+                    "agentUuid",
+                    "instruction",
+                    "explanation"
+                ],
+                "type": "object"
+            },
+            "DataAppInstructionInvestigation": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppInstructionInvestigateResult"
+                    },
+                    {
+                        "properties": {
+                            "generatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "sources": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DataAppAnalysisSource"
+                                },
+                                "type": "array"
+                            },
+                            "target": {
+                                "$ref": "#/components/schemas/AnalysisTargetRef"
+                            },
+                            "investigationId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "generatedAt",
+                            "sources",
+                            "target",
+                            "investigationId"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
             "DataAppAnalysisRecord": {
                 "anyOf": [
                     {
@@ -22154,6 +23035,24 @@
                             },
                             {
                                 "$ref": "#/components/schemas/DataAppInvestigation"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "operation": {
+                                        "type": "string",
+                                        "enum": ["investigate_instruction"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["operation"],
+                                "type": "object"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DataAppInstructionInvestigation"
                             }
                         ]
                     },
@@ -22906,6 +23805,33 @@
                     }
                 },
                 "type": "object"
+            },
+            "ApiSuccess__installedSlugs_description-Slugsthiscallinstalled--already-installedonesareleftout_-string-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "installedSlugs": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Slugs this call installed; already-installed ones are left out"
+                            }
+                        },
+                        "required": ["installedSlugs"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiInstallStarterChartTypesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__installedSlugs_description-Slugsthiscallinstalled--already-installedonesareleftout_-string-Array__"
             },
             "DataAppVizDeleteImpact": {
                 "properties": {
@@ -28926,6 +29852,13 @@
                             "includeUnpublishedDraft": {
                                 "type": "boolean"
                             },
+                            "excludedParameterKeys": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "The keys this tile keeps as its own, sent with `parameters` when the\napp resolved the tile's parameter controls. A signed-in user's\nrequest is then used as sent, not resolved from the saved controls."
+                            },
                             "pivotResults": {
                                 "type": "boolean"
                             },
@@ -29013,6 +29946,13 @@
                     },
                     {
                         "properties": {
+                            "excludedParameterKeys": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "As on the dashboard chart request"
+                            },
                             "limit": {
                                 "type": "number",
                                 "format": "double"
@@ -41682,16 +42622,23 @@
             },
             "AgentOnboardingHandoff": {
                 "properties": {
+                    "starterQuestions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "dashboardUrl": {
                         "type": "string",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Set only by runs that build the starter dashboard"
                     },
                     "summary": {
                         "type": "string",
                         "nullable": true
                     }
                 },
-                "required": ["dashboardUrl", "summary"],
+                "required": ["starterQuestions", "dashboardUrl", "summary"],
                 "type": "object"
             },
             "AgentOnboardingUsage": {
@@ -57043,6 +57990,7 @@
                     "aiWritebackPipeline",
                     "aiDeepResearch",
                     "dataAppInvestigate",
+                    "dataAppInstructionInvestigate",
                     "agentOnboardingRun",
                     "aiAgentEditDbtProjectPipeline",
                     "sweepStaleAppLocks",
@@ -57059,12 +58007,14 @@
                     "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
                     "cleanScimRequestLogs",
+                    "cleanAppStateHistory",
                     "publishAnnouncement",
                     "sweepDueAnnouncements",
                     "sendAiCreditAllowanceAlerts",
                     "ingestExternalSource",
                     "ingestExternalSourceAttachment",
                     "maintainExternalSources",
+                    "scanApiSourceSchema",
                     "sweepUnclaimedAiThreadFiles",
                     "mobilePushLiveActivityStart",
                     "mobilePushLiveActivity",
@@ -57113,6 +58063,7 @@
                     "cleanAgentConnectionApprovalRequests",
                     "reconcilePlaygroundBundles",
                     "backfillDefaultUserSpaces",
+                    "warmWarehouseTablesCache",
                     "learnSandboxCommand"
                 ]
             },
@@ -60252,6 +61203,64 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "ApiReplaceProjectContextResults": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "entryCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "ingested": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["entryCount", "ingested"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": ["ai_agent_reviews_disabled"],
+                                "nullable": false
+                            },
+                            "ingested": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "ingested"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ApiReplaceProjectContextResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiReplaceProjectContextResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReplaceProjectContextBody": {
+                "properties": {
+                    "yaml": {
+                        "type": "string"
+                    }
+                },
+                "required": ["yaml"],
+                "type": "object"
+            },
             "ApiProjectColorPaletteResponse": {
                 "properties": {
                     "results": {
@@ -60435,7 +61444,7 @@
                     "ownerUserUuid": {
                         "type": "string",
                         "nullable": true,
-                        "description": "Set to a user uuid to assign an owner, null or omitted for no owner"
+                        "description": "Set to a user uuid to assign an owner, null for no owner. Omitted defaults to the creator"
                     },
                     "colorPaletteUuid": {
                         "type": "string",
@@ -60915,6 +61924,32 @@
                 ],
                 "type": "object"
             },
+            "ResultsCacheStatus": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["enabled"],
+                "type": "object"
+            },
+            "ApiSuccess_ResultsCacheStatus_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ResultsCacheStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiResultsCacheStatusResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ResultsCacheStatus_"
+            },
             "ResultsCacheClearSchedule": {
                 "properties": {
                     "nextRunAt": {
@@ -60959,6 +61994,13 @@
                         "format": "double",
                         "nullable": true
                     },
+                    "cacheEnabledSetByInstance": {
+                        "type": "boolean",
+                        "description": "True when the deprecated RESULTS_CACHE_ENABLED env var sets caching for every project."
+                    },
+                    "cacheEnabled": {
+                        "type": "boolean"
+                    },
                     "projectUuid": {
                         "type": "string"
                     }
@@ -60969,6 +62011,8 @@
                     "lastInvalidatedAt",
                     "instanceDefaultTtlSeconds",
                     "cacheTtlSeconds",
+                    "cacheEnabledSetByInstance",
+                    "cacheEnabled",
                     "projectUuid"
                 ],
                 "type": "object"
@@ -60995,10 +62039,14 @@
                     "cacheTtlSeconds": {
                         "type": "number",
                         "format": "double",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Omit to keep the current value. Pass null to use the instance default."
+                    },
+                    "cacheEnabled": {
+                        "type": "boolean",
+                        "description": "Omit to keep the current value."
                     }
                 },
-                "required": ["cacheTtlSeconds"],
                 "type": "object"
             },
             "UpdateResultsCacheClearSchedule": {
@@ -61678,6 +62726,10 @@
                     "externalSource": {
                         "$ref": "#/components/schemas/ExternalSourceRef",
                         "description": "Present ⇒ generated from an external source table (CSV upload, Google Sheet)."
+                    },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ApiSourceExplore",
+                        "description": "Present ⇒ queried live through a live data source's API."
                     },
                     "warnings": {
                         "items": {
@@ -66503,6 +67555,10 @@
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
                     },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ApiSourceExplore",
+                        "description": "Present ⇒ queried live through a live data source's API."
+                    },
                     "spotlight": {
                         "properties": {
                             "owner": {
@@ -66645,6 +67701,10 @@
                     },
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
+                    },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ApiSourceExplore",
+                        "description": "Present ⇒ queried live through a live data source's API."
                     },
                     "spotlight": {
                         "properties": {
@@ -71462,6 +72522,107 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ParameterDefinitions": {
+                "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+            },
+            "DashboardTileParameterReferences": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "parameterDefinitions": {
+                                "$ref": "#/components/schemas/ParameterDefinitions"
+                            },
+                            "parameterReferences": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "error",
+                            "parameterReferences",
+                            "tileUuid"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "parameterReferences": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "error",
+                            "parameterReferences",
+                            "tileUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiDashboardTileParameterReferencesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTileParameterReferences"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "DashboardTileParameterReferencesTile": {
+                "properties": {
+                    "savedSqlUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedChartUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["savedSqlUuid", "savedChartUuid", "tileUuid"],
+                "type": "object"
+            },
+            "DashboardTileParameterReferencesRequest": {
+                "properties": {
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTileParameterReferencesTile"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tiles"],
+                "type": "object"
+            },
             "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_": {
                 "properties": {
                     "description": {
@@ -71480,7 +72641,7 @@
                     "ownerUserUuid": {
                         "type": "string",
                         "nullable": true,
-                        "description": "Set to a user uuid to assign an owner, null or omitted for no owner"
+                        "description": "Set to a user uuid to assign an owner, null for no owner. Omitted defaults to the creator"
                     }
                 },
                 "required": ["name"],
@@ -71646,9 +72807,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ParameterDefinitions": {
-                "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
             },
             "ApiGetProjectParametersResults": {
                 "$ref": "#/components/schemas/ParameterDefinitions"
@@ -72248,8 +73406,31 @@
                     }
                 ]
             },
+            "Record_string._parameters-ParametersValuesMap--excludedParameterKeys-string-Array__": {
+                "properties": {},
+                "additionalProperties": {
+                    "properties": {
+                        "excludedParameterKeys": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "parameters": {
+                            "$ref": "#/components/schemas/ParametersValuesMap"
+                        }
+                    },
+                    "required": ["excludedParameterKeys", "parameters"],
+                    "type": "object"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "ExportContentRequest": {
                 "properties": {
+                    "tileParameters": {
+                        "$ref": "#/components/schemas/Record_string._parameters-ParametersValuesMap--excludedParameterKeys-string-Array__"
+                    },
                     "parameters": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
                     },
@@ -74895,7 +76076,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.135.2",
+        "version": "3.171.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -90401,6 +91582,46 @@
                 ]
             }
         },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/latest": {
+            "get": {
+                "operationId": "getLatestAgentOnboardingRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingActiveRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the most recent agent onboarding run for a project, finished or not.",
+                "summary": "Get latest agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}": {
             "get": {
                 "operationId": "getAgentOnboardingRun",
@@ -103334,6 +104555,57 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/project-context": {
+            "put": {
+                "operationId": "replaceProjectContext",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiReplaceProjectContextResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Replace the project's AI agent context with the contents of\n`lightdash.project_context.yml`. Sent by the CLI on deploy/preview so\nprojects without a Git connection get the same context a server-side\ncompile would ingest. The CLI only calls this when the file exists, so\nremoving the file leaves the stored entries unchanged; send an empty\n`entries: []` file to clear them. Requires the organization's \"Review AI\nagent turns\" setting; when it is off the entries are left unchanged.",
+                "summary": "Replace project AI context",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiReplaceProjectContextBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/colorPalette": {
             "get": {
                 "operationId": "getProjectColorPalette",
@@ -103973,6 +105245,47 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/results-cache-config/status": {
+            "get": {
+                "operationId": "getProjectResultsCacheStatus",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Whether query results are cached for a project. Readable by anyone who\ncan view the project.",
+                "summary": "Get results cache status",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/results-cache-config": {
             "get": {
                 "operationId": "getProjectResultsCacheSettings",
@@ -103998,7 +105311,7 @@
                         }
                     }
                 },
-                "description": "Get the results cache TTL for a project. A null TTL means the\ninstance-wide default applies.",
+                "description": "Get the results cache settings for a project: whether caching is\nenabled and its TTL. A null TTL means the instance-wide default applies.",
                 "summary": "Get results cache settings",
                 "tags": ["Projects"],
                 "security": [],
@@ -104037,7 +105350,7 @@
                         }
                     }
                 },
-                "description": "Update the results cache TTL for a project. Pass null to fall back to\nthe instance-wide default.",
+                "description": "Enable or disable results caching for a project, or update its TTL.\nOmitted fields keep their current value. Pass a null TTL to fall back to\nthe instance-wide default.",
                 "summary": "Update results cache settings",
                 "tags": ["Projects"],
                 "security": [],
@@ -109193,7 +110506,17 @@
                 "description": "Install the Lightdash GitHub App and link to an organization",
                 "summary": "Install GitHub App",
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "description": "Optional app path to return to after installation",
+                        "in": "query",
+                        "name": "redirect",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/github/user/authorize": {
@@ -113357,6 +114680,61 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/tables": {
+            "get": {
+                "operationId": "getMetricTables",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the tables that have metrics visible in the metrics catalog, for the tables filter dropdown",
+                "summary": "List metrics catalog tables",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/dataCatalog/metrics/owners": {
             "get": {
                 "operationId": "getMetricOwners",
@@ -115619,6 +116997,54 @@
                 ]
             }
         },
+        "/api/v1/bigquery/datasets": {
+            "post": {
+                "operationId": "GetBigQueryDatasetsFromKeyfile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiBigqueryDatasets"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the datasets a service account key can see, before a project exists",
+                "summary": "List BigQuery datasets for a key file",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "keyfileContents": {
+                                        "$ref": "#/components/schemas/Record_string.unknown_"
+                                    }
+                                },
+                                "required": ["keyfileContents"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/user/agent-connections/requests": {
             "post": {
                 "operationId": "RequestApproval",
@@ -117072,6 +118498,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/dashboards/tile-parameter-references": {
+            "post": {
+                "operationId": "getDashboardTileParameterReferences",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDashboardTileParameterReferencesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the parameters each dashboard tile uses, read from its saved query\nwithout running it. Tiles that can't be loaded or viewed report an error.\nThe dashboard calls this while it is edited; in view mode each tile\nreports its parameters with its own query results.\n\nEmbed tokens can call this with the `Lightdash-Embed-Token` header. The\ntoken must embed a dashboard: only that dashboard's tiles are listed,\nwith the charts saved on it (request chart uuids are ignored), and a\ntile not on it reports an error.",
+                "summary": "Get tile parameter references",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DashboardTileParameterReferencesRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug}/comments": {

@@ -9,9 +9,9 @@ controls the older Project settings usage reports.
 
 Organization admins retain access by default. Other users and service accounts
 need an explicit custom-role grant, plus the normal project/content permissions.
-The deployment must have a validated commercial license, and the organization's
-`analytics-project` feature flag must also be enabled. Database and environment
-overrides cannot enable Analytics without that registration.
+Managed Analytics is enabled by default on deployments with a validated commercial
+license and configured usage-events storage. Database and environment overrides
+of the retired `analytics-project` flag have no effect; they cannot bypass licensing.
 
 An organization administrator can:
 
@@ -37,6 +37,14 @@ operations, project administration, SQL Runner, or extra content permissions.
 Built-in Project Admin and other non-admin organization roles are not opted in
 automatically. Private spaces retain their normal content-access checks.
 
+## Project removal
+
+Deleting an organization's managed Analytics project stops future nightly
+selection for that organization. It does not stop raw event capture, cancel work
+already selected or explicitly queued for the organization, or delete stored
+usage data. Administrators can recreate the project. There is no per-organization capture
+switch.
+
 ## Agents and service accounts
 
 Agents inherit the permissions of the identity they authenticate with. Assign
@@ -49,7 +57,7 @@ Runner remains unavailable for managed analytics projects.
 
 Managed analytics supports CSV and Excel (XLSX) downloads, including scheduled
 data exports, when export file storage is configured. Both direct and queued
-export generation check the analytics feature flag and managed analytics access,
+export generation check deployment availability and managed analytics access,
 alongside the existing project, query-result and agent permissions. Raw JSONL
 exports remain unavailable. Image exports use their existing flow.
 
@@ -61,7 +69,7 @@ adding a download token does not bypass these checks.
 Scheduled deliveries can deliberately share `SIGNED` files with recipients.
 These are bearer links: anyone holding a valid link can retrieve the file until
 it expires, without analytics access. Revoking the sender's permission or
-disabling the feature flag does not revoke an already issued signed link or a
+deleting the project does not revoke an already issued signed link or a
 delivered attachment. Choose recipients accordingly: exports can contain
 organization-wide usage data, including user and content names.
 
@@ -76,14 +84,14 @@ admin still has access through their administration role.
 The backend verifies organization identity independently of the scope. Queries
 remain bound to the persisted project's organization and its server-controlled
 storage prefix; granting this scope does not allow choosing another customer's
-storage, connector or models. Disabling the analytics feature flag blocks reads
+storage, connector or models. Deleting the managed project blocks reads
 and new exports for admins and explicitly authorized readers alike. Previously
 shared signed exports follow the delivery behavior described above.
 
 ## Support verification
 
 1. Confirm the project's `provisioningSource: 'analytics'`, not just its name.
-2. Check the organization's feature flag, the identity's effective role set and
+2. Check deployment availability, the identity's effective role set and
    the ordinary project/content/query permissions.
 3. Check the project selector, a saved dashboard, and a direct Explore query.
    Without the analytics grant, direct reads report **Managed analytics requires

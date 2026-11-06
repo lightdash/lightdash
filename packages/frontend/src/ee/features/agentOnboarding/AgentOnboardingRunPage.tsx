@@ -1,14 +1,16 @@
 import {
-    assertUnreachable,
+    FeatureFlags,
     isAgentOnboardingRunTerminal,
     type AgentOnboardingRun,
     type AgentOnboardingRunStatus,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Alert,
     Box,
     Button,
     Group,
+    Menu,
     Paper,
     Stack,
     Text,
@@ -16,68 +18,105 @@ import {
 } from '@mantine/core';
 import {
     IconAlertCircle,
+    IconAlertTriangle,
     IconArrowRight,
+    IconCode,
+    IconDots,
     IconPlayerStop,
     IconRefresh,
+    IconTerminal2,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
+import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import PageSpinner from '../../../components/PageSpinner';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { AgentOnboardingActivityPanel } from './AgentOnboardingActivity';
-import { AgentOnboardingDemoOffer } from './AgentOnboardingDemoOffer';
-import { AgentOnboardingFileBrowser } from './AgentOnboardingFileBrowser';
-import { AgentOnboardingProgress } from './AgentOnboardingProgress';
-import classes from './AgentOnboardingRunPage.module.css';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
+    AgentOnboardingCodePanel,
+    type CodePanelView,
+} from './AgentOnboardingCodePanel';
+import { AgentOnboardingDemoOffer } from './AgentOnboardingDemoOffer';
+import { RunChanges } from './AgentOnboardingRunChanges';
+import { RunJourney } from './AgentOnboardingRunOverview';
+import classes from './AgentOnboardingRunPage.module.css';
+import { AgentOnboardingRunPageLegacy } from './AgentOnboardingRunPageLegacy';
+import { RunSummary } from './AgentOnboardingRunSummary';
+import { RunSemanticLayer } from './AgentOnboardingSemanticLayer';
+import {
+    isRunGoneError,
     useAgentOnboardingRun,
     useCancelAgentOnboardingRun,
     useStartAgentOnboardingRun,
 } from './hooks/useAgentOnboarding';
-import {
-    getAgentOnboardingDashboardUrl,
-    getAgentOnboardingRunUrl,
-} from './utils';
+import { useNow } from './hooks/useNow';
+import { formatStageDuration, getAgentOnboardingRunUrl } from './utils';
 import { setWatchedAgentOnboardingRun } from './watchedRunStore';
 
-const STATUS_LABELS: Record<AgentOnboardingRunStatus, string> = {
-    queued: 'Queued',
-    running: 'Running',
-    completed: 'Complete',
-    failed: 'Needs attention',
-    cancelled: 'Cancelled',
+const RUN_COPY: Record<
+    AgentOnboardingRunStatus,
+    { pill: string; title: string; subtitle: string | null }
+> = {
+    queued: {
+        pill: 'Queued',
+        title: 'Getting ready to build your project',
+        subtitle: 'Starting in a moment.',
+    },
+    running: {
+        pill: 'Building',
+        title: 'Building your project',
+        subtitle: 'Takes a few minutes. It keeps going if you leave.',
+    },
+    completed: {
+        pill: 'Ready',
+        title: 'Your project is ready',
+        subtitle: null,
+    },
+    failed: {
+        pill: 'Stopped',
+        title: 'Setup stopped',
+        subtitle: 'What was built is kept. Try again to start over.',
+    },
+    cancelled: {
+        pill: 'Cancelled',
+        title: 'Setup cancelled',
+        subtitle: 'What was built is kept.',
+    },
 };
 
-const RunStatus: FC<{ status: AgentOnboardingRunStatus }> = ({ status }) => (
-    <Group gap={6} wrap="nowrap" pt={4}>
-        <span className={classes.statusDot} data-status={status} />
-        <Text fz="sm" fw={500} c="dimmed">
-            {STATUS_LABELS[status]}
-        </Text>
-    </Group>
-);
+const getElapsedMs = (run: AgentOnboardingRun, now: number): number | null => {
+    const startedAt = Date.parse(run.startedAt ?? '');
+    if (!Number.isFinite(startedAt)) return null;
+    const endedAt = Date.parse(run.completedAt ?? '');
+    return (Number.isFinite(endedAt) ? endedAt : now) - startedAt;
+};
 
-const getStatusMessage = (run: AgentOnboardingRun): string => {
-    switch (run.status) {
-        case 'queued':
-            return 'Your setup is queued and will begin shortly.';
-        case 'running':
-            return 'You can leave this page and return at any time.';
-        case 'completed':
-            return 'Your semantic layer and starter dashboard are ready.';
-        case 'failed':
-            return (
-                run.errorMessage ??
-                'The setup run could not be completed. You can try again.'
-            );
-        case 'cancelled':
-            return 'This setup run was cancelled. You can start a new run.';
-        default:
-            return assertUnreachable(run.status, 'Unknown onboarding status');
-    }
+const RunStatusPill: FC<{
+    run: AgentOnboardingRun;
+    isStopping: boolean;
+}> = ({ run, isStopping }) => {
+    const now = useNow(!isAgentOnboardingRunTerminal(run.status));
+    const elapsedMs = getElapsedMs(run, now);
+    return (
+        <Group gap={8} wrap="nowrap" className={classes.pill}>
+            <Box
+                className={classes.statusDot}
+                data-status={run.status}
+                aria-hidden
+            />
+            <Text fz="xs" fw={500}>
+                {isStopping ? 'Stopping' : RUN_COPY[run.status].pill}
+            </Text>
+            {elapsedMs !== null && (
+                <Text fz="xs" c="dimmed" className={classes.tabular}>
+                    {formatStageDuration(elapsedMs)}
+                </Text>
+            )}
+        </Group>
+    );
 };
 
 const RunActions: FC<{
@@ -86,6 +125,8 @@ const RunActions: FC<{
     onSkip: () => Promise<void>;
     onRetry: () => Promise<void>;
     onOpenProject: () => void;
+    onViewCode: () => void;
+    onViewLog: () => void;
     isCancelling: boolean;
     isRetrying: boolean;
 }> = ({
@@ -94,62 +135,90 @@ const RunActions: FC<{
     onSkip,
     onRetry,
     onOpenProject,
+    onViewCode,
+    onViewLog,
     isCancelling,
     isRetrying,
 }) => {
-    if (!isAgentOnboardingRunTerminal(run.status)) {
-        return (
-            <Group gap="xs">
-                <Button
-                    variant="light"
-                    color="red"
-                    leftSection={<MantineIcon icon={IconPlayerStop} />}
-                    onClick={() => void onCancel()}
+    const isLive = !isAgentOnboardingRunTerminal(run.status);
+    const menu = (
+        <Menu position="bottom-end" withinPortal>
+            <Menu.Target>
+                <ActionIcon
+                    variant="default"
+                    size={32}
+                    aria-label="More setup options"
                     loading={isCancelling}
                 >
-                    {isCancelling ? 'Cancelling…' : 'Cancel setup'}
-                </Button>
-                <Button
-                    variant="subtle"
-                    color="gray"
-                    onClick={() => void onSkip()}
-                    disabled={isCancelling}
+                    <MantineIcon icon={IconDots} />
+                </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconCode} />}
+                    onClick={onViewCode}
                 >
-                    Skip to project
-                </Button>
-            </Group>
-        );
-    }
+                    View code
+                </Menu.Item>
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconTerminal2} />}
+                    onClick={onViewLog}
+                >
+                    Run log
+                </Menu.Item>
+                {isLive && (
+                    <>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconArrowRight} />}
+                            onClick={() => void onSkip()}
+                        >
+                            Stop and open the project
+                        </Menu.Item>
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconPlayerStop} />}
+                            onClick={() => void onCancel()}
+                        >
+                            Cancel setup
+                        </Menu.Item>
+                    </>
+                )}
+            </Menu.Dropdown>
+        </Menu>
+    );
+
+    if (isLive) return menu;
 
     if (run.status === 'completed') {
         return (
-            <Group gap="xs">
+            <Group gap="xs" wrap="nowrap">
                 <Button
+                    size="sm"
                     component={Link}
-                    to={getAgentOnboardingDashboardUrl(run.projectUuid)}
+                    to={`/projects/${run.projectUuid}`}
                     rightSection={<MantineIcon icon={IconArrowRight} />}
                 >
-                    View dashboard
+                    Ask your first question
                 </Button>
-                <Button variant="default" onClick={onOpenProject}>
-                    Open project
-                </Button>
+                {menu}
             </Group>
         );
     }
 
     return (
-        <Group gap="xs">
+        <Group gap="xs" wrap="nowrap">
+            <Button variant="default" size="sm" onClick={onOpenProject}>
+                Open project
+            </Button>
             <Button
+                size="sm"
                 leftSection={<MantineIcon icon={IconRefresh} />}
                 onClick={() => void onRetry()}
                 loading={isRetrying}
             >
-                Try again
+                {run.status === 'failed' ? 'Try again' : 'Start again'}
             </Button>
-            <Button variant="default" onClick={onOpenProject}>
-                Open project
-            </Button>
+            {menu}
         </Group>
     );
 };
@@ -160,6 +229,14 @@ const AgentOnboardingRunPage: FC = () => {
     const navigate = useNavigate();
     const [isCancellationRequested, setIsCancellationRequested] =
         useState(false);
+    // The panel keeps its last view while closed so the sidebar can animate out
+    const [panelView, setPanelView] = useState<CodePanelView | null>(null);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const codeView = isPanelOpen ? panelView : null;
+    const setCodeView = (view: CodePanelView | null) => {
+        if (view) setPanelView(view);
+        setIsPanelOpen(view !== null);
+    };
     const runQuery = useAgentOnboardingRun(projectUuid, agentOnboardingRunUuid);
     const cancelMutation = useCancelAgentOnboardingRun();
     const startMutation = useStartAgentOnboardingRun();
@@ -187,7 +264,11 @@ const AgentOnboardingRunPage: FC = () => {
         return <PageSpinner />;
     }
 
-    if (runQuery.isError) {
+    // A failed poll keeps the loaded run on screen; the next poll retries it
+    if (
+        runQuery.isError &&
+        (isRunGoneError(runQuery.error) || !runQuery.data)
+    ) {
         return <ErrorState error={runQuery.error.error} />;
     }
 
@@ -240,45 +321,75 @@ const AgentOnboardingRunPage: FC = () => {
         }
     };
 
+    const isLive = !isAgentOnboardingRunTerminal(run.status);
+    const isStopping = isCancellationRequested && isLive;
+    const copy = RUN_COPY[run.status];
+    const viewFile = (path: string) => setCodeView({ kind: 'file', path });
+
     return (
         <Page
-            title="Building your Lightdash project"
+            title="Project setup"
             withPaddedContent
-            fullPageScroll
+            withFullHeight
+            rightSidebar={
+                panelView ? (
+                    <AgentOnboardingCodePanel
+                        run={run}
+                        view={panelView}
+                        onChange={setCodeView}
+                        onClose={() => setCodeView(null)}
+                    />
+                ) : undefined
+            }
+            isRightSidebarOpen={codeView !== null}
+            onRightSidebarClose={() => setCodeView(null)}
+            rightSidebarTitle="Project code"
+            noRightSidebarPadding
+            rightSidebarWidthProps={{
+                defaultWidth: 760,
+                minWidth: 320,
+                maxWidth: 1100,
+            }}
         >
-            <Box
-                className={classes.page}
-                mx="calc(-1 * var(--mantine-spacing-md))"
-                my="calc(-1 * var(--mantine-spacing-md))"
-                p="lg"
-            >
-                <Stack gap="md" className={classes.content}>
-                    <Group justify="space-between" align="flex-start">
-                        <Stack gap={4}>
-                            <Group gap="sm" align="flex-start">
-                                <Title order={2}>
-                                    Building your Lightdash project
+            <Box className={classes.page}>
+                <Box className={classes.column}>
+                    <PageBreadcrumbs
+                        size="sm"
+                        items={[
+                            {
+                                title: 'Home',
+                                to: `/projects/${run.projectUuid}/home`,
+                            },
+                            { title: 'Project setup', active: true },
+                        ]}
+                    />
+
+                    <Box className={classes.header}>
+                        <Stack gap={4} className={classes.headerText}>
+                            <Group gap="xs" wrap="wrap">
+                                <Title order={2} className={classes.title}>
+                                    {copy.title}
                                 </Title>
-                                <RunStatus status={run.status} />
+                                <RunStatusPill
+                                    run={run}
+                                    isStopping={isStopping}
+                                />
                             </Group>
-                            {run.status !== 'failed' ? (
+                            {(isStopping || copy.subtitle) && (
                                 <Text c="dimmed" fz="sm">
-                                    {isCancellationRequested &&
-                                    !isAgentOnboardingRunTerminal(run.status)
+                                    {isStopping
                                         ? 'Stopping the setup run…'
-                                        : getStatusMessage(run)}
-                                    {!isAgentOnboardingRunTerminal(
-                                        run.status,
-                                    ) && !isCancellationRequested ? (
+                                        : copy.subtitle}
+                                    {isLive && !isStopping && (
                                         <>
                                             {' '}
                                             <AgentOnboardingDemoOffer
                                                 run={run}
                                             />
                                         </>
-                                    ) : null}
+                                    )}
                                 </Text>
-                            ) : null}
+                            )}
                         </Stack>
                         <RunActions
                             run={run}
@@ -287,65 +398,70 @@ const AgentOnboardingRunPage: FC = () => {
                             onRetry={retry}
                             onOpenProject={openProject}
                             isCancelling={
-                                cancelMutation.isLoading ||
-                                isCancellationRequested
+                                cancelMutation.isLoading || isStopping
                             }
                             isRetrying={startMutation.isLoading}
+                            onViewCode={() =>
+                                setCodeView(
+                                    run.files[0]
+                                        ? {
+                                              kind: 'file',
+                                              path:
+                                                  run.files.find(({ path }) =>
+                                                      /models\//.test(path),
+                                                  )?.path ?? run.files[0].path,
+                                          }
+                                        : { kind: 'log' },
+                                )
+                            }
+                            onViewLog={() => setCodeView({ kind: 'log' })}
                         />
-                    </Group>
-
-                    {run.status === 'failed' ? (
-                        <Alert
-                            color="red"
-                            icon={<MantineIcon icon={IconAlertCircle} />}
-                            title="Setup stopped"
-                        >
-                            {getStatusMessage(run)}
-                        </Alert>
-                    ) : null}
-
-                    <Box className={classes.workspace}>
-                        <Paper className={classes.panel}>
-                            <Box className={classes.panelHeader}>
-                                <Title order={5}>Progress</Title>
-                            </Box>
-                            <AgentOnboardingProgress run={run} />
-                            <AgentOnboardingActivityPanel
-                                key={run.agentOnboardingRunUuid}
-                                events={run.events}
-                            />
-                        </Paper>
-
-                        <Paper className={classes.panel}>
-                            <Box className={classes.panelHeader}>
-                                <Title order={5}>Generated files</Title>
-                                <Text c="dimmed" fz="xs">
-                                    {run.files.length === 1
-                                        ? '1 file'
-                                        : `${run.files.length} files`}
-                                </Text>
-                            </Box>
-                            <Box className={classes.panelBody}>
-                                <AgentOnboardingFileBrowser
-                                    projectUuid={run.projectUuid}
-                                    runUuid={run.agentOnboardingRunUuid}
-                                    files={run.files}
-                                    isLive={
-                                        !isAgentOnboardingRunTerminal(
-                                            run.status,
-                                        )
-                                    }
-                                    latestActivity={
-                                        run.events.at(-1)?.message ?? null
-                                    }
-                                />
-                            </Box>
-                        </Paper>
                     </Box>
-                </Stack>
+
+                    {run.status === 'failed' && (
+                        <Paper className={classes.problem}>
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                size={16}
+                                className={classes.problemIcon}
+                            />
+                            <Text fz="sm">
+                                {run.errorMessage ??
+                                    'The setup run could not be completed.'}
+                            </Text>
+                        </Paper>
+                    )}
+
+                    <Paper className={classes.journey}>
+                        <RunJourney run={run} />
+                        {run.status !== 'completed' && (
+                            <RunChanges run={run} withModels={false} />
+                        )}
+                    </Paper>
+
+                    {run.status === 'completed' && <RunSummary run={run} />}
+
+                    <RunSemanticLayer
+                        run={run}
+                        inspectedPath={
+                            codeView?.kind === 'file' ? codeView.path : null
+                        }
+                        onViewCode={viewFile}
+                    />
+                </Box>
             </Box>
         </Page>
     );
 };
 
-export default AgentOnboardingRunPage;
+const AgentOnboardingRunRoute: FC = () => {
+    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    if (newOnboardingFlag.isInitialLoading) return <PageSpinner />;
+    return newOnboardingFlag.data?.enabled === true ? (
+        <AgentOnboardingRunPage />
+    ) : (
+        <AgentOnboardingRunPageLegacy />
+    );
+};
+
+export default AgentOnboardingRunRoute;

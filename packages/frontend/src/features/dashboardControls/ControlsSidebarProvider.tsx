@@ -12,9 +12,7 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import { VisuallyHidden } from '@mantine/core';
-import isEqual from 'lodash/isEqual';
-import omit from 'lodash/omit';
-import omitBy from 'lodash/omitBy';
+import { isEqual, omit, omitBy } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -59,6 +57,11 @@ import {
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { getLinkKey } from './linkCandidates';
+import {
+    PARAMETER_PILL_ACTION_SELECTOR,
+    PARAMETER_PILL_SELECTOR,
+} from './parameterControlsBar';
+import { ParameterEditorProvider } from './ParameterEditorProvider';
 import {
     getFieldCount,
     getFilterFields,
@@ -113,11 +116,12 @@ const findPill = (filterId: string): HTMLElement | null =>
         (element) => element.getAttribute(PILL_ATTRIBUTE) === filterId,
     ) ?? null;
 
-// What follows once the prompt is answered: the pill clicked, or a new
-// filter (in a section, or null)
+// What follows once the prompt is answered: the pill clicked, a new
+// filter (in a section, or null), or a parameter control's pill
 type Pending =
     | { kind: 'open'; filterId: string }
-    | { kind: 'new'; sectionId: string | null };
+    | { kind: 'new'; sectionId: string | null }
+    | { kind: 'external'; proceed: () => void };
 
 // A pending pill whose rule is gone is no question any more
 const getPending = ({
@@ -1515,6 +1519,26 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [close, hasUnappliedChanges, openExisting, writePending, trackClosed],
     );
 
+    // A parameter control's pill: a clean edit closes first, one with
+    // unapplied changes asks, as another filter's pill does
+    const requestSwitch = useCallback(
+        (proceed: () => void) => {
+            const current = latest.current;
+            if (current.state !== null && getEditingRule(current) !== null) {
+                if (hasUnappliedChanges()) {
+                    writePending({ kind: 'external', proceed });
+                    focusApply();
+                    return;
+                }
+                trackClosed('switch');
+                close();
+                focusReturn.current = null;
+            }
+            proceed();
+        },
+        [close, hasUnappliedChanges, writePending, trackClosed],
+    );
+
     // A click outside cancels, unapplied changes and all, so what was clicked
     // acts at once. Mapping is left only by its own Cancel or Apply
     const requestClose = useCallback(() => {
@@ -1549,6 +1573,11 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     break;
                 case 'new':
                     openPlaceholder(next.sectionId ?? undefined);
+                    break;
+                case 'external':
+                    // The next editor takes focus, not this filter's pill
+                    focusReturn.current = null;
+                    next.proceed();
                     break;
                 default:
                     assertUnreachable(next, 'Unknown pending step');
@@ -1735,6 +1764,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         clearField: clearHighlightedField,
         dismiss,
         dismissOutside: requestClose,
+        // A parameter control's pill switches as a filter's does
+        pillSelector: `[data-controls-pill], ${PARAMETER_PILL_SELECTOR}, ${PARAMETER_PILL_ACTION_SELECTOR}`,
     });
 
     // Its own memo so a hover does not hand selectors a new object
@@ -1762,6 +1793,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             endMapping,
             isAsking,
             resolvePending,
+            requestSwitch,
             moveFilter,
             newTileUuids,
             dismissedLinks,
@@ -1810,6 +1842,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             endMapping,
             isAsking,
             resolvePending,
+            requestSwitch,
             moveFilter,
             editing,
             isPlaceholder,
@@ -1845,7 +1878,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     return (
         <ControlsSidebarContext.Provider value={value}>
             <RailContractClasses.Provider value={contractClasses}>
-                {children}
+                <ParameterEditorProvider isViewer={isViewer}>
+                    {children}
+                </ParameterEditorProvider>
             </RailContractClasses.Provider>
             <FocusReturn target={focusReturn} />
             {/* Moves happen in edit mode only */}

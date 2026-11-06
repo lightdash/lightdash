@@ -351,6 +351,24 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.editing).toBeNull();
     });
 
+    it("applies an editor's required filter left with no value as off, for viewers to set", () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        // As the popover writes it: required, its value emptied
+        act(() =>
+            result.current.updateFilter({ ...rule('a', []), required: true }),
+        );
+        act(() => result.current.close());
+        expect(latest.filters.dimensions[0]).toEqual(
+            expect.objectContaining({
+                required: true,
+                values: [],
+                disabled: true,
+            }),
+        );
+        expect(result.current.editing).toBeNull();
+    });
+
     it('writes nothing on Apply of a clean edit', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
@@ -583,6 +601,25 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.filters).toEqual(initialFilters);
             expect(latest.changed).toBe(false);
             expect(result.current.editing).toEqual({ filterId: 'b' });
+        });
+
+        it("a parameter control's pill switches a clean edit and asks over a dirty one", () => {
+            const { result } = setup();
+            const proceed = vi.fn();
+            act(() => result.current.open('a'));
+            act(() => result.current.requestSwitch(proceed));
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(proceed).toHaveBeenCalledTimes(1);
+
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.requestSwitch(proceed));
+            expect(result.current.isAsking).toBe(true);
+            expect(proceed).toHaveBeenCalledTimes(1);
+            act(() => result.current.resolvePending(true));
+            expect(latest.filters.dimensions[0].values).toEqual(['9']);
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(proceed).toHaveBeenCalledTimes(2);
         });
 
         it('a new filter with no field has nothing to lose: another pill drops it and opens', () => {
@@ -2934,7 +2971,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(23);
+        expect(Object.keys(initial)).toHaveLength(24);
         expect(initial).toHaveProperty('endMapping');
         expect(initial).toHaveProperty('updateOtherFilters');
         // A pill hover marks tiles only; nothing in the sidebar follows it

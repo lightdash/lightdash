@@ -81,6 +81,7 @@ export * from './compiler/queryParameterReferences';
 export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './compiler/writebackColumn';
+export * from './parameters/dashboardParameterControls';
 export * from './parameters/dashboardTileParameters';
 export * from './parameters/parameterDefaults';
 export * from './parameters/parameterOptions';
@@ -90,7 +91,6 @@ export * from './constants/sessionStorageKeys';
 export * from './constants/spaces';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
-export * from './dbt/findDbtNodeCycle';
 export * from './dbt/manifest';
 export * from './dbt/metricFlow';
 export * from './dbt/projectMergedManifest';
@@ -139,6 +139,7 @@ export * from './types/api/sort';
 export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/apiSourceExplore';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
@@ -409,6 +410,7 @@ export * from './types/yamlSchema';
 export * from './utils/accessors';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
+export * from './utils/apiSourceQuery';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
 export * from './utils/awsWebIdentity';
@@ -440,6 +442,7 @@ export * from './utils/i18n/dashboardAsCode';
 export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
 export * from './utils/i18n/uiStrings';
+export * from './utils/isoDateTime';
 export * from './utils/item';
 export * from './utils/mergeQueryItems';
 export * from './utils/mergeTotals';
@@ -730,6 +733,8 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
+    firstName: getUserNameSchema().optional(),
+    lastName: getUserNameSchema().optional(),
     jobTitle: z.string().min(0),
     // Only collected from the person creating the organization; invited
     // members skip it (their onboarding omits this field from the schema).
@@ -1303,3 +1308,5 @@ export * from './types/releaseHighlights';
 export { getDeferredExploreName } from './dbt/qualifiedName';
 
 export * from './utils/exploreName';
+
+export * from './dbt/validateDbtText';

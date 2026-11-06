@@ -10,7 +10,7 @@
         "addsSkills": []
     },
     "contentTools": {
-        "description": "Edit and create saved charts and dashboards",
+        "description": "Edit and create saved charts and dashboards, or Documents alone",
         "addsTools": [
             "createContent",
             "editContent",
@@ -35,7 +35,7 @@
         "addsSkills": []
     },
     "legacyDashboards": {
-        "description": "Read dashboard charts when content tools are off",
+        "description": "Read dashboard charts when content reads are off",
         "addsTools": [
             "getDashboardCharts"
         ],

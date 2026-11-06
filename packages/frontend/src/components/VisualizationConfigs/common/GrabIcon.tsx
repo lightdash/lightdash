@@ -1,12 +1,13 @@
-import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { Box, Tooltip } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import { type SortableHandleProps } from '../../common/Sortable/Sortable';
 import classes from './GrabIcon.module.css';
 
 type Props = {
-    dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    dragHandleProps?: SortableHandleProps | null;
     hovered?: boolean;
     disabled?: boolean;
     disabledTooltip?: string;
@@ -22,7 +23,7 @@ export const GrabIcon: FC<Props> = ({
         <Box
             {...dragHandleProps}
             opacity={disabled ? 0.3 : 0.6}
-            className={classes.grabHandle}
+            className={clsx(dragHandleProps?.className, classes.grabHandle)}
             data-disabled={disabled || undefined}
             data-hidden={hovered === false || undefined}
         >

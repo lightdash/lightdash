@@ -20,15 +20,20 @@ export const handleGoogleLiveSourceCallback = async (
         next();
         return;
     }
+    const returnTo = req.session.oauth?.liveSourceReturnTo;
     req.session.oauth = {};
     const service =
         req.services.getExternalConnectionService<ExternalConnectionService>();
     const code = typeof req.query.code === 'string' ? req.query.code : null;
     if (!code || req.query.error) {
         res.redirect(
-            service.getLiveDataSourcesUrl(session.projectUuid, {
-                error: 'Google sign-in was cancelled',
-            }),
+            service.getLiveDataSourcesUrl(
+                session.projectUuid,
+                {
+                    error: 'Google sign-in was cancelled',
+                },
+                returnTo,
+            ),
         );
         return;
     }
@@ -42,25 +47,37 @@ export const handleGoogleLiveSourceCallback = async (
         if ('pending' in result) {
             req.session.pendingGoogleLiveSource = result.pending;
             res.redirect(
-                service.getLiveDataSourcesUrl(session.projectUuid, {
-                    pickGoogleSource: true,
-                }),
+                service.getLiveDataSourcesUrl(
+                    session.projectUuid,
+                    {
+                        pickGoogleSource: true,
+                    },
+                    returnTo,
+                ),
             );
             return;
         }
         res.redirect(
-            service.getLiveDataSourcesUrl(session.projectUuid, {
-                connectionUuid: result.connection.externalConnectionUuid,
-            }),
+            service.getLiveDataSourcesUrl(
+                session.projectUuid,
+                {
+                    connectionUuid: result.connection.externalConnectionUuid,
+                },
+                returnTo,
+            ),
         );
     } catch (e) {
         Logger.warn(
             `Google live-source sign-in failed for ${session.connector}: ${getErrorMessage(e)}`,
         );
         res.redirect(
-            service.getLiveDataSourcesUrl(session.projectUuid, {
-                error: getErrorMessage(e),
-            }),
+            service.getLiveDataSourcesUrl(
+                session.projectUuid,
+                {
+                    error: getErrorMessage(e),
+                },
+                returnTo,
+            ),
         );
     }
 };

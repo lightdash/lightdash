@@ -440,18 +440,18 @@ describe('FeatureFlagModel', () => {
         });
 
         it('leaves config-derived flags to their handler', async () => {
-            // ai-copilot, results-cache-enabled and enable-timezone-support are
-            // excluded so previews never advertise unconfigured backends.
+            // ai-copilot and enable-timezone-support are excluded so previews
+            // never advertise unconfigured backends.
             const model = buildModel({
                 ...previewConfig,
-                results: {
-                    ...lightdashConfigMock.results,
-                    cacheEnabled: false,
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: false,
                 },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.ResultsCacheEnabled,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result.enabled).toBe(false);
@@ -621,50 +621,6 @@ describe('FeatureFlagModel', () => {
         });
     });
 
-    describe('default_enabled honoured over env fallback', () => {
-        // ResultsCacheEnabled resolves to lightdashConfig.results.cacheEnabled
-        // only when the DB has no opinion. A concrete default_enabled in the
-        // DB wins, so `false` must beat an env fallback of `true`, while
-        // `null` (no default set) falls through to it.
-        const cacheEnabledConfig = {
-            results: { ...lightdashConfigMock.results, cacheEnabled: true },
-        };
-
-        it('default_enabled:false overrides an env fallback of true', async () => {
-            const model = buildModel(
-                cacheEnabledConfig,
-                buildFakeDatabase({ flag: { default_enabled: false } }),
-            );
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.ResultsCacheEnabled,
-                user: dbUser,
-            });
-
-            expect(result).toEqual({
-                id: FeatureFlags.ResultsCacheEnabled,
-                enabled: false,
-            });
-        });
-
-        it('default_enabled:null falls through to the env fallback', async () => {
-            const model = buildModel(
-                cacheEnabledConfig,
-                buildFakeDatabase({ flag: { default_enabled: null } }),
-            );
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.ResultsCacheEnabled,
-                user: dbUser,
-            });
-
-            expect(result).toEqual({
-                id: FeatureFlags.ResultsCacheEnabled,
-                enabled: true,
-            });
-        });
-    });
-
     describe('EnableTimezoneSupport defaults to on', () => {
         const withTimezoneSupport = (enableTimezoneSupport: boolean) => ({
             query: { ...lightdashConfigMock.query, enableTimezoneSupport },
@@ -672,6 +628,41 @@ describe('FeatureFlagModel', () => {
 
         it('is enabled when neither config nor database has an opinion', async () => {
             const model = buildModel({}, buildFakeDatabase({}));
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.EnableTimezoneSupport,
+                enabled: true,
+            });
+        });
+
+        // The fallback only applies when the database has no opinion
+        it('default_enabled:false overrides the fallback of true', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({ flag: { default_enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.EnableTimezoneSupport,
+                enabled: false,
+            });
+        });
+
+        it('default_enabled:null falls through to the fallback', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({ flag: { default_enabled: null } }),
+            );
 
             const result = await model.get({
                 featureFlagId: FeatureFlags.EnableTimezoneSupport,
@@ -847,47 +838,4 @@ describe('FeatureFlagModel', () => {
             expect(warnSpy).toHaveBeenCalled();
         });
     });
-});
-
-describe('analytics availability without a registered commercial model', () => {
-    it.each([
-        { name: 'stored default', rows: { flag: { default_enabled: true } } },
-        {
-            name: 'organization override',
-            rows: { orgOverride: { enabled: true } },
-        },
-        { name: 'user override', rows: { userOverride: { enabled: true } } },
-    ])('ignores a $name enabling analytics', async ({ rows }) => {
-        await expect(
-            buildModel({}, buildFakeDatabase(rows)).get({
-                featureFlagId: FeatureFlags.AnalyticsProject,
-                user: dbUser,
-            }),
-        ).resolves.toEqual({
-            id: FeatureFlags.AnalyticsProject,
-            enabled: false,
-        });
-    });
-
-    it.each([false, true])(
-        'ignores forced enablement with preview=%s',
-        async (preview) => {
-            const model = buildModel({
-                enabledFeatureFlags: new Set([FeatureFlags.AnalyticsProject]),
-                previewFeatureFlags: {
-                    ...lightdashConfigMock.previewFeatureFlags,
-                    enabled: preview,
-                },
-            });
-            await expect(
-                model.get({
-                    featureFlagId: FeatureFlags.AnalyticsProject,
-                    user: dbUser,
-                }),
-            ).resolves.toEqual({
-                id: FeatureFlags.AnalyticsProject,
-                enabled: false,
-            });
-        },
-    );
 });

@@ -1,5 +1,5 @@
 import {
-    DEFAULT_UI_STRINGS,
+    resolveUiString,
     type UiStringKey,
     type UiStringResolver,
 } from '@lightdash/common';
@@ -10,10 +10,7 @@ import useEmbed from './useEmbed';
 // default t() returns undefined, so this resolves to the defaults everywhere.
 export const useUiStrings = (): UiStringResolver => {
     const { t } = useEmbed();
-    return useCallback(
-        (key: UiStringKey) => t?.(key) ?? DEFAULT_UI_STRINGS[key],
-        [t],
-    );
+    return useCallback((key: UiStringKey) => resolveUiString(key, t), [t]);
 };
 
 export const useUiString = (key: UiStringKey): string => useUiStrings()(key);

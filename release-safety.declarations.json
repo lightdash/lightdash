@@ -172,6 +172,27 @@
         "organization-warehouse-credentials-api-retired": {
             "reason": "The deprecated organization warehouse credential REST endpoints and CLI organization-credentials option are removed. Callers of those endpoints receive 404 and older CLI commands using that option must configure warehouse credentials on the project instead. Existing project credentials, personal sign-ins and service accounts retain their current behavior. Legacy storage and shared compatibility types remain unchanged.",
             "requiredStop": false
+        },
+        "dashboard-control-section-slugs-experimental-exports": {
+            "reason": "Experimental dashboard section downloads use slugs when dashboard-controls is enabled. The flag defaults off on Cloud and self-hosted; disabled exports retain IDs, including previously saved sections. Legacy ID uploads and stored identities remain supported. Experimental readers must adopt slugs. POST findings are allOf restructuring; existing request fields and requirements are unchanged.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "dashboard-controls",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/code/dashboards",
+                        "GET /api/v1/projects/{projectUuid}/dashboards/code",
+                        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug}",
+                        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "results-cache-enabled-flag-removed": {
+            "reason": "The ResultsCacheEnabled member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; results caching is now a per-project setting, and the migration copies each organization's flag value into its projects.",
+            "requiredStop": false
         }
     }
 }

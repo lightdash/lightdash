@@ -135,6 +135,7 @@ jobs:
   publish-npm-packages:
     name: Publish npm Packages
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       id-token: write
       contents: read
@@ -172,5 +173,9 @@ jobs:
       - name: Build published packages
         run: pnpm build-published-packages
 
+      # Recovery: wait for accepted versions on npm, then rerun failed jobs (newest release only).
       - name: Publish npm packages
+        env:
+          # Wait for npm's malware scan before publishing dependent packages.
+          PNPM_CONFIG_PUBLISH_WAIT_TIMEOUT: '3600000'
         run: pnpm release-packages

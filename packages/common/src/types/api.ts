@@ -92,6 +92,7 @@ import type {
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
+    ApiLiveSourceFieldsResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -109,6 +110,7 @@ import type {
     ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
+    ApiReplaceProjectContextResults,
     ApiResolvedHomepageResponse,
     ApiSkillsAsCodeListResponse,
     ApiSkillsAsCodeUpsertResponse,
@@ -342,7 +344,10 @@ import {
     type UpdateAllowedEmailDomains,
 } from './organization';
 import { type OrganizationAccess } from './organizationAccess';
-import { type ApiOrganizationBrandResponse } from './organizationBrand';
+import {
+    type ApiOrganizationBrandResponse,
+    type InstanceBrand,
+} from './organizationBrand';
 import {
     type DomainVerificationStatus,
     type VerifiedDomain,
@@ -414,6 +419,7 @@ import { type ResultColumns, type ResultRow } from './results';
 import {
     type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
+    type ApiResultsCacheStatusResponse,
 } from './resultsCacheProjectSettings';
 import {
     type ApiRoadmapFollowProjectResponse,
@@ -717,6 +723,7 @@ export type HealthState = {
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
+    instanceBrand: InstanceBrand | null;
     hasEmailClient: boolean;
     /**
      * Instance can provision the sample-data playground project (enterprise
@@ -842,6 +849,7 @@ export type HealthState = {
     hasPostHogOAuth: boolean;
     hasGoogleLiveSources: boolean;
     hasHeadlessBrowser: boolean;
+    hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
     appearance: {
@@ -1466,6 +1474,7 @@ type ApiResults =
     | ApiExploreResults
     | ApiStatusResults
     | ApiRefreshResults
+    | ApiReplaceProjectContextResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
     | WarehouseConnectionTestResults
@@ -1656,6 +1665,7 @@ type ApiResults =
     | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
+    | ApiLiveSourceFieldsResponse['results']
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
@@ -1775,6 +1785,7 @@ type ApiResults =
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
     | ApiResultsCacheProjectSettingsResponse['results']
+    | ApiResultsCacheStatusResponse['results']
     | ApiResultsCacheInvalidationResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']

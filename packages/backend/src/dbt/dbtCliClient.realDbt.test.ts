@@ -246,6 +246,39 @@ describe.skipIf(!executables)('empty selectors with real dbt', () => {
                 30000,
             );
 
+            it.each([
+                "ref('external_customers')",
+                "ref('other_project', 'external_customers')",
+            ])(
+                'rejects an unavailable dbt reference %s',
+                async (reference) => {
+                    client.selector = undefined;
+                    await fs.writeFile(
+                        path.join(directory, 'models', 'matched.sql'),
+                        `select * from {{ ${reference} }}`,
+                    );
+                    const failure = client.getDbtManifest();
+                    await expect(failure).rejects.toBeInstanceOf(DbtError);
+                    await expect(failure).rejects.toMatchObject({
+                        logs: expect.arrayContaining([
+                            expect.objectContaining({
+                                info: expect.objectContaining({
+                                    name: 'MainEncounteredError',
+                                    msg: expect.stringMatching(
+                                        /external_customers.*was not found/,
+                                    ),
+                                }),
+                            }),
+                        ]),
+                    });
+                    expect(calls).toBe(1);
+                    await expect(
+                        fs.stat(path.join(directory, 'baseline.msgpack')),
+                    ).rejects.toMatchObject({ code: 'ENOENT' });
+                },
+                30000,
+            );
+
             it('keeps another project warning promoted to an error', async () => {
                 await fs.writeFile(
                     path.join(directory, 'models', 'matched.sql'),

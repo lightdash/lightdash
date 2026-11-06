@@ -7,16 +7,52 @@ import {
     type AiPromptContextItem,
     type ApiAppVersionSummary,
     type ApiGetAppResponse,
+    type AppVersionStatus,
     type ToolGenerateDataAppOutput,
 } from '@lightdash/common';
 import { getAppVersionFailureMessage } from '../../../../../../features/apps/getAppVersionFailureMessage';
 import { getVersionNarration } from '../../../../../../features/apps/utils/versionNarration';
-import { type DataAppBuildCardState } from './DataAppBuildCard';
+import {
+    type DataAppBuildCardState,
+    type DataAppBuildStep,
+} from './DataAppBuildCard';
 
 type AppData = ApiGetAppResponse['results'];
 
 export const DATA_APP_BUILD_FAILED_TITLE = "The app couldn't be built";
 export const DATA_APP_BUILD_CANCELLED_TITLE = 'Build cancelled';
+
+export const DATA_APP_BUILD_STEP_COUNT = 4;
+
+/** Folds the pipeline's stages into the four a reader can follow. */
+const getDataAppBuildStep = (status: AppVersionStatus): DataAppBuildStep => {
+    switch (status) {
+        case 'pending':
+        case 'sandbox':
+        case 'catalog':
+        case 'compact':
+            return {
+                index: 0,
+                labelKey: 'aiAgent.dataAppBuild.stage.preparing',
+            };
+        case 'generating':
+            return { index: 1, labelKey: 'aiAgent.dataAppBuild.stage.writing' };
+        case 'building':
+            return {
+                index: 2,
+                labelKey: 'aiAgent.dataAppBuild.stage.building',
+            };
+        case 'packaging':
+        case 'ready':
+        case 'error':
+            return {
+                index: 3,
+                labelKey: 'aiAgent.dataAppBuild.stage.packaging',
+            };
+        default:
+            return assertUnreachable(status, 'Unknown app version status');
+    }
+};
 
 /** What the thread knows about the app the build belongs to. */
 export type DataAppBuildCardAppSource =
@@ -71,6 +107,8 @@ const getDataAppVersionState = (
             name,
             statusMessage: row.statusMessage ?? 'Building your app',
             narration: getVersionNarration(row.statusHistory),
+            step: getDataAppBuildStep(row.status),
+            startedAt: new Date(row.createdAt),
         };
     }
     if (row.status === 'ready') {

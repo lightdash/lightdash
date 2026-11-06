@@ -1,5 +1,4 @@
 import {
-    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     createToolComposerQueriesArgsSchema,
     getSourceQueryResultReferences,
     getSqlApprovalSql,
@@ -8,7 +7,6 @@ import {
     queryToolDefinition,
     toComposerNodeColumns,
     WarehouseQueryError,
-    type ComposerApiConnection,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
@@ -50,6 +48,8 @@ import {
     getFailedRunNodes,
     isSaved,
     renderComposerNodeListing,
+    renderOtherUnreadNodesNote,
+    shareComposerPreview,
     toNodeColumns,
     toNodeSummary,
 } from './composerQueryPipeline';
@@ -88,8 +88,6 @@ type Dependencies = {
     enableDataAccess: boolean;
     canRunSql: boolean;
     enablePythonNodes: boolean;
-    // Project API connections api nodes may query; empty disables api nodes.
-    apiConnections: ComposerApiConnection[];
     // Funnel nodes need the funnel builder enabled on the instance.
     enableFunnelNodes: boolean;
     autoApproveSql?: boolean;
@@ -189,7 +187,6 @@ export const getRunComposerQueries = ({
     enableDataAccess,
     canRunSql,
     enablePythonNodes,
-    apiConnections,
     enableFunnelNodes,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
@@ -216,18 +213,15 @@ export const getRunComposerQueries = ({
         COMPOSER_SQL_APPROVAL_COPY,
     );
 
-    const enableApiNodes = apiConnections.length > 0;
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
         enablePythonNodes,
-        enableApiNodes,
         enableFunnelNodes,
     });
 
     return tool({
         description: getToolComposerQueriesDescription({
             enablePythonNodes,
-            apiConnections,
             enableFunnelNodes,
         }),
         inputSchema,
@@ -268,7 +262,6 @@ export const getRunComposerQueries = ({
                     projectParameterDefinitions,
                     reusableNodes: threadNodes,
                     enablePythonNodes,
-                    apiConnections,
                     enableFunnelNodes,
                     canRunSql,
                     sqlDisabledMessage:
@@ -282,6 +275,7 @@ export const getRunComposerQueries = ({
                 const {
                     queries,
                     terminalNodeId: resolvedTerminalNodeId,
+                    otherUnreadNodeIds,
                     appliedParameters,
                 } = built.pipeline;
                 const submittedNodeIds = new Set(
@@ -312,6 +306,7 @@ export const getRunComposerQueries = ({
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
+                        otherUnreadNodeIds,
                         sampleNodeIds: enableDataAccess
                             ? [...submittedNodeIds].filter(
                                   (nodeId) => nodeId !== resolvedTerminalNodeId,
@@ -383,7 +378,12 @@ export const getRunComposerQueries = ({
                         `${run.error}\nNodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:\n${nodeListing}`,
                     );
                 }
-                const { terminal, nodeStatuses } = run;
+                const { terminal } = run;
+                const { nodeStatuses, terminalRowLimit } = shareComposerPreview(
+                    run.nodeStatuses,
+                    otherUnreadNodeIds,
+                    terminal.rowCount,
+                );
 
                 if (approvalSql !== null) {
                     await renderState({
@@ -429,7 +429,10 @@ export const getRunComposerQueries = ({
                     submittedNodeIds,
                     maxQueryLimit,
                 });
-                const preview = buildComposerPreview(terminal);
+                const preview = buildComposerPreview(
+                    terminal,
+                    terminalRowLimit,
+                );
                 const { columns } = preview;
                 const columnSummary = columns
                     .map((column) => `${column.reference} (${column.type})`)
@@ -465,14 +468,20 @@ export const getRunComposerQueries = ({
                               review,
                           });
                 const resultSummary = [
-                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
+                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.${renderOtherUnreadNodesNote(
+                        otherUnreadNodeIds,
+                    )}`,
                     `Nodes in this pipeline:\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                     ...appliedParameters.map(
                         ({ nodeId, ...applied }) =>
                             `Node "${nodeId}":${renderAppliedParameters(applied)}`,
                     ),
-                    `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}".`,
+                    `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}"${
+                        otherUnreadNodeIds.length > 0
+                            ? ` (or ${otherUnreadNodeIds.join(', ')})`
+                            : ''
+                    }.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');
@@ -496,7 +505,7 @@ export const getRunComposerQueries = ({
                     }
                     const { truncated } = preview;
                     const truncatedNote = truncated
-                        ? `\n(Showing first ${COMPOSER_QUERY_PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
+                        ? `\n(Showing first ${preview.rows.length} of ${terminal.rowCount} rows.)`
                         : '';
                     return {
                         result: `${resultSummary}${truncatedNote}\n${serializeData(

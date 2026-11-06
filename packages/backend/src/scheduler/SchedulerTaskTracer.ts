@@ -136,6 +136,12 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
+    [SCHEDULER_TASKS.WARM_WAREHOUSE_TABLES_CACHE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+
     [SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -352,6 +358,7 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: () => ({}),
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -374,6 +381,15 @@ const getTagsForTask: {
                           ? payload.target.appUuid
                           : (payload.appUuid ?? ''),
               }),
+        'agent.uuid': payload.agentUuid,
+    }),
+    [SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+        ...(payload.target.kind === 'dashboard'
+            ? { 'dashboard.uuid': payload.target.dashboardUuid }
+            : { 'app.uuid': payload.target.appUuid }),
         'agent.uuid': payload.agentUuid,
     }),
     [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: (payload) => ({
@@ -418,6 +434,11 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: () => ({}),
+    [SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
     [SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: () => ({}),
     [SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND]: (payload) => ({
         projectUuid: payload.projectUuid,

@@ -32,7 +32,7 @@ import {
     IconTableAlias,
     IconTrash,
 } from '@tabler/icons-react';
-import groupBy from 'lodash/groupBy';
+import { groupBy } from 'es-toolkit/compat';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';

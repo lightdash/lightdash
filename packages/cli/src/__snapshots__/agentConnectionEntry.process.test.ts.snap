@@ -35,7 +35,7 @@ Commands:
   validate [options]                      Validates a project
   generate [options]                      Generates a new schema.yml file for model
   rename [options]                        Rename models and fields on Lightdash content
-  slug-update [options]                   Rename a chart or dashboard slug and update its local references
+  slug-update [options]                   Rename a chart, dashboard, or data app slug and update its local references
   generate-exposures [options]            Generates a YAML file for Lightdash exposures
   diagnostics [options]                   Shows diagnostic information about the CLI environment
   lint [options]                          Validates Lightdash Code files (models, charts, dashboards) against JSON schemas

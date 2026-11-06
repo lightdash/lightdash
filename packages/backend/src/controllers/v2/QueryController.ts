@@ -604,6 +604,7 @@ export class QueryController extends BaseController {
                 parameters: body.parameters,
                 pivotResults: body.pivotResults,
                 includeUnpublishedDraft: body.includeUnpublishedDraft,
+                excludedParameterKeys: body.excludedParameterKeys,
             });
 
         return {
@@ -872,6 +873,7 @@ export class QueryController extends BaseController {
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 limit: body.limit,
                 parameters: body.parameters,
+                excludedParameterKeys: body.excludedParameterKeys,
                 ...(isExecuteAsyncDashboardSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),

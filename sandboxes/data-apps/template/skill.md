@@ -522,7 +522,9 @@ When the user asks for "Open in Google Sheets" (or any Sheets destination), read
 
 A PDF or printable report app always includes a visible **Download PDF** button — the export action is part of the report shape, not an optional extra, and `window.print()` is only ever a secondary Print action. This applies whenever the app is report-shaped, whatever the request's wording: the PDF Report starter template, a "printable" / "document" / "report to share" ask, or an app that already renders `.pdf-page` sections. On edit turns, keep the existing Download PDF button working — an edit that removes it is a regression.
 
-Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
+Every app with a Download PDF button also registers the same builder for scheduled deliveries via `registerPdfExport` from `@/lib/pdfExport` (builder resolves to `pdf.output('blob')`). The button and the registration always ship together — an app with one but not the other is incomplete, on first generation and after every edit.
+
+Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern, page-capture rules, and the `registerPdfExport` wiring.
 
 ### Underlying data
 
@@ -606,6 +608,8 @@ function RevenueTable() {
 
 ### Formatting
 
+**Trust Lightdash's values for date/time display — never re-convert them.** Date and timestamp values arrive as the correct wall-clock reading with a `Z` suffix (e.g. a March 1st date is `'2025-03-01T00:00:00Z'`). Rendering them through anything timezone-aware — `new Date(value).toLocaleDateString()`, `Intl.DateTimeFormat`, `date-fns-tz`, or manual offset math — shifts them into the viewer's local timezone, so a viewer behind UTC sees Feb 28 where Lightdash shows Mar 1. Always display dates via `format(row, fieldName)` or the `@/lib/format` helpers below (they render the server's wall-clock components as-is); when formatting manually, format the date's own Y/M/D components, never a locale/timezone conversion of them.
+
 Every Lightdash row carries two views of each value:
 
 - `row[fieldName]` — the **raw** value. Numbers are real numbers; **dates and timestamps are full ISO strings** (e.g. `'2025-03-01T00:00:00Z'`) regardless of the truncation grain. Pass these to charts as data, not as axis labels.
@@ -634,16 +638,14 @@ import { formatField, formatDate, formatNumber, getColumn } from '@/lib/format';
 - number — server-formatted (currency / % / suffix preserved via the SDK `format()` you pass in)
 - timestamp without grain — `Jun 16, 2025 14:00`
 
-**Override** by passing `opts.pattern` to `formatDate`, or by formatting yourself with `date-fns`/`Intl.NumberFormat`:
+**Override** by passing `opts.pattern` to `formatDate` — this keeps the server's wall-clock reading while changing the pattern:
 
 ```tsx
-import { format as formatDateFns, parseISO } from 'date-fns';
-
 formatDate(row.order_date_month, getColumn(columns, 'order_date_month'), 'axis', { pattern: 'MMM yyyy' });
-
-// Or fully manual:
-formatDateFns(parseISO(row.order_date as string), 'EEEE, MMM d');
+formatDate(row.order_date, undefined, 'cell', { pattern: 'EEEE, MMM d' });
 ```
+
+Avoid `parseISO`/`new Date` + `format` from `date-fns` for display: the `Z` suffix makes them shift the value into the viewer's timezone, moving midnight dates to the previous day for viewers behind UTC.
 
 #### Chart axes
 
@@ -781,7 +783,7 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 ### AI analysis — executive summary and anomalies
 
-When the user asks for AI analysis, an executive summary, "what changed and why", anomaly callouts, or any AI-generated insight about the data on the page, read `/app/references/ai-analysis.md` and build its **Default build** with the shipped components in `src/components/insights/` (`InsightsSummary`, `InsightMarker` / `insightCellProps`, `InvestigateMenuItem`, `InvestigationCard`): summary block at the top, markers on every query-bound chart, Investigate in every point menu, the investigation card under the chart. A short ask gets the whole set; only a narrower ask ("just a summary") gets a subset. Never rewrite those components. Lightdash runs the analysis over the queries the app already loaded and pushes the result in; the app renders it and never sends rows or keys. The components render nothing when the host has no analysis to offer. For an author-written question over loaded results (a takeaway under a chart, "explain this row"), use `useAiPrompt` from the same reference. When the user wants the summaries written a certain way (language, currency, domain vocabulary), pass it via the `instructions` prop on `InsightsSummary` — see "Author instructions" in the same reference. When the user wants the analysis to run as soon as the app loads, set the `analyseOnLoad` prop on `InsightsSummary` — see "Analyse on load" in the same reference; never set it unasked. When the user wants generated commentary **saved and shared** — "save the summary for the team", "everyone sees the same commentary", "let people edit the AI text" — and the prompt says saved app state is available, use `useSharedAiCommentary` from the same reference ("Saved commentary shared between viewers") instead of `useAiPrompt`; it keys the text to the current selection so later viewers read and edit the saved version instead of regenerating.
+When the user asks for AI analysis, an executive summary, "what changed and why", anomaly callouts, or any AI-generated insight about the data on the page, read `/app/references/ai-analysis.md` and build its **Default build** with the shipped components in `src/components/insights/` (`InsightsSummary`, `InsightMarker` / `insightCellProps`, `InvestigateMenuItem`, `InvestigationCard`): summary block at the top, markers on every query-bound chart, Investigate in every point menu, the investigation card under the chart. A short ask gets the whole set; only a narrower ask ("just a summary") gets a subset. Never rewrite those components. Lightdash runs the analysis over the queries the app already loaded and pushes the result in; the app renders it and never sends rows or keys. The components render nothing when the host has no analysis to offer. For an author-written question over loaded results (a takeaway under a chart, "explain this row"), use `useAiPrompt` from the same reference. For a button that sends an author-written brief to the AI agent so it can investigate using data beyond the page ("investigate what drove this", "act on this recommendation"), use `useInvestigation` from the same reference ("Agent investigations on demand"); `useAiPrompt` cannot look at other explores. When the user wants the summaries written a certain way (language, currency, domain vocabulary), pass it via the `instructions` prop on `InsightsSummary` — see "Author instructions" in the same reference. When the user wants the analysis to run as soon as the app loads, set the `analyseOnLoad` prop on `InsightsSummary` — see "Analyse on load" in the same reference; never set it unasked. When the user wants generated commentary **saved and shared** — "save the summary for the team", "everyone sees the same commentary", "let people edit the AI text" — and the prompt says saved app state is available, use `useSharedAiCommentary` from the same reference ("Saved commentary shared between viewers") instead of `useAiPrompt`; it keys the text to the current selection so later viewers read and edit the saved version instead of regenerating.
 
 ## Visual Design
 
@@ -1377,6 +1379,7 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Skipping `tickFormatter` on a year axis because "year is just a number" | Year dimensions (`*_year`) are still full ISO timestamps at the data layer, so the axis renders `2025-01-01T00:00:00Z` | Apply the same `formatDate(...)` `tickFormatter` to year axes — `formatDate` will collapse to `2025` for year-grain columns |
 | Using `format(row, 'order_date')` for a date column in a table cell | Renders `2025-03-17` (zero-padded tabular) — readable but ugly in dashboards | `formatField(row, col, format, 'cell')` from `@/lib/format` — renders `Mar 17, 2025` while still routing currency/% metrics through the server format |
 | Treating `row.order_date_month` as a `Date` or short string | It's a full ISO timestamp string (`2025-03-01T00:00:00Z`) for every grain | Pass through `formatDate` / `formatField`, or `parseISO` it before doing date math |
+| Displaying dates via `toLocaleDateString()`, `Intl.DateTimeFormat`, or `parseISO` + `format` | The `Z` suffix makes these convert to the viewer's timezone — viewers behind UTC see the previous day (e.g. Feb 28 instead of Mar 1) | Render through `format(row, field)` or `@/lib/format` helpers; they display the server's wall-clock value as-is |
 | Wrong `.parameters()` key scope | Value silently ignored — query returns the default | Project-level → bare name (`{ region }`); model-level → `model.param` (`{ 'orders.region' }`), matching the `${lightdash.parameters.…}` reference |
 | Inventing a parameter not declared in the YAML | Backend ignores unknown params; nothing changes | Only pass parameters that exist in a model's `meta.parameters` or `lightdash.config.yml`. Use `.filters()` for row restriction instead |
 | Applying `.parameters()` at module scope for a UI-driven value | Value never updates when the control changes | Apply `.parameters()` in a `useMemo` keyed on the state value; keep the base query at module scope |

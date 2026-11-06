@@ -28,10 +28,8 @@ const health = vi.hoisted(() => ({
 
 const resultsCache = vi.hoisted(() => ({ enabled: true }));
 
-vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: vi.fn(() => ({
-        data: { enabled: resultsCache.enabled },
-    })),
+vi.mock('../../../../../hooks/useProjectResultsCacheSettings', () => ({
+    useIsResultsCacheEnabled: vi.fn(() => resultsCache.enabled),
 }));
 
 vi.mock('../../../../../hooks/health/useHealth', () => ({
@@ -147,20 +145,33 @@ describe('SchedulerDataFormatSection - app formats', () => {
         },
     );
 
-    it('shows csv/xlsx/image (no PDF) and the query-count caption when the app has captured queries', () => {
+    it('shows csv/xlsx/image/pdf and the query-count caption when the app has captured queries', () => {
         renderSection({ capturedQueryCount: 3 });
 
         expect(screen.getByRole('radio', { name: '.csv' })).toBeEnabled();
         expect(screen.getByRole('radio', { name: '.xlsx' })).toBeEnabled();
         expect(screen.getByRole('radio', { name: 'Image' })).toBeVisible();
-        expect(
-            screen.queryByRole('radio', { name: 'PDF' }),
-        ).not.toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'PDF' })).toBeVisible();
         expect(
             screen.getByText(
                 '3 data queries detected in the current view — each query becomes a file',
             ),
         ).toBeInTheDocument();
+    });
+
+    // "Each query becomes a file" is only true for the tabular formats —
+    // image and pdf deliveries produce a single file.
+    it('hides the query-count caption for pdf and image formats', () => {
+        for (const format of [SchedulerFormat.PDF, SchedulerFormat.IMAGE]) {
+            const { unmount } = renderSection(
+                { capturedQueryCount: 3 },
+                { ...DEFAULT_VALUES, format },
+            );
+            expect(
+                screen.queryByText(/each query becomes a file/),
+            ).not.toBeInTheDocument();
+            unmount();
+        }
     });
 
     it('uses singular copy for exactly one captured query', () => {

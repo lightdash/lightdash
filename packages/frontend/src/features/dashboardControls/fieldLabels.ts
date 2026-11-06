@@ -8,8 +8,8 @@ export const formatTileCount = (
     interpolateUiString(
         getUiString(
             count === 1
-                ? 'filters.rail.tileCount.singular'
-                : 'filters.rail.tileCount.plural',
+                ? 'controls.tileCount.singular'
+                : 'controls.tileCount.plural',
         ),
         { count },
     );
@@ -20,7 +20,7 @@ export const formatTilesOf = (
     applied: number,
     total: number,
 ): { count: string; noun: string } => ({
-    count: interpolateUiString(getUiString('filters.rail.countOf'), {
+    count: interpolateUiString(getUiString('controls.countOf'), {
         applied,
         total,
     }),
@@ -31,15 +31,24 @@ export const formatTilesOf = (
     ),
 });
 
+/** A section's members: "N filters", or "N controls" once parameter controls are among them. */
 export const formatSectionCount = (
     getUiString: UiStringResolver,
-    count: number,
-): string =>
-    interpolateUiString(
-        getUiString(
-            count === 1
-                ? 'filters.rail.sectionCount.singular'
-                : 'filters.rail.sectionCount.plural',
-        ),
-        { count },
-    );
+    filterCount: number,
+    parameterCount: number,
+): string => {
+    const count = filterCount + parameterCount;
+    const keys =
+        parameterCount > 0
+            ? ([
+                  'controls.sectionControlCount.singular',
+                  'controls.sectionControlCount.plural',
+              ] as const)
+            : ([
+                  'controls.sectionCount.singular',
+                  'controls.sectionCount.plural',
+              ] as const);
+    return interpolateUiString(getUiString(count === 1 ? keys[0] : keys[1]), {
+        count,
+    });
+};

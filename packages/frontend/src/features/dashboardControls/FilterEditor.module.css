@@ -15,11 +15,6 @@
 
 /* The editor in its popover, as wide as the shipped filter popover */
 .root {
-    /* ActionIcon sm: the shipped clear X beside the value input */
-    --controls-action-size: rem(24px);
-    /* The theme's xs input height: the name and its input share it */
-    --controls-name-height: rem(28px);
-
     display: flex;
     flex-direction: column;
     width: min(400px, calc(100vw - 56px));
@@ -29,60 +24,36 @@
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
 }
 
-.title {
+.editorHeader {
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md) 0;
+    min-height: calc(24px + var(--mantine-spacing-sm));
 }
 
-/* The name above the value, as tall as the input it turns into */
-.nameRow {
-    height: var(--controls-name-height);
+/* Only the timestamp range overflows the popover: its two pickers stack,
+   and each picker's timezone drops to its own line */
+.valueForm > :global(.mantine-Group-root),
+.valueForm > :global(.mantine-Group-root) > :global(.mantine-Group-root) {
+    flex-wrap: wrap;
 }
 
-/* Its text where the input's starts */
-.name {
-    min-width: 0;
-    padding-inline: calc(var(--controls-name-height) / 3);
-    border: 1px solid transparent;
-    line-height: calc(var(--controls-name-height) - 2px);
+/* Keep the editing timezone alongside its timestamp when there is room. */
+.valueForm :global(.mantine-DateTimePicker-root) {
+    flex: 1 1 185px;
 }
 
-.nameInput {
-    font-size: var(--mantine-font-size-sm);
-    font-weight: 500;
+/* The Settings chip wraps, never truncates: its icon hangs beside the first
+   line and wrapped lines start under the text */
+.wrappingChip {
+    height: auto;
+    padding-block: calc(var(--mantine-spacing-xs) / 4);
 }
 
-/* The shipped clear X sits beside the value input, so the operator select
-   above it ends where the value input does. Both are direct children of the
-   form (`FilterValueSettings`); a date's own selects are nested deeper */
-.valueForm:has(
-        > :global(.mantine-Group-root) > :global(.mantine-ActionIcon-root)
-    )
-    > :global(.mantine-Select-root) {
-    margin-inline-end: calc(
-        var(--controls-action-size) + var(--mantine-spacing-xs)
-    );
-}
-
-/* "Applies to" and "Settings": quiet full-width rows between hairlines */
-.row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--mantine-spacing-xs);
-    width: 100%;
-    min-height: 36px;
-    /* One end inset for the prompt, the rows and the footer */
-    padding-inline: var(--mantine-spacing-md);
-}
-
-/* `button.row` too: over the group button's border reset */
-.row,
-button.row {
-    border-top: 1px solid var(--mantine-color-default-border);
-}
-
-button.row:hover {
-    background-color: var(--mantine-color-default-hover);
+.wrappingChipLabel {
+    height: auto;
+    line-height: var(--mantine-line-height-xs);
+    overflow: visible;
+    white-space: normal;
+    text-align: start;
 }
 
 /* The question a pill or Add asked, above everything */

@@ -22,6 +22,11 @@ vi.mock('../../../../../../hooks/useExplore', () => ({
 }));
 
 beforeAll(mockIntersectingObserver);
+// jsdom has no Element.scrollTo; the notebook scrolls itself to a focused cell.
+const scrollTo = vi.fn();
+beforeAll(() => {
+    window.Element.prototype.scrollTo = scrollTo;
+});
 
 const queries: SourceQuery[] = [
     {
@@ -80,10 +85,19 @@ const linkedNodeIds = () =>
 const resultsToggle = (nodeId: string) =>
     cell(nodeId).getByRole('button', { name: /^(View results|[\d,]+ rows?)/ });
 
+const cellIds = () =>
+    [...document.querySelectorAll('[data-node-id]')]
+        .map((el) => el.getAttribute('data-node-id'))
+        .filter((id) => !id?.startsWith('rf'));
+
 describe('AiComposerLineage graph', () => {
     it('renders one node per pipeline node and marks the terminal', () => {
         renderPanel({});
         expect(nodeButtons()).toHaveLength(3);
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'aria-pressed',
+            'false',
+        );
         expect(nodeButton('Orders with amounts')).toHaveAttribute(
             'data-terminal',
             'true',
@@ -100,6 +114,74 @@ describe('AiComposerLineage graph', () => {
         expect(
             document.querySelector('[data-node-id="amounts"] [data-flash]'),
         ).toHaveAttribute('data-flash', 'true');
+    });
+
+    it('selects a clicked node and clears it on Escape', () => {
+        renderPanel({});
+        fireEvent.click(nodeButton('Average amount'));
+        expect(nodeButton('Average amount')).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+        expect(nodeButton('Orders by status')).toHaveAttribute(
+            'data-dimmed',
+            'true',
+        );
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(nodeButton('Average amount')).toHaveAttribute(
+            'aria-pressed',
+            'false',
+        );
+        expect(nodeButton('Orders by status')).toHaveAttribute(
+            'data-dimmed',
+            'false',
+        );
+    });
+
+    it('explains faded nodes while one is selected, and clears from the hint', () => {
+        renderPanel({});
+        fireEvent.click(nodeButton('Average amount'));
+        expect(
+            screen.getByText('Faded steps are not linked to Average amount'),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+        expect(
+            screen.queryByText(/^Faded steps are not linked/),
+        ).not.toBeInTheDocument();
+        expect(nodeButton('Orders by status')).toHaveAttribute(
+            'data-dimmed',
+            'false',
+        );
+    });
+
+    it('selects a node from its cell, without a hint when nothing fades', () => {
+        renderPanel({});
+        fireEvent.click(cell('joined').getByText('Orders with amounts'));
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+        expect(
+            screen.queryByText(/^Faded steps are not linked/),
+        ).not.toBeInTheDocument();
+    });
+
+    it('keeps every step and scrolls to a node picked in the graph or a reference', () => {
+        renderPanel({});
+        scrollTo.mockClear();
+        fireEvent.click(nodeButton('Orders with amounts'));
+        expect(cellIds()).toEqual(['orders', 'amounts', 'joined']);
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(
+            cell('joined').getByRole('button', { name: /Average amount/ }),
+        );
+        expect(cellIds()).toEqual(['orders', 'amounts', 'joined']);
+        expect(scrollTo).toHaveBeenCalledTimes(2);
+        expect(nodeButton('Average amount')).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
     });
 
     it('links the hovered graph node to its cells and dims unlinked nodes', async () => {

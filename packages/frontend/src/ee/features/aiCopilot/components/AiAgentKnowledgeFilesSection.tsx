@@ -590,9 +590,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                                         data-tour-step="1"
                                                         data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/edit"
                                                         data-tour-label="Knowledge documents the agent can consult"
-                                                        data-tour-docs="agents/effective-analytics-with-agents.mdx#knowledge-documents:1"
+                                                        data-tour-docs="agents/knowledge-documents.mdx#intro:1"
                                                         data-tour-return="none"
-                                                        data-tour-resultdocs="agents/effective-analytics-with-agents.mdx#always-include-in-context:p2:1"
+                                                        data-tour-resultdocs="agents/knowledge-documents.mdx#always-include-in-context:p2:1"
                                                     >
                                                         {formatFileSize(
                                                             doc.contentSizeBytes,
@@ -752,7 +752,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                                     data-tour-look="1"
                                                     data-tour-after='[data-tour-anchor="knowledge-document"][data-tour-value="Jaffle shop glossary"]'
                                                     data-tour-label="Read the summary the agent sees"
-                                                    data-tour-docs="agents/effective-analytics-with-agents.mdx#how-they-work:2-3"
+                                                    data-tour-docs="agents/knowledge-documents.mdx#how-they-work:2-3"
                                                 >
                                                     {
                                                         selectedDocument!
@@ -826,7 +826,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                                         data-tour-covers="view:AiAgentDocument"
                                                         data-tour-via='[data-tour-nav="ask-ai"] >> [data-tour-anchor="agent-selector"] >> [data-tour-anchor="agent-option"][data-tour-value="Jaffle analyst"] >> [data-tour-anchor="agent-settings"] >> [data-tour-anchor="knowledge-document"][data-tour-value="Jaffle shop glossary"] >> [data-tour-anchor="knowledge-document-open"] >> [data-tour-anchor="modal-close"]'
                                                         data-tour-then='[data-tour-anchor="modal-confirm"]'
-                                                        data-tour-docs="agents/effective-analytics-with-agents.mdx#always-include-in-context:1"
+                                                        data-tour-docs="agents/knowledge-documents.mdx#always-include-in-context:1"
                                                     />
                                                 </SimpleGrid>
                                             </Radio.Group>

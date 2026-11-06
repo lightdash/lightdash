@@ -85,6 +85,14 @@
     background-color: var(--mantine-color-ldGray-0);
 }
 
+.logo {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    object-fit: contain;
+    border-radius: var(--mantine-radius-sm);
+}
+
 .title {
     line-height: 1.2;
 }
@@ -111,4 +119,45 @@
     flex: 1;
     border-radius: 4px 4px 0 0;
     min-height: 4px;
+}
+
+.window[data-compact='true'] .body {
+    padding: var(--mantine-spacing-sm);
+    gap: var(--mantine-spacing-sm);
+}
+
+.window[data-compact='true'] .card {
+    padding: var(--mantine-spacing-sm);
+}
+
+.window[data-compact='true'] .barsRow {
+    height: 48px;
+    gap: var(--mantine-spacing-xs);
+}
+
+.window[data-compact='true'] svg {
+    height: 48px;
+}
+
+.window[data-compact='true'] .card[data-table-card='true'] {
+    padding: 0;
+    overflow: hidden;
+}
+
+.table {
+    height: 100%;
+}
+
+.table th {
+    background-color: var(--mantine-color-ldGray-0);
+    font-weight: 500;
+}
+
+.heatCell {
+    background-color: color-mix(
+        in srgb,
+        var(--heat-color) var(--heat),
+        transparent
+    );
+    font-variant-numeric: tabular-nums;
 }

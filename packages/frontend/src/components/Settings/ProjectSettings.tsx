@@ -27,6 +27,7 @@ import PullRequestsPage from '../../features/pullRequests/components/PullRequest
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import ScopeTourHost from '../../features/scopeTours/ScopeTourHost';
 import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
+import { LiveDataSourcesRedirect } from '../../features/semanticStudio/LiveDataSourcesRedirect';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import {
     type LimitedProjectSettingsPage,
@@ -67,7 +68,6 @@ import { SettingsValidator } from '../SettingsValidator';
 import CorsSettingsPanel from '../UserSettings/CorsSettingsPanel';
 import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
 import DataAppConnectionsPanel from './DataAppConnectionsPanel';
-import LiveDataSourcesPanel from './LiveDataSourcesPanel';
 import SemanticLayerConnectionPanel from './SemanticLayerConnectionPanel';
 
 type ProjectSettingsPageProps = PropsWithChildren<{
@@ -123,12 +123,6 @@ const ProjectSettings: FC<{
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const {
-        data: apiQuerySourcesFlag,
-        isLoading: isApiQuerySourcesFlagLoading,
-    } = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
-    const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
-        useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
     const { data: agentIdentityFlag, isLoading: isAgentIdentityFlagLoading } =
         useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const canManageAgentIdentity =
@@ -142,7 +136,7 @@ const ProjectSettings: FC<{
             }),
         ) ??
             false);
-    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
+    const isResultsCacheAvailable = health.data?.license?.valid === true;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageProjectConnections =
         !!project &&
@@ -156,8 +150,6 @@ const ProjectSettings: FC<{
             false);
     const canManageExternalConnections =
         isDataAppsEnabled && canManageProjectConnections;
-    const canManageLiveDataSources =
-        apiQuerySourcesFlag?.enabled === true && canManageProjectConnections;
 
     const canManageExternalSources =
         externalSourcesEnabled &&
@@ -513,14 +505,14 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
-            ...(isResultsCacheEnabled
+            ...(isResultsCacheAvailable
                 ? [
                       {
                           path: `/caching`,
                           element: (
                               <ProjectSettingsPage
                                   title="Results caching"
-                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                                  description="Load charts and dashboards from recent query results."
                               >
                                   <ProjectResultsCache
                                       projectUuid={projectUuid}
@@ -622,16 +614,12 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
-            ...(canManageLiveDataSources
-                ? [
-                      {
-                          path: `/liveDataSources`,
-                          element: (
-                              <LiveDataSourcesPanel projectUuid={projectUuid} />
-                          ),
-                      },
-                  ]
-                : []),
+            // Live data sources moved to the Semantic Layer page; old links
+            // and sign-in callbacks land there.
+            {
+                path: `/liveDataSources/*`,
+                element: <LiveDataSourcesRedirect projectUuid={projectUuid} />,
+            },
         ];
         if (project?.provisioningSource === 'analytics') {
             return [
@@ -665,10 +653,9 @@ const ProjectSettings: FC<{
         isSoftDeleteEnabled,
         isPgWireEnabled,
         isGitProject,
-        isResultsCacheEnabled,
+        isResultsCacheAvailable,
         user.data?.ability,
         canManageExternalConnections,
-        canManageLiveDataSources,
         canManageAgentIdentity,
         project,
         canManageExternalSources,
@@ -692,22 +679,10 @@ const ProjectSettings: FC<{
             '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
             location.pathname,
         );
-    const isAwaitingLiveDataSourcesRoute =
-        isApiQuerySourcesFlagLoading &&
-        !!matchPath(
-            '/generalSettings/projectManagement/:projectUuid/liveDataSources',
-            location.pathname,
-        );
     const isAwaitingAgentIdentityRoute =
         isAgentIdentityFlagLoading &&
         !!matchPath(
             '/generalSettings/projectManagement/:projectUuid/agentIdentity',
-            location.pathname,
-        );
-    const isAwaitingCachingRoute =
-        isResultsCacheFlagLoading &&
-        !!matchPath(
-            '/generalSettings/projectManagement/:projectUuid/caching',
             location.pathname,
         );
     const isAwaitingReviewRequestsRoute =
@@ -722,8 +697,6 @@ const ProjectSettings: FC<{
         !project ||
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
-        isAwaitingLiveDataSourcesRoute ||
-        isAwaitingCachingRoute ||
         isAwaitingAgentIdentityRoute ||
         isAwaitingReviewRequestsRoute
     ) {

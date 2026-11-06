@@ -324,9 +324,11 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                 lightdashConfig: lightdashConfigMock,
                 queryHistoryModel: model,
                 projectModel: {
-                    getEffectiveResultsCacheTtlSeconds: vi.fn(
-                        async () => 86400,
-                    ),
+                    getResultsCacheState: vi.fn(async () => ({
+                        enabled: true,
+                        cacheGeneration: 0,
+                        ttlSeconds: 86400,
+                    })),
                 } as never,
                 featureFlagModel: {
                     get: vi.fn(async () => ({ enabled: true })),

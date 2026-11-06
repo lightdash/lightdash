@@ -66,6 +66,7 @@ import {
     selectDashboardFilters,
     selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
+    selectAreParameterControlsSaved,
     selectDashboardParameters,
     selectDashboardTabs,
     selectDashboardTiles,
@@ -76,6 +77,7 @@ import {
     selectHaveCustomMetricsChanged,
     selectHaveDateZoomGranularitiesChanged,
     selectHaveFiltersChanged,
+    selectHaveParameterControlsChanged,
     selectHavePinnedParametersChanged,
     selectHaveTabsChanged,
     selectHaveTilesChanged,
@@ -83,12 +85,15 @@ import {
     selectIsDateZoomDisabled,
     selectMissingRequiredParameters,
     selectOldestCacheTime,
+    selectParameterControls,
     selectParameterOrder,
+    selectParameterPicks,
     selectParametersHaveChanged,
     selectParameterValues,
     selectPinnedParameters,
     selectRawTemporaryFilters,
     dashboardEditActions,
+    dashboardParametersActions,
     useAreAllChartsLoaded,
     useDashboardDateZoomConfig,
     useDashboardDateZoomGranularities,
@@ -134,7 +139,10 @@ import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTi
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
-import { buildDashboardConfig } from '../utils/dashboardConfig';
+import {
+    buildDashboardConfig,
+    getParametersToSave,
+} from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
 
@@ -242,6 +250,9 @@ const Dashboard: FC = () => {
     const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
     const parametersHaveChanged = useDashboardSelector(
         selectParametersHaveChanged,
+    );
+    const haveParameterControlsChanged = useDashboardSelector(
+        selectHaveParameterControlsChanged,
     );
     const parameterValues = useDashboardSelector(selectParameterValues);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
@@ -749,6 +760,9 @@ const Dashboard: FC = () => {
             dashboardEditActions.setHaveControlSectionsChanged(false),
         );
         dashboardDispatch(
+            dashboardParametersActions.setHaveParameterControlsChanged(false),
+        );
+        dashboardDispatch(
             dashboardEditActions.syncControlSections(
                 dashboard.config?.controlSections ?? [],
             ),
@@ -857,6 +871,7 @@ const Dashboard: FC = () => {
         hasAddFilterDisabledChanged ||
         hasRequiredFiltersNoteChanged ||
         parametersHaveChanged ||
+        haveParameterControlsChanged ||
         havePinnedParametersChanged ||
         hasParameterOrderChanged ||
         haveControlSectionsChanged ||
@@ -908,6 +923,11 @@ const Dashboard: FC = () => {
             setHasDateZoomConfigChanged(false);
             dashboardDispatch(
                 dashboardEditActions.setHaveControlSectionsChanged(false),
+            );
+            dashboardDispatch(
+                dashboardParametersActions.setHaveParameterControlsChanged(
+                    false,
+                ),
             );
             // The saved config is the source of truth again
             setRequiredFiltersNote(undefined);
@@ -1059,8 +1079,14 @@ const Dashboard: FC = () => {
         CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
     );
 
+    // With the flag on, dashboards always fit and viewers get no toggle
+    const fitToScreenDefaultFlag = useServerFeatureFlag(
+        FeatureFlags.DashboardFitToScreenDefault,
+    );
+    const isFitToScreenDefault = fitToScreenDefaultFlag.data?.enabled === true;
     // A viewer-side layout option, kept in the url so a fitted link can be shared
     const isFitToScreen =
+        isFitToScreenDefault ||
         searchParams.get(FIT_TO_SCREEN_SEARCH_PARAM) === 'true';
     const handleToggleFitToScreen = useCallback(() => {
         setSearchParams(
@@ -1362,6 +1388,19 @@ const Dashboard: FC = () => {
             isDashboardControlsEnabled,
         );
 
+        const { parameterControlsToSave, parameters } = getParametersToSave({
+            parameterControls: selectParameterControls(dashboardState),
+            areParameterControlsSaved:
+                selectAreParameterControlsSaved(dashboardState),
+            haveParameterControlsChanged:
+                selectHaveParameterControlsChanged(dashboardState),
+            existingParameterControls:
+                dashboard.config?.parameterControls ?? null,
+            parameterPicks: selectParameterPicks(dashboardState),
+            appliedParameters: selectDashboardParameters(dashboardState),
+            savedParameters: dashboard.parameters ?? {},
+        });
+
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
@@ -1396,8 +1435,9 @@ const Dashboard: FC = () => {
                     : undefined,
                 controlSections,
                 haveControlSectionsChanged,
+                parameterControlsToSave,
             }),
-            parameters: selectDashboardParameters(dashboardState),
+            parameters,
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
                 : {}),
@@ -1436,7 +1476,8 @@ const Dashboard: FC = () => {
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
         isFitToScreen,
-        isFitToScreenAvailable: fitToScreen.isAvailable,
+        isFitToScreenAvailable:
+            fitToScreen.isAvailable && !isFitToScreenDefault,
         onToggleFitToScreen: handleToggleFitToScreen,
         hasDashboardChanged,
         onAddTiles: handleAddTiles,
