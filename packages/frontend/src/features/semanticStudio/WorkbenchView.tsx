@@ -27,6 +27,7 @@ import {
     type KeyboardEvent,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
 import {
@@ -479,6 +480,7 @@ const MainPane: FC<{
                         >
                             {title}
                         </Title>
+                        {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
                     </Group>
                     <Group gap={4} wrap="nowrap" flex="none">
                         {ref?.type === 'kind' ? (

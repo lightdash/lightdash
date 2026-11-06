@@ -17,6 +17,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import styles from './AddLiveSourceModal.module.css';
 import { isGoogleConnector } from './googleConnection';
+import { LiveSourceBetaTitle } from './LiveSourceBetaBadge';
 import {
     isAvailableLiveSource,
     LIVE_SOURCE_CATALOG,
@@ -79,7 +80,11 @@ export const AddLiveSourceModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Add a live data source"
+            title={
+                <LiveSourceBetaTitle>
+                    Add a live data source
+                </LiveSourceBetaTitle>
+            }
             subtitle="AI agents query it live, without loading data into your warehouse."
             size="xl"
             cancelLabel={false}
