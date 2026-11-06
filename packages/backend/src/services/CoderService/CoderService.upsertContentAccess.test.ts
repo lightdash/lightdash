@@ -4054,6 +4054,34 @@ describe('CoderService dashboard control order as code', () => {
         ).toBe('Dashboard filter slug "orders-status-1" is duplicated');
     });
 
+    it.each([true, false])(
+        'uploads over saved filters that predate the metric list, flag on: %s',
+        async (enabled) => {
+            const saved = savedDashboard();
+            const { metrics: _metrics, ...filters } = saved.filters;
+            const result = await upload(download(saved, true), {
+                enabled,
+                saved: { ...saved, filters } as unknown as DashboardDAO,
+            });
+            expect(result.config?.controlOrder).toEqual(savedOrder);
+        },
+    );
+
+    it('mints an id for a hand-written metric filter the order points at', async () => {
+        const file = download(savedDashboard(), true);
+        const [{ id: _id, ...metric }] = file.filters!.metrics!;
+        const result = await upload({
+            ...file,
+            filters: { ...file.filters, metrics: [metric as AnyType] },
+        });
+        const metricId = result.filters.metrics[0].id;
+        expect(metricId).toMatch(/^[0-9a-f-]{36}$/);
+        expect(result.config?.controlOrder).toContainEqual({
+            kind: 'filter',
+            id: metricId,
+        });
+    });
+
     it('ignores the order and filter slugs in the file with the flag off', async () => {
         const saved = savedDashboard(
             {},

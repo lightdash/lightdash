@@ -6,6 +6,7 @@ import {
     type DashboardParameterControlAsCode,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import { PORTABLE_SLUG_PATTERN } from './dashboardReferences';
 
 const baseSlug = (
     control: Pick<DashboardParameterControlAsCode, 'label' | 'parameters'>,
@@ -57,7 +58,7 @@ export const getParameterControlsWithIds = (
     const claimed = new Set<string>();
     controls.forEach(({ slug, id }) => {
         if (slug !== undefined) {
-            if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
+            if (!slug || !PORTABLE_SLUG_PATTERN.test(slug))
                 throw new ParameterError(
                     `Invalid parameter control slug "${slug}"`,
                 );
