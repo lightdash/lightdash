@@ -465,6 +465,7 @@ export * from './utils/searchParams';
 export * from './utils/slack';
 export * from './utils/sleep';
 export * from './utils/stableJson';
+export * from './utils/portableSlugs';
 export * from './utils/slugs';
 export * from './utils/sqlDialect';
 export * from './utils/subtotals';
