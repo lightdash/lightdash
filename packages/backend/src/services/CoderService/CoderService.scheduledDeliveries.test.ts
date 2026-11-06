@@ -649,14 +649,18 @@ describe('dashboard scheduled delivery filter ids', () => {
         const ids = getDashboardScheduledDeliveryFiltersWithTileUuids(
             {
                 tiles: [],
-                filters: { dimensions: [] },
+                filters: { dimensions: [{ id: 'amount-id', target: amount }] },
             } as unknown as DashboardDAO,
             [{ target: status, operator: FilterOperator.EQUALS }] as Omit<
                 DashboardFilterRule,
                 'id'
             >[],
         );
-        expect(ids?.[0].id).not.toBe('status-id');
+        expect(ids?.[0].id).not.toBe('amount-id');
+    });
+
+    it('keeps the remaining id when an override is removed', () => {
+        expect(upload([amount])).toEqual(['amount-id']);
     });
 });
 
