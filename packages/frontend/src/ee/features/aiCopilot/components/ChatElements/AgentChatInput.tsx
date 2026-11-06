@@ -31,7 +31,7 @@ import {
     IconFileText,
     IconFolderSearch,
     IconPaperclip,
-    IconPlayerStop,
+    IconPlayerStopFilled,
     IconPlus,
     IconTelescope,
     IconTerminal2,
@@ -302,6 +302,8 @@ interface AgentChatInputProps {
     fullWidth?: boolean;
     clearOnSubmit?: boolean;
     showSuggestions?: boolean;
+    // 'list' shows empty-state suggestions as roomy rows instead of chips.
+    suggestionLayout?: 'chips' | 'list';
     contentMentionPriorityItems?: ContentMentionSuggestionItem[];
     // Reveals the deep research and agent controls on first focus instead of
     // showing them always.
@@ -378,6 +380,7 @@ export const AgentChatInput = ({
     fullWidth = false,
     clearOnSubmit = true,
     showSuggestions = true,
+    suggestionLayout = 'chips',
     contentMentionPriorityItems = [],
     revealControlsOnFocus = false,
     dense = false,
@@ -610,9 +613,15 @@ export const AgentChatInput = ({
         };
         measure();
         scrollEl.addEventListener('scroll', onScroll, { passive: true });
+        // Content can grow without a scroll event (late chips, expanding steps).
+        const resizeObserver = new ResizeObserver(onScroll);
+        for (const child of scrollEl.firstElementChild?.children ?? []) {
+            resizeObserver.observe(child);
+        }
         return () => {
             if (raf !== null) window.cancelAnimationFrame(raf);
             scrollEl?.removeEventListener('scroll', onScroll);
+            resizeObserver.disconnect();
         };
     }, []);
 
@@ -891,7 +900,9 @@ export const AgentChatInput = ({
             onStart: onStartDeepResearch,
         });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
-    const showStatusRow = threadModelName !== undefined && !disabled;
+    // Inside a thread the composer is a card with its controls on a bottom row.
+    const isThreadComposer = threadModelName !== undefined;
+    const showThreadToolbar = isThreadComposer && !disabled;
     const activeMessageUuid = isAgentActive
         ? threadStream?.messageUuid
         : undefined;
@@ -1152,12 +1163,18 @@ export const AgentChatInput = ({
                 disabled={accessRefused}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
-                align={isThreadInput ? 'left' : 'center'}
-                showPromptAffordance={isThreadInput}
-                maxVisible={isPhoneLayout ? 2 : undefined}
+                layout={isThreadInput ? 'compact' : suggestionLayout}
+                maxVisible={
+                    isPhoneLayout
+                        ? 2
+                        : !isThreadInput && suggestionLayout === 'list'
+                          ? 3
+                          : undefined
+                }
             />
         );
     }, [
+        suggestionLayout,
         accessRefused,
         emptyStateMode,
         postResponseMode,
@@ -1403,121 +1420,109 @@ export const AgentChatInput = ({
         );
     };
 
-    // Status bar under the thread composer: attach and SQL Runner stay
-    // switchable mid-thread; the model is fixed so it is only a label.
-    const renderStatusRow = () => {
-        if (!showStatusRow) return null;
-        return (
-            <Group
-                className={styles.statusBar}
-                justify="space-between"
-                align="center"
-                gap="sm"
-                wrap="nowrap"
-            >
-                <Group gap="sm" align="center" wrap="nowrap">
-                    {canAttachThreadFile && showAttachControl && (
-                        <FileButton
-                            accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
-                                (ext) => ext !== '.csv' && ext !== '.tsv',
-                            ).join(',')}
-                            multiple
-                            resetRef={resetDocumentFileInputRef}
-                            onChange={(files) => {
-                                resetDocumentFileInputRef.current?.();
-                                if (files.length > 0) {
-                                    void attachThreadFiles(files);
-                                }
-                            }}
+    // Mid-thread the mode is fixed, so SQL, deep research and the model are labels.
+    const renderThreadToolbarStart = () => (
+        <Group gap="sm" align="center" wrap="wrap">
+            {canAttachThreadFile && showAttachControl && (
+                <FileButton
+                    accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
+                        (ext) => ext !== '.csv' && ext !== '.tsv',
+                    ).join(',')}
+                    multiple
+                    resetRef={resetDocumentFileInputRef}
+                    onChange={(files) => {
+                        resetDocumentFileInputRef.current?.();
+                        if (files.length > 0) {
+                            void attachThreadFiles(files);
+                        }
+                    }}
+                >
+                    {(fileButtonProps) => (
+                        <Tooltip
+                            label="Attach a document"
+                            position="top"
+                            openDelay={300}
                         >
-                            {(fileButtonProps) => (
-                                <Tooltip
-                                    label="Attach a document"
-                                    position="top"
-                                    openDelay={300}
-                                >
-                                    <ActionIcon
-                                        {...fileButtonProps}
-                                        size="xs"
-                                        variant="transparent"
-                                        aria-label={
-                                            canUseAttachControl
-                                                ? 'Attach a document'
-                                                : 'Attach a document unavailable in deep research'
-                                        }
-                                        disabled={
-                                            isUploadingThreadFile ||
-                                            !canUseAttachControl
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconPaperclip}
-                                            size={14}
-                                            color="dimmed"
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </FileButton>
-                    )}
-                    {sqlMode && (
-                        <Group gap={4} wrap="nowrap">
-                            <MantineIcon
-                                icon={IconTerminal2}
-                                size={14}
-                                color="dimmed"
-                            />
-                            <Text size="xs" c="dimmed">
-                                Can run SQL
-                            </Text>
-                        </Group>
-                    )}
-                    {composerMode === 'deep_research' && (
-                        <Group gap={4} wrap="nowrap">
-                            <MantineIcon
-                                icon={IconTelescope}
-                                size={14}
-                                color="dimmed"
-                            />
-                            <Text size="xs" c="dimmed">
-                                Deep research
-                            </Text>
-                        </Group>
-                    )}
-                    {footerNotice}
-                </Group>
-                {threadModelName && (
-                    <Group gap={4} wrap="nowrap">
-                        {threadModelName && threadModelWarning && (
-                            <Tooltip
-                                label={threadModelWarning}
-                                multiline
-                                w={240}
-                                position="top"
+                            <ActionIcon
+                                {...fileButtonProps}
+                                size="xs"
+                                variant="transparent"
+                                aria-label={
+                                    canUseAttachControl
+                                        ? 'Attach a document'
+                                        : 'Attach a document unavailable in deep research'
+                                }
+                                disabled={
+                                    isUploadingThreadFile ||
+                                    !canUseAttachControl
+                                }
                             >
-                                <Group gap={4} wrap="nowrap">
-                                    <MantineIcon
-                                        icon={IconAlertTriangle}
-                                        size={14}
-                                        color="yellow.7"
-                                        aria-label={threadModelWarning}
-                                    />
-                                    <Text size="xs" c="dimmed">
-                                        {threadModelName}
-                                    </Text>
-                                </Group>
-                            </Tooltip>
-                        )}
-                        {threadModelName && !threadModelWarning && (
+                                <MantineIcon
+                                    icon={IconPaperclip}
+                                    size={14}
+                                    color="dimmed"
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </FileButton>
+            )}
+            {sqlMode && (
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconTerminal2}
+                        size={14}
+                        color="dimmed"
+                    />
+                    <Text size="xs" c="dimmed">
+                        Can run SQL
+                    </Text>
+                </Group>
+            )}
+            {composerMode === 'deep_research' && (
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconTelescope}
+                        size={14}
+                        color="dimmed"
+                    />
+                    <Text size="xs" c="dimmed">
+                        Deep research
+                    </Text>
+                </Group>
+            )}
+        </Group>
+    );
+
+    const renderThreadToolbarEnd = () =>
+        threadModelName && (
+            <Group gap={4} wrap="nowrap">
+                {threadModelWarning ? (
+                    <Tooltip
+                        label={threadModelWarning}
+                        multiline
+                        w={240}
+                        position="top"
+                    >
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                size={14}
+                                color="yellow.7"
+                                aria-label={threadModelWarning}
+                            />
                             <Text size="xs" c="dimmed">
                                 {threadModelName}
                             </Text>
-                        )}
-                    </Group>
+                        </Group>
+                    </Tooltip>
+                ) : (
+                    <Text size="xs" c="dimmed">
+                        {threadModelName}
+                    </Text>
                 )}
             </Group>
         );
-    };
 
     const renderThemeButton = () =>
         showThemeButton ? (
@@ -1594,9 +1599,8 @@ export const AgentChatInput = ({
         if (canInterrupt) {
             return (
                 <ComposerSubmitButton
-                    icon={IconPlayerStop}
+                    icon={IconPlayerStopFilled}
                     label="Stop agent"
-                    destructive
                     size={size}
                     disabled={hasRequestedInterrupt}
                     loading={
@@ -1673,28 +1677,42 @@ export const AgentChatInput = ({
                 >
                     {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-                    <Box className={styles.threadInputStack}>
-                        <Box className={styles.dropTarget} {...dropTargetProps}>
-                            <PromptComposer
-                                {...composerCommonProps}
-                                variant="inline"
-                                attachments={renderedAttachments}
-                                toolbarLeft={
-                                    <Group gap={4} align="center" wrap="nowrap">
-                                        {renderComposerActionsMenu()}
-                                        {renderThemeButton()}
-                                        {toolbarStart}
-                                    </Group>
-                                }
-                                toolbarRight={
-                                    <Group gap={4} align="center" wrap="nowrap">
-                                        {renderComposerAction('sm')}
-                                    </Group>
-                                }
-                            />
-                            {renderDropOverlay('inline')}
-                        </Box>
-                        {renderStatusRow()}
+                    <Box className={styles.dropTarget} {...dropTargetProps}>
+                        <PromptComposer
+                            {...composerCommonProps}
+                            variant={isThreadComposer ? 'card' : 'inline'}
+                            size="sm"
+                            className={
+                                isThreadComposer
+                                    ? styles.agentComposer
+                                    : undefined
+                            }
+                            attachments={renderedAttachments}
+                            toolbarLeft={
+                                // Wraps in a thread so labels never push send out of a narrow card.
+                                <Group
+                                    gap={4}
+                                    align="center"
+                                    wrap={isThreadComposer ? 'wrap' : 'nowrap'}
+                                >
+                                    {renderComposerActionsMenu()}
+                                    {renderThemeButton()}
+                                    {toolbarStart}
+                                    {showThreadToolbar &&
+                                        renderThreadToolbarStart()}
+                                </Group>
+                            }
+                            toolbarRight={
+                                <Group gap="sm" align="center" wrap="nowrap">
+                                    {showThreadToolbar &&
+                                        renderThreadToolbarEnd()}
+                                    {renderComposerAction('sm')}
+                                </Group>
+                            }
+                        />
+                        {renderDropOverlay(
+                            isThreadComposer ? 'card' : 'inline',
+                        )}
                     </Box>
 
                     {!isThreadInput &&
@@ -1709,7 +1727,7 @@ export const AgentChatInput = ({
                     </Text>
                 )}
 
-                {!showStatusRow && !disabled && footerNotice && (
+                {!disabled && footerNotice && (
                     <Box className={styles.footerNotice}>{footerNotice}</Box>
                 )}
             </Box>
@@ -1817,7 +1835,9 @@ export const AgentChatInput = ({
 
                 {!isThreadInput &&
                     renderChipRow(
-                        styles.chipTray,
+                        suggestionLayout === 'list'
+                            ? styles.suggestionListTray
+                            : styles.chipTray,
                         shouldReserveEmptyStateSuggestions,
                     )}
             </AiAccessGate>

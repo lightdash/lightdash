@@ -321,6 +321,26 @@ port = 443
 host = "codeload.github.com"
 port = 443
 
+# MCP clients identify with a client ID metadata document served from their
+# own origin (OAuthService/clientIdMetadataDocument.ts fetches it at
+# authorize). Without these, connecting the env's MCP server from ChatGPT,
+# Claude, Grok or Cursor fails with "Invalid client_id or redirect_uri".
+[[egress.allow]]
+host = "chatgpt.com"
+port = 443
+
+[[egress.allow]]
+host = "claude.ai"
+port = 443
+
+[[egress.allow]]
+host = "grok.com"
+port = 443
+
+[[egress.allow]]
+host = "cursor.com"
+port = 443
+
 # BigQuery (the warehouse test suites): the API and the token endpoint.
 [[egress.allow]]
 host = "bigquery.googleapis.com"

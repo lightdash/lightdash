@@ -16,7 +16,7 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 - Use `read_content`, `edit_content`, and `create_content` for `readContent`, `editContent`, and `createContent`.
 - Use `grep_fields` and `get_metadata` for native `grepFields` and `getMetadata`.
 - Use `generate_hashes` for native `generateHashes`.
-- Replace `runContentQuery` with `run_metric_query` to validate a chart's governed semantic-layer `metricQuery`. Do not use `run_sql` for this validation.
+- Replace `runContentQuery` with `run_metric_query` to check a chart's governed semantic-layer `metricQuery`. Do not use `run_sql` for this check.
 - Use `run_sql` where a workflow runs `runContentQuery` with `source.type: "sql"` or `chartType: "sql_chart"`; for a saved SQL chart, pass the `sql` from `read_content`.
 
 ## What You Can Do
@@ -31,7 +31,7 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 | Create charts                 | `grepFields`, `getMetadata`, `runContentQuery`, `createContent` | Chart refs                            |
 | Create dashboards             | `grepFields`, `getMetadata`, `createContent`                    | `dashboard-reference`, best practices |
 | Add period comparisons        | Edit chart `metricQuery` and config                             | `period-over-period-reference`        |
-| Verify changed metric queries | `runContentQuery` with `source.type: "metricQuery"`             | Chart refs                            |
+| Check changed metric queries  | `runContentQuery` with `source.type: "metricQuery"`             | Chart refs                            |
 
 Rules:
 
@@ -86,7 +86,7 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 3. If you add or change filters, verify exact filter values before patching.
 4. If you change the chart's name or purpose, also update dashboards that reference that chart.
 5. Build the smallest possible JSON Patch.
-6. If you changed the chart's `metricQuery`, call `runContentQuery` with `source.type: "metricQuery"` and the edited chart's `tableName`/`metricQuery`.
+6. If you changed the chart's `metricQuery`, check it: call `runContentQuery` with `source.type: "metricQuery"` and the edited chart's `tableName`/`metricQuery` as it will be saved.
 7. Call `editContent` with that patch.
 8. Re-read if needed to verify the final state.
 
@@ -95,8 +95,8 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 1. Use `grepFields`, then `getMetadata`, to explore available fields and plan your chart.
 2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below) to understand required fields and configuration.
 3. Build the full chart JSON with that metric query and other required fields.
-4. Call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery`.
-5. Call `createContent` with the verified chart JSON.
+4. Check the chart: call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery` as it will be saved.
+5. Call `createContent` with the checked chart JSON.
 
 For a weekly chart of "the last 12 weeks up to today" where every week starts on its first day, put the `inThePast` filter on the week dimension (e.g. `orders_order_date_week`, `completed: false`, `unitOfTime: weeks`, `values: [12]`), not on the day or raw date. That gives 12 weekly rows: 11 full weeks plus the current week to date. The same filter on a day field starts mid-week, so the first week is partial.
 

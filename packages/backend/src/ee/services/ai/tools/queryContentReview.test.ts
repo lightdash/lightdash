@@ -129,7 +129,6 @@ describe('content and saved query review', () => {
                     type: 'chart',
                     chartType: null,
                     chartSlug: 'chart',
-                    limit: 100,
                 },
             },
             options,
@@ -151,13 +150,11 @@ describe('content and saved query review', () => {
                       chartType: null,
                       chartSlug: 'chart',
                       dashboardSlug: 'dashboard',
-                      limit: 100,
                   }
                 : {
                       type: 'chart',
                       chartType: null,
                       chartSlug: 'chart',
-                      limit: 100,
                   };
             const output = await getRunContentQuery(deps).execute!(
                 { source },
@@ -259,7 +256,6 @@ describe('content and saved query review', () => {
                                   type: 'chart',
                                   chartType: null,
                                   chartSlug: 'chart',
-                                  limit: 100,
                               },
                           },
                           options,
@@ -304,7 +300,6 @@ describe('content and saved query review', () => {
                                   type: 'chart',
                                   chartType: null,
                                   chartSlug: 'chart',
-                                  limit: 100,
                               },
                           },
                           options,

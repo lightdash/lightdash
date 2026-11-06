@@ -1,8 +1,14 @@
-import { assertUnreachable } from '@lightdash/common';
+import {
+    assertUnreachable,
+    interpolateUiString,
+    type UiStringKey,
+} from '@lightdash/common';
 import {
     Box,
     Button,
+    Group,
     Paper,
+    Progress,
     Stack,
     Text,
     ThemeIcon,
@@ -19,13 +25,18 @@ import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import AppVersionNarration from '../../../../../../features/apps/components/AppVersionNarration';
+import { useElapsedClock } from '../../../../../../features/apps/hooks/useElapsedClock';
 import { formatBuildDuration } from '../../../../../../features/apps/utils/formatBuildDuration';
 import { type AppVersionNarrationData } from '../../../../../../features/apps/utils/versionNarration';
+import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import styles from './DataAppBuildCard.module.css';
 import {
     DATA_APP_BUILD_CANCELLED_TITLE,
     DATA_APP_BUILD_FAILED_TITLE,
+    DATA_APP_BUILD_STEP_COUNT,
 } from './dataAppBuildCardState';
+
+export type DataAppBuildStep = { index: number; labelKey: UiStringKey };
 
 export type DataAppBuildCardState =
     // name: null until the app row (or the tool result) names it.
@@ -35,6 +46,8 @@ export type DataAppBuildCardState =
           name: string | null;
           statusMessage: string;
           narration: AppVersionNarrationData;
+          step: DataAppBuildStep;
+          startedAt: Date;
       }
     | {
           kind: 'ready';
@@ -124,10 +137,26 @@ const Body: FC<{ children: ReactNode }> = ({ children }) => (
 );
 
 const Title: FC<{ children: ReactNode }> = ({ children }) => (
-    <Text size="xs" fw={500} truncate>
+    <Text size="sm" fw={500} truncate>
         {children}
     </Text>
 );
+
+/** Completed-build status: "Ready", then version details. */
+const ReadyStatus: FC<{ detail: string }> = ({ detail }) => {
+    const getUiString = useUiStrings();
+    return (
+        <Text size="xs" c="dimmed" truncate>
+            <Text span inherit>
+                {getUiString('aiAgent.dataAppBuild.ready')}
+            </Text>
+            {' · '}
+            <Text span inherit>
+                {detail}
+            </Text>
+        </Text>
+    );
+};
 
 const Muted: FC<{ children: ReactNode }> = ({ children }) => (
     <Text size="xs" c="dimmed">
@@ -141,6 +170,7 @@ const Muted: FC<{ children: ReactNode }> = ({ children }) => (
  * the reader asks for the rest.
  */
 const Summary: FC<{ children: string }> = ({ children }) => {
+    const getUiString = useUiStrings();
     const clampRef = useRef<HTMLDivElement>(null);
     const [expanded, setExpanded] = useState(false);
     const [canExpand, setCanExpand] = useState(false);
@@ -160,6 +190,10 @@ const Summary: FC<{ children: string }> = ({ children }) => {
 
     return (
         <Stack gap={2} align="flex-start">
+            {/* Labelled so the builder's own caveats don't read as the status. */}
+            <Text component="span" className={styles.summaryLabel}>
+                {getUiString('aiAgent.dataAppBuild.builderNotes')}
+            </Text>
             <Box
                 ref={clampRef}
                 className={clsx(styles.summary, {
@@ -180,12 +214,52 @@ const Summary: FC<{ children: string }> = ({ children }) => {
     );
 };
 
+/** Stage bar with "Step 2 of 4 · Writing the app" and a ticking clock. */
+export const BuildProgress: FC<{ step: DataAppBuildStep; startedAt: Date }> = ({
+    step,
+    startedAt,
+}) => {
+    const elapsed = useElapsedClock(startedAt);
+    const getUiString = useUiStrings();
+    const position = {
+        step: String(step.index + 1),
+        total: String(DATA_APP_BUILD_STEP_COUNT),
+    };
+    return (
+        <Stack gap={6}>
+            <Progress
+                size="sm"
+                color="indigo"
+                value={((step.index + 1) / DATA_APP_BUILD_STEP_COUNT) * 100}
+                animated
+                aria-label={interpolateUiString(
+                    getUiString('aiAgent.dataAppBuild.progressLabel'),
+                    position,
+                )}
+            />
+            <Group gap="xs" justify="space-between" wrap="nowrap">
+                <Text size="xs" c="dimmed" truncate>
+                    {interpolateUiString(
+                        getUiString('aiAgent.dataAppBuild.progress'),
+                        { ...position, stage: getUiString(step.labelKey) },
+                    )}
+                </Text>
+                {elapsed && (
+                    <Text size="xs" c="dimmed" className={styles.elapsed}>
+                        {elapsed}
+                    </Text>
+                )}
+            </Group>
+        </Stack>
+    );
+};
+
 /** One-line "title · detail" header used by rows that must stay single-line. */
 const InlineTitle: FC<{ title: string; detail: string }> = ({
     title,
     detail,
 }) => (
-    <Text size="xs" truncate>
+    <Text size="sm" truncate>
         <Text span fw={500} inherit>
             {title}
         </Text>
@@ -229,6 +303,12 @@ const renderCells = (
                         </Lead>
                     </Box>
                     <Box className={styles.full}>
+                        <BuildProgress
+                            step={state.step}
+                            startedAt={state.startedAt}
+                        />
+                    </Box>
+                    <Box className={styles.full}>
                         <AppVersionNarration
                             narration={state.narration}
                             isLive
@@ -262,7 +342,7 @@ const renderCells = (
                 <>
                     <Lead icon={<CardIcon tone="default" />}>
                         <Title>{state.name}</Title>
-                        <Muted>{readySubtitle(state)}</Muted>
+                        <ReadyStatus detail={readySubtitle(state)} />
                     </Lead>
                     <Actions>
                         <ViewButton onView={onView} />

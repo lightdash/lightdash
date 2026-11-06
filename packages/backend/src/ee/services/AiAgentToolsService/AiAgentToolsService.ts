@@ -860,7 +860,9 @@ export class AiAgentToolsService extends BaseService {
             exploreNames: [exploreName],
         });
         if (!explore) {
-            throw new NotFoundError('Explore not found');
+            throw new NotFoundError(
+                `Explore "${exploreName}" is not available. It may not exist, or the project's Tables configuration, user attributes or agent tags may hide it. Do not retry this explore: choose one from the available explores.`,
+            );
         }
         return explore;
     }
@@ -4527,11 +4529,11 @@ export class AiAgentToolsService extends BaseService {
 
     private runSqlChartQuery(
         context: AiAgentToolsRuntimeContext,
-        { chartSlug, dashboardSlug, limit }: Parameters<RunSqlChartQueryFn>[0],
+        { chartSlug, dashboardSlug }: Parameters<RunSqlChartQueryFn>[0],
     ): ReturnType<RunSqlChartQueryFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlChartQuery`,
-            { chartSlug, dashboardSlug, limit },
+            { chartSlug, dashboardSlug },
             async () => {
                 const sqlChart = await this.savedSqlService.getSqlChart(
                     context.user,
@@ -4543,7 +4545,7 @@ export class AiAgentToolsService extends BaseService {
                 await this.assertSqlInAgentScope(context, sqlChart.sql);
 
                 const effectiveLimit = getValidAiQueryLimit(
-                    limit,
+                    sqlChart.limit,
                     this.lightdashConfig.ai.copilot.maxQueryLimit,
                 );
                 const sqlChartQueryArgs = {
@@ -4577,6 +4579,7 @@ export class AiAgentToolsService extends BaseService {
                             effectiveLimit,
                         )),
                         sqlChart: summary,
+                        limit: effectiveLimit,
                     };
                 }
 
@@ -4621,6 +4624,7 @@ export class AiAgentToolsService extends BaseService {
                         effectiveLimit,
                     )),
                     sqlChart: summary,
+                    limit: effectiveLimit,
                 };
             },
         );

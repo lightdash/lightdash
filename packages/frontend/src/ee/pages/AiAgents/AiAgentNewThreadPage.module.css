@@ -28,3 +28,9 @@
 .agentDescription {
     white-space: pre-wrap;
 }
+
+/* Top-anchored so the composer grows downward instead of re-centring. */
+.startScreen {
+    min-height: 100%;
+    padding-top: clamp(var(--mantine-spacing-lg), 10vh, rem(140px));
+}

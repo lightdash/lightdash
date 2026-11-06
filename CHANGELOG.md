@@ -1,3 +1,47 @@
+## [3.170.1](https://github.com/lightdash/lightdash/compare/3.170.0...3.170.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** drop a section beside the line it is dragged on ([#32171](https://github.com/lightdash/lightdash/issues/32171)) ([2710960](https://github.com/lightdash/lightdash/commit/27109602f8a765ba86de2008f4ca8518f36518f9))
+
+# [3.170.0](https://github.com/lightdash/lightdash/compare/3.169.7...3.170.0) (2026-11-06)
+
+
+### Features
+
+* **ai-agent:** calmer agent UI ([#32091](https://github.com/lightdash/lightdash/issues/32091)) ([d4cddb4](https://github.com/lightdash/lightdash/commit/d4cddb4aba284dd9331755df3958643717f07c58))
+
+## [3.169.7](https://github.com/lightdash/lightdash/compare/3.169.6...3.169.7) (2026-11-06)
+
+
+### Bug Fixes
+
+* **explore:** map lineage graph names in the no-extra-sources allocation fast path ([#32152](https://github.com/lightdash/lightdash/issues/32152)) ([7631c7a](https://github.com/lightdash/lightdash/commit/7631c7a86d679870b1741244522ab2c6a5e09b93))
+
+## [3.169.6](https://github.com/lightdash/lightdash/compare/3.169.5...3.169.6) (2026-11-06)
+
+
+### Bug Fixes
+
+* **ai:** check each chart once before saving, at its saved limit ([#32156](https://github.com/lightdash/lightdash/issues/32156)) ([dbf11c6](https://github.com/lightdash/lightdash/commit/dbf11c64a76962b8df4f684abebd324bb5dc9185))
+* **ai:** run saved charts at their saved limit ([#32150](https://github.com/lightdash/lightdash/issues/32150)) ([f6ba178](https://github.com/lightdash/lightdash/commit/f6ba17822c1bc33aa78a515fb172f0e7d53b623b))
+
+## [3.169.5](https://github.com/lightdash/lightdash/compare/3.169.4...3.169.5) (2026-11-06)
+
+
+### Bug Fixes
+
+* preserve intentional dashboard tile gaps ([#32160](https://github.com/lightdash/lightdash/issues/32160)) ([81dc1b4](https://github.com/lightdash/lightdash/commit/81dc1b4c1ea263a620d0c5758f5139b31a9541c9))
+
+## [3.169.4](https://github.com/lightdash/lightdash/compare/3.169.3...3.169.4) (2026-11-06)
+
+
+### Bug Fixes
+
+* **documents:** stop pivot tables and failed SQL charts crashing Documents ([#32135](https://github.com/lightdash/lightdash/issues/32135)) ([80be631](https://github.com/lightdash/lightdash/commit/80be631ba90c61eb92c0b373935297c6fa0e0b2c))
+* **oauth:** accept client ID metadata documents that support the none auth method ([#32159](https://github.com/lightdash/lightdash/issues/32159)) ([7d54ab8](https://github.com/lightdash/lightdash/commit/7d54ab8243c4d0a70db6dba861afd042b7c02c09)), closes [#31332](https://github.com/lightdash/lightdash/issues/31332)
+
 ## [3.169.3](https://github.com/lightdash/lightdash/compare/3.169.2...3.169.3) (2026-11-06)
 
 

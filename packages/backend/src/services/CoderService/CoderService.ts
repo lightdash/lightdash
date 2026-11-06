@@ -4424,6 +4424,8 @@ export class CoderService extends BaseService {
                             slug: chartWithDefaults.dashboardSlug,
                             forceSlug: shouldUseExactSlug,
                             tabs: [],
+                            ownerUserUuid:
+                                DashboardService.getDefaultOwnerUserUuid(user),
                         },
                         user,
                         projectUuid,
@@ -5951,6 +5953,9 @@ export class CoderService extends BaseService {
                     forceSlug: shouldUseExactSlug,
                     filters: dashboardFilters,
                     config: dashboardConfig,
+                    // ownerEmail, synced below, can still reassign or clear it
+                    ownerUserUuid:
+                        DashboardService.getDefaultOwnerUserUuid(user),
                 },
                 user,
                 projectUuid,

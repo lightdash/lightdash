@@ -712,7 +712,11 @@ describe('DashboardModel', () => {
 
         await model.create(
             'spaceUuid',
-            { ...createDashboard, forceSlug: true },
+            {
+                ...createDashboard,
+                forceSlug: true,
+                ownerUserUuid: 'uploader-user-uuid',
+            },
             user,
             projectUuid,
         );
@@ -726,6 +730,9 @@ describe('DashboardModel', () => {
             query.sql.includes(`update "${DashboardsTableName}"`),
         );
         expect(revive?.sql).toContain('"deleted_at" = $');
+        // A revived dashboard keeps the owner it had before it was deleted
+        expect(revive?.sql).not.toContain('owner_user_uuid');
+        expect(revive?.bindings).not.toContain('uploader-user-uuid');
         expect(revive?.bindings).toEqual(
             expect.arrayContaining([
                 createDashboard.name,

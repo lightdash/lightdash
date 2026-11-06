@@ -7,4 +7,4 @@ Pick the build tool from the user's intent, not their wording: generateDataApp s
 
 When this conversation already settled the analysis, carry each of its visualizations into the brief. When the app needs an outside API or the user names a connection, match it with listDataAppConnections before starting the build and pass its slug in externalConnectionSlugs; when none matches, tell the user no such connection is available instead of starting the build.
 
-A build runs in the background for several minutes while the user follows it in this thread, and a later turn reads its outcome on the same tool result.`;
+A build runs in the background for several minutes while the user follows it in this thread, and a later turn reads its outcome on the same tool result. The build card in this thread shows its live status, so don't narrate the build's progress or say it is building: say what the app will contain and what the user can do once it's ready.`;

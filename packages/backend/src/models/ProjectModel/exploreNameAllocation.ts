@@ -42,6 +42,22 @@ export type ExploreNaming = {
 
 type Candidate = { identity: DbtExploreIdentity; references: Set<string> };
 
+const mapLineageNames = (
+    table: Explore['tables'][string],
+    lookup: ReadonlyMap<string, string>,
+    names: Map<string, string>,
+) => {
+    Object.entries(table.lineageGraph ?? {}).forEach(
+        ([lineageName, dependencies]) =>
+            [lineageName, ...dependencies.map(({ name }) => name)].forEach(
+                (reference) => {
+                    const assigned = lookup.get(reference);
+                    if (assigned) names.set(reference, assigned);
+                },
+            ),
+    );
+};
+
 export const getLegacyPrimaryExploreNames = async (
     database: Knex | Knex.Transaction,
     projectUuid: string,
@@ -464,15 +480,12 @@ export const allocateStagedExploreNames = async (
         if (reference !== undefined) candidate.references.add(reference);
         candidates.set(key, candidate);
     };
-    models.forEach((identity) =>
-        add(
-            identity,
-            getDeferredExploreName({
-                unique_id: identity.uniqueId,
-                lightdash_source_uuid: identity.sourceUuid ?? undefined,
-            }),
-        ),
-    );
+    const deferredNameOf = (identity: DbtExploreIdentity) =>
+        getDeferredExploreName({
+            unique_id: identity.uniqueId,
+            lightdash_source_uuid: identity.sourceUuid ?? undefined,
+        });
+    models.forEach((identity) => add(identity, deferredNameOf(identity)));
     const identityOf = (
         explore: Explore | ExploreError,
     ): DbtExploreIdentity => {
@@ -701,11 +714,19 @@ export const allocateStagedExploreNames = async (
         }, Promise.resolve());
     };
     if (sources.length === 0 && existing.length === 0) {
+        const deferredModelNames = new Map(
+            models.map(
+                (identity) =>
+                    [deferredNameOf(identity), identity.modelName] as const,
+            ),
+        );
         const explores = staged.map((row) => {
             const explore = row.explore as Explore | ExploreError;
-            const names = new Map([
-                [explore.name, identityOf(explore).modelName],
-            ]);
+            const names = new Map<string, string>();
+            Object.values(explore.tables ?? {}).forEach((table) =>
+                mapLineageNames(table, deferredModelNames, names),
+            );
+            names.set(explore.name, identityOf(explore).modelName);
             Object.entries(explore.tables ?? {}).forEach(([name, table]) => {
                 if (
                     table.canonicalName !== undefined &&
@@ -995,19 +1016,7 @@ export const allocateStagedExploreNames = async (
         let conflict = blocked.get(ownKey);
         names.set(explore.name, assigned);
         Object.entries(explore.tables ?? {}).forEach(([name, table]) => {
-            for (const [lineageName, dependencies] of Object.entries(
-                table.lineageGraph ?? {},
-            )) {
-                const lineageAssigned = referenceNames.get(lineageName);
-                if (lineageAssigned) names.set(lineageName, lineageAssigned);
-                dependencies.forEach((dependency) => {
-                    const dependencyAssigned = referenceNames.get(
-                        dependency.name,
-                    );
-                    if (dependencyAssigned)
-                        names.set(dependency.name, dependencyAssigned);
-                });
-            }
+            mapLineageNames(table, referenceNames, names);
             const tableIdentity = identityOfTable(explore, name, table);
             const tableOwnerKey = ownerKey(tableIdentity);
             conflict ??= blocked.get(tableOwnerKey);

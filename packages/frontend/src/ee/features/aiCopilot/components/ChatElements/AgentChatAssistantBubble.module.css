@@ -148,6 +148,82 @@
     }
 }
 
+.messageActions {
+    /* Icon glyphs, not their hit areas, sit on the message's left edge. */
+    margin-left: -6px;
+    transition: opacity 160ms ease;
+}
+
+/* Hidden actions float into the turn gap instead of reserving a blank row. */
+@media (hover: hover) {
+    .messageActions[data-persistent='false'] {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 1;
+        opacity: 0;
+    }
+
+    .assistantMessage:hover .messageActions,
+    .messageActions:focus-within,
+    .messageActions:has([aria-expanded='true']) {
+        opacity: 1;
+    }
+}
+
+/* Streamdown wraps blocks in one div, so the block rhythm targets its children. */
+.answerMarkdown {
+    --ai-markdown-font-size: var(--mantine-font-size-sm);
+    --ai-markdown-padding-left: 0;
+    line-height: 1.65;
+}
+
+/* Prose keeps a readable measure; tables, code and charts use the full width. */
+.answerMarkdown > div > :is(p, ul, ol, blockquote, h1, h2, h3, h4, h5, h6) {
+    max-width: 70ch;
+}
+
+.answerMarkdown > div > * + * {
+    margin-top: 0.9em;
+}
+
+.answerMarkdown > div :is(ul, ol) > li + li {
+    margin-top: 0.4em;
+}
+
+.answerMarkdown > div :is(ul, ol) {
+    padding-left: 1.4em;
+}
+
+.answerMarkdown > div > :is(h1, h2, h3, h4, h5, h6) {
+    margin-bottom: 0;
+    line-height: 1.35;
+}
+
+.answerMarkdown > div > * + :is(h1, h2, h3, h4, h5, h6) {
+    margin-top: 1.5em;
+}
+
+.answerMarkdown > div > :is(h1, h2, h3, h4, h5, h6) + * {
+    margin-top: 0.5em;
+}
+
+.answerMarkdown > div > h1 {
+    font-size: var(--mantine-font-size-lg);
+}
+
+.answerMarkdown > div > h2 {
+    font-size: var(--mantine-font-size-md);
+}
+
+.answerMarkdown > div > :is(h3, h4, h5, h6) {
+    font-size: var(--mantine-font-size-sm);
+}
+
+.answerMarkdown :is(strong, b, [data-streamdown='strong']) {
+    font-weight: 600;
+}
+
 /* Persisted (non-streaming) final answer gets a touch of vertical padding so
  * it doesn't butt against the activity card above it. */
 .persistedAnswer {

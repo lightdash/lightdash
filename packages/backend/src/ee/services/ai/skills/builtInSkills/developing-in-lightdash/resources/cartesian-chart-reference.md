@@ -128,7 +128,7 @@ Use `rowLimit` to trim the rendered chart to the first or last N rows of data wi
 | "Hide the last row (a totals row)"                           | `{ mode: hide, direction: last, count: 1 }`   |
 | "Show the bottom 5 underperformers" (assumes ascending sort) | `{ mode: show, direction: last, count: 5 }`   |
 
-**`metricQuery.limit` vs `rowLimit`**: `metricQuery.limit` constrains how many rows are _fetched_ from the warehouse. `rowLimit` only trims what is _displayed_ from the already-fetched rows. If the user wants to scan fewer rows in the database, use `metricQuery.limit`. Use `rowLimit` when the full dataset should remain queryable but only a subset should appear in the chart.
+**`metricQuery.limit` vs `rowLimit`**: `metricQuery.limit` sets how many rows the query returns; the warehouse still reads every matching row. `rowLimit` only trims what the chart _displays_ from the returned rows. Use `rowLimit` when the full result should remain available but only a subset should appear in the chart.
 
 ## Examples
 
