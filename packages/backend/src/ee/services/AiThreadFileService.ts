@@ -6,6 +6,7 @@ import {
     AI_THREAD_IMAGE_RETENTION_DAYS,
     FeatureFlags,
     ForbiddenError,
+    getErrorMessage,
     NotFoundError,
     ParameterError,
     TooManyRequestsError,
@@ -262,6 +263,19 @@ export class AiThreadFileService extends BaseService {
             Logger.info(`Swept ${swept} expired unclaimed AI thread files`);
         // Cleanup is intentionally independent of the feature's rollout flag.
         const attemptedBefore = new Date();
+        // Without the durable bucket this client points at the exports bucket,
+        // where a delete "succeeds" and would retire records of real objects.
+        if (!this.durableUploadsConfigured) {
+            const pending =
+                await this.aiThreadFileModel.findImageObjectsForCleanup(
+                    attemptedBefore,
+                );
+            if (pending.length > 0)
+                Logger.warn(
+                    'AI image cleanup skipped: durable uploads storage is not configured',
+                );
+            return;
+        }
         for (let batch = 0; batch < MAX_SWEEP_BATCHES; batch += 1) {
             const objects =
                 await this.aiThreadFileModel.findImageObjectsForCleanup(
@@ -285,10 +299,13 @@ export class AiThreadFileService extends BaseService {
                     await this.aiThreadFileModel.markImageObjectDeleted(
                         object.storage_key,
                     );
-                } catch {
+                } catch (error) {
                     Logger.error(
                         'Failed to delete an AI image object; cleanup will retry',
-                        { storageKey: object.storage_key },
+                        {
+                            storageKey: object.storage_key,
+                            error: getErrorMessage(error),
+                        },
                     );
                 }
             }
