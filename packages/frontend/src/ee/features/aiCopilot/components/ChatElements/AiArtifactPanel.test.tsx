@@ -581,6 +581,29 @@ describe('composer artifact', () => {
             ).not.toBeInTheDocument();
         });
 
+        it('shows the chart sketch, not a table, before the run has a query', () => {
+            mocks.artifact.mockReturnValue({
+                data: {
+                    artifactType: 'chart',
+                    title: 'Orders vs amounts',
+                    chartConfig: barConfig,
+                },
+                isLoading: false,
+                error: null,
+                refetch: mocks.retry,
+            });
+            mocks.query.mockReturnValue({
+                ...composerRun,
+                data: { ...composerRun.data, nodeQueryUuids: {} },
+            });
+            mocks.rows.mockReturnValue(statusCounts);
+            renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+            expect(
+                screen.getByText('Loading visualization…'),
+            ).toBeInTheDocument();
+            expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+        });
+
         it('downloads the displayed node result as run from the same menu', async () => {
             mockedLightdashApi.mockImplementation((async ({
                 url,
@@ -1005,7 +1028,7 @@ describe('sql artifact viz switcher', () => {
                 .find((radio) => radio.getAttribute('value') === kind)!,
         );
 
-    it('opens a date + number answer as a table and can switch to a line chart', () => {
+    it('opens a date + number answer as a table and can switch to a line chart', async () => {
         renderSql(
             resultsOf(
                 {
@@ -1025,7 +1048,9 @@ describe('sql artifact viz switcher', () => {
         ).toBeInTheDocument();
         chooseSqlViz('line');
         expect(checkedViz()).toBe('line');
-        expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
+        expect(
+            await screen.findByTestId('chart-view-line'),
+        ).toBeInTheDocument();
         expect(screen.getByText('Orders per day')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'SQL artifact actions' }),

@@ -55,7 +55,7 @@ import {
 } from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { isArtifactRevision } from './ArtifactButton/artifactCardMeta';
-import { ArtifactChartSkeleton } from './ArtifactChartSkeleton';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 import { ChatElementsUtils } from './utils';
@@ -329,7 +329,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
             if (variant === 'floating') {
                 return (
                     <Box className={styles.floatingPanel}>
-                        <ArtifactChartSkeleton />
+                        <ArtifactLoadingSketch />
                     </Box>
                 );
             }
@@ -448,7 +448,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
         ) {
             return (
                 <Box className={styles.floatingPanel}>
-                    <ArtifactChartSkeleton />
+                    <ArtifactLoadingSketch />
                 </Box>
             );
         }
