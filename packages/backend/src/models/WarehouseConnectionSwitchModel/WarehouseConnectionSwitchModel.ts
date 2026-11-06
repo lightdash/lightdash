@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import {
     WarehouseConnectionModel,
     type ConnectionMode,
@@ -36,7 +35,6 @@ export type WarehouseConnectionSwitchEvent = {
 type WarehouseConnectionSwitchModelArguments = {
     database: Knex;
     encryptionUtil: EncryptionUtil;
-    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 };
 
 export class WarehouseConnectionSwitchModel {
@@ -44,13 +42,9 @@ export class WarehouseConnectionSwitchModel {
 
     private readonly encryptionUtil: EncryptionUtil;
 
-    private readonly organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
-
     constructor(args: WarehouseConnectionSwitchModelArguments) {
         this.database = args.database;
         this.encryptionUtil = args.encryptionUtil;
-        this.organizationWarehouseCredentialsModel =
-            args.organizationWarehouseCredentialsModel;
     }
 
     async transaction<T>(
@@ -63,8 +57,6 @@ export class WarehouseConnectionSwitchModel {
             const args = {
                 database: transaction,
                 encryptionUtil: this.encryptionUtil,
-                organizationWarehouseCredentialsModel:
-                    this.organizationWarehouseCredentialsModel,
             };
             return run({
                 switchModel: new WarehouseConnectionSwitchModel(args),
@@ -125,8 +117,7 @@ export class WarehouseConnectionSwitchModel {
             provisioningSource: row.provisioning_source,
             connectionMode: row.connection_mode,
             originalWarehouseType: row.warehouse_type,
-            originalOrganizationWarehouseCredentialsUuid:
-                row.organization_warehouse_credentials_uuid,
+            originalOrganizationWarehouseCredentialsUuid: null,
             originalCredentialsFingerprint: row.credentials_fingerprint,
         };
     }

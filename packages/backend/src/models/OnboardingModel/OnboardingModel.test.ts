@@ -155,4 +155,22 @@ describe('OnboardingModel', () => {
 
         expect(tracker.history.update[0]?.bindings).toContain(1);
     });
+
+    it.each([
+        [1, true],
+        [0, false],
+    ])(
+        'sets ranQuery_at only while unset (%s rows updated)',
+        async (rows, expected) => {
+            tracker.on.update('onboarding').responseOnce(rows);
+
+            await expect(
+                model.setRanQueryAtIfUnset('organization-uuid'),
+            ).resolves.toBe(expected);
+
+            expect(tracker.history.update[0]?.sql).toContain(
+                '"ranQuery_at" is null',
+            );
+        },
+    );
 });

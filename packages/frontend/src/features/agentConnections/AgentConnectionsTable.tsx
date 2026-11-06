@@ -100,7 +100,7 @@ const ProjectRestrictions = ({
     if (!restricted.length) return null;
     return (
         <Stack gap="xs">
-            <Text fw={500}>
+            <Text fz="sm" fw={500}>
                 {approved?.name ?? 'Project no longer available'}
             </Text>
             {restricted.map((action) => (
@@ -197,7 +197,9 @@ const ConnectionRow = ({
                             </ActionIcon>
                         </Tooltip>
                         <Stack gap={0}>
-                            <Text fw={500}>{connection.name}</Text>
+                            <Text fz="sm" fw={500}>
+                                {connection.name}
+                            </Text>
                             <Text size="xs" c="dimmed">
                                 CLI ·{' '}
                                 {count(

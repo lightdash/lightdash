@@ -11,7 +11,6 @@ import {
     ApiLearnAccessResponse,
     ApiOrganization,
     ApiOrganizationAllowedEmailDomains,
-    ApiOrganizationBrandResponse,
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiOrganizationProjects,
@@ -31,12 +30,10 @@ import {
     OrganizationMemberProfileUpdate,
     ReassignUserDashboardsRequest,
     ReassignUserSchedulersRequest,
-    SaveOrganizationBrandRequest,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
     UpdateImpersonationOrganizationSettings,
     UpdateOrganization,
-    UpdateOrganizationBrandRequest,
     UUID,
     type ApiCreateProjectResults,
     type ApiSuccess,
@@ -159,85 +156,6 @@ export class OrganizationController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
-        };
-    }
-
-    /**
-     * Get the organization's brand profile, previously fetched from Brandfetch.
-     * Returns null if no brand profile has been fetched yet.
-     * @summary Get organization brand
-     * @param req express request
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @Get('/brand')
-    @OperationId('GetOrganizationBrand')
-    async getOrganizationBrand(
-        @Request() req: express.Request,
-    ): Promise<ApiOrganizationBrandResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getOrganizationService()
-                .getBrand(req.account),
-        };
-    }
-
-    /**
-     * Fetch the brand profile for a domain from Brandfetch without storing it.
-     * Used to preview a brand in the appearance settings before saving.
-     * Requires the Brandfetch API key to be configured on the instance.
-     * @summary Fetch organization brand
-     * @param req express request
-     * @param body the domain to fetch the brand for
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @Post('/brand/fetch')
-    @OperationId('FetchOrganizationBrand')
-    async fetchOrganizationBrand(
-        @Request() req: express.Request,
-        @Body() body: UpdateOrganizationBrandRequest,
-    ): Promise<ApiOrganizationBrandResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getOrganizationService()
-                .fetchBrandFromDomain(req.account, body.domain),
-        };
-    }
-
-    /**
-     * Save the organization's brand appearance as edited by the user. Stores the
-     * provided colors, logos, fonts and domain as-is without calling Brandfetch.
-     * @summary Save organization brand
-     * @param req express request
-     * @param body the brand appearance to persist
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @Put('/brand')
-    @OperationId('SaveOrganizationBrand')
-    async saveOrganizationBrand(
-        @Request() req: express.Request,
-        @Body() body: SaveOrganizationBrandRequest,
-    ): Promise<ApiOrganizationBrandResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getOrganizationService()
-                .saveBrand(req.account, body),
         };
     }
 

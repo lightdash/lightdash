@@ -121,6 +121,7 @@ type DbWebAppThread = {
     user_uuid: string;
     embed_space_uuid: string | null;
     embed_space_uuids: string[] | null;
+    embed_external_user_id: string | null;
 };
 
 export type AiSlackThreadTable = Knex.CompositeTableType<
@@ -138,7 +139,14 @@ export type AiSlackThreadTable = Knex.CompositeTableType<
 export type AiWebAppThreadTable = Knex.CompositeTableType<
     DbWebAppThread,
     Pick<DbWebAppThread, 'ai_thread_uuid' | 'user_uuid'> &
-        Partial<Pick<DbWebAppThread, 'embed_space_uuid' | 'embed_space_uuids'>>,
+        Partial<
+            Pick<
+                DbWebAppThread,
+                | 'embed_space_uuid'
+                | 'embed_space_uuids'
+                | 'embed_external_user_id'
+            >
+        >,
     never
 >;
 

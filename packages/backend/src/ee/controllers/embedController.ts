@@ -311,6 +311,7 @@ export class EmbedController extends BaseController {
             dateZoomGranularity?: DateGranularity | string;
             dashboardSorts?: SortField[];
             parameters?: ParametersValuesMap;
+            excludedParameterKeys?: string[];
         },
     ): Promise<ApiEmbedChartAndResultsResponse> {
         this.setStatus(200);
@@ -327,6 +328,8 @@ export class EmbedController extends BaseController {
                 body.dateZoomGranularity,
                 body.dashboardSorts,
                 body.parameters,
+                undefined,
+                body.excludedParameterKeys,
             ),
         };
     }
@@ -349,6 +352,7 @@ export class EmbedController extends BaseController {
             | 'invalidateCache'
             | 'dateZoom'
             | 'parameters'
+            | 'excludedParameterKeys'
             | 'limit'
         >,
     ): Promise<{
@@ -369,6 +373,7 @@ export class EmbedController extends BaseController {
                 invalidateCache: body.invalidateCache,
                 dashboardSorts: body.dashboardSorts,
                 parameters: body.parameters,
+                excludedParameterKeys: body.excludedParameterKeys,
                 pivotResults: body.pivotResults,
                 limit: body.limit,
                 timezone: body.timezone,
@@ -419,6 +424,7 @@ export class EmbedController extends BaseController {
             | 'dashboardSorts'
             | 'invalidateCache'
             | 'parameters'
+            | 'excludedParameterKeys'
             | 'limit'
         >,
     ): Promise<{
@@ -439,6 +445,7 @@ export class EmbedController extends BaseController {
                     dashboardSorts: body.dashboardSorts,
                     invalidateCache: body.invalidateCache,
                     parameters: body.parameters,
+                    excludedParameterKeys: body.excludedParameterKeys,
                     limit: body.limit,
                 },
             );
@@ -471,6 +478,7 @@ export class EmbedController extends BaseController {
         body: {
             dashboardFilters?: AnyType; // DashboardFilters; temp disable validation
             parameters?: ParametersValuesMap;
+            excludedParameterKeys?: string[];
             invalidateCache?: boolean;
         },
     ): Promise<ApiCalculateTotalResponse> {
@@ -487,6 +495,7 @@ export class EmbedController extends BaseController {
                 body.dashboardFilters,
                 body.parameters,
                 body.invalidateCache,
+                body.excludedParameterKeys,
             ),
         };
     }
@@ -512,6 +521,7 @@ export class EmbedController extends BaseController {
         body: {
             dashboardFilters?: DashboardFilters;
             parameters?: ParametersValuesMap;
+            excludedParameterKeys?: string[];
             columnOrder: string[];
             pivotDimensions?: string[];
             invalidateCache?: boolean;
@@ -535,6 +545,7 @@ export class EmbedController extends BaseController {
                     body.pivotDimensions,
                     body.invalidateCache,
                     body.dateZoom,
+                    body.excludedParameterKeys,
                 ),
         };
     }

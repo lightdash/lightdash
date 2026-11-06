@@ -103,11 +103,9 @@ pipeline, and authoring runbook are documented in
   header value sent with every registry request, e.g. `Basic <base64>` or
   `Bearer <token>`. Use it for registries behind authentication; `user:pass@`
   in the URL is not supported. Unset sends no credentials.
-- The library is enterprise-only and gated by the `chart-type-registry`
-  feature flag alone; it does not need data apps or Chart Studio.
-- Installed chart types are usable (picked, configured, rendered) wherever
-  the library flag is on, the `enable-data-apps` flag is on, or Chart Studio
-  is available. Chart Studio, which authors and forks chart types, is
+- The library is enterprise-only; it does not need data apps or Chart Studio.
+- Installed chart types are usable (picked, configured, rendered) on every
+  enterprise instance. Chart Studio, which authors and forks chart types, is
   available with a valid licence and a configured sandbox provider, not the
   `enable-data-apps` flag. The coding agent key is resolved per organization
   when a build starts.

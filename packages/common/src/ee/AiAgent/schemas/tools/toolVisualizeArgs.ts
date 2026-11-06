@@ -21,7 +21,8 @@ const toolVisualizeArgsSchemaV1 = createToolSchema()
             ),
         description: z
             .string()
-            .nullable()
+            .nullish()
+            .default(null)
             .describe(
                 'One sentence on what the card shows, only when the title is not enough. Null otherwise.',
             ),

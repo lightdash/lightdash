@@ -2,9 +2,8 @@ import {
     OrganizationSettings,
     UpdateOrganizationSettings,
 } from '@lightdash/common';
+import { isUndefined, omitBy } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isUndefined from 'lodash/isUndefined';
-import omitBy from 'lodash/omitBy';
 import {
     DbOrganizationSettingsColumns,
     OrganizationSettingsTableName,

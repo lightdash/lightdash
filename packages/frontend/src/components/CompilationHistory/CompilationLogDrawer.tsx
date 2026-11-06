@@ -1,9 +1,8 @@
 import { Box, Drawer, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
-import ReactJson from 'react-json-view';
 import { type ProjectCompileLog } from '../../hooks/useProjectCompileLogs';
-import { useRjvTheme } from '../../hooks/useRjvTheme';
 import { CopyActionIcon } from '../common/CopyActionIcon';
+import JsonTree from '../common/JsonViewer/JsonTree';
 
 type CompilationLogDrawerProps = {
     opened: boolean;
@@ -16,7 +15,6 @@ export const CompilationLogDrawer: FC<CompilationLogDrawerProps> = ({
     onClose,
     log,
 }) => {
-    const theme = useRjvTheme();
     return (
         <Drawer
             opened={opened}
@@ -41,14 +39,7 @@ export const CompilationLogDrawer: FC<CompilationLogDrawerProps> = ({
                 <Stack gap="md">
                     {log && (
                         <Box>
-                            <ReactJson
-                                theme={theme}
-                                src={log as Record<string, unknown>}
-                                enableClipboard={false}
-                                displayDataTypes={false}
-                                collapsed={1}
-                                name={null}
-                            />
+                            <JsonTree value={log} defaultExpandDepth={1} />
                         </Box>
                     )}
                 </Stack>

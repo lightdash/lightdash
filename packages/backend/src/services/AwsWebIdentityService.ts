@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     Account,
     assertIsAccountWithOrg,
@@ -8,13 +7,13 @@ import {
     CreateAwsWebIdentityAudience,
     FeatureFlags,
     ForbiddenError,
-    ProjectType,
 } from '@lightdash/common';
 import { AwsWebIdentityAudienceModel } from '../models/AwsWebIdentityAudienceModel';
 import { type FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { type AwsWebIdentityResolver } from '../utils/awsWebIdentity/AwsWebIdentityResolver';
 import { AWS_WEB_IDENTITY_MESSAGES } from '../utils/awsWebIdentity/messages';
+import { assertCanConfigureConnectionIdentity } from './assertCanConfigureConnectionIdentity';
 import { BaseService } from './BaseService';
 
 type AwsWebIdentityServiceArguments = {
@@ -81,34 +80,12 @@ export class AwsWebIdentityService extends BaseService {
             account.user.userUuid,
         );
         const { organizationUuid } = account.organization;
-        const ability = this.createAuditedAbility(account);
-        if (projectUuid) {
-            const project = await this.projectModel.getSummary(projectUuid);
-            if (
-                project.organizationUuid !== organizationUuid ||
-                ability.cannot(
-                    'update',
-                    subject('Project', {
-                        organizationUuid: project.organizationUuid,
-                        projectUuid: project.projectUuid,
-                        upstreamProjectUuid: project.upstreamProjectUuid,
-                        type: project.type,
-                        createdByUserUuid: project.createdByUserUuid,
-                    }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-        } else if (
-            [ProjectType.DEFAULT, ProjectType.PREVIEW].every((type) =>
-                ability.cannot(
-                    'create',
-                    subject('Project', { organizationUuid, type }),
-                ),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        await assertCanConfigureConnectionIdentity({
+            ability: this.createAuditedAbility(account),
+            organizationUuid,
+            projectModel: this.projectModel,
+            projectUuid: projectUuid ?? undefined,
+        });
         const audience = await this.awsWebIdentityAudienceModel.create(
             account.organization.organizationUuid,
             account.user.userUuid,

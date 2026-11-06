@@ -34,9 +34,50 @@
     min-width: 0;
 }
 
-/* A saved-open capsule takes a line of its own, so a short one is not
-   missed at the end of another's line; saved-folded ones stay inline in
-   saved order. A fold in view moves neither */
+/* A bar line of sections: a section starts one unless it is saved
+   `inline`, then it sits beside the section before it. Lines never change
+   with a fold: an open section that shares its line stacks its filters
+   instead of widening it */
+.sectionLine {
+    position: relative;
+    display: flex;
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: inherit;
+    min-width: 0;
+}
+
+/* The gap above a line (and below the last one) takes a dragged capsule
+   onto a line of its own: a full-width 2px line in the gap, so nothing
+   moves. Hit-tested by its box, never by the pointer, so it blocks nothing */
+.lineGap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -12px;
+    height: 12px;
+    pointer-events: none;
+}
+
+.lineGap[data-end] {
+    top: auto;
+    bottom: -14px;
+}
+
+.lineGap[data-over]::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 5px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--mantine-color-blue-4);
+}
+
+/* The New section entry and a section being named sit on their own line
+   below the sections, or inline after the filters when there are none */
 .line {
     display: contents;
 }
@@ -49,6 +90,10 @@
 
 /* A narrow bar: every capsule, and New section, on a line of its own */
 @container (width < 720px) {
+    .sectionLine {
+        flex-direction: column;
+    }
+
     .line {
         display: flex;
         flex: 0 0 100%;
@@ -144,9 +189,6 @@
     font-size: var(--mantine-font-size-xs);
     font-weight: 500;
     white-space: nowrap;
-    transition:
-        border-color 0.12s ease-in-out,
-        color 0.12s ease-in-out;
 }
 
 .newSectionGhost:hover {
@@ -186,6 +228,24 @@
    pointer drags the capsule by */
 .head {
     touch-action: none;
+}
+
+/* A folded capsule's count: an editor's handle too, never a text selection */
+.summary {
+    user-select: none;
+}
+
+/* The open hand on the parts that drag the capsule (the head's gaps and the
+   count; the chevron folds and the name renames), closed while it moves */
+.capsule[data-can-drag] .head,
+.capsule[data-can-drag] .summary {
+    cursor: grab;
+    touch-action: none;
+}
+
+.capsule[data-dragging] .head,
+.capsule[data-dragging] .summary {
+    cursor: grabbing;
 }
 
 /* The name renames on a click: a text cursor and 6px side padding */
@@ -277,66 +337,4 @@
 .actions {
     position: relative;
     flex: 0 0 auto;
-}
-
-/* Expanded, the pills arrive one after the other, up to eight */
-.pillsEnter {
-    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
-    --controls-duration-arrive: 0.28s;
-}
-
-.pillsEnter > * {
-    /* `backwards`: no transform stays on the wrapper, so a dragged pill
-       still rises above its neighbours */
-    animation: pillEnter var(--controls-duration-arrive)
-        var(--controls-ease-arrive) backwards;
-}
-
-.pillsEnter > :nth-child(2) {
-    animation-delay: 20ms;
-}
-
-.pillsEnter > :nth-child(3) {
-    animation-delay: 40ms;
-}
-
-.pillsEnter > :nth-child(4) {
-    animation-delay: 60ms;
-}
-
-.pillsEnter > :nth-child(5) {
-    animation-delay: 80ms;
-}
-
-.pillsEnter > :nth-child(6) {
-    animation-delay: 100ms;
-}
-
-.pillsEnter > :nth-child(7) {
-    animation-delay: 120ms;
-}
-
-.pillsEnter > :nth-child(n + 8) {
-    animation-delay: 140ms;
-}
-
-@keyframes pillEnter {
-    from {
-        opacity: 0;
-        transform: translateX(-6px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .pillsEnter > * {
-        animation: none;
-    }
-
-    .newSectionGhost {
-        transition: none;
-    }
 }

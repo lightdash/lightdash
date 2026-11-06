@@ -1,10 +1,11 @@
 import { assertUnreachable } from '@lightdash/common';
 import {
     generateText,
-    stepCountIs,
-    type CallSettings,
-    type GenerateTextOnStepFinishCallback,
+    isStepCount,
+    type GenerateTextOnStepEndCallback,
     type LanguageModel,
+    type LanguageModelCallOptions,
+    type RequestOptions,
     type ToolSet,
 } from 'ai';
 import {
@@ -41,7 +42,7 @@ export type AutopilotAgentRunResult = {
 
 export type RunAutopilotAgentArgs = {
     model: Exclude<LanguageModel, string>;
-    callOptions: CallSettings;
+    callOptions: LanguageModelCallOptions & Omit<RequestOptions, 'timeout'>;
     providerOptions: AnyAiModel['providerOptions'];
     agent: RenderedAutopilotAgent;
     dataTools: ToolSet;
@@ -50,7 +51,7 @@ export type RunAutopilotAgentArgs = {
     maxSteps: number;
     timeoutMs: number;
     telemetry: ReturnType<typeof getAiCallTelemetry>;
-    onStepFinish?: GenerateTextOnStepFinishCallback<ToolSet>;
+    onStepFinish?: GenerateTextOnStepEndCallback<ToolSet>;
     abortSignal?: AbortSignal;
 };
 
@@ -139,7 +140,7 @@ export const runAutopilotAgent = async ({
             ...callOptions,
             model,
             providerOptions,
-            system: agent.system,
+            instructions: agent.system,
             messages: [
                 {
                     role: 'user',
@@ -148,10 +149,10 @@ export const runAutopilotAgent = async ({
             ],
             tools,
             toolChoice: 'auto',
-            stopWhen: stepCountIs(maxSteps),
+            stopWhen: isStepCount(maxSteps),
             abortSignal,
             ...telemetry,
-            onStepFinish: async (step) => {
+            onStepEnd: async (step) => {
                 stepCount += 1;
                 emitAiUsage(telemetry, languageModelUsageToTokens(step.usage));
                 await onStepFinish?.(step);

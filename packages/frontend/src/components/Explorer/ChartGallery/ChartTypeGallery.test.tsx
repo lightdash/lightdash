@@ -14,6 +14,7 @@ import { sharedLightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
+import { useRegistryChartTypes } from '../../../features/chartTypes/hooks/useRegistryChartTypes';
 import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { EventName } from '../../../types/Events';
@@ -92,6 +93,17 @@ const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
 vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualizations');
+vi.mock('../../../features/chartTypes/hooks/useRegistryChartTypes');
+const { embedded } = vi.hoisted(() => ({ embedded: { current: false } }));
+vi.mock('../../../ee/providers/Embed/useIsEmbedded', () => ({
+    default: () => embedded.current,
+}));
+vi.mock(
+    '../../../features/chartTypes/components/ChartTypeLibraryModal',
+    () => ({
+        default: () => <div role="dialog" aria-label="Chart type library" />,
+    }),
+);
 vi.mock('../../../api');
 vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
     default: vi.fn(() => ({})),
@@ -212,6 +224,7 @@ const galleryProps = (overrides: Partial<GalleryProps> = {}): GalleryProps => ({
     moreCount: 0,
     loadingMore: false,
     disabledReason: null,
+    onBrowseLibrary: null,
     ...overrides,
 });
 
@@ -748,6 +761,15 @@ describe('ChartTypeGallery', () => {
 
 const mockedUseDataAppVisualizations = vi.mocked(useDataAppVisualizations);
 
+const setRegistryStates = (states: string[]) => {
+    vi.mocked(useRegistryChartTypes).mockReturnValue({
+        data: {
+            registryEnabled: true,
+            charts: states.map((state) => ({ state })),
+        },
+    } as unknown as ReturnType<typeof useRegistryChartTypes>);
+};
+
 const setProjectQuery = (error: Error | null = null) => {
     mockedUseDataAppVisualizations.mockReturnValue({
         data: error
@@ -829,7 +851,7 @@ describe('ExplorerChartTypeGallery', () => {
         vi.mocked(useEmbed).mockReturnValue({} as ReturnType<typeof useEmbed>);
         selectedTypeProps.selectedProjectType = projectChartType;
         // Authoring follows Chart Studio, so the data apps flag stays off.
-        featureFlags.current = { [FeatureFlags.ChartTypeRegistry]: true };
+        featureFlags.current = {};
         vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         visualizationConfig.current = {
             chartType: ChartType.TABLE,
@@ -841,6 +863,50 @@ describe('ExplorerChartTypeGallery', () => {
         mocks.canEditChartType.mockReturnValue(false);
         mocks.canFork.mockReturnValue(false);
         setProjectQuery();
+        setRegistryStates([]);
+        embedded.current = false;
+    });
+
+    describe('more chart types tile', () => {
+        const moreTile = () =>
+            screen.queryByRole('button', { name: 'More chart types' });
+
+        it('opens the library when an uninstalled library type exists', async () => {
+            setRegistryStates(['installed', 'not_installed']);
+            renderGallery();
+
+            await userEvent.click(moreTile()!);
+            expect(
+                screen.getByRole('dialog', { name: 'Chart type library' }),
+            ).toBeInTheDocument();
+        });
+
+        it('stays hidden when everything in the library is installed', () => {
+            setRegistryStates(['installed']);
+            renderGallery();
+            expect(moreTile()).not.toBeInTheDocument();
+        });
+
+        it('stays hidden in an embed', () => {
+            setRegistryStates(['not_installed']);
+            embedded.current = true;
+            renderGallery();
+            expect(moreTile()).not.toBeInTheDocument();
+        });
+
+        it('stays hidden when chart types are off', () => {
+            setRegistryStates(['not_installed']);
+            featureFlags.current = {};
+            vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+            renderWithProviders(
+                <ExplorerChartTypeGallery
+                    {...selectedTypeProps}
+                    onConfigure={vi.fn()}
+                />,
+                { health: { license: { hasLicenseKey: false, valid: false } } },
+            );
+            expect(moreTile()).not.toBeInTheDocument();
+        });
     });
 
     it.each([
@@ -1190,10 +1256,7 @@ describe('ExplorerChartTypeGallery', () => {
         });
 
         it('hides the overflow menu on an official card without Chart Studio, even with data apps on', () => {
-            featureFlags.current = {
-                [FeatureFlags.EnableDataApps]: true,
-                [FeatureFlags.ChartTypeRegistry]: true,
-            };
+            featureFlags.current = { [FeatureFlags.EnableDataApps]: true };
             vi.mocked(useChartStudioAvailable).mockReturnValue(false);
             renderGallery();
 
@@ -1287,10 +1350,14 @@ describe('ExplorerChartTypeGallery', () => {
         });
     });
 
-    it('shows only built-ins when chart types are off', () => {
-        featureFlags.current = {};
+    it('shows only built-ins without a licence', () => {
         vi.mocked(useChartStudioAvailable).mockReturnValue(false);
-        renderGallery();
+        renderWithProviders(
+            <ExplorerChartTypeGallery
+                {...selectedTypeProps}
+                onConfigure={vi.fn()}
+            />,
+        );
 
         expect(
             screen.getByRole('button', { name: 'Bar chart' }),

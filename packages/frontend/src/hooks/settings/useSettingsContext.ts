@@ -94,18 +94,9 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
-    const { data: resultsCacheFlag } = useServerFeatureFlag(
-        FeatureFlags.ResultsCacheEnabled,
-    );
-    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
-
-    const { data: proLimitsFlag } = useServerFeatureFlag(
-        FeatureFlags.ProLimits,
-    );
-    const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
-
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
+    const isResultsCacheAvailable = health?.license?.valid === true;
     const isServiceAccountsEnabled = health?.license?.valid === true;
 
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
@@ -162,12 +153,9 @@ export const useSettingsContext = (): SettingsContext => {
     // out, matching what the backend actually authorizes.
     const { data: projects } = useProjects();
     const organizationUuid = organization?.organizationUuid;
-    const {
-        data: analyticsProjectFlag,
-        isInitialLoading: isAnalyticsProjectFlagLoading,
-    } = useServerFeatureFlag(FeatureFlags.AnalyticsProject);
+    const isAnalyticsProjectLoading = isHealthLoading;
     const canAccessAnalyticsSettings =
-        analyticsProjectFlag?.enabled === true &&
+        health?.hasManagedAnalytics === true &&
         !!organizationUuid &&
         (user?.ability.can(
             'manage',
@@ -228,9 +216,8 @@ export const useSettingsContext = (): SettingsContext => {
         project,
         showImpersonationPanel,
         isCustomRolesEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
-        isAnalyticsProjectFlagLoading,
+        isAnalyticsProjectLoading,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
         isAiCreditsLoading: isAiCreditUsageLoading,
@@ -254,7 +241,7 @@ export const useSettingsContext = (): SettingsContext => {
         isChartStudioAvailable,
         isApiQuerySourcesEnabled: apiQuerySourcesFlag?.enabled ?? false,
         externalSourcesFlag,
-        isResultsCacheEnabled,
+        isResultsCacheAvailable,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,

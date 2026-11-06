@@ -17,6 +17,7 @@ import {
     ForbiddenError,
     getEmbedWriteSpaceUuids,
     isDashboardContent,
+    isEmbedReadOnlyAiAgentToken,
     isJwtUser,
     MemberAbility,
     OauthAccount,
@@ -293,7 +294,12 @@ export const getEmbedActorChartSpaceUuids = (account: Account): string[] => {
     const { writeActions, content } = account.authentication.data;
     const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
     // apiAccess tokens may omit the write space.
-    if (writeSpaceUuids.length === 0) return [];
+    if (
+        writeSpaceUuids.length === 0 &&
+        !isEmbedReadOnlyAiAgentToken(account.authentication.data)
+    ) {
+        return [];
+    }
     const sourceSpaceUuids =
         content?.type === 'dashboard' || content?.type === 'aiAgent'
             ? (writeActions?.sourceSpaceUuids ?? [])

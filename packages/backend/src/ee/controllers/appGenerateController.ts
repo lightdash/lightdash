@@ -30,6 +30,7 @@ import {
     type ApiGetDataAppVizResponse,
     type ApiImportAppCodeResponse,
     type ApiInstallRegistryChartTypeResponse,
+    type ApiInstallStarterChartTypesResponse,
     type ApiListDataAppVizsResponse,
     type ApiListRegistryChartTypesResponse,
     type ApiMyAppsResponse,
@@ -229,6 +230,32 @@ export class AppGenerateController extends BaseController {
                 projectUuid,
                 chartSlug,
                 body,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Install the library's starter chart types into a new project, skipping
+     * any already installed. Returns nothing installed while the library is off.
+     * @summary Install the starter chart types from the chart registry
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/registry/starter-charts/install')
+    @OperationId('installStarterChartTypes')
+    async installStarterChartTypes(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiInstallStarterChartTypesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().installStarterChartTypes(
+                toSessionUser(req.account),
+                projectUuid,
             );
         return {
             status: 'ok',

@@ -14,6 +14,7 @@ import {
     user as baseUser,
     defaultProject,
 } from '../../../services/ProjectService/ProjectService.mock';
+import { getAnalyticsContentHash } from './analyticsContentHash';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 
 describe('AnalyticsProjectService', () => {
@@ -63,6 +64,18 @@ describe('AnalyticsProjectService', () => {
     const getVerifications = vi.fn();
     const getUsageHistoryBackfillJob = vi.fn();
     const scheduleUsageHistoryBackfill = vi.fn();
+    const scheduleAnalyticsContentSync = vi.fn();
+    const getSnapshot = vi.fn();
+    const saveSnapshot = vi.fn();
+    const getOrganizationAdmins = vi.fn();
+    const findSessionUserAndOrgByUuid = vi.fn();
+    const isAnalyticsProjectEnabled = vi.fn();
+    const getOrganizations = vi.fn();
+    const hash = getAnalyticsContentHash(
+        analyticsExplores.createAnalyticsExplores(),
+        analyticsContentAsCode,
+    );
+    const findProcessingStatus = vi.fn();
     const service = new AnalyticsProjectService({
         lightdashConfig: {
             usageEvents: {
@@ -76,7 +89,11 @@ describe('AnalyticsProjectService', () => {
         schedulerClient: {
             getUsageHistoryBackfillJob,
             scheduleUsageHistoryBackfill,
+            scheduleAnalyticsContentSync,
         },
+        contentAsCodeSnapshotModel: { get: getSnapshot, upsert: saveSnapshot },
+        organizationMemberProfileModel: { getOrganizationAdmins },
+        usageDimensionsModel: { getOrganizations },
         coderService: { upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
@@ -95,16 +112,29 @@ describe('AnalyticsProjectService', () => {
             },
         },
         projectService: {
+            isAnalyticsProjectEnabled,
             assertAnalyticsProjectAdministration,
             ensureAnalyticsProject,
             delete: deleteProject,
         },
-        userModel: { invalidateSessionUserCache },
+        userModel: { invalidateSessionUserCache, findSessionUserAndOrgByUuid },
+        usageProcessingModel: { find: findProcessingStatus },
     });
 
     beforeEach(() => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
+        getSnapshot.mockResolvedValue({ snapshotHash: hash });
+        isAnalyticsProjectEnabled.mockReturnValue(true);
+        getOrganizationAdmins.mockResolvedValue([
+            { userUuid: user.userUuid, isActive: true, isPending: false },
+        ]);
+        findSessionUserAndOrgByUuid.mockResolvedValue({
+            ...user,
+            isActive: true,
+            isPending: false,
+        });
+        findProcessingStatus.mockResolvedValue(null);
         findDashboard.mockResolvedValue([
             { uuid: 'existing-dashboard', spaceUuid: 'existing-space' },
         ]);
@@ -130,6 +160,130 @@ describe('AnalyticsProjectService', () => {
             defaultProject,
             analyticsProject,
         ]);
+    });
+
+    describe('automatic synchronization', () => {
+        const configured = () =>
+            new AnalyticsProjectService({
+                ...service['dependencies'],
+                lightdashConfig: {
+                    usageEvents: {
+                        ...service['dependencies'].lightdashConfig.usageEvents,
+                        enabled: true,
+                        s3: {
+                            bucket: 'test',
+                            region: 'test',
+                            accessKey: 'test',
+                            secretKey: 'test',
+                            endpoint: 'http://localhost:9000',
+                        },
+                    },
+                },
+            });
+
+        it('queues independent jobs from the existing organization iterator', async () => {
+            getOrganizations.mockImplementation(
+                async function* organizations() {
+                    yield { organization_uuid: 'one' };
+                    yield { organization_uuid: 'two' };
+                },
+            );
+            await service.reconcileContent({ organizationUuid: null });
+            expect(scheduleAnalyticsContentSync.mock.calls).toEqual([
+                [{ organizationUuid: 'one' }],
+                [{ organizationUuid: 'two' }],
+            ]);
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
+        it('skips queued reconciliation and sync when managed analytics is unavailable', async () => {
+            isAnalyticsProjectEnabled.mockReturnValue(false);
+            await configured().reconcileContent({ organizationUuid: null });
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(getOrganizations).not.toHaveBeenCalled();
+            expect(scheduleAnalyticsContentSync).not.toHaveBeenCalled();
+            expect(getOrganizationAdmins).not.toHaveBeenCalled();
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
+        it('calls the existing sync method with a freshly authorized admin', async () => {
+            const background = configured();
+            const install = vi
+                .spyOn(background, 'installSampleContent')
+                .mockResolvedValue();
+            await background.syncContent({ organizationUuid: 'org' });
+            expect(findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+                user.userUuid,
+                'org',
+            );
+            expect(install).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: user.userUuid }),
+            );
+            expect(assertAnalyticsProjectAdministration).toHaveBeenCalled();
+        });
+
+        it('skips unchanged content and still detects definition-only changes', async () => {
+            findDashboard.mockResolvedValue(
+                analyticsContentAsCode.map(({ dashboard }) => ({
+                    uuid: dashboard.slug,
+                })),
+            );
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(upsertDashboard).not.toHaveBeenCalled();
+            getSnapshot.mockResolvedValue({ snapshotHash: 'old-definition' });
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(upsertDashboard).toHaveBeenCalledTimes(
+                analyticsContentAsCode.length,
+            );
+            expect(saveSnapshot).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    snapshotHash: hash,
+                    appliedByUserUuid: user.userUuid,
+                }),
+            );
+        });
+
+        it('leaves failed sync retryable without marking the bundle complete', async () => {
+            upsertChart.mockRejectedValueOnce(new Error('upload failed'));
+            await expect(
+                configured().syncContent({ organizationUuid: 'org' }),
+            ).rejects.toThrow('upload failed');
+            expect(saveSnapshot).not.toHaveBeenCalled();
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(saveSnapshot).toHaveBeenCalledOnce();
+        });
+
+        it.each([
+            { isActive: false, isPending: false },
+            { isActive: true, isPending: true },
+        ])('rechecks admin eligibility: %j', async (status) => {
+            findSessionUserAndOrgByUuid.mockResolvedValue({
+                ...user,
+                ...status,
+            });
+            await expect(
+                configured().syncContent({ organizationUuid: 'org' }),
+            ).rejects.toThrow('no longer active');
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
+        it('does no writes for disabled, unprovisioned or unauthorized organizations', async () => {
+            isAnalyticsProjectEnabled.mockReturnValueOnce(false);
+            await configured().syncContent({ organizationUuid: 'org' });
+            assertAnalyticsProjectAdministration.mockRejectedValueOnce(
+                new ForbiddenError('Not allowed'),
+            );
+            await expect(
+                configured().syncContent({ organizationUuid: 'org' }),
+            ).rejects.toThrow('Not allowed');
+            getAllByOrganizationUuid.mockResolvedValue([]);
+            await configured().syncContent({ organizationUuid: 'org' });
+            getOrganizationAdmins.mockResolvedValue([]);
+            await expect(
+                configured().syncContent({ organizationUuid: 'org' }),
+            ).rejects.toThrow('No active organization administrator');
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
     });
 
     describe('history backfill administration', () => {
@@ -384,9 +538,13 @@ describe('AnalyticsProjectService', () => {
                 url: '/projects/lightdash-analytics-1/tables',
                 createdAt: '2026-09-10T00:00:00.000Z',
                 hasContentUpdates: false,
+                processing: null,
             },
         });
         expect(ensureAnalyticsProject).not.toHaveBeenCalled();
+        expect(findProcessingStatus).toHaveBeenCalledWith(
+            user.organizationUuid,
+        );
         expect(getAnalyticsModelCounts).toHaveBeenCalledExactlyOnceWith(
             analyticsProject.projectUuid,
             analyticsExplores.analyticsExploreNames,
@@ -506,6 +664,33 @@ describe('AnalyticsProjectService', () => {
         expect(getAnalyticsModelCounts).not.toHaveBeenCalled();
         expect(findDashboard).not.toHaveBeenCalled();
         expect(findCharts).not.toHaveBeenCalled();
+        expect(findProcessingStatus).not.toHaveBeenCalled();
+    });
+
+    it('returns processing status only for the authorized organization', async () => {
+        const processing = {
+            status: 'partial',
+            startedAt: '2026-10-30T00:30:00.000Z',
+            finishedAt: '2026-10-30T00:42:00.000Z',
+            lastSuccessfulAt: '2026-10-29T00:42:00.000Z',
+            stats: {
+                partitionsDiscovered: 2,
+                partitionsCompacted: 2,
+                partitionsFailed: 0,
+                rawObjectsDeleted: 3,
+                dimensionsFailed: 1,
+                userPartitionsFailed: 0,
+                userPartitionsDeferred: 0,
+                limitReached: false,
+            },
+        };
+        findProcessingStatus.mockResolvedValue(processing);
+        expect((await service.getStatus(user)).project?.processing).toEqual(
+            processing,
+        );
+        expect(findProcessingStatus).toHaveBeenCalledExactlyOnceWith(
+            user.organizationUuid,
+        );
     });
 
     it('returns null without provisioning when no analytics project exists', async () => {
@@ -543,6 +728,7 @@ describe('AnalyticsProjectService', () => {
                 },
                 publicSpaceCreate: true,
                 force: true,
+                syncEnabled: false,
             };
             for (const chart of charts) {
                 expect(upsertChart).toHaveBeenCalledWith(

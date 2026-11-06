@@ -29,7 +29,7 @@ const streamErrors = async (messages: ModelMessage[]): Promise<string[]> => {
     });
     const errors: string[] = [];
     // eslint-disable-next-line no-restricted-syntax
-    for await (const part of result.fullStream) {
+    for await (const part of result.stream) {
         if (part.type === 'error') {
             errors.push(String((part.error as Error)?.message ?? part.error));
         }

@@ -1,9 +1,11 @@
 import {
     assertRegisteredAccount,
     type ApiDashboardResponse,
+    type ApiDashboardTileParameterReferencesResponse,
     type ApiErrorPayload,
     type ApiGetComments,
     type ApiSuccessEmpty,
+    type DashboardTileParameterReferencesRequest,
     type UpdateDashboard,
 } from '@lightdash/common';
 import {
@@ -14,6 +16,7 @@ import {
     OperationId,
     Patch,
     Path,
+    Post,
     Query,
     Request,
     Response,
@@ -68,6 +71,40 @@ export class ProjectDashboardControllerV2 extends BaseController {
                 : dashboardService.getByIdOrSlug(user, dashboardUuidOrSlug, {
                       projectUuid,
                   })),
+        };
+    }
+
+    /**
+     * List the parameters each dashboard tile uses, read from its saved query
+     * without running it. Tiles that can't be loaded or viewed report an error.
+     * The dashboard calls this while it is edited; in view mode each tile
+     * reports its parameters with its own query results.
+     *
+     * Embed tokens can call this with the `Lightdash-Embed-Token` header. The
+     * token must embed a dashboard: only that dashboard's tiles are listed,
+     * with the charts saved on it (request chart uuids are ignored), and a
+     * tile not on it reports an error.
+     * @summary Get tile parameter references
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/tile-parameter-references')
+    @OperationId('getDashboardTileParameterReferences')
+    async getTileParameterReferences(
+        @Path() projectUuid: string,
+        @Body() body: DashboardTileParameterReferencesRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardTileParameterReferencesResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getTileParameterReferences(
+                    req.account!,
+                    projectUuid,
+                    body.tiles,
+                ),
         };
     }
 

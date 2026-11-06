@@ -4,14 +4,18 @@ import type { ContentVerificationInfo } from '../contentVerification';
 import type {
     Dashboard,
     DashboardChartTileProperties,
+    DashboardConfig,
+    DashboardControlSection,
     DashboardDataAppTileProperties,
     DashboardHeadingTileProperties,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
+    DashboardParameterControl,
     DashboardSqlChartTileProperties,
     DashboardTab,
     DashboardTile,
     DashboardTileTypes,
+    DateZoomControl,
 } from '../dashboard';
 import type { DashboardFilterRule } from '../filter';
 import type { PromotionChanges } from '../promotion';
@@ -131,13 +135,67 @@ export type DashboardTabAsCode = {
     hidden?: DashboardTab['hidden'];
 };
 
-export type DashboardAsCode = Omit<
-    Pick<
-        Dashboard,
-        'name' | 'description' | 'tabs' | 'slug' | 'config' | 'parameters'
-    >,
-    'name' | 'slug' | 'tabs'
-> & {
+export type DashboardControlSectionAsCode = {
+    slug?: string;
+    /** Legacy section identifier accepted on upload. */
+    id?: string;
+    name: DashboardControlSection['name'];
+    collapsed?: DashboardControlSection['collapsed'];
+    inline?: DashboardControlSection['inline'];
+};
+
+export type DashboardFilterRuleAsCode = DashboardFilterRule & {
+    sectionSlug?: string;
+};
+
+export type DateZoomControlAsCode = {
+    uuid: DateZoomControl['uuid'];
+    name: DateZoomControl['name'];
+    granularity: DateZoomControl['granularity'];
+    hidden?: DateZoomControl['hidden'];
+    sectionId?: string;
+    sectionSlug?: string;
+};
+
+export type DashboardParameterControlAsCode = {
+    /** Portable control identifier; matching an existing slug preserves its id. */
+    slug?: string;
+    /** Legacy project-local identifier accepted on upload. */
+    id?: string;
+    label: DashboardParameterControl['label'];
+    value: DashboardParameterControl['value'];
+    valueType: DashboardParameterControl['valueType'];
+    sectionId?: string;
+    sectionSlug?: string;
+    parameters: DashboardParameterControl['parameters'];
+    hidden?: boolean;
+};
+
+export type DashboardConfigAsCode = {
+    isDateZoomDisabled: DashboardConfig['isDateZoomDisabled'];
+    isAddFilterDisabled?: DashboardConfig['isAddFilterDisabled'];
+    pinnedParameters?: DashboardConfig['pinnedParameters'];
+    parameterOrder?: DashboardConfig['parameterOrder'];
+    dateZoomGranularities?: DashboardConfig['dateZoomGranularities'];
+    defaultDateZoomGranularity?: DashboardConfig['defaultDateZoomGranularity'];
+    dateZoomConfig?: {
+        controls: DateZoomControlAsCode[];
+        tileTargets: NonNullable<
+            DashboardConfig['dateZoomConfig']
+        >['tileTargets'];
+    };
+    requiredFiltersNote?: DashboardConfig['requiredFiltersNote'];
+    customMetrics?: DashboardConfig['customMetrics'];
+    controlSections?: DashboardControlSectionAsCode[];
+    parameterSections?: DashboardConfig['parameterSections'];
+    parameterSectionSlugs?: { [parameterName: string]: string };
+    parameterControls?: DashboardParameterControlAsCode[];
+};
+
+export type DashboardAsCode = {
+    description?: Dashboard['description'];
+    parameters?: Dashboard['parameters'];
+    config?: DashboardConfigAsCode;
     /**
      * @minLength 1
      */
@@ -155,9 +213,9 @@ export type DashboardAsCode = Omit<
     spaceSlug: string;
     downloadedAt?: Date;
     filters?: {
-        dimensions?: Omit<DashboardFilterRule, 'id'>[];
-        metrics?: DashboardFilterRule[];
-        tableCalculations?: DashboardFilterRule[];
+        dimensions?: Omit<DashboardFilterRuleAsCode, 'id'>[];
+        metrics?: DashboardFilterRuleAsCode[];
+        tableCalculations?: DashboardFilterRuleAsCode[];
     };
     /**
      * Declarative dashboard owner, referenced by email so it is portable across projects.

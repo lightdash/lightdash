@@ -61,8 +61,11 @@ export default defineConfig({
     },
     resolve: {
         dedupe: ['react', 'react-dom'],
-        alias:
-            process.env.NODE_ENV === 'development'
+        alias: {
+            // Same-shape es-toolkit entries replace lodash copies pulled in by react-ace and react-grid-layout
+            'lodash.isequal': 'es-toolkit/compat/isEqual',
+            // No lodash.get alias: es-toolkit's CJS get makes rolldown emit a self-calling require_hasOwn in react-ace
+            ...(process.env.NODE_ENV === 'development'
                 ? {
                       '@lightdash/common/src': path.resolve(
                           __dirname,
@@ -85,7 +88,8 @@ export default defineConfig({
                           '../visualization/src/index.ts',
                       ),
                   }
-                : undefined,
+                : {}),
+        },
     },
     build: {
         outDir: 'build',
@@ -102,7 +106,7 @@ export default defineConfig({
                     groups: [
                         {
                             name: 'react',
-                            test: /node_modules[\\/](react|react-dom|react-router|react-use|@hello-pangea[\\/]dnd|@tanstack[\\/]react-query|@tanstack[\\/]react-table|@tanstack[\\/]react-virtual)/,
+                            test: /node_modules[\\/](react|react-dom|react-router|react-use|@tanstack[\\/]react-query|@tanstack[\\/]react-table|@tanstack[\\/]react-virtual)[\\/]/,
                             priority: 20,
                         },
                         {
@@ -122,17 +126,12 @@ export default defineConfig({
                         },
                         {
                             name: 'modules',
-                            test: /node_modules[\\/](jspdf|lodash|colorjs\.io|zod)/,
+                            test: /node_modules[\\/](lodash|es-toolkit|colorjs\.io|zod)/,
                             priority: 15,
                         },
                         {
                             name: 'thirdparty',
                             test: /node_modules[\\/](@sentry[\\/]react|rudder-sdk-js)/,
-                            priority: 15,
-                        },
-                        {
-                            name: 'uiw',
-                            test: /node_modules[\\/]@uiw[\\/](react-markdown-preview|react-md-editor)/,
                             priority: 15,
                         },
                     ],

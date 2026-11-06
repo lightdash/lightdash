@@ -23,13 +23,14 @@ type Props = SelectionActionsProps & { onClear: () => void };
 // Floats over the tiles, where the field bar does, while pills are picked on
 // the sectioned bar
 export const SelectionBar: FC<Props> = ({ onClear, ...actions }) => {
+    const count = actions.filterCount + actions.parameterCount;
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const host = useBarHost(activeTabUuid, true);
     if (host === null) return null;
     return createPortal(
         <Paper
             role="region"
-            aria-label="Selected filters"
+            aria-label="Selected controls"
             shadow="md"
             radius="md"
             className={classes.bar}
@@ -37,11 +38,13 @@ export const SelectionBar: FC<Props> = ({ onClear, ...actions }) => {
             <Group gap="md" justify="center">
                 <Group gap="xs" wrap="nowrap">
                     <Text fz="sm" fw={600} className={classes.count}>
-                        {actions.count} selected
+                        {count} selected
                     </Text>
-                    <Text fz="sm" c="dimmed">
-                        Shift click for a range
-                    </Text>
+                    {count === 1 && (
+                        <Text fz="sm" c="dimmed">
+                            Shift click for a range
+                        </Text>
+                    )}
                 </Group>
                 <Divider orientation="vertical" />
                 <Group gap="xs" wrap="nowrap">

@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Group, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { ExploreChip } from '../ExploreChip';
 import { ToolCallChip } from '../ToolCallChip';
 import { formatFieldName } from '../utils/formatFieldName';
 
@@ -36,6 +37,9 @@ export const QueryResultToolCallDescription: FC<
             <Text c="dimmed" size="xs" fw={500}>
                 "{title}"
             </Text>
+            {queryConfig?.exploreName ? (
+                <ExploreChip exploreName={queryConfig.exploreName} liveOnly />
+            ) : null}
             {metrics.length > 0 && (
                 <>
                     <Text c="dimmed" size="xs">

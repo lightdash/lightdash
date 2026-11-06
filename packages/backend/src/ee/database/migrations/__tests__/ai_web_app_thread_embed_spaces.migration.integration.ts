@@ -5,7 +5,10 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../../testing/migratedDatabase';
-import { AiAgentModel } from '../../../models/AiAgentModel';
+import {
+    AiAgentModel,
+    type EmbedThreadScope,
+} from '../../../models/AiAgentModel';
 
 vi.mock('../../../../config/lightdashConfig', async () => ({
     lightdashConfig: (await import('../../../../config/lightdashConfig.mock'))
@@ -115,7 +118,10 @@ describe('embedded AI thread write spaces', () => {
         await migrated?.destroy();
     });
 
-    const createThread = (embedSpaceUuids: string[] | undefined) =>
+    const createThread = (
+        embedSpaceUuids: string[] | undefined,
+        embedExternalUserId: string | null = null,
+    ) =>
         model.createWebAppThread({
             organizationUuid: f.organizationUuid,
             projectUuid: f.projectUuid,
@@ -123,17 +129,31 @@ describe('embedded AI thread write spaces', () => {
             createdFrom: 'web_app',
             agentUuid: f.agentUuid,
             embedSpaceUuids,
+            embedExternalUserId,
             threadContext: 'Embedded conversation',
         });
 
-    const listThreadUuids = async (writeSpaceUuids: string[]) =>
+    const writeSpaces = (writeSpaceUuids: string[]): EmbedThreadScope => ({
+        type: 'writeSpaces',
+        writeSpaceUuids,
+    });
+
+    const externalUser = (externalUserId: string): EmbedThreadScope => ({
+        type: 'externalUser',
+        externalUserId,
+    });
+
+    const isInScope = (threadUuid: string, scope: EmbedThreadScope) =>
+        model.isWebAppThreadInEmbedScope(threadUuid, scope);
+
+    const listThreadUuids = async (scope: EmbedThreadScope) =>
         (
             await model.findThreads({
                 organizationUuid: f.organizationUuid,
                 agentUuid: f.agentUuid,
                 userUuid: f.userUuid,
                 createdFrom: ['web_app'],
-                embedWriteSpaceUuids: writeSpaceUuids,
+                embedThreadScope: scope,
             })
         ).map((thread) => thread.uuid);
 
@@ -142,9 +162,10 @@ describe('embedded AI thread write spaces', () => {
             rows: {
                 embed_space_uuid: string | null;
                 embed_space_uuids: string[] | null;
+                embed_external_user_id: string | null;
             }[];
         }>(
-            'SELECT embed_space_uuid, embed_space_uuids FROM ai_web_app_thread WHERE ai_thread_uuid = ?',
+            'SELECT embed_space_uuid, embed_space_uuids, embed_external_user_id FROM ai_web_app_thread WHERE ai_thread_uuid = ?',
             [threadUuid],
         );
         return rows[0];
@@ -170,35 +191,40 @@ describe('embedded AI thread write spaces', () => {
         ]);
 
         await expect(
-            model.isWebAppThreadInEmbedSpaces(tenantAThread, [
-                f.spaces.tenantA,
-                f.spaces.shared,
-            ]),
+            isInScope(
+                tenantAThread,
+                writeSpaces([f.spaces.tenantA, f.spaces.shared]),
+            ),
         ).resolves.toBe(true);
         await expect(
-            model.isWebAppThreadInEmbedSpaces(tenantAThread, [
-                f.spaces.shared,
-                f.spaces.tenantB,
-            ]),
+            isInScope(
+                tenantAThread,
+                writeSpaces([f.spaces.shared, f.spaces.tenantB]),
+            ),
         ).resolves.toBe(false);
         await expect(
-            model.isWebAppThreadInEmbedSpaces(tenantAThread, [
-                f.spaces.shared,
-                f.spaces.tenantA,
-                f.spaces.tenantB,
-            ]),
+            isInScope(
+                tenantAThread,
+                writeSpaces([
+                    f.spaces.shared,
+                    f.spaces.tenantA,
+                    f.spaces.tenantB,
+                ]),
+            ),
         ).resolves.toBe(true);
         await expect(
-            model.isWebAppThreadInEmbedSpaces(tenantAThread, [
-                f.spaces.tenantA,
-            ]),
+            isInScope(tenantAThread, writeSpaces([f.spaces.tenantA])),
         ).resolves.toBe(false);
 
         expect(
-            await listThreadUuids([f.spaces.tenantA, f.spaces.shared]),
+            await listThreadUuids(
+                writeSpaces([f.spaces.tenantA, f.spaces.shared]),
+            ),
         ).toContain(tenantAThread);
         expect(
-            await listThreadUuids([f.spaces.shared, f.spaces.tenantB]),
+            await listThreadUuids(
+                writeSpaces([f.spaces.shared, f.spaces.tenantB]),
+            ),
         ).not.toContain(tenantAThread);
     });
 
@@ -210,25 +236,92 @@ describe('embedded AI thread write spaces', () => {
         );
 
         await expect(
-            model.isWebAppThreadInEmbedSpaces(threadUuid, [
-                f.spaces.shared,
-                f.spaces.tenantB,
-            ]),
+            isInScope(
+                threadUuid,
+                writeSpaces([f.spaces.shared, f.spaces.tenantB]),
+            ),
         ).resolves.toBe(true);
-        expect(await listThreadUuids([f.spaces.tenantB])).toContain(threadUuid);
+        expect(
+            await listThreadUuids(writeSpaces([f.spaces.tenantB])),
+        ).toContain(threadUuid);
 
         await expect(
-            model.isWebAppThreadInEmbedSpaces(threadUuid, [f.spaces.shared]),
+            isInScope(threadUuid, writeSpaces([f.spaces.shared])),
         ).resolves.toBe(false);
     });
 
     test('never matches a non-embed thread', async () => {
         const threadUuid = await createThread(undefined);
         await expect(
-            model.isWebAppThreadInEmbedSpaces(threadUuid, [f.spaces.tenantA]),
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA])),
         ).resolves.toBe(false);
-        expect(await listThreadUuids([f.spaces.tenantA])).not.toContain(
+        expect(
+            await listThreadUuids(writeSpaces([f.spaces.tenantA])),
+        ).not.toContain(threadUuid);
+    });
+
+    test('keeps read-only threads to their viewer', async () => {
+        const threadUuid = await createThread([], 'viewer-a');
+        const row = await readThread(threadUuid);
+        expect(row.embed_space_uuid).toBeNull();
+        expect(row.embed_space_uuids).toBeNull();
+        expect(row.embed_external_user_id).toBe('viewer-a');
+
+        await expect(
+            isInScope(threadUuid, externalUser('viewer-a')),
+        ).resolves.toBe(true);
+        await expect(
+            isInScope(threadUuid, externalUser('viewer-b')),
+        ).resolves.toBe(false);
+        await expect(
+            isInScope(
+                threadUuid,
+                writeSpaces([f.spaces.shared, f.spaces.tenantA]),
+            ),
+        ).resolves.toBe(false);
+
+        expect(await listThreadUuids(externalUser('viewer-a'))).toContain(
             threadUuid,
         );
+        expect(await listThreadUuids(externalUser('viewer-b'))).not.toContain(
+            threadUuid,
+        );
+    });
+
+    test('keeps write-space threads out of read-only tokens for the same viewer', async () => {
+        const threadUuid = await createThread([f.spaces.tenantA], 'viewer-a');
+        expect((await readThread(threadUuid)).embed_external_user_id).toBe(
+            'viewer-a',
+        );
+
+        await expect(
+            isInScope(threadUuid, externalUser('viewer-a')),
+        ).resolves.toBe(false);
+        await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA])),
+        ).resolves.toBe(true);
+    });
+
+    test('keeps write-space threads out of read-only tokens after their first space is deleted', async () => {
+        const threadUuid = await createThread([f.spaces.tenantA], 'viewer-a');
+        // What ON DELETE SET NULL does when the space is deleted.
+        await migrated.database.raw(
+            'UPDATE ai_web_app_thread SET embed_space_uuid = NULL WHERE ai_thread_uuid = ?',
+            [threadUuid],
+        );
+
+        await expect(
+            isInScope(threadUuid, externalUser('viewer-a')),
+        ).resolves.toBe(false);
+        expect(await listThreadUuids(externalUser('viewer-a'))).not.toContain(
+            threadUuid,
+        );
+    });
+
+    test('never matches a non-embed thread by viewer', async () => {
+        const threadUuid = await createThread(undefined);
+        await expect(
+            isInScope(threadUuid, externalUser('viewer-a')),
+        ).resolves.toBe(false);
     });
 });

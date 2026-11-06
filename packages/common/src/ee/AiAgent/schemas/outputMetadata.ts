@@ -79,6 +79,9 @@ export const structuredToolOutputSchema = <
                 z.object({
                     status: errorStatuses,
                     refusal: toolAccessRefusalSchema.optional(),
+                    requiresSnowflakeReauthentication: z
+                        .literal(true)
+                        .optional(),
                 }),
             ),
             structuredContent: toolErrorStructuredContentSchema,

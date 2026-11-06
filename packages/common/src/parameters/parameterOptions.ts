@@ -63,3 +63,25 @@ export const omitDisallowedParameterValues = (
         const allowedValue = getAllowedParameterValue(definitions[key], value);
         return allowedValue === null ? acc : { ...acc, [key]: allowedValue };
     }, {});
+
+/**
+ * Whether a control set through `base` can also set `candidate`: the same
+ * type, the same `multiple` and the same allowed values. One that accepts any value can join
+ * a fixed-options control, never the reverse.
+ */
+export const isParameterCompatible = (
+    base: LightdashProjectParameter,
+    candidate: LightdashProjectParameter,
+): boolean => {
+    // A value of one type would reach SQL that expects another
+    if ((base.type ?? 'string') !== (candidate.type ?? 'string')) return false;
+    if (Boolean(base.multiple) !== Boolean(candidate.multiple)) return false;
+    const candidateValues = getAllowedParameterValues(candidate);
+    if (candidateValues === null) return true;
+    const baseValues = getAllowedParameterValues(base);
+    return (
+        baseValues !== null &&
+        baseValues.size === candidateValues.size &&
+        [...baseValues].every((value) => candidateValues.has(value))
+    );
+};

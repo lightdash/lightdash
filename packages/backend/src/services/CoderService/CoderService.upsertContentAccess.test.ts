@@ -88,7 +88,7 @@ const dashboardAsCode = {
     tabs: [],
 } as unknown as DashboardAsCode;
 
-const buildService = () =>
+const buildService = (overrides: AnyType = {}) =>
     new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
@@ -130,7 +130,9 @@ const buildService = () =>
         schedulerModel: {} as AnyType,
         schedulerService: {} as AnyType,
         savedChartService: {} as AnyType,
-        dashboardService: {} as AnyType,
+        dashboardService: {
+            areDashboardControlsEnabled: vi.fn(async () => true),
+        } as AnyType,
         schedulerClient: {} as AnyType,
         promoteService: {
             getPromoteCharts: vi.fn(),
@@ -174,6 +176,7 @@ const buildService = () =>
         organizationMemberProfileModel: {} as AnyType,
         userModel: {} as AnyType,
         warehouseConnectionModel: {} as never,
+        ...overrides,
     });
 
 const registerContentAccessTests = (
@@ -293,6 +296,56 @@ const registerContentAccessTests = (
                 ).not.toHaveBeenCalled();
             },
         );
+    });
+
+    describe('CoderService data app slug rename', () => {
+        const request = {
+            resourceType: ContentType.DATA_APP,
+            from: 'old-app',
+            to: 'new-app',
+        };
+        const writeUser = () =>
+            makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
+
+        // App slugs follow isValidDataAppSlug (consecutive/trailing hyphens,
+        // up to 255 chars) — the chart/dashboard generateSlug check must not
+        // reject them at this entry point.
+        it.each(['sales--report', 'sales-', 'a'.repeat(255)])(
+            'delegates app-style target %s to the app slug renamer',
+            async (to) => {
+                const renameAppSlug = vi.fn(async () => {});
+                const service = buildService({
+                    getAppGenerateService: () => ({ renameAppSlug }),
+                });
+                await service.renameContentSlug(writeUser(), PROJECT_UUID, {
+                    ...request,
+                    to,
+                });
+                expect(renameAppSlug).toHaveBeenCalledExactlyOnceWith(
+                    expect.anything(),
+                    PROJECT_UUID,
+                    { from: request.from, to },
+                );
+            },
+        );
+
+        it('reports data apps unavailable when the EE accessor is absent', async () => {
+            const service = buildService();
+            await expect(
+                service.renameContentSlug(writeUser(), PROJECT_UUID, request),
+            ).rejects.toThrow('Data apps are not available on this instance');
+        });
+
+        it('requires project write access before delegating', async () => {
+            const renameAppSlug = vi.fn(async () => {});
+            const service = buildService({
+                getAppGenerateService: () => ({ renameAppSlug }),
+            });
+            await expect(
+                service.renameContentSlug(makeUser([]), PROJECT_UUID, request),
+            ).rejects.toThrow(ForbiddenError);
+            expect(renameAppSlug).not.toHaveBeenCalled();
+        });
     });
 
     const chartCreateRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
@@ -1510,6 +1563,162 @@ const registerContentAccessTests = (
             dashboards: [{ action: PromotionAction.CREATE }],
         });
         expect(service.dashboardModel.create).toHaveBeenCalled();
+    });
+
+    describe('parameter controls', () => {
+        const upsertWithControls = async (
+            projectParameters: { name: string; config: AnyType }[],
+            enabled = true,
+            sectionSlug = 'calendar',
+        ) => {
+            const service = buildService();
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(enabled);
+            service.projectService = {
+                projectParametersModel: {
+                    find: vi.fn(async () => projectParameters),
+                },
+            } as AnyType;
+            (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+                async () => ({}),
+            );
+            vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                tableName: 'orders',
+            } as AnyType);
+            vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+                space: { uuid: SPACE_UUID } as AnyType,
+                created: false,
+            });
+            vi.mocked(service.savedChartModel.find).mockResolvedValue([
+                {
+                    uuid: 'accessible-chart-uuid',
+                    slug: 'accessible-chart',
+                    spaceUuid: SPACE_UUID,
+                } as AnyType,
+            ]);
+            vi.mocked(service.dashboardModel.create).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                tiles: [],
+            } as AnyType);
+            const user = makeUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                {
+                    subject: 'Dashboard',
+                    action: 'create',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+            ]);
+
+            await service.upsertDashboard(
+                user,
+                PROJECT_UUID,
+                dashboardAsCode.slug,
+                {
+                    ...dashboardAsCode,
+                    parameters: {
+                        week_start: {
+                            parameterName: 'week_start',
+                            value: 'stale',
+                        },
+                        currency: { parameterName: 'currency', value: 'EUR' },
+                    },
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { slug: 'calendar', name: 'Calendar' },
+                        ],
+                        parameterControls: [
+                            {
+                                id: 'control-uuid',
+                                sectionSlug,
+                                label: null,
+                                value: 'monday',
+                                valueType: { type: 'string', multiple: false },
+                                parameters: {
+                                    week_start: {
+                                        except: ['accessible-chart'],
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                    tiles: [
+                        {
+                            type: DashboardTileTypes.SAVED_CHART,
+                            x: 0,
+                            y: 0,
+                            h: 3,
+                            w: 3,
+                            properties: { chartSlug: 'accessible-chart' },
+                        },
+                    ],
+                } as unknown as DashboardAsCode,
+            );
+            return vi.mocked(service.dashboardModel.create).mock.calls[0][1];
+        };
+
+        it('creates a dashboard with tile targets on tile uuids and control values mirrored', async () => {
+            const created = await upsertWithControls([
+                { name: 'week_start', config: { label: 'Week start' } },
+            ]);
+            const section = created.config?.controlSections?.[0];
+            expect(section).toMatchObject({
+                slug: 'calendar',
+                name: 'Calendar',
+            });
+            expect(section?.id).toMatch(
+                /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+            );
+            expect(created.config?.parameterControls?.[0].sectionId).toBe(
+                section?.id,
+            );
+            const tileUuid = created.tiles[0].uuid!;
+            expect(created.parameters).toEqual({
+                week_start: { parameterName: 'week_start', value: 'monday' },
+            });
+            expect(created.config?.parameterControls?.[0].parameters).toEqual({
+                week_start: { except: [tileUuid] },
+            });
+        });
+
+        it('uses legacy values and ignores incoming controls when disabled', async () => {
+            const created = await upsertWithControls([], false, 'missing');
+            expect(created.parameters).toEqual({
+                week_start: { parameterName: 'week_start', value: 'stale' },
+                currency: { parameterName: 'currency', value: 'EUR' },
+            });
+            expect(created.config?.parameterControls).toBeUndefined();
+        });
+
+        it('rejects values outside a known fixed option set', async () => {
+            await expect(
+                upsertWithControls([
+                    {
+                        name: 'week_start',
+                        config: { type: 'string', options: ['tuesday'] },
+                    },
+                ]),
+            ).rejects.toThrow('has a value outside its allowed options');
+        });
+
+        it('rejects a control whose parameter type differs from its value type', async () => {
+            await expect(
+                upsertWithControls([
+                    {
+                        name: 'week_start',
+                        config: { label: 'Week start', type: 'date' },
+                    },
+                ]),
+            ).rejects.toThrow(
+                'Parameter week_start does not take the values of control week_start',
+            );
+        });
     });
 
     it('allows chart create to create a placeholder dashboard in the same allowed space', async () => {
@@ -3117,6 +3326,271 @@ describe('bound grant upload effects', () => {
             };
             expect(creators[kind]).toHaveBeenCalledOnce();
             expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe.each([true, false])(
+    'CoderService section exports with saved parameter controls=%s',
+    (withControls) => {
+        it.each([true, false])(
+            'exports saved sections with controls enabled=%s',
+            async (enabled) => {
+                const service = buildService();
+                const dashboard: DashboardDAO = {
+                    ...dashboardMock,
+                    uuid: 'dashboard-uuid',
+                    slug: 'dashboard',
+                    spaceUuid: SPACE_UUID,
+                    tabs: [],
+                    tiles: [],
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'saved-section', name: 'Saved section' },
+                        ],
+                        parameterSections: { currency: 'saved-section' },
+                        ...(withControls && {
+                            parameterControls: [
+                                {
+                                    id: 'saved-control',
+                                    label: 'Currency',
+                                    value: 'USD',
+                                    valueType: {
+                                        type: 'string' as const,
+                                        multiple: false,
+                                    },
+                                    parameters: {},
+                                    sectionId: 'saved-section',
+                                },
+                            ],
+                        }),
+                    },
+                    filters: {
+                        dimensions: [
+                            {
+                                id: 'filter',
+                                target: {
+                                    fieldId: 'orders_status',
+                                    tableName: 'orders',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                label: undefined,
+                                sectionId: 'saved-section',
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                };
+                vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                    dashboard,
+                ]);
+                vi.mocked(
+                    service.dashboardModel.getByIdOrSlug,
+                ).mockResolvedValue(dashboard);
+                service.dashboardModel.getSlugAliasesForUuids = vi.fn(
+                    async () => [],
+                );
+                service.contentVerificationModel.getByContentUuids = vi.fn(
+                    async () => new Map(),
+                );
+                vi.spyOn(
+                    service as AnyType,
+                    'filterPrivateContent',
+                ).mockImplementation(
+                    async (
+                        _user: AnyType,
+                        _project: AnyType,
+                        content: AnyType,
+                    ) => content,
+                );
+                vi.mocked(
+                    service.dashboardService.areDashboardControlsEnabled,
+                ).mockResolvedValue(enabled);
+                const result = await (service as AnyType).findDashboardsAsCode(
+                    makeSessionUser([]),
+                    PROJECT_UUID,
+                    undefined,
+                );
+                expect(
+                    service.dashboardService.areDashboardControlsEnabled,
+                ).toHaveBeenCalledOnce();
+                const exported = result.dashboards[0];
+                const current = await service.getCurrentDashboardAsCode(
+                    makeSessionUser([]),
+                    dashboard.uuid,
+                );
+                const draft = await service.getDashboardAsCodeWithOverlay(
+                    makeSessionUser([]),
+                    dashboard.uuid,
+                    { name: 'Draft name' },
+                );
+                for (const writeback of [current, draft]) {
+                    expect(writeback.config?.controlSections).toEqual(
+                        exported.config.controlSections,
+                    );
+                    expect(writeback.filters).toEqual(exported.filters);
+                    expect(writeback.config?.parameterControls).toEqual(
+                        exported.config.parameterControls,
+                    );
+                }
+
+                if (enabled) {
+                    expect(exported.config.controlSections).toEqual([
+                        { slug: 'saved-section', name: 'Saved section' },
+                    ]);
+                    expect(exported.filters.dimensions[0].sectionSlug).toBe(
+                        'saved-section',
+                    );
+                    expect(
+                        exported.filters.dimensions[0].sectionId,
+                    ).toBeUndefined();
+                    expect(exported.config.parameterSectionSlugs).toEqual({
+                        currency: 'saved-section',
+                    });
+                    expect(exported.config.parameterSections).toBeUndefined();
+                } else {
+                    expect(exported.config.controlSections).toEqual(
+                        dashboard.config!.controlSections,
+                    );
+                    expect(exported.filters.dimensions[0].sectionId).toBe(
+                        'saved-section',
+                    );
+                    expect(
+                        exported.filters.dimensions[0].sectionSlug,
+                    ).toBeUndefined();
+                    expect(exported.config.parameterSections).toEqual({
+                        currency: 'saved-section',
+                    });
+                    expect(
+                        exported.config.parameterSectionSlugs,
+                    ).toBeUndefined();
+                    expect(exported.config.parameterControls).toBeUndefined();
+                }
+            },
+        );
+    },
+);
+
+describe('CoderService section uploads with the flag disabled', () => {
+    it.each(['legacy', 'portable'] as const)(
+        'prepares a %s reupload without replacing saved parameter controls',
+        async (format) => {
+            const service = buildService();
+            const savedConfig: NonNullable<DashboardDAO['config']> = {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'saved-section', name: 'Saved section' },
+                ],
+                parameterControls: [
+                    {
+                        id: 'saved-control',
+                        label: 'Currency',
+                        value: 'USD',
+                        valueType: { type: 'string', multiple: false },
+                        parameters: {},
+                        sectionId: 'saved-section',
+                    },
+                ],
+            };
+            const existing: DashboardDAO = {
+                ...dashboardMock,
+                uuid: 'dashboard-uuid',
+                slug: 'dashboard',
+                spaceUuid: SPACE_UUID,
+                tabs: [],
+                tiles: [],
+                config: savedConfig,
+            };
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                existing,
+            ]);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+                existing,
+            );
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(false);
+            vi.mocked(
+                service.promoteService.getPromotedDashboard,
+            ).mockRejectedValue(new Error('captured upload'));
+            const sectionReference =
+                format === 'legacy'
+                    ? { sectionId: 'saved-section' }
+                    : { sectionSlug: 'saved-section' };
+            const uploaded: DashboardAsCode = {
+                ...dashboardAsCode,
+                filters: {
+                    dimensions: [
+                        {
+                            target: {
+                                fieldId: 'orders_status',
+                                tableName: 'orders',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            label: undefined,
+                            ...sectionReference,
+                        },
+                    ],
+                },
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [
+                        {
+                            ...(format === 'legacy'
+                                ? { id: 'saved-section' }
+                                : { slug: 'saved-section' }),
+                            name: 'Renamed section',
+                        },
+                    ],
+                    // Disabled incoming controls must be ignored before resolving their references.
+                    parameterControls: [
+                        {
+                            sectionSlug: 'unknown-section',
+                            label: 'Incoming',
+                            value: 'EUR',
+                            valueType: { type: 'string', multiple: false },
+                            parameters: {},
+                        },
+                    ],
+                },
+            };
+            await expect(
+                service.upsertDashboard(
+                    makeSessionUser([
+                        { subject: 'ContentAsCode', action: 'create' },
+                        { subject: 'Dashboard', action: 'update' },
+                    ]),
+                    PROJECT_UUID,
+                    'dashboard',
+                    uploaded,
+                ),
+            ).rejects.toThrow('captured upload');
+            expect(
+                service.promoteService.getPromotedDashboard,
+            ).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    config: expect.objectContaining({
+                        controlSections: [
+                            expect.objectContaining({
+                                id: 'saved-section',
+                                name: 'Renamed section',
+                            }),
+                        ],
+                        parameterControls: savedConfig.parameterControls,
+                    }),
+                    filters: expect.objectContaining({
+                        dimensions: [
+                            expect.objectContaining({
+                                sectionId: 'saved-section',
+                            }),
+                        ],
+                    }),
+                }),
+                PROJECT_UUID,
+            );
         },
     );
 });

@@ -23,6 +23,20 @@ const sameIdentity = (identity: string[], left: string, right: string) =>
         .map((key) => `${left}.${key} IS NOT DISTINCT FROM ${right}.${key}`)
         .join(' AND ');
 
+const historyNames: Record<UsageHistorySource['name'], string> = {
+    query_events: 'query history',
+    ai_usage: 'AI usage history',
+    historical_activity: 'activity history',
+};
+const failureMessages = {
+    'read database':
+        'Unable to read retained analytics history from the database',
+    'read storage': 'Unable to check existing analytics history in storage',
+    'reconcile history': 'Unable to reconcile retained analytics history',
+    'publish history':
+        'Unable to publish retained analytics history to storage',
+};
+
 /** One atomically replaced, org-scoped history file; no completion flag. */
 export class UsageQueryHistoryBackfill extends S3BaseClient {
     constructor(
@@ -97,7 +111,7 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
         const directory = await mkdtemp(
             path.join(tmpdir(), 'usage-query-history-'),
         );
-        let phase = 'read database';
+        let phase: keyof typeof failureMessages = 'read database';
         try {
             const now = new Date();
             const input = path.join(directory, 'history.jsonl');
@@ -187,7 +201,7 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                 phase,
             });
             throw new Error(
-                'Unable to check or import retained analytics history. Check usage storage and retry.',
+                `${failureMessages[phase]} (${historyNames[streamName]}). Retry the backfill or contact your administrator.`,
             );
         } finally {
             await duckdb.close();

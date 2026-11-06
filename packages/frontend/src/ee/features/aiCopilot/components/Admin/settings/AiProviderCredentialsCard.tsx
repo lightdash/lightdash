@@ -11,13 +11,13 @@ import {
     Paper,
     Stack,
     Text,
-    Title,
     Tooltip,
 } from '@mantine/core';
 import { IconDots, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import {
     useAdoptLegacyAiProviderCredential,
     useAiProviderCredentials,
@@ -104,22 +104,20 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
 
     return (
         <Stack gap="xs">
-            <Group justify="space-between">
-                <Title order={6}>Amazon Bedrock credentials</Title>
-                <Button
-                    size="xs"
-                    variant="light"
-                    leftSection={<MantineIcon icon={IconPlus} size={14} />}
-                    onClick={() => setModalState({ credential: null })}
-                >
-                    Add credential
-                </Button>
-            </Group>
-            <Text c="dimmed" fz="xs">
-                Each credential pins Ask AI to one AWS region. Projects can
-                select a credential; anything without a project — Slack routing,
-                thread titles — uses the default.
-            </Text>
+            <SettingRow
+                title="Amazon Bedrock credentials"
+                description="Each credential pins Ask AI to one AWS region. Projects can select a credential; anything without a project — Slack routing, thread titles — uses the default."
+                control={
+                    <Button
+                        size="xs"
+                        variant="light"
+                        leftSection={<MantineIcon icon={IconPlus} size={14} />}
+                        onClick={() => setModalState({ credential: null })}
+                    >
+                        Add credential
+                    </Button>
+                }
+            />
 
             {!isInitialLoading &&
                 credentials.length === 0 &&

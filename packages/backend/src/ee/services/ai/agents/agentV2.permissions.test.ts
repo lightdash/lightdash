@@ -104,6 +104,7 @@ const setup = () => {
         customSkills: [],
         siteUrl: 'https://example.com',
         mcpServers: [],
+        liveSources: [],
         runSqlMaxLimit: 500,
     } as unknown as AiAgentArgs;
     const connectedExecute = vi.fn().mockResolvedValue({ result: 'connected' });

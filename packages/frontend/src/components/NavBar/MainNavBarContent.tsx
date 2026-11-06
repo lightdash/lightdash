@@ -3,12 +3,12 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconHome, IconMenu2 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
+import { AgentOnboardingNavIndicator } from '../../ee/features/agentOnboarding/AgentOnboardingNavIndicator';
 import { LearnLink } from '../../features/learn/LearnLink';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
-import Logo from '../../svgs/logo-icon.svg?react';
 import { AutopilotNavButton } from './AutopilotNavButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
@@ -16,6 +16,7 @@ import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
 import classes from './MainNavBarContent.module.css';
 import { MetricsLink } from './MetricsLink';
+import { NavBarLogo } from './NavBarLogo';
 import {
     MOBILE_NAVIGATION_PORTAL_TARGET,
     NavBarPortalContext,
@@ -92,13 +93,16 @@ export const MainNavBarContent: FC<Props> = ({
                         title="Home"
                         className={classes.logoButton}
                     >
-                        <Logo />
+                        <NavBarLogo />
                     </ActionIcon>
                 )}
 
                 {!isLoadingActiveProject && activeProjectUuid && (
                     <>
-                        <NavGroup className={classes.buttonGroup}>
+                        <NavGroup
+                            className={classes.buttonGroup}
+                            data-tour="nav-workspace"
+                        >
                             {compact && (
                                 <>
                                     <Button
@@ -134,6 +138,11 @@ export const MainNavBarContent: FC<Props> = ({
                                 withLabel={compact}
                             />
                         </NavGroup>
+                        {/* The centred search leaves room here only on wide screens */}
+                        <AgentOnboardingNavIndicator
+                            projectUuid={activeProjectUuid}
+                            visibleFrom="xl"
+                        />
                         {!compact && (
                             <Omnibar projectUuid={activeProjectUuid} />
                         )}
@@ -145,6 +154,12 @@ export const MainNavBarContent: FC<Props> = ({
 
             <Group className={classes.rightGroup}>
                 {compact && <Text className={classes.sectionLabel}>More</Text>}
+                {!isLoadingActiveProject && activeProjectUuid && (
+                    <AgentOnboardingNavIndicator
+                        projectUuid={activeProjectUuid}
+                        className={classes.setupIndicatorRight}
+                    />
+                )}
                 <NavGroup className={classes.buttonGroup}>
                     <SettingsMenu withLabel={compact} />
 
@@ -202,7 +217,7 @@ export const MainNavBarContent: FC<Props> = ({
                     size="lg"
                     className={classes.logoButton}
                 >
-                    <Logo />
+                    <NavBarLogo />
                 </ActionIcon>
                 <Group className={classes.compactActions} gap={0} wrap="nowrap">
                     {activeProjectUuid && (

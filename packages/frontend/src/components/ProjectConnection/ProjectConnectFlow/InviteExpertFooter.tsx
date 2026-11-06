@@ -1,15 +1,20 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './InviteExpertFooter.module.css';
+import { InviteTeammateModal } from './InviteTeammateModal';
 
 const InviteExpertFooter: FC = () => {
     const location = useLocation();
     const { user } = useApp();
+    const newOnboarding = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const [isInviteOpen, setIsInviteOpen] = useState(false);
 
     const canInviteUsers =
         user.data?.ability?.can(
@@ -19,7 +24,8 @@ const InviteExpertFooter: FC = () => {
             }),
         ) ?? false;
 
-    if (!user.data || !canInviteUsers) return null;
+    const organizationUuid = user.data?.organizationUuid;
+    if (!organizationUuid || !canInviteUsers) return null;
 
     return (
         <Paper radius="md" className={classes.callout}>
@@ -41,16 +47,32 @@ const InviteExpertFooter: FC = () => {
                         </Text>
                     </Stack>
                 </Group>
-                <Button
-                    component={Link}
-                    to="/onboarding/invite-expert"
-                    state={{ returnTo: location.pathname }}
-                    variant="default"
-                    className={classes.button}
-                >
-                    Invite an expert
-                </Button>
+                {/* The legacy invite page stays for orgs without the new onboarding */}
+                {newOnboarding.data?.enabled ? (
+                    <Button
+                        variant="default"
+                        className={classes.button}
+                        onClick={() => setIsInviteOpen(true)}
+                    >
+                        Invite an expert
+                    </Button>
+                ) : (
+                    <Button
+                        component={Link}
+                        to="/onboarding/invite-expert"
+                        state={{ returnTo: location.pathname }}
+                        variant="default"
+                        className={classes.button}
+                    >
+                        Invite an expert
+                    </Button>
+                )}
             </Group>
+            <InviteTeammateModal
+                opened={isInviteOpen}
+                onClose={() => setIsInviteOpen(false)}
+                organizationUuid={organizationUuid}
+            />
         </Paper>
     );
 };

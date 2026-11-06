@@ -1,4 +1,8 @@
 import {
+    isComposerQueryToolName,
+    type AiAgentToolResult,
+} from '@lightdash/common';
+import {
     IconChartLine,
     IconLayoutDashboard,
     IconRoute,
@@ -7,6 +11,7 @@ import {
 } from '@tabler/icons-react';
 import type { JSX } from 'react';
 import { type LiveActivityToolGroup } from '../LiveActivityCard';
+import { getToolCallFailure } from './toolCallFailure';
 
 type ActivityTitle = {
     title: string;
@@ -34,27 +39,38 @@ const SEARCH_TOOLS = new Set([
     'resolveUrl',
 ]);
 
+const QUERY_TOOLS = new Set([
+    'generateVisualization',
+    'runContentQuery',
+    'runQuery',
+]);
+
 /**
  * Summarizes a finished agent run into one opinionated title shown in the
  * activity bento. The title morphs based on what tools the agent actually
- * used.
+ * used; "built" titles need a call that succeeded, i.e. produced the output.
  */
 export const getActivityTitle = (
     toolGroups: LiveActivityToolGroup[],
+    toolResults?: AiAgentToolResult[],
 ): ActivityTitle => {
     if (toolGroups.length === 0) {
         return { title: 'Steps taken', icon: IconRoute };
     }
-    const toolNames = toolGroups.flatMap((g) =>
-        g.calls.map((call) => call.toolName),
-    );
-    const hasDashboard = toolNames.includes('generateDashboard');
+    const calls = toolGroups.flatMap((g) => g.calls);
+    const toolNames = calls.map((call) => call.toolName);
+    const succeeded = (isTool: (toolName: string) => boolean) =>
+        calls.some(
+            (call) =>
+                isTool(call.toolName) &&
+                getToolCallFailure(call, toolResults) === null,
+        );
+    const hasDashboard = succeeded((n) => n === 'generateDashboard');
     const hasCreateContent = toolNames.includes('createContent');
-    const hasQuery =
-        toolNames.includes('generateVisualization') ||
-        toolNames.includes('runContentQuery') ||
-        toolNames.includes('runQuery');
-    const hasRunSql = toolNames.includes('runSql');
+    const hasQuery = succeeded(
+        (n) => isComposerQueryToolName(n) || QUERY_TOOLS.has(n),
+    );
+    const hasRunSql = succeeded((n) => n === 'runSql');
     const onlySearches = toolNames.every((n) => SEARCH_TOOLS.has(n));
 
     if (hasDashboard) {

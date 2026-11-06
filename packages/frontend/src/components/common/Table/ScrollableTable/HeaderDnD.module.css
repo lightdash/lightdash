@@ -1,0 +1,7 @@
+.handle {
+    cursor: grab;
+}
+
+.overlay {
+    cursor: grabbing;
+}

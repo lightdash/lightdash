@@ -21,6 +21,45 @@
     );
 }
 
+/* In flow below the preview, so it never covers app content. */
+.containerDocked {
+    position: relative;
+    inset: auto;
+    flex-shrink: 0;
+    border: none;
+    border-top: 1px solid var(--mantine-color-default-border);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* Collapsed docked bar: the whole row toggles the inspector open. */
+.dockedToggle {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    width: 100%;
+    min-height: rem(36px);
+    padding: 0 var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-sm);
+    font-size: var(--mantine-font-size-xs);
+    line-height: rem(20px);
+    color: var(--mantine-color-dimmed);
+
+    &:hover {
+        color: var(--mantine-color-text);
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
+.dockedChevron {
+    margin-left: auto;
+}
+
+.containerDocked .titleBar {
+    padding: rem(4px) 0;
+    border-bottom-color: transparent;
+}
+
 .titleBar {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     cursor: pointer;

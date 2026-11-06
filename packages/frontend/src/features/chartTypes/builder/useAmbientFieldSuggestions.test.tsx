@@ -18,8 +18,9 @@ import { type LoadedExplore } from './useExplorePreviewData';
 vi.mock('../../../api');
 
 const accessState = vi.hoisted(() => ({ disabled: false }));
-vi.mock('../../aiAccess/useAiAccessGate', () => ({
-    useAiAccessGate: () => accessState,
+vi.mock('../../../ee/features/ambientAi/hooks/useAmbientAiEnabled', () => ({
+    useAmbientAiEnabled: (_project: string, options: { enabled: boolean }) =>
+        options.enabled && !accessState.disabled,
 }));
 
 const field = (name: string, fieldType: FieldType) => ({

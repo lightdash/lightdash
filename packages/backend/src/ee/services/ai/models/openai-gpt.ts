@@ -15,7 +15,7 @@ export const getOpenaiGptmodel = (
         LightdashConfig['ai']['copilot']['providers']['openai']
     >,
     preset: ModelPreset<'openai'>,
-    options?: { enableReasoning?: boolean },
+    options?: { enableReasoning?: boolean; minimalReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
     const openai = createOpenAI({
         apiKey: config.apiKey,
@@ -65,6 +65,9 @@ export const getOpenaiGptmodel = (
                         store: false,
                         include: ['reasoning.encrypted_content'],
                     }),
+                ...(!extendedReasoningEnabled &&
+                    options?.minimalReasoning &&
+                    preset.minimalReasoningProviderOptions),
             },
         },
     };

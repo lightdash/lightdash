@@ -390,13 +390,25 @@ the `/etc/hosts` configuration in your computer otherwise it will fail with a `D
    `127.0.0.1    minio`
 3. Save the file
 
+#### Backend debugger
+
+The direct backend `dev` command and PM2 listen on `127.0.0.1` for debugging.
+The default inspector port is `9229`; `DEBUG_PORT` selects a different port for
+an isolated instance. A different listen address requires an explicit
+`DEBUG_HOST` value. For PM2, put these settings in `.env.development.local`.
+
+To debug inside the development container, explicitly set `DEBUG_HOST=0.0.0.0`
+for `lightdash-dev` and run the backend `dev` command. Docker continues to publish
+the inspector at `127.0.0.1:9229:9229` on the host. Use an SSH local forward when
+connecting to a remote development host.
+
 #### Setup Development Environment without Docker
 
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
 - Node.js 24.18.1 (managed by pnpm; pinned in `package.json` under `devEngines.runtime`)
 - python >= 3.8
-- pnpm 12.3.4 (pinned in `package.json`)
+- pnpm 12.16.1 (pinned in `package.json`)
 - postgres >= 12
 - dbt 1.7.x aliased to `dbt1.7`
 
@@ -424,7 +436,7 @@ For example, on macOS:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 2 Install the pinned pnpm version, then reopen your terminal so pnpm is on PATH
-curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.3.4 sh -
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.16.1 sh -
 
 # 3 Install Node through pnpm; this also creates its project-aware node command
 pnpm runtime set node 24.18.1 --global

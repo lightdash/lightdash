@@ -8,9 +8,8 @@ import {
 } from './filterDescriptionUtils';
 import { filterJsonExamplesForOperators } from './filterExamples';
 
-const commonNumberFilterRuleSchema = z.object({
-    fieldId: getFieldIdSchema({ additionalDescription: null }),
-    fieldType: z.union([
+const numberFieldTypeSchema = z
+    .union([
         z.literal(DimensionType.NUMBER),
         z.literal(MetricType.NUMBER),
         z.literal(MetricType.PERCENTILE),
@@ -23,7 +22,12 @@ const commonNumberFilterRuleSchema = z.object({
         z.literal(MetricType.AVERAGE_DISTINCT),
         z.literal(MetricType.MIN),
         z.literal(MetricType.MAX),
-    ]),
+    ])
+    .meta({ id: 'NumberFieldType' });
+
+const commonNumberFilterRuleSchema = z.object({
+    fieldId: getFieldIdSchema({ additionalDescription: null }),
+    fieldType: numberFieldTypeSchema,
     fieldFilterType: z.literal(FilterType.NUMBER),
 });
 
@@ -139,4 +143,4 @@ const numberFilterSchema = z.union([
         ),
 ]);
 
-export default numberFilterSchema;
+export default numberFilterSchema.meta({ id: 'NumberFilterRule' });

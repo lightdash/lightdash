@@ -20,13 +20,15 @@ runs:
           uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
           with:
               cache: true
+              save-cache: false
               install: false
 
         - name: Install npm for CLI installation tests
           if: inputs.install-npm == 'true'
           run: |
               pnpm add -g npm@11.16.0 --config.minimumReleaseAge=4320
-              echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
+              echo "npm_config_prefix=$RUNNER_TEMP/npm-global" >> "$GITHUB_ENV"
+              echo "$RUNNER_TEMP/npm-global/bin" >> "$GITHUB_PATH"
           shell: bash
 
         - name: Install Dependencies

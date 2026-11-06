@@ -28,7 +28,7 @@ import {
     IconPlus,
     IconRefresh,
 } from '@tabler/icons-react';
-import uniq from 'lodash/uniq';
+import { uniq } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -80,6 +80,10 @@ type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     onDropdownOpen?: () => void;
     onDropdownClose?: () => void;
     placeholder?: string;
+    /** Closes the list once an option is picked (default false). */
+    closeOnOptionSubmit?: boolean;
+    /** Opens the list on focus (default true). */
+    openOnFocus?: boolean;
 };
 
 const RefreshIndicator: FC<{
@@ -448,7 +452,8 @@ const FilterStringAutoComplete: FC<Props> = ({
                 onClose={() => {
                     setPastePopUpOpened(false);
                     setTempPasteValues(undefined);
-                    handleResetSearch();
+                    // Clear now so the blur that follows doesn't commit the pasted text
+                    setSearch('');
                 }}
                 onMultiValue={() => {
                     if (!tempPasteValues) {

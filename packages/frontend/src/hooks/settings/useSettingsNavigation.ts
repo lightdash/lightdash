@@ -53,6 +53,10 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import {
+    getSemanticStudioExternalSourcesUrl,
+    getSemanticStudioLiveSourcesUrl,
+} from '../../features/semanticStudio/urls';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
@@ -81,7 +85,6 @@ export const useSettingsNavigation = (
         allowPasswordAuthentication,
         hasSocialLogin,
         isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -103,7 +106,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         externalSourcesFlag,
-        isResultsCacheEnabled,
+        isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
@@ -256,7 +259,7 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (isProLimitsEnabled && ability?.can('manage', 'Organization')) {
+        if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
                 label: 'Limits',
                 to: '/generalSettings/limits',
@@ -1006,7 +1009,7 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (isResultsCacheEnabled) {
+            if (isResultsCacheAvailable) {
                 projectItems.push({
                     label: 'Results caching',
                     to: `${base}/caching`,
@@ -1098,13 +1101,26 @@ export const useSettingsNavigation = (
                     }),
                 )
             ) {
+                // Managed on the Semantic Layer page; still listed here so
+                // people who look for it in settings find their way.
                 projectItems.push({
                     label: 'External sources',
-                    to: `${base}/externalSources`,
+                    to: getSemanticStudioExternalSourcesUrl(
+                        project.projectUuid,
+                    ),
                     icon: IconDatabaseExport,
-                    keywords: ['csv', 'upload', 'files', 'google sheets'],
+                    keywords: [
+                        'csv',
+                        'upload',
+                        'files',
+                        'google sheets',
+                        'spreadsheet',
+                        'sources',
+                        'semantic layer',
+                    ],
                     children: [],
                     exact: true,
+                    movedTo: 'Semantic Layer',
                 });
             }
 
@@ -1159,13 +1175,26 @@ export const useSettingsNavigation = (
             }
 
             if (isApiQuerySourcesEnabled && canManageProjectConnections) {
+                // Managed on the Semantic Layer page; still listed here so
+                // people who look for it in settings find their way.
                 projectItems.push({
                     label: 'Live data sources',
-                    to: `${base}/liveDataSources`,
+                    to: getSemanticStudioLiveSourcesUrl(project.projectUuid),
                     icon: IconBroadcast,
-                    keywords: ['posthog', 'api', 'saas', 'live', 'sources'],
+                    keywords: [
+                        'posthog',
+                        'google analytics',
+                        'search console',
+                        'integration',
+                        'api',
+                        'saas',
+                        'live',
+                        'sources',
+                        'semantic layer',
+                    ],
                     children: [],
                     exact: true,
+                    movedTo: 'Semantic Layer',
                 });
             }
 
@@ -1372,7 +1401,6 @@ export const useSettingsNavigation = (
         allowPasswordAuthentication,
         hasSocialLogin,
         isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -1394,7 +1422,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,
-        isResultsCacheEnabled,
+        isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,

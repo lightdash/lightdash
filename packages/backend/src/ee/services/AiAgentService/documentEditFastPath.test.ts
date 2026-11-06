@@ -89,13 +89,14 @@ const setup = ({
     };
     const service = new AiAgentService({
         aiAgentModel,
+        lightdashConfig: { siteUrl: 'https://lightdash.example' },
         analytics: { track: vi.fn() },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
         aiAgentToolsService: {
             createRuntime: vi.fn().mockReturnValue(runtime),
-            canAuthorContent: vi.fn().mockResolvedValue(authorized),
+            canAuthorDocuments: vi.fn().mockResolvedValue(authorized),
         },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const privateService = service as unknown as PrivateService;

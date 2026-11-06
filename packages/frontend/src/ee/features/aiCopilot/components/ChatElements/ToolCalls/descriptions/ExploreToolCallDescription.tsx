@@ -1,5 +1,6 @@
 import { rem, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { ExploreChip } from '../ExploreChip';
 import { ToolCallChip } from '../ToolCallChip';
 
 type ExploreToolCallDescriptionProps = {
@@ -21,7 +22,7 @@ export const ExploreToolCallDescription: FC<
                     <ToolCallChip mx={rem(2)}>"{searchQuery}"</ToolCallChip>
                 </Text>
             ) : exploreName ? (
-                <ToolCallChip mx={rem(2)}>{exploreName}</ToolCallChip>
+                <ExploreChip mx={rem(2)} exploreName={exploreName} />
             ) : null}
         </Text>
     );

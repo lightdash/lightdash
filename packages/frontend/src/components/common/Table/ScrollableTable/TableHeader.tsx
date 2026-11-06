@@ -1,9 +1,9 @@
-import { Draggable } from '@hello-pangea/dnd';
 import { isField, isTableCalculation } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import React, { useEffect, type FC } from 'react';
+import { SortableItem } from '../../Sortable/Sortable';
 import { ROW_NUMBER_COLUMN_ID } from '../constants';
 import { getGroupedDimensionColumnIds } from '../getGroupedDimensionColumnIds';
 import {
@@ -14,7 +14,8 @@ import {
 } from '../Table.styles';
 import { useColumnResize } from '../useColumnResize';
 import { useTableContext } from '../useTableContext';
-import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
+import { HeaderDnD } from './HeaderDnD';
+import classes from './HeaderDnD.module.css';
 
 interface TableHeaderProps {
     minimal?: boolean;
@@ -44,7 +45,6 @@ const TableHeader: FC<TableHeaderProps> = ({
     const { table, headerContextMenu, columns, onColumnWidthChange } =
         useTableContext();
     const HeaderContextMenu = headerContextMenu;
-    const currentColOrder = React.useRef<Array<string>>([]);
     const { handleResizeStart, resizeHandleClassName } = useColumnResize({
         onColumnWidthChange,
     });
@@ -73,140 +73,127 @@ const TableHeader: FC<TableHeaderProps> = ({
     return (
         <thead data-testid="table-header">
             {table.getHeaderGroups().map((headerGroup) => (
-                <HeaderDndContext
-                    key={headerGroup.id}
-                    colOrderRef={currentColOrder}
-                >
-                    <HeaderDroppable headerGroup={headerGroup}>
-                        {headerGroup.headers.map((header) => {
-                            const meta = header.column.columnDef.meta;
-                            const titleLabel =
-                                meta?.labelOverride?.trim() ||
-                                (isField(meta?.item) && meta.item.label
-                                    ? meta.item.label
-                                    : undefined);
-                            const tooltipDescription =
-                                meta?.item && isField(meta.item)
-                                    ? meta.item.description
-                                    : undefined;
-                            const tooltipContext = meta?.headerContext;
-                            const tooltipDetails = [
-                                tooltipContext,
-                                tooltipDescription,
-                            ].filter((detail): detail is string => !!detail);
-                            const tooltipLabel =
-                                titleLabel && tooltipDetails.length > 0 ? (
-                                    <>
-                                        {titleLabel}
-                                        {tooltipDetails.map((detail) => (
-                                            <React.Fragment key={detail}>
-                                                <br />
-                                                {detail}
-                                            </React.Fragment>
-                                        ))}
-                                    </>
-                                ) : (
-                                    (titleLabel ?? tooltipDetails[0])
-                                );
-                            const canResize =
-                                onColumnWidthChange &&
-                                !minimal &&
-                                header.id !== ROW_NUMBER_COLUMN_ID &&
-                                !meta?.isReadOnly;
-
-                            return (
-                                <Th
-                                    key={header.id}
-                                    colSpan={header.colSpan}
-                                    {...meta?.styleProps}
-                                    w={meta?.width}
-                                    bg={meta?.bgColor ?? 'ldGray.0'}
-                                    className={meta?.className}
-                                    {...(meta?.item &&
-                                    isTableCalculation(meta.item)
-                                        ? tableCalculationTourProps
-                                        : {})}
-                                >
-                                    <Draggable
-                                        draggableId={header.id}
-                                        index={header.index}
-                                        isDragDisabled={
-                                            minimal || !meta?.draggable
-                                        }
-                                    >
-                                        {(provided, snapshot) => (
-                                            <ThContainer>
-                                                <ThLabelContainer
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    {...provided.dragHandleProps}
-                                                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
-                                                    style={{
-                                                        ...provided
-                                                            .draggableProps
-                                                            .style,
-                                                        ...(!snapshot.isDragging && {
-                                                            transform:
-                                                                'translate(0,0)',
-                                                        }),
-                                                        ...(snapshot.isDropAnimating && {
-                                                            transitionDuration:
-                                                                '0.001s',
-                                                        }),
-                                                    }}
-                                                >
-                                                    <Tooltip
-                                                        openDelay={500}
-                                                        maw={400}
-                                                        label={tooltipLabel}
-                                                        position="top"
-                                                        disabled={
-                                                            !tooltipLabel ||
-                                                            minimal ||
-                                                            snapshot.isDropAnimating ||
-                                                            snapshot.isDragging
-                                                        }
-                                                    >
-                                                        <span>
-                                                            {header.isPlaceholder
-                                                                ? null
-                                                                : flexRender(
-                                                                      header
-                                                                          .column
-                                                                          .columnDef
-                                                                          .header,
-                                                                      header.getContext(),
-                                                                  )}
-                                                        </span>
-                                                    </Tooltip>
-                                                </ThLabelContainer>
-
-                                                {HeaderContextMenu &&
-                                                    !meta?.isReadOnly && (
-                                                        <ThActionsContainer>
-                                                            <HeaderContextMenu
-                                                                header={header}
-                                                            />
-                                                        </ThActionsContainer>
-                                                    )}
-                                            </ThContainer>
-                                        )}
-                                    </Draggable>
-                                    {canResize && (
-                                        <div
-                                            className={resizeHandleClassName}
-                                            role="separator"
-                                            aria-orientation="vertical"
-                                            onMouseDown={(e) =>
-                                                handleResizeStart(e, header.id)
-                                            }
-                                        />
-                                    )}
-                                </Th>
+                <HeaderDnD key={headerGroup.id} headerGroup={headerGroup}>
+                    {headerGroup.headers.map((header) => {
+                        const meta = header.column.columnDef.meta;
+                        const titleLabel =
+                            meta?.labelOverride?.trim() ||
+                            (isField(meta?.item) && meta.item.label
+                                ? meta.item.label
+                                : undefined);
+                        const tooltipDescription =
+                            meta?.item && isField(meta.item)
+                                ? meta.item.description
+                                : undefined;
+                        const tooltipContext = meta?.headerContext;
+                        const tooltipDetails = [
+                            tooltipContext,
+                            tooltipDescription,
+                        ].filter((detail): detail is string => !!detail);
+                        const tooltipLabel =
+                            titleLabel && tooltipDetails.length > 0 ? (
+                                <>
+                                    {titleLabel}
+                                    {tooltipDetails.map((detail) => (
+                                        <React.Fragment key={detail}>
+                                            <br />
+                                            {detail}
+                                        </React.Fragment>
+                                    ))}
+                                </>
+                            ) : (
+                                (titleLabel ?? tooltipDetails[0])
                             );
-                        })}
-                    </HeaderDroppable>
-                </HeaderDndContext>
+                        const isDragDisabled = minimal || !meta?.draggable;
+                        const canResize =
+                            onColumnWidthChange &&
+                            !minimal &&
+                            header.id !== ROW_NUMBER_COLUMN_ID &&
+                            !meta?.isReadOnly;
+
+                        return (
+                            <Th
+                                key={header.id}
+                                colSpan={header.colSpan}
+                                {...meta?.styleProps}
+                                w={meta?.width}
+                                bg={meta?.bgColor ?? 'ldGray.0'}
+                                className={meta?.className}
+                                {...(meta?.item && isTableCalculation(meta.item)
+                                    ? tableCalculationTourProps
+                                    : {})}
+                            >
+                                <SortableItem
+                                    id={header.id}
+                                    disabled={isDragDisabled}
+                                >
+                                    {(sortable) => (
+                                        <ThContainer>
+                                            {/* No sortable transform: columns reorder live in the table while dragging */}
+                                            <ThLabelContainer
+                                                {...(!isDragDisabled &&
+                                                    sortable.handleProps)}
+                                                ref={(el) => {
+                                                    sortable.ref(el);
+                                                    sortable.handleProps.ref(
+                                                        el,
+                                                    );
+                                                }}
+                                                className={
+                                                    isDragDisabled
+                                                        ? undefined
+                                                        : classes.handle
+                                                }
+                                            >
+                                                <Tooltip
+                                                    openDelay={500}
+                                                    maw={400}
+                                                    label={tooltipLabel}
+                                                    position="top"
+                                                    disabled={
+                                                        !tooltipLabel ||
+                                                        minimal ||
+                                                        sortable.isDragging
+                                                    }
+                                                >
+                                                    <span>
+                                                        {header.isPlaceholder
+                                                            ? null
+                                                            : flexRender(
+                                                                  header.column
+                                                                      .columnDef
+                                                                      .header,
+                                                                  header.getContext(),
+                                                              )}
+                                                    </span>
+                                                </Tooltip>
+                                            </ThLabelContainer>
+
+                                            {HeaderContextMenu &&
+                                                !meta?.isReadOnly && (
+                                                    <ThActionsContainer>
+                                                        <HeaderContextMenu
+                                                            header={header}
+                                                        />
+                                                    </ThActionsContainer>
+                                                )}
+                                        </ThContainer>
+                                    )}
+                                </SortableItem>
+                                {canResize && (
+                                    <div
+                                        className={resizeHandleClassName}
+                                        role="separator"
+                                        aria-orientation="vertical"
+                                        onMouseDown={(e) =>
+                                            handleResizeStart(e, header.id)
+                                        }
+                                    />
+                                )}
+                            </Th>
+                        );
+                    })}
+                </HeaderDnD>
             ))}
         </thead>
     );

@@ -220,12 +220,14 @@ import type {
 import {
     buildComposerPreview,
     buildComposerQueryPipeline,
+    getFailedRunNodes,
     hasReachedLimit,
     isSaved,
-    renderComposerNodeSummary,
-    renderSavedNodes,
-    toComposerNodeSummaries,
+    renderComposerNodeListing,
+    renderOtherUnreadNodesNote,
+    shareComposerPreview,
     toNodeColumns,
+    toNodeSummary,
 } from '../ai/tools/composerQueryPipeline';
 import { getCreateContent } from '../ai/tools/createContent';
 import { getCreateScheduledDelivery } from '../ai/tools/createScheduledDelivery';
@@ -243,6 +245,8 @@ import { getResolveUrl } from '../ai/tools/resolveUrl';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
+import type { DocumentContentResult } from '../ai/types/aiAgentDependencies';
+import { toAbsoluteHref } from '../ai/utils/absoluteHref';
 import {
     renderAppliedParameters,
     summarizeAppliedParameters,
@@ -1013,6 +1017,14 @@ export class McpService extends BaseService {
         }
     }
 
+    private documentToolText(document: DocumentContentResult): string {
+        const href = toAbsoluteHref(
+            this.lightdashConfig.siteUrl,
+            document.href,
+        );
+        return `<document href="${href}" />\n---\n${JSON.stringify({ ...document, href }, null, 2)}`;
+    }
+
     private async buildScopedResponse(
         context: McpProtocolContext,
         toolResult: string,
@@ -1601,13 +1613,17 @@ export class McpService extends BaseService {
             reusableNodes,
             scopeName: 'session',
             enablePythonNodes: true,
-            apiConnections: [],
             canRunSql: await this.isRunSqlEnabled(user, projectUuid),
             sqlDisabledMessage:
                 'This pipeline contains "sql" nodes but run_sql is not allowed here. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
         });
         if ('error' in built) return mcpQueryTool.result.error(built.error);
-        const { queries, terminalNodeId, appliedParameters } = built.pipeline;
+        const {
+            queries,
+            terminalNodeId,
+            otherUnreadNodeIds,
+            appliedParameters,
+        } = built.pipeline;
         // Reused nodes are held to this call's scope too.
         explores.push(
             ...(await loadExplores(
@@ -1633,9 +1649,16 @@ export class McpService extends BaseService {
             );
         });
 
+        const submittedNodeIds = new Set(
+            args.queries.map(({ nodeId }) => nodeId),
+        );
         const run = await toolsRuntime.runComposerQueriesUntilDeadline({
             queries,
             terminalNodeId,
+            otherUnreadNodeIds,
+            sampleNodeIds: [...submittedNodeIds].filter(
+                (nodeId) => nodeId !== terminalNodeId,
+            ),
             deadlineMs,
         });
         // Only ready nodes are saved, as in the agent; other node ids stay free to resubmit.
@@ -1663,71 +1686,85 @@ export class McpService extends BaseService {
                 },
             });
         }
-        const sessionNote = [
-            run.status === 'success'
-                ? ''
-                : renderSavedNodes(queries, run.nodeStatuses, reusableNodes),
+        const sessionNote =
             sessionId === null
                 ? 'No sessionId: no node was saved.'
-                : `sessionId: ${sessionId} (pass it back to read saved nodes by node id).`,
-        ]
-            .filter(Boolean)
-            .join('\n');
-        const queryUuids = new Map(
-            ('submissions' in run ? run.submissions : []).map(
-                ({ nodeId, queryUuid }) => [nodeId, queryUuid],
-            ),
-        );
-        const summaries = toComposerNodeSummaries(
-            queries,
-            run.nodeStatuses,
-        ).map((node) => ({
-            ...node,
-            queryUuid: queryUuids.get(node.nodeId) ?? '',
-        }));
-        const nodeSummary = renderComposerNodeSummary(
-            queries,
-            summaries,
-            run.nodeStatuses,
-            DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
-        );
+                : `sessionId: ${sessionId} (pass it back to read saved nodes by node id).`;
         if (run.status === 'failure') {
+            const nodeListing = renderComposerNodeListing({
+                queries,
+                nodes: getFailedRunNodes(
+                    queries,
+                    run.nodeStatuses,
+                    submittedNodeIds,
+                ),
+                nodeStatuses: run.nodeStatuses,
+                reusableNodes,
+                submittedNodeIds,
+                maxQueryLimit: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+            });
             return mcpQueryTool.result.error(
-                `${run.error}\nNodes:\n${nodeSummary}\n${sessionNote}`,
+                `${run.error}\nNodes in this pipeline, failed nodes first:\n${nodeListing}\n${sessionNote}`,
             );
         }
-        const nodeColumns = {
-            ...toNodeColumns(run.nodeStatuses),
-            ...(run.status === 'success'
-                ? {
-                      [terminalNodeId]: toComposerNodeColumns(
-                          run.terminal.columns,
-                      ),
-                  }
-                : {}),
-        };
-        const nodes = summaries.map((node) => {
-            const state = run.nodeStatuses.find(
-                (status) => status.nodeId === node.nodeId,
-            )?.state;
+        const queryUuids = new Map(
+            run.submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
+        );
+        const { nodeStatuses, terminalRowLimit } = shareComposerPreview(
+            run.nodeStatuses,
+            otherUnreadNodeIds,
+            run.status === 'success' ? run.terminal.rowCount : 0,
+        );
+        const nodes = queries.map((node) => {
+            const nodeStatus = nodeStatuses.find(
+                ({ nodeId }) => nodeId === node.nodeId,
+            );
+            const summary = toNodeSummary(
+                node,
+                nodeStatus,
+                submittedNodeIds.has(node.nodeId),
+            );
             let status: McpQueryStructuredContent['nodes'][number]['status'] =
                 'running';
-            if (state === QueryHistoryStatus.READY) status = 'done';
+            if (nodeStatus?.state === QueryHistoryStatus.READY) status = 'done';
             else if (
-                state === QueryHistoryStatus.ERROR ||
-                state === QueryHistoryStatus.CANCELLED
+                nodeStatus?.state === QueryHistoryStatus.ERROR ||
+                nodeStatus?.state === QueryHistoryStatus.CANCELLED
             )
                 status = 'failed';
             return {
-                ...node,
+                ...summary,
+                queryUuid: queryUuids.get(node.nodeId) ?? '',
                 status,
-                reachedLimit: hasReachedLimit(node),
-                columns: nodeColumns[node.nodeId] ?? null,
+                reachedLimit: hasReachedLimit(summary),
+                columns:
+                    run.status === 'success' && node.nodeId === terminalNodeId
+                        ? toComposerNodeColumns(run.terminal.columns)
+                        : summary.columns,
             };
+        });
+        const nodeSummary = renderComposerNodeListing({
+            queries,
+            nodes,
+            nodeStatuses,
+            reusableNodes,
+            submittedNodeIds,
+            maxQueryLimit: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+            queryUuids,
         });
         const terminalQueryUuid = queryUuids.get(terminalNodeId) ?? '';
 
         if (run.status === 'running') {
+            // The terminal's rows come only from get_query_result, even when it is done.
+            const pollQueryUuids = [
+                terminalNodeId,
+                ...otherUnreadNodeIds.filter((nodeId) =>
+                    nodes.some(
+                        (node) =>
+                            node.nodeId === nodeId && node.status === 'running',
+                    ),
+                ),
+            ].map((nodeId) => queryUuids.get(nodeId) ?? '');
             const structuredContent: McpQueryStructuredContent = {
                 sessionId,
                 status: 'running',
@@ -1736,12 +1773,12 @@ export class McpService extends BaseService {
                 nodes,
             };
             return mcpQueryTool.result.structured(
-                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${terminalQueryUuid}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes:\n${nodeSummary}`,
+                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with ${pollQueryUuids.length > 1 ? 'each queryUuid' : 'queryUuid'}: ${pollQueryUuids.join(', ')}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes in this pipeline:\n${nodeSummary}`,
                 structuredContent,
             );
         }
 
-        const preview = buildComposerPreview(run.terminal);
+        const preview = buildComposerPreview(run.terminal, terminalRowLimit);
         const structuredContent: McpQueryStructuredContent = {
             sessionId,
             status: 'done',
@@ -1750,9 +1787,11 @@ export class McpService extends BaseService {
             nodes,
         };
         const text = [
-            `Query complete. Terminal node "${terminalNodeId}" returned ${run.terminal.rowCount} rows.`,
+            `Query complete. Terminal node "${terminalNodeId}" returned ${run.terminal.rowCount} rows.${renderOtherUnreadNodesNote(
+                otherUnreadNodeIds,
+            )}`,
             sessionNote,
-            `Nodes:\n${nodeSummary}`,
+            `Nodes in this pipeline:\n${nodeSummary}`,
             ...appliedParameters.map(
                 ({ nodeId, ...applied }) =>
                     `Node "${nodeId}":${renderAppliedParameters(applied)}`,
@@ -3417,6 +3456,7 @@ export class McpService extends BaseService {
 
                 const createContentTool = getCreateContent({
                     createContent: toolsRuntime.createContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                     sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {
@@ -3425,7 +3465,7 @@ export class McpService extends BaseService {
                     );
                     return this.buildScopedResponse(
                         ctx,
-                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        this.documentToolText(document),
                         document,
                         projectUuid,
                         args.agentUuid,
@@ -3477,6 +3517,7 @@ export class McpService extends BaseService {
 
                 const editContentTool = getEditContent({
                     editContent: toolsRuntime.editContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                     sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {
@@ -3494,7 +3535,7 @@ export class McpService extends BaseService {
                     );
                     return this.buildScopedResponse(
                         ctx,
-                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        this.documentToolText(document),
                         document,
                         projectUuid,
                         args.agentUuid,
@@ -3553,6 +3594,7 @@ export class McpService extends BaseService {
                 const createScheduledDeliveryTool = getCreateScheduledDelivery({
                     createScheduledDelivery:
                         toolsRuntime.createScheduledDelivery,
+                    siteUrl: this.lightdashConfig.siteUrl,
                 });
                 const result = await createScheduledDeliveryTool.execute!(
                     args,
@@ -4121,6 +4163,7 @@ export class McpService extends BaseService {
 
                 const listContentTool = getListContent({
                     listContent: toolsRuntime.listContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                 });
                 const result = await listContentTool.execute!(argsWithProject, {
                     toolCallId: '',
@@ -4166,6 +4209,7 @@ export class McpService extends BaseService {
 
                 const readContentTool = getReadContent({
                     readContent: toolsRuntime.readContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                 });
                 if (args.type === 'document') {
                     const document = await toolsRuntime.readDocumentContent(
@@ -4174,7 +4218,7 @@ export class McpService extends BaseService {
                     );
                     return this.buildScopedResponse(
                         ctx,
-                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        this.documentToolText(document),
                         document,
                         projectUuid,
                         args.agentUuid,
@@ -6376,6 +6420,7 @@ export class McpService extends BaseService {
             this.aiAgentToolsService.canAuthorContent({
                 user,
                 projectUuid: headerProjectUuid,
+                spaceUuids: null,
             })
         );
     }

@@ -4,6 +4,8 @@ import {
     DashboardTileTypes,
     deepEqual,
     NotFoundError,
+    ParameterError,
+    type DashboardParameterControl,
 } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
@@ -26,7 +28,11 @@ import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { projectUuid } from '../ProjectModel/ProjectModel.mock';
-import { DashboardModel } from './DashboardModel';
+import {
+    assertValidParameterControls,
+    DashboardModel,
+    pruneConfigTileTargets,
+} from './DashboardModel';
 import {
     addDashboardVersion,
     addDashboardVersionWithAllTiles,
@@ -481,21 +487,42 @@ describe('DashboardModel', () => {
         const parameters = {
             test_parameter: 'test value',
         };
-        tracker.on.select(DashboardsTableName).response([{ parameters }]);
+        const parameterControls = [
+            {
+                id: 'control-1',
+                label: 'Test parameter',
+                value: 'test value',
+                valueType: { type: 'string', multiple: false },
+                parameters: { test_parameter: 'all' },
+            },
+        ];
+        tracker.on.select(DashboardsTableName).response([
+            {
+                parameters,
+                config: { parameterControls },
+                space_uuid: 'space-uuid',
+            },
+        ]);
 
-        const result = await model.getDashboardParametersByIdOrSlug(
+        const result = await model.getDashboardParameterStateByIdOrSlug(
             dashboardUuid,
             projectUuid,
         );
 
-        expect(result).toEqual(parameters);
+        expect(result).toEqual({
+            parameters,
+            parameterControls,
+            spaceUuid: 'space-uuid',
+        });
+        expect(tracker.history.select[0].sql).toContain(
+            '"dashboard_versions"."config"',
+        );
         expect(tracker.history.select).toHaveLength(1);
         expect(tracker.history.select[0].sql).toContain(
             '"dashboards"."project_uuid"',
         );
-        expect(tracker.history.select[0].sql).not.toContain(
-            'inner join "spaces"',
-        );
+        // The space, for the viewer's access check; no project join
+        expect(tracker.history.select[0].sql).toContain('inner join "spaces"');
         expect(tracker.history.select[0].sql).not.toContain(
             'inner join "projects"',
         );
@@ -685,7 +712,11 @@ describe('DashboardModel', () => {
 
         await model.create(
             'spaceUuid',
-            { ...createDashboard, forceSlug: true },
+            {
+                ...createDashboard,
+                forceSlug: true,
+                ownerUserUuid: 'uploader-user-uuid',
+            },
             user,
             projectUuid,
         );
@@ -699,6 +730,9 @@ describe('DashboardModel', () => {
             query.sql.includes(`update "${DashboardsTableName}"`),
         );
         expect(revive?.sql).toContain('"deleted_at" = $');
+        // A revived dashboard keeps the owner it had before it was deleted
+        expect(revive?.sql).not.toContain('owner_user_uuid');
+        expect(revive?.bindings).not.toContain('uploader-user-uuid');
         expect(revive?.bindings).toEqual(
             expect.arrayContaining([
                 createDashboard.name,
@@ -970,6 +1004,140 @@ describe('DashboardModel', () => {
                 projectUuid,
             ),
         ).rejects.toThrowError(NotFoundError);
+    });
+
+    describe('a version with parameter controls', () => {
+        const control = (
+            id: string,
+            overrides: Partial<DashboardParameterControl> = {},
+        ): DashboardParameterControl => ({
+            id,
+            label: id,
+            value: null,
+            valueType: { type: 'string', multiple: false },
+            parameters: { region: 'all' },
+            ...overrides,
+        });
+        const addVersionWith = (controls: DashboardParameterControl[]) =>
+            model.addVersion(
+                expectedDashboard.uuid,
+                {
+                    ...addDashboardVersion,
+                    tiles: [
+                        {
+                            ...addDashboardVersion.tiles[0],
+                            uuid: 'tile-uuid',
+                            properties: {
+                                ...addDashboardVersion.tiles[0].properties,
+                                title: 'Orders by region',
+                            },
+                        } as AnyType,
+                    ],
+                    config: {
+                        isDateZoomDisabled: false,
+                        parameterControls: controls,
+                    },
+                },
+                user,
+                projectUuid,
+            );
+
+        test('rejects two controls setting a key everywhere before anything is written', async () => {
+            tracker.on
+                .select(DashboardsTableName)
+                .responseOnce([dashboardEntry]);
+
+            await expect(
+                addVersionWith([control('a'), control('b')]),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'Parameter region has default controls a and b',
+                ),
+            );
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(tracker.history.select).toHaveLength(1);
+        });
+
+        test('rejects malformed controls before pruning or writing', async () => {
+            tracker.on
+                .select(DashboardsTableName)
+                .responseOnce([dashboardEntry]);
+            await expect(
+                addVersionWith([{ id: 'broken' } as AnyType]),
+            ).rejects.toThrow('Parameter control 1 has an invalid shape');
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        test('names tiles by their title, and checks structure only: a mismatched type still saves', async () => {
+            tracker.on
+                .select(DashboardsTableName)
+                .responseOnce([dashboardEntry]);
+
+            await expect(
+                addVersionWith([
+                    control('a', {
+                        parameters: {
+                            'orders.region': { only: ['tile-uuid'] },
+                        },
+                        valueType: { type: 'number', multiple: false },
+                    }),
+                    control('b', {
+                        parameters: {
+                            'orders.region': { only: ['tile-uuid'] },
+                        },
+                    }),
+                ]),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'Parameter orders.region on tile Orders by region is set by both a and b',
+                ),
+            );
+        });
+
+        test('names an untitled chart tile by its chart name', async () => {
+            tracker.on
+                .select(DashboardsTableName)
+                .responseOnce([dashboardEntry]);
+
+            await expect(
+                model.addVersion(
+                    expectedDashboard.uuid,
+                    {
+                        ...addDashboardVersion,
+                        tiles: [
+                            {
+                                ...addDashboardVersion.tiles[0],
+                                uuid: 'tile-uuid',
+                                properties: {
+                                    ...addDashboardVersion.tiles[0].properties,
+                                    title: '',
+                                    chartName: 'Orders chart',
+                                },
+                            } as AnyType,
+                        ],
+                        config: {
+                            isDateZoomDisabled: false,
+                            parameterControls: [
+                                control('a', {
+                                    parameters: {
+                                        region: { only: ['tile-uuid'] },
+                                    },
+                                }),
+                                control('b', {
+                                    parameters: {
+                                        region: { only: ['tile-uuid'] },
+                                    },
+                                }),
+                            ],
+                        },
+                    },
+                    user,
+                    projectUuid,
+                ),
+            ).rejects.toThrow(
+                'Parameter region on tile Orders chart is set by both a and b',
+            );
+        });
     });
 
     test('should create dashboard version with all tile types', async () => {
@@ -1401,5 +1569,88 @@ describe('DashboardModel', () => {
                 );
             },
         );
+    });
+});
+
+describe('pruneConfigTileTargets', () => {
+    const control: DashboardParameterControl = {
+        id: 'p1',
+        label: 'Region',
+        value: 'EU',
+        valueType: { type: 'string', multiple: false },
+        parameters: { region: { except: ['kept', 'removed'] } },
+    };
+
+    test('drops date zoom targets and parameter control tile targets of removed tiles', () => {
+        expect(
+            pruneConfigTileTargets(
+                {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: {
+                        controls: [],
+                        tileTargets: {
+                            kept: {
+                                controlUuid: 'c1',
+                                fieldId: 'f',
+                                tableName: 't',
+                            },
+                            removed: {
+                                controlUuid: 'c1',
+                                fieldId: 'f',
+                                tableName: 't',
+                            },
+                        },
+                    },
+                    parameterControls: [control],
+                },
+                new Set(['kept']),
+            ),
+        ).toEqual({
+            isDateZoomDisabled: false,
+            dateZoomConfig: {
+                controls: [],
+                tileTargets: {
+                    kept: { controlUuid: 'c1', fieldId: 'f', tableName: 't' },
+                },
+            },
+            parameterControls: [
+                { ...control, parameters: { region: { except: ['kept'] } } },
+            ],
+        });
+    });
+
+    test('keeps a config without targets as it is', () => {
+        expect(
+            pruneConfigTileTargets({ isDateZoomDisabled: true }, new Set()),
+        ).toEqual({ isDateZoomDisabled: true });
+        expect(pruneConfigTileTargets(undefined, new Set())).toBeUndefined();
+    });
+});
+
+describe('assertValidParameterControls', () => {
+    test('rejects two controls setting a key everywhere, naming them', () => {
+        expect(() =>
+            assertValidParameterControls([
+                {
+                    id: 'a',
+                    label: 'Region',
+                    value: null,
+                    valueType: { type: 'string', multiple: false },
+                    parameters: { region: 'all' },
+                },
+                {
+                    id: 'b',
+                    label: 'Compare',
+                    value: null,
+                    valueType: { type: 'string', multiple: false },
+                    parameters: { region: 'all' },
+                },
+            ]),
+        ).toThrow(
+            new ParameterError(
+                'Parameter region has default controls Region and Compare',
+            ),
+        );
+        expect(() => assertValidParameterControls(undefined)).not.toThrow();
     });
 });

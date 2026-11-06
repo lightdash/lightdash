@@ -40,8 +40,8 @@ import {
     WebClient,
     type FilesUploadV2Arguments,
 } from '@slack/web-api';
+import { throttle, without } from 'es-toolkit/compat';
 import { Express } from 'express';
-import { throttle, without } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig, LoggingLevel } from '../../config/parseConfig';
 import { SlackChannelType } from '../../database/entities/slackChannels';
@@ -103,7 +103,7 @@ const THROTTLE_MIN_DELAY_MS = Math.ceil(
 
 /**
  * Creates a throttled executor for Slack API calls.
- * Uses lodash throttle pattern to proactively stay within 60% of Tier 2 rate limits.
+ * Uses a leading-edge throttle to proactively stay within 60% of Tier 2 rate limits.
  * This prevents rate limit errors instead of reacting to them.
  * Includes a simple retry as safety net for unexpected rate limits (e.g., from other integrations).
  */

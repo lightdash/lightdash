@@ -6,24 +6,37 @@ import { useNavigate } from 'react-router';
 import { getProject } from '../../hooks/useProject';
 import { refetchFeatureFlags } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { useOnboardingNavigate } from '../common/viewTransition';
 
 export const useCreateProjectSuccessRedirect = ({
     activeJob,
     createProjectJobId,
     successRedirect,
     celebrateOnSuccess,
+    successHoldMs,
     submitButtonRef,
 }: {
     activeJob: Job | undefined;
     createProjectJobId: string | undefined;
     successRedirect: ((projectUuid: string) => string) | undefined;
     celebrateOnSuccess: boolean;
+    successHoldMs: number;
     submitButtonRef: RefObject<HTMLButtonElement | null>;
 }) => {
     const lightdashApi = useLightdashApi();
     const navigate = useNavigate();
+    const onboardingNavigate = useOnboardingNavigate();
     const queryClient = useQueryClient();
     const hasFiredConfettiRef = useRef(false);
+    const hasScheduledRedirectRef = useRef(false);
+    const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+        () => () => {
+            if (redirectTimerRef.current)
+                clearTimeout(redirectTimerRef.current);
+        },
+        [],
+    );
 
     useEffect(() => {
         if (
@@ -40,7 +53,12 @@ export const useCreateProjectSuccessRedirect = ({
             : `/createProjectSettings/${projectUuid}`;
 
         if (!celebrateOnSuccess) {
-            void navigate({ pathname: redirectTo });
+            if (hasScheduledRedirectRef.current) return;
+            hasScheduledRedirectRef.current = true;
+            redirectTimerRef.current = setTimeout(
+                () => onboardingNavigate(redirectTo),
+                successHoldMs,
+            );
             return;
         }
 
@@ -95,16 +113,18 @@ export const useCreateProjectSuccessRedirect = ({
             } catch {
                 // Ignore — the destination will load normally on its own.
             }
-            void navigate({ pathname: redirectTo });
+            void navigate(redirectTo, { viewTransition: true });
         })();
     }, [
         activeJob,
         celebrateOnSuccess,
         createProjectJobId,
         navigate,
+        onboardingNavigate,
         queryClient,
         submitButtonRef,
         successRedirect,
+        successHoldMs,
         lightdashApi,
     ]);
 };

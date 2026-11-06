@@ -5,6 +5,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     ParseError,
+    SCHEDULER_TASKS,
     SentryConfig,
     WarehouseTypes,
     WeekDay,
@@ -63,6 +64,22 @@ describe('Python E2B template configuration', () => {
             e2bPythonTemplateName: name,
             e2bPythonTemplateTag: tag,
         });
+    });
+});
+
+describe('RESULTS_CACHE_ENABLED', () => {
+    it.each([
+        [undefined, null],
+        ['', null],
+        ['true', true],
+        [' TRUE ', true],
+        ['false', false],
+        ['False', false],
+        ['1', true],
+        ['0', false],
+    ])('parses %j as %s', (value, expected) => {
+        if (value !== undefined) process.env.RESULTS_CACHE_ENABLED = value;
+        expect(parseConfig().results.cacheEnabled).toBe(expected);
     });
 });
 
@@ -405,6 +422,24 @@ describe('query history retention', () => {
         } finally {
             warn.mockRestore();
         }
+    });
+});
+
+describe('dashboard tile query concurrency', () => {
+    it('is unlimited when unset', () => {
+        expect(parseConfig().dashboard.maxConcurrentTileQueries).toBeNull();
+    });
+
+    it('reads the configured cap', () => {
+        process.env.LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES = '4';
+
+        expect(parseConfig().dashboard.maxConcurrentTileQueries).toBe(4);
+    });
+
+    it.each(['0', '-1', 'invalid'])('rejects an invalid cap: %s', (value) => {
+        process.env.LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES = value;
+
+        expect(() => parseConfig()).toThrow(ParseError);
     });
 });
 
@@ -1525,6 +1560,44 @@ test('Should parse bedrock inference profile prefix from env', () => {
     });
 });
 
+test('leaves the Bedrock output cap unset when not configured', () => {
+    process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+    process.env.BEDROCK_REGION = 'us-east-1';
+
+    const { bedrock } = parseConfig().ai.copilot.providers;
+    expect(bedrock).toBeDefined();
+    expect(bedrock?.maxOutputTokens).toBeUndefined();
+});
+
+test.each([
+    { BEDROCK_API_KEY: 'test-bedrock-key' },
+    {
+        BEDROCK_ACCESS_KEY_ID: 'test-access-key',
+        BEDROCK_SECRET_ACCESS_KEY: 'test-secret-key',
+    },
+    { BEDROCK_USE_DEFAULT_CREDENTIALS: 'true' },
+])('parses the Bedrock output cap with credentials %o', (credentials) => {
+    Object.assign(process.env, credentials);
+    process.env.BEDROCK_REGION = 'us-east-1';
+    process.env.BEDROCK_MAX_OUTPUT_TOKENS = '32000';
+
+    expect(parseConfig().ai.copilot.providers.bedrock).toMatchObject({
+        maxOutputTokens: 32_000,
+    });
+});
+
+test.each(['abc', '0'])(
+    'rejects invalid BEDROCK_MAX_OUTPUT_TOKENS=%s',
+    (value) => {
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+        process.env.BEDROCK_MAX_OUTPUT_TOKENS = value;
+
+        expect(parseConfig).toThrowError(ParseError);
+        expect(parseConfig).toThrowError('BEDROCK_MAX_OUTPUT_TOKENS');
+    },
+);
+
 test('Should configure Gemini only when an explicit API key is set', () => {
     process.env.GEMINI_MODEL_NAME = 'gemini-3.5-flash-lite';
     expect(parseConfig().ai.copilot.providers.google).toBeUndefined();
@@ -2442,7 +2515,7 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Default behavior', () => {
-        test('should return all tasks when scheduler tasks environment variables are not set or empty', () => {
+        test('includes analytics content tasks when task lists are unset or empty', () => {
             // Test with no environment variables set
             const config1 = parseConfig();
             expect(config1.scheduler.tasks).toEqual(ALL_TASK_NAMES);
@@ -2456,6 +2529,15 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Include tasks validation', () => {
+        test('can explicitly include only analytics content tasks', () => {
+            process.env.SCHEDULER_INCLUDE_TASKS =
+                'reconcileAnalyticsContent,syncAnalyticsContent';
+            expect(parseConfig().scheduler.tasks).toEqual([
+                SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+                SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            ]);
+        });
+
         test.each([
             ['handleScheduledDelivery', ['handleScheduledDelivery']],
             [
@@ -2486,6 +2568,27 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Exclude tasks validation', () => {
+        test('keeps analytics content tasks enabled when other tasks are excluded', () => {
+            process.env.SCHEDULER_EXCLUDE_TASKS = 'appGeneratePipeline';
+            expect(parseConfig().scheduler.tasks).toEqual(
+                ALL_TASK_NAMES.filter(
+                    (task) => task !== SCHEDULER_TASKS.APP_GENERATE_PIPELINE,
+                ),
+            );
+        });
+
+        test('can explicitly exclude analytics content tasks', () => {
+            process.env.SCHEDULER_EXCLUDE_TASKS =
+                'reconcileAnalyticsContent,syncAnalyticsContent';
+            expect(parseConfig().scheduler.tasks).toEqual(
+                ALL_TASK_NAMES.filter(
+                    (task) =>
+                        task !== SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT &&
+                        task !== SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+                ),
+            );
+        });
+
         test('should return all tasks except excluded ones', () => {
             process.env.SCHEDULER_EXCLUDE_TASKS =
                 'sendEmailNotification,uploadGsheets';
@@ -3199,29 +3302,6 @@ describe('database slow transaction threshold', () => {
     it('reads a positive threshold in milliseconds', () => {
         process.env.PG_SLOW_TRANSACTION_THRESHOLD_MS = '60000';
         expect(parseConfig().database.slowTransactionThresholdMs).toBe(60000);
-    });
-});
-
-describe('cross-source dbt deadlines', () => {
-    it('uses the default deadlines', () => {
-        expect(parseConfig().dbt).toMatchObject({
-            crossSourceMaxPasses: 3,
-            crossSourcePrepareTimeoutMs: 180000,
-            crossSourceLsTimeoutMs: 300000,
-            crossSourceResolutionTimeoutMs: 1200000,
-        });
-    });
-    it('reads each deadline from the environment', () => {
-        process.env.DBT_CROSS_SOURCE_MAX_PASSES = '5';
-        process.env.DBT_SOURCE_PREPARE_TIMEOUT_MS = '120';
-        process.env.DBT_SOURCE_LS_TIMEOUT_MS = '240';
-        process.env.DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS = '480';
-        expect(parseConfig().dbt).toMatchObject({
-            crossSourceMaxPasses: 5,
-            crossSourcePrepareTimeoutMs: 120,
-            crossSourceLsTimeoutMs: 240,
-            crossSourceResolutionTimeoutMs: 480,
-        });
     });
 });
 

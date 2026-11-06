@@ -255,6 +255,10 @@ function buildService({
         }),
     };
     const service = new ExternalConnectionService({
+        projectModel: {
+            replaceApiSourceExplores: vi.fn(),
+            deleteApiSourceExplores: vi.fn(),
+        },
         allowedPrivateHostCidrs: {},
         appModel,
         appGenerateService,
@@ -499,11 +503,6 @@ describe('custom chart type external connection authorization', () => {
         {
             description: 'connection in another organization',
             options: { connectionOrganizationUuid: 'another-org' },
-            error: ForbiddenError,
-        },
-        {
-            description: 'disabled chart types',
-            options: { flagsEnabled: false },
             error: ForbiddenError,
         },
     ])(

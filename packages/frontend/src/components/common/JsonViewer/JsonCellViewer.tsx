@@ -1,5 +1,4 @@
 import {
-    Box,
     Button,
     CopyButton,
     Group,
@@ -11,12 +10,11 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconCode, IconCopy, IconEye } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import ReactJson, { type OnSelectProps } from 'react-json-view';
-import { useRjvTheme } from '../../../hooks/useRjvTheme';
+import CodeBlock from '../CodeBlock/CodeBlock';
 import { CopyActionIcon } from '../CopyActionIcon';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
-import classes from './JsonCellViewer.module.css';
+import JsonTree from './JsonTree';
 import { type JsonCellValue } from './utils';
 
 type Props = {
@@ -32,18 +30,11 @@ type MenuItemProps = {
     onClick: () => void;
 };
 
-const getJsonPath = (select: Pick<OnSelectProps, 'name' | 'namespace'>) => {
-    const path = [...select.namespace, select.name].filter(
-        (part): part is string => part !== null,
-    );
-
-    if (path.length === 0) return '$';
-
-    return path.reduce<string>((acc, part) => {
+const getJsonPath = (path: (string | number)[]) =>
+    path.reduce<string>((acc, part) => {
         const key = String(part);
         return /^\d+$/.test(key) ? `${acc}[${key}]` : `${acc}.${key}`;
     }, '$');
-};
 
 const getJsonPreview = (value: JsonCellValue) => {
     if (Array.isArray(value)) {
@@ -69,7 +60,6 @@ export const JsonCellPreview: FC<Props> = ({ value }) => {
 
 export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
     const [selectedPath, setSelectedPath] = useState('$');
-    const theme = useRjvTheme();
     const formattedJson = useMemo(
         () => JSON.stringify(value, null, 2),
         [value],
@@ -129,32 +119,23 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
 
                     <Tabs.Panel value="tree" pt="sm">
                         <ScrollArea.Autosize mah="60vh">
-                            <Box fz="xs">
-                                <ReactJson
-                                    src={value as object}
-                                    name={null}
-                                    theme={theme}
-                                    collapsed={1}
-                                    displayDataTypes={false}
-                                    enableClipboard={false}
-                                    onSelect={(select) =>
-                                        setSelectedPath(getJsonPath(select))
-                                    }
-                                />
-                            </Box>
+                            <JsonTree
+                                value={value}
+                                defaultExpandDepth={1}
+                                onValueSelect={(path) =>
+                                    setSelectedPath(getJsonPath(path))
+                                }
+                            />
                         </ScrollArea.Autosize>
                     </Tabs.Panel>
 
                     <Tabs.Panel value="text" pt="sm">
                         <ScrollArea.Autosize mah="60vh">
-                            <Box
-                                component="pre"
-                                fz="xs"
-                                m={0}
-                                className={classes.formattedJson}
-                            >
-                                {formattedJson}
-                            </Box>
+                            <CodeBlock
+                                code={formattedJson}
+                                language="json"
+                                withCopyButton={false}
+                            />
                         </ScrollArea.Autosize>
                     </Tabs.Panel>
                 </Tabs>

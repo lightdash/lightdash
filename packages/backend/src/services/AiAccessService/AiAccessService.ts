@@ -137,8 +137,8 @@ import { AgentSessionCheckError } from './agentSession';
 import { recordAgentRefusal } from './logAgentContentWrite';
 import {
     getQueryIdentityLineage,
-    getQueryResultNodeKind,
     getQuerySourceParameters,
+    queryResultNodeRequiresRawSql,
 } from './queryResultLineage';
 import { SnowflakeAgentClientResolver } from './SnowflakeAgentClientResolver';
 
@@ -510,10 +510,9 @@ export class AiAccessService extends BaseService {
             [
                 AgentCapability.ReadDiscover,
                 AgentCapability.Query,
-                ...(getQueryResultNodeKind(query.requestParameters) ===
-                'semantic'
-                    ? []
-                    : [AgentCapability.RawSql]),
+                ...(queryResultNodeRequiresRawSql(query.requestParameters)
+                    ? [AgentCapability.RawSql]
+                    : []),
             ],
             true,
         );
@@ -569,10 +568,11 @@ export class AiAccessService extends BaseService {
                 ...(evaluation.kind === 'query'
                     ? [
                           AgentCapability.Query,
-                          ...(getQueryResultNodeKind(node.requestParameters) ===
-                          'semantic'
-                              ? []
-                              : [AgentCapability.RawSql]),
+                          ...(queryResultNodeRequiresRawSql(
+                              node.requestParameters,
+                          )
+                              ? [AgentCapability.RawSql]
+                              : []),
                       ]
                     : []),
             ],
@@ -1228,19 +1228,26 @@ export class AiAccessService extends BaseService {
                 organizationUuid,
             });
         }
-        const connection =
-            warehouseConnectionUuid === null
-                ? await this.projectModel.getWarehouseCredentialsForBinding(
-                      projectUuid,
-                      { kind: 'connection', warehouseConnectionUuid: null },
-                  )
-                : await this.warehouseConnectionModel.getCredentials(
-                      await this.warehouseConnectionModel.getProject(
-                          projectUuid,
-                      ),
-                      warehouseConnectionUuid,
-                  );
+        const connection = await this.loadCredentials(
+            projectUuid,
+            warehouseConnectionUuid,
+        );
         return { connection, organizationUuid };
+    }
+
+    private async loadCredentials(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<CreateWarehouseCredentials> {
+        return warehouseConnectionUuid === null
+            ? this.projectModel.getWarehouseCredentialsForBinding(projectUuid, {
+                  kind: 'connection',
+                  warehouseConnectionUuid: null,
+              })
+            : this.warehouseConnectionModel.getCredentials(
+                  await this.warehouseConnectionModel.getProject(projectUuid),
+                  warehouseConnectionUuid,
+              );
     }
 
     async getCapabilities(
@@ -1373,13 +1380,42 @@ export class AiAccessService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string | null,
     ): Promise<AiAccessForUser> {
-        const { connection, organizationUuid } = await this.loadConnection(
+        const organizationUuid = await this.authorizeProject(
             account,
             projectUuid,
-            warehouseConnectionUuid,
             'view',
-            true,
         );
+        await this.assertFeatureEnabled({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+        const connection = await this.loadCredentials(
+            projectUuid,
+            warehouseConnectionUuid,
+        ).catch((error: unknown) => {
+            // A project with only live sources has no warehouse identity to check
+            if (
+                error instanceof NotFoundError &&
+                warehouseConnectionUuid === null
+            )
+                return null;
+            throw error;
+        });
+        if (connection === null) {
+            return {
+                requirementSource: null,
+                identity: null,
+                source: null,
+                marker: null,
+                projectUuid,
+                warehouseConnectionUuid,
+                enabled: false,
+                principalKind: null,
+                refusal: null,
+                expiresAt: null,
+                principalName: null,
+            };
+        }
         return this.getAiAccessForUser({
             projectUuid,
             warehouseConnectionUuid,

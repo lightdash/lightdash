@@ -116,7 +116,7 @@ import { SqlQueryComposer } from './SqlQueryComposer';
 
 const composer = new SqlQueryComposer({
     userSql, // user SQL with user attributes already replaced
-    columns, // discovered via a LIMIT 1 probe query
+    columns, // discovered via warehouse dry run (BigQuery) or a LIMIT 1 probe
     warehouseClient,
     pivotConfiguration, // request-supplied (SQL runner) or derived from chart config
     limit,

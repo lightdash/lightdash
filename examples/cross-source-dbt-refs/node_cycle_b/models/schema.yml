@@ -1,4 +1,0 @@
-version: 2
-models:
-    - name: model_b
-      access: public

@@ -36,7 +36,7 @@ import {
     markdownSanitizeRehypePlugins,
     rehypeRemoveHeaderLinks,
 } from '../../../utils/markdownUtils';
-import classes from './AgentOnboardingRunPage.module.css';
+import classes from './AgentOnboardingRunPageLegacy.module.css';
 import { useAgentOnboardingFile } from './hooks/useAgentOnboarding';
 import {
     buildAgentOnboardingFileTree,

@@ -23,7 +23,10 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
-import { ExternalConnectionService } from '../services/ExternalConnectionService/ExternalConnectionService';
+import {
+    ExternalConnectionService,
+    parseLiveSourceReturnTo,
+} from '../services/ExternalConnectionService/ExternalConnectionService';
 
 @Route('/api/v1/ee')
 @Hidden()
@@ -43,6 +46,7 @@ export class PostHogOAuthController extends BaseController {
         @Query() region: string,
         @Query() name: string,
         @Query() connectionUuid?: string,
+        @Query() returnTo?: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const { authorizeUrl, state, session } =
@@ -55,7 +59,11 @@ export class PostHogOAuthController extends BaseController {
                     connectionUuid: connectionUuid ?? null,
                 },
             );
-        req.session.oauth = { state, postHog: session };
+        req.session.oauth = {
+            state,
+            postHog: session,
+            liveSourceReturnTo: parseLiveSourceReturnTo(returnTo),
+        };
         this.setStatus(302);
         this.setHeader('Location', authorizeUrl);
     }
@@ -76,6 +84,7 @@ export class PostHogOAuthController extends BaseController {
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const session = req.session.oauth?.postHog;
+        const liveSourceReturnTo = req.session.oauth?.liveSourceReturnTo;
         if (!session || !state || state !== req.session.oauth?.state) {
             throw new ParameterError('PostHog sign-in state does not match');
         }
@@ -100,7 +109,11 @@ export class PostHogOAuthController extends BaseController {
         this.setStatus(302);
         this.setHeader(
             'Location',
-            service.getLiveDataSourcesUrl(session.projectUuid, result),
+            service.getLiveDataSourcesUrl(
+                session.projectUuid,
+                result,
+                liveSourceReturnTo,
+            ),
         );
     }
 

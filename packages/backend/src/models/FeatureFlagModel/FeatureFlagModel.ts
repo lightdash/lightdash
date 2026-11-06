@@ -31,15 +31,13 @@ export type EnsureOrganizationOverrideOutcome =
     | 'already_enabled'
     | 'kept_disabled';
 
-type FeatureFlagQueryOptions = {
+export type FeatureFlagQueryOptions = {
     trx?: Knex;
     /** Set false for admin listings so they don't inflate flag-usage telemetry. */
     recordCheck?: boolean;
 };
 
 export class FeatureFlagModel {
-    protected readonly supportsAnalyticsProject: boolean = false;
-
     protected readonly database: Knex;
 
     protected readonly lightdashConfig: LightdashConfig;
@@ -59,12 +57,6 @@ export class FeatureFlagModel {
         this.featureFlagHandlers = {
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
-            [FeatureFlags.ResultsCacheEnabled]: (flagArgs, options) =>
-                this.getWithEnvFallback(
-                    flagArgs,
-                    this.lightdashConfig.results.cacheEnabled,
-                    options,
-                ),
         };
     }
 
@@ -93,14 +85,6 @@ export class FeatureFlagModel {
         args: FeatureFlagLogicArgs,
         options: FeatureFlagQueryOptions,
     ): Promise<FeatureFlag> {
-        // Availability is decided by the registered model before rollout overrides.
-        if (
-            args.featureFlagId === FeatureFlags.AnalyticsProject &&
-            !this.supportsAnalyticsProject
-        ) {
-            return { id: args.featureFlagId, enabled: false };
-        }
-
         // 1a. Env var enable-allowlist (self-hosted escape hatch) still wins
         // over the disable-allowlist when a flag is in both.
         const envEnabled = this.lightdashConfig.enabledFeatureFlags.has(

@@ -20,8 +20,8 @@ import {
     getPendingFieldIds,
 } from '@lightdash/visualization/editor';
 import { useMantineTheme } from '@mantine/core';
+import { isEqual } from 'es-toolkit/compat';
 import type { Map as LeafletMap } from 'leaflet';
-import isEqual from 'lodash/isEqual';
 import {
     useCallback,
     useEffect,

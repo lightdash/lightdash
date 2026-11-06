@@ -8,7 +8,11 @@ import {
     type MouseEvent,
     type MutableRefObject,
 } from 'react';
-import { selectDashboardTiles, useDashboardStore } from '../dashboard/store';
+import {
+    selectDashboardTiles,
+    useDashboardStore,
+    type DashboardStoreState,
+} from '../dashboard/store';
 import { getMissingTileFieldId, getTileField } from './peers';
 import { getTileSelector } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -31,19 +35,39 @@ const release = (filterId: string, owner: MutableRefObject<string | null>) => {
     clearTiles();
 };
 
-// Marks the tiles on the filter while its pill is hovered or keyboard-focused.
-// An attribute on the grid items, so no tile re-renders; tiles and fields are
-// read on mark, so no pill does
-export const useTileHover = (
+/** The tiles a filter is on, for its pill's hover marks */
+export const getFilterHoverTileUuids = (
     rule: DashboardFilterRule,
+    state: DashboardStoreState,
+    fieldsByTile: Record<string, DashboardFilterableField[]> | undefined,
+): string[] => {
+    const sqlColumnsByTile = getSqlColumnsByTile(rule, state);
+    return (selectDashboardTiles(state) ?? [])
+        .filter(
+            (tile) =>
+                getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) !==
+                    null &&
+                getMissingTileFieldId(
+                    rule,
+                    tile,
+                    fieldsByTile,
+                    sqlColumnsByTile,
+                ) === null,
+        )
+        .map(({ uuid }) => uuid);
+};
+
+// Marks a control's tiles while its pill is hovered or keyboard-focused.
+// An attribute on the grid items, so no tile re-renders; the tiles are read
+// on mark, so no pill does
+export const useTileHover = (
+    /** The control's id: only the pill that made the marks takes them away */
+    filterId: string,
     isEnabled: boolean,
-    getFieldsByTile: () =>
-        | Record<string, DashboardFilterableField[]>
-        | undefined,
+    getTileUuids: (state: DashboardStoreState) => string[],
 ) => {
     const store = useDashboardStore();
     const owner = useControlsSidebarSelector((c) => c.tileHoverOwner);
-    const filterId = rule.id;
     const isMarking = useRef(false);
     // A press focuses the pill too, and may start a drag: that marks nothing
     const isPressed = useRef(false);
@@ -77,28 +101,13 @@ export const useTileHover = (
         cancelLeave();
         if (!isEnabled) return;
         clearTiles();
-        const state = store.getState();
-        const fieldsByTile = getFieldsByTile();
-        const sqlColumnsByTile = getSqlColumnsByTile(rule, state);
-        (selectDashboardTiles(state) ?? [])
-            .filter(
-                (tile) =>
-                    getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) !==
-                        null &&
-                    getMissingTileFieldId(
-                        rule,
-                        tile,
-                        fieldsByTile,
-                        sqlColumnsByTile,
-                    ) === null,
-            )
-            .forEach((tile) =>
-                document
-                    .querySelectorAll(getTileSelector(tile.uuid))
-                    .forEach((element) =>
-                        element.setAttribute(TILE_HOVER_ATTRIBUTE, ''),
-                    ),
-            );
+        getTileUuids(store.getState()).forEach((tileUuid) =>
+            document
+                .querySelectorAll(getTileSelector(tileUuid))
+                .forEach((element) =>
+                    element.setAttribute(TILE_HOVER_ATTRIBUTE, ''),
+                ),
+        );
         isMarking.current = true;
         owner.current = filterId;
     };

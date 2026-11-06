@@ -270,12 +270,6 @@ export const AiAgentFormSetup = ({
         }),
     );
 
-    const scrollToKnowledgeAndData = useCallback(() => {
-        document
-            .getElementById('knowledge-and-data')
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, []);
-
     const handleDeleteClick = useCallback(() => {
         setDeleteModalOpen(true);
     }, []);
@@ -952,7 +946,7 @@ export const AiAgentFormSetup = ({
                                 label={
                                     <SwitchLabel
                                         text="Create and edit content"
-                                        help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                        help="Requires reading rows to be enabled. Users only get the actions their role allows."
                                         badge={<BetaBadge />}
                                     />
                                 }
@@ -1028,20 +1022,6 @@ export const AiAgentFormSetup = ({
                                 />
                             )}
                         </Stack>
-
-                        <Text size="xs" c="dimmed">
-                            Which explores, spaces and documents it can read is
-                            set in{' '}
-                            <Anchor
-                                component="button"
-                                type="button"
-                                size="xs"
-                                onClick={scrollToKnowledgeAndData}
-                            >
-                                Knowledge &amp; data
-                            </Anchor>
-                            .
-                        </Text>
                     </AgentSettingsSection>
 
                     <AgentSettingsSection

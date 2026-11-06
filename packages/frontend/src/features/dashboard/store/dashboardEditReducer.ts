@@ -1,4 +1,3 @@
-import { arrayMove } from '@dnd-kit/sortable';
 import {
     DateGranularity,
     EMPTY_DATE_ZOOM_CONFIG,
@@ -10,8 +9,8 @@ import {
     type DateZoomConfig,
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
-import isEqual from 'lodash/isEqual';
-import sortBy from 'lodash/sortBy';
+import { isEqual, sortBy } from 'es-toolkit/compat';
+import { removeSectionKeepingLines } from '../../dashboardControls/sections';
 
 /**
  * An unsaved edit of a saved setting. It applies only while the saved value
@@ -168,9 +167,9 @@ export const dashboardEditActions = {
     removeControlSection: createAction<string>(
         'dashboardEdit/removeControlSection',
     ),
-    /** Puts the section `id` where `overId` is */
-    moveControlSection: createAction<{ id: string; overId: string }>(
-        'dashboardEdit/moveControlSection',
+    /** The sections in a new order and lines (a drag or a keyboard move on the bar) */
+    arrangeControlSections: createAction<DashboardControlSection[]>(
+        'dashboardEdit/arrangeControlSections',
     ),
     /** `undefined` removes the key: the section follows the default again */
     setControlSectionCollapsed: createAction<{
@@ -330,9 +329,7 @@ export const dashboardEditReducer = (
     if (dashboardEditActions.removeControlSection.match(action)) {
         return withControlSections(
             state,
-            state.controlSections.filter(
-                (section) => section.id !== action.payload,
-            ),
+            removeSectionKeepingLines(state.controlSections, action.payload),
         );
     }
     if (dashboardEditActions.setControlSectionCollapsed.match(action)) {
@@ -346,15 +343,10 @@ export const dashboardEditReducer = (
             }),
         );
     }
-    if (dashboardEditActions.moveControlSection.match(action)) {
-        const { id, overId } = action.payload;
-        const from = state.controlSections.findIndex((s) => s.id === id);
-        const to = state.controlSections.findIndex((s) => s.id === overId);
-        if (from === -1 || to === -1 || from === to) return state;
-        return withControlSections(
-            state,
-            arrayMove(state.controlSections, from, to),
-        );
+    if (dashboardEditActions.arrangeControlSections.match(action)) {
+        return action.payload === state.controlSections
+            ? state
+            : withControlSections(state, action.payload);
     }
     return state;
 };

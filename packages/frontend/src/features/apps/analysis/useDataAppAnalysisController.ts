@@ -7,7 +7,10 @@ import {
     useAnalysisController,
     type AnalysisController,
 } from '../../analysis/useAnalysisController';
-import { type InvestigationState } from '../../analysis/useAnalysisCore';
+import {
+    type InstructionInvestigationState,
+    type InvestigationState,
+} from '../../analysis/useAnalysisCore';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
 import {
     hasInFlightQueries,
@@ -20,6 +23,45 @@ const toInvestigation = (
     state: InvestigationState | undefined,
 ): DataAppInsightsPayload['anomalies'][number]['investigation'] => {
     switch (state?.status) {
+        case 'running':
+            return {
+                status: 'running',
+                explanation: null,
+                partial: false,
+                threadUuid: null,
+                error: null,
+            };
+        case 'ready':
+            return {
+                status: 'ready',
+                explanation: state.investigation.explanation,
+                partial: state.investigation.partial,
+                threadUuid: state.investigation.threadUuid,
+                error: null,
+            };
+        case 'error':
+            return {
+                status: 'error',
+                explanation: null,
+                partial: false,
+                threadUuid: null,
+                error: state.message,
+            };
+        default:
+            return {
+                status: 'idle',
+                explanation: null,
+                partial: false,
+                threadUuid: null,
+                error: null,
+            };
+    }
+};
+
+const toInstructionInvestigation = (
+    state: InstructionInvestigationState,
+): NonNullable<DataAppInsightsPayload['instructionInvestigations']>[string] => {
+    switch (state.status) {
         case 'running':
             return {
                 status: 'running',
@@ -120,9 +162,12 @@ export const useDataAppAnalysisController = ({
     const {
         state,
         investigations,
+        instructionInvestigations,
         analyse,
         investigateAnomaly,
+        investigateAppInstruction,
         continueInAskAi,
+        continueInstructionInAskAi,
         selectedAgentUuid,
     } = controller;
 
@@ -138,11 +183,27 @@ export const useDataAppAnalysisController = ({
                 case 'continue':
                     continueInAskAi(action.anomalyId);
                     return;
+                case 'investigate-instruction':
+                    investigateAppInstruction(
+                        action.requestId,
+                        action.instruction,
+                        action.sources,
+                    );
+                    return;
+                case 'continue-instruction':
+                    continueInstructionInAskAi(action.requestId);
+                    return;
                 default:
                     return;
             }
         },
-        [analyse, continueInAskAi, investigateAnomaly],
+        [
+            analyse,
+            continueInAskAi,
+            continueInstructionInAskAi,
+            investigateAnomaly,
+            investigateAppInstruction,
+        ],
     );
 
     // What the app sees. Null until the org is rolled out so old and new
@@ -161,6 +222,16 @@ export const useDataAppAnalysisController = ({
             canContinue: false,
             error: null,
             anomalies: [],
+            // Instruction investigations ride along whatever the detection
+            // state: they never depend on an analysis of the view.
+            instructionInvestigations: Object.fromEntries(
+                Object.entries(instructionInvestigations).map(
+                    ([requestId, investigationState]) => [
+                        requestId,
+                        toInstructionInvestigation(investigationState),
+                    ],
+                ),
+            ),
         };
         if (availability.status === 'unavailable') {
             return { ...base, status: 'unavailable', canInvestigate: false };
@@ -198,7 +269,13 @@ export const useDataAppAnalysisController = ({
             default:
                 return null;
         }
-    }, [availability, investigations, selectedAgentUuid, state]);
+    }, [
+        availability,
+        instructionInvestigations,
+        investigations,
+        selectedAgentUuid,
+        state,
+    ]);
 
     return {
         ...controller,

@@ -5,7 +5,7 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
-import { isEqual } from 'lodash';
+import { isEqual } from 'es-toolkit/compat';
 import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogModel';
 import { type ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';

@@ -18,6 +18,14 @@ import type {
     ApiConnectorResult,
     ApiConnectorTransport,
 } from '../ApiConnector';
+import { POSTHOG_MAX_SCANNED_PROPERTIES } from './posthogSemanticLayer';
+
+const PROPERTY_DEFINITIONS_PAGE_SIZE = 500;
+
+const propertyDefinitionsPageSchema = z.object({
+    next: z.string().nullish(),
+    results: z.array(z.unknown()),
+});
 
 // PostHog silently returns at most 50k rows, so the connector asks for one
 // more than the limit to detect truncation itself.
@@ -41,6 +49,9 @@ export type PostHogConnectorArgs = {
 
 export const getPostHogQueryPath = (projectId: string) =>
     `/api/projects/${projectId}/query/`;
+
+export const getPostHogPropertyDefinitionsPrefix = (projectId: string) =>
+    `/api/projects/${projectId}/property_definitions/`;
 
 const successSchema = z.object({
     columns: z.array(z.string()),
@@ -104,6 +115,41 @@ export class PostHogConnector implements ApiConnector {
             timeoutMs: POSTHOG_TIMEOUT_MS,
             limits: POSTHOG_LIMITS,
         };
+    }
+
+    /** Every property definition of one kind, a page at a time, up to the scan cap. */
+    async getPropertyDefinitions(
+        type: 'event' | 'person',
+    ): Promise<{ results: unknown[] }> {
+        const readPage = async (offset: number) => {
+            const response = await this.send({
+                method: 'GET',
+                path: getPostHogPropertyDefinitionsPrefix(this.projectId),
+                query: {
+                    type,
+                    limit: String(PROPERTY_DEFINITIONS_PAGE_SIZE),
+                    ...(offset > 0 ? { offset: String(offset) } : {}),
+                },
+                body: null,
+            });
+            if (response.status < 200 || response.status >= 300) {
+                throw this.toError(response);
+            }
+            const page = propertyDefinitionsPageSchema.safeParse(response.body);
+            return page.success ? page.data : { results: [], next: null };
+        };
+        const readFrom = async (offset: number): Promise<unknown[]> => {
+            const page = await readPage(offset);
+            const nextOffset = offset + page.results.length;
+            const hasMore =
+                Boolean(page.next) &&
+                page.results.length > 0 &&
+                nextOffset < POSTHOG_MAX_SCANNED_PROPERTIES;
+            return hasMore
+                ? [...page.results, ...(await readFrom(nextOffset))]
+                : page.results;
+        };
+        return { results: await readFrom(0) };
     }
 
     async execute({

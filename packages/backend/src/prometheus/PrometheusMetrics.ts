@@ -29,6 +29,10 @@ import { PreAggregateMaterializationsTableName } from '../ee/database/entities/p
 import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
+import type {
+    ColumnDiscoveryMethod,
+    ColumnDiscoveryOutcome,
+} from '../services/AsyncQueryService/columnDiscovery';
 import {
     COMPOSER_QUERY_STAGES,
     type ComposerQuerySource,
@@ -377,6 +381,11 @@ export default class PrometheusMetrics {
 
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
 
+    private columnDiscoveryCounter: prometheus.Counter | null = null;
+
+    private columnDiscoveryDurationHistogram: prometheus.Histogram | null =
+        null;
+
     private warehousePhaseDurationHistogram: prometheus.Histogram | null = null;
 
     private projectQueryPhaseDurationHistogram: prometheus.Histogram | null =
@@ -473,6 +482,32 @@ export default class PrometheusMetrics {
                     buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
                     ...rest,
                 });
+
+                this.columnDiscoveryCounter = new prometheus.Counter({
+                    name: 'lightdash_query_column_discovery_total',
+                    help: 'SQL result column discovery warehouse calls',
+                    labelNames: [
+                        'method',
+                        'warehouse_type',
+                        'context',
+                        'outcome',
+                    ],
+                    ...rest,
+                });
+
+                this.columnDiscoveryDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_query_column_discovery_duration_seconds',
+                        help: 'SQL result column discovery warehouse call duration',
+                        labelNames: [
+                            'method',
+                            'warehouse_type',
+                            'context',
+                            'outcome',
+                        ],
+                        buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
+                        ...rest,
+                    });
 
                 this.warehousePhaseDurationHistogram = new prometheus.Histogram(
                     {
@@ -1815,6 +1850,32 @@ export default class PrometheusMetrics {
                 warehouse_type: warehouseType,
                 context: getQueryContextLabel(context),
             },
+            durationMs / 1000,
+        );
+    }
+
+    public observeColumnDiscovery({
+        method,
+        warehouseType,
+        context,
+        outcome,
+        durationMs,
+    }: {
+        method: ColumnDiscoveryMethod;
+        warehouseType: string;
+        context: string;
+        outcome: ColumnDiscoveryOutcome;
+        durationMs: number;
+    }) {
+        const labels = {
+            method,
+            warehouse_type: warehouseType,
+            context: getQueryContextLabel(context),
+            outcome,
+        };
+        this.columnDiscoveryCounter?.inc(labels);
+        this.columnDiscoveryDurationHistogram?.observe(
+            labels,
             durationMs / 1000,
         );
     }

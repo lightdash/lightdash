@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { Button, Menu, Stack, Text } from '@mantine/core';
 import { IconChevronDown, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -6,6 +5,7 @@ import { useEffect, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import ChartTypeLibraryModal from '../../../features/chartTypes/components/ChartTypeLibraryModal';
 import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
+import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { getDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
     explorerActions,
@@ -14,7 +14,6 @@ import {
     useExplorerStore,
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
@@ -36,9 +35,7 @@ const AddChartTypeMenu: FC = () => {
     );
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const chartStudioAvailable = useChartStudioAvailable();
-    const libraryEnabled =
-        useServerFeatureFlag(FeatureFlags.ChartTypeRegistry).data?.enabled ===
-        true;
+    const libraryEnabled = useChartTypesEnabled().enabled;
     const canCreateChartType = useCanCreateDataApp(projectUuid);
     const { itemsMap } = useVisualizationInputs();
     const selectProjectChartType = useSelectProjectChartType();

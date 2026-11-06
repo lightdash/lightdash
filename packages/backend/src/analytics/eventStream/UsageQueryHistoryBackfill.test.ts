@@ -281,7 +281,9 @@ describe('usage history backfill reconciliation', () => {
         rows.push(row('new'));
         transport.failUpload = true;
         await expect(backfill().run(org)).rejects.toThrow(
-            'Unable to check or import retained analytics history',
+            new Error(
+                'Unable to publish retained analytics history to storage (query history). Retry the backfill or contact your administrator.',
+            ),
         );
         expect(await readFile(filename)).toEqual(before);
         transport.failUpload = false;
@@ -310,7 +312,38 @@ describe('usage history backfill reconciliation', () => {
     it('fails closed on storage errors and does not publish or expose provider details', async () => {
         transport.failListing = true;
         await expect(backfill().run(org)).rejects.toThrow(
-            'Unable to check or import retained analytics history',
+            new Error(
+                'Unable to check existing analytics history in storage (query history). Retry the backfill or contact your administrator.',
+            ),
+        );
+        expect(transport.uploads).toBe(0);
+    });
+
+    it('identifies database export failures without exposing database details', async () => {
+        const importer = new UsageQueryHistoryBackfill(storage, {
+            async *getJsonLines() {
+                yield `${JSON.stringify(row('partial'))}\n`;
+                throw new Error('private database connection details');
+            },
+        });
+        await expect(importer.run(org)).rejects.toThrow(
+            new Error(
+                'Unable to read retained analytics history from the database (query history). Retry the backfill or contact your administrator.',
+            ),
+        );
+        expect(transport.uploads).toBe(0);
+    });
+
+    it('identifies reconciliation failures without exposing input values', async () => {
+        const importer = new UsageQueryHistoryBackfill(storage, {
+            async *getJsonLines() {
+                yield 'private invalid input\n';
+            },
+        });
+        await expect(importer.run(org)).rejects.toThrow(
+            new Error(
+                'Unable to reconcile retained analytics history (query history). Retry the backfill or contact your administrator.',
+            ),
         );
         expect(transport.uploads).toBe(0);
     });
@@ -345,7 +378,9 @@ describe('usage history backfill reconciliation', () => {
             const importer = new UsageHistoryBackfill(storage);
             const history = new UsageHistoryModel({} as never);
             await expect(importer.run(org, history)).rejects.toThrow(
-                'Unable to check or import retained analytics history',
+                new Error(
+                    'Unable to read retained analytics history from the database (activity history). Retry the backfill or contact your administrator.',
+                ),
             );
             expect(transport.uploads).toBe(2);
             expect(transport.keys.has(usageHistoryCompletionKey(org))).toBe(
@@ -366,7 +401,9 @@ describe('usage history backfill reconciliation', () => {
             fail = false;
             transport.failMarker = true;
             await expect(importer.run(org, history)).rejects.toThrow(
-                'marker unavailable',
+                new Error(
+                    'Unable to publish analytics history completion to storage. Retry the backfill or contact your administrator.',
+                ),
             );
             expect(transport.uploads).toBe(3);
             expect(transport.keys.has(usageHistoryCompletionKey(org))).toBe(

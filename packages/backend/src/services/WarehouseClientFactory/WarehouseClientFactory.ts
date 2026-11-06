@@ -15,6 +15,7 @@ import {
     UnexpectedServerError,
     UserWarehouseCredentialPurpose,
     usesAwsWebIdentity,
+    usesBigqueryWorkloadIdentity,
     WarehouseTypes,
     type AiExecutionPlan,
     type CreateDatabricksCredentials,
@@ -191,6 +192,7 @@ export type WarehouseConnectionLeaseRef =
 type WarehouseClientFactoryDependencies = {
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
+    isAnalyticsProjectEnabled?: () => boolean;
     featureFlagModel: FeatureFlagModel;
     aiAccessService: AiAccessService;
     credentialSource: WarehouseCredentialSource;
@@ -223,6 +225,8 @@ export class WarehouseClientFactory {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly isAnalyticsProjectEnabled: () => boolean;
+
     private readonly aiAccessService: AiAccessService;
 
     private readonly credentialSource: WarehouseCredentialSource;
@@ -242,6 +246,8 @@ export class WarehouseClientFactory {
         this.credentialResolvers = deps.credentialResolvers;
         this.projectModel = deps.projectModel;
         this.featureFlagModel = deps.featureFlagModel;
+        this.isAnalyticsProjectEnabled =
+            deps.isAnalyticsProjectEnabled ?? (() => false);
         this.aiAccessService = deps.aiAccessService;
         this.credentialSource = deps.credentialSource;
         this.logger = deps.logger;
@@ -348,7 +354,6 @@ export class WarehouseClientFactory {
         credentials: ResolvedWarehouseConnection['warehouseCredentials'],
         projectUuid: string | null,
         warehouseConnectionUuid: string | null,
-        organizationCredentialUuid: string | null,
         aiPlan: AiExecutionPlan | null,
     ): CredentialOwner | null {
         if (credentials.userWarehouseCredentialsUuid) {
@@ -373,8 +378,6 @@ export class WarehouseClientFactory {
                 purpose: UserWarehouseCredentialPurpose.AI,
             };
         }
-        if (organizationCredentialUuid)
-            return { kind: 'organization', uuid: organizationCredentialUuid };
         if (warehouseConnectionUuid)
             return {
                 kind: 'warehouseConnection',
@@ -442,9 +445,6 @@ export class WarehouseClientFactory {
             credentials,
             base.projectUuid,
             base.warehouseConnectionUuid,
-            base.kind === 'final'
-                ? null
-                : base.organizationWarehouseCredentialsUuid,
             aiPlan,
         );
         const materialized = await this.materializeResolvedCredentials(
@@ -791,7 +791,6 @@ export class WarehouseClientFactory {
                 warehouseCredentials,
                 ref.projectUuid,
                 warehouseConnectionUuid,
-                null,
                 aiPlan,
             ),
             aiPlan,
@@ -1039,7 +1038,7 @@ export class WarehouseClientFactory {
                 return {
                     warehouseClient: await createAnalyticsClient(
                         project.organizationUuid,
-                        this.featureFlagModel,
+                        this.isAnalyticsProjectEnabled,
                     ),
                     sshTunnel,
                     tunnelConnectMs: null,
@@ -1080,15 +1079,37 @@ export class WarehouseClientFactory {
                     ? undefined
                     : this.warehouseClients[cacheKey]
             ) as (typeof this.warehouseClients)[string] | undefined;
-            if (
+            const reusableClient =
                 existingClient &&
                 deepEqual(existingClient.credentials, warehouseSshCredentials)
-            ) {
+                    ? existingClient
+                    : undefined;
+            const needsIdentityOptions =
+                usesBigqueryWorkloadIdentity(warehouseSshCredentials) ||
+                (!reusableClient &&
+                    usesAwsWebIdentity(warehouseSshCredentials));
+            let identityOptions: WarehouseClientOptions = {};
+            if (needsIdentityOptions) {
+                constructingClient = usesAwsWebIdentity(
+                    warehouseSshCredentials,
+                );
+                const identityOrganizationUuid =
+                    projectUuid === null
+                        ? (organizationUuid ?? undefined)
+                        : (await this.projectModel.getSummary(projectUuid))
+                              .organizationUuid;
+                identityOptions =
+                    await this.projectModel.getWarehouseClientIdentityOptions(
+                        warehouseSshCredentials,
+                        identityOrganizationUuid,
+                    );
+            }
+            if (reusableClient) {
                 return {
                     warehouseClient: this.withSharedSignInAttribution(
                         projectUuid,
                         credentials,
-                        existingClient,
+                        reusableClient,
                         aiPlan,
                         refusalScope,
                     ),
@@ -1172,15 +1193,6 @@ export class WarehouseClientFactory {
                         emptyAllowlistEnablesAllProjects));
 
             constructingClient = true;
-            const identityOptions = usesAwsWebIdentity(credentialsWithOverrides)
-                ? await this.projectModel.getWarehouseClientIdentityOptions(
-                      credentialsWithOverrides,
-                      projectUuid === null
-                          ? (organizationUuid ?? undefined)
-                          : (await this.projectModel.getSummary(projectUuid))
-                                .organizationUuid,
-                  )
-                : {};
             const clientOptions: WarehouseClientOptions = {
                 agentSession,
                 enableInstanceCache,

@@ -71,6 +71,39 @@ export const isRuleInSection = (
     return rule.sectionId === sectionId;
 };
 
+export type MoveNeighbours = { before: string | null; after: string | null };
+
+/**
+ * The pills a pill moves past with Alt+arrow or Move left / right: its kind,
+ * in its section (or the unsectioned run), shown on the tab in view
+ */
+export const getMoveNeighbours = (
+    filters: DashboardFilters,
+    filterId: string,
+    sections: DashboardControlSection[],
+    isShown: (rule: DashboardFilterRule) => boolean,
+): MoveNeighbours => {
+    const group = FILTER_GROUPS.find((candidate) =>
+        filters[candidate].some((rule) => rule.id === filterId),
+    );
+    const rule = group && filters[group].find(({ id }) => id === filterId);
+    if (group === undefined || rule === undefined)
+        return { before: null, after: null };
+    const sectionId = isRuleInSection(rule, null, sections)
+        ? null
+        : (rule.sectionId ?? null);
+    const peers = filters[group].filter(
+        (other) =>
+            other === rule ||
+            (isRuleInSection(other, sectionId, sections) && isShown(other)),
+    );
+    const index = peers.indexOf(rule);
+    return {
+        before: peers[index - 1]?.id ?? null,
+        after: peers[index + 1]?.id ?? null,
+    };
+};
+
 // Dimensions and metrics, as the tracking events count filters
 export const countFilters = (filters: DashboardFilters): number =>
     filters.dimensions.length + filters.metrics.length;
@@ -244,6 +277,170 @@ export const isCollapsedByDefault = (
     memberCount: number,
 ): boolean => section.collapsed ?? memberCount > COLLAPSED_BY_DEFAULT_ABOVE;
 
+/**
+ * The bar's section lines, in order: a section starts a line unless it is
+ * `inline`, then it shares the line of the section before it. The first
+ * section always starts one
+ */
+export const groupSectionsIntoLines = <T extends DashboardControlSection>(
+    sections: T[],
+): T[][] =>
+    sections.reduce<T[][]>((lines, section) => {
+        const last = lines.at(-1);
+        if (section.inline && last !== undefined) last.push(section);
+        else lines.push([section]);
+        return lines;
+    }, []);
+
+/** Writes `inline` only where it is true, and never on a line's first section */
+const withLineKeys = (
+    section: DashboardControlSection,
+    inline: boolean,
+): DashboardControlSection => {
+    const { inline: previous, ...rest } = section;
+    return inline ? { ...rest, inline: true } : rest;
+};
+
+const normaliseLines = (
+    sections: DashboardControlSection[],
+): DashboardControlSection[] =>
+    sections.map((section, index) =>
+        withLineKeys(section, index > 0 && section.inline === true),
+    );
+
+/** Takes a section out; the section after it keeps its line's start */
+export const removeSectionKeepingLines = (
+    sections: DashboardControlSection[],
+    id: string,
+): DashboardControlSection[] => {
+    const index = sections.findIndex((section) => section.id === id);
+    if (index === -1) return sections;
+    const removed = sections[index];
+    return normaliseLines(
+        sections.flatMap((section, i) => {
+            if (i === index) return [];
+            // It started a line: the next one, sharing it, starts it now
+            if (i === index + 1 && !removed.inline)
+                return [withLineKeys(section, false)];
+            return [section];
+        }),
+    );
+};
+
+/**
+ * Where a dragged section lands: beside another section (`side` of it, on
+ * its line) or on a line of its own before the line `lineIndex`, counting
+ * the lines on screen (the line count: after the last line)
+ */
+export type SectionPlacement =
+    | { overId: string; side: 'before' | 'after' }
+    | { lineIndex: number };
+
+/** Puts the section `id` at `placement`; the same array when nothing moves */
+export const placeSection = (
+    sections: DashboardControlSection[],
+    id: string,
+    placement: SectionPlacement,
+): DashboardControlSection[] => {
+    const moving = sections.find((section) => section.id === id);
+    if (moving === undefined) return sections;
+    if ('overId' in placement && placement.overId === id) return sections;
+    const rest = removeSectionKeepingLines(sections, id);
+    let next: DashboardControlSection[];
+    if ('overId' in placement) {
+        const overIndex = rest.findIndex((s) => s.id === placement.overId);
+        if (overIndex === -1) return sections;
+        const over = rest[overIndex];
+        next =
+            placement.side === 'after'
+                ? [
+                      ...rest.slice(0, overIndex + 1),
+                      withLineKeys(moving, true),
+                      ...rest.slice(overIndex + 1),
+                  ]
+                : [
+                      ...rest.slice(0, overIndex),
+                      // It takes the line's start when the section it goes before had it
+                      withLineKeys(moving, over.inline === true),
+                      withLineKeys(over, true),
+                      ...rest.slice(overIndex + 1),
+                  ];
+    } else {
+        // `lineIndex` counts the lines on screen, the moving section's own
+        // included: a line it leaves empty goes
+        const current = groupSectionsIntoLines(sections);
+        const own = current.findIndex((line) =>
+            line.some((section) => section.id === id),
+        );
+        const lineIndex =
+            current[own].length === 1 && placement.lineIndex > own
+                ? placement.lineIndex - 1
+                : placement.lineIndex;
+        const lines = groupSectionsIntoLines(rest);
+        const at = Math.max(0, Math.min(lineIndex, lines.length));
+        const index = lines.slice(0, at).flat().length;
+        next = [
+            ...rest.slice(0, index),
+            withLineKeys(moving, false),
+            ...rest.slice(index),
+        ];
+    }
+    next = normaliseLines(next);
+    const shape = (list: DashboardControlSection[]) =>
+        normaliseLines(list)
+            .map(({ id: key, inline }) => `${key}:${inline ? 1 : 0}`)
+            .join(',');
+    return shape(next) === shape(sections) ? sections : next;
+};
+
+/**
+ * A keyboard move: Alt+Left/Right goes one place along the bar, joining the
+ * neighbour's line; Alt+Up/Down joins the line above or below, or takes a
+ * line of its own at the top or bottom when it shares its line
+ */
+export const moveSectionBy = (
+    sections: DashboardControlSection[],
+    id: string,
+    direction: 'left' | 'right' | 'up' | 'down',
+): DashboardControlSection[] => {
+    const index = sections.findIndex((section) => section.id === id);
+    if (index === -1) return sections;
+    if (direction === 'left' || direction === 'right') {
+        const neighbour =
+            sections[direction === 'left' ? index - 1 : index + 1];
+        if (neighbour === undefined) return sections;
+        return placeSection(sections, id, {
+            overId: neighbour.id,
+            side: direction === 'left' ? 'before' : 'after',
+        });
+    }
+    const lines = groupSectionsIntoLines(sections);
+    const lineIndex = lines.findIndex((line) =>
+        line.some((section) => section.id === id),
+    );
+    const isAlone = lines[lineIndex].length === 1;
+    const target = lines[direction === 'up' ? lineIndex - 1 : lineIndex + 1];
+    if (target === undefined)
+        return isAlone
+            ? sections
+            : placeSection(sections, id, {
+                  lineIndex: direction === 'up' ? 0 : lines.length,
+              });
+    return placeSection(sections, id, {
+        overId: target[target.length - 1].id,
+        side: 'after',
+    });
+};
+
+/** The droppable id of the gap before the bar's section line `index` */
+export const sectionLineTargetId = (index: number) => `section-line:${index}`;
+
+/** The line index a section line target names, else null */
+export const sectionLineIndexOf = (id: string): number | null => {
+    const match = /^section-line:(\d+)$/.exec(id);
+    return match ? Number(match[1]) : null;
+};
+
 /** The droppable id of the rail's header, which takes a filter out of its section */
 export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
 
@@ -295,17 +492,55 @@ const underPointer: CollisionDetection = (args) => {
     });
 };
 
-// A dragged capsule lands only on another capsule
+// A dragged capsule lands only on another capsule, or a gap between section lines
 export const SECTION_DRAG = 'section';
-export const underPointerFor: CollisionDetection = (args) =>
-    underPointer(
-        args.active.data?.current?.kind === SECTION_DRAG
-            ? {
-                  ...args,
-                  droppableContainers: args.droppableContainers.filter(
-                      (container) =>
-                          container.data?.current?.kind === SECTION_DRAG,
-                  ),
-              }
-            : args,
+export const underPointerFor: CollisionDetection = (args) => {
+    const isSectionDrag = args.active.data?.current?.kind === SECTION_DRAG;
+    const droppableContainers = args.droppableContainers.filter((container) =>
+        isSectionDrag
+            ? container.data?.current?.kind === SECTION_DRAG
+            : // The gaps between section lines take capsules only
+              container.data?.current?.isLineGap !== true,
     );
+    const pointer = args.pointerCoordinates;
+    if (isSectionDrag && pointer !== null) {
+        const within = pointerWithin({ ...args, droppableContainers });
+        if (within.length > 0) return within;
+        // The empty space among the capsules lands beside the nearest one in
+        // the row the pointer is on (capsules top-align, so a row shares its
+        // top); above or below them all is left to the line gaps
+        const capsules = droppableContainers.flatMap((container) => {
+            const rect = args.droppableRects.get(container.id);
+            return rect === undefined || container.data.current?.isLineGap
+                ? []
+                : [{ container, rect }];
+        });
+        const above = capsules.filter(({ rect }) => rect.top <= pointer.y);
+        const rowTop = Math.max(...above.map(({ rect }) => rect.top));
+        const isAmongCapsules =
+            above.length > 0 &&
+            capsules.some(({ rect }) => rect.bottom >= pointer.y);
+        const nearest = above
+            .filter(({ rect }) => rect.top >= rowTop - 1)
+            .map(({ container, rect }) => ({
+                container,
+                distance: Math.max(
+                    rect.left - pointer.x,
+                    pointer.x - rect.right,
+                    0,
+                ),
+            }))
+            .sort((a, b) => a.distance - b.distance)[0];
+        if (isAmongCapsules && nearest !== undefined)
+            return [
+                {
+                    id: nearest.container.id,
+                    data: {
+                        droppableContainer: nearest.container,
+                        value: nearest.distance,
+                    },
+                },
+            ];
+    }
+    return underPointer({ ...args, droppableContainers });
+};

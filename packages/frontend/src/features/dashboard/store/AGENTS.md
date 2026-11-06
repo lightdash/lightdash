@@ -1,18 +1,33 @@
 # Dashboard store
 
-Filter, parameter, runtime date zoom, tile status, viewer chart sort and edit
-state for one mounted dashboard. `DashboardProvider`
-creates the store with `createDashboardStore(buildInitialDashboardState(...))`
-and mounts it on `DashboardStoreContext`.
+All state of one mounted dashboard: what the provider loaded (`source`), filters,
+parameters, runtime date zoom, tile status, viewer chart sort and edit state.
+`DashboardProvider` creates the store with
+`createDashboardStore(buildInitialDashboardState(...))` and mounts it on
+`DashboardStoreContext`.
 
 ## Rules
 
-- **Read values from the store, call actions from the context.** Values
-  (`dashboardFilters`, `parameterValues`, `dateZoomGranularity`, ...) come from `useDashboardSelector`
-  and the hooks in `hooks.ts`. Mutations stay on `useDashboardContext` (e.g.
-  `c.updateDimensionDashboardFilter`). Those callbacks are stable and dispatch to
-  the store, so the provider never re-renders on a filter, parameter or date
-  zoom change, nor when tiles report their zoomable fields or applied zoom.
+- **The dashboard context is a view of the store.** `useDashboardContext(selector)`
+  reads `getDashboardContextView(store)`, a memoised object of the `source`
+  selectors plus the setters from `contextActions.ts`; it re-renders only when
+  the selected value changes. No dashboard-wide React context is left; only the
+  `SettledFilterFields` override below. New code
+  reads with `useDashboardSelector` and a selector, and dispatches actions.
+- **`source` mirrors the provider.** The dashboard query, the project, the
+  available filters, comments and the version refresh land in `source` through
+  `dashboardSourceActions.sync`, seeded on the first render and mirrored in a
+  layout effect after that. Embeds set `embedDashboard`; `selectDashboard`
+  returns whichever is loaded. Derived values (`selectFilterableFieldsByTileUuid`,
+  `selectAllFilterableFieldsMap`, `selectTemporaryFilterLocks`, ...) are
+  reselect selectors over it.
+- **Setters read the store at call time.** `createDashboardContextActions(store)`
+  builds them once per store, so they are stable for the dashboard's life and
+  the provider never re-renders on a filter, parameter or date zoom change, nor
+  when tiles report their zoomable fields or applied zoom.
+- **A subtree may override the filter fields.** `SettledFilterFields` provides
+  `FilterFieldsOverrideContext`; `useDashboardContext` merges it over the view
+  for that subtree only.
 - **Tile reports go to the store.** `DashboardTileStatusProvider` keeps only
   stable callbacks and values derived from the tiles and tabs. Read what tiles
   report (loaded tiles, cache time, refresh counter, SQL metadata, custom
@@ -24,7 +39,7 @@ and mounts it on `DashboardStoreContext`.
 - **Plain reducers, not `createSlice`.** Immer would deep-freeze the react-query
   dashboard objects passed in. `buildInitialState.test.ts` pins that nothing is
   frozen.
-- **Lock-aware derived values need context.** Temporary filters are stripped of
+- **Read lock-aware filters through the hooks.** Temporary filters are stripped of
   rules locked on the active tab; read them through `useDashboardTemporaryFilters`,
   `useDashboardAllFilters` or `useHasDashboardTemporaryFilters`, never
   `selectRawTemporaryFilters` in UI.
@@ -64,4 +79,5 @@ and mounts it on `DashboardStoreContext`.
   drafts from session storage) with the real provider and page.
 - Component tests seed a real store with `createDashboardTestStore` and
   `DashboardStoreTestProvider` from `src/testing/`; don't mock the selectors.
-  `seedDashboardEditState` writes a context-shaped fixture into the store.
+  `seedDashboardEditState` writes a context-shaped fixture into the store, and
+  `source` seeds the dashboard, project and available filters.

@@ -202,6 +202,12 @@ const makeService = ({
         getDecisionClient: vi.fn().mockResolvedValue(undefined),
         getAvailableAgents: vi.fn().mockResolvedValue(candidates),
     };
+    const dashboardService = {
+        getByIdOrSlug: vi.fn().mockResolvedValue({ name: '[MRS] Weekly KPIs' }),
+    };
+    const savedChartService = {
+        get: vi.fn().mockResolvedValue({ name: '[PWN] Registrations' }),
+    };
 
     const orgAiCopilotConfigResolver = {
         getCopilotConfig: vi.fn().mockResolvedValue({}),
@@ -212,6 +218,8 @@ const makeService = ({
         lightdashConfig: { ai: { copilot: {} } } as never,
         aiRouterModel: aiRouterModel as never,
         aiAgentService: aiAgentService as never,
+        dashboardService: dashboardService as never,
+        savedChartService: savedChartService as never,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
     });
 
@@ -220,6 +228,8 @@ const makeService = ({
         analytics,
         aiRouterModel,
         aiAgentService,
+        dashboardService,
+        savedChartService,
         orgAiCopilotConfigResolver,
     };
 };
@@ -289,6 +299,7 @@ describe('AiRouterService', () => {
             model: 'mock-model',
             candidates,
             prompt: 'show revenue by month',
+            askedFrom: null,
             instructions: 'Route finance questions to @[Finance](agent-2)',
             telemetry: { organizationUuid, projectUuid, userUuid },
         });
@@ -552,5 +563,97 @@ describe('AiRouterService', () => {
         ).rejects.toThrow('AI router requires at least two accessible agents');
         expect(selectAgent).not.toHaveBeenCalled();
         expect(aiRouterModel.createDecision).not.toHaveBeenCalled();
+    });
+});
+
+describe('routing from pinned content', () => {
+    const candidates = [
+        { uuid: 'agent-1', name: 'Sales' },
+        { uuid: 'agent-2', name: 'Finance' },
+    ] as unknown as AiAgentWithContext[];
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+        (getModel as import('vitest').Mock).mockReturnValue({
+            model: 'mock-model',
+            keyManagement: undefined,
+        });
+        (selectAgent as import('vitest').Mock).mockResolvedValue({
+            selectedAgentUuid: 'agent-2',
+            confidence: 'high',
+            reasoning: 'Matched.',
+            shouldSkipForwardingQuery: false,
+        });
+    });
+
+    it('tells the selector which dashboard the question is asked from', async () => {
+        const { service, dashboardService } = makeService({ candidates });
+
+        await service.route(account, {
+            prompt: 'what is the conversion rate here?',
+            projectUuid,
+            context: [{ type: 'dashboard', dashboardUuid: 'dash-1' }],
+        });
+
+        expect(dashboardService.getByIdOrSlug).toHaveBeenCalledWith(
+            account.user,
+            'dash-1',
+            { projectUuid },
+        );
+        expect(selectAgent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                askedFrom: { type: 'dashboard', name: '[MRS] Weekly KPIs' },
+            }),
+        );
+    });
+
+    it('prefers the dashboard over a chart pinned alongside it', async () => {
+        const { service, savedChartService } = makeService({ candidates });
+
+        await service.route(account, {
+            prompt: 'and by country?',
+            projectUuid,
+            context: [
+                { type: 'chart', chartUuid: 'chart-1' },
+                { type: 'dashboard', dashboardUuid: 'dash-1' },
+            ],
+        });
+
+        expect(savedChartService.get).not.toHaveBeenCalled();
+        expect(selectAgent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                askedFrom: { type: 'dashboard', name: '[MRS] Weekly KPIs' },
+            }),
+        );
+    });
+
+    it('falls back to the pinned chart when no dashboard is pinned', async () => {
+        const { service } = makeService({ candidates });
+
+        await service.route(account, {
+            prompt: 'why did this drop?',
+            projectUuid,
+            context: [{ type: 'chart', chartUuid: 'chart-1' }],
+        });
+
+        expect(selectAgent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                askedFrom: { type: 'chart', name: '[PWN] Registrations' },
+            }),
+        );
+    });
+
+    it('does not route when the user cannot view the pinned dashboard', async () => {
+        const { service, dashboardService } = makeService({ candidates });
+        dashboardService.getByIdOrSlug.mockRejectedValue(new ForbiddenError());
+
+        await expect(
+            service.route(account, {
+                prompt: 'show me more',
+                projectUuid,
+                context: [{ type: 'dashboard', dashboardUuid: 'dash-private' }],
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(selectAgent).not.toHaveBeenCalled();
     });
 });

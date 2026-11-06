@@ -1,3 +1,4 @@
+import { interpolateUiString } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -7,16 +8,19 @@ import {
     Switch,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronRight,
+    IconChevronUp,
     IconDatabase,
     IconDatabaseSearch,
     IconTrash,
     IconWorld,
     IconX,
 } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import {
     useCallback,
     useEffect,
@@ -26,6 +30,7 @@ import {
     type ReactNode,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './AppInspector.module.css';
 import { ExternalRequestInspectorContent } from './ExternalRequestInspector';
 import type { ExternalRequestEvent, QueryEvent } from './hooks/useAppSdkBridge';
@@ -66,6 +71,8 @@ type Props = {
     /** When `false`, the panel stays visible (as a collapsed title bar) even
      *  with nothing to show. */
     hideWhenEmpty?: boolean;
+    /** `overlay` floats over the preview; `docked` sits in flow below it. */
+    placement?: 'overlay' | 'docked';
 };
 
 const MIN_HEIGHT = 100;
@@ -111,7 +118,9 @@ const AppInspectorPanel: FC<Props> = ({
     defaultCollapsed = true,
     onDismiss,
     hideWhenEmpty = true,
+    placement = 'overlay',
 }) => {
+    const getUiString = useUiStrings();
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
     const [activeTab, setActiveTab] = useState<InspectorTab>('queries');
@@ -201,17 +210,61 @@ const AppInspectorPanel: FC<Props> = ({
     const clearLabel =
         activeTab === 'external' ? 'Clear external requests' : 'Clear queries';
 
+    if (placement === 'docked' && collapsed) {
+        return (
+            <Box
+                data-tour-scope="view:DataApp"
+                data-tour-result="1"
+                data-tour-label="Read the network activity"
+                data-tour-docs="data-apps.mdx#network-inspector:p2:1"
+                className={clsx(classes.container, classes.containerDocked)}
+            >
+                <UnstyledButton
+                    className={classes.dockedToggle}
+                    onClick={toggle}
+                    aria-expanded={false}
+                    aria-label={getUiString('dataApp.inspector.show')}
+                >
+                    <MantineIcon icon={IconDatabase} size={16} />
+                    <Text inherit fw={500}>
+                        {interpolateUiString(
+                            getUiString('dataApp.inspector.queries'),
+                            { count: queries.length },
+                        )}
+                    </Text>
+                    <Text inherit aria-hidden>
+                        ·
+                    </Text>
+                    <MantineIcon icon={IconWorld} size={16} />
+                    <Text inherit fw={500}>
+                        {interpolateUiString(
+                            getUiString('dataApp.inspector.requests'),
+                            { count: externalRequests.length },
+                        )}
+                    </Text>
+                    <MantineIcon
+                        icon={IconChevronUp}
+                        size={16}
+                        className={classes.dockedChevron}
+                    />
+                </UnstyledButton>
+            </Box>
+        );
+    }
+
     return (
         <Box
             data-tour-scope="view:DataApp"
             data-tour-result="1"
             data-tour-label="Read the network activity"
             data-tour-docs="data-apps.mdx#network-inspector:p2:1"
-            className={
-                collapsed
-                    ? `${classes.container} ${classes.containerCollapsed}`
-                    : classes.container
-            }
+            className={clsx(
+                classes.container,
+                placement === 'docked' && classes.containerDocked,
+                collapsed &&
+                    placement === 'overlay' &&
+                    classes.containerCollapsed,
+            )}
         >
             <Group
                 gap="xs"

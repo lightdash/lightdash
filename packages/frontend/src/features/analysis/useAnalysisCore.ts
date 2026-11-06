@@ -3,6 +3,7 @@ import {
     type ApiError,
     type DataAppAnalysis,
     type DataAppAnalysisSource,
+    type DataAppInstructionInvestigation,
     type DataAppInvestigation,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -10,6 +11,7 @@ import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
     detectAnalysisAnomalies,
     investigateAnalysisAnomaly,
+    investigateAnalysisInstruction,
     lookupAnalysis,
 } from './api';
 import { sourcesSignature } from './sourcesSignature';
@@ -18,6 +20,11 @@ export type InvestigationState =
     | { status: 'idle' }
     | { status: 'running' }
     | { status: 'ready'; investigation: DataAppInvestigation }
+    | { status: 'error'; message: string };
+
+export type InstructionInvestigationState =
+    | { status: 'running' }
+    | { status: 'ready'; investigation: DataAppInstructionInvestigation }
     | { status: 'error'; message: string };
 
 export type AnalysisState =
@@ -59,6 +66,9 @@ type ScopedState = {
     /** View signature whose lookup found no stored analysis. */
     missedLookupSignature: string | null;
     investigations: Record<string, InvestigationState>;
+    /** App-authored instruction investigations, keyed by the app's requestId.
+     *  Independent of the detection lifecycle: an analyse never resets them. */
+    instructionInvestigations: Record<string, InstructionInvestigationState>;
 };
 
 const freshState = (scope: string): ScopedState => ({
@@ -69,6 +79,7 @@ const freshState = (scope: string): ScopedState => ({
     failedLookupSignature: null,
     missedLookupSignature: null,
     investigations: {},
+    instructionInvestigations: {},
 });
 
 // Newest investigation per anomaly wins; records arrive oldest first.
@@ -400,6 +411,41 @@ export const useAnalysisCore = ({
         [projectUuid, target, scope, state, patch, lightdashApi],
     );
 
+    const investigateInstruction = useCallback(
+        async (
+            requestId: string,
+            instruction: string,
+            instructionSources: DataAppAnalysisSource[],
+            agentUuid: string,
+        ) => {
+            const setInvestigation = (value: InstructionInvestigationState) =>
+                patch(scope, (prev) => ({
+                    ...prev,
+                    instructionInvestigations: {
+                        ...prev.instructionInvestigations,
+                        [requestId]: value,
+                    },
+                }));
+            setInvestigation({ status: 'running' });
+            try {
+                const investigation = await investigateAnalysisInstruction(
+                    lightdashApi,
+                    {
+                        projectUuid,
+                        target,
+                        instruction,
+                        sources: instructionSources,
+                        agentUuid,
+                    },
+                );
+                setInvestigation({ status: 'ready', investigation });
+            } catch (e) {
+                setInvestigation({ status: 'error', message: errorMessage(e) });
+            }
+        },
+        [projectUuid, target, scope, patch, lightdashApi],
+    );
+
     // The view changed and an auto re-run is on its way (queries settling,
     // or the lookup about to fire). Present analysing right away so the
     // viewer sees feedback the moment the view changes, not seconds later
@@ -421,9 +467,11 @@ export const useAnalysisCore = ({
               ? { ...state, stale }
               : state,
         investigations: current.investigations,
+        instructionInvestigations: current.instructionInvestigations,
         // Re-running a view that already shows a current analysis is a
         // deliberate regenerate; anything else may still reuse a stored one.
         analyse: () => analyse(sources, state.status === 'ready' && !stale),
         investigate,
+        investigateInstruction,
     };
 };

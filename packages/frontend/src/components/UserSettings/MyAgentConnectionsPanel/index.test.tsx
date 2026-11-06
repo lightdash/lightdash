@@ -105,7 +105,7 @@ describe('WarehouseAgentSignInsPanel', () => {
         isError = false;
     });
     it('shows both applicable cards and the existing description', () => {
-        renderWithProviders(<WarehouseAgentSignInsPanel />);
+        renderWithProviders(<WarehouseAgentSignInsPanel standalone />);
         expect(
             screen.getByText(
                 'See who your agents run as on each warehouse. Some warehouses need you to sign in once.',
@@ -400,7 +400,7 @@ describe('WarehouseAgentSignInsPanel', () => {
             renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen
-                    .getAllByRole('heading', { level: 5 })
+                    .getAllByRole('heading')
                     .map((heading) => heading.textContent),
             ).toEqual(['Snowflake', 'BigQuery', 'Databricks']);
             expect(

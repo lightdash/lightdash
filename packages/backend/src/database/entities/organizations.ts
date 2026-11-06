@@ -1,20 +1,4 @@
-import {
-    OrganizationBrandColor,
-    OrganizationBrandFont,
-    OrganizationBrandLogo,
-} from '@lightdash/common';
 import { Knex } from 'knex';
-
-// Brand profile fetched from Brandfetch, stored as JSONB on the organization
-export type DbOrganizationBrand = {
-    domain: string;
-    name: string | null;
-    description: string | null;
-    logos: OrganizationBrandLogo[];
-    colors: OrganizationBrandColor[];
-    fonts: OrganizationBrandFont[];
-    updatedAt: string;
-};
 
 export type DbOrganization = {
     organization_id: number;
@@ -26,7 +10,6 @@ export type DbOrganization = {
     color_palette_uuid: string | null;
     impersonation_enabled: boolean;
     ai_agent_memory_enabled: boolean | null;
-    brand: DbOrganizationBrand | null;
 };
 
 export type DbOrganizationIn = Pick<DbOrganization, 'organization_name'>;
@@ -38,7 +21,6 @@ export type DbOrganizationUpdate = Partial<
         | 'color_palette_uuid'
         | 'impersonation_enabled'
         | 'ai_agent_memory_enabled'
-        | 'brand'
     >
 >;
 

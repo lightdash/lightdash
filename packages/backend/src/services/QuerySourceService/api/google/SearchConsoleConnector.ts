@@ -21,6 +21,8 @@ export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
 // One request returns at most 25,000 rows; the connector asks for one more
 // than the limit to detect truncation itself.
 const SEARCH_CONSOLE_MAX_ROWS = 25_000;
+/** The most rows one query can ask for; one fewer than the API's cap, to detect truncation. */
+export const SEARCH_CONSOLE_MAX_QUERY_ROWS = SEARCH_CONSOLE_MAX_ROWS - 1;
 const SEARCH_CONSOLE_TIMEOUT_MS = 30_000;
 // Search Analytics allows 1,200 queries a minute per site and per user.
 const SEARCH_CONSOLE_LIMITS = {
@@ -154,7 +156,7 @@ export class SearchConsoleConnector implements ApiConnector {
             label: 'Search Console',
             level: 3,
             queryLanguage: 'Search Analytics JSON',
-            maxRows: SEARCH_CONSOLE_MAX_ROWS - 1,
+            maxRows: SEARCH_CONSOLE_MAX_QUERY_ROWS,
             timeoutMs: SEARCH_CONSOLE_TIMEOUT_MS,
             limits: SEARCH_CONSOLE_LIMITS,
         };

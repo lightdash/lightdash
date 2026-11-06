@@ -70,3 +70,11 @@
 .headerCard {
     z-index: var(--dashboard-header-zindex);
 }
+
+/* While a filter is edited the header is inert and the editor's Apply is the
+   one filled button: Save draws as an outline until then */
+:global([data-dashboard-header-guard][inert]) .save {
+    background-color: transparent;
+    color: inherit;
+    border: 1px solid var(--mantine-color-default-border);
+}

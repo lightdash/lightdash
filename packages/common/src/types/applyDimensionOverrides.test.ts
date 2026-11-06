@@ -1,4 +1,4 @@
-import cloneDeep from 'lodash/cloneDeep';
+import { cloneDeep } from 'es-toolkit/compat';
 import { DimensionType } from './field';
 import {
     applyDimensionOverrides,

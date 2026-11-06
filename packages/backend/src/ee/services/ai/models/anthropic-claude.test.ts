@@ -8,7 +8,7 @@ import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../config/parseConfig';
 import { getAnthropicModel } from './anthropic-claude';
 import { getModel } from './index';
-import type { ModelPreset } from './presets';
+import { MODEL_PRESETS, type ModelPreset } from './presets';
 
 vi.mock('@ai-sdk/anthropic', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@ai-sdk/anthropic')>();
@@ -138,6 +138,50 @@ describe('getAnthropicModel reasoning effort', () => {
             thinking: { type: 'enabled', budgetTokens: 2048 },
         });
         expect(model.callOptions.maxOutputTokens).toBeUndefined();
+    });
+});
+
+describe('getAnthropicModel minimal reasoning', () => {
+    const config = {
+        apiKey: 'anthropic-key',
+        modelName: 'claude-haiku-5-5',
+        availableModels: [],
+        customHeaders: {},
+        supportsStreaming: true,
+        supportsContextManagement: true,
+    };
+    const haiku55 = MODEL_PRESETS.anthropic.find(
+        (p) => p.name === 'claude-haiku-5-5',
+    )!;
+
+    test('turns thinking off at low effort on models that think by default', () => {
+        const model = getAnthropicModel(config, haiku55, {
+            enableReasoning: false,
+            minimalReasoning: true,
+        });
+        expect(model.providerOptions?.anthropic).toMatchObject({
+            thinking: { type: 'disabled' },
+            effort: 'low',
+        });
+    });
+
+    test.each([
+        ['the call does not opt in', haiku55, { enableReasoning: false }],
+        [
+            'extended reasoning is on',
+            haiku55,
+            { enableReasoning: true, minimalReasoning: true },
+        ],
+        [
+            'the preset has no minimal options',
+            { ...preset, reasoningStyle: 'adaptive' as const },
+            { enableReasoning: false, minimalReasoning: true },
+        ],
+    ])('leaves thinking alone when %s', (_case, modelPreset, options) => {
+        const model = getAnthropicModel(config, modelPreset, options);
+        expect(model.providerOptions?.anthropic?.thinking?.type).not.toBe(
+            'disabled',
+        );
     });
 });
 

@@ -244,8 +244,8 @@ const BuilderCanvas: FC<Props> = ({
                                 className={classes.sourceDivider}
                                 label={
                                     attachedCard
-                                        ? 'Preview data'
-                                        : 'Preview data (optional)'
+                                        ? 'Previewing with'
+                                        : 'Try it on your own data'
                                 }
                                 labelPosition="center"
                             />

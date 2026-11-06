@@ -5,7 +5,12 @@ import { getThemeColors, type ColorScheme } from './colors';
 import { themeComponents } from './components';
 import { LD_FIELD_COLORS } from './fieldColors';
 
-export { DARK_MODE_COLORS, type ColorScheme } from './colors';
+export {
+    DARK_MODE_COLORS,
+    isColorSchemePreference,
+    type ColorScheme,
+    type ColorSchemePreference,
+} from './colors';
 export { LD_FIELD_COLORS, type LightdashFieldColors } from './fieldColors';
 
 const FONT_FAMILY = [

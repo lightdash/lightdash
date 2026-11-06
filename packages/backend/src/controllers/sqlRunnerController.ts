@@ -102,19 +102,17 @@ export class SqlRunnerController extends BaseController {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
 
-        return {
-            status: 'ok',
-            results: await this.services
-                .getProjectService()
-                .getWarehouseFields(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    QueryExecutionContext.SQL_RUNNER,
-                    tableName,
-                    schemaName,
-                    databaseName,
-                ),
-        };
+        const { fields } = await this.services
+            .getProjectService()
+            .getWarehouseFields(
+                toSessionUser(req.account),
+                projectUuid,
+                QueryExecutionContext.SQL_RUNNER,
+                tableName,
+                schemaName,
+                databaseName,
+            );
+        return { status: 'ok', results: fields };
     }
 
     /**

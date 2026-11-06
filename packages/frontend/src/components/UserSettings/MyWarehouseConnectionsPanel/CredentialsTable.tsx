@@ -39,7 +39,9 @@ const CredentialsItem: FC<
 }) => (
     <Table.Tr>
         <Table.Td>
-            <Text fw={500}>{credentials.name}</Text>
+            <Text fz="sm" fw={500}>
+                {credentials.name}
+            </Text>
         </Table.Td>
         <Table.Td>{getWarehouseLabel(credentials.credentials.type)}</Table.Td>
         <Table.Td>

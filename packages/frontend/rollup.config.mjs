@@ -78,6 +78,21 @@ const stubDiffViewer = () => ({
     },
 });
 
+// Same-shape es-toolkit entries replace lodash copies pulled in by react-ace and react-grid-layout
+const lodashShims = {
+    'lodash.isequal': 'es-toolkit/compat/isEqual',
+    'lodash.get': 'es-toolkit/compat/get',
+};
+const aliasLodashShims = () => ({
+    name: 'alias-lodash-shims',
+    resolveId(source, importer, options) {
+        const target = lodashShims[source];
+        return target
+            ? this.resolve(target, importer, { ...options, skipSelf: true })
+            : null;
+    },
+});
+
 // Quiet noisy "Module level directives cause errors when bundled" warnings
 // for `"use client"` in third-party deps — those directives are meaningful
 // to React server components but inert in our bundled SDK output.
@@ -149,6 +164,7 @@ const mainBuild = {
         }),
         stripSvgrQuery(),
         stubDiffViewer(),
+        aliasLodashShims(),
         svgr({ exportType: 'default' }),
         // Some transitive deps (pegjs, ajv, others) reference Node built-ins
         // like fs/path/url. These code paths are dead in a browser bundle,

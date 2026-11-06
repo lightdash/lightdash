@@ -435,118 +435,6 @@ describe('AppGenerateService data app vizs', () => {
         });
     });
 
-    describe('the chart type usage flag gate', () => {
-        it.each([
-            [true, false, false],
-            [false, false, false],
-        ])(
-            'lists with Chart Studio=%s, library=%s, data apps=%s',
-            async (chartStudio, library, dataApps) => {
-                const list = vi
-                    .fn()
-                    .mockResolvedValue({ data: [], pagination: undefined });
-                const service = buildService(
-                    { listDataAppVisualizations: list },
-                    {
-                        chartStudioAvailable: chartStudio,
-                        featureFlags: {
-                            [FeatureFlags.EnableDataApps]: dataApps,
-                            [FeatureFlags.ChartTypeRegistry]: library,
-                        },
-                    },
-                );
-                const getFeatureFlag = vi.spyOn(
-                    service['featureFlagModel'],
-                    'get',
-                );
-                const result = service.listDataAppVisualizations(
-                    USER,
-                    'project-1',
-                );
-                if (chartStudio || library || dataApps) {
-                    await expect(result).resolves.toMatchObject({ data: [] });
-                    expect(list).toHaveBeenCalled();
-                } else {
-                    await expect(result).rejects.toThrow(
-                        'Chart types are not enabled',
-                    );
-                    expect(list).not.toHaveBeenCalled();
-                }
-                if (chartStudio) {
-                    expect(getFeatureFlag).not.toHaveBeenCalled();
-                }
-            },
-        );
-
-        // Usage follows either flag: the library flag alone is enough to
-        // pick, configure, and render installed chart types.
-        const libraryOnly = {
-            [FeatureFlags.EnableDataApps]: false,
-            [FeatureFlags.ChartTypeRegistry]: true,
-        };
-        const bothOff = {
-            [FeatureFlags.EnableDataApps]: false,
-            [FeatureFlags.ChartTypeRegistry]: false,
-        };
-
-        it('lists the picker with data apps off when the library is on', async () => {
-            const appModel = {
-                listDataAppVisualizations: vi.fn().mockResolvedValue({
-                    data: [makeDataAppVizRow()],
-                    pagination: undefined,
-                }),
-            };
-            const service = buildService(appModel, {
-                chartStudioAvailable: false,
-                featureFlags: libraryOnly,
-            });
-
-            await expect(
-                service.listDataAppVisualizations(USER, 'project-1'),
-            ).resolves.toBeDefined();
-        });
-
-        it('reads a schema with data apps off when the library is on', async () => {
-            const appModel = {
-                findVisualizationApp: vi
-                    .fn()
-                    .mockResolvedValue(makeDataAppVizRow()),
-            };
-            const service = buildService(appModel, {
-                chartStudioAvailable: false,
-                featureFlags: libraryOnly,
-            });
-
-            const result = await service.getDataAppVisualization(
-                USER,
-                'project-1',
-                'data-app-viz-1',
-            );
-
-            expect(result.dataAppVizUuid).toBe('data-app-viz-1');
-        });
-
-        it('refuses usage when both flags are off', async () => {
-            const appModel = {
-                findVisualizationApp: vi
-                    .fn()
-                    .mockResolvedValue(makeDataAppVizRow()),
-            };
-            const service = buildService(appModel, {
-                chartStudioAvailable: false,
-                featureFlags: bothOff,
-            });
-
-            await expect(
-                service.getDataAppVisualization(
-                    USER,
-                    'project-1',
-                    'data-app-viz-1',
-                ),
-            ).rejects.toThrow(ForbiddenError);
-        });
-    });
-
     it('forwards the search term to the model', async () => {
         const pagination = {
             page: 1,
@@ -904,30 +792,6 @@ describe('AppGenerateService data app vizs', () => {
                     ),
                 ).rejects.toThrow(ForbiddenError);
                 expect(appModel.getVersion).not.toHaveBeenCalled();
-            });
-
-            it('stays off when chart types are disabled', async () => {
-                const appModel = pinnedAppModel();
-                const { getChart, ...deps } = documentDeps();
-                const service = buildService(appModel, {
-                    ...deps,
-                    chartStudioAvailable: false,
-                    featureFlags: {
-                        [FeatureFlags.EnableDataApps]: false,
-                        [FeatureFlags.ChartTypeRegistry]: false,
-                    },
-                });
-
-                await expect(
-                    service.getDocumentDataAppVizPreviewToken(
-                        ACCOUNT,
-                        'project-1',
-                        reference,
-                        'data-app-viz-1',
-                        2,
-                    ),
-                ).rejects.toThrow();
-                expect(getChart).not.toHaveBeenCalled();
             });
         });
 
@@ -1332,29 +1196,6 @@ describe('AppGenerateService data app vizs', () => {
             ).rejects.toThrow(NotFoundError);
 
             expect(getFeatureFlag).not.toHaveBeenCalled();
-        });
-
-        it('rejects a real viz when chart types are disabled', async () => {
-            const appModel = {
-                findVisualizationApp: vi
-                    .fn()
-                    .mockResolvedValue(makeDataAppVizRow()),
-            };
-            const service = buildService(appModel, {
-                chartStudioAvailable: false,
-                featureFlags: {
-                    [FeatureFlags.EnableDataApps]: false,
-                    [FeatureFlags.ChartTypeRegistry]: false,
-                },
-            });
-
-            await expect(
-                service.getDataAppVizRenderMetadata(
-                    USER,
-                    'project-1',
-                    'data-app-viz-1',
-                ),
-            ).rejects.toThrow(ForbiddenError);
         });
 
         it('serves the last renderable version while the latest build is in progress', async () => {
@@ -1930,31 +1771,6 @@ describe('getDataAppVizUpgradeImpact', () => {
         ).rejects.toThrow(NotFoundError);
         expect(getDataAppVizUsageCounts).not.toHaveBeenCalled();
     });
-
-    it('is gated on the chart type library flag', async () => {
-        const getDataAppVizUsageCounts = vi.fn();
-        const service = buildService(
-            {
-                findVisualizationApp: vi
-                    .fn()
-                    .mockResolvedValue(makeDataAppVizRow()),
-            },
-            {
-                savedChartModel: { getDataAppVizUsageCounts },
-                chartStudioAvailable: false,
-                featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
-            },
-        );
-
-        await expect(
-            service.getDataAppVizUpgradeImpact(
-                USER,
-                'project-1',
-                'data-app-viz-1',
-            ),
-        ).rejects.toThrow(ForbiddenError);
-        expect(getDataAppVizUsageCounts).not.toHaveBeenCalled();
-    });
 });
 
 describe('canUseChartTypes', () => {
@@ -1995,27 +1811,6 @@ describe('canUseChartTypes', () => {
             ).toBe(false);
         },
     );
-
-    it('follows Chart Studio availability or the library flag', async () => {
-        const off = {
-            [FeatureFlags.EnableDataApps]: false,
-            [FeatureFlags.ChartTypeRegistry]: false,
-        };
-        expect(
-            await canUse(OrganizationMemberRole.ADMIN, 'project-1', off, false),
-        ).toBe(false);
-        expect(
-            await canUse(
-                OrganizationMemberRole.ADMIN,
-                'project-1',
-                { ...off, [FeatureFlags.ChartTypeRegistry]: true },
-                false,
-            ),
-        ).toBe(true);
-        expect(
-            await canUse(OrganizationMemberRole.ADMIN, 'project-1', off, true),
-        ).toBe(true);
-    });
 });
 
 describe('assertCanIterateApp', () => {
@@ -2335,19 +2130,16 @@ describe('chart types with data apps off while Chart Studio is available', () =>
         },
     );
 
-    // The library flag keeps chart types usable, so a call site that wrongly
-    // used the usage gate would let this through.
+    // Chart types stay usable without Chart Studio, so a call site that
+    // wrongly used the usage gate would let this through.
     it.each(appGatedCalls)(
-        '$name refuses a chart type without Chart Studio, even with the library flag on',
+        '$name refuses a chart type without Chart Studio',
         async ({ appModelStubs, call }) => {
             await expect(
                 call(
                     buildService(appModelStubs(makeDataAppVizRow()), {
                         chartStudioAvailable: false,
-                        featureFlags: {
-                            [FeatureFlags.EnableDataApps]: false,
-                            [FeatureFlags.ChartTypeRegistry]: true,
-                        },
+                        featureFlags: { [FeatureFlags.EnableDataApps]: false },
                     }),
                 ),
             ).rejects.toThrow(
@@ -2375,33 +2167,17 @@ describe('chart types with data apps off while Chart Studio is available', () =>
             );
             expect(gateErrors.has(passed?.message ?? '')).toBe(false);
 
-            const libraryOnly = await settle(
+            const withoutChartStudio = await settle(
                 call(
                     buildService(byGetApp(makeDataAppVizRow()), {
                         chartStudioAvailable: false,
-                        featureFlags: {
-                            [FeatureFlags.EnableDataApps]: false,
-                            [FeatureFlags.ChartTypeRegistry]: true,
-                        },
+                        featureFlags: { [FeatureFlags.EnableDataApps]: false },
                     }),
                 ),
             );
-            expect(gateErrors.has(libraryOnly?.message ?? '')).toBe(false);
-            expect(libraryOnly?.message).not.toBe(
-                'Chart types are not enabled',
+            expect(gateErrors.has(withoutChartStudio?.message ?? '')).toBe(
+                false,
             );
-
-            await expect(
-                call(
-                    buildService(byGetApp(makeDataAppVizRow()), {
-                        chartStudioAvailable: false,
-                        featureFlags: {
-                            [FeatureFlags.EnableDataApps]: false,
-                            [FeatureFlags.ChartTypeRegistry]: false,
-                        },
-                    }),
-                ),
-            ).rejects.toThrow('Chart types are not enabled');
 
             await expect(
                 call(buildService(byGetApp(dataAppRow()), dataAppsOff)),

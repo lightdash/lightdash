@@ -189,6 +189,7 @@ describe('ComposerQueriesToolCallDescription', () => {
 
         expect(screen.getByText('Python')).toBeInTheDocument();
         expect(container.querySelector('code')).not.toBeInTheDocument();
+        expect(screen.queryByText(/^Reads/)).not.toBeInTheDocument();
     });
 
     it('shows approval actions under SQL nodes awaiting approval', () => {

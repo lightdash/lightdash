@@ -7,7 +7,7 @@ import {
     type BaseFilterRule,
 } from '@lightdash/common';
 import { Box, TagsInput } from '@mantine/core';
-import isString from 'lodash/isString';
+import { isString } from 'es-toolkit/compat';
 import { type FilterInputsProps } from '.';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import useFiltersContext from '../useFiltersContext';
@@ -68,6 +68,8 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             }}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
+                            closeOnOptionSubmit={popoverProps?.closeListOnPick}
+                            openOnFocus={popoverProps?.openListOnFocus}
                             values={(rule.values || []).filter(isString)}
                             onChange={(values) =>
                                 onChange({
@@ -89,6 +91,8 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             }}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
+                            closeOnOptionSubmit={popoverProps?.closeListOnPick}
+                            openOnFocus={popoverProps?.openListOnFocus}
                             values={(rule.values || []).filter(isString)}
                             singleValue={isSingleValue}
                             showNullOption={

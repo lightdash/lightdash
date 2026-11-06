@@ -14,7 +14,6 @@ import {
 import {
     Box,
     Center,
-    Loader,
     Stack,
     Text,
     useComputedColorScheme,
@@ -24,6 +23,7 @@ import BigNumberView from '../../../../../components/DataViz/visualizations/BigN
 import ChartView from '../../../../../components/DataViz/visualizations/ChartView';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { ArtifactChartSkeleton } from './ArtifactChartSkeleton';
 import {
     buildComposerChartSpec,
     buildComposerPivotSpec,
@@ -126,12 +126,6 @@ const Frame: FC<{ headerContent: ReactNode; children: ReactNode }> = ({
     </Stack>
 );
 
-const Loading: FC<{ message: string }> = ({ message }) => (
-    <Center h={300}>
-        <Loader type="dots" delayedMessage={message} />
-    </Center>
-);
-
 type SpecInput =
     | ({ source: 'rows' } & Parameters<typeof buildComposerChartSpec>[0])
     | ({ source: 'pivot' } & Parameters<typeof buildComposerPivotSpec>[0]);
@@ -148,7 +142,6 @@ type Props = {
     pivotQueryUuid: string | null;
     vizConfig: ComposerChartVizConfig;
     headerContent: ReactNode;
-    loadingMessage: string;
 };
 
 // Draws from the fetched rows, ordered by the x sort, or from a pivot of the
@@ -160,7 +153,6 @@ export const AiComposerChartVisualization: FC<Props> = ({
     pivotQueryUuid,
     vizConfig,
     headerContent,
-    loadingMessage,
 }) => {
     const { columns, rows, isLoading } = useArtifactResultRows(results);
     const colors = useChartColors(projectUuid);
@@ -229,7 +221,7 @@ export const AiComposerChartVisualization: FC<Props> = ({
         );
     }
     if (!pivotLayout && isLoading && spec === undefined) {
-        return <Loading message={loadingMessage} />;
+        return <ArtifactChartSkeleton withHeading={false} />;
     }
     return (
         <Frame headerContent={headerContent}>
