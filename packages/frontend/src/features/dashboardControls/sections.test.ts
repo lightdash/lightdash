@@ -329,6 +329,49 @@ describe('underPointerFor', () => {
         // The keyboard has no pointer: the nearest centre, never the bar's
         expect(collide(295, false)[0]).toBe('a');
     });
+
+    it('lands a capsule dragged into a line’s empty space beside that line’s nearest capsule', () => {
+        const rect = (left: number, right: number, top: number, height = 30) =>
+            ({
+                top,
+                bottom: top + height,
+                left,
+                right,
+                width: right - left,
+                height,
+            }) as ClientRect;
+        const section = { current: { kind: 'section' } };
+        const gap = { current: { kind: 'section', isLineGap: true } };
+        const droppableRects = new Map([
+            ['bar-space-target', rect(0, 800, 0)],
+            ['section-line:0', rect(0, 800, -12, 12)],
+            ['date', rect(0, 300, 0)],
+            ['section-line:1', rect(0, 800, 38, 12)],
+            ['lenses', rect(0, 700, 50)],
+            ['section-line:2', rect(0, 800, 94, 12)],
+        ]);
+        const dataOf = (id: string) =>
+            id.startsWith('section-line')
+                ? gap
+                : id === 'bar-space-target'
+                  ? { current: undefined }
+                  : section;
+        const collide = (x: number, y: number) =>
+            underPointerFor({
+                active: { id: 'lenses', data: section },
+                collisionRect: rect(x - 40, x + 40, y - 15),
+                droppableRects,
+                droppableContainers: [...droppableRects.keys()].map((id) => ({
+                    id,
+                    data: dataOf(id),
+                })),
+                pointerCoordinates: { x, y },
+            } as unknown as Parameters<typeof underPointerFor>[0]).map(
+                ({ id }) => id,
+            )[0];
+        expect(collide(450, 15)).toBe('date');
+        expect(collide(150, 15)).toBe('date');
+    });
 });
 
 describe('getMoveNeighbours', () => {
