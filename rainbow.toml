@@ -301,7 +301,7 @@ host = "api.brandfetch.io"          # organization brand lookup
 port = 443
 
 [[egress.allow]]
-host = "api.e2b.dev"                # data-app sandboxes (control plane only; sandbox hosts are per-run)
+host = "api.e2b.app"                # data-app sandboxes (control plane only; sandbox hosts are per-run)
 port = 443
 
 [[egress.allow]]
