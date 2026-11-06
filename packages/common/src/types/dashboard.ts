@@ -283,7 +283,9 @@ export type DashboardParameterControl = {
 
 /**
  * Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds
- * may be added, so consumers must ignore a kind they don't know.
+ * may be added, so consumers must ignore a kind they don't know. Request
+ * validation rejects unknown values, so a new kind ships in a release before
+ * anything writes it.
  */
 export enum DashboardControlRefKind {
     FILTER = 'filter',

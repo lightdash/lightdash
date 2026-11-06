@@ -8,6 +8,7 @@ import {
 import { FilterOperator, type DashboardFilterRule } from '../types/filter';
 import {
     getDashboardFilterSlugs,
+    isDashboardControlOrder,
     reconcileDashboardControlOrder,
     type DashboardControlSources,
 } from './dashboardControls';
@@ -317,6 +318,12 @@ describe('reconcileDashboardControlOrder', () => {
         ).toEqual(['filter:x', 'filter:x']);
     });
 
+    it('uses the default order when the stored list is not a list', () => {
+        expect(
+            order({ ...full, controlOrder: 'x' as unknown as never }),
+        ).toEqual(defaultOrder);
+    });
+
     it('lists a repeated section id and its members once', () => {
         expect(
             order(
@@ -404,5 +411,19 @@ describe('getDashboardFilterSlugs', () => {
         expect(getDashboardFilterSlugs([{ target: target('__') }])).toEqual([
             'filter',
         ]);
+    });
+});
+
+describe('isDashboardControlOrder', () => {
+    it('accepts refs of any kind and rejects other shapes', () => {
+        expect(isDashboardControlOrder([ref(FILTER, 'a')])).toBe(true);
+        expect(isDashboardControlOrder([{ kind: 'later', id: 'a' }])).toBe(
+            true,
+        );
+        expect(isDashboardControlOrder([])).toBe(true);
+        expect(isDashboardControlOrder('x')).toBe(false);
+        expect(isDashboardControlOrder({})).toBe(false);
+        expect(isDashboardControlOrder([{ kind: FILTER }])).toBe(false);
+        expect(isDashboardControlOrder([null])).toBe(false);
     });
 });

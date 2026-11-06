@@ -134,6 +134,17 @@ const slotOf = (control: DashboardControl): string => {
     }
 };
 
+/** Shape check for a stored or incoming order; unknown kinds pass, readers ignore them */
+export const isDashboardControlOrder = (
+    value: unknown,
+): value is DashboardControlRef[] =>
+    Array.isArray(value) &&
+    value.every((ref: unknown) => {
+        if (typeof ref !== 'object' || ref === null) return false;
+        const { kind, id } = ref as Record<string, unknown>;
+        return typeof kind === 'string' && typeof id === 'string';
+    });
+
 export const getDashboardControls = (
     sources: DashboardControlSources,
 ): DashboardControl[] => {
@@ -173,7 +184,10 @@ export const reconcileDashboardControlOrder = (
         controls.map((control) => [refKey(control.kind, control.id), control]),
     );
     const seen = new Set<string>();
-    const mentioned = (sources.controlOrder ?? []).flatMap((ref) => {
+    const order = Array.isArray(sources.controlOrder)
+        ? sources.controlOrder
+        : [];
+    const mentioned = order.flatMap((ref) => {
         if (
             typeof ref !== 'object' ||
             ref === null ||
