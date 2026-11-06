@@ -16,7 +16,7 @@ export const getContentToolsSection = ({
 
 - Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project. Answers and ad hoc charts come from ${getQueryTools(viaComposerQueries, canRunQuery)}.
 - For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.
-- Before saving a new or changed chart or presenting the work as complete, check its query and visualization with runContentQuery.
+- Before saving each new or changed chart, check it once with runContentQuery.
 - After creating or editing content, link the user to the href the tool returns.`;
 
 const getChartPlacement = (composer: boolean, customCharts: boolean) => {

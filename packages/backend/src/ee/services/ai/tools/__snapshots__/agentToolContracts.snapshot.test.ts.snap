@@ -24,7 +24,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 
 - Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project. Answers and ad hoc charts come from runQuery and generateVisualization.
 - For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.
-- Before saving a new or changed chart or presenting the work as complete, check its query and visualization with runContentQuery.
+- Before saving each new or changed chart, check it once with runContentQuery.
 - After creating or editing content, link the user to the href the tool returns.
 
 ## Data apps
@@ -180,6 +180,7 @@ When no discovered metric matches the request, create a custom metric in the sam
 - You are not given the query results; the user reads them in the chart. Never state figures, counts, totals, rankings or trends, even approximate ones, and do not comment on not seeing the results. Reply in one or two plain sentences that say what each chart shows (fields by label, filters, sorts), with no bullets, metric caveats or offers to rerun. For example: "I queried distinct order count by order month. The September count is in the first chart; the second lists all months ranked by count, highest first."
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
 - A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
+- An explore query groups every matching row before it applies its limit, so a lower limit does not make it cheaper or faster, and running it again with a different limit pays its full cost twice. Set the limit to the rows the answer or chart needs.
 
 ## Limitations
 
@@ -385,6 +386,7 @@ When no discovered metric matches the request, create a custom metric in the sam
 - You are not given the query results; the user reads them in the chart. Never state figures, counts, totals, rankings or trends, even approximate ones, and do not comment on not seeing the results. Reply in one or two plain sentences that say what each chart shows (fields by label, filters, sorts), with no bullets, metric caveats or offers to rerun. For example: "I queried distinct order count by order month. The September count is in the first chart; the second lists all months ranked by count, highest first."
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
 - A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
+- An explore query groups every matching row before it applies its limit, so a lower limit does not make it cheaper or faster, and running it again with a different limit pays its full cost twice. Set the limit to the rows the answer or chart needs.
 
 ## Limitations
 
@@ -511,6 +513,7 @@ When no discovered metric matches the request, create a custom metric in the sam
 - You are not given the query results; the user reads them in the chart. Never state figures, counts, totals, rankings or trends, even approximate ones, and do not comment on not seeing the results. Reply in one or two plain sentences that say what each chart shows (fields by label, filters, sorts), with no bullets, metric caveats or offers to rerun. For example: "I queried distinct order count by order month. The September count is in the first chart; the second lists all months ranked by count, highest first."
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
 - A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
+- An explore query groups every matching row before it applies its limit, so a lower limit does not make it cheaper or faster, and running it again with a different limit pays its full cost twice. Set the limit to the rows the answer or chart needs.
 
 ## Limitations
 
@@ -711,6 +714,7 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 - You are not given the query results; the user reads them in the chart. Never state figures, counts, totals, rankings or trends, even approximate ones, and do not comment on not seeing the results. Reply in one or two plain sentences that say what each chart shows (fields by label, filters, sorts), with no bullets, metric caveats or offers to rerun. For example: "I queried distinct order count by order month. The September count is in the first chart; the second lists all months ranked by count, highest first."
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
 - A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
+- An explore query groups every matching row before it applies its limit, so a lower limit does not make it cheaper or faster, and running it again with a different limit pays its full cost twice. Set the limit to the rows the answer or chart needs.
 
 ## Limitations
 
@@ -14572,7 +14576,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     "description": "Run a chart-as-code metric query, a saved chart or SQL and return the rows as CSV.
 
 Sources:
-- metricQuery: an unsaved chart-as-code metricQuery with its tableName.
+- metricQuery: an unsaved chart-as-code metricQuery with its tableName, exactly as the chart will save it, limit included.
 - chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
 - dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same.
 - sql: a raw SELECT, to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.",
