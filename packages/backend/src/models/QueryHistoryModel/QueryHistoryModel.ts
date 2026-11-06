@@ -656,11 +656,13 @@ export class QueryHistoryModel {
     async hasClearedResultsForCacheKey(
         cacheKey: string,
         projectUuid: string,
+        freshSince: Date,
     ): Promise<boolean> {
         const row = await this.database(QueryHistoryTableName)
             .select('query_uuid')
             .where('cache_key', cacheKey)
             .andWhere('project_uuid', projectUuid)
+            .andWhere('results_updated_at', '>', freshSince)
             .andWhere((query) => {
                 void query
                     .whereNotNull('cache_invalidated_at')

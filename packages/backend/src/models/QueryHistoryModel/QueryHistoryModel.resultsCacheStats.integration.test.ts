@@ -132,6 +132,7 @@ describe('QueryHistoryModel results cache stats', () => {
         withChart = true,
         requestParameters,
         exploreName = 'orders',
+        invalidated = false,
     }: {
         minutesAgo: number;
         cacheKey?: string;
@@ -145,8 +146,12 @@ describe('QueryHistoryModel results cache stats', () => {
         withChart?: boolean;
         requestParameters?: object;
         exploreName?: string;
+        invalidated?: boolean;
     }) => {
         const createdAt = new Date(Date.now() - minutesAgo * MINUTE);
+        const resultsCreatedAt = hit
+            ? new Date(createdAt.getTime() - MINUTE)
+            : new Date(createdAt.getTime() + 1000);
         await database<Record<string, unknown>>('query_history').insert({
             project_uuid: projectUuid,
             organization_uuid: organizationUuid,
@@ -160,9 +165,9 @@ describe('QueryHistoryModel results cache stats', () => {
             cache_key: cacheKey,
             created_at: createdAt,
             results_file_name: fileName,
-            results_created_at: hit
-                ? new Date(createdAt.getTime() - MINUTE)
-                : new Date(createdAt.getTime() + 1000),
+            results_created_at: resultsCreatedAt,
+            results_updated_at: resultsCreatedAt,
+            cache_invalidated_at: invalidated ? new Date() : null,
             warehouse_execution_time_ms: hit ? 0 : warehouseMs,
             cache_miss_reason: reason,
             cache_refresh_requested: refresh,
@@ -388,6 +393,31 @@ describe('QueryHistoryModel results cache stats', () => {
         await expect(
             model.getResultsCacheRecommendationRows(projectUuid, 7, thresholds),
         ).resolves.toEqual([]);
+    });
+
+    test('cleared results only count when they would still be fresh', async () => {
+        await insertRun({
+            minutesAgo: 120,
+            cacheKey: 'old',
+            invalidated: true,
+        });
+        await insertRun({
+            minutesAgo: 30,
+            cacheKey: 'recent',
+            invalidated: true,
+        });
+        const freshSince = new Date(Date.now() - 60 * MINUTE);
+
+        await expect(
+            model.hasClearedResultsForCacheKey('old', projectUuid, freshSince),
+        ).resolves.toBe(false);
+        await expect(
+            model.hasClearedResultsForCacheKey(
+                'recent',
+                projectUuid,
+                freshSince,
+            ),
+        ).resolves.toBe(true);
     });
 
     test('replay rows only cover keys with a miss after another run, ordered by key and time', async () => {

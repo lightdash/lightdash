@@ -416,6 +416,30 @@ describe('CommercialCacheService', () => {
                 cacheHit: false,
                 missReason: ResultsCacheMissReason.CLEARED,
             });
+            expect(f.hasClearedResultsForCacheKey).toHaveBeenCalledWith(
+                'cache-key',
+                'project',
+                expect.any(Date),
+            );
+        });
+
+        test('only counts clears of results that would still be fresh', async () => {
+            const f = makeService(
+                new Date('2026-07-31T11:00:00.000Z'),
+                60 * 60,
+            );
+            f.findMostRecentByCacheKey.mockResolvedValue(undefined as never);
+            await f.service.lookupCachedResultsFile(
+                'project',
+                'cache-key',
+                user,
+            );
+            // 1h TTL with a 10 minute buffer: fresh results were updated after 11:10.
+            expect(f.hasClearedResultsForCacheKey).toHaveBeenCalledWith(
+                'cache-key',
+                'project',
+                new Date('2026-07-31T11:10:00.000Z'),
+            );
         });
 
         test('reports expired when the newest result is older than the TTL', async () => {

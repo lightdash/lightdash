@@ -120,11 +120,17 @@ export class CommercialCacheService implements ICacheService {
                 },
             );
 
+        const staleTimeMilliseconds = staleTimeSeconds * 1000;
+        const expiryBuffer = getResultsCacheExpiryBufferMs(
+            staleTimeMilliseconds,
+        );
         if (!latestMatchingQuery) {
+            // Only results that would still be fresh count as cleared.
             const cleared =
                 await this.queryHistoryModel.hasClearedResultsForCacheKey(
                     cacheKey,
                     projectUuid,
+                    new Date(Date.now() + expiryBuffer - staleTimeMilliseconds),
                 );
             return miss(
                 cleared
@@ -169,10 +175,6 @@ export class CommercialCacheService implements ICacheService {
         )
             return miss(ResultsCacheMissReason.NO_CACHED_RESULT);
 
-        const staleTimeMilliseconds = staleTimeSeconds * 1000;
-        const expiryBuffer = getResultsCacheExpiryBufferMs(
-            staleTimeMilliseconds,
-        );
         const cacheExpiresAt = new Date(
             resultsUpdatedAt.getTime() + staleTimeMilliseconds,
         );
