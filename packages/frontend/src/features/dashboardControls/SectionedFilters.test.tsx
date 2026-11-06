@@ -3217,6 +3217,10 @@ describe('SectionedFilters', () => {
             );
             expect(added?.name).toBe('Region');
             expect(controlsOf(store)).toEqual([`region@${added?.id}`]);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(
+                document.querySelector('[data-parameter-pill="region"]'),
+            ).toHaveFocus();
         });
 
         it('counts its parameter controls in a folded section, as controls', () => {
