@@ -900,7 +900,9 @@ export const AgentChatInput = ({
             onStart: onStartDeepResearch,
         });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
-    const showStatusRow = threadModelName !== undefined && !disabled;
+    // Inside a thread the composer is a card with its controls on a bottom row.
+    const isThreadComposer = threadModelName !== undefined;
+    const showThreadToolbar = isThreadComposer && !disabled;
     const activeMessageUuid = isAgentActive
         ? threadStream?.messageUuid
         : undefined;
@@ -1418,10 +1420,9 @@ export const AgentChatInput = ({
         );
     };
 
-    // Thread composer toolbar: attach and SQL Runner stay switchable
-    // mid-thread; the model is fixed so it is only a label.
-    const renderStatusStart = () => (
-        <Group gap="sm" align="center" wrap="nowrap">
+    // Mid-thread the mode is fixed, so SQL, deep research and the model are labels.
+    const renderThreadToolbarStart = () => (
+        <Group gap="sm" align="center" wrap="wrap">
             {canAttachThreadFile && showAttachControl && (
                 <FileButton
                     accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
@@ -1490,14 +1491,13 @@ export const AgentChatInput = ({
                     </Text>
                 </Group>
             )}
-            {footerNotice}
         </Group>
     );
 
-    const renderStatusEnd = () =>
+    const renderThreadToolbarEnd = () =>
         threadModelName && (
             <Group gap={4} wrap="nowrap">
-                {threadModelName && threadModelWarning && (
+                {threadModelWarning ? (
                     <Tooltip
                         label={threadModelWarning}
                         multiline
@@ -1516,8 +1516,7 @@ export const AgentChatInput = ({
                             </Text>
                         </Group>
                     </Tooltip>
-                )}
-                {threadModelName && !threadModelWarning && (
+                ) : (
                     <Text size="xs" c="dimmed">
                         {threadModelName}
                     </Text>
@@ -1678,56 +1677,43 @@ export const AgentChatInput = ({
                 >
                     {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-                    {showStatusRow ? (
-                        <Box className={styles.dropTarget} {...dropTargetProps}>
-                            <PromptComposer
-                                {...composerCommonProps}
-                                variant="card"
-                                size="sm"
-                                attachments={renderedAttachments}
-                                toolbarLeft={
-                                    <Group gap={4} align="center" wrap="nowrap">
-                                        {renderComposerActionsMenu()}
-                                        {renderThemeButton()}
-                                        {toolbarStart}
-                                        {renderStatusStart()}
-                                    </Group>
-                                }
-                                toolbarRight={
-                                    <Group
-                                        gap="sm"
-                                        align="center"
-                                        wrap="nowrap"
-                                    >
-                                        {renderStatusEnd()}
-                                        {renderComposerAction('sm')}
-                                    </Group>
-                                }
-                            />
-                            {renderDropOverlay('card')}
-                        </Box>
-                    ) : (
-                        <Box className={styles.dropTarget} {...dropTargetProps}>
-                            <PromptComposer
-                                {...composerCommonProps}
-                                variant="inline"
-                                attachments={renderedAttachments}
-                                toolbarLeft={
-                                    <Group gap={4} align="center" wrap="nowrap">
-                                        {renderComposerActionsMenu()}
-                                        {renderThemeButton()}
-                                        {toolbarStart}
-                                    </Group>
-                                }
-                                toolbarRight={
-                                    <Group gap={4} align="center" wrap="nowrap">
-                                        {renderComposerAction('sm')}
-                                    </Group>
-                                }
-                            />
-                            {renderDropOverlay('inline')}
-                        </Box>
-                    )}
+                    <Box className={styles.dropTarget} {...dropTargetProps}>
+                        <PromptComposer
+                            {...composerCommonProps}
+                            variant={isThreadComposer ? 'card' : 'inline'}
+                            size="sm"
+                            className={
+                                isThreadComposer
+                                    ? styles.agentComposer
+                                    : undefined
+                            }
+                            attachments={renderedAttachments}
+                            toolbarLeft={
+                                // Wraps in a thread so labels never push send out of a narrow card.
+                                <Group
+                                    gap={4}
+                                    align="center"
+                                    wrap={isThreadComposer ? 'wrap' : 'nowrap'}
+                                >
+                                    {renderComposerActionsMenu()}
+                                    {renderThemeButton()}
+                                    {toolbarStart}
+                                    {showThreadToolbar &&
+                                        renderThreadToolbarStart()}
+                                </Group>
+                            }
+                            toolbarRight={
+                                <Group gap="sm" align="center" wrap="nowrap">
+                                    {showThreadToolbar &&
+                                        renderThreadToolbarEnd()}
+                                    {renderComposerAction('sm')}
+                                </Group>
+                            }
+                        />
+                        {renderDropOverlay(
+                            isThreadComposer ? 'card' : 'inline',
+                        )}
+                    </Box>
 
                     {!isThreadInput &&
                         renderChipRow(
@@ -1741,7 +1727,7 @@ export const AgentChatInput = ({
                     </Text>
                 )}
 
-                {!showStatusRow && !disabled && footerNotice && (
+                {!disabled && footerNotice && (
                     <Box className={styles.footerNotice}>{footerNotice}</Box>
                 )}
             </Box>
