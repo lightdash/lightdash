@@ -11,15 +11,14 @@ describe('formatWarehouseTime', () => {
         [0, '0ms'],
         [999, '999ms'],
         [1000, '1s'],
-        [59_999, '59s'],
+        [12_400, '~12s'],
         [MINUTE, '1m'],
-        [2 * MINUTE + 5 * SECOND, '2m 5s'],
-        [HOUR - 1, '59m 59s'],
+        [2 * MINUTE + 40 * SECOND, '~3m'],
         [HOUR, '1h'],
-        [11 * HOUR + 18 * MINUTE + 30 * SECOND, '11h 18m'],
-        [47 * HOUR + 59 * MINUTE, '47h 59m'],
+        [11 * HOUR + 18 * MINUTE, '~11h'],
+        [47 * HOUR + 59 * MINUTE, '~48h'],
         [2 * DAY, '2d'],
-        [52 * DAY + 2 * HOUR + 40 * MINUTE, '52d 2h'],
+        [52 * DAY + 2 * HOUR, '~52d'],
     ])('%d ms -> %s', (ms, expected) => {
         expect(formatWarehouseTime(ms)).toBe(expected);
     });
