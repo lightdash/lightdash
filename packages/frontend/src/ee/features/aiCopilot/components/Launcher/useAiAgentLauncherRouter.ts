@@ -93,17 +93,17 @@ export const useAiAgentLauncherRouter = ({
             );
 
             if (!isLauncherAutoAgent(agent)) {
-                void createThreadForAgent({
+                return createThreadForAgent({
                     agentUuid: agent.uuid,
                     message,
                     context: mergedContext,
                     optimisticContext: mergedOptimisticContext,
                     toolHints,
                 });
-                return;
             }
 
-            void handleRouterSubmit({
+            // Auto routing may resolve at the picker, before creation; the host gates images there.
+            return handleRouterSubmit({
                 message,
                 context: mergedContext,
                 optimisticContext: mergedOptimisticContext,

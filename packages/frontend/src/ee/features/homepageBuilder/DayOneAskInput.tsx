@@ -27,7 +27,10 @@ import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
 } from '../aiCopilot/components/AgentSelector/AgentSelectorUtils';
-import { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatInput';
+import {
+    AgentChatInput,
+    type AgentChatInputHandle,
+} from '../aiCopilot/components/ChatElements/AgentChatInput';
 import { usePendingPrompt } from '../aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { type StartDeepResearchArgs } from '../aiCopilot/deepResearch/types';
 import { useAgentSuggestions } from '../aiCopilot/hooks/useAgentSuggestions';
@@ -373,6 +376,7 @@ const DayOneAskInputInner: FC<Props> = ({
     });
     const isNewOnboarding =
         useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
+    const composerRef = useRef<AgentChatInputHandle>(null);
     const [composerValue, setComposerValue] = useState('');
     const [hasAsked, setHasAsked] = useLocalStorage({
         key: 'ld.home.hasAsked',
@@ -431,7 +435,7 @@ const DayOneAskInputInner: FC<Props> = ({
             void navigate(`/projects/${projectUuid}/ai-agents`);
             return;
         }
-        void createAgentThread({
+        return createAgentThread({
             agentUuid: activeSelection.uuid,
             prompt,
             toolHints,
@@ -459,7 +463,7 @@ const DayOneAskInputInner: FC<Props> = ({
             prefill !== undefined && prompt !== prefill.trim(),
         );
         setHasAsked(true);
-        submitPrompt(prompt, toolHints, context, optimisticContext);
+        return submitPrompt(prompt, toolHints, context, optimisticContext);
     };
 
     const handleChipPick = (chip: AgentSuggestion, index: number) => {
@@ -484,9 +488,33 @@ const DayOneAskInputInner: FC<Props> = ({
             void navigate(chip.url);
             return;
         }
-        trackAskSubmitted('starter_chip', false);
-        setHasAsked(true);
-        submitPrompt(chip.label, [chip.tool]);
+        const submitChip = ({
+            toolHints,
+            context,
+            optimisticContext,
+        }: {
+            toolHints: string[];
+            context?: AiPromptContextInput;
+            optimisticContext?: AiPromptContextItem[];
+        }) => {
+            trackAskSubmitted('starter_chip', false);
+            setHasAsked(true);
+            return submitPrompt(
+                chip.label,
+                toolHints,
+                context,
+                optimisticContext,
+            );
+        };
+        // Through the composer, so anything attached goes with the suggestion.
+        const composer = composerRef.current;
+        if (composer) {
+            composer.submitWithAttachments(chip.label, [chip.tool], submitChip);
+            return;
+        }
+        void Promise.resolve(submitChip({ toolHints: [chip.tool] })).catch(
+            () => undefined,
+        );
     };
 
     // Before the first question, a chart prompt sits inside the empty composer as the way in
@@ -521,6 +549,7 @@ const DayOneAskInputInner: FC<Props> = ({
                 <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
             ) : (
                 <AgentChatInput
+                    composerRef={composerRef}
                     key={prefillRequest}
                     defaultValue={prefill}
                     projectUuid={projectUuid ?? undefined}
@@ -543,6 +572,11 @@ const DayOneAskInputInner: FC<Props> = ({
                                 Try “{starterChip.label}”
                             </button>
                         )
+                    }
+                    imageAttachmentsUnavailableReason={
+                        activeSelection === 'auto'
+                            ? 'Choose an agent to attach images'
+                            : undefined
                     }
                     onStartDeepResearch={onStartDeepResearch}
                     {...composerSqlModeProps}

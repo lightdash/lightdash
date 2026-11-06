@@ -2,6 +2,10 @@ import { createGoogleVertex } from '@ai-sdk/google-vertex';
 import { assertUnreachable } from '@lightdash/common';
 import { wrapLanguageModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import {
+    createRequestSizeGuardedFetch,
+    IMAGE_MODEL_REQUEST_MAX_BYTES,
+} from './requestSizeGuard';
 import { AiModel } from './types';
 
 type VertexConfig = NonNullable<
@@ -15,9 +19,17 @@ const getVertexModel = ({ auth, modelName }: VertexConfig) => {
     // Recheck model and auth support before switching to .interactions().
     switch (auth.type) {
         case 'api-key':
-            return createGoogleVertex({ apiKey: auth.apiKey })(modelName);
+            return createGoogleVertex({
+                apiKey: auth.apiKey,
+                fetch: createRequestSizeGuardedFetch(
+                    IMAGE_MODEL_REQUEST_MAX_BYTES.vertex,
+                ),
+            })(modelName);
         case 'adc':
             return createGoogleVertex({
+                fetch: createRequestSizeGuardedFetch(
+                    IMAGE_MODEL_REQUEST_MAX_BYTES.vertex,
+                ),
                 project: auth.project,
                 location: auth.location,
             })(modelName);
