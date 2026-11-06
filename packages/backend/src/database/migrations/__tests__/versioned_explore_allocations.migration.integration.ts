@@ -2,6 +2,7 @@ import {
     convertExplores,
     DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
+    isExploreError,
     ProjectType,
     SupportedDbtAdapter,
     SupportedDbtVersions,
@@ -12,6 +13,7 @@ import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { rewriteAllocatedExplore } from '../../../models/ProjectModel/allocatedExploreReferences';
 import { allocateStagedExploreNames } from '../../../models/ProjectModel/exploreNameAllocation';
+import { validateExplorePublication } from '../../../models/ProjectModel/explorePublication';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -300,3 +302,117 @@ test.each(
         }
     },
 );
+
+test('maps lineage of every model to allocated names when the project has no extra dbt sources', async () => {
+    const organization = await database('organizations').first();
+    if (!organization) throw new Error('Missing fixture organization');
+    const [project] = await database('projects')
+        .insert({
+            name: 'Lineage fast path fixture',
+            organization_id: organization.organization_id,
+            project_type: ProjectType.DEFAULT,
+            dbt_connection_type: null,
+            dbt_connection: null,
+            dbt_version: SupportedDbtVersions.V1_12,
+            organization_warehouse_credentials_uuid: null,
+            copied_from_project_uuid: null,
+            created_by_user_uuid: null,
+        })
+        .returning(['project_uuid', 'dbt_source_uuid']);
+    const primaryUuid = project.dbt_source_uuid ?? project.project_uuid;
+    await database('projects')
+        .where('project_uuid', project.project_uuid)
+        .update({ dbt_source_name: 'analytics' });
+    const node = (name: string, parents: string[]): DbtModelNode => ({
+        checksum: { name: '', checksum: '' },
+        fqn: [],
+        language: 'sql',
+        raw_code: '',
+        compiled: true,
+        description: '',
+        resource_type: 'model',
+        database: 'analytics',
+        schema: 'public',
+        tags: [],
+        depends_on: {
+            nodes: parents.map((parent) => `model.jaffle.${parent}`),
+        },
+        patch_path: null,
+        name,
+        alias: name,
+        unique_id: `model.jaffle.${name}`,
+        package_name: 'jaffle',
+        path: `${name}.sql`,
+        original_file_path: `models/${name}.sql`,
+        lightdash_source_name: 'analytics',
+        lightdash_source_uuid: primaryUuid,
+        relation_name: name,
+        columns: {
+            id: { name: 'id', data_type: DimensionType.NUMBER, meta: {} },
+        },
+        meta: {},
+    });
+    const models = [
+        node('stg_orders', []),
+        node('fct_orders', ['stg_orders']),
+        node('rpt_revenue', ['fct_orders']),
+        node('dim_customers', []),
+    ];
+    try {
+        const compiled = await convertExplores(
+            structuredClone(models),
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { deferExploreNaming: true, allowPartialCompilation: true },
+        );
+        await database.transaction(async (trx) => {
+            const saveUuid = randomUUID();
+            await trx('cached_explore_staging').insert(
+                compiled.map((explore) => ({
+                    project_uuid: project.project_uuid,
+                    save_uuid: saveUuid,
+                    name: explore.name,
+                    table_names: Object.keys(explore.tables ?? {}),
+                    explore: JSON.stringify(explore),
+                })),
+            );
+            const result = await allocateStagedExploreNames(
+                trx,
+                project.project_uuid,
+                saveUuid,
+                {
+                    mode: 'refresh',
+                    models: models.map((model) => ({
+                        sourceUuid: model.lightdash_source_uuid ?? null,
+                        sourceName: model.lightdash_source_name ?? null,
+                        packageName: model.package_name,
+                        uniqueId: model.unique_id,
+                        modelName: model.name,
+                    })),
+                    refreshedSourceUuids: [primaryUuid],
+                    warnings: [],
+                },
+            );
+            expect(
+                result.explores
+                    .map((explore) => validateExplorePublication(explore))
+                    .filter(isExploreError)
+                    .map(({ errors }) => errors[0].message),
+            ).toEqual([]);
+            const orders = result.explores.find(
+                ({ name }) => name === 'fct_orders',
+            ) as Explore;
+            expect(orders.tables.fct_orders.lineageGraph).toEqual({
+                stg_orders: [],
+                fct_orders: [{ type: 'model', name: 'stg_orders' }],
+                rpt_revenue: [{ type: 'model', name: 'fct_orders' }],
+            });
+        });
+    } finally {
+        await database('projects')
+            .where('project_uuid', project.project_uuid)
+            .delete();
+    }
+});
