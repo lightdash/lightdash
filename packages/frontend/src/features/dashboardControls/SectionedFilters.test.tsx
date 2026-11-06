@@ -3194,14 +3194,29 @@ describe('SectionedFilters', () => {
             expect(regionPill()).toHaveAttribute('aria-pressed', 'true');
         });
 
-        it('offers no New section with parameter controls and no filter', () => {
-            renderWithParameters([parameterControl('region')], [], []);
+        it('starts a section from a parameter control dropped on New section, with no filter', async () => {
+            const user = userEvent.setup();
+            const store = renderWithParameters(
+                [parameterControl('region')],
+                [],
+                [],
+            );
             expect(
-                screen.queryByRole('button', {
-                    name: 'New section',
-                    hidden: true,
-                }),
-            ).not.toBeInTheDocument();
+                screen.getByRole('button', { name: 'New section' }),
+            ).toBeInTheDocument();
+            const [handleDragEnd] = mockDragEnd.handlers;
+            act(() =>
+                handleDragEnd(parameterDrag('region', 'new-section-target')),
+            );
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                'Region{Enter}',
+            );
+            const [added] = selectControlSections(
+                store.getState() as Parameters<typeof selectControlSections>[0],
+            );
+            expect(added?.name).toBe('Region');
+            expect(controlsOf(store)).toEqual([`region@${added?.id}`]);
         });
 
         it('counts its parameter controls in a folded section, as controls', () => {

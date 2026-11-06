@@ -1084,9 +1084,8 @@ export const SectionedFilters: FC<Props> = ({
     const allRules = groupRulesBySection(dashboardFilters, sections).flatMap(
         ({ rules }) => rules,
     );
-    // The bar's end: a capsule that starts a section, once there is a filter
-    // Once there is a filter: a parameter dropped on it starts no section
-    const isGhostShown = allRules.length > 0;
+    // The bar's end: a capsule that starts a section, once there is a control
+    const isGhostShown = allRules.length > 0 || parameterEntries.length > 0;
     const fieldOf = ({ rule, group }: SectionRule) =>
         getDashboardFilterField<DashboardFilterableField>(
             group === 'metrics'
@@ -1274,7 +1273,7 @@ export const SectionedFilters: FC<Props> = ({
         // Onto the New section capsule: name it, then the pill (or the
         // selection it carries) moves in; no section starts during an edit
         if (over && String(over.id) === NEW_SECTION_TARGET_ID) {
-            if (isEditing || (isParameterDrag && !isCarryingSelection)) return;
+            if (isEditing) return;
             setNaming({
                 moveIds: isCarryingSelection ? allSelected : [activeId],
                 source: 'new_section_drop',
