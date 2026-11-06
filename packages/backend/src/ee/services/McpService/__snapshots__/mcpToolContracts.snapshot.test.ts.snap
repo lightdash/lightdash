@@ -10607,8 +10607,6 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
       },
       "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
 
-One call returns one node's rows, so exactly one submitted node may go unread by the others: combine several results in one duckdb node (UNION ALL or JOIN), or submit them in separate calls reusing earlier nodes.
-
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; available only when run_sql is.
@@ -10622,7 +10620,7 @@ A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "f
 
 Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
-Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
+Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -11185,7 +11183,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
           },
           "terminalNodeId": {
             "default": null,
-            "description": "The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
+            "description": "The terminal node. Null picks the last submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
             "type": [
               "string",
               "null",
@@ -11299,7 +11297,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
                       "type": "null",
                     },
                   ],
-                  "description": "First 5 rows of a done node submitted in this call other than the terminal node; null for the terminal node and for reused, failed or unfinished nodes.",
+                  "description": "First rows of a done node submitted in this call other than the terminal node: 5, more for a node no other node reads; null for the terminal node and for reused, failed or unfinished nodes.",
                 },
                 "sourceType": {
                   "enum": [
@@ -11365,7 +11363,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
             ],
           },
           "status": {
-            "description": "running when the terminal node outlived the wait; poll get_query_result with its queryUuid.",
+            "description": "running when a node outlived the wait; poll get_query_result with the queryUuids the result names.",
             "enum": [
               "done",
               "running",

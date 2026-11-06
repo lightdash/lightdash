@@ -3962,6 +3962,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
             });
 
@@ -4031,6 +4032,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
             });
 
@@ -4093,6 +4095,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
                 onNodeStatus,
             });
@@ -4141,6 +4144,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueriesUntilDeadline({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
                     sampleNodeIds: [],
                     deadlineMs: Date.now() - 1,
                 }),
@@ -4192,6 +4196,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
             });
 
@@ -4245,6 +4250,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueries({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
                     sampleNodeIds: [],
                     onNodeStatus,
                 });
@@ -4302,6 +4308,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
                 onNodeStatus,
             }),
@@ -4340,6 +4347,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
                 onNodeStatus,
             }),
@@ -4402,6 +4410,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         await service.createRuntime(makeRuntimeContext()).runComposerQueries({
             queries: composerQueries,
             terminalNodeId: 'joined',
+            otherUnreadNodeIds: [],
             sampleNodeIds: [],
             onNodeStatus,
         });
@@ -4446,6 +4455,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'unknown_node',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
             }),
         ).rejects.toThrow('unknown_node');
@@ -4492,6 +4502,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
             });
 
@@ -4549,6 +4560,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
             });
 
@@ -4594,6 +4606,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueries({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
                     sampleNodeIds: [],
                 });
             await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
@@ -4652,6 +4665,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                         : query,
                 ),
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
             });
 
@@ -4679,6 +4693,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         const runSampled = (
             readOrders: typeof ordersPage,
             sampleNodeIds: string[],
+            otherUnreadNodeIds: string[] = [],
         ) =>
             makeService({
                 querySourceService: {
@@ -4710,6 +4725,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueries({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    otherUnreadNodeIds,
                     sampleNodeIds,
                 });
         const samplesOf = (result: {
@@ -4732,6 +4748,67 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 })),
                 joined: null,
             });
+        });
+
+        it('reads up to the preview row limit for another unread node', async () => {
+            const result = await runSampled(ordersPage, ['orders'], ['orders']);
+
+            expect(samplesOf(result)).toEqual({
+                orders: Array.from({ length: 8 }, (_, index) => ({
+                    orders_status: `status-${index}`,
+                })),
+                joined: null,
+            });
+        });
+
+        it('keeps the rows of another unread node from the wait, without reading them again', async () => {
+            let ordersReads = 0;
+            const result = await runSampled(
+                (pageSize) => {
+                    ordersReads += 1;
+                    return ordersReads === 1
+                        ? ordersPage(pageSize)
+                        : Promise.reject(new Error('Access denied'));
+                },
+                ['orders'],
+                ['orders'],
+            );
+
+            expect(result.status).toBe('success');
+            expect(samplesOf(result).orders).toHaveLength(8);
+        });
+
+        it('returns running while another unread node runs past the deadline', async () => {
+            const getAsyncQueryResults = vi
+                .fn()
+                .mockImplementation(({ queryUuid }: { queryUuid: string }) =>
+                    Promise.resolve(
+                        queryUuid === 'query-1'
+                            ? { status: QueryHistoryStatus.EXECUTING }
+                            : readyResults,
+                    ),
+                );
+            const result = await makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi
+                        .fn()
+                        .mockResolvedValue(readyStatuses),
+                },
+                asyncQueryService: { getAsyncQueryResults },
+            })
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueriesUntilDeadline({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    otherUnreadNodeIds: ['orders'],
+                    sampleNodeIds: [],
+                    deadlineMs: Date.now() + 100,
+                });
+
+            expect(result.status).toBe('running');
         });
 
         it('reads no sample for a node not asked to be sampled', async () => {
@@ -4781,6 +4858,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueriesUntilDeadline({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
                     sampleNodeIds: ['orders', 'joined'],
                     deadlineMs: Date.now() - 1,
                 });
@@ -4854,6 +4932,7 @@ describe('AiAgentToolsService runComposerQueries python failures', () => {
                     },
                 ],
                 terminalNodeId: 'forecast',
+                otherUnreadNodeIds: [],
                 sampleNodeIds: [],
             });
 

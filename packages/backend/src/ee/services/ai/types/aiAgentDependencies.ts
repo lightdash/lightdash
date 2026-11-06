@@ -793,7 +793,7 @@ export type ComposerRunOutcome =
 
 /**
  * Submits a composer query (multi-source pipeline) and waits for the terminal
- * node to settle. Submissions carry the pinned nodeId → queryUuid mapping for
+ * node and the other unread nodes to settle. Submissions carry the pinned nodeId → queryUuid mapping for
  * every node; the terminal snapshot is the first page of the terminal node's
  * results, capped at that node's limit. `onNodeStatus` receives per-node
  * lifecycle transitions (running on submission, then success/error) while the
@@ -802,12 +802,14 @@ export type ComposerRunOutcome =
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Nodes the run also waits for; when sampled, their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows read by that wait. */
+    otherUnreadNodeIds: string[];
     /** Nodes whose node sample is read through the terminal rows' reader once the terminal settles. */
     sampleNodeIds: string[];
     onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
 }) => Promise<ComposerRunOutcome>;
 
-/** Terminal still running at the deadline; statuses are read once then. */
+/** Terminal or another unread node still running at the deadline; statuses are read once then. */
 export type ComposerRunningOutcome = {
     status: 'running';
     submissions: SourceQuerySubmission[];
@@ -818,6 +820,8 @@ export type ComposerRunningOutcome = {
 export type RunComposerQueriesUntilDeadlineFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Nodes the run also waits for; when sampled, their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows read by that wait. */
+    otherUnreadNodeIds: string[];
     /** Ready nodes to read a node sample of, also when the terminal is still running. */
     sampleNodeIds: string[];
     deadlineMs: number;

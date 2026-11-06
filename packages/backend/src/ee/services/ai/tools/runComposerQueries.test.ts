@@ -1,4 +1,5 @@
 import {
+    COMPOSER_QUERY_MAX_UNREAD_NODES,
     DimensionType,
     FilterOperator,
     getComposerNodeConflictMessage,
@@ -34,7 +35,7 @@ import type {
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
-import { resolveTerminalNodeId } from './composerQueryPipeline';
+import { resolveResultNodes, splitPreviewRows } from './composerQueryPipeline';
 import { resolveComposerQueryNode } from './composerSemanticLayerNode';
 import {
     getRunComposerQueries,
@@ -432,6 +433,7 @@ describe('getRunComposerQueries', () => {
                 expect.objectContaining({ nodeId: 'joined' }),
             ],
             terminalNodeId: 'joined',
+            otherUnreadNodeIds: [],
             sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
@@ -588,9 +590,12 @@ describe('getRunComposerQueries', () => {
         );
     });
 
-    it.each([null, 'revenue'])(
-        'rejects several unread nodes before anything runs, with terminalNodeId %s',
-        async (terminalNodeId) => {
+    it.each([
+        [null, 'signups', ['revenue']],
+        ['revenue', 'revenue', ['signups']],
+    ])(
+        'returns every unread node with terminalNodeId %s',
+        async (terminalNodeId, terminal, otherUnreadNodeIds) => {
             const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
             const output = await executeTool(
@@ -598,27 +603,102 @@ describe('getRunComposerQueries', () => {
                 makeArgs({ queries: [semanticNode, sqlNode], terminalNodeId }),
             );
 
-            expect(output.metadata?.status).toBe('error');
-            expect(output.result).toContain(
-                "A pipeline returns one node's rows, and no node reads revenue, signups. Combine them in one duckdb node (UNION ALL or JOIN), or submit them in separate calls; a later call can read any node from an earlier call by node id.",
+            expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    terminalNodeId: terminal,
+                    otherUnreadNodeIds,
+                }),
             );
-            expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+            expect(output.result).toContain(
+                `Unread nodes ${otherUnreadNodeIds[0]} returned rows too, listed with their nodes.`,
+            );
         },
     );
 
-    it('treats several unread nodes and an unknown terminal node as agent input errors', () => {
-        const submitted = asSubmitted([semanticNode, sqlNode]);
+    it('shares the preview between the terminal and the other unread nodes', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const breakdown = Array.from({ length: 60 }, (_, index) => ({
+            month: `m${index}`,
+            signups: index,
+        }));
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            terminal: {
+                ...defaultRunResult.terminal,
+                queryUuid: 'query-2',
+                rows: breakdown.slice(0, 50),
+                rowCount: 60,
+            },
+            nodeStatuses: [
+                {
+                    ...readyNode('revenue', 1, revenueColumns),
+                    sample: [
+                        {
+                            payments_month: '2026-01-01',
+                            payments_total_revenue: 220,
+                        },
+                    ],
+                },
+                readyNode('signups', 60, signupsColumns),
+            ],
+        });
 
-        expect(() => resolveTerminalNodeId(submitted, null, submitted)).toThrow(
-            ParameterError,
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [semanticNode, sqlNode] }),
         );
+
+        expect(output.result).toContain(
+            '  Sample, 1 of 1 rows:\n  payments_month,payments_total_revenue\n  2026-01-01,220',
+        );
+        expect(output.result).toContain('(Showing first 49 of 60 rows.)');
+        expect(output.structuredContent).toMatchObject({
+            preview: { truncated: true },
+        });
+    });
+
+    it(`rejects more than ${COMPOSER_QUERY_MAX_UNREAD_NODES} unread nodes before anything runs`, async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const queries = Array.from(
+            { length: COMPOSER_QUERY_MAX_UNREAD_NODES + 1 },
+            (_, index) => ({ ...semanticNode, nodeId: `n${index}` }),
+        );
+
+        const output = await executeTool(tool, makeArgs({ queries }));
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain(
+            `A call returns the rows of at most ${COMPOSER_QUERY_MAX_UNREAD_NODES} nodes, and no node reads n0, n1, n2, n3, n4, n5.`,
+        );
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('treats an unknown terminal node as an agent input error', () => {
         expect(() =>
-            resolveTerminalNodeId(
+            resolveResultNodes(
                 asSubmitted([semanticNode]),
                 'missing',
                 asSubmitted([semanticNode]),
             ),
         ).toThrow(ParameterError);
+    });
+
+    it.each([
+        [[240], [50]],
+        [
+            [1, 240],
+            [1, 49],
+        ],
+        [
+            [3, 100, 100],
+            [3, 23, 24],
+        ],
+        [
+            [100, 100, 100, 100, 100],
+            [10, 10, 10, 10, 10],
+        ],
+    ])('splits the preview rows %j as %j', (rowCounts, budgets) => {
+        expect(splitPreviewRows(rowCounts)).toEqual(budgets);
     });
 
     it('rejects sql nodes when SQL execution is disabled without asking for approval', async () => {
@@ -682,6 +762,7 @@ describe('getRunComposerQueries', () => {
                 },
             ],
             terminalNodeId: 'targets',
+            otherUnreadNodeIds: [],
             sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
@@ -711,6 +792,7 @@ describe('getRunComposerQueries', () => {
                 composedNode,
             ],
             terminalNodeId: 'joined',
+            otherUnreadNodeIds: [],
             sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
@@ -1620,33 +1702,33 @@ describe('composer query review', () => {
 describe('python composer nodes', () => {
     it('treats python references as edges when resolving the terminal node', () => {
         expect(
-            resolveTerminalNodeId(
+            resolveResultNodes(
                 asSubmitted([semanticNode, pythonNode]),
                 null,
                 [],
             ),
-        ).toBe('forecast');
+        ).toEqual({ terminalNodeId: 'forecast', otherUnreadNodeIds: [] });
         expect(
-            resolveTerminalNodeId(
+            resolveResultNodes(
                 asSubmitted([
                     semanticNode,
                     pythonNode,
-                    {
-                        ...duckdbNode,
-                        references: { f: 'forecast' },
-                    },
+                    { ...duckdbNode, references: { f: 'forecast' } },
                 ]),
                 null,
                 [],
             ),
-        ).toBe('joined');
-        expect(() =>
-            resolveTerminalNodeId(
+        ).toEqual({ terminalNodeId: 'joined', otherUnreadNodeIds: [] });
+        expect(
+            resolveResultNodes(
                 asSubmitted([semanticNode, { ...pythonNode, references: [] }]),
                 null,
                 [],
             ),
-        ).toThrow('no node reads revenue, forecast');
+        ).toEqual({
+            terminalNodeId: 'forecast',
+            otherUnreadNodeIds: ['revenue'],
+        });
     });
 
     it('offers the python node in the input schema only when enabled', () => {

@@ -4755,6 +4755,7 @@ export class AiAgentToolsService extends BaseService {
         {
             queries,
             terminalNodeId,
+            otherUnreadNodeIds,
             sampleNodeIds,
             onNodeStatus,
             deadlineMs,
@@ -4918,9 +4919,10 @@ export class AiAgentToolsService extends BaseService {
                     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
                 );
 
-                // Polling only the terminal node is sufficient: its execution
-                // waits on every referenced result and fails if any upstream
-                // query fails.
+                const otherUnreadSubmissions = submissions.filter(
+                    (submission) =>
+                        otherUnreadNodeIds.includes(submission.nodeId),
+                );
 
                 // A failed run marks the nodes its status read did not settle.
                 const emitUnfinishedAsError = (message: string) => {
@@ -4955,9 +4957,13 @@ export class AiAgentToolsService extends BaseService {
 
                 let outcome: ComposerRunOutcome;
                 try {
-                    const polled = await this.pollComposerTerminal({
+                    // Polling the unread nodes suffices: a node waits on every
+                    // result it reads and fails if any of them fails.
+                    const polled = await this.pollComposerResultNodes({
                         context,
                         submissions,
+                        otherUnreadSubmissions,
+                        sampleNodeIds,
                         terminalSubmission,
                         pageSize,
                         deadlineMs,
@@ -5031,7 +5037,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A failed sample read gives a null sample and never fails the run. */
+    /** A failed sample read gives a null sample and never fails the run; a status with a sample already keeps it. */
     private async readComposerNodeSamples(
         context: AiAgentToolsRuntimeContext,
         submissions: SourceQuerySubmission[],
@@ -5046,7 +5052,8 @@ export class AiAgentToolsService extends BaseService {
                 if (
                     !submission ||
                     status.state !== QueryHistoryStatus.READY ||
-                    !sampleNodeIds.includes(status.nodeId)
+                    !sampleNodeIds.includes(status.nodeId) ||
+                    status.sample !== null
                 )
                     return status;
                 try {
@@ -5076,6 +5083,51 @@ export class AiAgentToolsService extends BaseService {
                 }
             }),
         );
+    }
+
+    /**
+     * Waits for the other unread nodes first, so the terminal's status read sees them settled.
+     * Their rows come from that wait, so a failed read fails the run instead of dropping rows.
+     */
+    private async pollComposerResultNodes({
+        otherUnreadSubmissions,
+        sampleNodeIds,
+        ...args
+    }: Parameters<AiAgentToolsService['pollComposerTerminal']>[0] & {
+        otherUnreadSubmissions: SourceQuerySubmission[];
+        sampleNodeIds: string[];
+    }): Promise<ComposerRunOutcome | ComposerRunningOutcome> {
+        const samplesByNodeId = new Map<string, Record<string, AnyType>[]>();
+        const withUnreadNodeSamples = <
+            T extends ComposerRunOutcome | ComposerRunningOutcome,
+        >(
+            outcome: T,
+        ): T => ({
+            ...outcome,
+            nodeStatuses: outcome.nodeStatuses.map((status) => {
+                const rows = samplesByNodeId.get(status.nodeId);
+                return rows && sampleNodeIds.includes(status.nodeId)
+                    ? { ...status, sample: rows }
+                    : status;
+            }),
+        });
+        for (const terminalSubmission of otherUnreadSubmissions) {
+            // eslint-disable-next-line no-await-in-loop
+            const polled = await this.pollComposerTerminal({
+                ...args,
+                terminalSubmission,
+                pageSize: sampleNodeIds.includes(terminalSubmission.nodeId)
+                    ? COMPOSER_QUERY_PREVIEW_ROW_LIMIT
+                    : 1,
+            });
+            if (polled.status !== 'success')
+                return withUnreadNodeSamples(polled);
+            samplesByNodeId.set(
+                terminalSubmission.nodeId,
+                polled.terminal.rows,
+            );
+        }
+        return withUnreadNodeSamples(await this.pollComposerTerminal(args));
     }
 
     private async pollComposerTerminal({

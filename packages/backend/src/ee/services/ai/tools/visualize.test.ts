@@ -298,6 +298,7 @@ describe('visualize', () => {
         expect(runComposerQueries).toHaveBeenCalledWith({
             queries: [ordersNode],
             terminalNodeId: 'orders',
+            otherUnreadNodeIds: [],
             sampleNodeIds: [],
         });
     });

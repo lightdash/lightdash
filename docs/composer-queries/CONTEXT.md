@@ -100,15 +100,15 @@ title, never by node id.
 _Avoid_: depends on, inputs, references (in user-facing copy)
 
 **Unread node**:
-A node of a submission that no other node of the same submission reads. A
-submission has exactly one; a submission with several is rejected before it
-runs.
+A node of a submission that no other node of the same submission reads. The
+tool returns the rows of every unread node, which share the preview rows. A
+submission has at most five; one with more is rejected before it runs.
 _Avoid_: sink, end node, orphan, leaf
 
 **Terminal node**:
-The node whose result the tool returns to the agent. The submission's unread
-node by default, or any node of the pipeline chosen explicitly. Labelled
-"Final result" in the Lineage.
+The node whose result the tool returns to the agent as its preview. The
+submission's last unread node by default, or any node of the pipeline chosen explicitly.
+Labelled "Final result" in the Lineage.
 _Avoid_: output node, final node, sink
 
 **Present**:
@@ -145,7 +145,8 @@ _Avoid_: node run, query status, limit reached flag
 
 **Node sample**:
 The first few rows of a non-terminal node's result, shown to the agent in the
-composer query tool's result beside its node columns. Never shown to users.
+composer query tool's result beside its node columns; for another unread node,
+its share of the preview rows. Never shown to users.
 _Avoid_: preview (the terminal node's rows), peek, head
 
 **Node columns**:
