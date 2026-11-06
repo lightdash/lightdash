@@ -236,6 +236,7 @@ import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorage
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type DbExternalSourceTable } from '../../database/entities/externalSources';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
+import type { QueryHistoryCacheOutcome } from '../../database/entities/queryHistory';
 import { isAgentScopedQueryContext } from '../../ee/services/ai/utils/scopedSqlContexts';
 import {
     findSqlScopeViolations,
@@ -341,7 +342,10 @@ import {
     resolveResultEntitlementScope,
     type TrustedQueryResultParameters,
 } from '../AiAccessService/queryResultLineage';
-import type { ICacheService } from '../CacheService/ICacheService';
+import type {
+    CacheServiceUser,
+    ICacheService,
+} from '../CacheService/ICacheService';
 import { cacheMiss, CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
@@ -1500,6 +1504,63 @@ export class AsyncQueryService extends ProjectService {
         // Probe only: a forced refresh records that it skipped a readable result.
         if (invalidateCache) return cacheMiss(null);
         return lookup;
+    }
+
+    // Same outcome semantics as findResultsCache, for paths without a result reader.
+    private async lookupBackgroundResultsCache({
+        projectUuid,
+        cacheKey,
+        user,
+        invalidateCache,
+        bypassResultsCache,
+    }: {
+        projectUuid: string;
+        cacheKey: string;
+        user: CacheServiceUser;
+        invalidateCache: boolean;
+        bypassResultsCache: boolean;
+    }): Promise<{
+        cached: CacheHitCacheResult | null;
+        outcome: QueryHistoryCacheOutcome;
+    }> {
+        if (bypassResultsCache)
+            return {
+                cached: null,
+                outcome: {
+                    missReason: ResultsCacheMissReason.BYPASSED,
+                    refreshRequested: invalidateCache,
+                },
+            };
+        const lookup = await this.cacheService?.lookupCachedResultsFile(
+            projectUuid,
+            cacheKey,
+            user,
+        );
+        if (!lookup)
+            return {
+                cached: null,
+                outcome: {
+                    missReason: ResultsCacheMissReason.CACHE_DISABLED,
+                    refreshRequested: invalidateCache,
+                },
+            };
+        if (!lookup.cacheHit)
+            return {
+                cached: null,
+                outcome: {
+                    missReason: lookup.missReason,
+                    refreshRequested: invalidateCache,
+                },
+            };
+        if (invalidateCache)
+            return {
+                cached: null,
+                outcome: { missReason: null, refreshRequested: true },
+            };
+        return {
+            cached: lookup,
+            outcome: { missReason: null, refreshRequested: false },
+        };
     }
 
     private async getResultsPageFromS3(
@@ -11710,18 +11771,18 @@ export class AsyncQueryService extends ProjectService {
                     const resultsKey = bypassResultsCache
                         ? `${sharedResultsKey}.${queryUuid}`
                         : sharedResultsKey;
-                    const cached =
-                        invalidateCache || bypassResultsCache
-                            ? null
-                            : ((await this.cacheService?.findCachedResultsFile(
-                                  projectUuid,
-                                  resultsKey,
-                                  {
-                                      userUuid: account.user.id,
-                                      organizationUuid,
-                                      organizationName: undefined,
-                                  },
-                              )) ?? null);
+                    const { cached, outcome } =
+                        await this.lookupBackgroundResultsCache({
+                            projectUuid,
+                            cacheKey: resultsKey,
+                            user: {
+                                userUuid: account.user.id,
+                                organizationUuid,
+                                organizationName: undefined,
+                            },
+                            invalidateCache,
+                            bypassResultsCache,
+                        });
                     this.prometheusMetrics?.incrementQueryCacheHit(
                         cached !== null,
                         context,
@@ -11740,6 +11801,11 @@ export class AsyncQueryService extends ProjectService {
                         });
                         return;
                     }
+                    await this.queryHistoryModel.recordCacheOutcome(
+                        queryUuid,
+                        projectUuid,
+                        outcome,
+                    );
 
                     const inputMeta: PythonInputMeta = {
                         inputs: {},
@@ -13862,18 +13928,18 @@ export class AsyncQueryService extends ProjectService {
                 ? `${sharedResultsKey}.${queryUuid}`
                 : sharedResultsKey;
             if (references.kind === 'queries') {
-                const cached =
-                    invalidateCache || bypassResultsCache
-                        ? null
-                        : ((await this.cacheService?.findCachedResultsFile(
-                              projectUuid,
-                              resultsKey,
-                              {
-                                  userUuid: actor.userUuid,
-                                  organizationUuid,
-                                  organizationName: undefined,
-                              },
-                          )) ?? null);
+                const { cached, outcome } =
+                    await this.lookupBackgroundResultsCache({
+                        projectUuid,
+                        cacheKey: resultsKey,
+                        user: {
+                            userUuid: actor.userUuid,
+                            organizationUuid,
+                            organizationName: undefined,
+                        },
+                        invalidateCache,
+                        bypassResultsCache,
+                    });
                 this.prometheusMetrics?.incrementQueryCacheHit(
                     cached !== null,
                     context,
@@ -13902,6 +13968,11 @@ export class AsyncQueryService extends ProjectService {
                     });
                     return;
                 }
+                await this.queryHistoryModel.recordCacheOutcome(
+                    queryUuid,
+                    projectUuid,
+                    outcome,
+                );
             }
             const execution = await this.traceComposerQueryStage(
                 'duckdb',

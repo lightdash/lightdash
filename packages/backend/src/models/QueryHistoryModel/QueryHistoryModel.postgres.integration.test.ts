@@ -338,7 +338,7 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
             const newestAlias = await indexes.reduce(
                 async (previous, index) => {
                     await previous;
-                    const hit = await service.findCachedResultsFile(
+                    const hit = await service.lookupCachedResultsFile(
                         projectUuid,
                         'cache-key',
                         { userUuid: account.user.id },
@@ -351,7 +351,7 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                         fileName: 'original.jsonl',
                         resultProducer: producer,
                     });
-                    if (!hit?.queryUuid)
+                    if (!hit.cacheHit || !hit.queryUuid)
                         throw new Error(
                             'Expected a cache hit with its source query',
                         );

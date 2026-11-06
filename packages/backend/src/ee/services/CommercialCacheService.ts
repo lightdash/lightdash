@@ -14,7 +14,6 @@ import type {
     ICacheService,
 } from '../../services/CacheService/ICacheService';
 import {
-    type CacheHitCacheResult,
     type CacheLookupMiss,
     type CacheLookupResult,
 } from '../../services/CacheService/types';
@@ -54,23 +53,6 @@ export class CommercialCacheService implements ICacheService {
         this.projectModel = projectModel;
         this.storageClient = storageClient;
         this.featureFlagModel = featureFlagModel;
-    }
-
-    async findCachedResultsFile(
-        projectUuid: string,
-        cacheKey: string,
-        user: CacheServiceUser,
-        requesterProducer: QueryResultProducer | null = null,
-        resolvedIdentityEnabled: boolean | null = null,
-    ): Promise<CacheHitCacheResult | null> {
-        const result = await this.lookupCachedResultsFile(
-            projectUuid,
-            cacheKey,
-            user,
-            requesterProducer,
-            resolvedIdentityEnabled,
-        );
-        return result.cacheHit ? result : null;
     }
 
     async lookupCachedResultsFile(

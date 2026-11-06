@@ -653,6 +653,20 @@ export class QueryHistoryModel {
         };
     }
 
+    async recordCacheOutcome(
+        queryUuid: string,
+        projectUuid: string,
+        outcome: QueryHistoryCacheOutcome,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .update({
+                cache_miss_reason: outcome.missReason,
+                cache_refresh_requested: outcome.refreshRequested,
+            });
+    }
+
     async hasClearedResultsForCacheKey(
         cacheKey: string,
         projectUuid: string,

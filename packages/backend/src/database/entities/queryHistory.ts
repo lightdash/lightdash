@@ -114,6 +114,8 @@ export type DbQueryHistoryUpdate = Partial<
         | 'cache_key'
         | 'cache_generation'
         | 'cache_invalidated_at'
+        | 'cache_miss_reason'
+        | 'cache_refresh_requested'
         | 'pre_aggregate_fallback_reason'
         | 'processing_started_at'
         | 'duckdb_execution'

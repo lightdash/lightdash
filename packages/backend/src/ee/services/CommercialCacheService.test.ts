@@ -76,7 +76,7 @@ describe('CommercialCacheService', () => {
     test('a resolved flag-off cache lookup does not resolve identity again', async () => {
         const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
         await expect(
-            f.service.findCachedResultsFile(
+            f.service.lookupCachedResultsFile(
                 'project',
                 'cache',
                 { userUuid: 'reader' },
@@ -120,14 +120,14 @@ describe('CommercialCacheService', () => {
                 },
             });
             await expect(
-                f.service.findCachedResultsFile(
+                f.service.lookupCachedResultsFile(
                     'project',
                     'cache',
                     { userUuid: 'reader' },
                     null,
                     false,
                 ),
-            ).resolves.toBeNull();
+            ).resolves.toMatchObject({ cacheHit: false });
         },
     );
 
@@ -149,25 +149,25 @@ describe('CommercialCacheService', () => {
             f.config.ai.agentResultIdentityCheckEnabled = checksEnabled;
             const user = { userUuid: 'reader' };
             await expect(
-                f.service.findCachedResultsFile(
+                f.service.lookupCachedResultsFile(
                     'project',
                     'cache',
                     user,
                     sharedProducer,
                 ),
-            ).resolves.toBeNull();
+            ).resolves.toMatchObject({ cacheHit: false });
             f.candidate.resultProducer = {
                 ...sharedProducer,
                 warehouseConnectionUuid: 'other',
             };
             await expect(
-                f.service.findCachedResultsFile(
+                f.service.lookupCachedResultsFile(
                     'project',
                     'cache',
                     user,
                     sharedProducer,
                 ),
-            ).resolves.toBeNull();
+            ).resolves.toMatchObject({ cacheHit: false });
             f.candidate.resultProducer = {
                 ...sharedProducer,
                 credentialOwner: {
@@ -177,13 +177,13 @@ describe('CommercialCacheService', () => {
                 },
             };
             await expect(
-                f.service.findCachedResultsFile(
+                f.service.lookupCachedResultsFile(
                     'project',
                     'cache',
                     user,
                     sharedProducer,
                 ),
-            ).resolves.toBeNull();
+            ).resolves.toMatchObject({ cacheHit: false });
             f.candidate.resultProducer = {
                 ...sharedProducer,
                 agentIdentity: buildAgentIdentityClaim({
@@ -193,22 +193,24 @@ describe('CommercialCacheService', () => {
                 }),
             };
             await expect(
-                f.service.findCachedResultsFile(
+                f.service.lookupCachedResultsFile(
                     'project',
                     'cache',
                     user,
                     sharedProducer,
                 ),
-            ).resolves.toBeNull();
+            ).resolves.toMatchObject({ cacheHit: false });
             f.candidate.resultProducer = { ...sharedProducer };
-            const hit = await f.service.findCachedResultsFile(
+            const hit = await f.service.lookupCachedResultsFile(
                 'project',
                 'cache',
                 user,
                 sharedProducer,
             );
-            expect(hit?.resultProducer).toBe(f.candidate.resultProducer);
-            expect(hit?.cacheHit).toBe(true);
+            expect(hit).toMatchObject({ cacheHit: true });
+            expect(hit.cacheHit && hit.resultProducer).toBe(
+                f.candidate.resultProducer,
+            );
             expect(f.findMostRecentByCacheKey).toHaveBeenLastCalledWith(
                 'cache',
                 'project',
@@ -230,13 +232,13 @@ describe('CommercialCacheService', () => {
             clientId: 'lightdash-chat',
         });
         await expect(
-            f.service.findCachedResultsFile(
+            f.service.lookupCachedResultsFile(
                 'project',
                 'cache',
                 { userUuid: 'reader' },
                 { ...sharedProducer, agentIdentity },
             ),
-        ).resolves.toBeNull();
+        ).resolves.toMatchObject({ cacheHit: false });
         expect(f.findMostRecentByCacheKey).not.toHaveBeenCalled();
     });
 
@@ -267,7 +269,7 @@ describe('CommercialCacheService', () => {
                 get: vi.fn(async () => ({ enabled: false })),
             } as never,
         });
-        await service.findCachedResultsFile('project', 'cache', {
+        await service.lookupCachedResultsFile('project', 'cache', {
             userUuid: 'user',
         });
         expect(findMostRecentByCacheKey).toHaveBeenLastCalledWith(
@@ -276,7 +278,7 @@ describe('CommercialCacheService', () => {
             { excludeAgentProduced: true },
         );
         lightdashConfig.ai.agentResultIdentityCheckEnabled = false;
-        await service.findCachedResultsFile('project', 'cache', {
+        await service.lookupCachedResultsFile('project', 'cache', {
             userUuid: 'user',
         });
         expect(findMostRecentByCacheKey).toHaveBeenLastCalledWith(
@@ -291,17 +293,17 @@ describe('CommercialCacheService', () => {
         const { service } = makeService(new Date('2026-07-30T11:00:00.000Z'));
 
         await expect(
-            service.findCachedResultsFile('project-uuid', 'cache-key', {
+            service.lookupCachedResultsFile('project-uuid', 'cache-key', {
                 userUuid: 'user-uuid',
             }),
-        ).resolves.toBeNull();
+        ).resolves.toMatchObject({ cacheHit: false });
     });
 
     it('returns the logical cache expiry for fresh retained results', async () => {
         const { service } = makeService(new Date('2026-07-31T11:00:00.000Z'));
 
         await expect(
-            service.findCachedResultsFile('project-uuid', 'cache-key', {
+            service.lookupCachedResultsFile('project-uuid', 'cache-key', {
                 userUuid: 'user-uuid',
             }),
         ).resolves.toMatchObject({
@@ -315,7 +317,7 @@ describe('CommercialCacheService', () => {
             new Date('2026-07-31T11:00:00.000Z'),
         );
 
-        await service.findCachedResultsFile('project-uuid', 'cache-key', {
+        await service.lookupCachedResultsFile('project-uuid', 'cache-key', {
             userUuid: 'user-uuid',
         });
 
@@ -330,10 +332,10 @@ describe('CommercialCacheService', () => {
         );
 
         await expect(
-            service.findCachedResultsFile('project-uuid', 'cache-key', {
+            service.lookupCachedResultsFile('project-uuid', 'cache-key', {
                 userUuid: 'user-uuid',
             }),
-        ).resolves.toBeNull();
+        ).resolves.toMatchObject({ cacheHit: false });
     });
 
     it('computes the expiry from a project TTL for fresh results', async () => {
@@ -344,7 +346,7 @@ describe('CommercialCacheService', () => {
         );
 
         await expect(
-            service.findCachedResultsFile('project-uuid', 'cache-key', {
+            service.lookupCachedResultsFile('project-uuid', 'cache-key', {
                 userUuid: 'user-uuid',
             }),
         ).resolves.toMatchObject({
@@ -356,13 +358,15 @@ describe('CommercialCacheService', () => {
     describe('project results cache setting', () => {
         const freshResults = new Date('2026-07-31T11:00:00.000Z');
         const lookup = (service: CommercialCacheService) =>
-            service.findCachedResultsFile('project', 'cache', {
+            service.lookupCachedResultsFile('project', 'cache', {
                 userUuid: 'reader',
             });
 
         it('skips the cache when results caching is off', async () => {
             const f = makeService(freshResults, undefined, false);
-            await expect(lookup(f.service)).resolves.toBeNull();
+            await expect(lookup(f.service)).resolves.toMatchObject({
+                cacheHit: false,
+            });
             expect(f.findMostRecentByCacheKey).not.toHaveBeenCalled();
         });
 

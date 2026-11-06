@@ -247,6 +247,7 @@ import {
 import type { ICacheService } from '../CacheService/ICacheService';
 import {
     CacheHitCacheResult,
+    CacheLookupResult,
     cacheMiss,
     MissCacheResult,
 } from '../CacheService/types';
@@ -536,6 +537,7 @@ const inMemoryDuckdbHistory = ({
         ),
         recordAiSignInCredential: vi.fn(),
         recordResultProducer: vi.fn(),
+        recordCacheOutcome: vi.fn(),
         inheritCacheInvalidation: vi.fn(),
         update: vi.fn(),
         ...overrides,
@@ -682,6 +684,7 @@ const getMockedAsyncQueryService = (
             getDuckdbExecution: vi.fn(async () => null),
             recordAiSignInCredential: vi.fn(),
             recordResultProducer: vi.fn(),
+            recordCacheOutcome: vi.fn(),
             inheritCacheInvalidation: vi.fn(),
             invalidateCachedResultsForExplores: vi.fn(async () => 1),
             update: vi.fn(),
@@ -4337,7 +4340,10 @@ describe('AsyncQueryService', () => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
-                findCachedResultsFile: vi.fn(async () => null),
+                lookupCachedResultsFile: vi.fn(async () => ({
+                    cacheHit: false as const,
+                    missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                })),
             } as unknown as ICacheService;
 
             vi.clearAllMocks();
@@ -5095,7 +5101,6 @@ describe('AsyncQueryService', () => {
             // Clear cache and mocks for this service
             serviceWithoutCache.warehouseClientFactory.warehouseClients = {};
             serviceWithoutCache.cacheService = {
-                findCachedResultsFile: vi.fn(),
                 lookupCachedResultsFile: vi.fn(async () => ({
                     cacheHit: false as const,
                     missReason: ResultsCacheMissReason.CACHE_DISABLED,
@@ -8459,7 +8464,10 @@ describe('AsyncQueryService', () => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
-                findCachedResultsFile: vi.fn(async () => null),
+                lookupCachedResultsFile: vi.fn(async () => ({
+                    cacheHit: false as const,
+                    missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                })),
             } as unknown as ICacheService;
 
             vi.clearAllMocks();
@@ -10984,7 +10992,10 @@ describe('AsyncQueryService', () => {
         beforeEach(() => {
             serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
-                findCachedResultsFile: vi.fn(async () => null),
+                lookupCachedResultsFile: vi.fn(async () => ({
+                    cacheHit: false as const,
+                    missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                })),
             } as unknown as ICacheService;
             vi.clearAllMocks();
 
@@ -13505,7 +13516,10 @@ describe('AsyncQueryService', () => {
 
                 service.warehouseClientFactory.warehouseClients = {};
                 service.cacheService = {
-                    findCachedResultsFile: vi.fn(async () => null),
+                    lookupCachedResultsFile: vi.fn(async () => ({
+                        cacheHit: false as const,
+                        missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                    })),
                 } as unknown as ICacheService;
 
                 service.findResultsCache = vi.fn().mockResolvedValue({
@@ -17608,7 +17622,14 @@ describe('runDuckdbQuery', () => {
         const pollForQueryCompletion = vi.fn(async () => legHistory(1));
         const recordDuckdbRefusal = vi.fn();
         const markDuckdbCacheHit = vi.fn();
-        const findCachedResultsFile = vi.fn(async () => cached);
+        const recordCacheOutcome = vi.fn();
+        const lookupCachedResultsFile = vi.fn(
+            async (): Promise<CacheLookupResult> =>
+                cached ?? {
+                    cacheHit: false,
+                    missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                },
+        );
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             resultsStorageClient: {
                 isEnabled: true,
@@ -17622,8 +17643,11 @@ describe('runDuckdbQuery', () => {
                 pollForQueryCompletion,
                 recordDuckdbRefusal,
                 markDuckdbCacheHit,
+                recordCacheOutcome,
             } as unknown as QueryHistoryModel,
-            cacheService: { findCachedResultsFile } as unknown as ICacheService,
+            cacheService: {
+                lookupCachedResultsFile,
+            } as unknown as ICacheService,
         } as never);
         const runWarehouseQuery = vi
             .spyOn(service, 'runAsyncWarehouseQuery')
@@ -17636,7 +17660,8 @@ describe('runDuckdbQuery', () => {
             pollForQueryCompletion,
             recordDuckdbRefusal,
             markDuckdbCacheHit,
-            findCachedResultsFile,
+            lookupCachedResultsFile,
+            recordCacheOutcome,
             update: service.queryHistoryModel.update as import('vitest').Mock,
             getByQueryUuid: service.queryHistoryModel
                 .getByQueryUuid as import('vitest').Mock,
@@ -17993,6 +18018,7 @@ describe('runDuckdbQuery', () => {
                 getByQueryUuid: vi.fn(async () => undefined),
                 recordAiSignInCredential: vi.fn(),
                 recordResultProducer: vi.fn(),
+                recordCacheOutcome: vi.fn(),
                 update: vi.fn(),
                 pollForQueryCompletion: vi.fn(
                     async ({ queryUuid }: { queryUuid: string }) => ({
@@ -18115,8 +18141,9 @@ describe('runDuckdbQuery', () => {
             service,
             run,
             runWarehouseQuery,
-            findCachedResultsFile,
+            lookupCachedResultsFile,
             markDuckdbCacheHit,
+            recordCacheOutcome,
             update,
         } = buildService(cachedResults);
         const track = vi.spyOn(
@@ -18138,11 +18165,12 @@ describe('runDuckdbQuery', () => {
         );
 
         // Keyed on the file the leg row points at, not the leg row itself
-        expect(findCachedResultsFile).toHaveBeenCalledWith(
+        expect(lookupCachedResultsFile).toHaveBeenCalledWith(
             projectUuid,
             fileKey(['s3://results-bucket/leg-results.jsonl']),
             expect.objectContaining({ userUuid: sessionAccount.user.id }),
         );
+        expect(recordCacheOutcome).not.toHaveBeenCalled();
         expect(streamQuery).not.toHaveBeenCalled();
         expect(runWarehouseQuery).not.toHaveBeenCalled();
         expect(markDuckdbCacheHit).toHaveBeenCalledWith('duckdb-query-uuid');
@@ -18179,8 +18207,9 @@ describe('runDuckdbQuery', () => {
                 run,
                 runWarehouseQuery,
                 pollForQueryCompletion,
-                findCachedResultsFile,
+                lookupCachedResultsFile,
                 markDuckdbCacheHit,
+                recordCacheOutcome,
             } = buildService(cachedResults);
             pollForQueryCompletion.mockResolvedValue({
                 ...legHistory(1),
@@ -18201,7 +18230,15 @@ describe('runDuckdbQuery', () => {
                     },
                 }),
             );
-            expect(findCachedResultsFile).not.toHaveBeenCalled();
+            expect(lookupCachedResultsFile).not.toHaveBeenCalled();
+            expect(recordCacheOutcome).toHaveBeenCalledWith(
+                'duckdb-query-uuid',
+                projectUuid,
+                {
+                    missReason: ResultsCacheMissReason.BYPASSED,
+                    refreshRequested: false,
+                },
+            );
             expect(markDuckdbCacheHit).not.toHaveBeenCalled();
             expect(runWarehouseQuery).toHaveBeenCalledOnce();
             expect(runWarehouseQuery.mock.calls[0][0].cacheKey).toMatch(
@@ -18246,7 +18283,7 @@ describe('runDuckdbQuery', () => {
         const { streamQuery, warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },
         });
-        const { run, runWarehouseQuery, findCachedResultsFile } =
+        const { run, runWarehouseQuery, recordCacheOutcome } =
             buildService(cachedResults);
 
         await run(
@@ -18262,9 +18299,42 @@ describe('runDuckdbQuery', () => {
             }),
         );
 
-        expect(findCachedResultsFile).not.toHaveBeenCalled();
+        expect(recordCacheOutcome).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            { missReason: null, refreshRequested: true },
+        );
         expect(streamQuery).toHaveBeenCalledTimes(1);
         expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('an invalidating run with nothing cached records the miss reason', async () => {
+        const { warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { run, recordCacheOutcome } = buildService(null);
+
+        await run(
+            baseArgs({
+                invalidateCache: true,
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        expect(recordCacheOutcome).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            {
+                missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                refreshRequested: true,
+            },
+        );
     });
 
     it('a guard refusal lands as the query error and is recorded on the row before anything runs', async () => {
@@ -18321,7 +18391,7 @@ describe('runDuckdbQuery', () => {
             const {
                 run,
                 runWarehouseQuery,
-                findCachedResultsFile,
+                lookupCachedResultsFile,
                 update,
                 getByQueryUuid,
             } = buildService(cachedResults);
@@ -18329,7 +18399,7 @@ describe('runDuckdbQuery', () => {
 
             await run(baseArgs({ references: queryReferences }));
 
-            expect(findCachedResultsFile).not.toHaveBeenCalled();
+            expect(lookupCachedResultsFile).not.toHaveBeenCalled();
             expect(runWarehouseQuery).not.toHaveBeenCalled();
             expect(update).not.toHaveBeenCalled();
         });
@@ -24582,7 +24652,7 @@ describe('fresh execution producer to result reader', () => {
             });
             Object.assign(f.service, { cacheService });
             await expect(
-                cacheService.findCachedResultsFile(
+                cacheService.lookupCachedResultsFile(
                     projectUuid,
                     oldKey,
                     {
