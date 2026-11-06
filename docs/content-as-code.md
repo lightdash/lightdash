@@ -793,7 +793,10 @@ every other entry shares the line of the entry before it. A line start on a
 section member passes to the next entry in the list outside a section; it is
 dropped if there is none. Without a saved
 order, lines follow each section's `inline`. Controls left out of
-`controlOrder` go to the end of their container, inline.
+`controlOrder` go to the end of their container, inline, except on a
+never-reordered dashboard, where a control new in this upload keeps its
+default place. An upload that leaves the bar at the default order stores no
+order.
 
 Within a kind, the array order decides which control sits in each of that
 kind's positions, and line starts stay with their position: swapping two
