@@ -2116,6 +2116,17 @@ export class DashboardService
                 createDashboard = { ...createDashboard, config };
             }
         }
+        if (
+            createDashboard.config?.controlOrder !== undefined &&
+            !(await this.areDashboardControlsEnabled(
+                user,
+                space.organizationUuid,
+            ))
+        ) {
+            const { controlOrder: _ignored, ...config } =
+                createDashboard.config;
+            createDashboard = { ...createDashboard, config };
+        }
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             createDashboard,
@@ -2967,6 +2978,37 @@ export class DashboardService
                         },
                     };
                 }
+            }
+        }
+
+        if (
+            isDashboardVersionedFields(dashboardFields) &&
+            dashboardFields.config
+        ) {
+            const incomingOrder = dashboardFields.config.controlOrder;
+            const savedOrder = existingDashboardDao.config?.controlOrder;
+            // A flag-off editor's save never erases or rewrites the stored order
+            if (
+                (incomingOrder !== undefined || savedOrder !== undefined) &&
+                !(
+                    incomingOrder !== undefined &&
+                    (await this.areDashboardControlsEnabled(
+                        user,
+                        existingDashboardDao.organizationUuid,
+                    ))
+                )
+            ) {
+                const { controlOrder: _ignored, ...config } =
+                    dashboardFields.config;
+                dashboardFields = {
+                    ...dashboardFields,
+                    config: {
+                        ...config,
+                        ...(savedOrder !== undefined && {
+                            controlOrder: savedOrder,
+                        }),
+                    },
+                };
             }
         }
 

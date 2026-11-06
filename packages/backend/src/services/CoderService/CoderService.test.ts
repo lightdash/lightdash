@@ -1883,6 +1883,37 @@ describe('CoderService', () => {
             ).toThrow('Space space-uuid not found');
         });
 
+        it('leaves the control order out of the file', () => {
+            const exported = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                {
+                    description: null,
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    name: 'Dashboard',
+                    slug: 'dashboard',
+                    spaceUuid: 'space-uuid',
+                    tabs: [],
+                    tiles: [],
+                    uuid: 'dashboard-uuid',
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlOrder: [{ kind: 'section', id: 'section-1' }],
+                    },
+                },
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+                true,
+            );
+            expect(exported.config).toEqual({ isDateZoomDisabled: false });
+        });
+
         it('round-trips controls when generated tile slugs collide with chart slugs', () => {
             const tiles = ['sales', 'sales', 'sales-1'].map(
                 (chartSlug, index) => ({
