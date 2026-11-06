@@ -5238,7 +5238,8 @@ export class AsyncQueryService extends ProjectService {
             const resolvedDataTimezone = isTimezoneSupportEnabled
                 ? warehouseClient.credentials.dataTimezone
                 : undefined;
-            // Safe for any query: only one Redshift has no record of is re-sent
+            // Safe for any query: only a query that Redshift has no record
+            // of is re-sent, so nothing can run twice
             const recoverStalledQuery =
                 credentialsType === WarehouseTypes.REDSHIFT;
 
