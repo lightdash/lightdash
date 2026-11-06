@@ -14,7 +14,6 @@ import {
     type ExternalSourceRef,
     type Project as LightdashProject,
     type SummaryExplore,
-    type WarehouseConnection,
 } from '@lightdash/common';
 import { getWarehouseLabel } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import {
@@ -22,6 +21,7 @@ import {
     LIVE_SOURCE_CATALOG,
 } from '../externalConnections/liveSources/liveSourceCatalog';
 import { type Explore, type Project, type Source } from './model';
+import { type StudioConnection } from './warehouses';
 
 const SETTINGS = '/generalSettings/projectManagement/:projectUuid';
 
@@ -60,13 +60,14 @@ const warehouseSource = (project: LightdashProject): Source => ({
  */
 const connectionSource = (
     project: LightdashProject,
-    connection: WarehouseConnection,
+    connection: StudioConnection,
 ): Source => ({
     ...warehouseSource(project),
     id: connection.isOriginal
         ? WAREHOUSE_SOURCE_ID
         : `${WAREHOUSE_SOURCE_ID}:${connection.warehouseConnectionUuid}`,
     name: connection.name,
+    isPrimary: connection.isOriginal,
     warehouse: {
         type: connection.warehouseType,
         label:
@@ -203,7 +204,7 @@ export const buildRealProject = ({
      * With several warehouses allowed, the project's connections (empty
      * until it switches, or for people who can't list them); null otherwise.
      */
-    warehouseConnections?: WarehouseConnection[] | null;
+    warehouseConnections?: StudioConnection[] | null;
 }): Project => {
     const warehouseType = project.warehouseConnection?.type;
     const warehouseLabel = warehouseType

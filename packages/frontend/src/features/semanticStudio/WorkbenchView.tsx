@@ -58,6 +58,7 @@ import {
     FieldList,
     FieldListToolbar,
     NodeIcon,
+    PrimaryTag,
     SearchResultsList,
     SettingsLink,
 } from './shared';
@@ -167,6 +168,10 @@ const Tree: FC<{
                             <Text truncate className={classes.treeLabel}>
                                 {node.label}
                             </Text>
+                            <PrimaryTag
+                                project={view.project}
+                                nodeRef={node.ref}
+                            />
                         </Box>
                     );
                 })}
@@ -246,6 +251,10 @@ const ChildrenList: FC<{
                                     >
                                         {node.label}
                                     </Text>
+                                    <PrimaryTag
+                                        project={view.project}
+                                        nodeRef={node.ref}
+                                    />
                                 </Group>
                                 {describe ? (
                                     <Text

@@ -13,15 +13,24 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import { useWarehouseConnections } from '../../hooks/useWarehouseConnections';
+import {
+    useWarehouseConnections,
+    useWarehouseConnectionsForUserCredentials,
+} from '../../hooks/useWarehouseConnections';
 import { useWarehouseConnectionSwitchAvailability } from '../../hooks/useWarehouseConnectionSwitch';
 import useApp from '../../providers/App/useApp';
 
-const NO_CONNECTIONS: WarehouseConnection[] = [];
+/** What the page shows of a connection; every project member may read it. */
+export type StudioConnection = Pick<
+    WarehouseConnection,
+    'warehouseConnectionUuid' | 'name' | 'isOriginal' | 'warehouseType'
+>;
+
+const NO_CONNECTIONS: StudioConnection[] = [];
 
 export type StudioWarehouses = {
     /** Listed once the project has switched to several connections. */
-    connections: WarehouseConnection[];
+    connections: StudioConnection[];
     /** `single` until the project switches; null while unknown or hidden. */
     mode: 'single' | 'multiple' | null;
     /** The type of the project's first connection, which extras build on. */
@@ -104,9 +113,11 @@ export const warehouseMenuItem = ({
 };
 
 /**
- * The project's warehouses for the page, or null when the flag is off. Only
- * people who manage the project are asked for them, as in project settings;
- * everyone else still sees each connection's explores, grouped by it.
+ * The project's warehouses for the page, or null when the flag is off.
+ * People who manage the project get the settings listing, which also says
+ * whether another can be added. Everyone else gets the names and types the
+ * connection switcher reads, which needs only view Project; a project still
+ * on one connection answers that with an error, read as no connections.
  */
 export const useStudioWarehouses = (
     projectUuid: string | undefined,
@@ -128,6 +139,10 @@ export const useStudioWarehouses = (
         enabled: canManage,
     });
     const mode = listing.data?.mode ?? null;
+    const viewerListing = useWarehouseConnectionsForUserCredentials(
+        projectUuid ?? '',
+        listing.isEnabled && !canManage && !!projectUuid,
+    );
     const availability = useWarehouseConnectionSwitchAvailability(
         projectUuid ?? '',
         listing.isEnabled && mode === 'single',
@@ -135,6 +150,7 @@ export const useStudioWarehouses = (
     const isInitialLoading =
         flag.isInitialLoading ||
         listing.isInitialLoading ||
+        viewerListing.isInitialLoading ||
         availability.isInitialLoading;
     if (!listing.isEnabled) return { warehouses: null, isInitialLoading };
 
@@ -147,7 +163,8 @@ export const useStudioWarehouses = (
     return {
         isInitialLoading,
         warehouses: {
-            connections: multiple?.connections ?? NO_CONNECTIONS,
+            connections:
+                multiple?.connections ?? viewerListing.data ?? NO_CONNECTIONS,
             mode,
             originalWarehouseType,
             canManage,

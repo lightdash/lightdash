@@ -283,10 +283,14 @@ describe('buildRealProject with several warehouses', () => {
         expect(sourceIdOf(project, 'orders')).toBe('warehouse');
         expect(sourceIdOf(project, 'events')).toBe('warehouse:wc-2');
         expect(
+            project.sources.find(({ id }) => id === 'warehouse')?.isPrimary,
+        ).toBe(true);
+        expect(
             project.sources.find(({ id }) => id === 'warehouse:wc-2'),
         ).toMatchObject({
             kind: 'modelled',
             name: 'Analytics',
+            isPrimary: false,
             warehouse: { type: 'snowflake', label: 'Snowflake' },
         });
     });

@@ -12,6 +12,7 @@ import {
 import {
     Anchor,
     Autocomplete,
+    Badge,
     Box,
     Button,
     Group,
@@ -208,6 +209,25 @@ const FieldTypeIcon: FC<{ field: Field; size?: 'md' | 'lg' }> = ({
         size={size}
     />
 );
+
+/** A subtle tag on the primary warehouse connection, beside its name. */
+export const PrimaryTag: FC<{ project: Project; nodeRef: NodeRef }> = ({
+    project,
+    nodeRef,
+}) =>
+    nodeRef.type === 'source' &&
+    getSource(project, nodeRef.sourceId).isPrimary ? (
+        <Badge
+            size="xs"
+            variant="light"
+            color="gray"
+            radius="sm"
+            flex="none"
+            title="The project's primary warehouse connection"
+        >
+            Primary
+        </Badge>
+    ) : null;
 
 /** The icon for any node: the source's own logo wins over generic icons. */
 export const NodeIcon: FC<{

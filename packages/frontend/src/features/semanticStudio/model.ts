@@ -69,6 +69,8 @@ export type Source = {
     connectionUuid?: string;
     /** A warehouse connection of its own, when the project has several. */
     warehouse?: WarehouseConnection;
+    /** The project's primary warehouse connection, when it has several. */
+    isPrimary?: boolean;
     /** Its settings page; null when it has none. */
     settingsPath: string | null;
 };
