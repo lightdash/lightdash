@@ -5124,6 +5124,18 @@ export class CoderService extends BaseService {
             `Updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
         );
 
+        const versionedData = {
+            sql: sqlChartAsCode.sql,
+            limit: sqlChartAsCode.limit,
+            config: sqlChartAsCode.config,
+        };
+        const hasVersionedChanges =
+            existingSqlChart.sql !== versionedData.sql ||
+            existingSqlChart.limit !== versionedData.limit ||
+            !isEqual(existingSqlChart.config, versionedData.config) ||
+            existingSqlChart.warehouse_connection_uuid !==
+                warehouseConnectionUuid;
+
         const sqlChartUpdate = {
             userUuid: user.userUuid,
             savedSqlUuid: existingSqlChart.saved_sql_uuid,
@@ -5133,11 +5145,7 @@ export class CoderService extends BaseService {
                     description: sqlChartAsCode.description,
                     spaceUuid: space.uuid,
                 },
-                versionedData: {
-                    sql: sqlChartAsCode.sql,
-                    limit: sqlChartAsCode.limit,
-                    config: sqlChartAsCode.config,
-                },
+                ...(hasVersionedChanges ? { versionedData } : {}),
             },
         };
         await this.savedSqlModel.update(
