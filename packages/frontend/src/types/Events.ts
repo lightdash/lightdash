@@ -261,7 +261,6 @@ export enum EventName {
     HOMEPAGE_ASK_SUBMITTED = 'homepage_ask.submitted',
     HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION = 'homepage_recommended_action.impression',
     HOMEPAGE_RECOMMENDED_ACTION_RESTORED = 'homepage_recommended_action.restored',
-    HOMEPAGE_STARS_MEDIA_CARD_CLICKED = 'homepage_stars_media_card.clicked',
     AGENT_SETUP_PROMPT_COPIED = 'agent_setup_prompt.copied',
     AGENT_ONBOARDING_DEMO_OFFER_SHOWN = 'agent_onboarding_demo_offer.shown',
     AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED = 'agent_onboarding_demo_offer.accepted',
