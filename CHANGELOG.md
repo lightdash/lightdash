@@ -1,3 +1,15 @@
+# [3.176.0](https://github.com/lightdash/lightdash/compare/3.175.0...3.176.0) (2026-11-06)
+
+
+### Bug Fixes
+
+* **ai:** skip thinking on chart type suggestions so fast models answer in time ([#32180](https://github.com/lightdash/lightdash/issues/32180)) ([7e3826c](https://github.com/lightdash/lightdash/commit/7e3826c9893eee66bfc732b0ce9f5c41adec5019))
+
+
+### Features
+
+* **dashboard-controls:** track parameter-to-tile mapping counts ([#32181](https://github.com/lightdash/lightdash/issues/32181)) ([232820d](https://github.com/lightdash/lightdash/commit/232820db5f2543952615b297ca3e4363d88387bc))
+
 # [3.175.0](https://github.com/lightdash/lightdash/compare/3.174.1...3.175.0) (2026-11-06)
 
 
