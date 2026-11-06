@@ -42,6 +42,9 @@ export type DashboardControl<
     } & DashboardControlPayloads[P];
 }[K];
 
+/** A control placed on the bar: `newLine` when it starts a bar line, always false inside a section */
+export type OrderedDashboardControl = DashboardControl & { newLine: boolean };
+
 export type DashboardControlSources = {
     controlOrder: DashboardControlRef[] | undefined;
     filters: Pick<DashboardFilters, 'dimensions' | 'metrics'>;
@@ -141,8 +144,12 @@ export const isDashboardControlOrder = (
     Array.isArray(value) &&
     value.every((ref: unknown) => {
         if (typeof ref !== 'object' || ref === null) return false;
-        const { kind, id } = ref as Record<string, unknown>;
-        return typeof kind === 'string' && typeof id === 'string';
+        const { kind, id, newLine } = ref as Record<string, unknown>;
+        return (
+            typeof kind === 'string' &&
+            typeof id === 'string' &&
+            (newLine === undefined || typeof newLine === 'boolean')
+        );
     });
 
 export const getDashboardControls = (
@@ -169,16 +176,18 @@ export const getDashboardControls = (
 
 /**
  * The bar's controls in order: unsectioned controls, with each section
- * followed by its members. `controlOrder` only decides how kinds interleave
- * and where sections sit; each kind's array orders that kind, and
- * membership comes from `sectionId`. Dangling, duplicate and unknown-kind
- * refs are dropped, unmentioned controls trail their container in the
- * default order (dimension filters, metric filters, parameter controls,
- * then sections).
+ * followed by its members. `controlOrder` only decides how kinds interleave,
+ * where sections sit and where bar lines start; each kind's array orders that
+ * kind, and membership comes from `sectionId`. Dangling, duplicate and
+ * unknown-kind refs are dropped, unmentioned controls trail their container
+ * in the default order (dimension filters, metric filters, parameter
+ * controls, then sections) on the line before them. With no list, lines
+ * follow the sections' `inline`: the first section and every section not
+ * `inline` start a line.
  */
 export const reconcileDashboardControlOrder = (
     sources: DashboardControlSources,
-): DashboardControl[] => {
+): OrderedDashboardControl[] => {
     const controls = getDashboardControls(sources);
     const byKey = new Map(
         controls.map((control) => [refKey(control.kind, control.id), control]),
@@ -199,20 +208,36 @@ export const reconcileDashboardControlOrder = (
         const control = byKey.get(key);
         if (control === undefined || seen.has(key)) return [];
         seen.add(key);
-        return [control];
+        return [{ control, newLine: ref.newLine === true }];
     });
-    const placed = new Set(mentioned);
-    const unmentioned = controls.filter((control) => !placed.has(control));
+    const placed = new Set(mentioned.map(({ control }) => control));
+    const hasList = mentioned.length > 0;
+    let sectionsSeen = 0;
+    const unmentioned = controls
+        .filter((control) => !placed.has(control))
+        .map((control) => {
+            if (hasList || control.kind !== DashboardControlRefKind.SECTION)
+                return { control, newLine: false };
+            sectionsSeen += 1;
+            return {
+                control,
+                newLine: sectionsSeen === 1 || control.section.inline !== true,
+            };
+        });
     const sequence = [...mentioned, ...unmentioned];
 
-    // Each container's slots, refilled per kind from that kind's array order
+    // Each container's slots, refilled per kind from that kind's array order;
+    // a line start stays with its slot
     const containerOf = (sectionId: string | null) => {
         const isIn = (control: DashboardControl) =>
             control.sectionId === sectionId;
         const queues = groupBy(controls.filter(isIn), slotOf);
         return sequence
-            .filter(isIn)
-            .map((control) => queues[slotOf(control)].shift()!);
+            .filter(({ control }) => isIn(control))
+            .map(({ control, newLine }) => ({
+                ...queues[slotOf(control)].shift()!,
+                newLine: sectionId === null && newLine,
+            }));
     };
 
     return containerOf(null).flatMap((control) =>

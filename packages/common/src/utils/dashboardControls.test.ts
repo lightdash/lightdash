@@ -414,6 +414,66 @@ describe('getDashboardFilterSlugs', () => {
     });
 });
 
+describe('reconcileDashboardControlOrder lines', () => {
+    const lines = (input: DashboardControlSources) =>
+        reconcileDashboardControlOrder(input)
+            .filter(({ newLine }) => newLine)
+            .map(({ kind, id }) => `${kind}:${id}`);
+    const inlineSections = sources({
+        filters: { dimensions: [rule('d1', { sectionId: 's1' })], metrics: [] },
+        sections: [
+            section('s1'),
+            { ...section('s2'), inline: true },
+            section('s3'),
+        ],
+    });
+
+    it('starts the first section and each non-inline one on a line when there is no list', () => {
+        expect(lines(inlineSections)).toEqual(['section:s1', 'section:s3']);
+    });
+
+    it('takes line starts from the list and puts unmentioned controls inline', () => {
+        expect(
+            lines({
+                ...inlineSections,
+                controlOrder: [
+                    ref(SECTION, 's1'),
+                    { ...ref(SECTION, 's2'), newLine: true },
+                ],
+            }),
+        ).toEqual(['section:s2']);
+    });
+
+    it('ignores line starts inside a section', () => {
+        expect(
+            lines({
+                ...inlineSections,
+                controlOrder: [
+                    ref(SECTION, 's1'),
+                    { ...ref(FILTER, 'd1'), newLine: true },
+                ],
+            }),
+        ).toEqual([]);
+    });
+
+    it('keeps a line start with its slot when a kind is reordered', () => {
+        expect(
+            lines(
+                sources({
+                    filters: {
+                        dimensions: [rule('b'), rule('a')],
+                        metrics: [],
+                    },
+                    controlOrder: [
+                        ref(FILTER, 'a'),
+                        { ...ref(FILTER, 'b'), newLine: true },
+                    ],
+                }),
+            ),
+        ).toEqual(['filter:a']);
+    });
+});
+
 describe('isDashboardControlOrder', () => {
     it('accepts refs of any kind and rejects other shapes', () => {
         expect(isDashboardControlOrder([ref(FILTER, 'a')])).toBe(true);
@@ -425,5 +485,11 @@ describe('isDashboardControlOrder', () => {
         expect(isDashboardControlOrder({})).toBe(false);
         expect(isDashboardControlOrder([{ kind: FILTER }])).toBe(false);
         expect(isDashboardControlOrder([null])).toBe(false);
+        expect(
+            isDashboardControlOrder([{ ...ref(FILTER, 'a'), newLine: true }]),
+        ).toBe(true);
+        expect(
+            isDashboardControlOrder([{ ...ref(FILTER, 'a'), newLine: 'yes' }]),
+        ).toBe(false);
     });
 });

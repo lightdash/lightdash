@@ -298,6 +298,8 @@ export type DashboardControlRef = {
     kind: DashboardControlRefKind;
     /** The control's id: filter rule id, parameter control id, date zoom control uuid or section id */
     id: string;
+    /** Starts a new bar line; absent, it shares the line of the control before it. Ignored inside a section */
+    newLine?: boolean;
 };
 
 export type DashboardConfig = {
