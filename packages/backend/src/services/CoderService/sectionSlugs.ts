@@ -15,7 +15,7 @@ type DashboardWithSectionIds = Omit<DashboardAsCode, 'config'> & {
     };
 };
 
-const sectionSlugs = (sections: DashboardControlSectionAsCode[]) =>
+export const sectionSlugs = (sections: DashboardControlSectionAsCode[]) =>
     getPortableSlugs(
         sections,
         (section) =>

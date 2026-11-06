@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    getDashboardFilterSlugs,
     getMalformedParameterControlMessages,
     ParameterError,
     type DashboardAsCode,
@@ -7,6 +8,7 @@ import {
     type DashboardConfig,
     type DashboardDAO,
     type DashboardFilterRule,
+    type DashboardFilters,
     type DashboardParameterControl,
     type DashboardTile,
     type DashboardTileAsCode,
@@ -74,31 +76,41 @@ const getTileTargetsWithSlugs = (
         return tileSlug ? { ...result, [tileSlug]: target } : result;
     }, {});
 
+/** `filterSlugs` holds each dimension then metric filter's slug to write; null writes none */
 export const getFiltersWithTileSlugs = (
     dashboard: DashboardDAO,
     tileSlugs?: Map<string, string>,
+    filterSlugs: string[] | null = null,
 ): Required<NonNullable<DashboardAsCode['filters']>> => {
-    const withTileSlugs = <T extends DashboardFilterRule>(filter: T): T => ({
+    const toCode = (
+        { slug: _storedSlug, ...filter }: DashboardFilterRule,
+        slug: string | undefined,
+    ): DashboardFilterRule => ({
         ...filter,
         tileTargets: getTileTargetsWithSlugs(
             dashboard,
             filter.tileTargets,
             tileSlugs,
         ),
+        ...(slug !== undefined && { slug }),
     });
+    const dimensionCount = dashboard.filters.dimensions.length;
     return {
         ...dashboard.filters,
-        dimensions: dashboard.filters.dimensions.map((filter) => ({
-            ...withTileSlugs(filter),
+        dimensions: dashboard.filters.dimensions.map((filter, index) => ({
+            ...toCode(filter, filterSlugs?.[index]),
             id: undefined,
         })),
         // Stored filters can predate the metric and table calculation lists
         ...(dashboard.filters.metrics && {
-            metrics: dashboard.filters.metrics.map(withTileSlugs),
+            metrics: dashboard.filters.metrics.map((filter, index) =>
+                toCode(filter, filterSlugs?.[dimensionCount + index]),
+            ),
         }),
         ...(dashboard.filters.tableCalculations && {
-            tableCalculations:
-                dashboard.filters.tableCalculations.map(withTileSlugs),
+            tableCalculations: dashboard.filters.tableCalculations.map(
+                (filter) => toCode(filter, undefined),
+            ),
         }),
     };
 };
@@ -137,38 +149,119 @@ const getFilterFieldKey = ({
 }: Pick<DashboardFilterRule, 'target'>): string =>
     JSON.stringify([target.tableName, target.fieldId]);
 
-/** Keeps a saved filter's id when exactly one saved and one uploaded filter share its field; otherwise mints one. */
+type SavedFilters = Pick<DashboardFilters, 'dimensions' | 'metrics'>;
+
+/**
+ * Keeps a saved filter's id for an uploaded one: by slug first (stored or
+ * derived), else when exactly one saved and one uploaded filter share its
+ * field. A saved id is used at most once; otherwise mints one.
+ */
 export const getStableDimensionFilterIds = (
-    uploadedFilters: Pick<DashboardFilterRule, 'target'>[],
-    savedFilters: Pick<DashboardFilterRule, 'id' | 'target'>[],
+    uploadedFilters: Pick<DashboardFilterRule, 'target' | 'slug'>[],
+    savedFilters: SavedFilters,
 ): string[] => {
-    const uploadedCounts = countBy(uploadedFilters, getFilterFieldKey);
-    const savedCounts = countBy(savedFilters, getFilterFieldKey);
-    return uploadedFilters.map((filter) => {
+    const saved = savedFilters.dimensions;
+    const savedSlugs = getDashboardFilterSlugs([
+        ...saved,
+        ...savedFilters.metrics,
+    ]);
+    const claimed = new Set<string>();
+    const bySlug = uploadedFilters.map(({ slug }) => {
+        const index = slug === undefined ? -1 : savedSlugs.indexOf(slug);
+        const id =
+            index < 0 || index >= saved.length ? undefined : saved[index].id;
+        if (id === undefined || claimed.has(id)) return undefined;
+        claimed.add(id);
+        return id;
+    });
+    const unclaimed = saved.filter(({ id }) => !claimed.has(id));
+    const unmatched = uploadedFilters.filter(
+        (_, index) => bySlug[index] === undefined,
+    );
+    const uploadedCounts = countBy(unmatched, getFilterFieldKey);
+    const savedCounts = countBy(unclaimed, getFilterFieldKey);
+    return uploadedFilters.map((filter, index) => {
+        const slugMatch = bySlug[index];
+        if (slugMatch !== undefined) return slugMatch;
         const key = getFilterFieldKey(filter);
         const match =
             uploadedCounts[key] === 1 && savedCounts[key] === 1
-                ? savedFilters.find((saved) => getFilterFieldKey(saved) === key)
+                ? unclaimed.find(
+                      (candidate) =>
+                          getFilterFieldKey(candidate) === key &&
+                          // A stored slug never changes: another slug is another filter
+                          (filter.slug === undefined ||
+                              candidate.slug === undefined),
+                  )
                 : undefined;
         return match?.id ?? uuidv4();
     });
 };
 
+/** Rejects malformed or repeated filter slugs supplied by a file */
+const assertValidFilterSlugs = (
+    rules: Pick<DashboardFilterRule, 'slug'>[],
+): void => {
+    const seen = new Set<string>();
+    rules.forEach(({ slug }) => {
+        if (slug === undefined) return;
+        if (
+            typeof slug !== 'string' ||
+            !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+        )
+            throw new ParameterError(`Invalid dashboard filter slug "${slug}"`);
+        if (seen.has(slug))
+            throw new ParameterError(
+                `Dashboard filter slug "${slug}" is duplicated`,
+            );
+        seen.add(slug);
+    });
+};
+
+/**
+ * `useFileSlugs` false ignores filter slugs in the file. Either way, a
+ * filter matched to a saved one keeps the saved slug unless the file
+ * supplies one.
+ */
 export const getFiltersWithTileUuids = (
     dashboard: DashboardAsCode,
     tiles: DashboardTileWithSlug[],
-    savedDimensionFilters: DashboardFilterRule[],
+    savedFilters: SavedFilters,
+    useFileSlugs: boolean,
 ): DashboardDAO['filters'] => {
+    const fileSlug = (slug: string | undefined) =>
+        useFileSlugs ? slug : undefined;
     const dimensions = dashboard.filters?.dimensions ?? [];
-    const ids = getStableDimensionFilterIds(dimensions, savedDimensionFilters);
-    const withTileUuids = <T extends DashboardFilterRule>(filter: T): T => ({
-        ...filter,
-        tileTargets: getTileTargetsWithUuids(tiles, filter.tileTargets),
-    });
+    const metrics = dashboard.filters?.metrics ?? [];
+    if (useFileSlugs) assertValidFilterSlugs([...dimensions, ...metrics]);
+    const ids = getStableDimensionFilterIds(
+        dimensions.map(({ target, slug }) => ({
+            target,
+            slug: fileSlug(slug),
+        })),
+        savedFilters,
+    );
+    const savedRules = [...savedFilters.dimensions, ...savedFilters.metrics];
+    const withTileUuids = ({
+        slug: uploadedSlug,
+        ...filter
+    }: DashboardFilterRule): DashboardFilterRule => {
+        const slug =
+            fileSlug(uploadedSlug) ??
+            savedRules.find((saved) => saved.id === filter.id)?.slug;
+        return {
+            ...filter,
+            tileTargets: getTileTargetsWithUuids(tiles, filter.tileTargets),
+            ...(slug !== undefined && { slug }),
+        };
+    };
     return {
-        metrics: (dashboard.filters?.metrics ?? []).map(withTileUuids),
+        metrics: metrics.map(withTileUuids),
         tableCalculations: (dashboard.filters?.tableCalculations ?? []).map(
-            withTileUuids,
+            (filter) => ({
+                ...filter,
+                tileTargets: getTileTargetsWithUuids(tiles, filter.tileTargets),
+            }),
         ),
         dimensions: dimensions.map((filter, index) =>
             withTileUuids({ ...filter, id: ids[index] }),

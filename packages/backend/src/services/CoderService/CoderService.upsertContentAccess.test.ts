@@ -9,6 +9,7 @@ import {
     CustomDimensionType,
     DashboardAsCode,
     DashboardChartTile,
+    DashboardControlRefKind,
     DashboardDAO,
     DashboardTileTypes,
     DimensionType,
@@ -1014,7 +1015,7 @@ const registerContentAccessTests = (
             name: 'ignoring one in the file',
             fileConfig: {
                 isDateZoomDisabled: true,
-                controlOrder: [{ kind: 'filter', id: 'from-file' }],
+                controlOrder: [{ kind: 'filter', slug: 'from-file' }],
             },
             expectedConfig: { isDateZoomDisabled: true },
         },
@@ -1024,10 +1025,13 @@ const registerContentAccessTests = (
             expectedConfig: { isDateZoomDisabled: false },
         },
     ])(
-        'keeps the saved control order on upload, $name',
+        'keeps the saved control order on upload with the flag off, $name',
         async ({ fileConfig, expectedConfig }) => {
             const savedOrder = [{ kind: 'section', id: 'section-1' }];
             const service = buildService();
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(false);
             vi.mocked(service.dashboardModel.find).mockResolvedValue([
                 { uuid: 'dashboard-uuid' } as AnyType,
             ]);
@@ -3748,4 +3752,343 @@ describe('CoderService section uploads with the flag disabled', () => {
             );
         },
     );
+});
+
+describe('CoderService dashboard control order as code', () => {
+    const status = { fieldId: 'orders_status', tableName: 'orders' };
+    const statusFilter = (id: string, extra: AnyType = {}) => ({
+        id,
+        label: undefined,
+        target: status,
+        operator: FilterOperator.EQUALS,
+        values: [id],
+        ...extra,
+    });
+    const savedOrder = [
+        { kind: 'parameter', id: 'region-id' },
+        { kind: 'filter', id: 'metric-id' },
+        { kind: 'section', id: 'section-id' },
+        { kind: 'filter', id: 'second-id' },
+        { kind: 'filter', id: 'first-id' },
+    ];
+    const savedDashboard = (config: AnyType = {}, firstFilter: AnyType = {}) =>
+        ({
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            name: 'Dashboard',
+            description: null,
+            updatedAt: new Date('2026-01-01'),
+            spaceUuid: SPACE_UUID,
+            tabs: [],
+            tiles: [],
+            filters: {
+                dimensions: [
+                    statusFilter('first-id', firstFilter),
+                    statusFilter('second-id', { sectionId: 'section-id' }),
+                ],
+                metrics: [
+                    {
+                        id: 'metric-id',
+                        label: undefined,
+                        target: {
+                            fieldId: 'orders_total',
+                            tableName: 'orders',
+                        },
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [1],
+                    },
+                ],
+                tableCalculations: [],
+            },
+            config: {
+                isDateZoomDisabled: false,
+                controlSections: [{ id: 'section-id', name: 'Calendar' }],
+                parameterControls: [
+                    {
+                        id: 'region-id',
+                        label: 'Region',
+                        value: null,
+                        valueType: { type: 'string', multiple: false },
+                        parameters: { region: 'all' },
+                    },
+                ],
+                controlOrder: savedOrder,
+                ...config,
+            },
+        }) as unknown as DashboardDAO;
+    const withoutOrder = (firstFilter: AnyType = {}) => {
+        const dashboard = savedDashboard({}, firstFilter);
+        const { controlOrder: _order, ...config } = dashboard.config!;
+        return { ...dashboard, config };
+    };
+    const download = (dashboard: DashboardDAO, controlsEnabled: boolean) => {
+        const { downloadedAt: _downloadedAt, ...file } = (
+            CoderService as unknown as {
+                transformDashboard: (...args: AnyType[]) => DashboardAsCode;
+            }
+        ).transformDashboard(
+            dashboard,
+            [{ uuid: SPACE_UUID, name: 'Space', path: 'space' }],
+            new Map(),
+            controlsEnabled,
+        );
+        return file as DashboardAsCode;
+    };
+    const upload = async (
+        file: DashboardAsCode,
+        { enabled = true, saved = savedDashboard() } = {},
+    ) => {
+        const service = buildService();
+        vi.mocked(
+            service.dashboardService.areDashboardControlsEnabled,
+        ).mockResolvedValue(enabled);
+        service.projectService = {
+            projectParametersModel: {
+                find: vi.fn(async () => [
+                    { name: 'region', config: { label: 'Region' } },
+                ]),
+            },
+        } as AnyType;
+        (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+            async () => ({}),
+        );
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+            saved,
+        );
+        vi.mocked(
+            service.promoteService.getPromotedDashboard,
+        ).mockRejectedValue(new Error('stop after config'));
+        const user = makeSessionUser([
+            { subject: 'ContentAsCode', action: 'manage' },
+            {
+                subject: 'Dashboard',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, 'dashboard', file),
+        ).rejects.toThrow('stop after config');
+        return vi.mocked(service.promoteService.getPromotedDashboard).mock
+            .calls[0][1];
+    };
+    const rejection = async (file: DashboardAsCode) => {
+        const service = buildService();
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+            savedDashboard(),
+        );
+        service.projectService = {
+            projectParametersModel: { find: vi.fn(async () => []) },
+        } as AnyType;
+        (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+            async () => ({}),
+        );
+        return service
+            .upsertDashboard(
+                makeSessionUser([
+                    { subject: 'ContentAsCode', action: 'manage' },
+                    { subject: 'Dashboard', action: 'update' },
+                ]),
+                PROJECT_UUID,
+                'dashboard',
+                file,
+            )
+            .catch((error: Error) => error.message);
+    };
+    const withOrder = (controlOrder: AnyType) => {
+        const file = download(savedDashboard(), true);
+        return { ...file, config: { ...file.config!, controlOrder } };
+    };
+    const validSlugs =
+        'Valid slugs are filter: orders-status-1, orders-status-2, orders-total; parameter: region; section: calendar';
+
+    it('downloads byte-identical without the flag, whatever is stored', () => {
+        expect(
+            JSON.stringify(
+                download(savedDashboard({}, { slug: 'stored-slug' }), false),
+            ),
+        ).toBe(JSON.stringify(download(withoutOrder(), false)));
+    });
+
+    it('downloads a never-reordered dashboard byte-identical with the flag on', () => {
+        const file = JSON.stringify(
+            download(withoutOrder({ slug: 'stored-slug' }), true),
+        );
+        expect(file).toBe(JSON.stringify(download(withoutOrder(), true)));
+        expect(file).not.toContain('controlOrder');
+    });
+
+    it('writes filter slugs and the full order once an order is stored', () => {
+        const file = download(savedDashboard(), true);
+        expect(
+            [...file.filters!.dimensions!, ...file.filters!.metrics!].map(
+                ({ slug }) => slug,
+            ),
+        ).toEqual(['orders-status-1', 'orders-status-2', 'orders-total']);
+        expect(file.config?.controlOrder).toEqual([
+            { kind: 'parameter', slug: 'region' },
+            { kind: 'filter', slug: 'orders-total' },
+            { kind: 'section', slug: 'calendar' },
+            { kind: 'filter', slug: 'orders-status-2' },
+            { kind: 'filter', slug: 'orders-status-1' },
+        ]);
+    });
+
+    it('round-trips the order and every id', async () => {
+        const saved = await upload(download(savedDashboard(), true));
+        expect(saved.config?.controlOrder).toEqual(savedOrder);
+        expect(saved.filters.dimensions.map(({ id }) => id)).toEqual([
+            'first-id',
+            'second-id',
+        ]);
+        expect(saved.filters.metrics[0].id).toBe('metric-id');
+        expect(saved.config?.parameterControls?.[0].id).toBe('region-id');
+        expect(saved.config?.controlSections?.[0].id).toBe('section-id');
+    });
+
+    it('keeps the ids of two filters on one field when the file reorders them', async () => {
+        const file = download(savedDashboard(), true);
+        const saved = await upload({
+            ...file,
+            filters: {
+                ...file.filters,
+                dimensions: [...file.filters!.dimensions!].reverse(),
+            },
+        });
+        expect(
+            saved.filters.dimensions.map(({ id, slug }) => [id, slug]),
+        ).toEqual([
+            ['second-id', 'orders-status-2'],
+            ['first-id', 'orders-status-1'],
+        ]);
+        expect(saved.config?.controlOrder).toEqual(savedOrder);
+    });
+
+    it('changes only the order when the file only reorders the list', async () => {
+        const file = download(savedDashboard(), true);
+        const unchanged = await upload(file);
+        const reordered = await upload({
+            ...file,
+            config: {
+                ...file.config!,
+                controlOrder: [...file.config!.controlOrder!].reverse(),
+            },
+        });
+        expect(reordered.config?.controlOrder).toEqual(
+            [...savedOrder].reverse(),
+        );
+        expect({
+            ...reordered,
+            config: { ...reordered.config, controlOrder: undefined },
+        }).toEqual({
+            ...unchanged,
+            config: { ...unchanged.config, controlOrder: undefined },
+        });
+    });
+
+    it('resets the order when the file has none', async () => {
+        const file = download(savedDashboard(), true);
+        const { controlOrder: _order, ...config } = file.config!;
+        const saved = await upload({ ...file, config });
+        expect(saved.config).not.toHaveProperty('controlOrder');
+    });
+
+    it.each([
+        [
+            'an unknown slug',
+            [{ kind: 'filter', slug: 'missing' }],
+            'Unknown filter slug "missing"',
+        ],
+        [
+            'a duplicate ref',
+            [
+                { kind: 'section', slug: 'calendar' },
+                { kind: 'section', slug: 'calendar' },
+            ],
+            'The section "calendar" appears more than once',
+        ],
+        [
+            'a date zoom ref',
+            [{ kind: 'dateZoom', slug: 'zoom' }],
+            'Date zoom controls cannot be ordered yet',
+        ],
+        [
+            'a malformed ref',
+            [{ kind: 'filter', id: 'first-id' }],
+            'Invalid entry {"kind":"filter","id":"first-id"}',
+        ],
+    ])(
+        'rejects %s and lists the valid slugs',
+        async (_name, order, message) => {
+            expect(await rejection(withOrder(order))).toBe(
+                `${message} in controlOrder. ${validSlugs}`,
+            );
+        },
+    );
+
+    it('rejects parameter refs when the file stores no parameter controls', async () => {
+        const file = withOrder([{ kind: 'parameter', slug: 'region' }]);
+        const { parameterControls: _controls, ...config } = file.config;
+        expect(await rejection({ ...file, config })).toBe(
+            'Unknown parameter slug "region" in controlOrder. Valid slugs are filter: orders-status-1, orders-status-2, orders-total; parameter: none; section: calendar',
+        );
+    });
+
+    it('rejects a duplicated filter slug', async () => {
+        const file = download(savedDashboard(), true);
+        const [first] = file.filters!.dimensions!;
+        expect(
+            await rejection({
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [first, { ...first, values: ['other'] }],
+                },
+            }),
+        ).toBe('Dashboard filter slug "orders-status-1" is duplicated');
+    });
+
+    it('ignores the order and filter slugs in the file with the flag off', async () => {
+        const saved = savedDashboard(
+            {},
+            {
+                slug: 'stored-slug',
+                target: { fieldId: 'orders_city', tableName: 'orders' },
+            },
+        );
+        const file = download(saved, true);
+        const [first, second] = file.filters!.dimensions!;
+        const result = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [{ ...first, slug: 'renamed' }, second],
+                },
+                config: {
+                    ...file.config!,
+                    controlOrder: [
+                        {
+                            kind: DashboardControlRefKind.SECTION,
+                            slug: 'calendar',
+                        },
+                    ],
+                },
+            },
+            { enabled: false, saved },
+        );
+        expect(result.config?.controlOrder).toEqual(savedOrder);
+        expect(
+            result.filters.dimensions.map(({ id, slug }) => [id, slug]),
+        ).toEqual([
+            ['first-id', 'stored-slug'],
+            ['second-id', undefined],
+        ]);
+    });
 });

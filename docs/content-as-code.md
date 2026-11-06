@@ -776,6 +776,27 @@ empty list means no saved controls and an empty parameter mirror; an absent list
 uses legacy top-level parameters. With a saved list, upload derives that mirror
 from control values.
 
+### Dashboard control order
+
+`config.controlOrder` lists how filters, parameter controls and sections
+interleave on the bar, as `{ kind, slug }` refs (`kind` is `filter`,
+`parameter` or `section`) to controls in the same file. With
+`dashboard-controls` enabled, a dashboard with a saved order downloads its full
+reconciled order and a `slug` on every dimension and metric filter; a
+never-reordered dashboard downloads without either. Filter slugs come from the
+field id, suffixed `-1`, `-2` when several filters share a field, and a slug is
+saved once a file supplies it.
+
+Uploads match dimension filters by slug first, then by table and field, to keep
+their IDs. Unknown, duplicate, malformed and `dateZoom` refs are rejected with
+the valid slugs listed; parameter refs need `config.parameterControls` in the
+file. A file without `controlOrder` resets the bar to the default order. With
+the flag off, downloads omit both keys and uploads ignore them, keeping the
+saved order and filter slugs.
+
+Metric and table calculation filters write `tileTargets` by tile slug, like
+dimension filters; uploads still accept tile UUID keys from older files.
+
 Charts, dashboards, SQL Runner charts, spaces, and data apps reserve slugs
 within their project, including slugs owned by soft-deleted rows. The database
 uniqueness constraints are authoritative. Normal creation derives a slug from

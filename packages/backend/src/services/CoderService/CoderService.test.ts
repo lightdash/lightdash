@@ -608,7 +608,8 @@ describe('CoderService', () => {
             const result = CoderService.getFiltersWithTileUuids(
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
-                [],
+                { dimensions: [], metrics: [] },
+                false,
             );
 
             expect(result.dimensions[0].tileTargets).toEqual({
@@ -662,7 +663,8 @@ describe('CoderService', () => {
             const result = CoderService.getFiltersWithTileUuids(
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
-                [],
+                { dimensions: [], metrics: [] },
+                false,
             );
 
             // We show an error for chart-slug-2
@@ -722,7 +724,8 @@ describe('CoderService', () => {
             const result = CoderService.getFiltersWithTileUuids(
                 { filters: asCode } as AnyType,
                 otherProjectTiles,
-                [],
+                { dimensions: [], metrics: [] },
+                false,
             );
             expect(result.metrics[0]).toEqual(
                 rule({ 'other-uuid': { fieldId: 'orders_total' } }),
@@ -745,7 +748,8 @@ describe('CoderService', () => {
                     },
                 } as AnyType,
                 [{ ...otherProjectTiles[0], uuid: 'uuid-1' }] as AnyType,
-                [],
+                { dimensions: [], metrics: [] },
+                false,
             );
             expect(result.metrics[0].tileTargets).toEqual({
                 'uuid-1': { fieldId: 'orders_total' },
@@ -771,7 +775,8 @@ describe('CoderService', () => {
                     },
                 } as AnyType,
                 [],
-                savedFilters,
+                { dimensions: savedFilters, metrics: [] },
+                false,
             ).dimensions.map(({ id }) => id);
 
         it('keeps every id for an unchanged file', () => {
@@ -807,13 +812,13 @@ describe('CoderService', () => {
         });
 
         it('mints fresh ids when the saved dashboard has two filters on one field', () => {
-            const ids = getStableDimensionFilterIds(
-                [{ target: status }],
-                [
+            const ids = getStableDimensionFilterIds([{ target: status }], {
+                dimensions: [
                     { id: 'status-1', target: status },
                     { id: 'status-2', target: status },
-                ],
-            );
+                ] as DashboardFilterRule[],
+                metrics: [],
+            });
             expect(ids[0]).not.toMatch(/status-1|status-2/);
         });
 
@@ -822,10 +827,43 @@ describe('CoderService', () => {
             expect(ids[0]).not.toBe('status-id');
         });
 
+        it('matches by slug first, stored or derived, using a saved id once', () => {
+            const saved = {
+                dimensions: [
+                    { id: 'first-id', target: status },
+                    { id: 'second-id', target: status, slug: 'second' },
+                ] as DashboardFilterRule[],
+                metrics: [],
+            };
+            const ids = getStableDimensionFilterIds(
+                [
+                    { target: amount, slug: 'second' },
+                    { target: status, slug: 'orders-status' },
+                    { target: status, slug: 'orders-status' },
+                ],
+                saved,
+            );
+            expect(ids.slice(0, 2)).toEqual(['second-id', 'first-id']);
+            expect(ids[2]).not.toMatch(/first-id|second-id/);
+        });
+
+        it('does not match a field to a saved filter with another stored slug', () => {
+            const ids = getStableDimensionFilterIds(
+                [{ target: status, slug: 'renamed' }],
+                {
+                    dimensions: [
+                        { id: 'status-id', target: status, slug: 'status' },
+                    ] as DashboardFilterRule[],
+                    metrics: [],
+                },
+            );
+            expect(ids[0]).not.toBe('status-id');
+        });
+
         it('carries no ids onto a dashboard without saved filters', () => {
             const ids = getStableDimensionFilterIds(
                 [{ target: status }, { target: amount }],
-                [],
+                { dimensions: [], metrics: [] },
             );
             expect(ids).toHaveLength(2);
             expect(ids).not.toContain('status-id');
@@ -874,7 +912,8 @@ describe('CoderService', () => {
             const restoredFilters = CoderService.getFiltersWithTileUuids(
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
-                [],
+                { dimensions: [], metrics: [] },
+                false,
             );
 
             expect(restoredFilters.dimensions[0].tileTargets).toEqual({
@@ -938,7 +977,8 @@ describe('CoderService', () => {
             const restoredFilters = CoderService.getFiltersWithTileUuids(
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
-                [],
+                { dimensions: [], metrics: [] },
+                false,
             );
 
             // The target aimed at tile 2 resolves to tile 2's new uuid,
@@ -2047,7 +2087,7 @@ describe('CoderService', () => {
             ).toThrow('Space space-uuid not found');
         });
 
-        it('leaves the control order out of the file', () => {
+        it('leaves the control order out of the file with the flag off', () => {
             const exported = (
                 CoderService as unknown as {
                     transformDashboard: (...args: AnyType[]) => AnyType;
@@ -2073,7 +2113,7 @@ describe('CoderService', () => {
                 },
                 [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
                 new Map(),
-                true,
+                false,
             );
             expect(exported.config).toEqual({ isDateZoomDisabled: false });
         });
@@ -2185,6 +2225,7 @@ describe('CoderService', () => {
             const imported = getConfigWithParameterControlTileUuids(
                 {
                     ...restoredSections.config!,
+                    controlOrder: undefined,
                     parameterControls: getParameterControlsWithIds(
                         restoredSections.config!.parameterControls!,
                         dashboard.config
