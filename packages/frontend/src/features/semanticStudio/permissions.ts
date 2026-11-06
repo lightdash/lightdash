@@ -1,4 +1,5 @@
 import { subject, type AnyAbility } from '@casl/ability';
+import { type NodeRef } from './model';
 import { type StudioPermissions } from './useSemanticStudio';
 
 /**
@@ -69,3 +70,15 @@ export const canListLiveSources = (
             allowDataAppBuilderLinking: true,
         }),
     );
+
+/**
+ * Live data sources and external sources keep their kind's page while
+ * there are none, so the people who manage them can add the first one there.
+ */
+export const keepsKindPage = (
+    permissions: StudioPermissions,
+    ref: NodeRef | null,
+): boolean =>
+    ref?.type === 'kind' &&
+    ((ref.kind === 'live' && permissions.live) ||
+        (ref.kind === 'files' && permissions.files));

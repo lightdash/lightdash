@@ -70,7 +70,7 @@ import { getLiveSource } from '../../features/externalConnections/liveSources/li
 import useHealth from '../../hooks/health/useHealth';
 import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
-import { AddDataModal } from '../externalSources/components/AddDataModal';
+import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import {
@@ -309,16 +309,19 @@ type AddOption = (typeof ADD_OPTIONS)[number];
 /**
  * What a person can add: one warehouse per project, only kinds they manage,
  * and only through flows they can open. Files and live data sources are
- * added in place, so the hook also owns the Add data dialog.
+ * added in place, through the dialogs their managers own.
  */
 const useAddSource = (view: ViewModel, kind?: Kind) => {
     const { data: health } = useHealth();
     const liveSources = useLiveSourceActions();
-    const [isAddingData, setIsAddingData] = useState(false);
+    const externalSources = useExternalSourceActions();
     const isAvailable = (option: AddOption) => {
         switch (option.key) {
             case 'file':
-                return health?.externalSources.engineAvailable === true;
+                return (
+                    externalSources !== null &&
+                    health?.externalSources.engineAvailable === true
+                );
             case 'live':
                 return liveSources !== null;
             default:
@@ -347,18 +350,8 @@ const useAddSource = (view: ViewModel, kind?: Kind) => {
     const pathOf = (option: AddOption) =>
         option.path ? addPath(view, option.path) : null;
     const addInPlace = (option: AddOption) =>
-        option.key === 'live' ? liveSources?.add() : setIsAddingData(true);
-    const dialog = (
-        <AddDataModal
-            projectUuid={view.project.id}
-            opened={isAddingData}
-            onClose={() => setIsAddingData(false)}
-            onCreated={(exploreName) =>
-                view.select({ type: 'explore', exploreId: exploreName })
-            }
-        />
-    );
-    return { options, menuOptions, pathOf, addInPlace, dialog };
+        option.key === 'live' ? liveSources?.add() : externalSources?.add();
+    return { options, menuOptions, pathOf, addInPlace };
 };
 
 const addPath = (view: ViewModel, path: string) =>
@@ -368,24 +361,34 @@ export const AddSourceButton: FC<{
     view: ViewModel;
     kind?: Kind;
 }> = ({ view, kind }) => {
-    const { options, menuOptions, pathOf, addInPlace, dialog } = useAddSource(
+    const { options, menuOptions, pathOf, addInPlace } = useAddSource(
         view,
         kind,
     );
     if (options.length === 0) return null;
+    const button = {
+        size: 'xs',
+        variant: 'subtle',
+        color: 'gray',
+        className: classes.pressable,
+        leftSection: <MantineIcon icon={IconPlus} size={14} />,
+        children: 'Add',
+    } as const;
+    // A menu of one is a detour: Add goes straight to the only option.
+    if (menuOptions.length === 1) {
+        const [only] = options;
+        const path = pathOf(only);
+        return path ? (
+            <Button {...button} component={Link} to={path} />
+        ) : (
+            <Button {...button} onClick={() => addInPlace(only)} />
+        );
+    }
     return (
         <>
             <Menu position="bottom-start">
                 <Menu.Target>
-                    <Button
-                        size="xs"
-                        variant="subtle"
-                        color="gray"
-                        className={classes.pressable}
-                        leftSection={<MantineIcon icon={IconPlus} size={14} />}
-                    >
-                        Add
-                    </Button>
+                    <Button {...button} />
                 </Menu.Target>
                 <Menu.Dropdown>
                     {menuOptions.map(({ option, disabled }) => {
@@ -417,7 +420,6 @@ export const AddSourceButton: FC<{
                     })}
                 </Menu.Dropdown>
             </Menu>
-            {dialog}
         </>
     );
 };
@@ -1468,7 +1470,7 @@ export const SearchResultsList: FC<{
 // Empty project
 
 export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
-    const { options, pathOf, addInPlace, dialog } = useAddSource(view);
+    const { options, pathOf, addInPlace } = useAddSource(view);
     return (
         <Paper variant="dotted" p="xl" maw={560} mx="auto" mt="xl">
             <Stack gap="md" align="center">
@@ -1519,7 +1521,6 @@ export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
                     </Text>
                 )}
             </Stack>
-            {dialog}
         </Paper>
     );
 };

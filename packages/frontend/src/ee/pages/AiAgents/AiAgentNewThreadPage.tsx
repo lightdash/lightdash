@@ -637,15 +637,20 @@ const AiAgentNewThreadPage: FC = () => {
                             onValueChange={setPendingPrompt}
                             contentMentionPriorityItems={contentMentionItems}
                             suggestionLayout="list"
+                            composerTray={
+                                projectUuid &&
+                                agentUuid && (
+                                    <AiAgentNewThreadMcpConnections
+                                        placement="tray"
+                                        projectUuid={projectUuid}
+                                        agentUuid={agentUuid}
+                                        onSuggestedPrompt={
+                                            handleSuggestedPrompt
+                                        }
+                                    />
+                                )
+                            }
                         />
-
-                        {projectUuid && agentUuid && (
-                            <AiAgentNewThreadMcpConnections
-                                projectUuid={projectUuid}
-                                agentUuid={agentUuid}
-                                onSuggestedPrompt={handleSuggestedPrompt}
-                            />
-                        )}
                     </Stack>
                 </Stack>
             </Stack>

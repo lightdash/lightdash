@@ -27,6 +27,14 @@ import {
     type KeyboardEvent,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useExternalSourceActions } from './externalSources/externalSourceActions';
+import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
+import {
+    ExternalSourceHeaderActions,
+    ExternalSourceSummary,
+    ExternalSourcesTable,
+} from './externalSources/ExternalSourcesView';
+import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import { LiveSourceManager } from './liveSources/LiveSourceManager';
 import {
@@ -422,6 +430,17 @@ const MainPane: FC<{
             ? source.connectionUuid
             : undefined,
     );
+    // External sources likewise: the list on their kind's page, and each
+    // file's or sheet's state and controls above its fields.
+    const externalActions = useExternalSourceActions();
+    const isExternalSourcesPage =
+        !!externalActions && ref?.type === 'kind' && ref.kind === 'files';
+    const externalSource = useManagedExternalSource(
+        view.project.id,
+        ref?.type !== 'kind' && source?.kind === 'files'
+            ? source.id
+            : undefined,
+    );
     const trail = node ? trailTo(view.tree.nodes, node.key) : [];
     // A page sits under its parent.
     const crumbs = trail.slice(0, -1);
@@ -431,9 +450,11 @@ const MainPane: FC<{
         node?.label ??
         (isLiveSourcesPage
             ? 'Live data sources'
-            : ref?.type === 'source' && source
-              ? source.name
-              : view.project.name);
+            : isExternalSourcesPage
+              ? 'External sources'
+              : ref?.type === 'source' && source
+                ? source.name
+                : view.project.name);
     const icon = ref ? (
         <NodeIcon project={view.project} nodeRef={ref} size={20} />
     ) : null;
@@ -469,6 +490,12 @@ const MainPane: FC<{
                                 connection={liveConnection}
                             />
                         ) : null}
+                        {externalSource ? (
+                            <ExternalSourceHeaderActions
+                                projectUuid={view.project.id}
+                                source={externalSource}
+                            />
+                        ) : null}
                         {source ? (
                             <SettingsLink
                                 view={view}
@@ -486,11 +513,21 @@ const MainPane: FC<{
                         connection={liveConnection}
                     />
                 ) : null}
+                {externalSource ? (
+                    <ExternalSourceSummary source={externalSource} />
+                ) : null}
                 {isLiveSourcesPage ? (
                     <LiveSourcesTable
                         projectUuid={view.project.id}
                         onOpen={(connectionUuid) =>
                             onOpen({ type: 'source', sourceId: connectionUuid })
+                        }
+                    />
+                ) : isExternalSourcesPage ? (
+                    <ExternalSourcesTable
+                        projectUuid={view.project.id}
+                        onOpen={(sourceUuid) =>
+                            onOpen({ type: 'source', sourceId: sourceUuid })
                         }
                     />
                 ) : explore ? (
@@ -679,25 +716,38 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 view.select({ type: 'kind', kind: 'live' }, { replace: true })
             }
         >
-            <Box className={classes.shell}>
-                <Rail
-                    view={view}
-                    expanded={expanded}
-                    onToggle={toggle}
-                    onOpen={open}
-                />
-                {isEmpty ? (
-                    <Box className={classes.main}>
-                        <EmptyProject view={view} />
-                    </Box>
-                ) : (
-                    <MainPane
+            <ExternalSourceManager
+                projectUuid={view.project.id}
+                enabled={view.permissions.files}
+                onRemoved={() =>
+                    view.select(
+                        { type: 'kind', kind: 'files' },
+                        { replace: true },
+                    )
+                }
+            >
+                <Box className={classes.shell}>
+                    <Rail
                         view={view}
-                        onOpen={(ref) => (ref ? open(ref) : view.select(null))}
-                        onOpenNode={openNode}
+                        expanded={expanded}
+                        onToggle={toggle}
+                        onOpen={open}
                     />
-                )}
-            </Box>
+                    {isEmpty ? (
+                        <Box className={classes.main}>
+                            <EmptyProject view={view} />
+                        </Box>
+                    ) : (
+                        <MainPane
+                            view={view}
+                            onOpen={(ref) =>
+                                ref ? open(ref) : view.select(null)
+                            }
+                            onOpenNode={openNode}
+                        />
+                    )}
+                </Box>
+            </ExternalSourceManager>
         </LiveSourceManager>
     );
 };

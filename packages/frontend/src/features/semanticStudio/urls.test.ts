@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { type NodeRef } from './model';
 import {
+    getExternalSourcesRedirectUrl,
+    isSameRoute,
+    isSemanticStudioPath,
     getLiveDataSourcesRedirectUrl,
     getSemanticStudioSourceUrl,
     getSemanticStudioUrl,
@@ -100,5 +103,34 @@ describe('Semantic Layer URLs', () => {
                 expected,
             );
         });
+    });
+});
+
+describe('getExternalSourcesRedirectUrl', () => {
+    it.each([
+        ['', '/projects/p/semantic-layer/kinds/files'],
+        ['?from=old', '/projects/p/semantic-layer/kinds/files?from=old'],
+    ])('sends Settings › External sources%s to the list', (search, url) => {
+        expect(getExternalSourcesRedirectUrl('p', search)).toBe(url);
+    });
+});
+
+describe('route matching', () => {
+    it('knows Semantic Layer paths', () => {
+        expect(isSemanticStudioPath('/projects/p/semantic-layer')).toBe(true);
+        expect(
+            isSemanticStudioPath('/projects/p/semantic-layer/kinds/files'),
+        ).toBe(true);
+        expect(isSemanticStudioPath('/projects/p/tables')).toBe(false);
+    });
+
+    it('compares routes by the page they name', () => {
+        const files = { ref: { type: 'kind', kind: 'files' } } as const;
+        expect(isSameRoute(files, { ...files })).toBe(true);
+        expect(
+            isSameRoute(files, { ref: { type: 'explore', exploreId: 'x' } }),
+        ).toBe(false);
+        expect(isSameRoute({ ref: null }, { ref: null })).toBe(true);
+        expect(isSameRoute({ ref: null }, files)).toBe(false);
     });
 });

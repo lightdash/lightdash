@@ -314,6 +314,8 @@ interface AgentChatInputProps {
     footerNotice?: ReactNode;
     // Rendered in the toolbar after the attach menu, e.g. a starter prompt.
     toolbarStart?: ReactNode;
+    // Rendered directly under the card composer, before suggestions.
+    composerTray?: ReactNode;
     // Thread model shown in the status row under the inline composer.
     threadModelName?: string | null;
     threadModelWarning?: string | null;
@@ -386,6 +388,7 @@ export const AgentChatInput = ({
     dense = false,
     footerNotice,
     toolbarStart,
+    composerTray,
     threadModelName,
     threadModelWarning = null,
 }: AgentChatInputProps) => {
@@ -1832,6 +1835,7 @@ export const AgentChatInput = ({
                     />
                     {renderDropOverlay('card')}
                 </Box>
+                {composerTray}
 
                 {!isThreadInput &&
                     renderChipRow(
