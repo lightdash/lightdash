@@ -72,10 +72,6 @@ export const useSettingsContext = (): SettingsContext => {
     const isCustomRolesEnabled =
         health?.isCustomRolesEnabled || customRolesFlag?.enabled;
 
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
     const dataAppsFlagQuery = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: dataAppsFlag } = dataAppsFlagQuery;
     const dataAppAnalysisFlagQuery = useServerFeatureFlag(
@@ -202,9 +198,6 @@ export const useSettingsContext = (): SettingsContext => {
         health?.auth.azuread.enabled ||
         health?.auth.oidc.enabled;
 
-    const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.data?.enabled ?? false;
-
     const isAgentIdentityEnabled = agentIdentityFlag?.enabled ?? false;
 
     return {
@@ -245,7 +238,6 @@ export const useSettingsContext = (): SettingsContext => {
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,
-        isGroupManagementEnabled,
         isAgentIdentityEnabled,
         isAgentIdentityFlagLoading,
         isGitProject,

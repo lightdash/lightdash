@@ -2726,17 +2726,40 @@ describe('scheduler migration quiesce', () => {
     });
 });
 
-test('should set groups.enabled only when the environment variable is set', () => {
-    const undefinedConfig = parseConfig();
-    expect(undefinedConfig.groups.enabled).toBeUndefined();
+describe('GROUPS_ENABLED (deprecated)', () => {
+    const groupsWarnings = (warning: { mock: { calls: unknown[][] } }) =>
+        warning.mock.calls.filter(([message]) =>
+            String(message).includes('GROUPS_ENABLED'),
+        );
 
-    process.env.GROUPS_ENABLED = 'true';
-    const trueConfig = parseConfig();
-    expect(trueConfig.groups.enabled).toBe(true);
+    it('does not warn when unset', () => {
+        const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            parseConfig();
+            expect(groupsWarnings(warning)).toEqual([]);
+        } finally {
+            warning.mockRestore();
+        }
+    });
 
-    process.env.GROUPS_ENABLED = 'false';
-    const falseConfig = parseConfig();
-    expect(falseConfig.groups.enabled).toBe(false);
+    it.each(['true', 'false'])(
+        'is ignored and warns once when set to %s',
+        (value) => {
+            process.env.GROUPS_ENABLED = value;
+            const warning = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            try {
+                const config = parseConfig();
+                expect(config).not.toHaveProperty('groups');
+                expect(groupsWarnings(warning)).toEqual([
+                    [expect.stringContaining('deprecated and ignored')],
+                ]);
+            } finally {
+                warning.mockRestore();
+            }
+        },
+    );
 });
 
 describe('LD_SETUP_START_OF_WEEK', () => {
@@ -2997,7 +3020,6 @@ describe('getMultiProjectSetupConfig', () => {
 describe('legacy feature-flag env vars (compat repair for trivial-batch)', () => {
     test.each([
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
-        ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
         ['EMBEDDING_ENABLED', 'embedding'],
         ['SCIM_ENABLED', 'scim-token-management'],

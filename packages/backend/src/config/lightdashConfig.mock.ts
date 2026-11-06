@@ -299,9 +299,6 @@ export const lightdashConfigMock: LightdashConfig = {
     roadmap: {
         baseUrl: 'https://roadmap.lightdash.com',
     },
-    groups: {
-        enabled: false,
-    },
     extendedUsageAnalytics: {
         enabled: false,
     },

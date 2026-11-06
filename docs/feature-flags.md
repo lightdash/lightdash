@@ -324,8 +324,7 @@ reads as `[]` and admits nobody. It applies with capability limits off and on,
 on MCP tools and resource reads, in-app and Slack agents, OAuth REST, and query
 sources. Slack requires a verified sender when the restriction is active.
 
-A valid deployment licence and the organization-level `UserGroupsEnabled` flag
-allow new group restrictions. Saved restrictions still apply when groups later
+A valid deployment licence allows new group restrictions. Saved restrictions still apply when groups later
 become unavailable. Clearing a restriction is always allowed. Personal-access-token
 and service-account calls keep their existing exemptions. With `agent-identity`
 off, group admission adds no checks or reads. A PUT can set

@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     isOrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
     OrganizationMemberRoleLabels,
@@ -42,7 +41,6 @@ import {
     useUpsertOrganizationUserRoleAssignmentMutation,
 } from '../../../hooks/useOrganizationRoles';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
     ContentTable,
@@ -91,14 +89,6 @@ const UsersTable: FC = () => {
         setInviteSuccessFor(userUuid);
     }, []);
 
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
-    const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.isSuccess &&
-        userGroupsFeatureFlagQuery.data.enabled;
-
     // Debounce search to avoid too many API calls
     const debouncedSearch = useMemo(() => {
         return { search };
@@ -121,7 +111,7 @@ const UsersTable: FC = () => {
     const { data, fetchNextPage, hasNextPage, isError, isFetching, isLoading } =
         useInfiniteOrganizationUsers({
             searchInput: debouncedSearchValue.search,
-            includeGroups: isGroupManagementEnabled ? 10000 : undefined,
+            includeGroups: 10000,
             pageSize: fetchSize,
             sort,
         });
@@ -365,7 +355,7 @@ const UsersTable: FC = () => {
                 },
             });
 
-            if (isGroupManagementEnabled && !isCompact) {
+            if (!isCompact) {
                 cols.push({
                     accessorKey: 'groups',
                     header: 'Groups',
@@ -452,7 +442,6 @@ const UsersTable: FC = () => {
         showActions,
         inviteLink,
         inviteSuccessFor,
-        isGroupManagementEnabled,
         handleRoleChange,
         handleRoleSetChange,
         multipleRolesEnabled,
