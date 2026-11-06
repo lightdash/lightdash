@@ -53,7 +53,7 @@ describe('ResultsCacheDurationCard scheduled clearing', () => {
         renderForm(null);
 
         expect(screen.getByRole('switch')).not.toBeChecked();
-        expect(screen.getByText('No clear scheduled')).toBeInTheDocument();
+        expect(screen.queryByText(/Next clear/)).not.toBeInTheDocument();
         expect(saveButton()).toBeDisabled();
     });
 
@@ -151,17 +151,15 @@ describe('ResultsCacheDurationCard cache duration', () => {
         updateSettings.mockClear();
     });
 
-    test('shows the instance default disabled and saves a custom duration', async () => {
+    test('shows the instance default as a placeholder and saves a custom duration', async () => {
         const user = userEvent.setup();
         renderCard({ showDuration: true, showSchedule: false });
 
-        expect(
-            screen.getByLabelText('Cache duration (minutes)'),
-        ).toBeDisabled();
+        const input = screen.getByLabelText('Cache duration (minutes)');
+        expect(input).toHaveValue('');
+        expect(input).toHaveAttribute('placeholder', '60');
         expect(saveButton()).toBeDisabled();
 
-        await user.click(screen.getByText('Custom duration'));
-        const input = screen.getByLabelText('Cache duration (minutes)');
         await user.clear(input);
         await user.type(input, '120');
         await user.click(saveButton());
@@ -181,7 +179,7 @@ describe('ResultsCacheDurationCard cache duration', () => {
             initialTtlSeconds: 7200,
         });
 
-        await user.click(screen.getByText('Instance default'));
+        await user.clear(screen.getByLabelText('Cache duration (minutes)'));
         await user.click(screen.getByRole('switch'));
         await user.click(saveButton());
 

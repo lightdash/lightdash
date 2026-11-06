@@ -4,16 +4,7 @@ import {
     type ResultsCacheClearSchedule,
     type ResultsCacheStatsDays,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Divider,
-    Group,
-    SegmentedControl,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Box, Button, Divider, Group, Stack, Text, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC, type FormEvent } from 'react';
 import {
@@ -59,15 +50,8 @@ const formatDurationHint = (minutes: number | ''): string | null =>
         ? `= ${formatDuration(minutes)}`
         : null;
 
-type DurationMode = 'instanceDefault' | 'custom';
-
-const DURATION_MODE_OPTIONS: { value: DurationMode; label: string }[] = [
-    { value: 'instanceDefault', label: 'Instance default' },
-    { value: 'custom', label: 'Custom duration' },
-];
-
 type DurationFormValues = {
-    mode: DurationMode;
+    // Empty uses the instance default.
     ttlMinutes: number | '';
 };
 
@@ -103,16 +87,15 @@ export const ResultsCacheDurationCard: FC<Props> = ({
 
     const durationForm = useForm<DurationFormValues>({
         initialValues: {
-            mode: initialTtlSeconds === null ? 'instanceDefault' : 'custom',
             ttlMinutes:
                 initialTtlSeconds === null
-                    ? instanceDefaultMinutes
+                    ? ''
                     : Math.round(initialTtlSeconds / 60),
         },
         validateInputOnChange: true,
         validate: {
-            ttlMinutes: (value, values) => {
-                if (values.mode === 'instanceDefault') return null;
+            ttlMinutes: (value) => {
+                if (value === '') return null;
                 if (
                     typeof value !== 'number' ||
                     !Number.isInteger(value) ||
@@ -127,11 +110,7 @@ export const ResultsCacheDurationCard: FC<Props> = ({
     });
     const scheduleForm = useClearScheduleForm(clearSchedule);
 
-    const isCustom = durationForm.values.mode === 'custom';
-    const isDurationDirty =
-        showDuration &&
-        (durationForm.isDirty('mode') ||
-            (isCustom && durationForm.isDirty('ttlMinutes')));
+    const isDurationDirty = showDuration && durationForm.isDirty('ttlMinutes');
     const isScheduleDirty = showSchedule && scheduleForm.isDirty();
     const canSave =
         (isDurationDirty || isScheduleDirty) &&
@@ -142,13 +121,11 @@ export const ResultsCacheDurationCard: FC<Props> = ({
         event.preventDefault();
         if (!canSave) return;
         if (isDurationDirty) {
-            const { mode, ttlMinutes } = durationForm.values;
+            const { ttlMinutes } = durationForm.values;
             updateSettings(
                 {
                     cacheTtlSeconds:
-                        mode === 'custom' && typeof ttlMinutes === 'number'
-                            ? ttlMinutes * 60
-                            : null,
+                        typeof ttlMinutes === 'number' ? ttlMinutes * 60 : null,
                 },
                 { onSuccess: () => durationForm.resetDirty() },
             );
@@ -161,7 +138,6 @@ export const ResultsCacheDurationCard: FC<Props> = ({
     };
 
     const selectProjection = (ttlSeconds: number) => {
-        durationForm.setFieldValue('mode', 'custom');
         durationForm.setFieldValue('ttlMinutes', Math.round(ttlSeconds / 60));
     };
 
@@ -177,54 +153,27 @@ export const ResultsCacheDurationCard: FC<Props> = ({
                                     Reuse query results until they expire.
                                 </Text>
                             </Box>
-                            <SegmentedControl
-                                data={DURATION_MODE_OPTIONS}
-                                disabled={isSaving}
-                                w="fit-content"
-                                value={durationForm.values.mode}
-                                onChange={(value) =>
-                                    durationForm.setFieldValue(
-                                        'mode',
-                                        value === 'custom'
-                                            ? 'custom'
-                                            : 'instanceDefault',
-                                    )
+                            <NumberInput
+                                label="Cache duration (minutes)"
+                                placeholder={String(instanceDefaultMinutes)}
+                                min={MIN_TTL_MINUTES}
+                                max={MAX_TTL_MINUTES}
+                                step={1}
+                                rightSectionWidth={90}
+                                rightSection={
+                                    <Text c="dimmed" fz="xs">
+                                        {formatDurationHint(
+                                            durationForm.values.ttlMinutes ===
+                                                ''
+                                                ? instanceDefaultMinutes
+                                                : durationForm.values
+                                                      .ttlMinutes,
+                                        )}
+                                    </Text>
                                 }
+                                disabled={isSaving}
+                                {...durationForm.getInputProps('ttlMinutes')}
                             />
-                            {isCustom ? (
-                                <NumberInput
-                                    label="Cache duration (minutes)"
-                                    min={MIN_TTL_MINUTES}
-                                    max={MAX_TTL_MINUTES}
-                                    step={1}
-                                    rightSectionWidth={90}
-                                    rightSection={
-                                        <Text c="dimmed" fz="xs">
-                                            {formatDurationHint(
-                                                durationForm.values.ttlMinutes,
-                                            )}
-                                        </Text>
-                                    }
-                                    disabled={isSaving}
-                                    {...durationForm.getInputProps(
-                                        'ttlMinutes',
-                                    )}
-                                />
-                            ) : (
-                                <NumberInput
-                                    label="Cache duration (minutes)"
-                                    rightSectionWidth={90}
-                                    rightSection={
-                                        <Text c="dimmed" fz="xs">
-                                            {formatDurationHint(
-                                                instanceDefaultMinutes,
-                                            )}
-                                        </Text>
-                                    }
-                                    value={instanceDefaultMinutes}
-                                    disabled
-                                />
-                            )}
                             {showProjections && (
                                 <ResultsCacheTtlProjectionHint
                                     projectUuid={projectUuid}
@@ -249,17 +198,18 @@ export const ResultsCacheDurationCard: FC<Props> = ({
                     <Divider />
 
                     <Group justify="space-between" wrap="nowrap">
-                        <Text fz="sm">
-                            {showSchedule &&
-                                (clearSchedule?.enabled &&
-                                clearSchedule.nextRunAt
-                                    ? `Next clear: ${formatCacheEventTime(
-                                          clearSchedule.nextRunAt,
-                                          schedulerTimezone,
-                                      )}`
-                                    : 'No clear scheduled')}
-                        </Text>
+                        {showSchedule &&
+                            clearSchedule?.enabled &&
+                            clearSchedule.nextRunAt && (
+                                <Text fz="sm">
+                                    {`Next clear: ${formatCacheEventTime(
+                                        clearSchedule.nextRunAt,
+                                        schedulerTimezone,
+                                    )}`}
+                                </Text>
+                            )}
                         <Button
+                            ml="auto"
                             type="submit"
                             loading={isSaving}
                             disabled={!canSave}
