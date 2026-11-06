@@ -10,7 +10,7 @@ import {
     Collapse,
     Divider,
     Group,
-    Loader,
+    Skeleton,
     Box,
     SegmentedControl,
     SimpleGrid,
@@ -27,13 +27,13 @@ import {
     useResultsCacheTtlProjections,
 } from '../../hooks/useProjectResultsCacheSettings';
 import { BigNumberDisplay } from '../common/BigNumber/BigNumberDisplay';
-import Callout from '../common/Callout';
 import InlineErrorState from '../common/InlineErrorState';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { formatCacheDuration } from './formatCacheDuration';
 import { formatWarehouseTime } from './formatWarehouseTime';
+import classes from './ResultsCacheStatsCard.module.css';
 
 const formatPercent = (rate: number | null) =>
     rate === null ? 'n/a' : `${Math.round(rate * 100)}%`;
@@ -102,7 +102,13 @@ const STAT_TILE_HEIGHT = 80;
 
 type StatProps = { label: string; value: string };
 
-const Stat: FC<StatProps> = ({ label, value }) => (
+const ESTIMATE_VALUE_COLOR = 'var(--estimate-ink)';
+
+const Stat: FC<StatProps & { valueColor: string | null }> = ({
+    label,
+    value,
+    valueColor,
+}) => (
     <Box h={STAT_TILE_HEIGHT}>
         <BigNumberDisplay
             value={value}
@@ -110,8 +116,28 @@ const Stat: FC<StatProps> = ({ label, value }) => (
             showLabel
             comparison={undefined}
             flipColors={false}
+            valueColor={valueColor ?? undefined}
         />
     </Box>
+);
+
+const StatsSkeleton: FC<{ columns: number; withFooter: boolean }> = ({
+    columns,
+    withFooter,
+}) => (
+    <Stack gap="lg">
+        <SimpleGrid cols={columns} spacing="md">
+            {Array.from({ length: columns }, (_, index) => (
+                <Skeleton key={index} h={STAT_TILE_HEIGHT} radius="md" />
+            ))}
+        </SimpleGrid>
+        {withFooter && (
+            <>
+                <Divider />
+                <Skeleton h={16} w="50%" radius="sm" />
+            </>
+        )}
+    </Stack>
 );
 
 const pluralizeMisses = (count: number) =>
@@ -245,6 +271,7 @@ const StatsContent: FC<StatsContentProps> = ({ projectUuid, stats }) => {
                         key={item.label}
                         label={item.label}
                         value={item.value}
+                        valueColor={null}
                     />
                 ))}
             </SimpleGrid>
@@ -273,7 +300,7 @@ const ActualUsage: FC<UsageProps> = ({ projectUuid, days }) => {
             <InlineErrorState message="Couldn't load usage stats. Try again later." />
         );
     }
-    if (isLoading || !stats) return <Loader size="sm" />;
+    if (isLoading || !stats) return <StatsSkeleton columns={4} withFooter />;
     if (stats.summary.runs === 0) {
         return (
             <Text c="dimmed" fz="sm">
@@ -296,7 +323,8 @@ const EstimatedUsage: FC<UsageProps> = ({ projectUuid, days }) => {
             <InlineErrorState message="Couldn't estimate the benefit of caching. Try again later." />
         );
     }
-    if (isLoading || !estimate) return <Loader size="sm" />;
+    if (isLoading || !estimate)
+        return <StatsSkeleton columns={3} withFooter={false} />;
     if (estimate.kind === 'tooManyRuns') {
         return (
             <Text c="dimmed" fz="sm">
@@ -330,27 +358,21 @@ const EstimatedUsage: FC<UsageProps> = ({ projectUuid, days }) => {
 
     return (
         <Stack gap="lg">
-            <Callout
-                variant="info"
-                title={`Turning on caching could serve ${formatPercent(
-                    baseline.hitRate,
-                )} of queries from the cache`}
-            >
-                <Text fz="xs">
-                    {`Estimated by replaying the ${baseline.runs.toLocaleString()} queries from this period with a ${formatCacheDuration(
-                        estimate.currentTtlSeconds,
-                    )} cache duration.`}
-                </Text>
-            </Callout>
             <SimpleGrid cols={3} spacing="md">
                 {items.map((item) => (
                     <Stat
                         key={item.label}
                         label={item.label}
                         value={item.value}
+                        valueColor={ESTIMATE_VALUE_COLOR}
                     />
                 ))}
             </SimpleGrid>
+            <Text c="dimmed" fz="xs">
+                {`Estimated by replaying the ${baseline.runs.toLocaleString()} queries from this period with a ${formatCacheDuration(
+                    estimate.currentTtlSeconds,
+                )} cache duration.`}
+            </Text>
         </Stack>
     );
 };
@@ -368,10 +390,23 @@ export const ResultsCacheStatsCard: FC<Props> = ({
     days,
     onDaysChange,
 }) => (
-    <SettingsCard>
+    <SettingsCard
+        {...(cacheEnabled
+            ? {}
+            : {
+                  className: classes.estimate,
+                  bg: 'var(--estimate-bg)',
+                  withBorder: false,
+              })}
+    >
         <Stack gap="lg">
             <Group justify="space-between" wrap="nowrap">
-                <Title order={5}>Usage</Title>
+                <Title
+                    order={5}
+                    className={cacheEnabled ? undefined : classes.estimateTitle}
+                >
+                    {cacheEnabled ? 'Usage' : 'Estimated savings'}
+                </Title>
                 <SegmentedControl
                     size="xs"
                     data={DAYS_OPTIONS}
