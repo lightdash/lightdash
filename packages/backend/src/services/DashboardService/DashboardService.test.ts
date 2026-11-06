@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     PossibleAbilities,
     ProjectMemberRole,
     SCHEDULER_TASKS,
@@ -20,6 +21,7 @@ import {
     type ContentVerificationInfo,
     type Dashboard,
     type DashboardChartTile,
+    type DashboardControlRef,
     type DashboardFilterRule,
     type DashboardParameterControl,
     type Explore,
@@ -1836,6 +1838,21 @@ describe('DashboardService', () => {
                     isDateZoomDisabled: true,
                     controlOrder: savedOrder,
                 });
+            });
+
+            test('rejects a malformed order when dashboard controls are on', async () => {
+                featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
+                await expect(
+                    service.update(user, dashboardUuid, {
+                        ...updateDashboardTiles,
+                        config: {
+                            isDateZoomDisabled: true,
+                            controlOrder:
+                                'filter-1' as unknown as DashboardControlRef[],
+                        },
+                    }),
+                ).rejects.toThrow(ParameterError);
+                expect(dashboardModel.addVersion).not.toHaveBeenCalled();
             });
         });
 

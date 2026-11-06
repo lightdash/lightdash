@@ -35,6 +35,7 @@ import {
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
+    isDashboardControlOrder,
     isDashboardScheduler,
     isDashboardSqlChartTile,
     isDashboardUnversionedFields,
@@ -1030,6 +1031,13 @@ export class DashboardService
      * explore without compiling. A tile that can't be loaded or viewed
      * reports its own error.
      */
+    private static assertControlOrder(order: unknown) {
+        if (order !== undefined && !isDashboardControlOrder(order))
+            throw new ParameterError(
+                'controlOrder must be a list of { kind, id } objects',
+            );
+    }
+
     async areDashboardControlsEnabled(
         user: SessionUser,
         organizationUuid: string,
@@ -2127,6 +2135,9 @@ export class DashboardService
                 createDashboard.config;
             createDashboard = { ...createDashboard, config };
         }
+        DashboardService.assertControlOrder(
+            createDashboard.config?.controlOrder,
+        );
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             createDashboard,
@@ -3010,6 +3021,10 @@ export class DashboardService
                     },
                 };
             }
+            if (dashboardFields.config?.controlOrder !== savedOrder)
+                DashboardService.assertControlOrder(
+                    dashboardFields.config?.controlOrder,
+                );
         }
 
         const draftResult = await this.maybeStoreDraft(
