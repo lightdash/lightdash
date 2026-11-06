@@ -591,7 +591,7 @@ describe('McpService query tool', () => {
         expect(runComposerQueriesUntilDeadline).toHaveBeenCalledWith(
             expect.objectContaining({
                 terminalNodeId: 'statuses',
-                unreadNodeIds: ['orders'],
+                otherUnreadNodeIds: ['orders'],
             }),
         );
         expect(

@@ -126,7 +126,7 @@ A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "f
 
 Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
-Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
+Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({
@@ -863,7 +863,7 @@ export const mcpQueryStructuredOutputSchema = z.object({
     status: z
         .enum(['done', 'running'])
         .describe(
-            'running when the terminal node outlived the wait; poll get_query_result with its queryUuid.',
+            'running when a node whose rows are returned outlived the wait; poll get_query_result with the queryUuids the result names.',
         ),
     terminalNodeId: nodeIdSchema.describe(
         'The terminal node, whose rows are previewed first.',

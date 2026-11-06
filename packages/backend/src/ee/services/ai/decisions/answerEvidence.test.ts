@@ -146,7 +146,7 @@ describe('answer evidence', () => {
         await wrapped.runComposerQueries({
             queries: [],
             terminalNodeId: 'terminal',
-            unreadNodeIds: [],
+            otherUnreadNodeIds: [],
             sampleNodeIds: [],
         });
         expect(runAsyncQuery).toHaveBeenCalledExactlyOnceWith(query, [], {
@@ -164,7 +164,7 @@ describe('answer evidence', () => {
         expect(runComposerQueries).toHaveBeenCalledExactlyOnceWith({
             queries: [],
             terminalNodeId: 'terminal',
-            unreadNodeIds: [],
+            otherUnreadNodeIds: [],
             sampleNodeIds: [],
         });
         expect(evidence.snapshot()).toHaveLength(4);
@@ -201,7 +201,7 @@ describe('answer evidence', () => {
         ).runComposerQueries({
             queries: [],
             terminalNodeId: 'terminal',
-            unreadNodeIds: ['total'],
+            otherUnreadNodeIds: ['total'],
             sampleNodeIds: ['total', 'helper'],
         });
 

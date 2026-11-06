@@ -48,6 +48,7 @@ import {
     getFailedRunNodes,
     isSaved,
     renderComposerNodeListing,
+    renderOtherUnreadNodesNote,
     shareComposerPreview,
     toNodeColumns,
     toNodeSummary,
@@ -268,7 +269,7 @@ export const getRunComposerQueries = ({
                 const {
                     queries,
                     terminalNodeId: resolvedTerminalNodeId,
-                    unreadNodeIds,
+                    otherUnreadNodeIds,
                     appliedParameters,
                 } = built.pipeline;
                 const submittedNodeIds = new Set(
@@ -299,7 +300,7 @@ export const getRunComposerQueries = ({
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
-                        unreadNodeIds,
+                        otherUnreadNodeIds,
                         sampleNodeIds: enableDataAccess
                             ? [...submittedNodeIds].filter(
                                   (nodeId) => nodeId !== resolvedTerminalNodeId,
@@ -374,7 +375,7 @@ export const getRunComposerQueries = ({
                 const { terminal } = run;
                 const { nodeStatuses, terminalRowLimit } = shareComposerPreview(
                     run.nodeStatuses,
-                    unreadNodeIds,
+                    otherUnreadNodeIds,
                     terminal.rowCount,
                 );
 
@@ -461,11 +462,9 @@ export const getRunComposerQueries = ({
                               review,
                           });
                 const resultSummary = [
-                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.${
-                        unreadNodeIds.length > 0
-                            ? ` Unread nodes ${unreadNodeIds.join(', ')} returned rows too, listed with their nodes.`
-                            : ''
-                    }`,
+                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.${renderOtherUnreadNodesNote(
+                        otherUnreadNodeIds,
+                    )}`,
                     `Nodes in this pipeline:\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                     ...appliedParameters.map(
@@ -473,8 +472,8 @@ export const getRunComposerQueries = ({
                             `Node "${nodeId}":${renderAppliedParameters(applied)}`,
                     ),
                     `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}"${
-                        unreadNodeIds.length > 0
-                            ? ` (or ${unreadNodeIds.join(', ')})`
+                        otherUnreadNodeIds.length > 0
+                            ? ` (or ${otherUnreadNodeIds.join(', ')})`
                             : ''
                     }.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),

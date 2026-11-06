@@ -433,7 +433,7 @@ describe('getRunComposerQueries', () => {
                 expect.objectContaining({ nodeId: 'joined' }),
             ],
             terminalNodeId: 'joined',
-            unreadNodeIds: [],
+            otherUnreadNodeIds: [],
             sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
@@ -595,7 +595,7 @@ describe('getRunComposerQueries', () => {
         ['revenue', 'revenue', ['signups']],
     ])(
         'returns every unread node with terminalNodeId %s',
-        async (terminalNodeId, terminal, unreadNodeIds) => {
+        async (terminalNodeId, terminal, otherUnreadNodeIds) => {
             const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
             const output = await executeTool(
@@ -606,11 +606,11 @@ describe('getRunComposerQueries', () => {
             expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
                 expect.objectContaining({
                     terminalNodeId: terminal,
-                    unreadNodeIds,
+                    otherUnreadNodeIds,
                 }),
             );
             expect(output.result).toContain(
-                `Unread nodes ${unreadNodeIds[0]} returned rows too, listed with their nodes.`,
+                `Unread nodes ${otherUnreadNodeIds[0]} returned rows too, listed with their nodes.`,
             );
         },
     );
@@ -762,7 +762,7 @@ describe('getRunComposerQueries', () => {
                 },
             ],
             terminalNodeId: 'targets',
-            unreadNodeIds: [],
+            otherUnreadNodeIds: [],
             sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
@@ -792,7 +792,7 @@ describe('getRunComposerQueries', () => {
                 composedNode,
             ],
             terminalNodeId: 'joined',
-            unreadNodeIds: [],
+            otherUnreadNodeIds: [],
             sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
@@ -1707,14 +1707,28 @@ describe('python composer nodes', () => {
                 null,
                 [],
             ),
-        ).toEqual({ terminalNodeId: 'forecast', unreadNodeIds: [] });
+        ).toEqual({ terminalNodeId: 'forecast', otherUnreadNodeIds: [] });
+        expect(
+            resolveResultNodes(
+                asSubmitted([
+                    semanticNode,
+                    pythonNode,
+                    { ...duckdbNode, references: { f: 'forecast' } },
+                ]),
+                null,
+                [],
+            ),
+        ).toEqual({ terminalNodeId: 'joined', otherUnreadNodeIds: [] });
         expect(
             resolveResultNodes(
                 asSubmitted([semanticNode, { ...pythonNode, references: [] }]),
                 null,
                 [],
             ),
-        ).toEqual({ terminalNodeId: 'forecast', unreadNodeIds: ['revenue'] });
+        ).toEqual({
+            terminalNodeId: 'forecast',
+            otherUnreadNodeIds: ['revenue'],
+        });
     });
 
     it('offers the python node in the input schema only when enabled', () => {

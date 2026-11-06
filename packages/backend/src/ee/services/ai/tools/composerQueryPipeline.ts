@@ -31,16 +31,12 @@ import { validateQueryParameters } from '../utils/validators';
 import { resolveComposerQueryNode } from './composerSemanticLayerNode';
 import { validateSelectOnly } from './runSql';
 
-/**
- * Resolves the nodes whose rows are returned: the submission's unread nodes
- * (no other submitted node reads them) and the terminal node, which is the
- * explicit terminalNodeId when given, otherwise the last unread node.
- */
+/** Resolves the nodes whose rows are returned: every unread node, and the terminal (terminalNodeId, else the last unread node). */
 export const resolveResultNodes = (
     submitted: SubmittedSourceQuery[],
     terminalNodeId: string | null,
     pipeline: SourceQuery[],
-): { terminalNodeId: string; unreadNodeIds: string[] } => {
+): { terminalNodeId: string; otherUnreadNodeIds: string[] } => {
     const nodeIds = new Set(submitted.map((query) => query.nodeId));
     const read = new Set(
         submitted.flatMap((query) =>
@@ -75,7 +71,7 @@ export const resolveResultNodes = (
     }
     return {
         terminalNodeId: terminal,
-        unreadNodeIds: unread.filter((nodeId) => nodeId !== terminal),
+        otherUnreadNodeIds: unread.filter((nodeId) => nodeId !== terminal),
     };
 };
 
@@ -87,7 +83,7 @@ export type ComposerQueryPipeline = {
     queries: ComposerPipelineNode[];
     terminalNodeId: string;
     /** Unread nodes besides the terminal; their rows are returned too. */
-    unreadNodeIds: string[];
+    otherUnreadNodeIds: string[];
     appliedParameters: ComposerAppliedParameters[];
 };
 
@@ -219,7 +215,7 @@ export const buildComposerPreview = (
         rows: Record<string, AnyType>[];
         rowCount: number;
     },
-    rowLimit: number = COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+    rowLimit: number,
 ): ComposerPreview => {
     const columns = Object.values(terminal.columns).map(
         ({ reference, type }) => ({ reference, type }),
@@ -256,21 +252,25 @@ export const splitPreviewRows = (rowCounts: number[]): number[] => {
     return budgets;
 };
 
-/**
- * Trims the other unread nodes' node samples to their share of the preview
- * and returns the terminal's share.
- */
+export const renderOtherUnreadNodesNote = (otherUnreadNodeIds: string[]) =>
+    otherUnreadNodeIds.length > 0
+        ? ` Unread nodes ${otherUnreadNodeIds.join(', ')} returned rows too, listed with their nodes.`
+        : '';
+
+/** Trims the other unread nodes' node samples to their share of the preview and returns the terminal's share. */
 export const shareComposerPreview = (
     nodeStatuses: ComposerNodeStatus[],
-    unreadNodeIds: string[],
+    otherUnreadNodeIds: string[],
     terminalRowCount: number,
 ): { nodeStatuses: ComposerNodeStatus[]; terminalRowLimit: number } => {
     const unread = nodeStatuses.filter(({ nodeId }) =>
-        unreadNodeIds.includes(nodeId),
+        otherUnreadNodeIds.includes(nodeId),
     );
     const [terminalRowLimit, ...unreadRowLimits] = splitPreviewRows([
         terminalRowCount,
-        ...unread.map(({ rowCount }) => rowCount ?? 0),
+        ...unread.map(({ rowCount, sample }) =>
+            sample === null ? 0 : (rowCount ?? 0),
+        ),
     ]);
     return {
         terminalRowLimit,

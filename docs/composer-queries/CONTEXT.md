@@ -145,7 +145,8 @@ _Avoid_: node run, query status, limit reached flag
 
 **Node sample**:
 The first few rows of a non-terminal node's result, shown to the agent in the
-composer query tool's result beside its node columns. Never shown to users.
+composer query tool's result beside its node columns; for another unread node,
+its share of the preview rows. Never shown to users.
 _Avoid_: preview (the terminal node's rows), peek, head
 
 **Node columns**:

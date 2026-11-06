@@ -270,7 +270,7 @@ export const getVisualize = ({
                         ? await runComposerQueries({
                               queries,
                               terminalNodeId: nodeId,
-                              unreadNodeIds: [],
+                              otherUnreadNodeIds: [],
                               sampleNodeIds: [],
                           })
                               .then((outcome) =>
