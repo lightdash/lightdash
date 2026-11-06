@@ -297,8 +297,8 @@ const ExploreBody: FC<{
     });
     const allFields = useMemo(() => loaded ?? [], [loaded]);
     const groups = useMemo(() => fieldGroups(allFields), [allFields]);
-    const { fields, toolbarProps } = useFieldListState(allFields, openFieldId);
-    const isLive = source.kind === 'live';
+    const { fields, hiddenCount, onShowHidden, toolbarProps } =
+        useFieldListState(allFields, openFieldId);
     const openField = openFieldId
         ? allFields.find(({ id }) => id === openFieldId)
         : undefined;
@@ -332,11 +332,10 @@ const ExploreBody: FC<{
                 view={view}
                 explore={explore}
                 fields={fields}
-                showUsage={isLive}
+                hiddenCount={hiddenCount}
+                onShowHidden={onShowHidden}
                 openFieldId={openFieldId}
-                toolbar={
-                    <FieldListToolbar {...toolbarProps} showInUse={isLive} />
-                }
+                toolbar={<FieldListToolbar {...toolbarProps} />}
                 // The open field is in the URL; opening and closing replaces
                 // the entry rather than stacking up the back button.
                 onOpen={(field) =>

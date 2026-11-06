@@ -41,32 +41,21 @@
     width: 100%;
 }
 
-/* In use, field, description, used in, and the open/close chevron. Rows sit
-   indented under their Dimensions / Metrics heading. */
+/* Field and description. Rows sit indented under their Dimensions / Metrics
+   heading; fields not in use read dimmed when shown. */
 .fieldHeader,
 .fieldRow {
     display: grid;
-    grid-template-columns: 16px minmax(200px, 360px) minmax(0, 1fr) 64px 14px;
+    grid-template-columns: minmax(200px, 360px) minmax(0, 1fr);
     align-items: center;
     gap: 12px;
     padding: 0 12px 0 28px;
 }
 
-/* Without In use and Used in: sources whose fields can't be turned off. */
-.fieldHeader[data-plain='true'],
-.fieldRow[data-plain='true'] {
-    grid-template-columns: minmax(200px, 360px) minmax(0, 1fr) 14px;
-}
-
-/* With less room, "Used in" goes first; the field and description stay. */
 @container field-table (max-width: 720px) {
     .fieldHeader,
     .fieldRow {
-        grid-template-columns: 16px minmax(160px, 240px) minmax(0, 1fr) 14px;
-    }
-
-    .usedCell {
-        display: none;
+        grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
     }
 }
 
@@ -78,10 +67,6 @@
     color: var(--mantine-color-dimmed);
     border-bottom: 1px solid
         light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
-}
-
-.fieldHeader .usedCell {
-    text-align: right;
 }
 
 /* Section row: Dimensions and Metrics each head their own block of rows,
@@ -141,13 +126,6 @@
     min-width: 0;
 }
 
-/* Says the row opens something. */
-.fieldChevron {
-    display: flex;
-    justify-content: flex-end;
-    color: var(--mantine-color-dimmed);
-}
-
 /* The label keeps priority over the joined table name when space runs out. */
 .fieldLabel {
     flex: 0 1 auto;
@@ -185,23 +163,14 @@
     color: var(--mantine-color-dimmed);
 }
 
-.fieldCount {
+.showHidden {
+    flex: none;
+    --checkbox-size: 14px;
+}
+
+.showHidden label {
+    padding-left: 6px;
     font-size: 12px;
-    color: var(--mantine-color-dimmed);
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-}
-
-/* "In use": just a check, first in the row. State, not a control. */
-.fieldInUse {
-    display: flex;
-    align-items: center;
-}
-
-.inUseMark {
-    display: flex;
-    width: 14px;
-    height: 14px;
     color: var(--mantine-color-dimmed);
 }
 
@@ -485,4 +454,22 @@
 
 .inlineMarkdown hr {
     display: none;
+}
+
+/* The field's summary: a quiet line under its properties. */
+.detailSummary {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--mantine-color-dimmed);
+    overflow-wrap: anywhere;
+}
+
+.detailSummaryCode {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11px;
+    color: var(--mantine-color-text);
 }

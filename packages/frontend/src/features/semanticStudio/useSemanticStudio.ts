@@ -217,7 +217,7 @@ export const useSemanticStudio = ({
 
 export type ViewModel = ReturnType<typeof useSemanticStudio>;
 
-export type FieldFilter = 'all' | 'inUse' | 'notInUse' | 'noDescription';
+export type FieldFilter = 'all' | 'noDescription';
 
 /** What the field search matches, lowercased once per field. */
 const haystacks = new WeakMap<Field, string>();
@@ -232,17 +232,23 @@ const haystackOf = (field: Field): string => {
     return haystack;
 };
 
+export type FieldVisibility = {
+    /** Fields not in use; only live data sources have them. */
+    showHidden: boolean;
+    /** Internal fields not in use, a live data source's plumbing. */
+    showInternal: boolean;
+};
+
 export const filterFields = (
     fields: Field[],
     filter: FieldFilter,
     query: string,
-    showInternal: boolean,
+    { showHidden, showInternal }: FieldVisibility,
 ): Field[] => {
     const needle = query.trim().toLowerCase();
     return fields.filter((field) => {
-        if (!showInternal && field.isInternal && !field.inUse) return false;
-        if (filter === 'inUse' && !field.inUse) return false;
-        if (filter === 'notInUse' && field.inUse) return false;
+        if (!field.inUse && !(field.isInternal ? showInternal : showHidden))
+            return false;
         if (filter === 'noDescription' && field.description.trim())
             return false;
         return !needle || haystackOf(field).includes(needle);
@@ -261,18 +267,18 @@ export const useFieldListState = (
     openFieldId: string | null = null,
 ) => {
     const [showInternal, setShowInternal] = useState(false);
+    // Fields not in use stay out of the way until asked for.
+    const [showHidden, setShowHidden] = useState(false);
     const [filter, setFilter] = useState<FieldFilter>('all');
     const [query, setQuery] = useState('');
     // Typing stays responsive on 2,000+ fields; the list catches up.
     const deferredQuery = useDeferredValue(query);
     const sorted = useMemo(() => byKind(allFields), [allFields]);
     const fields = useMemo(() => {
-        const matching = filterFields(
-            sorted,
-            filter,
-            deferredQuery,
+        const matching = filterFields(sorted, filter, deferredQuery, {
+            showHidden,
             showInternal,
-        );
+        });
         const open = openFieldId
             ? sorted.find(({ id }) => id === openFieldId)
             : undefined;
@@ -280,9 +286,22 @@ export const useFieldListState = (
         // Keep the open row where it sits in the full list.
         const keep = new Set(matching).add(open);
         return sorted.filter((field) => keep.has(field));
-    }, [sorted, filter, deferredQuery, showInternal, openFieldId]);
+    }, [sorted, filter, deferredQuery, showHidden, showInternal, openFieldId]);
+    // What Show hidden would add; offered when nothing else matches.
+    const hiddenCount = useMemo(
+        () =>
+            showHidden
+                ? 0
+                : filterFields(sorted, filter, deferredQuery, {
+                      showHidden: true,
+                      showInternal,
+                  }).length - fields.length,
+        [sorted, filter, deferredQuery, showHidden, showInternal, fields],
+    );
     return {
         fields,
+        hiddenCount,
+        onShowHidden: () => setShowHidden(true),
         toolbarProps: {
             filter,
             onFilterChange: setFilter,
@@ -291,6 +310,11 @@ export const useFieldListState = (
             showInternal,
             onShowInternalChange: setShowInternal,
             hasInternal: allFields.some(({ isInternal }) => isInternal),
+            showHidden,
+            onShowHiddenChange: setShowHidden,
+            hasHidden: allFields.some(
+                ({ inUse, isInternal }) => !inUse && !isInternal,
+            ),
         },
     };
 };
