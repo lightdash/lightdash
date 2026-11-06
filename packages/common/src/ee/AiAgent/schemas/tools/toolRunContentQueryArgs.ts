@@ -9,7 +9,7 @@ import { toolChartAsCodeMetricQuerySchema } from './toolCreateContentArgs';
 export const TOOL_RUN_CONTENT_QUERY_DESCRIPTION = `Run a chart-as-code metric query, a saved chart or SQL and return the rows as CSV.
 
 Sources:
-- metricQuery: an unsaved chart-as-code metricQuery with its tableName.
+- metricQuery: an unsaved chart-as-code metricQuery with its tableName, exactly as the chart will save it, limit included.
 - chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
 - dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same.
 - sql: a raw SELECT, to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.`;

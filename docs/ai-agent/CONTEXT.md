@@ -168,6 +168,12 @@ may save a SQL chart only after the user approves that SQL for publication,
 unless the thread has approved SQL once and for all.
 _Avoid_: SQL Runner chart, saved SQL, raw SQL chart
 
+**Chart check**:
+Running the exact query a new or changed chart will save, once, before the
+agent saves it. The agent answers from the check and does not run the chart
+again after saving.
+_Avoid_: verify, validate, test run
+
 ## Warehouse tables
 
 **Base table**:

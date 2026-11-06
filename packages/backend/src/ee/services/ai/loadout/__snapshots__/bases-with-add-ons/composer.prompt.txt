@@ -21,7 +21,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 
 - Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project. Answers and ad hoc charts come from query and visualize.
 - For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.
-- Before saving a new or changed chart or presenting the work as complete, check its query and visualization with runContentQuery.
+- Before saving each new or changed chart, check it once with runContentQuery.
 - After creating or editing content, link the user to the href the tool returns.
 
 
@@ -204,6 +204,7 @@ The `/dbt` mount is this project's governed dbt repository.
 - You receive the actual query results as CSV: use them to call out trends, outliers and the headline finding.
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
 - A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric, then SQL.
+- An explore query groups every matching row before it applies its limit, so a lower limit does not make it cheaper or faster, and running it again with a different limit pays its full cost twice. Set the limit to the rows the answer or chart needs.
 
 ## Limitations
 

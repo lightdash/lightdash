@@ -115,7 +115,7 @@ Use `rowLimit` to trim the rendered table to the first or last N rows without ch
 | "Hide the last row (a totals row)"           | `{ mode: hide, direction: last, count: 1 }`   |
 | "Show the bottom 5" (assumes ascending sort) | `{ mode: show, direction: last, count: 5 }`   |
 
-**`metricQuery.limit` vs `rowLimit`**: `metricQuery.limit` constrains how many rows are fetched from the warehouse. `rowLimit` only trims what is displayed. Use `metricQuery.limit` to fetch fewer rows; use `rowLimit` when the full dataset should remain queryable (e.g. for exports) but only a subset should appear.
+**`metricQuery.limit` vs `rowLimit`**: `metricQuery.limit` sets how many rows the query returns; the warehouse still reads every matching row. `rowLimit` only trims what is displayed. Use `rowLimit` when the full result should remain available (e.g. for exports) but only a subset should appear.
 
 ### Limiting Pivot Columns
 
