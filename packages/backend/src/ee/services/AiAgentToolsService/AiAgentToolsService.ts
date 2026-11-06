@@ -4755,6 +4755,7 @@ export class AiAgentToolsService extends BaseService {
         {
             queries,
             terminalNodeId,
+            unreadNodeIds,
             sampleNodeIds,
             onNodeStatus,
             deadlineMs,
@@ -4918,9 +4919,12 @@ export class AiAgentToolsService extends BaseService {
                     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
                 );
 
-                // Polling only the terminal node is sufficient: its execution
-                // waits on every referenced result and fails if any upstream
-                // query fails.
+                // Polling the terminal and the other unread nodes is
+                // sufficient: a node's execution waits on every referenced
+                // result and fails if any upstream query fails.
+                const unreadSubmissions = submissions.filter((submission) =>
+                    unreadNodeIds.includes(submission.nodeId),
+                );
 
                 // A failed run marks the nodes its status read did not settle.
                 const emitUnfinishedAsError = (message: string) => {
@@ -4950,14 +4954,16 @@ export class AiAgentToolsService extends BaseService {
                         submissions,
                         settled.nodeStatuses,
                         sampleNodeIds,
+                        unreadNodeIds,
                     ),
                 });
 
                 let outcome: ComposerRunOutcome;
                 try {
-                    const polled = await this.pollComposerTerminal({
+                    const polled = await this.pollComposerResultNodes({
                         context,
                         submissions,
+                        unreadSubmissions,
                         terminalSubmission,
                         pageSize,
                         deadlineMs,
@@ -5037,6 +5043,7 @@ export class AiAgentToolsService extends BaseService {
         submissions: SourceQuerySubmission[],
         nodeStatuses: ComposerNodeStatus[],
         sampleNodeIds: string[],
+        unreadNodeIds: string[],
     ): Promise<ComposerNodeStatus[]> {
         return Promise.all(
             nodeStatuses.map(async (status) => {
@@ -5053,7 +5060,9 @@ export class AiAgentToolsService extends BaseService {
                     const page = await this.readComposerResultsPage(
                         context,
                         submission.queryUuid,
-                        COMPOSER_NODE_SAMPLE_ROW_LIMIT,
+                        unreadNodeIds.includes(status.nodeId)
+                            ? COMPOSER_QUERY_PREVIEW_ROW_LIMIT
+                            : COMPOSER_NODE_SAMPLE_ROW_LIMIT,
                     );
                     return {
                         ...status,
@@ -5076,6 +5085,25 @@ export class AiAgentToolsService extends BaseService {
                 }
             }),
         );
+    }
+
+    /** Waits for the other unread nodes first, so the terminal's status read sees them settled. */
+    private async pollComposerResultNodes({
+        unreadSubmissions,
+        ...args
+    }: Parameters<AiAgentToolsService['pollComposerTerminal']>[0] & {
+        unreadSubmissions: SourceQuerySubmission[];
+    }): Promise<ComposerRunOutcome | ComposerRunningOutcome> {
+        for (const terminalSubmission of unreadSubmissions) {
+            // eslint-disable-next-line no-await-in-loop
+            const polled = await this.pollComposerTerminal({
+                ...args,
+                terminalSubmission,
+                pageSize: 1,
+            });
+            if (polled.status !== 'success') return polled;
+        }
+        return this.pollComposerTerminal(args);
     }
 
     private async pollComposerTerminal({

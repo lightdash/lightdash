@@ -100,15 +100,15 @@ title, never by node id.
 _Avoid_: depends on, inputs, references (in user-facing copy)
 
 **Unread node**:
-A node of a submission that no other node of the same submission reads. A
-submission has exactly one; a submission with several is rejected before it
-runs.
+A node of a submission that no other node of the same submission reads. The
+tool returns the rows of every unread node, which share the preview rows. A
+submission has at most five; one with more is rejected before it runs.
 _Avoid_: sink, end node, orphan, leaf
 
 **Terminal node**:
-The node whose result the tool returns to the agent. The submission's unread
-node by default, or any node of the pipeline chosen explicitly. Labelled
-"Final result" in the Lineage.
+The node whose result the tool returns to the agent first. The submission's
+last unread node by default, or any node of the pipeline chosen explicitly.
+Labelled "Final result" in the Lineage.
 _Avoid_: output node, final node, sink
 
 **Present**:

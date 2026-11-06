@@ -1,5 +1,6 @@
 import {
     buildComposerArtifactPipeline,
+    COMPOSER_QUERY_MAX_UNREAD_NODES,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     getSourceQueryLimit,
     getSourceQueryResultReferences,
@@ -31,15 +32,15 @@ import { resolveComposerQueryNode } from './composerSemanticLayerNode';
 import { validateSelectOnly } from './runSql';
 
 /**
- * Resolves which node the artifact should show: the explicit terminalNodeId
- * when given, otherwise the submission's unread node (the one node no other
- * submitted node reads). A submission with several unread nodes is rejected.
+ * Resolves the nodes whose rows are returned: the submission's unread nodes
+ * (no other submitted node reads them) and the terminal node, which is the
+ * explicit terminalNodeId when given, otherwise the last unread node.
  */
-export const resolveTerminalNodeId = (
+export const resolveResultNodes = (
     submitted: SubmittedSourceQuery[],
     terminalNodeId: string | null,
     pipeline: SourceQuery[],
-): string => {
+): { terminalNodeId: string; unreadNodeIds: string[] } => {
     const nodeIds = new Set(submitted.map((query) => query.nodeId));
     const read = new Set(
         submitted.flatMap((query) =>
@@ -51,27 +52,31 @@ export const resolveTerminalNodeId = (
     const unread = submitted
         .map((query) => query.nodeId)
         .filter((nodeId) => !read.has(nodeId));
-    if (unread.length > 1) {
+    if (unread.length > COMPOSER_QUERY_MAX_UNREAD_NODES) {
         throw new ParameterError(
-            `A pipeline returns one node's rows, and no node reads ${unread.join(
+            `A call returns the rows of at most ${COMPOSER_QUERY_MAX_UNREAD_NODES} nodes, and no node reads ${unread.join(
                 ', ',
-            )}. Combine them in one duckdb node (UNION ALL or JOIN), or submit them in separate calls; a later call can read any node from an earlier call by node id.`,
+            )}. Combine some of them in one duckdb node (UNION ALL or JOIN), or submit them in separate calls; a later call can read any node from an earlier call by node id.`,
         );
     }
-    if (terminalNodeId === null) {
-        if (unread.length === 0) {
-            throw new ParameterError(
-                'Every node is read by another node, so the pipeline has a cycle. Remove the cycle.',
-            );
-        }
-        return unread[0];
+    const terminal = terminalNodeId ?? unread.at(-1);
+    if (terminal === undefined) {
+        throw new ParameterError(
+            'Every node is read by another node, so the pipeline has a cycle. Remove the cycle.',
+        );
     }
-    if (!pipeline.some((node) => node.nodeId === terminalNodeId)) {
+    if (
+        terminalNodeId !== null &&
+        !pipeline.some((node) => node.nodeId === terminalNodeId)
+    ) {
         throw new ParameterError(
             `terminalNodeId "${terminalNodeId}" does not name a node in this pipeline`,
         );
     }
-    return terminalNodeId;
+    return {
+        terminalNodeId: terminal,
+        unreadNodeIds: unread.filter((nodeId) => nodeId !== terminal),
+    };
 };
 
 export type ComposerAppliedParameters = ToolRunQueryAppliedParameters & {
@@ -81,6 +86,8 @@ export type ComposerAppliedParameters = ToolRunQueryAppliedParameters & {
 export type ComposerQueryPipeline = {
     queries: ComposerPipelineNode[];
     terminalNodeId: string;
+    /** Unread nodes besides the terminal; their rows are returned too. */
+    unreadNodeIds: string[];
     appliedParameters: ComposerAppliedParameters[];
 };
 
@@ -162,11 +169,7 @@ export const buildComposerQueryPipeline = ({
             : null;
         return applied ? [{ nodeId: node.nodeId, ...applied }] : [];
     });
-    const resolvedTerminalNodeId = resolveTerminalNodeId(
-        submitted,
-        terminalNodeId,
-        queries,
-    );
+    const resultNodes = resolveResultNodes(submitted, terminalNodeId, queries);
 
     if (
         !enablePythonNodes &&
@@ -197,7 +200,7 @@ export const buildComposerQueryPipeline = ({
     return {
         pipeline: {
             queries,
-            terminalNodeId: resolvedTerminalNodeId,
+            ...resultNodes,
             appliedParameters,
         },
     };
@@ -210,17 +213,20 @@ export type ComposerPreview = {
     truncated: boolean;
 };
 
-export const buildComposerPreview = (terminal: {
-    columns: ResultColumns;
-    rows: Record<string, AnyType>[];
-    rowCount: number;
-}): ComposerPreview => {
+export const buildComposerPreview = (
+    terminal: {
+        columns: ResultColumns;
+        rows: Record<string, AnyType>[];
+        rowCount: number;
+    },
+    rowLimit: number = COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+): ComposerPreview => {
     const columns = Object.values(terminal.columns).map(
         ({ reference, type }) => ({ reference, type }),
     );
     const references = columns.map((column) => column.reference);
     const rows = terminal.rows
-        .slice(0, COMPOSER_QUERY_PREVIEW_ROW_LIMIT)
+        .slice(0, rowLimit)
         .map((row) =>
             Object.fromEntries(references.map((col) => [col, row[col]])),
         );
@@ -228,7 +234,55 @@ export const buildComposerPreview = (terminal: {
         columns,
         rows,
         csv: stringify(rows, { header: true, columns: references }),
-        truncated: terminal.rowCount > COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+        truncated: terminal.rowCount > rowLimit,
+    };
+};
+
+/**
+ * Splits the preview across the terminal and the other unread nodes: a small
+ * result keeps every row, the rest share what is left.
+ */
+export const splitPreviewRows = (rowCounts: number[]): number[] => {
+    const smallestFirst = rowCounts
+        .map((_, index) => index)
+        .sort((a, b) => rowCounts[a] - rowCounts[b]);
+    const budgets = rowCounts.map(() => 0);
+    let remaining = COMPOSER_QUERY_PREVIEW_ROW_LIMIT;
+    smallestFirst.forEach((index, position) => {
+        const share = Math.floor(remaining / (smallestFirst.length - position));
+        budgets[index] = Math.min(rowCounts[index], share);
+        remaining -= budgets[index];
+    });
+    return budgets;
+};
+
+/**
+ * Trims the other unread nodes' node samples to their share of the preview
+ * and returns the terminal's share.
+ */
+export const shareComposerPreview = (
+    nodeStatuses: ComposerNodeStatus[],
+    unreadNodeIds: string[],
+    terminalRowCount: number,
+): { nodeStatuses: ComposerNodeStatus[]; terminalRowLimit: number } => {
+    const unread = nodeStatuses.filter(({ nodeId }) =>
+        unreadNodeIds.includes(nodeId),
+    );
+    const [terminalRowLimit, ...unreadRowLimits] = splitPreviewRows([
+        terminalRowCount,
+        ...unread.map(({ rowCount }) => rowCount ?? 0),
+    ]);
+    return {
+        terminalRowLimit,
+        nodeStatuses: nodeStatuses.map((status) => {
+            const index = unread.indexOf(status);
+            return index === -1 || status.sample === null
+                ? status
+                : {
+                      ...status,
+                      sample: status.sample.slice(0, unreadRowLimits[index]),
+                  };
+        }),
     };
 };
 

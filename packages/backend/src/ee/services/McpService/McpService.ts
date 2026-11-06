@@ -224,6 +224,7 @@ import {
     hasReachedLimit,
     isSaved,
     renderComposerNodeListing,
+    shareComposerPreview,
     toNodeColumns,
     toNodeSummary,
 } from '../ai/tools/composerQueryPipeline';
@@ -1616,7 +1617,8 @@ export class McpService extends BaseService {
                 'This pipeline contains "sql" nodes but run_sql is not allowed here. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
         });
         if ('error' in built) return mcpQueryTool.result.error(built.error);
-        const { queries, terminalNodeId, appliedParameters } = built.pipeline;
+        const { queries, terminalNodeId, unreadNodeIds, appliedParameters } =
+            built.pipeline;
         // Reused nodes are held to this call's scope too.
         explores.push(
             ...(await loadExplores(
@@ -1648,6 +1650,7 @@ export class McpService extends BaseService {
         const run = await toolsRuntime.runComposerQueriesUntilDeadline({
             queries,
             terminalNodeId,
+            unreadNodeIds,
             sampleNodeIds: [...submittedNodeIds].filter(
                 (nodeId) => nodeId !== terminalNodeId,
             ),
@@ -1702,8 +1705,13 @@ export class McpService extends BaseService {
         const queryUuids = new Map(
             run.submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
         );
+        const { nodeStatuses, terminalRowLimit } = shareComposerPreview(
+            run.nodeStatuses,
+            unreadNodeIds,
+            run.status === 'success' ? run.terminal.rowCount : 0,
+        );
         const nodes = queries.map((node) => {
-            const nodeStatus = run.nodeStatuses.find(
+            const nodeStatus = nodeStatuses.find(
                 ({ nodeId }) => nodeId === node.nodeId,
             );
             const summary = toNodeSummary(
@@ -1733,7 +1741,7 @@ export class McpService extends BaseService {
         const nodeSummary = renderComposerNodeListing({
             queries,
             nodes,
-            nodeStatuses: run.nodeStatuses,
+            nodeStatuses,
             reusableNodes,
             submittedNodeIds,
             maxQueryLimit: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
@@ -1742,6 +1750,16 @@ export class McpService extends BaseService {
         const terminalQueryUuid = queryUuids.get(terminalNodeId) ?? '';
 
         if (run.status === 'running') {
+            const unfinished = [terminalNodeId, ...unreadNodeIds]
+                .filter((nodeId) =>
+                    nodes.some(
+                        (node) =>
+                            node.nodeId === nodeId && node.status === 'running',
+                    ),
+                )
+                .map((nodeId) => queryUuids.get(nodeId) ?? '');
+            const unfinishedQueryUuids =
+                unfinished.length > 0 ? unfinished : [terminalQueryUuid];
             const structuredContent: McpQueryStructuredContent = {
                 sessionId,
                 status: 'running',
@@ -1750,12 +1768,12 @@ export class McpService extends BaseService {
                 nodes,
             };
             return mcpQueryTool.result.structured(
-                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${terminalQueryUuid}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes in this pipeline:\n${nodeSummary}`,
+                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with ${unfinishedQueryUuids.length > 1 ? 'each queryUuid' : 'queryUuid'}: ${unfinishedQueryUuids.join(', ')}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes in this pipeline:\n${nodeSummary}`,
                 structuredContent,
             );
         }
 
-        const preview = buildComposerPreview(run.terminal);
+        const preview = buildComposerPreview(run.terminal, terminalRowLimit);
         const structuredContent: McpQueryStructuredContent = {
             sessionId,
             status: 'done',
@@ -1764,7 +1782,11 @@ export class McpService extends BaseService {
             nodes,
         };
         const text = [
-            `Query complete. Terminal node "${terminalNodeId}" returned ${run.terminal.rowCount} rows.`,
+            `Query complete. Terminal node "${terminalNodeId}" returned ${run.terminal.rowCount} rows.${
+                unreadNodeIds.length > 0
+                    ? ` Unread nodes ${unreadNodeIds.join(', ')} returned rows too, listed with their nodes.`
+                    : ''
+            }`,
             sessionNote,
             `Nodes in this pipeline:\n${nodeSummary}`,
             ...appliedParameters.map(

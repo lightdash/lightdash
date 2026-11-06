@@ -1,5 +1,4 @@
 import {
-    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     createToolComposerQueriesArgsSchema,
     getSourceQueryResultReferences,
     getSqlApprovalSql,
@@ -49,6 +48,7 @@ import {
     getFailedRunNodes,
     isSaved,
     renderComposerNodeListing,
+    shareComposerPreview,
     toNodeColumns,
     toNodeSummary,
 } from './composerQueryPipeline';
@@ -268,6 +268,7 @@ export const getRunComposerQueries = ({
                 const {
                     queries,
                     terminalNodeId: resolvedTerminalNodeId,
+                    unreadNodeIds,
                     appliedParameters,
                 } = built.pipeline;
                 const submittedNodeIds = new Set(
@@ -298,6 +299,7 @@ export const getRunComposerQueries = ({
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
+                        unreadNodeIds,
                         sampleNodeIds: enableDataAccess
                             ? [...submittedNodeIds].filter(
                                   (nodeId) => nodeId !== resolvedTerminalNodeId,
@@ -369,7 +371,12 @@ export const getRunComposerQueries = ({
                         `${run.error}\nNodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:\n${nodeListing}`,
                     );
                 }
-                const { terminal, nodeStatuses } = run;
+                const { terminal } = run;
+                const { nodeStatuses, terminalRowLimit } = shareComposerPreview(
+                    run.nodeStatuses,
+                    unreadNodeIds,
+                    terminal.rowCount,
+                );
 
                 if (approvalSql !== null) {
                     await renderState({
@@ -415,7 +422,10 @@ export const getRunComposerQueries = ({
                     submittedNodeIds,
                     maxQueryLimit,
                 });
-                const preview = buildComposerPreview(terminal);
+                const preview = buildComposerPreview(
+                    terminal,
+                    terminalRowLimit,
+                );
                 const { columns } = preview;
                 const columnSummary = columns
                     .map((column) => `${column.reference} (${column.type})`)
@@ -451,14 +461,22 @@ export const getRunComposerQueries = ({
                               review,
                           });
                 const resultSummary = [
-                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
+                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.${
+                        unreadNodeIds.length > 0
+                            ? ` Unread nodes ${unreadNodeIds.join(', ')} returned rows too, listed with their nodes.`
+                            : ''
+                    }`,
                     `Nodes in this pipeline:\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                     ...appliedParameters.map(
                         ({ nodeId, ...applied }) =>
                             `Node "${nodeId}":${renderAppliedParameters(applied)}`,
                     ),
-                    `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}".`,
+                    `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}"${
+                        unreadNodeIds.length > 0
+                            ? ` (or ${unreadNodeIds.join(', ')})`
+                            : ''
+                    }.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');
@@ -482,7 +500,7 @@ export const getRunComposerQueries = ({
                     }
                     const { truncated } = preview;
                     const truncatedNote = truncated
-                        ? `\n(Showing first ${COMPOSER_QUERY_PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
+                        ? `\n(Showing first ${preview.rows.length} of ${terminal.rowCount} rows.)`
                         : '';
                     return {
                         result: `${resultSummary}${truncatedNote}\n${serializeData(

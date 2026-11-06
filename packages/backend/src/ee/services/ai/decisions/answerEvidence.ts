@@ -209,6 +209,22 @@ export const withAnswerEvidence = (
                     queries: args.queries,
                 },
             });
+            result.nodeStatuses.forEach(({ nodeId, sample, rowCount }) => {
+                if (!args.unreadNodeIds.includes(nodeId) || sample === null)
+                    return;
+                evidence.record({
+                    queryUuid:
+                        result.submissions.find(
+                            (submission) => submission.nodeId === nodeId,
+                        )?.queryUuid ?? null,
+                    rows: sample,
+                    rowCount: rowCount ?? sample.length,
+                    fields: {},
+                    maxContextRows: 50,
+                    limit: null,
+                    scope: { terminalNodeId: nodeId, queries: args.queries },
+                });
+            });
             return result;
         },
     };

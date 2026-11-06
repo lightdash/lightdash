@@ -578,6 +578,31 @@ describe('McpService query tool', () => {
         );
     });
 
+    it('returns the rows of every unread node, with the last as terminal', async () => {
+        const { service, call, runComposerQueriesUntilDeadline } =
+            makeService();
+        await createServer(service);
+
+        const result = await call(
+            McpToolName.QUERY,
+            pipelineArgs([ordersNode, { ...ordersNode, nodeId: 'statuses' }]),
+        );
+
+        expect(runComposerQueriesUntilDeadline).toHaveBeenCalledWith(
+            expect.objectContaining({
+                terminalNodeId: 'statuses',
+                unreadNodeIds: ['orders'],
+            }),
+        );
+        expect(
+            mcpQueryStructuredOutputSchema.parse(result.structuredContent)
+                .nodes[0].sample,
+        ).toEqual(nodeSamples.orders);
+        expect(textOf(result)).toContain(
+            'Unread nodes orders returned rows too, listed with their nodes.',
+        );
+    });
+
     it('rejects a read of a node outside the submission', async () => {
         const { service, call, runComposerQueriesUntilDeadline } =
             makeService();
