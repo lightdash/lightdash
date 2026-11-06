@@ -150,14 +150,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Show the coding-agent project onboarding flow. With NewOnboarding, people
-     * without a repo can start an onboarding run right after connecting their
-     * warehouse. The CLI, APIs, and installed skills remain available
-     * independently.
-     */
-    CodingAgentOnboarding = 'coding-agent-onboarding',
-
-    /**
      * Allow storing long-lived GitHub personal access tokens as GitHub MCP
      * credentials (guided connect flow and generic bearer endpoints targeting
      * the hosted GitHub MCP URL). Off by default — orgs should authenticate

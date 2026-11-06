@@ -223,7 +223,6 @@ interface ServiceManifest {
     aiDeepResearchService: unknown;
     aiAgentMemoryService: unknown;
     homepageRecommendedActionSkipsService: unknown;
-    onboardingAgentService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
     appGenerateService: unknown;
@@ -2091,12 +2090,6 @@ export class ServiceRepository
         AiAgentMemoryServiceImplT,
     >(): AiAgentMemoryServiceImplT {
         return this.getService('aiAgentMemoryService');
-    }
-
-    public getOnboardingAgentService<
-        OnboardingAgentServiceImplT,
-    >(): OnboardingAgentServiceImplT {
-        return this.getService('onboardingAgentService');
     }
 
     public getWritebackPreviewService<

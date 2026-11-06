@@ -23,7 +23,6 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { useLatestAgentOnboardingRun } from '../agentOnboarding/hooks/useAgentOnboarding';
 import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
@@ -230,40 +229,16 @@ const useHomepageDeepResearch = ({
 // still shows the full set, where there's nothing below to protect.
 const HOMEPAGE_SUGGESTION_LIMIT = 2;
 
-const toStarterChip = (label: string): AgentSuggestion => ({
-    kind: 'prompt',
-    label,
-    tool: 'generateVisualization',
-    defaults: { explore: null, dimensions: [], metrics: [], timeframe: null },
-});
-
-/** Questions the onboarding run checked against the semantic layer, or null while still looking */
-const useStarterQuestions = (
-    projectUuid: string | null,
-    enabled: boolean,
-): string[] | null => {
-    const latestRun = useLatestAgentOnboardingRun(projectUuid ?? undefined, {
-        enabled,
-    });
-    if (!enabled || latestRun.isError) return [];
-    if (!latestRun.isSuccess) return null;
-    return latestRun.data?.status === 'completed'
-        ? (latestRun.data.handoff?.starterQuestions ?? [])
-        : [];
-};
-
 const useHomepageSuggestionChips = ({
     projectUuid,
     referenceAgent,
     enableSqlMode,
     hideSuggestions,
-    starterQuestions,
 }: {
     projectUuid: string | null;
     referenceAgent: ProjectAgent | undefined;
     enableSqlMode: boolean;
     hideSuggestions: boolean | undefined;
-    starterQuestions: string[] | null;
 }) => {
     const { track, data: trackingData } = useTracking();
     const isTrackingReady = !!trackingData.rudder;
@@ -273,20 +248,15 @@ const useHomepageSuggestionChips = ({
         projectUuid: projectUuid ?? '',
         agentUuid: referenceAgentUuid,
         enableSqlMode,
-        enabled:
-            !!projectUuid &&
-            !!referenceAgentUuid &&
-            !hideSuggestions &&
-            starterQuestions?.length === 0,
+        enabled: !!projectUuid && !!referenceAgentUuid && !hideSuggestions,
     });
 
     // Sliced at the source so the impression/click analytics count what the
     // viewer actually saw.
-    const chips = (
-        starterQuestions?.length
-            ? starterQuestions.map(toStarterChip)
-            : (suggestionsQuery.data?.chips ?? [])
-    ).slice(0, HOMEPAGE_SUGGESTION_LIMIT);
+    const chips = (suggestionsQuery.data?.chips ?? []).slice(
+        0,
+        HOMEPAGE_SUGGESTION_LIMIT,
+    );
     const impressionFiredRef = useRef(false);
     useEffect(() => {
         if (impressionFiredRef.current) return;
@@ -315,7 +285,7 @@ const useHomepageSuggestionChips = ({
 
     return {
         chips,
-        isLoading: starterQuestions === null || suggestionsQuery.isLoading,
+        isLoading: suggestionsQuery.isLoading,
     };
 };
 
@@ -409,16 +379,11 @@ const DayOneAskInputInner: FC<Props> = ({
         defaultValue: false,
         getInitialValueInEffect: false,
     });
-    const starterQuestions = useStarterQuestions(
-        projectUuid,
-        isNewOnboarding && !hideSuggestions,
-    );
     const suggestions = useHomepageSuggestionChips({
         projectUuid,
         referenceAgent,
         enableSqlMode: suggestionsSqlMode,
         hideSuggestions,
-        starterQuestions,
     });
 
     const prefill =

@@ -27,7 +27,6 @@ const TRAINING_COPY_ORG_SLOT_NAMESPACE = 19350431;
  * organization's keys and lets two transactions hold "the same" slot.
  */
 const TRAINING_COPY_ORG_SLOT_STRIDE = 64;
-export const ONBOARDING_AGENT_PAT_DESCRIPTION_PREFIX = 'Agent onboarding run ';
 export const TRAINING_COPY_ORG_LIMIT_MESSAGE =
     'Your organization is already making its limit of training copies. Try again in a moment';
 

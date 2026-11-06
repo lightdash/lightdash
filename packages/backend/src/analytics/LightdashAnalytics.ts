@@ -4,7 +4,6 @@ import {
     AdminNotificationType,
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
-    AgentOnboardingStage,
     AI_WRITEBACK_STAGES,
     AiAccessRefusalReason,
     AiAgentSkillVersionSource,
@@ -1436,29 +1435,6 @@ type HomepagePublishedEvent = BaseTrack & {
         audienceType: 'everyone' | 'groups' | 'roles';
         blockTypeCounts: Record<string, number>;
         openingBlockType: string | null;
-    };
-};
-
-export type OnboardingAgentRunFailureCategory =
-    | 'sandbox_connection'
-    | 'incomplete_output'
-    | 'timeout'
-    | 'abandoned'
-    | 'schedule_failed'
-    | 'unknown';
-
-type OnboardingAgentRunFinishedEvent = BaseTrack & {
-    event: 'onboarding_agent.run_finished';
-    userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        agentOnboardingRunId: string;
-        status: 'completed' | 'failed' | 'cancelled';
-        failureCategory: OnboardingAgentRunFailureCategory | null;
-        lastStage: AgentOnboardingStage | null;
-        durationSeconds: number;
-        numTurns: number | null;
     };
 };
 
@@ -4945,7 +4921,6 @@ type TypedEvent =
     | ApiErrorEvent
     | ProjectEvent
     | ProjectCreatedEvent
-    | OnboardingAgentRunFinishedEvent
     | OrganizationHomepageSettingsUpdatedEvent
     | HomepagePublishedEvent
     | PlaygroundProjectProvisionedEvent

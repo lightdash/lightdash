@@ -119,7 +119,6 @@ export const storyProject = {
 
 const ENABLED_FLAGS: string[] = [
     FeatureFlags.NewOnboarding,
-    FeatureFlags.CodingAgentOnboarding,
     FeatureFlags.ApiQuerySources,
     FeatureFlags.ExternalSources,
 ];

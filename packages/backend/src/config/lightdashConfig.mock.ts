@@ -537,7 +537,6 @@ export const lightdashConfigMock: LightdashConfig = {
         sandboxPythonDockerImage: 'lightdash-python-runner:local',
         e2bPythonTemplateName: 'lightdash-python-runner',
         e2bPythonTemplateTag: '',
-        sandboxAgentOnboardingDockerImage: 'lightdash-agent-onboarding:local',
         sandboxIdleTimeoutMs: 30 * 60 * 1000,
         sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,
         lambdaMicroVm: {
@@ -574,8 +573,6 @@ export const lightdashConfigMock: LightdashConfig = {
             sandboxUrl: null,
             sandboxSecret: null,
         },
-        e2bAgentOnboardingTemplateName: 'lightdash-agent-onboarding',
-        e2bAgentOnboardingTemplateTag: 'test',
         otel: {
             enabled: false,
             endpoint: '',

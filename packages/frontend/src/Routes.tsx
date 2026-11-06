@@ -829,57 +829,6 @@ const APP_ROUTES: RouteObject[] = [
                 ),
                 children: [
                     { index: true, element: <Navigate to="home" replace /> },
-                    {
-                        element: <NavBarLayout />,
-                        children: [
-                            {
-                                path: 'onboarding/agent',
-                                handle: { hideAILauncher: true },
-                                lazy: async () => {
-                                    const AgentOnboardingStartPage =
-                                        await loadLazyRouteDefault(
-                                            './ee/features/agentOnboarding/AgentOnboardingStartPage',
-                                            () =>
-                                                import('./ee/features/agentOnboarding/AgentOnboardingStartPage'),
-                                        );
-                                    return {
-                                        Component: () => (
-                                            <TrackPage
-                                                name={
-                                                    PageName.AGENT_ONBOARDING_START
-                                                }
-                                            >
-                                                <AgentOnboardingStartPage />
-                                            </TrackPage>
-                                        ),
-                                    };
-                                },
-                            },
-                            {
-                                path: 'onboarding/runs/:agentOnboardingRunUuid',
-                                handle: { hideAILauncher: true },
-                                lazy: async () => {
-                                    const AgentOnboardingRunPage =
-                                        await loadLazyRouteDefault(
-                                            './ee/features/agentOnboarding/AgentOnboardingRunPage',
-                                            () =>
-                                                import('./ee/features/agentOnboarding/AgentOnboardingRunPage'),
-                                        );
-                                    return {
-                                        Component: () => (
-                                            <TrackPage
-                                                name={
-                                                    PageName.AGENT_ONBOARDING_RUN
-                                                }
-                                            >
-                                                <AgentOnboardingRunPage />
-                                            </TrackPage>
-                                        ),
-                                    };
-                                },
-                            },
-                        ],
-                    },
                     // Legacy sqlRunner redirect (no layout needed)
                     {
                         path: 'sqlRunner',

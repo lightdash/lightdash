@@ -67,7 +67,6 @@ export type ProvisionPlaygroundProjectArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
     canViewProject: (project: OrganizationProject) => boolean;
     trigger?: PlaygroundProjectTrigger;
-    hasActiveAgentOnboardingRun?: () => Promise<boolean>;
     playgroundDataDirectory?: string;
     validatePlaygroundDatabase?: (
         check: PlaygroundDatabaseCheck,
@@ -89,7 +88,6 @@ export const provisionPlaygroundProject = async ({
     analytics,
     canViewProject,
     trigger = 'invite_expert',
-    hasActiveAgentOnboardingRun,
     playgroundDataDirectory,
     validatePlaygroundDatabase = validatePlaygroundDatabaseBundle,
     now = new Date(),
@@ -233,12 +231,7 @@ export const provisionPlaygroundProject = async ({
                         created: false,
                     };
                 }
-                // The wait-trigger provisions alongside existing projects, so
-                // it is only honoured while a run it could be waiting on exists
-                const isWaitingOnRun =
-                    trigger === 'agent_onboarding_wait' &&
-                    (await hasActiveAgentOnboardingRun?.()) === true;
-                if (projects.length > 0 && !isWaitingOnRun) {
+                if (projects.length > 0) {
                     const existingProject = accessibleProjects[0];
                     if (!existingProject) {
                         trackSkipped('no_project_access', null);

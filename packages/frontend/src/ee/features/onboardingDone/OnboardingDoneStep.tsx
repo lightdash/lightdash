@@ -1,11 +1,8 @@
-import {
-    AGENT_ONBOARDING_STAGES,
-    type ApiConnectorType,
-} from '@lightdash/common';
+import { type ApiConnectorType } from '@lightdash/common';
 import { Box, Button, Image, Stack, Text, Title } from '@mantine/core';
 import { IconArrowRight, IconCheck } from '@tabler/icons-react';
 import { Fragment, useEffect, type FC } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { DocumentTitle } from '../../../components/common/DocumentTitle';
 import MantineIcon from '../../../components/common/MantineIcon';
 import OnboardingLayout from '../../../components/common/OnboardingLayout';
@@ -18,11 +15,10 @@ import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { useCanCreateAiAgentThread } from '../aiCopilot/hooks/useAiAgentPermission';
+import { useProjectAiAgents } from '../aiCopilot/hooks/useProjectAiAgents';
 import { markHomepageTourSeen } from '../homepageBuilder/onboarding';
-import { useAuroraRun } from './hooks/useAuroraRun';
-import { useAskAurora } from './hooks/useFirstQuestions';
 import classes from './OnboardingDoneStep.module.css';
-import { OnboardingRunActivity } from './OnboardingRunActivity';
 
 type Source = {
     key: string;
@@ -59,18 +55,32 @@ const SourceName: FC<{ source: Source; to: string | null }> = ({
 const FIRST_QUESTION =
     "What's in my data, and what are three questions worth asking?";
 
+const useAskAurora = (projectUuid: string) => {
+    const navigate = useNavigate();
+    const canCreateThread = useCanCreateAiAgentThread(projectUuid);
+    const { data: agents, isInitialLoading } = useProjectAiAgents({
+        projectUuid,
+        redirectOnUnauthorized: false,
+        options: { enabled: canCreateThread },
+    });
+    const agent = agents?.[0];
+    return {
+        canAsk: canCreateThread && (isInitialLoading || !!agent),
+        ask: (prompt: string) =>
+            void navigate(
+                agent
+                    ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`
+                    : `/projects/${projectUuid}/ai-agents`,
+                { state: { autoSubmitPrompt: prompt } },
+            ),
+    };
+};
+
 export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     useEffect(markHomepageTourSeen, []);
     const { canAsk, ask } = useAskAurora(projectUuid);
-    const { run, isLive } = useAuroraRun(projectUuid);
-    // Asked before the semantic layer deploys, the agent only sees the raw sources
-    const areMetricsLive =
-        !isLive ||
-        (!!run?.stage &&
-            AGENT_ONBOARDING_STAGES.indexOf(run.stage) >
-                AGENT_ONBOARDING_STAGES.indexOf('deploying_semantic_layer'));
     const { data: project } = useProject(projectUuid);
     const { user } = useApp();
     const { track } = useTracking();
@@ -81,8 +91,6 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                 organizationId: user.data?.organizationUuid ?? null,
                 projectId: projectUuid,
                 action,
-                areMetricsLive,
-                runStatus: run?.status ?? null,
             },
         });
     const { data: connections = [] } = useExternalConnections(projectUuid);
@@ -148,38 +156,19 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                     )}
                 </Stack>
 
-                <Box className={classes.runCard}>
-                    <OnboardingRunActivity
-                        projectUuid={projectUuid}
-                        variant="grouped"
-                    />
-                </Box>
-
                 <Stack gap="md">
                     {canAsk && (
-                        <Stack gap="xs">
-                            {isLive && (
-                                <Text fz="sm" fw={500}>
-                                    {areMetricsLive
-                                        ? 'Your metrics are live'
-                                        : 'Available once your metrics are live'}
-                                </Text>
-                            )}
-                            <Button
-                                size="md"
-                                fullWidth
-                                disabled={!areMetricsLive}
-                                onClick={() => {
-                                    trackAction('ask_first_question');
-                                    ask(FIRST_QUESTION);
-                                }}
-                                rightSection={
-                                    <MantineIcon icon={IconArrowRight} />
-                                }
-                            >
-                                Ask your first question
-                            </Button>
-                        </Stack>
+                        <Button
+                            size="md"
+                            fullWidth
+                            onClick={() => {
+                                trackAction('ask_first_question');
+                                ask(FIRST_QUESTION);
+                            }}
+                            rightSection={<MantineIcon icon={IconArrowRight} />}
+                        >
+                            Ask your first question
+                        </Button>
                     )}
                     <Button
                         size="md"

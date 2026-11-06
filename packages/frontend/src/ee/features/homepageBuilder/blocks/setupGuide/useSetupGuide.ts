@@ -2,12 +2,9 @@ import { subject } from '@casl/ability';
 import {
     ContentType,
     FeatureFlags,
-    isAgentOnboardingRunTerminal,
     isSemanticLayerExplore,
 } from '@lightdash/common';
 import { useMatches } from '@mantine/core';
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { useLocalStorage } from 'react-use';
 import { useChartTypesEnabled } from '../../../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../../../features/chartTypes/hooks/useDataAppVisualizations';
@@ -21,12 +18,6 @@ import { useExplores } from '../../../../../hooks/useExplores';
 import { useOrganizationUsers } from '../../../../../hooks/useOrganizationUsers';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
-import {
-    useActiveAgentOnboardingRun,
-    useAgentOnboardingRun,
-    useLatestAgentOnboardingRun,
-} from '../../../agentOnboarding/hooks/useAgentOnboarding';
-import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
 import { useIsNewOnboardingOrg } from '../../hooks/useIsNewOnboardingOrg';
 import { type RecommendedActionsState } from '../useRecommendedActions';
@@ -40,9 +31,6 @@ export const useSetupGuide = (
     const userUuid = user.data?.userUuid;
     const newOnboardingOrg = useIsNewOnboardingOrg();
     const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
-    const codingAgentFlag = useServerFeatureFlag(
-        FeatureFlags.CodingAgentOnboarding,
-    );
     const canManageProject = useCanManageProject(projectUuid);
     // visibleActions is empty on the playground, where setup has no place
     const isEligible =
@@ -50,31 +38,8 @@ export const useSetupGuide = (
         canManageProject &&
         actions.visibleActions.length > 0;
     const enabled = { enabled: isEligible };
-    const agentRunEnabled = {
-        enabled: isEligible && codingAgentFlag.data?.enabled === true,
-    };
 
     const explores = useExplores(projectUuid, true, false, enabled);
-    const activeRun = useActiveAgentOnboardingRun(projectUuid, agentRunEnabled);
-    // The active-run lookup does not poll, so the run itself is watched for completion
-    const watchedRun = useAgentOnboardingRun(
-        projectUuid,
-        activeRun.data?.agentOnboardingRunUuid,
-        agentRunEnabled,
-    );
-    const run = watchedRun.data ?? activeRun.data ?? null;
-    const isRunTerminal = !!run && isAgentOnboardingRunTerminal(run.status);
-    const latestRun = useLatestAgentOnboardingRun(projectUuid, agentRunEnabled);
-    const queryClient = useQueryClient();
-    useEffect(() => {
-        if (!isRunTerminal) return;
-        void queryClient.invalidateQueries({
-            queryKey: ['tables', projectUuid],
-        });
-        void queryClient.invalidateQueries({
-            queryKey: ['agent-onboarding-latest-run', projectUuid],
-        });
-    }, [isRunTerminal, projectUuid, queryClient]);
     // These hooks take no enabled option; an undefined project keeps them idle
     const gatedProjectUuid = isEligible ? projectUuid : undefined;
     const connections = useExternalConnections(gatedProjectUuid);
@@ -116,7 +81,7 @@ export const useSetupGuide = (
         (newOnboardingOrg.isLoading ||
             (newOnboardingOrg.isNewOrg &&
                 (actions.isLoading ||
-                    [explores, activeRun, brand].some(
+                    [explores, brand].some(
                         (query) => query.isInitialLoading,
                     ))));
 
@@ -126,15 +91,12 @@ export const useSetupGuide = (
     const canSuggestChartTypes =
         isEligible && chartTypesEnabled.enabled && (chartCount ?? 0) > 0;
     const registry = useRegistryChartTypes(projectUuid, canSuggestChartTypes);
-    const completedRun =
-        latestRun.data?.status === 'completed' ? latestRun.data : null;
     const semanticExplores = (explores.data ?? []).filter(
         isSemanticLayerExplore,
     );
     const liveConnections = (connections.data ?? []).filter(
         ({ kind }) => kind === 'live_source',
     );
-    const activeRunOrNull = run && !isRunTerminal ? run : null;
     const semanticStudioUrl = getSemanticStudioUrl(projectUuid, { ref: null });
     const sections = buildSetupGuide({
         projectUuid,
@@ -147,8 +109,6 @@ export const useSetupGuide = (
         chartTypeNames: (chartTypes.data?.pages[0]?.data ?? []).map(
             ({ name }) => name,
         ),
-        activeRun: activeRunOrNull,
-        completedRun,
         semanticStudioUrl,
         canAddLiveSources:
             liveSourcesFlag.data?.enabled === true &&
@@ -181,13 +141,6 @@ export const useSetupGuide = (
         liveConnections,
         semanticStudioUrl,
         chartCount,
-        activeRun: activeRunOrNull,
-        completedRunUrl: completedRun
-            ? getAgentOnboardingRunUrl(
-                  completedRun.agentOnboardingRunUuid,
-                  completedRun.projectUuid,
-              )
-            : null,
         isDismissed: isDismissed ?? isNarrow,
         setIsDismissed: (next: boolean) => setIsDismissed(next),
         skipRow: (id: SetupGuideRowId) =>

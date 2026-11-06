@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS,
-    type AgentOnboardingRun,
     type HomepageRecommendedActionKey,
     type OrganizationBrand,
     type RegistryChartTypeListItem,
@@ -9,18 +8,12 @@ import {
 import { type ReactNode } from 'react';
 import { AI_NAME } from '../../../../../components/common/aiName';
 import { getSemanticStudioLiveSourcesUrl } from '../../../../../features/semanticStudio/urls';
-import {
-    getAgentOnboardingRunUrl,
-    plural,
-} from '../../../agentOnboarding/utils';
 import { type ActionStatus } from '../useRecommendedActions';
 
-export type SetupGuideStatus =
-    | 'done'
-    | 'ready'
-    | 'building'
-    | 'suggested'
-    | 'skipped';
+const plural = (count: number, word: string) =>
+    `${count} ${word}${count === 1 ? '' : 's'}`;
+
+export type SetupGuideStatus = 'done' | 'ready' | 'suggested' | 'skipped';
 
 export type SetupGuideRowId =
     | 'warehouse'
@@ -39,9 +32,10 @@ export type SetupGuideEvidence = {
     swatches: string[];
 };
 
-export type SetupGuidePreview =
-    | { kind: 'agent-run'; run: AgentOnboardingRun }
-    | { kind: 'chart-types'; chartTypes: RegistryChartTypeListItem[] };
+export type SetupGuidePreview = {
+    kind: 'chart-types';
+    chartTypes: RegistryChartTypeListItem[];
+};
 
 export type SetupGuideChoice = {
     kind: 'ask' | 'explore';
@@ -87,10 +81,7 @@ export type SetupGuideFacts = {
     chartCount: number;
     // Installed chart types, the starter set onboarding adds included
     chartTypeNames: string[];
-    activeRun: AgentOnboardingRun | null;
-    // Its run page shows what was built, so review lands there
-    completedRun: AgentOnboardingRun | null;
-    // Semantic Layer page, when its flag is on; review lands there over the run page
+    // Semantic Layer page, when its flag is on; review lands there
     semanticStudioUrl: string | null;
     appSourceNames: string[];
     // The live sources settings page only exists behind its flag and permission
@@ -106,7 +97,6 @@ export const isCompletedStatus = (status: SetupGuideStatus): boolean => {
         case 'done':
         case 'ready':
             return true;
-        case 'building':
         case 'suggested':
         case 'skipped':
             return false;
@@ -211,8 +201,6 @@ const semanticLayerRow = ({
     projectUuid,
     statuses,
     skippedActions,
-    activeRun,
-    completedRun,
     semanticStudioUrl,
     semanticModelCount,
 }: SetupGuideFacts): SetupGuideRow => {
@@ -222,35 +210,16 @@ const semanticLayerRow = ({
         title: 'Define metrics and dimensions',
         actionKey: 'add-semantic-layer',
     } as const;
-    if (activeRun) {
-        return {
-            ...common,
-            status: 'building',
-            evidence: evidence('Drafting models from your tables'),
-            action: { label: 'Open', to: url },
-            preview: { kind: 'agent-run', run: activeRun },
-            choices: [],
-        };
-    }
     if (semanticModelCount > 0) {
         return {
             ...common,
             status: 'done',
             evidence: evidence(
-                completedRun
-                    ? `${plural(semanticModelCount, 'model')} built by ${AI_NAME}`
-                    : `${plural(semanticModelCount, 'model')} ready to explore`,
+                `${plural(semanticModelCount, 'model')} ready to explore`,
             ),
             action: {
                 label: 'Review',
-                to:
-                    semanticStudioUrl ??
-                    (completedRun
-                        ? getAgentOnboardingRunUrl(
-                              completedRun.agentOnboardingRunUuid,
-                              completedRun.projectUuid,
-                          )
-                        : `/projects/${projectUuid}/tables`),
+                to: semanticStudioUrl ?? `/projects/${projectUuid}/tables`,
             },
             preview: null,
             choices: [],

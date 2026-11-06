@@ -163,7 +163,6 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'ContentReviewRequestController.approve': 'write',
     'ContentReviewRequestController.reject': 'write',
     'ContentReviewRequestController.cancel': 'write',
-    'OnboardingAgentController.cancelRun': 'write',
     'PreAggregateController.runDashboardPreAggregateAudit': 'read',
     'AiAgentController.listAgents': 'read',
     'AiAgentController.setUserDefaultAgent': 'write',

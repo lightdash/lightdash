@@ -1,6 +1,5 @@
 import {
     ApiConnectorType,
-    type AgentOnboardingRun,
     type ExternalConnectionListItem,
     type OrganizationBrand,
     type RegistryChartTypeListItem,
@@ -54,22 +53,6 @@ const status = (overrides: Partial<ActionStatus> = {}): ActionStatus => ({
     ...overrides,
 });
 
-const run: AgentOnboardingRun = {
-    agentOnboardingRunUuid: 'run-1',
-    projectUuid: 'p1',
-    status: 'running',
-    stage: null,
-    events: [],
-    handoff: null,
-    usage: null,
-    files: [],
-    errorMessage: null,
-    createdAt: '2026-11-02T00:00:00.000Z',
-    updatedAt: '2026-11-02T00:00:00.000Z',
-    startedAt: '2026-11-02T00:00:00.000Z',
-    completedAt: null,
-};
-
 const brand: OrganizationBrand = {
     organizationUuid: 'org-1',
     domain: 'acme.com',
@@ -102,8 +85,6 @@ const fresh: SetupGuideFacts = {
     semanticModelCount: 0,
     chartCount: 0,
     chartTypeNames: [],
-    activeRun: null,
-    completedRun: null,
     semanticStudioUrl: null,
     appSourceNames: [],
     canAddLiveSources: true,
@@ -117,10 +98,9 @@ const warehouseConnected: SetupGuideFacts['statuses'] = {
     'connect-warehouse': status({ isComplete: true, annotation: 'PostgreSQL' }),
 };
 
-const building: SetupGuideFacts = {
+const warehouseDone: SetupGuideFacts = {
     ...fresh,
     statuses: warehouseConnected,
-    activeRun: run,
 };
 
 const allDone: SetupGuideFacts = {
@@ -208,14 +188,10 @@ describe('buildSetupGuide', () => {
         });
     });
 
-    it('shows background work as building with a run preview', () => {
-        expect(rowById(building, 'warehouse')).toMatchObject({
+    it('shows the connected warehouse as evidence', () => {
+        expect(rowById(warehouseDone, 'warehouse')).toMatchObject({
             status: 'done',
             evidence: { text: 'PostgreSQL connected' },
-        });
-        expect(rowById(building, 'semantic-layer')).toMatchObject({
-            status: 'building',
-            preview: { kind: 'agent-run', run },
         });
     });
 
@@ -233,26 +209,6 @@ describe('buildSetupGuide', () => {
         ).toMatchObject({
             status: 'done',
             evidence: { text: '48 models ready to explore' },
-        });
-    });
-
-    it('credits a finished build and links back to its run', () => {
-        expect(
-            rowById(
-                {
-                    ...fresh,
-                    semanticModelCount: 3,
-                    completedRun: { ...run, status: 'completed' },
-                },
-                'semantic-layer',
-            ),
-        ).toMatchObject({
-            status: 'done',
-            evidence: { text: '3 models built by Lightdash' },
-            action: {
-                label: 'Review',
-                to: '/projects/p1/onboarding/runs/run-1',
-            },
         });
     });
 
@@ -333,11 +289,6 @@ describe('SetupGuideView', () => {
         expect(
             screen.getByRole('link', { name: /Define metrics and dimensions/ }),
         ).toHaveAttribute('href', '/setup');
-    });
-
-    it('marks background work as in progress', () => {
-        renderGuide(building);
-        expect(screen.getByLabelText('In progress')).toBeInTheDocument();
     });
 
     it('counts finished steps', () => {
@@ -434,8 +385,8 @@ const eventsNamed = (name: EventName) =>
 
 describe('setup guide tracking', () => {
     it('sends one impression per mount with progress', () => {
-        const { rerender } = renderGuide(building);
-        rerender(guideTree(building, { isMinimized: true }));
+        const { rerender } = renderGuide(warehouseDone);
+        rerender(guideTree(warehouseDone, { isMinimized: true }));
         expect(
             eventsNamed(EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION),
         ).toEqual([
@@ -513,8 +464,6 @@ const bannerGuide: SetupGuideState = {
     liveConnections: [],
     semanticStudioUrl: '/projects/project-uuid/semantic-layer',
     chartCount: 0,
-    activeRun: null,
-    completedRunUrl: null,
     isDismissed: false,
     setIsDismissed: vi.fn(),
     skipRow: vi.fn(),

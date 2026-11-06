@@ -4,7 +4,6 @@ import {
     DbtProjectTypeLabels,
     hasSemanticLayerExplore,
     ProjectType,
-    type AgentOnboardingRun,
     type HealthState,
     type HomepageRecommendedActionKey,
     type Organization,
@@ -26,8 +25,6 @@ import { useProjects } from '../../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { isPlaygroundProvisioningSource } from '../../../../utils/playgroundProject';
-import { useActiveAgentOnboardingRun } from '../../agentOnboarding/hooks/useAgentOnboarding';
-import { getAgentOnboardingRunUrl } from '../../agentOnboarding/utils';
 import { useCanManageProject } from '../hooks/useHomepageAbilities';
 import { useHomepageRecommendedActionSkips } from '../hooks/useHomepageRecommendedActionSkips';
 import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
@@ -131,48 +128,21 @@ const warehouseStatus = (
     ctaLabel: needsWarehouse ? 'Connect' : DEFAULT_CTA_LABEL,
 });
 
-// An agent run left mid-flight is resumable, so the step points at the run
-// instead of restarting the flow
-const semanticLayerUrl = (
-    projectUuid: string | null,
-    activeAgentRun: AgentOnboardingRun | null,
-    hasAgentSemanticLayerEntry: boolean,
-): string => {
-    if (activeAgentRun) {
-        return getAgentOnboardingRunUrl(
-            activeAgentRun.agentOnboardingRunUuid,
-            activeAgentRun.projectUuid,
-        );
-    }
-    if (hasAgentSemanticLayerEntry) {
-        return `/projects/${projectUuid}/onboarding/agent`;
-    }
-    return `/generalSettings/projectManagement/${projectUuid}/settings`;
-};
-
 const semanticLayerStatus = ({
     projectUuid,
     dbtConnection,
     hasSemanticLayer,
-    activeAgentRun,
-    hasAgentSemanticLayerEntry,
 }: {
     projectUuid: string | null;
     dbtConnection: DbtConnection;
     hasSemanticLayer: boolean;
-    activeAgentRun: AgentOnboardingRun | null;
-    hasAgentSemanticLayerEntry: boolean;
 }): ActionStatus => ({
     isVisible: !!projectUuid,
     isComplete: hasSemanticLayer,
     annotation: dbtConnection ? DbtProjectTypeLabels[dbtConnection.type] : null,
     doneIcon: null,
-    url: semanticLayerUrl(
-        projectUuid,
-        activeAgentRun,
-        hasAgentSemanticLayerEntry,
-    ),
-    ctaLabel: activeAgentRun ? 'Resume' : DEFAULT_CTA_LABEL,
+    url: `/generalSettings/projectManagement/${projectUuid}/settings`,
+    ctaLabel: DEFAULT_CTA_LABEL,
 });
 
 const sourceControlAnnotation = (
@@ -253,20 +223,6 @@ const useActionStatuses = (
     const exploresQuery = useExplores(projectUuid ?? undefined, true, false, {
         enabled: !!projectUuid && isNewOnboarding,
     });
-    const codingAgentOnboardingFlag = useServerFeatureFlag(
-        FeatureFlags.CodingAgentOnboarding,
-    );
-    const areFlagsSettled =
-        newOnboardingFlag.isFetched && codingAgentOnboardingFlag.isFetched;
-    const hasAgentSemanticLayerEntry =
-        isFlagOn(newOnboardingFlag) && isFlagOn(codingAgentOnboardingFlag);
-
-    const activeAgentRunQuery = useActiveAgentOnboardingRun(
-        projectUuid ?? undefined,
-        { enabled: hasAgentSemanticLayerEntry },
-    );
-    const activeAgentRun = activeAgentRunQuery.data ?? null;
-
     const isHealthSettled = health.isFetched;
     const { hasGithub, hasGitlab, hasSlack } = integrationFlags(health.data);
     const gitlabQuery = useGitlabRepositories({
@@ -276,11 +232,10 @@ const useActionStatuses = (
 
     // Every step defaults to incomplete, so rendering before these have
     // settled flashes steps that are already done. Health decides which
-    // integrations are even in play and the flags decide whether the agent run
-    // is looked up, so those answers gate the terms below rather than each
-    // query's own idle state.
+    // integrations are even in play, so that answer gates the terms below
+    // rather than each query's own idle state.
     const isLoading =
-        !areFlagsSettled ||
+        !newOnboardingFlag.isFetched ||
         isAnyTermPending([
             [true, health],
             [true, organizationQuery],
@@ -290,13 +245,6 @@ const useActionStatuses = (
             [gate(isHealthSettled, hasGithub), githubConfigQuery],
             [gate(isHealthSettled, hasGitlab), gitlabQuery],
             [gate(isHealthSettled, hasSlack), slackQuery],
-            [
-                gate(
-                    areFlagsSettled,
-                    !!projectUuid && hasAgentSemanticLayerEntry,
-                ),
-                activeAgentRunQuery,
-            ],
         ]);
 
     const dbtConnection = projectQuery.data?.dbtConnection;
@@ -321,8 +269,6 @@ const useActionStatuses = (
                 hasSemanticLayer: isNewOnboarding
                     ? hasSemanticLayerExplore(exploresQuery.data ?? [])
                     : hasDbtConnection(dbtConnection),
-                activeAgentRun,
-                hasAgentSemanticLayerEntry,
             }),
             'connect-source-control': sourceControlStatus({
                 settingsProjectUuid,
