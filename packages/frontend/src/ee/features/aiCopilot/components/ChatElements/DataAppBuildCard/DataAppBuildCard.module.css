@@ -68,7 +68,7 @@
 
 .summary {
     --ai-markdown-padding-left: 0;
-    --ai-markdown-font-size: var(--mantine-font-size-sm);
+    --ai-markdown-font-size: rem(13px);
     --summary-line-height: 1.55;
     --summary-collapsed-lines: 6;
     width: 100%;
@@ -135,12 +135,4 @@
 .elapsed {
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;
-}
-
-.readyStatus {
-    min-width: 0;
-}
-
-.readyIcon {
-    flex-shrink: 0;
 }

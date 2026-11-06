@@ -15,7 +15,11 @@
 
     /* Tight sides so thread titles get the width. */
     padding: var(--mantine-spacing-sm) rem(8px);
-    background: var(--mantine-color-ldGray-0);
+    /* A tad lighter than ldGray-0 in light mode, still off the chat surface. */
+    background: light-dark(
+        color-mix(in srgb, var(--mantine-color-ldGray-0) 50%, white),
+        var(--mantine-color-ldGray-0)
+    );
     &[data-collapsed] {
         min-width: 3rem;
     }
@@ -29,7 +33,10 @@
 .mobileSidebarContent {
     display: flex;
     flex-direction: column;
-    background: var(--mantine-color-ldGray-0);
+    background: light-dark(
+        color-mix(in srgb, var(--mantine-color-ldGray-0) 50%, white),
+        var(--mantine-color-ldGray-0)
+    );
 }
 
 .mobileSidebarHeader {

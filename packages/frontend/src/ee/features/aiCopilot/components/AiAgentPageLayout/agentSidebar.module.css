@@ -34,7 +34,7 @@
 
 .threadNavLink {
     border-radius: rem(6px);
-    min-height: rem(32px);
+    min-height: rem(28px);
 }
 
 .threadSection[data-position='right'] {

@@ -17,7 +17,6 @@ import {
 import {
     IconAlertTriangle,
     IconAppWindow,
-    IconCircleCheckFilled,
     IconCircleMinus,
     IconEye,
 } from '@tabler/icons-react';
@@ -143,29 +142,19 @@ const Title: FC<{ children: ReactNode }> = ({ children }) => (
     </Text>
 );
 
-/** Completed-build status: a green check, "Ready", then version details. */
+/** Completed-build status: "Ready", then version details. */
 const ReadyStatus: FC<{ detail: string }> = ({ detail }) => {
     const getUiString = useUiStrings();
     return (
-        <Group gap={4} wrap="nowrap" className={styles.readyStatus}>
-            <MantineIcon
-                icon={IconCircleCheckFilled}
-                size={14}
-                color="green.6"
-                className={styles.readyIcon}
-            />
-            <Text size="xs" truncate>
-                <Text span fw={500} inherit>
-                    {getUiString('aiAgent.dataAppBuild.ready')}
-                </Text>
-                <Text span c="dimmed" inherit>
-                    {' · '}
-                </Text>
-                <Text span c="dimmed" inherit>
-                    {detail}
-                </Text>
+        <Text size="xs" c="dimmed" truncate>
+            <Text span inherit>
+                {getUiString('aiAgent.dataAppBuild.ready')}
             </Text>
-        </Group>
+            {' · '}
+            <Text span inherit>
+                {detail}
+            </Text>
+        </Text>
     );
 };
 

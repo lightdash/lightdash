@@ -8,33 +8,24 @@ import {
 } from './composerNodeStatus';
 import styles from './ComposerNodeStatusIndicator.module.css';
 
-type Props = {
-    status: ComposerNodeStatus;
-    /** `md` is the activity-row size: a quiet check when done. */
-    size?: 'sm' | 'md';
-};
-
-export const NodeStatusIndicator: FC<Props> = ({ status, size = 'sm' }) => {
+export const NodeStatusIndicator: FC<{ status: ComposerNodeStatus }> = ({
+    status,
+}) => {
     const label = useComposerNodeStatusLabel()(status);
-    const glyphSize = size === 'md' ? 13 : 11;
-    const renderGlyph = () => {
-        if (status === 'success')
-            return (
-                <MantineIcon icon={IconCheck} size={glyphSize} stroke={2.4} />
-            );
-        if (status === 'error')
-            return <MantineIcon icon={IconX} size={glyphSize} stroke={2.4} />;
-        return <Box className={styles.statusDot} data-status={status} />;
-    };
     return (
         <Tooltip label={label} position="top">
             <Box
                 className={styles.statusIndicator}
                 data-status={status}
-                data-size={size}
                 aria-label={label}
             >
-                {renderGlyph()}
+                {status === 'success' ? (
+                    <MantineIcon icon={IconCheck} size={11} stroke={2.4} />
+                ) : status === 'error' ? (
+                    <MantineIcon icon={IconX} size={11} stroke={2.4} />
+                ) : (
+                    <Box className={styles.statusDot} data-status={status} />
+                )}
             </Box>
         </Tooltip>
     );

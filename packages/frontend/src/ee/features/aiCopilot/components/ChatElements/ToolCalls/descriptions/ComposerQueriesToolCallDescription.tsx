@@ -38,7 +38,6 @@ import {
     useComposerNodeStatusLabel,
     type ComposerQueryNodeStatus,
 } from '../../composerNodeStatus';
-import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import shimmerStyles from '../../shimmer.module.css';
 import {
     SqlApprovalActions,
@@ -238,7 +237,7 @@ const ComposerQueryNode: FC<{
         setUserToggle({ status: nodeStatus?.status, open: value });
     const open = userOpen ?? defaultOpen;
     const statusLabel = useComposerNodeStatusLabel();
-    // Running, queued and done read from the glyph; only states that need action or explain a stop get words.
+    // Queued, running and done read from the title; only states that need action or explain a stop get words.
     const statusText =
         nodeStatus?.status === 'awaiting_approval' ||
         nodeStatus?.status === 'error'
@@ -265,12 +264,7 @@ const ComposerQueryNode: FC<{
                     wrap="nowrap"
                     className={styles.head}
                 >
-                    {nodeStatus && nodeStatus.status !== 'running' ? (
-                        <NodeStatusIndicator
-                            status={nodeStatus.status}
-                            size="md"
-                        />
-                    ) : liveSourceConnectionUuid ? (
+                    {liveSourceConnectionUuid ? (
                         <Tooltip
                             label={
                                 liveSource
@@ -284,10 +278,12 @@ const ComposerQueryNode: FC<{
                                 display="inline-flex"
                                 role="img"
                                 aria-label={
-                                    liveSource
-                                        ? getLiveSource(liveSource.connector)
-                                              .label
-                                        : presentation.badge
+                                    nodeStatus
+                                        ? statusLabel(nodeStatus.status)
+                                        : liveSource
+                                          ? getLiveSource(liveSource.connector)
+                                                .label
+                                          : presentation.badge
                                 }
                             >
                                 <LiveSourceIcon
@@ -301,7 +297,8 @@ const ComposerQueryNode: FC<{
                             icon={presentation.icon}
                             size={13}
                             stroke={1.6}
-                            className={rowStyles.icon}
+                            className={styles.icon}
+                            data-status={nodeStatus?.status}
                             role={nodeStatus ? 'img' : undefined}
                             aria-label={
                                 nodeStatus
