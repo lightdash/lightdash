@@ -80,6 +80,7 @@ import {
     getDashboardLayouts,
     type DashboardLayouts,
     getResponsiveGridLayoutProps,
+    type FitToScreenSnap,
     GRID_COLS,
     GRID_CONTAINER_PADDING,
 } from './gridUtils';
@@ -227,8 +228,10 @@ type DashboardTabsProps = {
     setGridWidth: (value: React.SetStateAction<number>) => void;
     onNewChart?: () => void;
 
-    // fit to screen: the computed row height, null when not fitting
-    fitToScreenRowHeight: number | null;
+    // fit to screen: null when the grid keeps its natural height
+    fitToScreenSnap: FitToScreenSnap | null;
+    // the grid springs between snap targets while true
+    isFitToScreenSnapping: boolean;
     gridContainerRef: (element: HTMLDivElement | null) => void;
 
     // parameters
@@ -258,7 +261,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     setGridWidth,
     setAddingTab,
     onNewChart,
-    fitToScreenRowHeight,
+    fitToScreenSnap,
+    isFitToScreenSnapping,
     gridContainerRef,
     // parameters
     hasTilesThatSupportFilters,
@@ -475,13 +479,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         );
     }, [dashboardTiles, dashboardTabs, isEditMode]);
 
-    const dashboardGridBottomPadding =
-        fitToScreenRowHeight !== null
-            ? FIT_TO_SCREEN_GRID_BOTTOM_PADDING
-            : DASHBOARD_GRID_BOTTOM_PADDING +
-              scrollToTopBottom -
-              SCROLL_TO_TOP_BOTTOM;
+    // A fold snapped to the viewport still scrolls, so it keeps the room for
+    // the scroll to top button
+    const dashboardGridBottomPadding = fitToScreenSnap?.isWholeGrid
+        ? FIT_TO_SCREEN_GRID_BOTTOM_PADDING
+        : DASHBOARD_GRID_BOTTOM_PADDING +
+          scrollToTopBottom -
+          SCROLL_TO_TOP_BOTTOM;
 
+    const fitToScreenRowHeight = fitToScreenSnap?.rowHeight ?? null;
     const gridProps = useMemo(
         () =>
             getResponsiveGridLayoutProps({
@@ -1141,6 +1147,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 showGridLines ? styles.gridLines : undefined,
                                 isInteracting
                                     ? styles.gridInteracting
+                                    : undefined,
+                                isFitToScreenSnapping
+                                    ? styles.gridSnapping
                                     : undefined,
                             ]
                                 .filter(Boolean)
