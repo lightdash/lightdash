@@ -1,3 +1,10 @@
+## [3.176.1](https://github.com/lightdash/lightdash/compare/3.176.0...3.176.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **live-sources:** refuse a PostHog reconnect to another project or region ([#32183](https://github.com/lightdash/lightdash/issues/32183)) ([b9ade3f](https://github.com/lightdash/lightdash/commit/b9ade3f1a624bb241a5d38afa1df7618ef2bc303))
+
 # [3.176.0](https://github.com/lightdash/lightdash/compare/3.175.0...3.176.0) (2026-11-06)
 
 
