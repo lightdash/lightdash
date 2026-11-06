@@ -1,3 +1,15 @@
+# [3.171.0](https://github.com/lightdash/lightdash/compare/3.170.1...3.171.0) (2026-11-06)
+
+
+### Bug Fixes
+
+* **ai:** name the unavailable explore and say not to retry ([#32168](https://github.com/lightdash/lightdash/issues/32168)) ([0743cd0](https://github.com/lightdash/lightdash/commit/0743cd0cd345a48617aba79d8fb93c2552fefb8e))
+
+
+### Features
+
+* **dashboards:** default new dashboard owner to the creator ([#32163](https://github.com/lightdash/lightdash/issues/32163)) ([2418630](https://github.com/lightdash/lightdash/commit/2418630126ae77d6b8456f8a31bcc0f4cd53e95c))
+
 ## [3.170.1](https://github.com/lightdash/lightdash/compare/3.170.0...3.170.1) (2026-11-06)
 
 
