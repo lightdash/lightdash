@@ -19,6 +19,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import {
+    IconChartBar,
     IconDots,
     IconEye,
     IconFileTypeCsv,
@@ -36,6 +37,7 @@ import {
     type MouseEvent,
     type ReactNode,
 } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useHealth from '../../../hooks/health/useHealth';
 import googleSheetsLogo from '../../../svgs/google-sheets.svg';
@@ -82,7 +84,7 @@ const lastRefreshed = (source: ExternalSource) => {
         : { value: '—', title: undefined };
 };
 
-/** Preview, refresh, reconnect, replace, rename and delete: one source's controls. */
+/** Explore, preview, refresh, reconnect, replace, rename and delete: one source's controls. */
 const ExternalSourceMenu: FC<{
     projectUuid: string;
     source: ExternalSource;
@@ -96,6 +98,7 @@ const ExternalSourceMenu: FC<{
     const isSheet = isGoogleSheet(source);
     // A source whose first import failed has no table yet: it can only go.
     const hasTable = getExternalSourceRef(source) !== null;
+    const [table] = source.tables;
     return (
         <Menu position="bottom-end" withinPortal>
             <Menu.Target>
@@ -110,6 +113,15 @@ const ExternalSourceMenu: FC<{
                 </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown onClick={stopPropagation}>
+                {table ? (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUuid}/tables/${table.name}`}
+                        leftSection={<MantineIcon icon={IconChartBar} />}
+                    >
+                        Open in Explore
+                    </Menu.Item>
+                ) : null}
                 {hasTable ? (
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconEye} />}
