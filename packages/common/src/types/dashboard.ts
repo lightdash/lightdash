@@ -168,7 +168,7 @@ export type CreateDashboard = {
     tabs: DashboardTab[];
     config?: DashboardConfig;
     colorPaletteUuid?: string | null;
-    /** Set to a user uuid to assign an owner, null or omitted for no owner */
+    /** Set to a user uuid to assign an owner, null for no owner. Omitted defaults to the creator */
     ownerUserUuid?: string | null;
 };
 

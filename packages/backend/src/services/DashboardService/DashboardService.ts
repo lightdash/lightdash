@@ -640,6 +640,13 @@ export class DashboardService
         });
     }
 
+    // Service accounts aren't a person viewers can contact, so they never own
+    static getDefaultOwnerUserUuid(
+        user: Pick<SessionUser, 'userUuid' | 'serviceAccount'>,
+    ): string | null {
+        return user.serviceAccount ? null : user.userUuid;
+    }
+
     static getCreateEventProperties(
         dashboard: DashboardDAO,
     ): CreateDashboardOrVersionEvent['properties'] {
@@ -2055,6 +2062,10 @@ export class DashboardService
 
         let createDashboard = {
             ...dashboard,
+            ownerUserUuid:
+                dashboard.ownerUserUuid === undefined
+                    ? DashboardService.getDefaultOwnerUserUuid(user)
+                    : dashboard.ownerUserUuid,
             slug: generateSlug(dashboard.name),
         };
         if (dashboard.config?.parameterControls !== undefined) {
@@ -2329,6 +2340,7 @@ export class DashboardService
             name: data.dashboardName,
             slug: dashboard.slug,
             tabs: newTabs,
+            ownerUserUuid: DashboardService.getDefaultOwnerUserUuid(user),
         };
 
         const newDashboard = await this.dashboardModel.create(

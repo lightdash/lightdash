@@ -175,6 +175,13 @@ const searchModel = {
 const contentAsCodeProjectSettingsModel = { get: vi.fn() };
 const contentAsCodeSnapshotModel = { get: vi.fn() };
 
+const organizationMemberProfileModel = {
+    getOrganizationMemberByUuid: vi.fn(async () => ({
+        organizationUuid: user.organizationUuid,
+        userUuid: 'target-user-uuid',
+    })),
+};
+
 const contentVerificationModel = {
     getByContentUuids: vi.fn(
         async (): Promise<Map<string, ContentVerificationInfo>> => new Map(),
@@ -279,12 +286,8 @@ describe('DashboardService', () => {
         organizationModel: {
             findColorPalette: vi.fn(async () => null),
         } as unknown as OrganizationModel,
-        organizationMemberProfileModel: {
-            getOrganizationMemberByUuid: vi.fn(async () => ({
-                organizationUuid: user.organizationUuid,
-                userUuid: 'target-user-uuid',
-            })),
-        } as unknown as OrganizationMemberProfileModel,
+        organizationMemberProfileModel:
+            organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         projectService: {} as never,
@@ -1206,7 +1209,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
         expect(dashboardModel.create).toHaveBeenCalledWith(
             publicSpace.uuid,
-            createDashboardWithSlug,
+            { ...createDashboardWithSlug, ownerUserUuid: user.userUuid },
             user,
             projectUuid,
         );
@@ -1333,7 +1336,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
         expect(dashboardModel.create).toHaveBeenCalledWith(
             publicSpace.uuid,
-            createDashboardWithTileIds,
+            { ...createDashboardWithTileIds, ownerUserUuid: user.userUuid },
             user,
             projectUuid,
         );
@@ -1343,6 +1346,72 @@ describe('DashboardService', () => {
                 event: 'dashboard.created',
             }),
         );
+    });
+    describe('default owner on create', () => {
+        test('should make the creator the owner when no owner is given', async () => {
+            await service.create(user, projectUuid, createDashboard);
+
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                publicSpace.uuid,
+                expect.objectContaining({ ownerUserUuid: user.userUuid }),
+                user,
+                projectUuid,
+            );
+            expect(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).not.toHaveBeenCalled();
+        });
+        test('should leave the dashboard unowned when owner is null', async () => {
+            await service.create(user, projectUuid, {
+                ...createDashboard,
+                ownerUserUuid: null,
+            });
+
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                publicSpace.uuid,
+                expect.objectContaining({ ownerUserUuid: null }),
+                user,
+                projectUuid,
+            );
+        });
+        test('should keep and validate an explicit owner', async () => {
+            await service.create(user, projectUuid, {
+                ...createDashboard,
+                ownerUserUuid: 'target-user-uuid',
+            });
+
+            expect(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).toHaveBeenCalledWith(
+                publicSpace.organizationUuid,
+                'target-user-uuid',
+            );
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                publicSpace.uuid,
+                expect.objectContaining({ ownerUserUuid: 'target-user-uuid' }),
+                user,
+                projectUuid,
+            );
+        });
+        test('should not make a service account the owner', async () => {
+            const serviceAccountUser = {
+                ...user,
+                serviceAccount: { uuid: 'service-account-uuid' },
+            };
+
+            await service.create(
+                serviceAccountUser,
+                projectUuid,
+                createDashboard,
+            );
+
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                publicSpace.uuid,
+                expect.objectContaining({ ownerUserUuid: null }),
+                serviceAccountUser,
+                projectUuid,
+            );
+        });
     });
     test('should update dashboard details', async () => {
         (dashboardModel.update as import('vitest').Mock).mockResolvedValueOnce({
@@ -2252,6 +2321,32 @@ describe('DashboardService', () => {
                 service as any,
                 'duplicateChartForDashboard',
             ).mockResolvedValue('new-duplicated-chart-uuid');
+        });
+
+        test('should make whoever duplicates the owner of the copy', async () => {
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue({
+                ...dashboardWithScopedCharts,
+                owner: {
+                    userUuid: 'original-owner-uuid',
+                    firstName: 'Original',
+                    lastName: 'Owner',
+                    email: 'original-owner@example.com',
+                },
+            });
+
+            await service.duplicate(user, projectUuid, dashboard.uuid, {
+                dashboardName: 'Duplicated',
+                dashboardDesc: 'desc',
+            });
+
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({ ownerUserUuid: user.userUuid }),
+                expect.anything(),
+                projectUuid,
+            );
         });
 
         test('should remap filter tileTargets when duplicating dashboard-scoped charts', async () => {
