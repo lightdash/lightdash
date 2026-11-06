@@ -1418,121 +1418,112 @@ export const AgentChatInput = ({
         );
     };
 
-    // Footer row inside the thread composer shell: attach and SQL Runner stay
-    // switchable mid-thread; the model is fixed so it is only a label.
-    const renderStatusRow = () => {
-        if (!showStatusRow) return null;
-        return (
-            <Group
-                className={styles.statusBar}
-                justify="space-between"
-                align="center"
-                gap="sm"
-                wrap="nowrap"
-            >
-                <Group gap="sm" align="center" wrap="nowrap">
-                    {canAttachThreadFile && showAttachControl && (
-                        <FileButton
-                            accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
-                                (ext) => ext !== '.csv' && ext !== '.tsv',
-                            ).join(',')}
-                            multiple
-                            resetRef={resetDocumentFileInputRef}
-                            onChange={(files) => {
-                                resetDocumentFileInputRef.current?.();
-                                if (files.length > 0) {
-                                    void attachThreadFiles(files);
-                                }
-                            }}
+    // Thread composer toolbar: attach and SQL Runner stay switchable
+    // mid-thread; the model is fixed so it is only a label.
+    const renderStatusStart = () => (
+        <Group gap="sm" align="center" wrap="nowrap">
+            {canAttachThreadFile && showAttachControl && (
+                <FileButton
+                    accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
+                        (ext) => ext !== '.csv' && ext !== '.tsv',
+                    ).join(',')}
+                    multiple
+                    resetRef={resetDocumentFileInputRef}
+                    onChange={(files) => {
+                        resetDocumentFileInputRef.current?.();
+                        if (files.length > 0) {
+                            void attachThreadFiles(files);
+                        }
+                    }}
+                >
+                    {(fileButtonProps) => (
+                        <Tooltip
+                            label="Attach a document"
+                            position="top"
+                            openDelay={300}
                         >
-                            {(fileButtonProps) => (
-                                <Tooltip
-                                    label="Attach a document"
-                                    position="top"
-                                    openDelay={300}
-                                >
-                                    <ActionIcon
-                                        {...fileButtonProps}
-                                        size="xs"
-                                        variant="transparent"
-                                        aria-label={
-                                            canUseAttachControl
-                                                ? 'Attach a document'
-                                                : 'Attach a document unavailable in deep research'
-                                        }
-                                        disabled={
-                                            isUploadingThreadFile ||
-                                            !canUseAttachControl
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconPaperclip}
-                                            size={14}
-                                            color="dimmed"
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </FileButton>
-                    )}
-                    {sqlMode && (
-                        <Group gap={4} wrap="nowrap">
-                            <MantineIcon
-                                icon={IconTerminal2}
-                                size={14}
-                                color="dimmed"
-                            />
-                            <Text size="xs" c="dimmed">
-                                Can run SQL
-                            </Text>
-                        </Group>
-                    )}
-                    {composerMode === 'deep_research' && (
-                        <Group gap={4} wrap="nowrap">
-                            <MantineIcon
-                                icon={IconTelescope}
-                                size={14}
-                                color="dimmed"
-                            />
-                            <Text size="xs" c="dimmed">
-                                Deep research
-                            </Text>
-                        </Group>
-                    )}
-                    {footerNotice}
-                </Group>
-                {threadModelName && (
-                    <Group gap={4} wrap="nowrap">
-                        {threadModelName && threadModelWarning && (
-                            <Tooltip
-                                label={threadModelWarning}
-                                multiline
-                                w={240}
-                                position="top"
+                            <ActionIcon
+                                {...fileButtonProps}
+                                size="xs"
+                                variant="transparent"
+                                aria-label={
+                                    canUseAttachControl
+                                        ? 'Attach a document'
+                                        : 'Attach a document unavailable in deep research'
+                                }
+                                disabled={
+                                    isUploadingThreadFile ||
+                                    !canUseAttachControl
+                                }
                             >
-                                <Group gap={4} wrap="nowrap">
-                                    <MantineIcon
-                                        icon={IconAlertTriangle}
-                                        size={14}
-                                        color="yellow.7"
-                                        aria-label={threadModelWarning}
-                                    />
-                                    <Text size="xs" c="dimmed">
-                                        {threadModelName}
-                                    </Text>
-                                </Group>
-                            </Tooltip>
-                        )}
-                        {threadModelName && !threadModelWarning && (
+                                <MantineIcon
+                                    icon={IconPaperclip}
+                                    size={14}
+                                    color="dimmed"
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </FileButton>
+            )}
+            {sqlMode && (
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconTerminal2}
+                        size={14}
+                        color="dimmed"
+                    />
+                    <Text size="xs" c="dimmed">
+                        Can run SQL
+                    </Text>
+                </Group>
+            )}
+            {composerMode === 'deep_research' && (
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconTelescope}
+                        size={14}
+                        color="dimmed"
+                    />
+                    <Text size="xs" c="dimmed">
+                        Deep research
+                    </Text>
+                </Group>
+            )}
+            {footerNotice}
+        </Group>
+    );
+
+    const renderStatusEnd = () =>
+        threadModelName && (
+            <Group gap={4} wrap="nowrap">
+                {threadModelName && threadModelWarning && (
+                    <Tooltip
+                        label={threadModelWarning}
+                        multiline
+                        w={240}
+                        position="top"
+                    >
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                size={14}
+                                color="yellow.7"
+                                aria-label={threadModelWarning}
+                            />
                             <Text size="xs" c="dimmed">
                                 {threadModelName}
                             </Text>
-                        )}
-                    </Group>
+                        </Group>
+                    </Tooltip>
+                )}
+                {threadModelName && !threadModelWarning && (
+                    <Text size="xs" c="dimmed">
+                        {threadModelName}
+                    </Text>
                 )}
             </Group>
         );
-    };
 
     const renderThemeButton = () =>
         showThemeButton ? (
@@ -1687,15 +1678,39 @@ export const AgentChatInput = ({
                 >
                     {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-                    <Box
-                        className={styles.threadInputStack}
-                        data-with-status={showStatusRow || undefined}
-                    >
+                    {showStatusRow ? (
+                        <Box className={styles.dropTarget} {...dropTargetProps}>
+                            <PromptComposer
+                                {...composerCommonProps}
+                                variant="card"
+                                size="sm"
+                                attachments={renderedAttachments}
+                                toolbarLeft={
+                                    <Group gap={4} align="center" wrap="nowrap">
+                                        {renderComposerActionsMenu()}
+                                        {renderThemeButton()}
+                                        {toolbarStart}
+                                        {renderStatusStart()}
+                                    </Group>
+                                }
+                                toolbarRight={
+                                    <Group
+                                        gap="sm"
+                                        align="center"
+                                        wrap="nowrap"
+                                    >
+                                        {renderStatusEnd()}
+                                        {renderComposerAction('sm')}
+                                    </Group>
+                                }
+                            />
+                            {renderDropOverlay('card')}
+                        </Box>
+                    ) : (
                         <Box className={styles.dropTarget} {...dropTargetProps}>
                             <PromptComposer
                                 {...composerCommonProps}
                                 variant="inline"
-                                className={styles.stackComposer}
                                 attachments={renderedAttachments}
                                 toolbarLeft={
                                     <Group gap={4} align="center" wrap="nowrap">
@@ -1712,8 +1727,7 @@ export const AgentChatInput = ({
                             />
                             {renderDropOverlay('inline')}
                         </Box>
-                        {renderStatusRow()}
-                    </Box>
+                    )}
 
                     {!isThreadInput &&
                         renderChipRow(
