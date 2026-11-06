@@ -1,12 +1,14 @@
 import { Ability } from '@casl/ability';
 import {
     ContentType,
+    DashboardControlRefKind,
     DashboardTileTypes,
     defineUserAbility,
     FilterOperator,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     PossibleAbilities,
     ProjectMemberRole,
     SCHEDULER_TASKS,
@@ -19,6 +21,7 @@ import {
     type ContentVerificationInfo,
     type Dashboard,
     type DashboardChartTile,
+    type DashboardControlRef,
     type DashboardFilterRule,
     type DashboardParameterControl,
     type Explore,
@@ -1411,6 +1414,40 @@ describe('DashboardService', () => {
             }),
         );
     });
+    describe('control order on create', () => {
+        const controlOrder = [
+            { kind: DashboardControlRefKind.SECTION, id: 'section-1' },
+        ];
+        test('strips the order when dashboard controls are off', async () => {
+            await service.create(user, projectUuid, {
+                ...createDashboard,
+                config: { isDateZoomDisabled: false, controlOrder },
+            });
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                publicSpace.uuid,
+                expect.objectContaining({
+                    config: { isDateZoomDisabled: false },
+                }),
+                user,
+                projectUuid,
+            );
+        });
+        test('keeps the order when dashboard controls are on', async () => {
+            featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
+            await service.create(user, projectUuid, {
+                ...createDashboard,
+                config: { isDateZoomDisabled: false, controlOrder },
+            });
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                publicSpace.uuid,
+                expect.objectContaining({
+                    config: { isDateZoomDisabled: false, controlOrder },
+                }),
+                user,
+                projectUuid,
+            );
+        });
+    });
     describe('default owner on create', () => {
         test('should make the creator the owner when no owner is given', async () => {
             await service.create(user, projectUuid, createDashboard);
@@ -1737,6 +1774,86 @@ describe('DashboardService', () => {
                 user,
                 projectUuid,
             );
+        });
+
+        describe('control order', () => {
+            const savedOrder = [
+                { kind: DashboardControlRefKind.FILTER, id: 'filter-1' },
+            ];
+            const sentOrder = [
+                { kind: DashboardControlRefKind.SECTION, id: 'section-1' },
+            ];
+            beforeEach(() => {
+                (dashboardModel.getByIdOrSlug as import('vitest').Mock)
+                    .mockReset()
+                    .mockResolvedValueOnce({
+                        ...dashboard,
+                        config: { ...savedConfig, controlOrder: savedOrder },
+                        parameters: savedParameters,
+                    });
+            });
+            const savedWith = (config: Dashboard['config']) =>
+                expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+                    dashboardUuid,
+                    expect.objectContaining({ config }),
+                    user,
+                    projectUuid,
+                );
+
+            test('carries the saved order forward when the update omits it', async () => {
+                await service.update(user, dashboardUuid, {
+                    ...updateDashboardTiles,
+                    config: { isDateZoomDisabled: true },
+                });
+                savedWith({
+                    isDateZoomDisabled: true,
+                    controlOrder: savedOrder,
+                });
+            });
+
+            test('writes the sent order when dashboard controls are on', async () => {
+                featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
+                await service.update(user, dashboardUuid, {
+                    ...updateDashboardTiles,
+                    config: {
+                        isDateZoomDisabled: true,
+                        controlOrder: sentOrder,
+                    },
+                });
+                savedWith({
+                    isDateZoomDisabled: true,
+                    controlOrder: sentOrder,
+                });
+            });
+
+            test('keeps the saved order over a sent one when dashboard controls are off', async () => {
+                await service.update(user, dashboardUuid, {
+                    ...updateDashboardTiles,
+                    config: {
+                        isDateZoomDisabled: true,
+                        controlOrder: sentOrder,
+                    },
+                });
+                savedWith({
+                    isDateZoomDisabled: true,
+                    controlOrder: savedOrder,
+                });
+            });
+
+            test('rejects a malformed order when dashboard controls are on', async () => {
+                featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
+                await expect(
+                    service.update(user, dashboardUuid, {
+                        ...updateDashboardTiles,
+                        config: {
+                            isDateZoomDisabled: true,
+                            controlOrder:
+                                'filter-1' as unknown as DashboardControlRef[],
+                        },
+                    }),
+                ).rejects.toThrow(ParameterError);
+                expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+            });
         });
 
         test('uses the config and parameters sent with the update', async () => {
