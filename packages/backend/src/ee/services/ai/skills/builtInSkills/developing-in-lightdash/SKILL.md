@@ -65,6 +65,7 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 
 ```json
 {
+    "slug": "orders-order-date-day",
     "label": "Order date",
     "operator": "inThePast",
     "settings": { "completed": false, "unitOfTime": "days" },
@@ -78,6 +79,8 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
     }
 }
 ```
+
+When `config.controlOrder` is present, add a `{ "kind": "filter", "slug": ... }` entry where the new filter should sit on the filter bar, and remove a deleted filter's entry. See `Control order` in `dashboard-reference`.
 
 ### Edit Charts and Dashboard Tiles
 
