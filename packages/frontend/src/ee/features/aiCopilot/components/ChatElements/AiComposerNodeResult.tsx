@@ -4,6 +4,7 @@ import { type FC } from 'react';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { AiComposerResultError } from './AiComposerResultError';
 import { AiComposerResultTable } from './AiComposerResultTable';
+import { sortedFunnelSteps } from './composerPipeline/funnelNodeLabels';
 import { FunnelResultStrip } from './composerPipeline/FunnelResultStrip';
 import { funnelStripRowsOf } from './composerPipeline/funnelStripRows';
 import {
@@ -60,11 +61,15 @@ export const AiComposerNodeResult: FC<Props> = ({
             />
         );
     }
+    // Sums every row, so it waits for the whole result.
     const strip =
         query?.sourceType === QuerySourceType.FUNNEL &&
-        !results.isFetchingRows &&
+        results.hasFetchedAllRows &&
         results.rows.length > 0 ? (
-            <FunnelResultStrip rows={funnelStripRowsOf(results.rows)} />
+            <FunnelResultStrip
+                steps={sortedFunnelSteps(query)}
+                rows={funnelStripRowsOf(results.rows)}
+            />
         ) : null;
     return (
         <Stack gap={0}>

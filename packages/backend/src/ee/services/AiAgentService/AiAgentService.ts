@@ -16967,7 +16967,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     : [];
                 const enableFunnelNodes =
                     enableComposerQueries &&
-                    this.lightdashConfig.funnelBuilder.enabled;
+                    this.lightdashConfig.funnelBuilder.enabled &&
+                    (
+                        await this.featureFlagService.get({
+                            user,
+                            featureFlagId: FeatureFlags.AiFunnelNodes,
+                        })
+                    ).enabled;
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,

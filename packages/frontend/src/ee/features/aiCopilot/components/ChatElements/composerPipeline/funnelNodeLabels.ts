@@ -15,11 +15,12 @@ dayjs.extend(utc);
 
 const DEFAULT_CONVERSION_WINDOW = { value: 30, unit: 'days' } as const;
 
+// In the order the funnel SQL returns them.
 const FUNNEL_METRIC_COLUMNS = [
     'total_users',
+    'median_time_to_convert',
     'conversion_rate',
     'step_conversion_rate',
-    'median_time_to_convert',
 ];
 
 /** Per-step measures of a funnel result, plus breakdown_value when split. */
@@ -119,5 +120,3 @@ export const useFunnelEventFields = () => {
         },
     ];
 };
-
-export type FunnelDetailsVariant = 'rows' | 'spine' | 'sentence';

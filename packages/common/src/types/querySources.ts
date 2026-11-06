@@ -305,8 +305,9 @@ export type ApiSourceQuery = {
  * to warehouse SQL through the explore, so the node never carries SQL.
  *
  * Result columns are fixed, one row per step (per breakdown value when a
- * breakdown is set): step_order, step_name, total_users, conversion_rate
- * (% of step 1), step_conversion_rate (% of the previous step),
+ * breakdown is set): step_order, step_name, total_users,
+ * median_time_to_convert, conversion_rate (% of step 1),
+ * step_conversion_rate (% of the previous step),
  * median_time_to_convert (seconds from the previous step; null on step 1)
  * and breakdown_value when a breakdown is set.
  */

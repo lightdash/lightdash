@@ -20,7 +20,6 @@ import {
     IconChevronRight,
     IconDatabase,
     IconFileSpreadsheet,
-    IconFilter,
     IconGitMerge,
     IconSitemap,
 } from '@tabler/icons-react';
@@ -40,6 +39,7 @@ import {
     useComposerNodeStatusLabel,
     type ComposerQueryNodeStatus,
 } from '../../composerNodeStatus';
+import { IconFunnelBars } from '../../composerPipeline/nodeTypeIcon';
 import shimmerStyles from '../../shimmer.module.css';
 import {
     SqlApprovalActions,
@@ -128,7 +128,7 @@ const getNodePresentation = (
             return LIVE_SOURCE_PRESENTATION;
         case QuerySourceType.FUNNEL:
             return {
-                icon: IconFilter,
+                icon: IconFunnelBars,
                 badge: 'Funnel',
                 detail: `${friendlyName(node.exploreName)} · ${node.steps.join(' → ')}`,
             } as const;

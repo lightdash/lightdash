@@ -23,17 +23,15 @@ import {
     createReactComponent,
     IconChevronRight,
     IconCode,
-    IconTable,
     type Icon,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useContext, useId, useMemo, useState, type FC } from 'react';
+import { useId, useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import InlineErrorState from '../../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../../hooks/useCompiledSql';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
-import { FunnelDetailsVariantContext } from '../FunnelDetailsVariantContext';
 import { FunnelNodeDetails } from '../FunnelNodeDetails';
 import { SemanticNodeDetails } from '../SemanticNodeDetails';
 import { isLongCode } from './codeCollapse';
@@ -266,7 +264,6 @@ const FunnelPanel: FC<{ query: FunnelSourceQuery; projectUuid: string }> = ({
     query,
     projectUuid,
 }) => {
-    const variant = useContext(FunnelDetailsVariantContext);
     const explore = useNodeExplore(query.exploreName, projectUuid);
     const fieldsMap = useMemo(
         () => (explore ? getItemMap(explore) : {}),
@@ -274,11 +271,7 @@ const FunnelPanel: FC<{ query: FunnelSourceQuery; projectUuid: string }> = ({
     );
     return (
         <Box className={styles.panel}>
-            <FunnelNodeDetails
-                query={query}
-                fieldsMap={fieldsMap}
-                variant={variant}
-            />
+            <FunnelNodeDetails query={query} fieldsMap={fieldsMap} />
         </Box>
     );
 };

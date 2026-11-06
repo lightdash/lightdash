@@ -20,7 +20,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
 import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
 import { AiComposerLineage } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerLineage';
-import { FunnelDetailsVariantContext } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/FunnelDetailsVariantContext';
+import { sortedFunnelSteps } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/funnelNodeLabels';
 import { FunnelResultStrip } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/FunnelResultStrip';
 import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
 import { type ComposerRunNodeStatus } from '../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
@@ -324,21 +324,26 @@ const ComposerArtifact = ({
                                 new Set(queries.map((q) => q.nodeId!))
                             }
                             nodeStatuses={nodeStatuses}
-                            renderNodeResult={(nodeId) => (
-                                <>
-                                    {queries.find((q) => q.nodeId === nodeId)
-                                        ?.sourceType ===
-                                        QuerySourceType.FUNNEL && (
-                                        <FunnelResultStrip
-                                            rows={funnelStripRows(result)}
+                            renderNodeResult={(nodeId) => {
+                                const query = queries.find(
+                                    (q) => q.nodeId === nodeId,
+                                );
+                                return (
+                                    <>
+                                        {query?.sourceType ===
+                                            QuerySourceType.FUNNEL && (
+                                            <FunnelResultStrip
+                                                steps={sortedFunnelSteps(query)}
+                                                rows={funnelStripRows(result)}
+                                            />
+                                        )}
+                                        <ResultsTable
+                                            result={result}
+                                            withBorder={false}
                                         />
-                                    )}
-                                    <ResultsTable
-                                        result={result}
-                                        withBorder={false}
-                                    />
-                                </>
-                            )}
+                                    </>
+                                );
+                            }}
                             chatNodeIds={chatNodeIds}
                             onAddToChat={(node) =>
                                 setChatNodeIds(
@@ -544,30 +549,6 @@ export const FunnelMinimalLineage: Story = {
             ],
         },
     },
-};
-
-/** The funnel cell as a numbered spine stating the window between steps. */
-export const FunnelCellSpine: Story = {
-    args: FunnelPipelineLineage.args,
-    decorators: [
-        (Story) => (
-            <FunnelDetailsVariantContext.Provider value="spine">
-                <Story />
-            </FunnelDetailsVariantContext.Provider>
-        ),
-    ],
-};
-
-/** The funnel cell stated as one sentence. */
-export const FunnelCellSentence: Story = {
-    args: FunnelPipelineLineage.args,
-    decorators: [
-        (Story) => (
-            <FunnelDetailsVariantContext.Provider value="sentence">
-                <Story />
-            </FunnelDetailsVariantContext.Provider>
-        ),
-    ],
 };
 
 /** A run on open in progress: each node's status on its row. */

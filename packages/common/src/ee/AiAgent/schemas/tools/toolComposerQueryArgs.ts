@@ -107,7 +107,7 @@ const getComposerNodeKindsDescription = ({
 }${
     enableFunnelNodes
         ? `
-- "funnel": a conversion funnel over the event rows of an explore, compiled to warehouse SQL. One row per step, per breakdown value when a breakdown is set, with fixed columns step_order, step_name, total_users, conversion_rate (% of step 1), step_conversion_rate (% of the previous step), median_time_to_convert (seconds from the previous step, null on step 1) and breakdown_value when a breakdown is set. It reads no other results; join its rows with a duckdb node. When charting it, put step_name on the axis sorted by step_order, never alphabetically.`
+- "funnel": a conversion funnel over the event rows of an explore, compiled to warehouse SQL. One row per step, per breakdown value when a breakdown is set, with fixed columns step_order, step_name, total_users, median_time_to_convert (seconds from the previous step, null on step 1), conversion_rate (% of step 1), step_conversion_rate (% of the previous step) and breakdown_value when a breakdown is set. It reads no other results; join its rows with a duckdb node. When charting it, put step_name on the axis sorted by step_order, never alphabetically.`
         : ''
 }
 
@@ -299,7 +299,9 @@ const funnelDateRangeSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('custom'),
         start: isoDateSchema.describe('First day, YYYY-MM-DD, inclusive.'),
-        end: isoDateSchema.describe('Last day, YYYY-MM-DD, inclusive.'),
+        end: isoDateSchema.describe(
+            'First day after the range, YYYY-MM-DD, exclusive: for all of December give 2026-01-01.',
+        ),
     }),
 ]);
 

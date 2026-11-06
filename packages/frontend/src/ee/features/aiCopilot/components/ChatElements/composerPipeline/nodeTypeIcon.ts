@@ -20,29 +20,33 @@ const IconDuckdb = createReactComponent('duckdb', 'IconDuckdb', [
 ]);
 
 // Tabler 2 has no funnel chart icon: three bars narrowing downward.
-const IconFunnelBars = createReactComponent('funnel-bars', 'IconFunnelBars', [
+export const IconFunnelBars = createReactComponent(
+    'funnel-bars',
+    'IconFunnelBars',
     [
-        'path',
-        {
-            d: 'M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z',
-            key: 'svg-0',
-        },
+        [
+            'path',
+            {
+                d: 'M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z',
+                key: 'svg-0',
+            },
+        ],
+        [
+            'path',
+            {
+                d: 'M6 11a1 1 0 0 1 1 -1h10a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-10a1 1 0 0 1 -1 -1z',
+                key: 'svg-1',
+            },
+        ],
+        [
+            'path',
+            {
+                d: 'M9 17a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z',
+                key: 'svg-2',
+            },
+        ],
     ],
-    [
-        'path',
-        {
-            d: 'M6 11a1 1 0 0 1 1 -1h10a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-10a1 1 0 0 1 -1 -1z',
-            key: 'svg-1',
-        },
-    ],
-    [
-        'path',
-        {
-            d: 'M9 17a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z',
-            key: 'svg-2',
-        },
-    ],
-]);
+);
 
 /** Icon for a node's type in the lineage. */
 export const nodeTypeIcon = (query: SourceQuery) => {

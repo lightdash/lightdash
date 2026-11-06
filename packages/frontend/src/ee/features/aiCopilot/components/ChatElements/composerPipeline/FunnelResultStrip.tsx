@@ -1,4 +1,8 @@
-import { friendlyName, interpolateUiString } from '@lightdash/common';
+import {
+    friendlyName,
+    interpolateUiString,
+    type FunnelStep,
+} from '@lightdash/common';
 import { Box, Group, Stack, Text } from '@mantine/core';
 import { IconArrowDown } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
@@ -10,8 +14,17 @@ import { type FunnelResultRow } from './funnelStripRows';
 const percent = (value: number) => `${value.toFixed(1)}%`;
 
 // Users partition across breakdown values, so summing per step is exact.
-const aggregateSteps = (rows: FunnelResultRow[]) => {
-    const byStep = new Map<number, { stepName: string; users: number }>();
+// A step nobody reached has no grouped rows, so every configured step starts at zero.
+const aggregateSteps = (
+    configuredSteps: FunnelStep[],
+    rows: FunnelResultRow[],
+) => {
+    const byStep = new Map<number, { stepName: string; users: number }>(
+        configuredSteps.map((step) => [
+            step.stepOrder,
+            { stepName: step.eventName, users: 0 },
+        ]),
+    );
     rows.forEach((row) => {
         const step = byStep.get(row.stepOrder);
         byStep.set(row.stepOrder, {
@@ -96,16 +109,17 @@ const Headline: FC<{ steps: Step[] }> = ({ steps }) => {
  * One row per step: number, name, share of step 1 as a bar (the lighter
  * remainder is the drop-off), users, share. The users lost sit between rows.
  */
-export const FunnelResultStrip: FC<{ rows: FunnelResultRow[] }> = ({
-    rows,
-}) => {
+export const FunnelResultStrip: FC<{
+    steps: FunnelStep[];
+    rows: FunnelResultRow[];
+}> = ({ steps: configuredSteps, rows }) => {
     const getUiString = useUiStrings();
-    const steps = aggregateSteps(rows);
+    const steps = aggregateSteps(configuredSteps, rows);
     if (steps.length === 0) return null;
 
     return (
         <Stack
-            gap={10}
+            gap="xs"
             className={styles.strip}
             data-testid="funnel-result-strip"
         >

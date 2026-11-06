@@ -11307,6 +11307,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
                     "external",
                     "python",
                     "api",
+                    "funnel",
                   ],
                   "type": "string",
                 },

@@ -46,7 +46,7 @@ export class FunnelQuerySource implements QuerySourceClient {
         sourceType: QuerySourceType.FUNNEL,
         label: 'Funnel',
         description:
-            'Conversion funnels over the event rows of an explore. Name the explore and three of its dimensions by field id: who (userIdFieldId), when (timestampFieldId) and what happened (eventNameFieldId). Steps are ordered event names, at least two; a user counts in a step only after completing every earlier step, within the conversion window of the previous one (default 30 days). Result columns are fixed, one row per step (per breakdown value when breakdownDimensionId is set): step_order, step_name, total_users, conversion_rate (% of step 1), step_conversion_rate (% of the previous step), median_time_to_convert (seconds from the previous step, null on step 1) and breakdown_value. Tables are explores; columns are their dimensions.',
+            'Conversion funnels over the event rows of an explore. Name the explore and three of its dimensions by field id: who (userIdFieldId), when (timestampFieldId) and what happened (eventNameFieldId). Steps are ordered event names, at least two; a user counts in a step only after completing every earlier step, within the conversion window of the previous one (default 30 days). Result columns are fixed, one row per step (per breakdown value when breakdownDimensionId is set): step_order, step_name, total_users, median_time_to_convert (seconds from the previous step, null on step 1), conversion_rate (% of step 1), step_conversion_rate (% of the previous step) and breakdown_value. Tables are explores; columns are their dimensions.',
     };
 
     readonly supportsPivot = false;
@@ -141,8 +141,7 @@ export class FunnelQuerySource implements QuerySourceClient {
             warehouseSqlBuilderFromType(type),
         );
 
-        // Inherits manage:SqlRunner from the SQL runner path, like
-        // FunnelService; compiled SQL should eventually be gated like a metric query
+        // Compiled SQL runs through the SQL runner path, like FunnelService.
         const results = await this.asyncQueryService.executeAsyncSqlQuery({
             account,
             projectUuid,

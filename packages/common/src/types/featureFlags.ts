@@ -198,6 +198,12 @@ export enum FeatureFlags {
     AiFilterExpressions = 'ai-filter-expressions',
 
     /**
+     * Offer the funnel node kind in the AI agent's composer query tool.
+     * Needs the funnel builder enabled on the instance. Off by default.
+     */
+    AiFunnelNodes = 'ai-funnel-nodes',
+
+    /**
      * Enable the async compose SQL endpoint
      * (POST /api/v2/projects/{projectUuid}/query/compose-sql), which runs
      * DuckDB SQL over other queries' results, exposed as named tables via

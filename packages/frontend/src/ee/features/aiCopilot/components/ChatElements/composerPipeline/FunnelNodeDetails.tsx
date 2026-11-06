@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     friendlyName,
     interpolateUiString,
     type FunnelSourceQuery,
@@ -24,11 +23,8 @@ import {
     funnelResultColumnsOf,
     sortedFunnelSteps,
     useWindowPhrase,
-    type FunnelDetailsVariant,
 } from './funnelNodeLabels';
 import { FunnelEventFieldChips, FunnelRangeChip } from './FunnelNodeParts';
-import { FunnelNodeSentence } from './FunnelNodeSentence';
-import { FunnelNodeSpine } from './FunnelNodeSpine';
 import { DetailsRow, FieldChip, OutputChip, RowText } from './NodeDetailsRow';
 
 const StepChip: FC<{ position: number; eventName: string }> = ({
@@ -157,20 +153,8 @@ const FunnelNodeRows: FC<Props> = ({ query, fieldsMap }) => {
 };
 
 /** Steps, source events, range, breakdown and result columns of a funnel. */
-export const FunnelNodeDetails: FC<
-    Props & { variant: FunnelDetailsVariant }
-> = ({ variant, ...props }) => {
-    const body = (() => {
-        switch (variant) {
-            case 'rows':
-                return <FunnelNodeRows {...props} />;
-            case 'spine':
-                return <FunnelNodeSpine {...props} />;
-            case 'sentence':
-                return <FunnelNodeSentence {...props} />;
-            default:
-                return assertUnreachable(variant, 'Unknown funnel variant');
-        }
-    })();
-    return <ErrorBoundary>{body}</ErrorBoundary>;
-};
+export const FunnelNodeDetails: FC<Props> = (props) => (
+    <ErrorBoundary>
+        <FunnelNodeRows {...props} />
+    </ErrorBoundary>
+);

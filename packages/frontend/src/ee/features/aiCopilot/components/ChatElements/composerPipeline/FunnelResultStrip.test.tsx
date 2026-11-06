@@ -37,10 +37,17 @@ describe('funnelStripRowsOf', () => {
     });
 });
 
+const funnelSteps = [
+    { stepOrder: 1, eventName: 'page_view' },
+    { stepOrder: 2, eventName: 'add_to_cart' },
+    { stepOrder: 3, eventName: 'checkout' },
+];
+
 describe('FunnelResultStrip', () => {
     it('sums each step across breakdown values, in step order', () => {
         renderWithProviders(
             <FunnelResultStrip
+                steps={funnelSteps}
                 rows={[
                     row(2, 'add_to_cart', 300, 'mobile'),
                     row(1, 'page_view', 1000, 'desktop'),
@@ -65,6 +72,30 @@ describe('FunnelResultStrip', () => {
         ).toEqual(['800 dropped off (50.0%)', '600 dropped off (75.0%)']);
         expect(screen.getByTestId('funnel-strip-headline').textContent).toBe(
             `12.5% converted${(1600).toLocaleString()} → 200 users · largest drop at Checkout (−75.0%)`,
+        );
+    });
+
+    it('shows a step nobody reached, which a breakdown returns no rows for', () => {
+        renderWithProviders(
+            <FunnelResultStrip
+                steps={funnelSteps}
+                rows={[
+                    row(1, 'page_view', 100, 'desktop'),
+                    row(2, 'add_to_cart', 50, 'desktop'),
+                ]}
+            />,
+        );
+        expect(
+            screen
+                .getAllByTestId('funnel-strip-step')
+                .map((el) => el.textContent),
+        ).toEqual([
+            '1Page view100100.0%',
+            '2Add to cart5050.0%',
+            '3Checkout00.0%',
+        ]);
+        expect(screen.getByTestId('funnel-strip-headline').textContent).toBe(
+            '0.0% converted100 → 0 users · largest drop at Checkout (−100.0%)',
         );
     });
 });

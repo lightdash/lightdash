@@ -636,13 +636,6 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.funnelNode.returnsNote': 'One row per step',
     'aiAgent.composer.funnelNode.returnsNoteBreakdown':
         'One row per step and breakdown value',
-    'aiAgent.composer.funnelNode.spine.then': 'then, within {window}',
-    'aiAgent.composer.funnelNode.sentence.lead':
-        'Of users who did {first}, how many went on to {rest}',
-    'aiAgent.composer.funnelNode.sentence.rule':
-        ', in that order, each within {window} of the step before, over {range}',
-    'aiAgent.composer.funnelNode.sentence.breakdown': ', split by {breakdown}',
-    'aiAgent.composer.funnelNode.sentence.listAnd': ' and ',
     'aiAgent.composer.funnelNode.strip.droppedOff':
         '{users} dropped off ({percent}%)',
     'aiAgent.composer.funnelNode.strip.converted': '{percent}% converted',
