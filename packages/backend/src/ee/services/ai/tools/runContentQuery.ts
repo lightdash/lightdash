@@ -347,11 +347,9 @@ export const getRunContentQuery = ({
     const runSavedSqlChart = async ({
         chartSlug,
         dashboardSlug,
-        limit: requestedLimit,
     }: {
         chartSlug: string;
         dashboardSlug: string | null;
-        limit: number | null;
     }): Promise<RunContentQueryResult> => {
         try {
             await updateProgress('Running SQL chart...');
@@ -369,11 +367,9 @@ export const getRunContentQuery = ({
                 };
             }
 
-            const limit = getValidAiQueryLimit(requestedLimit, maxLimit);
-            const { sqlChart, ...results } = await runSqlChartQuery({
+            const { sqlChart, limit, ...results } = await runSqlChartQuery({
                 chartSlug,
                 dashboardSlug,
-                limit,
             });
             const header = describeSqlChartHeader(sqlChart);
             const plan = { kind: 'sql' as const, sql: sqlChart.sql, limit };
@@ -434,7 +430,6 @@ export const getRunContentQuery = ({
                         source.type === 'dashboardChart'
                             ? source.dashboardSlug
                             : null,
-                    limit: source.limit,
                 });
             }
             try {
@@ -479,7 +474,10 @@ export const getRunContentQuery = ({
                             source.type === 'dashboardChart'
                                 ? source.dashboardSlug
                                 : null,
-                        limit: source.limit,
+                        limit: getValidAiQueryLimit(
+                            metricQuery.limit,
+                            maxLimit,
+                        ),
                         ...(reviewQuery
                             ? {
                                   onQueryPrepared: (execution) => {

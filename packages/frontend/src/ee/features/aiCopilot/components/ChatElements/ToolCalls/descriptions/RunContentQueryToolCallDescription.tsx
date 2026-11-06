@@ -43,11 +43,6 @@ export const RunContentQueryToolCallDescription: FC<
                 <ToolCallChip mx={rem(2)}>{source.chartSlug}</ToolCallChip>
                 from{' '}
                 <ToolCallChip mx={rem(2)}>{source.dashboardSlug}</ToolCallChip>
-                {source.limit ? (
-                    <ToolCallChip mx={rem(2)}>
-                        limit {source.limit}
-                    </ToolCallChip>
-                ) : null}
             </Text>
         );
     }
@@ -56,9 +51,6 @@ export const RunContentQueryToolCallDescription: FC<
         <Text c="dimmed" size="xs">
             Ran saved {chartLabel}{' '}
             <ToolCallChip mx={rem(2)}>{source.chartSlug}</ToolCallChip>
-            {source.limit ? (
-                <ToolCallChip mx={rem(2)}>limit {source.limit}</ToolCallChip>
-            ) : null}
         </Text>
     );
 };

@@ -4527,11 +4527,11 @@ export class AiAgentToolsService extends BaseService {
 
     private runSqlChartQuery(
         context: AiAgentToolsRuntimeContext,
-        { chartSlug, dashboardSlug, limit }: Parameters<RunSqlChartQueryFn>[0],
+        { chartSlug, dashboardSlug }: Parameters<RunSqlChartQueryFn>[0],
     ): ReturnType<RunSqlChartQueryFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlChartQuery`,
-            { chartSlug, dashboardSlug, limit },
+            { chartSlug, dashboardSlug },
             async () => {
                 const sqlChart = await this.savedSqlService.getSqlChart(
                     context.user,
@@ -4543,7 +4543,7 @@ export class AiAgentToolsService extends BaseService {
                 await this.assertSqlInAgentScope(context, sqlChart.sql);
 
                 const effectiveLimit = getValidAiQueryLimit(
-                    limit,
+                    sqlChart.limit,
                     this.lightdashConfig.ai.copilot.maxQueryLimit,
                 );
                 const sqlChartQueryArgs = {
@@ -4577,6 +4577,7 @@ export class AiAgentToolsService extends BaseService {
                             effectiveLimit,
                         )),
                         sqlChart: summary,
+                        limit: effectiveLimit,
                     };
                 }
 
@@ -4621,6 +4622,7 @@ export class AiAgentToolsService extends BaseService {
                         effectiveLimit,
                     )),
                     sqlChart: summary,
+                    limit: effectiveLimit,
                 };
             },
         );

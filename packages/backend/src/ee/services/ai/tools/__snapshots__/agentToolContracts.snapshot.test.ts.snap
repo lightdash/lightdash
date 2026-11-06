@@ -14661,13 +14661,6 @@ Sources:
                     "null",
                   ],
                 },
-                "limit": {
-                  "description": "Optional row limit override.",
-                  "type": [
-                    "number",
-                    "null",
-                  ],
-                },
                 "type": {
                   "const": "chart",
                   "type": "string",
@@ -14677,7 +14670,6 @@ Sources:
                 "type",
                 "chartType",
                 "chartSlug",
-                "limit",
               ],
               "type": "object",
             },
@@ -14704,13 +14696,6 @@ Sources:
                   "description": "Slug of the dashboard containing the chart.",
                   "type": "string",
                 },
-                "limit": {
-                  "description": "Optional row limit override.",
-                  "type": [
-                    "number",
-                    "null",
-                  ],
-                },
                 "type": {
                   "const": "dashboardChart",
                   "type": "string",
@@ -14721,7 +14706,6 @@ Sources:
                 "chartType",
                 "chartSlug",
                 "dashboardSlug",
-                "limit",
               ],
               "type": "object",
             },
@@ -14844,7 +14828,7 @@ Sources:
                               "type": "object",
                             },
                             "limit": {
-                              "description": "The executed query's row limit after the source.limit override and clamping, as printed in the header's Limit: line.",
+                              "description": "The executed query's row limit: the chart's saved limit, clamped to the AI max, as printed in the header's Limit: line.",
                               "type": "number",
                             },
                             "metrics": {

@@ -27,6 +27,7 @@ const makeDependencies = () => ({
         columns: ['status', 'orders'],
         rowCount: 2,
         sqlChart,
+        limit: 10,
     }),
     validateContent: vi.fn(),
     maxLimit: 500,
@@ -55,13 +56,11 @@ describe('runContentQuery on a saved SQL chart', () => {
             type: 'chart',
             chartType: 'sql_chart',
             chartSlug: 'orders-by-status',
-            limit: 10,
         });
 
         expect(deps.runSqlChartQuery).toHaveBeenCalledExactlyOnceWith({
             chartSlug: 'orders-by-status',
             dashboardSlug: null,
-            limit: 10,
         });
         expect(deps.getSqlChart).not.toHaveBeenCalled();
         expect(deps.getSavedChart).not.toHaveBeenCalled();
@@ -96,13 +95,11 @@ describe('runContentQuery on a saved SQL chart', () => {
             chartType: 'sql_chart',
             chartSlug: 'orders-by-status',
             dashboardSlug: 'jaffle-dashboard',
-            limit: null,
         });
 
         expect(deps.runSqlChartQuery).toHaveBeenCalledExactlyOnceWith({
             chartSlug: 'orders-by-status',
             dashboardSlug: 'jaffle-dashboard',
-            limit: 500,
         });
     });
 
@@ -114,7 +111,6 @@ describe('runContentQuery on a saved SQL chart', () => {
             type: 'chart',
             chartType: null,
             chartSlug: 'orders',
-            limit: null,
         });
 
         expect(deps.getSavedChart).toHaveBeenCalledExactlyOnceWith('orders');
@@ -128,7 +124,6 @@ describe('runContentQuery on a saved SQL chart', () => {
             type: 'chart',
             chartType: 'sql_chart',
             chartSlug: 'orders-by-status',
-            limit: null,
         });
 
         expect(deps.runSqlChartQuery).not.toHaveBeenCalled();
@@ -152,7 +147,6 @@ describe('runContentQuery on a saved SQL chart', () => {
             type: 'chart',
             chartType: 'sql_chart',
             chartSlug: 'orders-by-status',
-            limit: null,
         });
 
         expect(output).toMatchObject({
