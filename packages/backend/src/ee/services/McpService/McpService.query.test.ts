@@ -603,6 +603,52 @@ describe('McpService query tool', () => {
         );
     });
 
+    it('names the terminal and each unfinished unread node when another unread node runs past the deadline', async () => {
+        const { service, call, runComposerQueriesUntilDeadline } =
+            makeService();
+        runComposerQueriesUntilDeadline.mockImplementationOnce(
+            async ({ queries }: { queries: SourceQuery[] }) => ({
+                status: 'running',
+                submissions: queries.map((query) => ({
+                    nodeId: query.nodeId!,
+                    sourceType: query.sourceType,
+                    queryUuid: queryUuidFor(query.nodeId!),
+                })),
+                nodeStatuses: [
+                    {
+                        nodeId: 'orders',
+                        state: QueryHistoryStatus.EXECUTING,
+                        error: null,
+                        rowCount: null,
+                        columns: null,
+                        sample: null,
+                    },
+                    {
+                        nodeId: 'totals',
+                        state: QueryHistoryStatus.READY,
+                        error: null,
+                        rowCount: 2,
+                        columns: nodeColumns.totals,
+                        sample: null,
+                    },
+                ],
+            }),
+        );
+        await createServer(service);
+
+        const result = await call(
+            McpToolName.QUERY,
+            pipelineArgs([
+                ordersNode,
+                { ...totalsNode, sql: 'SELECT 1 AS total', references: [] },
+            ]),
+        );
+
+        expect(textOf(result)).toContain(
+            `get_query_result with each queryUuid: ${queryUuidFor('totals')}, ${queryUuidFor('orders')}.`,
+        );
+    });
+
     it('rejects a read of a node outside the submission', async () => {
         const { service, call, runComposerQueriesUntilDeadline } =
             makeService();

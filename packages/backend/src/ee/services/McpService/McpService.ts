@@ -1755,16 +1755,16 @@ export class McpService extends BaseService {
         const terminalQueryUuid = queryUuids.get(terminalNodeId) ?? '';
 
         if (run.status === 'running') {
-            const unfinished = [terminalNodeId, ...otherUnreadNodeIds]
-                .filter((nodeId) =>
+            // The terminal's rows come only from get_query_result, even when it is done.
+            const pollQueryUuids = [
+                terminalNodeId,
+                ...otherUnreadNodeIds.filter((nodeId) =>
                     nodes.some(
                         (node) =>
                             node.nodeId === nodeId && node.status === 'running',
                     ),
-                )
-                .map((nodeId) => queryUuids.get(nodeId) ?? '');
-            const unfinishedQueryUuids =
-                unfinished.length > 0 ? unfinished : [terminalQueryUuid];
+                ),
+            ].map((nodeId) => queryUuids.get(nodeId) ?? '');
             const structuredContent: McpQueryStructuredContent = {
                 sessionId,
                 status: 'running',
@@ -1773,7 +1773,7 @@ export class McpService extends BaseService {
                 nodes,
             };
             return mcpQueryTool.result.structured(
-                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with ${unfinishedQueryUuids.length > 1 ? 'each queryUuid' : 'queryUuid'}: ${unfinishedQueryUuids.join(', ')}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes in this pipeline:\n${nodeSummary}`,
+                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with ${pollQueryUuids.length > 1 ? 'each queryUuid' : 'queryUuid'}: ${pollQueryUuids.join(', ')}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes in this pipeline:\n${nodeSummary}`,
                 structuredContent,
             );
         }
