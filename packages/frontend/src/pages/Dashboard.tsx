@@ -1719,7 +1719,7 @@ const Dashboard: FC = () => {
                                 handleEditTile={stableEditTile}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
-                                fitToScreenSnap={fitToScreen.snap}
+                                fitToScreenRowHeight={fitToScreen.rowHeight}
                                 isFitToScreenSnapping={fitToScreen.isSnapping}
                                 gridContainerRef={setGridElement}
                                 onNewChart={
