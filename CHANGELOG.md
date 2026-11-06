@@ -1,3 +1,10 @@
+## [3.169.1](https://github.com/lightdash/lightdash/compare/3.169.0...3.169.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **database:** reduce preview cleanup and cache load ([#31327](https://github.com/lightdash/lightdash/issues/31327)) ([7a4dfb2](https://github.com/lightdash/lightdash/commit/7a4dfb240de285d41837aa159b87cf6e75392f10))
+
 # [3.169.0](https://github.com/lightdash/lightdash/compare/3.168.0...3.169.0) (2026-11-06)
 
 

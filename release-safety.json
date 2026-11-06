@@ -1,22 +1,70 @@
 {
   "schemaVersion": "2",
-  "version": "3.169.0",
-  "previousVersion": "3.168.0",
-  "releaseDate": "2026-11-06T09:44:50.909Z",
+  "version": "3.169.1",
+  "previousVersion": "3.169.0",
+  "releaseDate": "2026-11-06T09:50:48.847Z",
   "migrations": {
     "present": true,
-    "count": 1,
-    "coreCount": 0,
+    "count": 6,
+    "coreCount": 5,
     "eeCount": 1,
     "files": [
       {
-        "name": "20261105120000_add_embed_external_user_id_to_ai_web_app_thread.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_web_app_thread"
-        ],
+        "name": "20261021120000_index_dashboard_tabs_dashboard_id.ts",
+        "edition": "core",
+        "tables": [],
         "heaviness": {
-          "locksTable": true,
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261021120100_index_saved_sql_dashboard_uuid.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261021120200_index_apps_space_uuid.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261021120400_index_query_history_cache_lookup.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261021120500_index_dashboard_tabs_dashboard_version_id.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261021120300_index_ai_prompt_saved_query_uuid.ts",
+        "edition": "ee",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
           "rewritesTable": false,
           "scansTable": false
         }
