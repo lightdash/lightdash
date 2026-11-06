@@ -142,6 +142,25 @@ describe('ProjectService.getMetricQueryExecutionProperties convert_timezone opt-
         ).toBe(2);
     });
 
+    it('ignores disabled filter rules', () => {
+        const disabledFilters: MetricQuery['filters'] = {
+            dimensions: {
+                id: 'root',
+                and: [{ ...filterRule('a_created_day'), disabled: true }],
+            },
+        };
+        expect(
+            ProjectService.getMetricQueryExecutionProperties({
+                metricQuery: { ...metricQuery, filters: disabledFilters },
+                dateZoom: undefined,
+                chartUuid: undefined,
+                queryTags: {},
+                explore: optOutExplore,
+                parameters: undefined,
+            }).convertTimezoneOptOutFiltersCount,
+        ).toBe(0);
+    });
+
     it('reports zero when no filtered dimension opts out', () => {
         expect(
             getProperties({ ...metricQuery, filters: optOutFilters })

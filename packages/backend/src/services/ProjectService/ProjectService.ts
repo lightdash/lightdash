@@ -96,6 +96,7 @@ import {
     FilterableDimension,
     FilterAutocompleteValue,
     findReplaceableCustomMetrics,
+    flattenFilterGroup,
     ForbiddenError,
     formatRows,
     getAccountUserTimezone,
@@ -117,7 +118,6 @@ import {
     getErrorMessage,
     getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
-    getFilterRules,
     getHiddenFilterableFieldIds,
     getIntrinsicUserAttributes,
     getItemId,
@@ -1509,8 +1509,14 @@ export class ProjectService
         explore: Explore,
         metricQuery: MetricQuery,
     ): number {
+        const rules = metricQuery.filters.dimensions
+            ? flattenFilterGroup(metricQuery.filters.dimensions).filter(
+                  (rule) => !rule.disabled,
+              )
+            : [];
+        if (rules.length === 0) return 0;
         const dimensions = getDimensionMapFromTables(explore.tables);
-        return getFilterRules(metricQuery.filters).filter((rule) => {
+        return rules.filter((rule) => {
             const dimension = dimensions[rule.target.fieldId];
             if (!dimension) return false;
             const baseName = dimension.timeIntervalBaseDimensionName;
