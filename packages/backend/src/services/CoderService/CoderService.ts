@@ -5946,7 +5946,13 @@ export class CoderService extends BaseService {
                     sources,
                     existingDashboard
                         ? {
-                              filters: existingDashboard.filters,
+                              filters: {
+                                  dimensions:
+                                      existingDashboard.filters.dimensions,
+                                  // Stored filters can predate the metric list
+                                  metrics:
+                                      existingDashboard.filters.metrics ?? [],
+                              },
                               parameterControls:
                                   existingDashboard.config?.parameterControls ??
                                   [],

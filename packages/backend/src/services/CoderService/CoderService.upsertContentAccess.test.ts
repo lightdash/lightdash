@@ -4551,6 +4551,31 @@ describe('CoderService dashboard control order as code', () => {
         },
     );
 
+    it('compares a new order against saved filters that predate the metric list', async () => {
+        const saved = withoutOrder();
+        const { metrics: _metrics, ...filters } = saved.filters;
+        const file = download(saved, true, true);
+        const result = await upload(
+            {
+                ...file,
+                filters: { ...file.filters, metrics: [] },
+                config: {
+                    ...file.config!,
+                    controlOrder: [
+                        {
+                            kind: DashboardControlRefKind.PARAMETER,
+                            slug: 'region',
+                        },
+                    ],
+                },
+            },
+            { saved: { ...saved, filters } as unknown as DashboardDAO },
+        );
+        expect(result.config?.controlOrder).toEqual([
+            { kind: 'parameter', id: 'region-id' },
+        ]);
+    });
+
     it('mints an id for a hand-written metric filter the order points at', async () => {
         const file = download(savedDashboard(), true);
         const [{ id: _id, ...metric }] = file.filters!.metrics!;
