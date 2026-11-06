@@ -1,16 +1,12 @@
-import { canRunFunnelQuery } from '../utils/funnelChartConfig';
-import {
-    clearResults,
-    resetSteps,
-    setEventNameFieldId,
-    setExploreName,
-} from './funnelBuilderSlice';
+import { buildEventNamesRequest } from '../../eventAnalytics/utils/eventNames';
+import { buildFunnelQueryRequest } from '../utils/funnelChartConfig';
+import { clearResults, resetSteps, setExploreName } from './funnelBuilderSlice';
 import { type startAppListening } from './listenerMiddleware';
 import { fetchEventNames, runFunnelQuery } from './thunks';
 
-/**
- * Auto-run query when configuration becomes valid and changes.
- */
+const QUERY_DEBOUNCE_MS = 300;
+
+/** Runs the query whenever the configuration changes and is complete. */
 export const addFunnelConfigChangeListener = (
     startListening: typeof startAppListening,
 ) => {
@@ -19,47 +15,29 @@ export const addFunnelConfigChangeListener = (
             const prev = previousState.funnelBuilder;
             const curr = currentState.funnelBuilder;
 
-            // Check if query-relevant config changed
             return (
                 prev.projectUuid !== curr.projectUuid ||
                 prev.steps !== curr.steps ||
                 prev.dateRangePreset !== curr.dateRangePreset ||
                 prev.customDateRange !== curr.customDateRange ||
+                prev.filters !== curr.filters ||
                 prev.conversionWindowValue !== curr.conversionWindowValue ||
                 prev.conversionWindowUnit !== curr.conversionWindowUnit ||
                 prev.breakdownDimensionId !== curr.breakdownDimensionId
             );
         },
         effect: async (_, listenerApi) => {
-            const state = listenerApi.getState();
-            const fb = state.funnelBuilder;
-
-            const customDateRange: [Date | null, Date | null] = [
-                fb.customDateRange[0] ? new Date(fb.customDateRange[0]) : null,
-                fb.customDateRange[1] ? new Date(fb.customDateRange[1]) : null,
-            ];
-
-            if (
-                canRunFunnelQuery({
-                    projectUuid: fb.projectUuid,
-                    exploreName: fb.exploreName,
-                    timestampFieldId: fb.timestampFieldId,
-                    userIdFieldId: fb.userIdFieldId,
-                    eventNameFieldId: fb.eventNameFieldId,
-                    steps: fb.steps,
-                    dateRangePreset: fb.dateRangePreset,
-                    customDateRange,
-                })
-            ) {
+            // Coalesce bursts of changes, such as a URL restore, into one query
+            listenerApi.cancelActiveListeners();
+            await listenerApi.delay(QUERY_DEBOUNCE_MS);
+            if (buildFunnelQueryRequest(listenerApi.getState().funnelBuilder)) {
                 await listenerApi.dispatch(runFunnelQuery());
             }
         },
     });
 };
 
-/**
- * Invalidate results and steps when explore changes.
- */
+/** Clears results and steps when the explore changes. */
 export const addFieldChangeInvalidationListener = (
     startListening: typeof startAppListening,
 ) => {
@@ -72,33 +50,29 @@ export const addFieldChangeInvalidationListener = (
     });
 };
 
-/**
- * Fetch event names when event field changes.
- */
+/** Fetches event names when the event field, date range, or filters change. */
 export const addEventFieldChangeListener = (
     startListening: typeof startAppListening,
 ) => {
     startListening({
-        actionCreator: setEventNameFieldId,
-        effect: async (action, listenerApi) => {
-            const state = listenerApi.getState();
-            const { projectUuid, exploreName, timestampFieldId } =
-                state.funnelBuilder;
-
-            if (
-                action.payload &&
-                projectUuid &&
-                exploreName &&
-                timestampFieldId
-            ) {
-                await listenerApi.dispatch(
-                    fetchEventNames({
-                        projectUuid,
-                        exploreName,
-                        eventDimensionId: action.payload,
-                        timestampFieldId,
-                    }),
-                );
+        predicate: (_, currentState, previousState) => {
+            const prev = previousState.funnelBuilder;
+            const curr = currentState.funnelBuilder;
+            return (
+                prev.projectUuid !== curr.projectUuid ||
+                prev.eventNameFieldId !== curr.eventNameFieldId ||
+                prev.timestampFieldId !== curr.timestampFieldId ||
+                prev.dateRangePreset !== curr.dateRangePreset ||
+                prev.customDateRange !== curr.customDateRange ||
+                prev.filters !== curr.filters
+            );
+        },
+        effect: async (_, listenerApi) => {
+            const request = buildEventNamesRequest(
+                listenerApi.getState().funnelBuilder,
+            );
+            if (request) {
+                await listenerApi.dispatch(fetchEventNames(request));
             }
         },
     });

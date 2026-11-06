@@ -44,7 +44,7 @@ import { WarehouseConnectionIdentityModel } from '../../../models/WarehouseConne
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type ConnectionBinding } from '../../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
-import { FunnelService } from '../../../services/FunnelService/FunnelService';
+import { EventAnalyticsService } from '../../../services/EventAnalytics/EventAnalyticsService';
 import { MetricsExplorerService } from '../../../services/MetricsExplorerService/MetricsExplorerService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
@@ -2140,11 +2140,10 @@ describe('Multi runtime identity wiring on the real schema', () => {
         };
 
         const funnelService = (projectService: ProjectService) =>
-            new FunnelService({
+            new EventAnalyticsService({
                 analytics: { track: vi.fn() },
-                lightdashConfig: {
-                    ...lightdashConfigMock,
-                    funnelBuilder: { enabled: true },
+                featureFlagModel: {
+                    get: async () => ({ id: 'flag', enabled: true }),
                 },
                 projectModel,
                 projectService,
@@ -2252,13 +2251,12 @@ describe('Multi runtime identity wiring on the real schema', () => {
 
             const eventNames = await funnelService(
                 sqlBuildingProjectService(),
-            ).getEventNames(
-                fixture.user,
-                fixture.projectUuid,
-                'extra_refunds',
-                'refunds_id',
-                'refunds_happened_at',
-            );
+            ).getEventNames(fixture.user, fixture.projectUuid, {
+                exploreName: 'extra_refunds',
+                eventNameFieldId: 'refunds_id',
+                timestampFieldId: 'refunds_happened_at',
+                dateRange: { type: 'preset', preset: 'last_30_days' },
+            });
 
             expect(eventNames).toEqual(['1']);
         });
@@ -2287,9 +2285,12 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 funnelService(sqlBuildingProjectService()).getEventNames(
                     fixture.user,
                     fixture.projectUuid,
-                    'original_refunds',
-                    'refunds_id',
-                    'refunds_happened_at',
+                    {
+                        exploreName: 'original_refunds',
+                        eventNameFieldId: 'refunds_id',
+                        timestampFieldId: 'refunds_happened_at',
+                        dateRange: { type: 'preset', preset: 'last_30_days' },
+                    },
                 ),
             ).rejects.toThrow('relation "public.refunds" does not exist');
         });

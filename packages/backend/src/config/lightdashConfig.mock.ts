@@ -441,9 +441,6 @@ export const lightdashConfigMock: LightdashConfig = {
     customRoles: {
         enabled: false,
     },
-    funnelBuilder: {
-        enabled: false,
-    },
     persistentDownloadUrls: {
         enabled: false,
         expirationSeconds: 259200,

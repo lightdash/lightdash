@@ -64,6 +64,7 @@ const expectedSurfaces = {
     [QueryExecutionContext.MULTI_SOURCE_QUERY]: ConnectionSurface.APP,
     [QueryExecutionContext.DATA_APP_SAMPLE]: ConnectionSurface.DATA_APP,
     [QueryExecutionContext.DESKTOP]: ConnectionSurface.APP,
+    [QueryExecutionContext.EVENT_ANALYTICS]: ConnectionSurface.APP,
 } satisfies Record<QueryExecutionContext, ConnectionSurface>;
 
 const expectedAiClients = {

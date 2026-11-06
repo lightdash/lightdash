@@ -12256,6 +12256,7 @@ export class ProjectService
         projectUuid: string,
         sql: string,
         binding: ConnectionBinding,
+        context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<ApiSqlQueryResults> {
         const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
@@ -12306,7 +12307,7 @@ export class ProjectService
                         ...connectionAnalytics,
                         organizationId: organizationUuid,
                         projectId: projectUuid,
-                        context: QueryExecutionContext.SQL_RUNNER,
+                        context,
                         usingStreaming: false,
                         onboardingFlow: await this.getOnboardingFlow(user),
                     },
@@ -12316,7 +12317,7 @@ export class ProjectService
                 const queryTags: RunQueryTags = withAgentMarkerTag({
                     organization_uuid: organizationUuid,
                     user_uuid: user.userUuid,
-                    query_context: QueryExecutionContext.SQL_RUNNER,
+                    query_context: context,
                 });
 
                 const { maxLimit } = await resolveOrganizationExportLimits(

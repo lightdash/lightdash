@@ -18,7 +18,6 @@ export const FunnelResultsTable: FC = () => {
             };
         }
 
-        // Get unique step names in order
         const names = [...new Set(results.steps.map((s) => s.stepName))].sort(
             (a, b) => {
                 const stepA = results.steps.find((s) => s.stepName === a);
@@ -27,12 +26,10 @@ export const FunnelResultsTable: FC = () => {
             },
         );
 
-        // Get unique breakdown values (or undefined for no breakdown)
         const breakdowns = [
             ...new Set(results.steps.map((s) => s.breakdownValue)),
         ];
 
-        // Build lookup map: "stepName|breakdownValue" -> step
         const lookup = new Map<string, (typeof results.steps)[0]>();
         results.steps.forEach((step) => {
             const key = `${step.stepName}|${step.breakdownValue ?? ''}`;
@@ -53,7 +50,6 @@ export const FunnelResultsTable: FC = () => {
     return (
         <Table striped highlightOnHover className={styles.funnelTable}>
             <Table.Thead>
-                {/* First tier: Step names */}
                 <Table.Tr>
                     {hasBreakdown && (
                         <Table.Th
@@ -77,7 +73,6 @@ export const FunnelResultsTable: FC = () => {
                         </Table.Th>
                     ))}
                 </Table.Tr>
-                {/* Second tier: Metrics for each step */}
                 <Table.Tr>
                     {stepNames.map((stepName, idx) => (
                         <Fragment key={stepName}>
@@ -91,7 +86,7 @@ export const FunnelResultsTable: FC = () => {
                                 ta="right"
                                 className={styles.metricHeader}
                             >
-                                Conv %
+                                Conversion
                             </Table.Th>
                             <Table.Th
                                 ta="right"

@@ -1,93 +1,67 @@
 import {
-    type FunnelDatePreset,
-    type FunnelDateRange,
+    type EventAnalyticsDatePreset,
+    type Filters,
+    type FunnelConversionWindowUnit,
     type FunnelQueryRequest,
     type FunnelStep,
     type FunnelStepResult,
 } from '@lightdash/common';
+import { buildEventDateRange } from '../../eventAnalytics/utils/dateRange';
 
-/**
- * Check if funnel configuration is valid for running a query.
- */
-export function canRunFunnelQuery(config: {
+export type FunnelConfig = {
     projectUuid: string;
     exploreName: string | null;
     timestampFieldId: string | null;
     userIdFieldId: string | null;
     eventNameFieldId: string | null;
-    steps: FunnelStep[];
-    dateRangePreset: FunnelDatePreset;
-    customDateRange: [Date | null, Date | null];
-}): boolean {
-    const hasRequiredFields =
-        config.projectUuid &&
-        config.exploreName &&
-        config.timestampFieldId &&
-        config.userIdFieldId &&
-        config.eventNameFieldId;
-
-    const hasEnoughSteps = config.steps.filter((s) => s.eventName).length >= 2;
-
-    const hasValidDateRange =
-        config.dateRangePreset !== 'custom' ||
-        (config.customDateRange[0] !== null &&
-            config.customDateRange[1] !== null);
-
-    return !!(hasRequiredFields && hasEnoughSteps && hasValidDateRange);
-}
-
-/**
- * Build date range object from preset or custom range.
- */
-export function buildDateRange(
-    preset: FunnelDatePreset,
-    customRange: [Date | null, Date | null],
-): FunnelDateRange {
-    if (preset === 'custom' && customRange[0] && customRange[1]) {
-        return {
-            type: 'custom',
-            start: customRange[0].toISOString(),
-            end: customRange[1].toISOString(),
-        };
-    }
-    return {
-        type: 'preset',
-        preset: preset === 'custom' ? 'last_30_days' : preset,
-    };
-}
-
-/**
- * Build FunnelQueryRequest from state values.
- */
-export function buildFunnelQueryRequest(config: {
-    exploreName: string;
-    timestampFieldId: string;
-    userIdFieldId: string;
-    eventNameFieldId: string;
-    steps: FunnelStep[];
-    dateRange: FunnelDateRange;
-    conversionWindowValue: number;
-    conversionWindowUnit: 'hours' | 'days' | 'weeks';
     breakdownDimensionId: string | null;
-}): FunnelQueryRequest {
+    steps: FunnelStep[];
+    dateRangePreset: EventAnalyticsDatePreset;
+    customDateRange: [string | null, string | null];
+    filters: Filters;
+    conversionWindowValue: number;
+    conversionWindowUnit: FunnelConversionWindowUnit;
+};
+
+/** Builds the API request, or null while the configuration is incomplete. */
+export function buildFunnelQueryRequest(
+    config: FunnelConfig,
+): FunnelQueryRequest | null {
+    if (
+        !config.projectUuid ||
+        !config.exploreName ||
+        !config.timestampFieldId ||
+        !config.userIdFieldId ||
+        !config.eventNameFieldId
+    ) {
+        return null;
+    }
+    const steps = config.steps.filter((step) => step.eventName);
+    if (steps.length < 2) return null;
+
+    const dateRange = buildEventDateRange(
+        config.dateRangePreset,
+        config.customDateRange,
+    );
+    if (!dateRange) return null;
+
     return {
         exploreName: config.exploreName,
         timestampFieldId: config.timestampFieldId,
         userIdFieldId: config.userIdFieldId,
         eventNameFieldId: config.eventNameFieldId,
-        steps: config.steps.filter((s) => s.eventName),
-        dateRange: config.dateRange,
+        breakdownDimensionId: config.breakdownDimensionId ?? undefined,
+        steps,
+        dateRange,
+        filters: config.filters,
         conversionWindow: {
             value: config.conversionWindowValue,
             unit: config.conversionWindowUnit,
         },
-        breakdownDimensionId: config.breakdownDimensionId ?? undefined,
     };
 }
 
-/**
- * Format time duration for display.
- */
+/** Formats a duration as the largest whole unit, for example "3h". */
 export function formatTimeDuration(seconds: number | null | undefined): string {
     if (seconds == null) return '—';
     if (seconds < 60) return `${Math.round(seconds)}s`;
@@ -96,10 +70,7 @@ export function formatTimeDuration(seconds: number | null | undefined): string {
     return `${Math.round(seconds / 86400)}d`;
 }
 
-/**
- * Format step info for tooltip as an HTML table.
- * Shows total users, step conversion, and overall conversion.
- */
+/** Tooltip body for a step: users, step conversion, and overall conversion. */
 export function formatStepTooltipLabel(step: FunnelStepResult): string {
     const rows = [
         ['Users', step.totalUsers.toLocaleString()],
@@ -115,19 +86,13 @@ export function formatStepTooltipLabel(step: FunnelStepResult): string {
     return `<table style="border-spacing:0;line-height:1.6">${rowsHtml}</table>`;
 }
 
-/**
- * Format bar label content for a funnel step.
- * Uses ECharts rich text format for styling.
- */
+/** Bar label in ECharts rich text: step conversion over user count. */
 export function formatFunnelBarLabel(step: FunnelStepResult): string {
     return `{percent|${step.stepConversionRate.toFixed(
         1,
     )}%}\n{count|${step.totalUsers.toLocaleString()}}`;
 }
 
-/**
- * Rich text styles for funnel bar labels.
- */
 export const funnelBarLabelRichStyles = {
     percent: {
         fontSize: 13,

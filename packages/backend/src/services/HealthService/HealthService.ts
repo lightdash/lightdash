@@ -339,9 +339,6 @@ export class HealthService extends BaseService {
             echarts6: {
                 enabled: false,
             },
-            funnelBuilder: {
-                enabled: this.lightdashConfig.funnelBuilder.enabled,
-            },
             softDelete: {
                 enabled: this.lightdashConfig.softDelete.enabled,
                 retentionDays: this.lightdashConfig.softDelete.retentionDays,

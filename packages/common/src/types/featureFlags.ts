@@ -229,6 +229,12 @@ export enum FeatureFlags {
     AiThreadRetention = 'ai-thread-retention',
 
     /**
+     * Experimental event analytics builders (funnel, retention). Gates the
+     * event analytics API and pages. Organization scope; no handler.
+     */
+    EventAnalytics = 'event-analytics',
+
+    /**
      * Per-organization gate for experimental surfaces in Lightdash Desktop.
      * Desktop reads it once per sign-in. Off by default; enable per org.
      */
