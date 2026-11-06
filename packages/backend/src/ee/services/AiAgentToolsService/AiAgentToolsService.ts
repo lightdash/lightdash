@@ -4388,7 +4388,6 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runSavedChartQuery`,
             args,
             async () => {
-                // A null limit uses the chart's saved limit, so its SQL and cache key match the UI's.
                 const requestedLimit =
                     args.limit ??
                     (
