@@ -200,6 +200,10 @@ describe('AiComposerLineage graph', () => {
             nodeButton(title).closest('.react-flow__node')!;
         fireEvent.mouseEnter(flowNode('Orders by status'));
         await waitFor(() => expect(linkedNodeIds()).toEqual(['joined']));
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'data-lineage-role',
+            'related',
+        );
         expect(nodeButton('Unrelated')).toHaveAttribute('data-dimmed', 'true');
         expect(nodeButton('Average amount')).toHaveAttribute(
             'data-dimmed',
@@ -390,6 +394,28 @@ describe('AiComposerLineage steps', () => {
         expect(document.querySelector('svg[data-lineage]')).toHaveAttribute(
             'data-visible',
             'false',
+        );
+    });
+
+    it("marks a hovered reference's lineage in the graph too", async () => {
+        renderPanel({});
+        const pill = cell('joined').getByRole('button', {
+            name: 'Average amount',
+        });
+        fireEvent.mouseEnter(pill);
+        await waitFor(() =>
+            expect(nodeButton('Average amount')).toHaveAttribute(
+                'data-lineage-role',
+                'related',
+            ),
+        );
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'data-lineage-role',
+            'hovered',
+        );
+        fireEvent.mouseLeave(pill);
+        expect(nodeButton('Average amount')).not.toHaveAttribute(
+            'data-lineage-role',
         );
     });
 
