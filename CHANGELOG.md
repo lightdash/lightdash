@@ -1,3 +1,10 @@
+## [3.169.7](https://github.com/lightdash/lightdash/compare/3.169.6...3.169.7) (2026-11-06)
+
+
+### Bug Fixes
+
+* **explore:** map lineage graph names in the no-extra-sources allocation fast path ([#32152](https://github.com/lightdash/lightdash/issues/32152)) ([7631c7a](https://github.com/lightdash/lightdash/commit/7631c7a86d679870b1741244522ab2c6a5e09b93))
+
 ## [3.169.6](https://github.com/lightdash/lightdash/compare/3.169.5...3.169.6) (2026-11-06)
 
 
