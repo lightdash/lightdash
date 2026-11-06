@@ -2,10 +2,6 @@
     padding-top: var(--navbar-height);
 }
 
-:global(body:not(:has(#navbar-header))) .drawerInner {
-    padding-top: 0;
-}
-
 .stepError {
     position: relative;
     width: 100%;

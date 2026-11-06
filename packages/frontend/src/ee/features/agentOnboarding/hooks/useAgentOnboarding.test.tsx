@@ -1,14 +1,9 @@
-import { type AgentOnboardingRun, type ApiError } from '@lightdash/common';
-import {
-    QueryClient,
-    QueryClientProvider,
-    type QueryKey,
-} from '@tanstack/react-query';
+import { type AgentOnboardingRun } from '@lightdash/common';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import {
-    getAgentOnboardingRefetchInterval,
     useCancelAgentOnboardingRun,
     useStartAgentOnboardingRun,
 } from './useAgentOnboarding';
@@ -85,42 +80,5 @@ describe('agent onboarding run mutations', () => {
         await waitFor(() =>
             expect(queryClient.getQueryData(activeRunKey)).toBeNull(),
         );
-    });
-});
-
-describe('getAgentOnboardingRefetchInterval', () => {
-    const queryWithError = (statusCode: number) => {
-        const queryClient = new QueryClient();
-        const query = queryClient
-            .getQueryCache()
-            .build<AgentOnboardingRun, ApiError, AgentOnboardingRun, QueryKey>(
-                queryClient,
-                {
-                    queryKey: ['run'],
-                },
-            );
-        query.setState({
-            status: 'error',
-            error: {
-                status: 'error',
-                error: { name: 'Error', statusCode, message: '', data: {} },
-            },
-        });
-        return query;
-    };
-
-    it('keeps polling through server errors', () => {
-        expect(
-            getAgentOnboardingRefetchInterval(run, queryWithError(500)),
-        ).toBe(2_000);
-    });
-
-    it('stops polling when the run is gone or inaccessible', () => {
-        expect(
-            getAgentOnboardingRefetchInterval(run, queryWithError(404)),
-        ).toBe(false);
-        expect(
-            getAgentOnboardingRefetchInterval(run, queryWithError(403)),
-        ).toBe(false);
     });
 });

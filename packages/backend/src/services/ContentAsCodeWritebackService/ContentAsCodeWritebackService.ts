@@ -985,7 +985,6 @@ export class ContentAsCodeWritebackService extends BaseService {
             };
         }
         const { published, draftDoc } = await this.renderDraftDocuments(
-            user,
             projectUuid,
             draft,
         );
@@ -1027,7 +1026,6 @@ export class ContentAsCodeWritebackService extends BaseService {
             );
         }
         const { published, draftDoc } = await this.renderDraftDocuments(
-            user,
             projectUuid,
             draft,
         );
@@ -1062,7 +1060,6 @@ export class ContentAsCodeWritebackService extends BaseService {
     }
 
     private async renderDraftDocuments(
-        user: SessionUser,
         projectUuid: string,
         draft: ContentDraft,
     ): Promise<{
@@ -1084,12 +1081,8 @@ export class ContentAsCodeWritebackService extends BaseService {
             return { published, draftDoc };
         }
         const [published, draftDoc] = await Promise.all([
-            this.coderService.getCurrentDashboardAsCode(
-                user,
-                draft.contentUuid,
-            ),
+            this.coderService.getCurrentDashboardAsCode(draft.contentUuid),
             this.coderService.getDashboardAsCodeWithOverlay(
-                user,
                 draft.contentUuid,
                 draft.draft,
             ),
@@ -1181,7 +1174,6 @@ export class ContentAsCodeWritebackService extends BaseService {
             draft.slug,
         );
         const { draftDoc } = await this.renderDraftDocuments(
-            user,
             projectUuid,
             draft,
         );
@@ -1631,7 +1623,6 @@ export class ContentAsCodeWritebackService extends BaseService {
             const dashboardAsCode =
                 (target.documentOverride as DashboardAsCode | undefined) ??
                 (await this.coderService.getCurrentDashboardAsCode(
-                    user,
                     contentUuid,
                 ));
             files.push({

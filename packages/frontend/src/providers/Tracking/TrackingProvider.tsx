@@ -144,23 +144,11 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
     );
     const identify = useCallback(
         ({ id, traits }: IdentifyData) => {
-            if (!mode || mode === LightdashMode.DEMO) return;
-            const sendIdentify: PendingTrack = (analytics) =>
-                analytics.identify(id, traits, lightdashContext);
-            if (rudderAnalytics) {
-                sendIdentify(rudderAnalytics);
-            } else if (rudder || (writeKey && dataPlaneUrl)) {
-                pendingTracks.push(sendIdentify);
+            if (mode && mode !== LightdashMode.DEMO) {
+                rudderAnalytics?.identify(id, traits, lightdashContext);
             }
         },
-        [
-            lightdashContext,
-            mode,
-            rudderAnalytics,
-            rudder,
-            writeKey,
-            dataPlaneUrl,
-        ],
+        [lightdashContext, mode, rudderAnalytics],
     );
 
     const context = useMemo(

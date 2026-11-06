@@ -1,16 +1,11 @@
-import { FeatureFlags, isAgentOnboardingRunTerminal } from '@lightdash/common';
-import { notifications } from '@mantine/notifications';
+import { isAgentOnboardingRunTerminal } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import {
-    isRunGoneError,
-    useAgentOnboardingRun,
-} from './hooks/useAgentOnboarding';
+import { useAgentOnboardingRun } from './hooks/useAgentOnboarding';
 import { getAgentOnboardingRunUrl } from './utils';
 import {
     clearWatchedAgentOnboardingRun,
@@ -19,16 +14,12 @@ import {
 
 const toastedRunUuids = new Set<string>();
 
-const runToastKey = (runUuid: string) => `agent-onboarding-run-${runUuid}`;
-
 export const AgentOnboardingCompletionWatcher: FC = () => {
     const watched = useWatchedAgentOnboardingRun();
     const navigate = useNavigate();
     const location = useLocation();
-    const { showToastSuccess, showToastWarning } = useToaster();
+    const { showToastSuccess } = useToaster();
     const { track } = useTracking();
-    const isNewOnboarding =
-        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
     const { data: organization } = useOrganization({
         queryKey: ['organization'],
         enabled: watched !== null,
@@ -39,22 +30,12 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         watched?.agentOnboardingRunUuid,
     );
 
-    const { data: run } = runQuery;
-    const isRunGone = isRunGoneError(runQuery.error);
+    const { data: run, isError } = runQuery;
     const organizationUuid = organization?.organizationUuid;
     const { pathname } = location;
-    // The run page and the setup steps show the run inline, so no toast there
-    const isShownInline =
-        (isNewOnboarding && pathname.startsWith('/onboarding/')) ||
-        (!!run &&
-            pathname ===
-                getAgentOnboardingRunUrl(
-                    run.agentOnboardingRunUuid,
-                    run.projectUuid,
-                ));
 
     useEffect(() => {
-        if (isRunGone) {
+        if (isError) {
             clearWatchedAgentOnboardingRun();
             return;
         }
@@ -63,53 +44,30 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         const { agentOnboardingRunUuid, projectUuid, status } = run;
         clearWatchedAgentOnboardingRun();
 
-        if (status !== 'completed') {
-            if (status === 'failed' && isNewOnboarding && !isShownInline) {
-                showToastWarning({
-                    key: runToastKey(agentOnboardingRunUuid),
-                    autoClose: false,
-                    title: "Project setup couldn't finish",
-                    subtitle: 'You can try again from home.',
-                    action: {
-                        children: 'See what happened',
-                        onClick: () =>
-                            void navigate(
-                                getAgentOnboardingRunUrl(
-                                    agentOnboardingRunUuid,
-                                    projectUuid,
-                                ),
-                            ),
-                    },
-                });
-            } else {
-                notifications.hide(runToastKey(agentOnboardingRunUuid));
-            }
-            return;
-        }
-        if (isShownInline) {
-            notifications.hide(runToastKey(agentOnboardingRunUuid));
+        if (status !== 'completed') return;
+        if (
+            pathname ===
+            getAgentOnboardingRunUrl(agentOnboardingRunUuid, projectUuid)
+        ) {
             return;
         }
         if (toastedRunUuids.has(agentOnboardingRunUuid)) return;
         toastedRunUuids.add(agentOnboardingRunUuid);
 
         const properties = {
-            organizationId: organizationUuid ?? null,
+            organizationId: organizationUuid ?? '',
             projectUuid,
             agentOnboardingRunUuid,
         };
 
         showToastSuccess({
-            key: runToastKey(agentOnboardingRunUuid),
+            key: `agent-onboarding-complete-${agentOnboardingRunUuid}`,
             autoClose: false,
-            title: isNewOnboarding
-                ? 'Your project is ready'
-                : 'Your Lightdash project is ready',
-            subtitle: isNewOnboarding
-                ? 'Your semantic layer and starter questions are ready.'
-                : 'The semantic layer and starter dashboard have been generated.',
+            title: 'Your Lightdash project is ready',
+            subtitle:
+                'The semantic layer and starter dashboard have been generated.',
             action: {
-                children: isNewOnboarding ? 'Open home' : 'Open project',
+                children: 'Open project',
                 onClick: () => {
                     track({
                         name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED,
@@ -125,12 +83,10 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         });
     }, [
         run,
-        isRunGone,
-        isShownInline,
-        isNewOnboarding,
+        isError,
+        pathname,
         organizationUuid,
         showToastSuccess,
-        showToastWarning,
         track,
         navigate,
     ]);

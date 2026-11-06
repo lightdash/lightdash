@@ -129,7 +129,7 @@ describe('BuilderCanvas start page', () => {
                 screen.getByRole('button', { name: 'Choose table' }),
             ),
         ).toBe(true);
-        expect(screen.getByText('Try it on your own data')).toBeInTheDocument();
+        expect(screen.getByText('Preview data (optional)')).toBeInTheDocument();
     });
 
     it('keeps an attached table below the examples, under a preview data label', () => {
@@ -138,9 +138,9 @@ describe('BuilderCanvas start page', () => {
         expect(
             isBelow(screen.getByText(EXAMPLE), screen.getByText('Orders')),
         ).toBe(true);
-        expect(screen.getByText('Previewing with')).toBeInTheDocument();
+        expect(screen.getByText('Preview data')).toBeInTheDocument();
         expect(
-            screen.queryByText('Try it on your own data'),
+            screen.queryByText('Preview data (optional)'),
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Choose table' }),
@@ -156,7 +156,7 @@ describe('BuilderCanvas start page', () => {
                 screen.getByText('Revenue by month'),
             ),
         ).toBe(true);
-        expect(screen.getByText('Previewing with')).toBeInTheDocument();
+        expect(screen.getByText('Preview data')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Choose saved chart' }),
         ).not.toBeInTheDocument();

@@ -31,7 +31,6 @@ import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { DatabricksDefaultValues } from './defaultValues';
-import { useFieldHint } from './useFieldHint';
 import { getSsoLabel, PERSONAL_ACCESS_TOKEN_LABEL } from './util';
 import styles from './WarehouseButtons.module.css';
 
@@ -107,7 +106,6 @@ const DatabricksSSOInput: FC<{
 const DatabricksForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
-    const fieldHint = useFieldHint();
     const form = useFormContext();
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
@@ -374,7 +372,7 @@ const DatabricksForm: FC<{
                     name="warehouse.catalog"
                     {...form.getInputProps('warehouse.catalog')}
                     label="Catalog name"
-                    description={fieldHint('This is the catalog name.')}
+                    description="This is the catalog name."
                     required
                     disabled={disabled}
                 />

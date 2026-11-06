@@ -1,6 +1,5 @@
 import {
     ApiDeployExploresResults,
-    ApiReplaceProjectContextResults,
     AuthorizationError,
     DeploySessionStatus,
     Explore,
@@ -36,10 +35,7 @@ import {
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
 import GlobalState from '../globalState';
-import {
-    readAndLoadLightdashProjectConfig,
-    readProjectContextFile,
-} from '../lightdash-config';
+import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import {
@@ -248,49 +244,6 @@ const replaceProjectTableGroups = async (
         url: `/api/v1/projects/${projectUuid}/table-groups`,
         body: JSON.stringify(lightdashProjectConfig.table_groups),
     });
-};
-
-const replaceProjectContext = async (
-    projectUuid: string,
-    projectDir: string,
-) => {
-    const projectContextYaml = await readProjectContextFile(projectDir);
-    if (projectContextYaml === undefined) {
-        return;
-    }
-    const results = await lightdashApi<ApiReplaceProjectContextResults>({
-        method: 'PUT',
-        url: `/api/v1/projects/${projectUuid}/project-context`,
-        body: JSON.stringify({ yaml: projectContextYaml }),
-    });
-    if (results.ingested) {
-        GlobalState.debug(
-            `> Uploaded ${results.entryCount} project context entries`,
-        );
-        return;
-    }
-    console.error(
-        styles.warning(
-            '\nlightdash.project_context.yml was ignored: enable "Review AI agent turns" in the organization AI settings to use project context\n',
-        ),
-    );
-};
-
-// Explores are already deployed by the time these run, so a failure is
-// reported but never fails the deploy.
-const runPostDeployStep = async (
-    label: string,
-    step: () => Promise<void>,
-): Promise<void> => {
-    try {
-        await step();
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing ${label}: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
 };
 
 const BATCH_UPLOAD_MAX_ATTEMPTS = 4;
@@ -630,24 +583,59 @@ export const deploy = async (
         }
     }
 
-    await runPostDeployStep('YAML tags', () =>
-        replaceProjectYamlTags(options.projectUuid, lightdashProjectConfig),
-    );
-    await runPostDeployStep('project parameters', () =>
-        replaceProjectParameters(options.projectUuid, lightdashProjectConfig),
-    );
-    await runPostDeployStep('project defaults', () =>
-        replaceProjectDefaults(options.projectUuid, lightdashProjectConfig),
-    );
-    await runPostDeployStep('project table groups', () =>
-        replaceProjectTableGroups(options.projectUuid, lightdashProjectConfig),
-    );
-    await runPostDeployStep('project context', () =>
-        replaceProjectContext(
+    try {
+        await replaceProjectYamlTags(
             options.projectUuid,
-            path.resolve(options.projectDir),
-        ),
-    );
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing YAML tags: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectParameters(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project parameters: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectDefaults(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project defaults: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectTableGroups(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project table groups: ${getErrorMessage(
+                    e,
+                )}\n`,
+            ),
+        );
+    }
 };
 
 const createNewProject = async (

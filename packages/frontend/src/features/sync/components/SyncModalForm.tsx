@@ -1,4 +1,8 @@
-import { formatMinutesOffset, getTzMinutesOffset } from '@lightdash/common';
+import {
+    FeatureFlags,
+    formatMinutesOffset,
+    getTzMinutesOffset,
+} from '@lightdash/common';
 import {
     Box,
     Group,
@@ -16,7 +20,7 @@ import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../components/CronInput';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
-import { useIsResultsCacheEnabled } from '../../../hooks/useProjectResultsCacheSettings';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';
 import classes from './SyncModalForm.module.css';
 import {
@@ -51,7 +55,10 @@ export const SyncModalForm: FC<Props> = ({
     }, [project]);
 
     const form = useSyncModalFormContext();
-    const isResultsCacheEnabled = useIsResultsCacheEnabled(activeProjectUuid);
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
 
     return (
         <form

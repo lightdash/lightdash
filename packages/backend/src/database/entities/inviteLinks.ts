@@ -8,7 +8,6 @@ export type DbInviteLink = {
     created_at: Date;
     expires_at: Date;
     purpose: InviteLinkPurpose;
-    invited_by_user_uuid: string | null;
 };
 
 type DbInviteLinkInsert = Pick<
@@ -18,7 +17,6 @@ type DbInviteLinkInsert = Pick<
     | 'expires_at'
     | 'user_uuid'
     | 'purpose'
-    | 'invited_by_user_uuid'
 >;
 type DbInviteLinkUpdate = {};
 

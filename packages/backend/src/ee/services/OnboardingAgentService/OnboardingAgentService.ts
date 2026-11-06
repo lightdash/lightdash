@@ -1,10 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     ForbiddenError,
     getConnectionDefaults,
     getErrorMessage,
-    isAgentOnboardingRunTerminal,
     isUserWithOrg,
     MissingConfigError,
     NotFoundError,
@@ -18,15 +16,9 @@ import {
     type AgentOnboardingUsage,
     type SessionUser,
 } from '@lightdash/common';
-import {
-    type LightdashAnalytics,
-    type OnboardingAgentRunFailureCategory,
-} from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { assertOAuthCredentialOperationAllowed } from '../../../auth/oauthScopes/credentials';
 import { type LightdashConfig } from '../../../config/parseConfig';
-import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
-import { ONBOARDING_AGENT_PAT_DESCRIPTION_PREFIX } from '../../../models/OnboardingModel/OnboardingModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import { type PersonalAccessTokenService } from '../../../services/PersonalAccessTokenService';
@@ -65,7 +57,6 @@ import {
 } from '../SandboxRuntime';
 import { pollDetachedAgentRun } from './agentStreamPoller';
 import {
-    ABANDONED_RUN_IDLE_MS,
     AGENT_RUNNER_PATH,
     AGENT_RUNNER_SCRIPT,
     AGENT_STDERR_PATH,
@@ -79,7 +70,6 @@ import {
     FILE_SYNC_INTERVAL_MS,
     PAT_EXPIRY_GRACE_MS,
     PROMPT_PATH,
-    RUN_HEARTBEAT_INTERVAL_MS,
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
     WORKDIR,
@@ -91,20 +81,16 @@ import {
     containsOnboardingSecret,
     hasCompleteOnboardingOutput,
     isOnboardingOutputFile,
-    parseStarterQuestions,
     parseWorkspaceFileListing,
     sanitizeOnboardingMessage,
-    STARTER_QUESTIONS_PATH,
     validateOnboardingOutputFileLimits,
 } from './utils';
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
-    analytics: LightdashAnalytics;
     agentOnboardingRunModel: AgentOnboardingRunModel;
     sandboxRegistryModel: SandboxRegistryModel;
     projectModel: ProjectModel;
-    featureFlagModel: FeatureFlagModel;
     personalAccessTokenService: PersonalAccessTokenService;
     promptService: PromptService;
     userService: UserService;
@@ -124,12 +110,7 @@ const toRun = (run: DbAgentOnboardingRun): AgentOnboardingRun => ({
     status: run.status,
     stage: run.stage,
     events: run.events,
-    handoff: run.handoff && {
-        summary: run.handoff.summary,
-        dashboardUrl: run.handoff.dashboardUrl,
-        // Runs that built a starter dashboard stored no questions
-        starterQuestions: run.handoff.starterQuestions ?? [],
-    },
+    handoff: run.handoff,
     usage: run.usage,
     files: run.files.map(({ path, sizeBytes, updatedAt }) => ({
         path,
@@ -146,15 +127,11 @@ const toRun = (run: DbAgentOnboardingRun): AgentOnboardingRun => ({
 export class OnboardingAgentService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
-    private readonly analytics: LightdashAnalytics;
-
     private readonly agentOnboardingRunModel: AgentOnboardingRunModel;
 
     private readonly sandboxRegistryModel: SandboxRegistryModel;
 
     private readonly projectModel: ProjectModel;
-
-    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly personalAccessTokenService: PersonalAccessTokenService;
 
@@ -171,11 +148,9 @@ export class OnboardingAgentService extends BaseService {
     constructor(dependencies: Dependencies) {
         super();
         this.lightdashConfig = dependencies.lightdashConfig;
-        this.analytics = dependencies.analytics;
         this.agentOnboardingRunModel = dependencies.agentOnboardingRunModel;
         this.sandboxRegistryModel = dependencies.sandboxRegistryModel;
         this.projectModel = dependencies.projectModel;
-        this.featureFlagModel = dependencies.featureFlagModel;
         this.personalAccessTokenService =
             dependencies.personalAccessTokenService;
         this.promptService = dependencies.promptService;
@@ -248,16 +223,11 @@ export class OnboardingAgentService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const existingRun =
+        const activeRun =
             await this.agentOnboardingRunModel.findActiveRunForProject(
                 args.projectUuid,
             );
-        const activeRun = existingRun
-            ? await this.failIfAbandoned(existingRun)
-            : null;
-        if (activeRun && !isAgentOnboardingRunTerminal(activeRun.status)) {
-            return toRun(activeRun);
-        }
+        if (activeRun) return toRun(activeRun);
 
         const run = await this.agentOnboardingRunModel.create({
             organizationUuid,
@@ -273,51 +243,13 @@ export class OnboardingAgentService extends BaseService {
                 userUuid: run.created_by_user_uuid,
             });
         } catch (error) {
-            if (
-                await this.agentOnboardingRunModel.markFailed(
-                    run.agent_onboarding_run_uuid,
-                    'Could not start the onboarding agent. Please try again.',
-                )
-            ) {
-                await this.trackRunFinished(
-                    run.agent_onboarding_run_uuid,
-                    'failed',
-                    'schedule_failed',
-                    null,
-                );
-            }
+            await this.agentOnboardingRunModel.markFailed(
+                run.agent_onboarding_run_uuid,
+                'Could not start the onboarding agent. Please try again.',
+            );
             throw error;
         }
         return toRun(run);
-    }
-
-    // A worker that dies mid-run (deploy, crash) leaves the run active forever and blocks new ones
-    private async failIfAbandoned(
-        run: DbAgentOnboardingRun,
-    ): Promise<DbAgentOnboardingRun> {
-        // Queued runs wait on the worker queue, so only a silent running run is abandoned
-        if (run.status !== 'running') return run;
-        // Skips the write on every poll; the guarded UPDATE still settles races
-        if (Date.now() - run.updated_at.getTime() < ABANDONED_RUN_IDLE_MS) {
-            return run;
-        }
-        const failed = await this.agentOnboardingRunModel.markFailedIfIdle(
-            run.agent_onboarding_run_uuid,
-            ABANDONED_RUN_IDLE_MS,
-            'The setup run stopped responding.',
-        );
-        if (!failed) return run;
-        await this.trackRunFinished(
-            run.agent_onboarding_run_uuid,
-            'failed',
-            'abandoned',
-            null,
-        );
-        return (
-            (await this.agentOnboardingRunModel.findByUuid(
-                run.agent_onboarding_run_uuid,
-            )) ?? run
-        );
     }
 
     async getActiveRun(
@@ -325,26 +257,11 @@ export class OnboardingAgentService extends BaseService {
         projectUuid: string,
     ): Promise<AgentOnboardingRun | null> {
         await this.assertCanViewProject(user, projectUuid);
-        const found =
+        const run =
             await this.agentOnboardingRunModel.findActiveRunForProject(
                 projectUuid,
             );
-        const run = found ? await this.failIfAbandoned(found) : null;
-        return run && !isAgentOnboardingRunTerminal(run.status)
-            ? toRun(run)
-            : null;
-    }
-
-    async getLatestRun(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<AgentOnboardingRun | null> {
-        await this.assertCanViewProject(user, projectUuid);
-        const run =
-            await this.agentOnboardingRunModel.findLatestRunForProject(
-                projectUuid,
-            );
-        return run ? toRun(await this.failIfAbandoned(run)) : null;
+        return run ? toRun(run) : null;
     }
 
     private async findOrganizationScopedRun(
@@ -389,13 +306,7 @@ export class OnboardingAgentService extends BaseService {
         agentOnboardingRunUuid: string,
     ): Promise<AgentOnboardingRun> {
         return toRun(
-            await this.failIfAbandoned(
-                await this.findScopedRun(
-                    user,
-                    projectUuid,
-                    agentOnboardingRunUuid,
-                ),
-            ),
+            await this.findScopedRun(user, projectUuid, agentOnboardingRunUuid),
         );
     }
 
@@ -462,58 +373,10 @@ export class OnboardingAgentService extends BaseService {
     }
 
     async markRunTimedOut(agentOnboardingRunUuid: string): Promise<void> {
-        if (
-            await this.agentOnboardingRunModel.markFailed(
-                agentOnboardingRunUuid,
-                'The onboarding agent took too long and was stopped.',
-            )
-        ) {
-            await this.trackRunFinished(
-                agentOnboardingRunUuid,
-                'failed',
-                'timeout',
-                null,
-            );
-        }
-    }
-
-    private async trackRunFinished(
-        agentOnboardingRunUuid: string,
-        status: 'completed' | 'failed' | 'cancelled',
-        failureCategory: OnboardingAgentRunFailureCategory | null,
-        numTurns: number | null,
-    ): Promise<void> {
-        try {
-            const run = await this.agentOnboardingRunModel.findByUuid(
-                agentOnboardingRunUuid,
-            );
-            if (!run) return;
-            const startedAt = run.started_at ?? run.created_at;
-            const finishedAt = run.completed_at ?? new Date();
-            this.analytics.track({
-                event: 'onboarding_agent.run_finished',
-                userId: run.created_by_user_uuid,
-                properties: {
-                    organizationId: run.organization_uuid,
-                    projectId: run.project_uuid,
-                    agentOnboardingRunId: run.agent_onboarding_run_uuid,
-                    status,
-                    failureCategory,
-                    lastStage: run.stage,
-                    durationSeconds: Math.max(
-                        0,
-                        Math.round(
-                            (finishedAt.getTime() - startedAt.getTime()) / 1000,
-                        ),
-                    ),
-                    numTurns: numTurns ?? run.usage?.numTurns ?? null,
-                },
-            });
-        } catch (error) {
-            this.logger.warn(
-                `OnboardingAgent: could not track run outcome: ${getErrorMessage(error)}`,
-            );
-        }
+        await this.agentOnboardingRunModel.markFailed(
+            agentOnboardingRunUuid,
+            'The onboarding agent took too long and was stopped.',
+        );
     }
 
     private getSandboxManager(): SandboxManager {
@@ -596,15 +459,12 @@ export class OnboardingAgentService extends BaseService {
         warehouseType: string;
         database: string | undefined;
         schema: string | undefined;
-        writesStarterQuestions: boolean;
     }): Promise<string> {
-        const { writesStarterQuestions, ...promptArgs } = args;
-        const basePrompt = await this.promptService.getProjectOnboardingPrompt(
-            writesStarterQuestions,
-        );
+        const basePrompt =
+            await this.promptService.getPrompt('project-onboarding');
         const siteUrl = this.lightdashConfig.siteUrl.replace(/\/+$/, '');
         return buildManagedOnboardingPrompt({
-            ...promptArgs,
+            ...args,
             basePrompt,
             siteUrl,
         });
@@ -617,25 +477,8 @@ export class OnboardingAgentService extends BaseService {
         const timer = setInterval(() => {
             void this.agentOnboardingRunModel
                 .findByUuid(agentOnboardingRunUuid)
-                .then(async (run) => {
-                    // A run marked abandoned by a status poll must stop its sandbox too
-                    if (
-                        run &&
-                        (run.cancellation_requested_at ||
-                            isAgentOnboardingRunTerminal(run.status))
-                    ) {
-                        onCancel();
-                        return;
-                    }
-                    if (
-                        run &&
-                        Date.now() - run.updated_at.getTime() >=
-                            RUN_HEARTBEAT_INTERVAL_MS
-                    ) {
-                        await this.agentOnboardingRunModel.heartbeat(
-                            agentOnboardingRunUuid,
-                        );
-                    }
+                .then((run) => {
+                    if (run?.cancellation_requested_at) onCancel();
                 })
                 .catch((error) => {
                     this.logger.warn(
@@ -754,14 +597,12 @@ export class OnboardingAgentService extends BaseService {
         sandbox: SandboxHandle;
         patToken: string;
         anthropic: ClaudeCodeAnthropicConfig;
-        writesStarterQuestions: boolean;
     }): Promise<{
         assistantText: string;
         files: DbAgentOnboardingFile[];
         usage: AgentOnboardingUsage | null;
     }> {
-        const { run, sandbox, patToken, anthropic, writesStarterQuestions } =
-            args;
+        const { run, sandbox, patToken, anthropic } = args;
         this.fileStore.assertConfigured();
         const { warehouseConnection } =
             await this.projectModel.getWithSensitiveFields(run.project_uuid);
@@ -776,7 +617,6 @@ export class OnboardingAgentService extends BaseService {
             warehouseType: warehouseConnection.type,
             database: connectionDefaults.database,
             schema: connectionDefaults.schema,
-            writesStarterQuestions,
         });
         const sensitiveValues = [patToken, anthropic.apiKey];
 
@@ -1017,29 +857,9 @@ export class OnboardingAgentService extends BaseService {
         return { assistantText, files: knownFiles, usage };
     }
 
-    private async readStarterQuestions(
-        files: DbAgentOnboardingFile[],
-    ): Promise<string[]> {
-        const file = files.find(({ path }) =>
-            STARTER_QUESTIONS_PATH.test(path),
-        );
-        if (!file) return [];
-        try {
-            const contents = await this.fileStore.get(file.s3Key);
-            return parseStarterQuestions(contents.toString('utf8'));
-        } catch (error) {
-            this.logger.warn(
-                `OnboardingAgent: could not read starter questions: ${getErrorMessage(error)}`,
-            );
-            return [];
-        }
-    }
-
     private buildHandoff(
         rawAssistantText: string,
         sensitiveValues: string[],
-        writesStarterQuestions: boolean,
-        starterQuestions: string[],
     ): AgentOnboardingHandoff {
         const siteUrl = this.lightdashConfig.siteUrl.replace(/\/+$/, '');
         const assistantText = sanitizeOnboardingMessage(
@@ -1054,12 +874,7 @@ export class OnboardingAgentService extends BaseService {
         );
         return {
             summary: assistantText.trim() || null,
-            dashboardUrl: writesStarterQuestions
-                ? null
-                : (assistantText.match(urlPattern)?.[0] ?? null),
-            starterQuestions: starterQuestions.map((question) =>
-                sanitizeOnboardingMessage(question, sensitiveValues),
-            ),
+            dashboardUrl: assistantText.match(urlPattern)?.[0] ?? null,
         };
     }
 
@@ -1081,8 +896,6 @@ export class OnboardingAgentService extends BaseService {
         let manager: SandboxManager | null = null;
         let sandbox: { sandboxUuid: string; handle: SandboxHandle } | undefined;
         let cancelled = false;
-        let incompleteOutput = false;
-        let numTurns: number | null = null;
         let stopCancellationPoll = () => {};
         let destroyPromise: Promise<void> | null = null;
 
@@ -1143,7 +956,7 @@ export class OnboardingAgentService extends BaseService {
                 await this.personalAccessTokenService.createPersonalAccessToken(
                     account,
                     {
-                        description: `${ONBOARDING_AGENT_PAT_DESCRIPTION_PREFIX}${run.agent_onboarding_run_uuid}`,
+                        description: `Agent onboarding run ${run.agent_onboarding_run_uuid}`,
                         expiresAt: new Date(
                             Date.now() + RUN_TIMEOUT_MS + PAT_EXPIRY_GRACE_MS,
                         ),
@@ -1189,14 +1002,6 @@ export class OnboardingAgentService extends BaseService {
                 throw new Error('Onboarding run cancelled');
             }
 
-            const { enabled: writesStarterQuestions } =
-                await this.featureFlagModel.get({
-                    user: {
-                        userUuid: run.created_by_user_uuid,
-                        organizationUuid: run.organization_uuid,
-                    },
-                    featureFlagId: FeatureFlags.NewOnboarding,
-                });
             const { assistantText, files, usage } =
                 await this.runAgentInSandbox({
                     run,
@@ -1205,25 +1010,9 @@ export class OnboardingAgentService extends BaseService {
                     anthropic: resolveSandboxAnthropicConfig(
                         this.lightdashConfig,
                     ),
-                    writesStarterQuestions,
                 });
-            numTurns = usage?.numTurns ?? null;
-            const handoff = this.buildHandoff(
-                assistantText,
-                sensitiveValues(),
-                writesStarterQuestions,
-                writesStarterQuestions
-                    ? await this.readStarterQuestions(files)
-                    : [],
-            );
-            if (
-                !hasCompleteOnboardingOutput(files) ||
-                (!writesStarterQuestions && !handoff.dashboardUrl)
-            ) {
-                incompleteOutput = true;
-                this.logger.warn(
-                    `OnboardingAgent: incomplete output (${files.length} files, ${usage?.numTurns ?? 0} turns), last message: ${assistantText.slice(-600)}`,
-                );
+            const handoff = this.buildHandoff(assistantText, sensitiveValues());
+            if (!hasCompleteOnboardingOutput(files) || !handoff.dashboardUrl) {
                 throw new UnexpectedServerError(
                     'The onboarding agent stopped before generating all required project files. Please try again.',
                 );
@@ -1236,31 +1025,15 @@ export class OnboardingAgentService extends BaseService {
                     stage: 'handoff',
                 },
             );
-            if (completed) {
-                await this.trackRunFinished(
-                    run.agent_onboarding_run_uuid,
-                    'completed',
-                    null,
-                    numTurns,
-                );
-            } else {
+            if (!completed) {
                 const current = await this.agentOnboardingRunModel.findByUuid(
                     run.agent_onboarding_run_uuid,
                 );
                 if (current?.cancellation_requested_at) {
                     cancelled = true;
-                    if (
-                        await this.agentOnboardingRunModel.markCancelled(
-                            run.agent_onboarding_run_uuid,
-                        )
-                    ) {
-                        await this.trackRunFinished(
-                            run.agent_onboarding_run_uuid,
-                            'cancelled',
-                            null,
-                            numTurns,
-                        );
-                    }
+                    await this.agentOnboardingRunModel.markCancelled(
+                        run.agent_onboarding_run_uuid,
+                    );
                 }
             }
         } catch (error) {
@@ -1269,18 +1042,9 @@ export class OnboardingAgentService extends BaseService {
                 .catch(() => undefined);
             if (cancelled || current?.cancellation_requested_at) {
                 cancelled = true;
-                if (
-                    await this.agentOnboardingRunModel.markCancelled(
-                        run.agent_onboarding_run_uuid,
-                    )
-                ) {
-                    await this.trackRunFinished(
-                        run.agent_onboarding_run_uuid,
-                        'cancelled',
-                        null,
-                        numTurns,
-                    );
-                }
+                await this.agentOnboardingRunModel.markCancelled(
+                    run.agent_onboarding_run_uuid,
+                );
             } else {
                 const sanitizedMessage = sanitizeOnboardingMessage(
                     getErrorMessage(error),
@@ -1297,28 +1061,10 @@ export class OnboardingAgentService extends BaseService {
                         ? `OnboardingAgent run failed (sandbox connection): ${sanitizedMessage}`
                         : `OnboardingAgent run failed: ${sanitizedMessage}`,
                 );
-                if (
-                    await this.agentOnboardingRunModel.markFailed(
-                        run.agent_onboarding_run_uuid,
-                        message,
-                    )
-                ) {
-                    let failureCategory: OnboardingAgentRunFailureCategory =
-                        'unknown';
-                    if (sandboxConnectionFailure) {
-                        failureCategory = 'sandbox_connection';
-                    } else if (incompleteOutput) {
-                        failureCategory = 'incomplete_output';
-                    } else if (error instanceof SandboxTimeoutError) {
-                        failureCategory = 'timeout';
-                    }
-                    await this.trackRunFinished(
-                        run.agent_onboarding_run_uuid,
-                        'failed',
-                        failureCategory,
-                        numTurns,
-                    );
-                }
+                await this.agentOnboardingRunModel.markFailed(
+                    run.agent_onboarding_run_uuid,
+                    message,
+                );
             }
         } finally {
             stopCancellationPoll();

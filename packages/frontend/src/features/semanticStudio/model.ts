@@ -172,12 +172,6 @@ export const summaryOf = (markdown: string): string => {
     return summary;
 };
 
-/** The groups an explore's fields are in, to pick from when moving one. */
-export const fieldGroups = (fields: Field[]): string[] =>
-    [...new Set(fields.map(({ group }) => group.trim()).filter(Boolean))].sort(
-        (a, b) => a.localeCompare(b),
-    );
-
 // ---------------------------------------------------------------------------
 // Lookups
 
@@ -426,44 +420,6 @@ export const resolveRef = (
     return explores.length === 1
         ? { type: 'explore', exploreId: explores[0].id }
         : ref;
-};
-
-/**
- * What a page lists: its node's children or, for a level the tree folded
- * away, the children of the level that took its place. A page with nothing
- * to list (a live data source with no explores yet) lists nothing.
- */
-export const pageNodes = (
-    project: Project,
-    tree: ProjectTree,
-    ref: NodeRef | null,
-): TreeNode[] => {
-    if (!ref) return tree.nodes;
-    const node = findNode(tree.nodes, nodeKey(ref));
-    if (node) return node.children;
-    const withExplores = project.sources.filter((source) =>
-        project.explores.some(({ sourceId }) => sourceId === source.id),
-    );
-    const foldedAtRoot = !tree.nodes.some(
-        ({ ref: { type } }) => type === 'kind',
-    );
-    if (ref.type === 'kind') {
-        return foldedAtRoot &&
-            withExplores.some(({ kind }) => kind === ref.kind)
-            ? tree.nodes
-            : [];
-    }
-    if (ref.type !== 'source') return [];
-    if (tree.rootSource?.id === ref.sourceId) return tree.nodes;
-    const source = withExplores.find(({ id }) => id === ref.sourceId);
-    if (!source) return [];
-    const siblings = withExplores.filter(({ kind }) => kind === source.kind);
-    const kindNode = findNode(
-        tree.nodes,
-        nodeKey({ type: 'kind', kind: source.kind }),
-    );
-    if (siblings.length === 1 && kindNode) return kindNode.children;
-    return foldedAtRoot && siblings.length === 1 ? tree.nodes : [];
 };
 
 /** Flattens the expanded part of a tree into rows for a virtual list. */

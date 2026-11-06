@@ -47,8 +47,6 @@ export type DbExternalConnection = {
     connection_kind: ExternalConnectionKind;
     // Parsed against the connector schema on read
     api_source: unknown;
-    // Parsed against the scan schema on read
-    api_source_schema: unknown;
     created_by_user_uuid: string | null;
     updated_by_user_uuid: string | null;
     created_at: Date;
@@ -126,7 +124,6 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             oauth_scopes: string | null;
             custom_headers: string | null;
             api_source: string | null;
-            api_source_schema: string | null;
         }
     >
 >;

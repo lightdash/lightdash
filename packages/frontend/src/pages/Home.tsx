@@ -16,7 +16,6 @@ import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAi
 import { AdminHomepageControls } from '../ee/features/homepageBuilder/AdminHomepageControls';
 import { PersonalFavoritesBar } from '../ee/features/homepageBuilder/blocks/FavoritesBlock';
 import { DayOneHomepage } from '../ee/features/homepageBuilder/DayOneHomepage';
-import { useIsNewOnboardingOrg } from '../ee/features/homepageBuilder/hooks/useIsNewOnboardingOrg';
 import {
     useHomepageBuilderFlag,
     useResolvedHomepage,
@@ -68,15 +67,12 @@ const Home: FC = () => {
     });
     const hasPublishedHomepage =
         isHomepageBuilderEnabled && resolvedHomepage.data?.type === 'homepage';
-    // New orgs under new onboarding land on day-0 straight away, with the setup guide under the chat
-    const newOnboardingOrg = useIsNewOnboardingOrg();
 
     // Published blocks handle their own loading; fallback pages need these queries.
     const isLoading =
         onboarding.isInitialLoading ||
         project.isInitialLoading ||
         isHomepageBuilderFlagLoading ||
-        newOnboardingOrg.isLoading ||
         resolvedHomepage.isInitialLoading ||
         (!hasPublishedHomepage &&
             (isMostPopularAndRecentlyUpdatedLoading ||
@@ -156,7 +152,7 @@ const Home: FC = () => {
     } else if (
         isHomepageBuilderEnabled &&
         resolvedHomepage.data === null &&
-        (onboarding.data.ranQuery || newOnboardingOrg.isNewOrg)
+        onboarding.data.ranQuery
     ) {
         body = (
             <Page withFooter noContentPadding>

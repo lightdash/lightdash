@@ -1,4 +1,11 @@
 import {
+    DragDropContext,
+    Draggable,
+    Droppable,
+    type DraggableStateSnapshot,
+    type DropResult,
+} from '@hello-pangea/dnd';
+import {
     CartesianSeriesType,
     createConditionalFormattingConfigWithSingleColor,
     getItemId,
@@ -10,14 +17,15 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
-import { Fragment, useCallback, useMemo, type FC } from 'react';
+import React, { Fragment, useCallback, useMemo, type FC } from 'react';
+import { createPortal } from 'react-dom';
 import {
     getSeriesGroupedByField,
     isPivotSeriesOrderDeterminedByQuery,
     moveSeriesGroup,
     type SeriesGroup,
 } from '../../../../hooks/cartesianChartConfig/utils';
-import { SortableItem, SortableList } from '../../../common/Sortable/Sortable';
+import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import {
     useSeriesColor,
@@ -32,6 +40,18 @@ import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
 import { IncompletePeriodSection } from './IncompletePeriodSection';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';
 import { SeriesDrawOrderBar } from './SeriesDrawOrder';
+
+type DraggablePortalHandlerProps = {
+    snapshot: DraggableStateSnapshot;
+};
+
+const DraggablePortalHandler: FC<
+    React.PropsWithChildren<DraggablePortalHandlerProps>
+> = ({ children, snapshot }) => {
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
+    return <>{children}</>;
+};
 
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
@@ -93,38 +113,21 @@ export const Series: FC<Props> = ({ items }) => {
         [chartConfig, getSeriesColor],
     );
 
-    const groupIds = useMemo(
-        () =>
-            seriesGroupedByField?.map((group) => getSeriesId(group.value[0])) ??
-            [],
-        [seriesGroupedByField],
-    );
-
-    // Groups whose field is missing render without a drag handle
-    const sortableGroupIds = useMemo(
-        () =>
-            groupIds.filter((_id, i) =>
-                items.some(
-                    (item) =>
-                        getItemId(item) ===
-                        seriesGroupedByField?.[i].value[0].encode.yRef.field,
-                ),
-            ),
-        [groupIds, items, seriesGroupedByField],
-    );
-
-    const onReorder = useCallback(
-        (from: number, to: number) => {
+    const onDragEnd = useCallback(
+        (result: DropResult) => {
             if (!seriesGroupedByField) return;
+            if (!result.destination) return;
+            if (result.destination.index === result.source.index) return;
+
             applyGroupOrder(
                 moveSeriesGroup(
                     seriesGroupedByField,
-                    groupIds.indexOf(sortableGroupIds[from]),
-                    groupIds.indexOf(sortableGroupIds[to]),
+                    result.source.index,
+                    result.destination.index,
                 ),
             );
         },
-        [seriesGroupedByField, applyGroupOrder, groupIds, sortableGroupIds],
+        [seriesGroupedByField, applyGroupOrder],
     );
 
     const onReverseOrder = useCallback(() => {
@@ -226,114 +229,153 @@ export const Series: FC<Props> = ({ items }) => {
                     onReverse={onReverseOrder}
                 />
             )}
-            <SortableList items={sortableGroupIds} onReorder={onReorder}>
-                <div>
-                    {seriesGroupedByField?.map((seriesGroup, i) => {
-                        const isGroup = seriesGroup.value.length > 1;
-                        const seriesEntry = seriesGroup.value[0];
-                        const field = items.find(
-                            (item) =>
-                                getItemId(item) ===
-                                seriesEntry.encode.yRef.field,
-                        );
+            <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="results-table-sort-fields">
+                    {(dropProps) => (
+                        <div
+                            {...dropProps.droppableProps}
+                            ref={dropProps.innerRef}
+                        >
+                            {seriesGroupedByField?.map((seriesGroup, i) => {
+                                const isGroup = seriesGroup.value.length > 1;
+                                const seriesEntry = seriesGroup.value[0];
+                                const field = items.find(
+                                    (item) =>
+                                        getItemId(item) ===
+                                        seriesEntry.encode.yRef.field,
+                                );
 
-                        const hasDivider =
-                            seriesGroupedByField.length !== i + 1;
+                                const hasDivider =
+                                    seriesGroupedByField.length !== i + 1;
 
-                        const drawOrder = canReorder
-                            ? {
-                                  isFront:
-                                      i === seriesGroupedByField.length - 1,
-                                  onBringToFront: () => onBringToFront(i),
-                              }
-                            : undefined;
+                                const drawOrder = canReorder
+                                    ? {
+                                          isFront:
+                                              i ===
+                                              seriesGroupedByField.length - 1,
+                                          onBringToFront: () =>
+                                              onBringToFront(i),
+                                      }
+                                    : undefined;
 
-                        if (!field) {
-                            return (
-                                <Fragment key={i}>
-                                    <InvalidSeriesConfiguration
-                                        itemId={seriesEntry.encode.yRef.field}
-                                    />
-                                    {hasDivider && <Divider mt="md" mb="lg" />}
-                                </Fragment>
-                            );
-                        }
+                                if (!field) {
+                                    return (
+                                        <Fragment key={i}>
+                                            <InvalidSeriesConfiguration
+                                                itemId={
+                                                    seriesEntry.encode.yRef
+                                                        .field
+                                                }
+                                            />
+                                            {hasDivider && (
+                                                <Divider mt="md" mb="lg" />
+                                            )}
+                                        </Fragment>
+                                    );
+                                }
 
-                        return (
-                            <SortableItem
-                                key={groupIds[i]}
-                                id={groupIds[i]}
-                                disabled={sortedByPivot}
-                            >
-                                {(sortable) => (
-                                    <div
-                                        ref={sortable.ref}
-                                        className={sortable.className}
-                                        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
-                                        style={sortable.style}
+                                return (
+                                    <Draggable
+                                        key={getSeriesId(seriesEntry)}
+                                        draggableId={getSeriesId(seriesEntry)}
+                                        index={i}
+                                        isDragDisabled={sortedByPivot}
                                     >
-                                        {isGroup ? (
-                                            <GroupedSeriesConfiguration
-                                                item={field}
-                                                items={items}
-                                                layout={dirtyLayout}
-                                                seriesGroup={seriesGroup.value?.filter(
-                                                    (s) => !s.isFilteredOut,
-                                                )}
-                                                updateSingleSeries={
-                                                    updateSingleSeries
-                                                }
-                                                updateAllGroupedSeries={
-                                                    updateAllGroupedSeries
-                                                }
-                                                dragHandleProps={
-                                                    sortable.handleProps
-                                                }
-                                                isDragDisabled={sortedByPivot}
-                                                drawOrder={drawOrder}
-                                                updateSeries={updateSeries}
-                                                getSingleSeries={
-                                                    getSingleSeries
-                                                }
-                                                series={
-                                                    dirtyEchartsConfig?.series?.filter(
-                                                        (s) => !s.isFilteredOut,
-                                                    ) || []
-                                                }
-                                            />
-                                        ) : (
-                                            <BasicSeriesConfiguration
-                                                item={field}
-                                                layout={dirtyLayout}
-                                                isSingle={
-                                                    seriesGroupedByField.length <=
-                                                    1
-                                                }
-                                                series={seriesEntry}
-                                                getSingleSeries={
-                                                    getSingleSeries
-                                                }
-                                                updateSingleSeries={
-                                                    updateSingleSeries
-                                                }
-                                                dragHandleProps={
-                                                    sortable.handleProps
-                                                }
-                                                isDragDisabled={sortedByPivot}
-                                                drawOrder={drawOrder}
-                                                showColorPickerIcon={
-                                                    colorByCategory
-                                                }
-                                            />
+                                        {(
+                                            {
+                                                draggableProps,
+                                                dragHandleProps,
+                                                innerRef,
+                                            },
+                                            snapshot,
+                                        ) => (
+                                            <DraggablePortalHandler
+                                                snapshot={snapshot}
+                                            >
+                                                <div
+                                                    ref={innerRef}
+                                                    {...draggableProps}
+                                                >
+                                                    {isGroup ? (
+                                                        <GroupedSeriesConfiguration
+                                                            item={field}
+                                                            items={items}
+                                                            layout={dirtyLayout}
+                                                            seriesGroup={seriesGroup.value?.filter(
+                                                                (s) =>
+                                                                    !s.isFilteredOut,
+                                                            )}
+                                                            updateSingleSeries={
+                                                                updateSingleSeries
+                                                            }
+                                                            updateAllGroupedSeries={
+                                                                updateAllGroupedSeries
+                                                            }
+                                                            dragHandleProps={
+                                                                dragHandleProps
+                                                            }
+                                                            isDragDisabled={
+                                                                sortedByPivot
+                                                            }
+                                                            drawOrder={
+                                                                drawOrder
+                                                            }
+                                                            updateSeries={
+                                                                updateSeries
+                                                            }
+                                                            getSingleSeries={
+                                                                getSingleSeries
+                                                            }
+                                                            series={
+                                                                dirtyEchartsConfig?.series?.filter(
+                                                                    (s) =>
+                                                                        !s.isFilteredOut,
+                                                                ) || []
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <BasicSeriesConfiguration
+                                                            item={field}
+                                                            layout={dirtyLayout}
+                                                            isSingle={
+                                                                seriesGroupedByField.length <=
+                                                                1
+                                                            }
+                                                            series={seriesEntry}
+                                                            getSingleSeries={
+                                                                getSingleSeries
+                                                            }
+                                                            updateSingleSeries={
+                                                                updateSingleSeries
+                                                            }
+                                                            dragHandleProps={
+                                                                dragHandleProps
+                                                            }
+                                                            isDragDisabled={
+                                                                sortedByPivot
+                                                            }
+                                                            drawOrder={
+                                                                drawOrder
+                                                            }
+                                                            showColorPickerIcon={
+                                                                colorByCategory
+                                                            }
+                                                        />
+                                                    )}
+                                                    {hasDivider && (
+                                                        <Divider my="md" />
+                                                    )}
+                                                </div>
+                                            </DraggablePortalHandler>
                                         )}
-                                        {hasDivider && <Divider my="md" />}
-                                    </div>
-                                )}
-                            </SortableItem>
-                        );
-                    })}
-                </div>
-            </SortableList>
+                                    </Draggable>
+                                );
+                            })}
+                            {dropProps.placeholder}
+                        </div>
+                    )}
+                </Droppable>
+            </DragDropContext>
             {supportsCustomColors && (
                 <Config>
                     <Config.Section>

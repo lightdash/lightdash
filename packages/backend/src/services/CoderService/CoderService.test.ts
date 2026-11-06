@@ -25,7 +25,6 @@ import {
     withTileWarnings,
 } from './dashboardReferences';
 import { getParameterControlsWithIds } from './parameterControlSlugs';
-import { getDashboardWithSectionIds } from './sectionSlugs';
 
 describe('CoderService', () => {
     describe('getMissingIds', () => {
@@ -398,7 +397,6 @@ describe('CoderService', () => {
 
         it('renders a dashboard draft move as the target space slug', async () => {
             const result = await service.getDashboardAsCodeWithOverlay(
-                defaultSessionUser,
                 publishedDashboard.uuid,
                 { spaceUuid: 'draft-space' },
             );
@@ -1906,7 +1904,6 @@ describe('CoderService', () => {
                     dimensions: [
                         {
                             id: 'filter',
-                            sectionId: 'section-id',
                             tileTargets: {
                                 'tile-0': { fieldId: 'f', tableName: 't' },
                             },
@@ -1923,9 +1920,6 @@ describe('CoderService', () => {
                 uuid: 'dashboard-uuid',
                 config: {
                     isDateZoomDisabled: false,
-                    controlSections: [
-                        { id: 'section-id', name: 'Currency comparison' },
-                    ],
                     dateZoomConfig: {
                         controls: [],
                         tileTargets: {
@@ -1939,7 +1933,6 @@ describe('CoderService', () => {
                     parameterControls: [
                         {
                             id: 'region',
-                            sectionId: 'section-id',
                             label: 'Region',
                             value: 'EU',
                             valueType: { type: 'string', multiple: false },
@@ -1958,20 +1951,6 @@ describe('CoderService', () => {
                 dashboard,
                 [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
                 new Map(),
-                true,
-            );
-            expect(exported.config.controlSections).toEqual([
-                { slug: 'currency-comparison', name: 'Currency comparison' },
-            ]);
-            expect(exported.filters.dimensions[0].sectionSlug).toBe(
-                'currency-comparison',
-            );
-            expect(exported.config.parameterControls[0].sectionSlug).toBe(
-                'currency-comparison',
-            );
-            const restoredSections = getDashboardWithSectionIds(
-                exported,
-                dashboard.config as unknown as DashboardDAO['config'],
             );
             const importedTiles = exported.tiles.map(
                 (tile: AnyType, index: number) => ({
@@ -1989,9 +1968,9 @@ describe('CoderService', () => {
             expect(exported.config.parameterControls[0].id).toBeUndefined();
             const imported = getConfigWithParameterControlTileUuids(
                 {
-                    ...restoredSections.config!,
+                    ...exported.config,
                     parameterControls: getParameterControlsWithIds(
-                        restoredSections.config!.parameterControls!,
+                        exported.config.parameterControls,
                         dashboard.config
                             .parameterControls as DashboardParameterControl[],
                     ),

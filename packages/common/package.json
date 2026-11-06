@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "3.168.0",
+  "version": "3.156.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,16 +12,6 @@
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
-  "sideEffects": [
-    "./dist/*/index.js",
-    "./dist/*/utils/formatting.js",
-    "./dist/*/utils/metricsExplorer.js",
-    "./dist/*/visualizations/helpers/tooltipFormatter.js",
-    "./src/index.ts",
-    "./src/utils/formatting.ts",
-    "./src/utils/metricsExplorer.ts",
-    "./src/visualizations/helpers/tooltipFormatter.ts"
-  ],
   "exports": {
     ".": {
       "types": "./dist/esm/index.d.ts",
@@ -94,14 +84,14 @@
     "dependency-graph": "0.11.0",
     "echarts": "5.6.0",
     "es-toolkit": "1.53.1",
-    "handlebars": "4.7.10",
+    "handlebars": "4.7.9",
     "js-yaml": "4.3.2",
     "liquidjs": "10.27.2",
     "moment": "2.29.4",
     "moment-timezone": "0.5.48",
     "numfmt": "3.2.1",
     "pegjs": "0.10.0",
-    "sanitize-html": "2.18.1",
+    "sanitize-html": "2.17.7",
     "sql-formatter": "15.7.3",
     "type-fest": "4.32.0",
     "uuid": "11.1.1",

@@ -1,8 +1,7 @@
-import { FeatureFlags, type PinnedItems } from '@lightdash/common';
+import { type PinnedItems } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { IconClock, IconFlame, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { BlockHeader } from './blocks/BlockShell';
 import { ContentCard } from './blocks/ContentCard';
@@ -113,8 +112,6 @@ const MAX_KEY_SPACES = 4;
 
 export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
     const { opening } = useHomepageOpening(projectUuid);
-    const isNewOnboarding =
-        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
     const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_KEY_SPACES);
     const recent = useRecentContents(projectUuid);
     // Keep the header while loading so the section doesn't pop in under the
@@ -139,7 +136,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                         <AskAiHero
                             projectUuid={projectUuid}
                             showGreeting
-                            showRecommendedActions={isNewOnboarding}
+                            showRecommendedActions={false}
                         />
                     </div>
                 ) : (

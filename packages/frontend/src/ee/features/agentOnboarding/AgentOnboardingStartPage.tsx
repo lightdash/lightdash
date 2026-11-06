@@ -1,4 +1,4 @@
-import { FeatureFlags, isAgentOnboardingRunTerminal } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { Navigate } from 'react-router';
@@ -10,8 +10,6 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { AgentOnboardingLaunchPanel } from './AgentOnboardingLaunchPanel';
-import { useActiveAgentOnboardingRun } from './hooks/useAgentOnboarding';
-import { getAgentOnboardingRunUrl } from './utils';
 
 const AgentOnboardingStartPage: FC = () => {
     const projectUuid = useProjectUuid();
@@ -21,17 +19,11 @@ const AgentOnboardingStartPage: FC = () => {
     const codingAgentOnboardingFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
     );
-    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
-    const activeRun = useActiveAgentOnboardingRun(projectUuid, {
-        enabled: newOnboardingFlag.data?.enabled === true,
-    });
 
     if (
         codingAgentOnboardingFlag.isInitialLoading ||
-        newOnboardingFlag.isInitialLoading ||
         isLoadingProject ||
-        health.isInitialLoading ||
-        activeRun.isInitialLoading
+        health.isInitialLoading
     ) {
         return <PageSpinner />;
     }
@@ -45,21 +37,6 @@ const AgentOnboardingStartPage: FC = () => {
         return (
             <Navigate
                 to={`/generalSettings/projectManagement/${projectUuid}/settings`}
-                replace
-            />
-        );
-    }
-
-    if (
-        activeRun.data &&
-        !isAgentOnboardingRunTerminal(activeRun.data.status)
-    ) {
-        return (
-            <Navigate
-                to={getAgentOnboardingRunUrl(
-                    activeRun.data.agentOnboardingRunUuid,
-                    activeRun.data.projectUuid,
-                )}
                 replace
             />
         );

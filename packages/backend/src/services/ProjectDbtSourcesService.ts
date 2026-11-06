@@ -25,9 +25,11 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
+import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogModel';
 import { GithubAppInstallationsModel } from '../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { logCrossSourceCacheError } from '../projectAdapters/crossSourceCatalogCache';
 import { assertGithubInstallationResolved } from '../projectAdapters/githubAuthorization';
 import { omitDbtEnvironment } from '../utils/dbtProjectConfig';
 import { BaseService } from './BaseService';
@@ -38,6 +40,7 @@ type ProjectDbtSourcesServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
+    dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
@@ -58,6 +61,8 @@ export class ProjectDbtSourcesService extends BaseService {
 
     private readonly analytics: LightdashAnalytics;
 
+    private readonly dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly projectDbtSourcesModel: ProjectDbtSourcesModel;
@@ -71,6 +76,7 @@ export class ProjectDbtSourcesService extends BaseService {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
+        this.dbtSourceRefCatalogModel = args.dbtSourceRefCatalogModel;
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
         this.featureFlagService = args.featureFlagService;
@@ -511,7 +517,38 @@ export class ProjectDbtSourcesService extends BaseService {
                 warehouseLocation,
             },
         );
+        if (
+            data.dbtConnection !== undefined ||
+            data.warehouseLocation !== undefined
+        )
+            await this.invalidateCatalog(
+                account,
+                organizationUuid,
+                projectUuid,
+                projectDbtSourceUuid,
+            );
         return ProjectDbtSourcesService.toSummary(updated);
+    }
+
+    private async invalidateCatalog(
+        account: Account,
+        organizationUuid: string,
+        projectUuid: string,
+        dbtSourceUuid: string,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagService.get({
+            user: { userUuid: account.user.id, organizationUuid },
+            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+        });
+        if (!enabled) return;
+        try {
+            await this.dbtSourceRefCatalogModel.deleteForSource(
+                projectUuid,
+                dbtSourceUuid,
+            );
+        } catch (error) {
+            logCrossSourceCacheError(error);
+        }
     }
 
     async deleteProjectDbtSource(
@@ -534,6 +571,12 @@ export class ProjectDbtSourcesService extends BaseService {
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         await this.projectDbtSourcesModel.deleteSource(projectDbtSourceUuid);
+        await this.invalidateCatalog(
+            account,
+            organizationUuid,
+            projectUuid,
+            projectDbtSourceUuid,
+        );
         this.analytics.track({
             event: 'dbt_source_removed',
             userId: account.user?.id,

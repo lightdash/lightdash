@@ -24,8 +24,9 @@ import {
     IconFilePencil,
     IconGitFork,
     IconHammer,
-    IconPlus,
+    IconPackage,
     IconSearch,
+    type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
@@ -33,18 +34,15 @@ import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import ChartTypeForkModal from '../../../features/chartTypes/components/ChartTypeForkModal';
-import ChartTypeLibraryModal from '../../../features/chartTypes/components/ChartTypeLibraryModal';
 import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
-import { useRegistryChartTypes } from '../../../features/chartTypes/hooks/useRegistryChartTypes';
 import {
     explorerActions,
     useExplorerDispatch,
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useTracking from '../../../providers/Tracking/useTracking';
-import Bolt from '../../../svgs/grey-icon-logo.svg?react';
 import { EventName } from '../../../types/Events';
 import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import InlineErrorState from '../../common/InlineErrorState';
@@ -67,9 +65,15 @@ import {
 /** Where a project chart type came from; built-ins carry none. */
 export type ChartTypeProvenance = 'official' | 'custom';
 
-const PROVENANCE: Record<ChartTypeProvenance, { description: string }> = {
-    official: { description: 'Built by Lightdash' },
-    custom: { description: 'Custom chart type, built by your team' },
+const PROVENANCE: Record<
+    ChartTypeProvenance,
+    { icon: TablerIcon; description: string }
+> = {
+    official: { icon: IconPackage, description: 'Built by Lightdash' },
+    custom: {
+        icon: IconHammer,
+        description: 'Custom chart type, built by your team',
+    },
 };
 
 /** The provenance icon in its colour, shared by the tile mark and the Add menu. */
@@ -82,11 +86,11 @@ export const ProvenanceGlyph: FC<{
         className={classes.provenanceGlyph}
         data-provenance={provenance}
     >
-        {provenance === 'official' ? (
-            <Bolt width={size} height={size} />
-        ) : (
-            <MantineIcon icon={IconHammer} size={size} stroke={1.5} />
-        )}
+        <MantineIcon
+            icon={PROVENANCE[provenance].icon}
+            size={size}
+            stroke={1.5}
+        />
     </Box>
 );
 
@@ -321,8 +325,6 @@ type GalleryProps = {
     loadingMore: boolean;
     /** Why nothing here can be picked; null while the gallery is usable. */
     disabledReason: string | null;
-    /** Opens the chart type library; null hides the tile. */
-    onBrowseLibrary: (() => void) | null;
 };
 
 export const ChartTypeGallery: FC<GalleryProps> = ({
@@ -337,7 +339,6 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
     moreCount,
     loadingMore,
     disabledReason,
-    onBrowseLibrary,
 }) => {
     const gridRef = useRef<HTMLDivElement | null>(null);
     const pendingFocusKeys = useRef<Set<string> | null>(null);
@@ -464,30 +465,6 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                                 </Text>
                             </UnstyledButton>
                         ) : null}
-                        {onBrowseLibrary !== null ? (
-                            <UnstyledButton
-                                className={clsx(classes.card, classes.moreCard)}
-                                onClick={onBrowseLibrary}
-                            >
-                                <Box className={classes.cardIcon}>
-                                    <MantineIcon
-                                        className={classes.icon}
-                                        icon={IconPlus}
-                                        size="xl"
-                                        stroke={1.5}
-                                        color="dimmed"
-                                    />
-                                </Box>
-                                <Text
-                                    className={classes.cardLabel}
-                                    fz="xs"
-                                    fw={500}
-                                    lh={1.2}
-                                >
-                                    More chart types
-                                </Text>
-                            </UnstyledButton>
-                        ) : null}
                     </Box>
 
                     {loading ? (
@@ -567,16 +544,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const isVegaEditorAvailable = useIsVegaEditorAvailable();
     const isEmbedded = useIsEmbedded();
     const [forkTarget, setForkTarget] = useState<DataAppViz | null>(null);
-    const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-    const libraryAvailable = chartTypesEnabled && !isEmbedded;
-    const { data: registry } = useRegistryChartTypes(
-        projectUuid,
-        libraryAvailable,
-    );
-    const hasInstallableTypes =
-        libraryAvailable &&
-        registry?.registryEnabled === true &&
-        registry.charts.some(({ state }) => state === 'not_installed');
 
     const projectTypes = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
@@ -716,11 +683,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     disabledReason={
                         disabled ? 'Run your query to pick a chart type.' : null
                     }
-                    onBrowseLibrary={
-                        hasInstallableTypes && projectUuid !== undefined
-                            ? () => setIsLibraryOpen(true)
-                            : null
-                    }
                 />
                 {chartTypesEnabled &&
                 selectedProjectUuid !== null &&
@@ -760,14 +722,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                             }),
                         );
                     }}
-                />
-            ) : null}
-            {isLibraryOpen && projectUuid !== undefined ? (
-                <ChartTypeLibraryModal
-                    projectUuid={projectUuid}
-                    onClose={() => setIsLibraryOpen(false)}
-                    // The install invalidates the picker's list, so the new type shows up here.
-                    onInstalled={() => setIsLibraryOpen(false)}
                 />
             ) : null}
         </>

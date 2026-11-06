@@ -6,7 +6,6 @@ import FilterFacet, {
 } from '../../../../components/common/FilterFacet';
 import { useExplores } from '../../../../hooks/useExplores';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
-import { useMetricTables } from '../../hooks/useMetricTables';
 
 type TableFilterProps = {
     selectedTables: string[];
@@ -22,25 +21,17 @@ const TableFilter: FC<TableFilterProps> = ({
     );
     const [searchValue, setSearchValue] = useState('');
 
-    const { data: explores, isLoading: isLoadingExplores } = useExplores(
-        projectUuid,
-        true,
-    );
-    const { data: metricTables, isLoading: isLoadingMetricTables } =
-        useMetricTables({ projectUuid });
-    const isLoading = isLoadingExplores || isLoadingMetricTables;
+    const { data: explores, isLoading } = useExplores(projectUuid, true);
 
     const tables = useMemo(() => {
-        if (!explores || !metricTables) return [];
-        const metricTableNames = new Set(metricTables);
+        if (!explores) return [];
         return explores
             .filter(
                 (explore): explore is SummaryExplore =>
-                    !isSummaryExploreError(explore) &&
-                    metricTableNames.has(explore.name),
+                    !isSummaryExploreError(explore),
             )
             .sort((a, b) => a.label.localeCompare(b.label));
-    }, [explores, metricTables]);
+    }, [explores]);
 
     const options = useMemo<FilterFacetOption[]>(() => {
         const search = searchValue.trim().toLowerCase();

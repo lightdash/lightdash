@@ -2,8 +2,8 @@ import { configDefaults, defineConfig } from 'vitest/config';
 
 // Files that mutate state every other file reads through: the seed project's
 // data timezone and embed config (secret + allowed dashboards), the admin
-// user's timezone and attributes, the seed project's results cache setting,
-// and the seeded dashboard. They run one at a time, after the parallel group has finished.
+// user's timezone and attributes, the org results cache flag, and the seeded
+// dashboard. They run one at a time, after the parallel group has finished.
 const serialFiles = [
     'tests/aiAgentMarkerPostgres.test.ts',
     'tests/agentConnectSnowflakeStub.test.ts',

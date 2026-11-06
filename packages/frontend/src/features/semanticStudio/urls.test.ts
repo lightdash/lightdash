@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type NodeRef } from './model';
 import {
-    getLiveDataSourcesRedirectUrl,
     getSemanticStudioSourceUrl,
     getSemanticStudioUrl,
     parseSemanticStudioPath,
@@ -71,34 +70,5 @@ describe('Semantic Layer URLs', () => {
         } else {
             expect(ref).toBeNull();
         }
-    });
-
-    describe('old Settings › Live data sources links', () => {
-        it.each([
-            ['', '', '/projects/p/semantic-layer/kinds/live'],
-            ['/', '', '/projects/p/semantic-layer/kinds/live'],
-            [
-                '',
-                '?connected=c-1',
-                '/projects/p/semantic-layer/kinds/live?connected=c-1',
-            ],
-            [
-                '',
-                '?pickGoogleSource=true',
-                '/projects/p/semantic-layer/kinds/live?pickGoogleSource=true',
-            ],
-            [
-                '',
-                '?signInError=denied',
-                '/projects/p/semantic-layer/kinds/live?signInError=denied',
-            ],
-            ['', '?add=true', '/projects/p/semantic-layer/kinds/live?add=true'],
-            ['c-1', '', '/projects/p/semantic-layer/sources/c-1'],
-            ['c-1/fields', '', '/projects/p/semantic-layer/sources/c-1'],
-        ])('%s%s opens %s', (rest, search, expected) => {
-            expect(getLiveDataSourcesRedirectUrl('p', rest, search)).toBe(
-                expected,
-            );
-        });
     });
 });

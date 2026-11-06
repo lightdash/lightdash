@@ -10,8 +10,8 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { type LightdashApi } from '../../../../api';
+import { useAiAccessGate } from '../../../../features/aiAccess/useAiAccessGate';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
-import { useAmbientAiEnabled } from './useAmbientAiEnabled';
 
 // 5 second timeout for AI metadata generation - anything longer is too disruptive
 const METADATA_GENERATION_TIMEOUT_MS = 6000;
@@ -52,7 +52,7 @@ export const useGenerateChartMetadata = ({
     onComplete,
 }: UseGenerateChartMetadataOptions) => {
     const lightdashApi = useLightdashApi();
-    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
+    const { disabled: accessDisabled } = useAiAccessGate(projectUuid);
     const [generatedMetadata, setGeneratedMetadata] =
         useState<ChartMetadata | null>(null);
 
@@ -139,7 +139,7 @@ export const useGenerateChartMetadata = ({
 
     // Trigger AI metadata generation
     const trigger = useCallback(() => {
-        if (!isAmbientAiEnabled || !projectUuid || !itemsMap) return;
+        if (accessDisabled || !projectUuid || !itemsMap) return;
 
         // Skip if we already generated for this exact chart state
         if (lastGeneratedForKey.current === chartStateKey) return;
@@ -183,7 +183,7 @@ export const useGenerateChartMetadata = ({
                 : undefined,
         });
     }, [
-        isAmbientAiEnabled,
+        accessDisabled,
         projectUuid,
         itemsMap,
         chartStateKey,

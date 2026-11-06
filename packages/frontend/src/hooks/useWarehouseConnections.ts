@@ -1,6 +1,5 @@
 import {
     FeatureFlags,
-    isApiError,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
     type ApiCreateWarehouseConnectionRequest,
     type ApiError,
@@ -26,10 +25,6 @@ export type ProjectWarehouseConnections = {
     capabilities: WarehouseConnectionCapabilities;
 };
 
-export type ProjectWarehouseConnectionsMode =
-    | { mode: 'single' }
-    | ({ mode: 'multiple' } & ProjectWarehouseConnections);
-
 export type NameConflictHandler = (message: string) => void;
 
 const isNameConflict = (error: ApiError['error']) =>
@@ -40,12 +35,7 @@ export const isSingleConnectionProject = (error: ApiError | null) =>
     error?.error.name === 'SingleConnectionProjectError';
 
 export const hidesConnectionsPanel = (error: ApiError | null) =>
-    error?.error.name === 'ForbiddenError';
-
-const isSingleConnectionAnswer = (error: unknown) =>
-    isApiError(error) &&
-    error.error.statusCode === 409 &&
-    isSingleConnectionProject(error);
+    isSingleConnectionProject(error) || error?.error.name === 'ForbiddenError';
 
 const connectionsQueryKey = (projectUuid: string) => [
     'projects',
@@ -72,25 +62,14 @@ export const useWarehouseConnections = (projectUuid: string) => {
         FeatureFlags.MultiConnectionProjects,
     );
     const isEnabled = flag?.enabled === true;
-    const query = useQuery<ProjectWarehouseConnectionsMode, ApiError>({
+    const query = useQuery<ProjectWarehouseConnections, ApiError>({
         queryKey: connectionsQueryKey(projectUuid),
-        queryFn: async () => {
-            try {
-                const listing = await lightdashApi<ProjectWarehouseConnections>(
-                    {
-                        url: connectionsUrl(projectUuid),
-                        method: 'GET',
-                        body: undefined,
-                    },
-                );
-                return { mode: 'multiple', ...listing };
-            } catch (error) {
-                if (isSingleConnectionAnswer(error)) {
-                    return { mode: 'single' };
-                }
-                throw error;
-            }
-        },
+        queryFn: () =>
+            lightdashApi<ProjectWarehouseConnections>({
+                url: connectionsUrl(projectUuid),
+                method: 'GET',
+                body: undefined,
+            }),
         enabled: isEnabled,
         retry: false,
     });

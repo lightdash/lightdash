@@ -46,7 +46,6 @@ export type DbProject = {
     expires_at: Date | null;
     default_preview_expiration_hours: number;
     max_preview_expiration_hours: number;
-    results_cache_enabled: boolean;
     results_cache_ttl_seconds: number | null;
     results_cache_generation: number;
     results_cache_invalidated_at: Date | null;
@@ -73,8 +72,6 @@ type CreateDbProject = Pick<
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
     query_timezone?: string | null;
     use_project_timezone_in_filters?: boolean; // On create it will default to false as per migration
-    results_cache_enabled?: boolean;
-    results_cache_ttl_seconds?: number | null;
     provisioning_source?: string | null;
 };
 type UpdateDbProject = Partial<
@@ -102,7 +99,6 @@ type UpdateDbProject = Partial<
         | 'expires_at'
         | 'default_preview_expiration_hours'
         | 'max_preview_expiration_hours'
-        | 'results_cache_enabled'
         | 'results_cache_ttl_seconds'
         | 'results_cache_generation'
         | 'results_cache_invalidated_at'

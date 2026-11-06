@@ -1,6 +1,7 @@
 import {
     ChartType,
     DashboardTileTypes,
+    FeatureFlags,
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MIN_RESULTS_CACHE_TTL_SECONDS,
     QueryExecutionContext,
@@ -12,21 +13,15 @@ import {
     type Dashboard,
     type ResultsCacheInvalidation,
     type ResultsCacheProjectSettings,
-    type ResultsCacheStatus,
     type SavedChart,
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, type Body } from '../helpers/api-client';
-import {
-    login,
-    loginAsEditor,
-    loginAsViewer,
-    loginWithPermissions,
-} from '../helpers/auth';
+import { login, loginAsEditor, loginAsViewer } from '../helpers/auth';
 import { pollUntil } from '../helpers/polling';
 
 const settingsUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/results-cache-config`;
-const statusUrl = `${settingsUrl}/status`;
+const flagOverrideUrl = `/api/v2/feature-flag/${FeatureFlags.ResultsCacheEnabled}`;
 const invalidateUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/results-cache/invalidate`;
 const metricQueryUrl = `/api/v2/projects/${SEED_PROJECT.project_uuid}/query/metric-query`;
 
@@ -37,14 +32,13 @@ describe('Project results cache settings', () => {
     beforeAll(async () => {
         admin = await login();
         viewer = await loginAsViewer();
-        await admin.patch(settingsUrl, { cacheEnabled: true });
+        // PATCH is gated on results caching; enable it for the org
+        await admin.post(flagOverrideUrl, { enabled: true });
     });
 
     afterAll(async () => {
-        await admin.patch(settingsUrl, {
-            cacheEnabled: false,
-            cacheTtlSeconds: null,
-        });
+        await admin.patch(settingsUrl, { cacheTtlSeconds: null });
+        await admin.delete(flagOverrideUrl);
     });
 
     it('defaults to the instance TTL', async () => {
@@ -53,77 +47,10 @@ describe('Project results cache settings', () => {
         expect(resp.status).toBe(200);
         expect(resp.body.results).toMatchObject({
             projectUuid: SEED_PROJECT.project_uuid,
-            cacheEnabled: true,
-            cacheEnabledSetByInstance: false,
             cacheTtlSeconds: null,
             instanceDefaultTtlSeconds: expect.any(Number),
         });
         expect(resp.body.results.instanceDefaultTtlSeconds).toBeGreaterThan(0);
-    });
-
-    it('turns caching off and on, and shows the status to viewers', async () => {
-        const off = await admin.patch<Body<ResultsCacheProjectSettings>>(
-            settingsUrl,
-            { cacheEnabled: false },
-        );
-        expect(off.status).toBe(200);
-        expect(off.body.results.cacheEnabled).toBe(false);
-        const offStatus = await viewer.get<Body<ResultsCacheStatus>>(statusUrl);
-        expect(offStatus.status).toBe(200);
-        expect(offStatus.body.results).toEqual({ enabled: false });
-
-        const on = await admin.patch<Body<ResultsCacheProjectSettings>>(
-            settingsUrl,
-            { cacheEnabled: true },
-        );
-        expect(on.body.results.cacheEnabled).toBe(true);
-        const onStatus = await viewer.get<Body<ResultsCacheStatus>>(statusUrl);
-        expect(onStatus.body.results).toEqual({ enabled: true });
-    });
-
-    it('rejects an update with no settings', async () => {
-        const resp = await admin.patch(
-            settingsUrl,
-            {},
-            { failOnStatusCode: false },
-        );
-        expect(resp.status).toBe(400);
-    });
-
-    it('rejects a null cacheEnabled instead of treating it as false', async () => {
-        const resp = await admin.patch(
-            settingsUrl,
-            { cacheEnabled: null },
-            { failOnStatusCode: false },
-        );
-        expect(resp.status).toBe(400);
-        const settings =
-            await admin.get<Body<ResultsCacheProjectSettings>>(settingsUrl);
-        expect(settings.body.results.cacheEnabled).toBe(true);
-    });
-
-    it('lets project developers change the TTL but not turn caching off or clear it', async () => {
-        const { client: developer } = await loginWithPermissions('member', [
-            { role: 'developer', projectUuid: SEED_PROJECT.project_uuid },
-        ]);
-        const toggle = await developer.patch(
-            settingsUrl,
-            { cacheEnabled: false },
-            { failOnStatusCode: false },
-        );
-        expect(toggle.status).toBe(403);
-
-        const ttl = await developer.patch<Body<ResultsCacheProjectSettings>>(
-            settingsUrl,
-            { cacheTtlSeconds: null },
-        );
-        expect(ttl.status).toBe(200);
-        expect(ttl.body.results.cacheEnabled).toBe(true);
-
-        const clear = await developer.post(invalidateUrl, undefined, {
-            failOnStatusCode: false,
-        });
-        expect(clear.status).toBe(403);
     });
 
     it('persists a project TTL and clears it back to the default', async () => {
@@ -223,17 +150,6 @@ describe('Project results cache settings', () => {
             expect(settings.body.results.lastInvalidatedAt).toBe(
                 resp.body.results.invalidatedAt,
             );
-        });
-
-        it('runs fresh after caching is turned off and on again', async () => {
-            await runQuery();
-            expect((await runQuery()).cacheHit).toBe(true);
-
-            await admin.patch(settingsUrl, { cacheEnabled: false });
-            await admin.patch(settingsUrl, { cacheEnabled: true });
-
-            expect((await runQuery()).cacheHit).toBe(false);
-            expect((await runQuery()).cacheHit).toBe(true);
         });
 
         it('keeps results that were already returned readable', async () => {

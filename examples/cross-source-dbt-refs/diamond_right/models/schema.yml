@@ -1,0 +1,20 @@
+version: 2
+models:
+  - name: right_days
+    access: public
+    config:
+      meta:
+        primary_key: calendar_date
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.calendar_date
+    columns:
+      - name: calendar_date
+        meta:
+          dimension:
+            type: date
+      - name: calendar_year
+        meta:
+          dimension:
+            type: number

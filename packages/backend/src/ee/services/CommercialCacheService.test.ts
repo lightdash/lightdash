@@ -10,13 +10,10 @@ import { CommercialCacheService } from './CommercialCacheService';
 const makeService = (
     resultsUpdatedAt: Date,
     effectiveTtlSeconds: number = 24 * 60 * 60,
-    cacheEnabled: boolean = true,
 ) => {
-    const getResultsCacheState = vi.fn().mockResolvedValue({
-        enabled: cacheEnabled,
-        cacheGeneration: 0,
-        ttlSeconds: effectiveTtlSeconds,
-    });
+    const getEffectiveResultsCacheTtlSeconds = vi
+        .fn()
+        .mockResolvedValue(effectiveTtlSeconds);
     const candidate = {
         cacheKey: 'cache-key',
         resultsFileName: 'results.jsonl',
@@ -31,8 +28,8 @@ const makeService = (
         resultProducer: null as QueryResultProducer | null,
     };
     const findMostRecentByCacheKey = vi.fn(async () => candidate);
-    const getFlag = vi.fn(async (_args: { featureFlagId: string }) => ({
-        enabled: false,
+    const getFlag = vi.fn(async ({ featureFlagId }) => ({
+        enabled: featureFlagId === FeatureFlags.ResultsCacheEnabled,
     }));
     const config = {
         ...lightdashConfigMock,
@@ -41,7 +38,7 @@ const makeService = (
     const service = new CommercialCacheService({
         lightdashConfig: config,
         queryHistoryModel: { findMostRecentByCacheKey } as never,
-        projectModel: { getResultsCacheState } as never,
+        projectModel: { getEffectiveResultsCacheTtlSeconds } as never,
         storageClient: {} as never,
         featureFlagModel: {
             get: getFlag,
@@ -49,7 +46,7 @@ const makeService = (
     });
     return {
         service,
-        getResultsCacheState,
+        getEffectiveResultsCacheTtlSeconds,
         candidate,
         findMostRecentByCacheKey,
         getFlag,
@@ -247,15 +244,15 @@ describe('CommercialCacheService', () => {
             lightdashConfig,
             queryHistoryModel: { findMostRecentByCacheKey } as never,
             projectModel: {
-                getResultsCacheState: vi.fn().mockResolvedValue({
-                    enabled: true,
-                    cacheGeneration: 0,
-                    ttlSeconds: 3600,
-                }),
+                getEffectiveResultsCacheTtlSeconds: vi
+                    .fn()
+                    .mockResolvedValue(3600),
             } as never,
             storageClient: {} as never,
             featureFlagModel: {
-                get: vi.fn(async () => ({ enabled: false })),
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    enabled: featureFlagId === FeatureFlags.ResultsCacheEnabled,
+                })),
             } as never,
         });
         await service.findCachedResultsFile('project', 'cache', {
@@ -302,7 +299,7 @@ describe('CommercialCacheService', () => {
     });
 
     it('resolves the TTL for the requested project', async () => {
-        const { service, getResultsCacheState } = makeService(
+        const { service, getEffectiveResultsCacheTtlSeconds } = makeService(
             new Date('2026-07-31T11:00:00.000Z'),
         );
 
@@ -310,7 +307,9 @@ describe('CommercialCacheService', () => {
             userUuid: 'user-uuid',
         });
 
-        expect(getResultsCacheState).toHaveBeenCalledWith('project-uuid');
+        expect(getEffectiveResultsCacheTtlSeconds).toHaveBeenCalledWith(
+            'project-uuid',
+        );
     });
 
     it('uses a shorter project TTL to expire results the instance default would keep', async () => {
@@ -341,27 +340,6 @@ describe('CommercialCacheService', () => {
         ).resolves.toMatchObject({
             cacheHit: true,
             expiresAt: new Date('2026-07-31T13:00:00.000Z'),
-        });
-    });
-
-    describe('project results cache setting', () => {
-        const freshResults = new Date('2026-07-31T11:00:00.000Z');
-        const lookup = (service: CommercialCacheService) =>
-            service.findCachedResultsFile('project', 'cache', {
-                userUuid: 'reader',
-            });
-
-        it('skips the cache when results caching is off', async () => {
-            const f = makeService(freshResults, undefined, false);
-            await expect(lookup(f.service)).resolves.toBeNull();
-            expect(f.findMostRecentByCacheKey).not.toHaveBeenCalled();
-        });
-
-        it('serves cached results when results caching is on', async () => {
-            const f = makeService(freshResults, undefined, true);
-            await expect(lookup(f.service)).resolves.toMatchObject({
-                cacheHit: true,
-            });
         });
     });
 });

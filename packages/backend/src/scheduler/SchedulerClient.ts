@@ -1575,34 +1575,6 @@ export class SchedulerClient {
         return { jobId };
     }
 
-    async warmWarehouseTablesCache(payload: TraceTaskBase) {
-        const graphileClient = await this.graphileUtils;
-        const now = new Date();
-        const jobId = await SchedulerClient.addJob(
-            graphileClient,
-            SCHEDULER_TASKS.WARM_WAREHOUSE_TABLES_CACHE,
-            payload,
-            now,
-            JobPriority.LOW,
-            1,
-        );
-
-        await this.schedulerModel.logSchedulerJob({
-            task: SCHEDULER_TASKS.WARM_WAREHOUSE_TABLES_CACHE,
-            jobId,
-            scheduledTime: now,
-            status: SchedulerJobStatus.SCHEDULED,
-            details: {
-                userUuid: payload.userUuid,
-                organizationUuid: payload.organizationUuid,
-                projectUuid: payload.projectUuid,
-                createdByUserUuid: payload.userUuid,
-            },
-        });
-
-        return { jobId };
-    }
-
     async backfillDefaultUserSpaces(payload: BackfillDefaultUserSpacesPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();

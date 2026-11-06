@@ -895,70 +895,6 @@ describe('AppGenerateService.installRegistryChartType', () => {
     });
 });
 
-describe('AppGenerateService.installStarterChartTypes', () => {
-    it('installs starter slugs not yet installed and keeps going past a failed one', async () => {
-        const sourceTar = await buildTar([
-            { name: 'src/App.tsx', content: 'x' },
-        ]);
-        const distTar = await buildTar([
-            { name: 'dist/index.html', content: '<html/>' },
-        ]);
-        const heatmap = makeEntry({ slug: 'heatmap', name: 'Heatmap' });
-        const boxplot = makeEntry({ slug: 'boxplot', name: 'Boxplot' });
-        const radar = makeEntry({ slug: 'radar-chart', name: 'Radar' });
-        const createWithVersion = vi.fn().mockResolvedValue(undefined);
-        const svc = buildService({
-            appModel: {
-                listRegistryInstalledApps: vi
-                    .fn()
-                    .mockResolvedValue([{ registry_slug: 'radar-chart' }]),
-                createWithVersion,
-            },
-            chartRegistryClient: {
-                getIndex: vi
-                    .fn()
-                    .mockResolvedValue(
-                        makeIndex([boxplot, heatmap, radar, SANKEY_ENTRY]),
-                    ),
-                downloadArtifact: vi
-                    .fn()
-                    .mockImplementation(
-                        (entry: ChartRegistryEntry, kind: 'source' | 'dist') =>
-                            entry.slug === 'boxplot'
-                                ? Promise.reject(new Error('offline'))
-                                : Promise.resolve(
-                                      kind === 'source' ? sourceTar : distTar,
-                                  ),
-                    ),
-            },
-            s3ClientOverride: makeFakeS3(),
-        });
-
-        const result = await svc.installStarterChartTypes(
-            fakeUser,
-            PROJECT_UUID,
-        );
-
-        expect(result.installedSlugs).toEqual(['heatmap']);
-        expect(createWithVersion).toHaveBeenCalledTimes(1);
-    });
-
-    it('installs nothing when no chart type library is configured', async () => {
-        const getIndex = vi.fn();
-        const svc = buildService({
-            chartRegistryClient: { isEnabled: () => false, getIndex },
-        });
-
-        const result = await svc.installStarterChartTypes(
-            fakeUser,
-            PROJECT_UUID,
-        );
-
-        expect(result.installedSlugs).toEqual([]);
-        expect(getIndex).not.toHaveBeenCalled();
-    });
-});
-
 describe('reinstall revives a soft-deleted install', () => {
     it('revives at the current registry version without downloading', async () => {
         const restore = vi.fn().mockResolvedValue(undefined);
@@ -1206,7 +1142,9 @@ describe('upgradeConsumingCharts sweep', () => {
     });
 });
 
-describe('AppGenerateService registry without data apps', () => {
+describe('AppGenerateService registry feature-flag gates', () => {
+    // The library follows the ChartTypeRegistry flag alone: a customer
+    // without data apps can still browse and install chart types.
     it('listRegistryChartTypes works with EnableDataApps disabled', async () => {
         const svc = buildService({
             featureFlags: { [FeatureFlags.EnableDataApps]: false },
@@ -1215,6 +1153,16 @@ describe('AppGenerateService registry without data apps', () => {
         const result = await svc.listRegistryChartTypes(fakeUser, PROJECT_UUID);
 
         expect(result.registryEnabled).toBe(true);
+    });
+
+    it('listRegistryChartTypes throws ForbiddenError when ChartTypeRegistry is disabled', async () => {
+        const svc = buildService({
+            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+        });
+
+        await expect(
+            svc.listRegistryChartTypes(fakeUser, PROJECT_UUID),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     it('installRegistryChartType works with EnableDataApps disabled', async () => {
@@ -1250,6 +1198,16 @@ describe('AppGenerateService registry without data apps', () => {
         );
 
         expect(result.action).toBe('installed');
+    });
+
+    it('installRegistryChartType throws ForbiddenError when ChartTypeRegistry is disabled', async () => {
+        const svc = buildService({
+            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+        });
+
+        await expect(
+            svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),
+        ).rejects.toThrow(ForbiddenError);
     });
 });
 
@@ -1313,6 +1271,16 @@ describe('AppGenerateService.getRegistryAsset', () => {
         await expect(
             svc.getRegistryAsset(fakeUser, 'sankey/1.3.0/thumb.png'),
         ).resolves.toBe(asset);
+    });
+
+    it('throws ForbiddenError when ChartTypeRegistry is disabled', async () => {
+        const svc = buildService({
+            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+        });
+
+        await expect(
+            svc.getRegistryAsset(fakeUser, 'sankey/1.3.0/thumb.png'),
+        ).rejects.toThrow(ForbiddenError);
     });
 });
 
@@ -1557,6 +1525,19 @@ describe('importAppCode with registry provenance', () => {
         const outcome = await callHelper(svc, toUploadFiles(SRC));
         expect(outcome.kind).toBe('fallthrough');
         expect(outcome.warning).toMatch(/already exists/);
+    });
+
+    it('rejects when the chart type library is disabled', async () => {
+        const { svc } = await setup({
+            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+        });
+        await expect(
+            svc.importAppCode(
+                fakeUser,
+                PROJECT_UUID,
+                makeBody(toUploadFiles(SRC)),
+            ),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     it('rejects a bundle from a different registry', async () => {

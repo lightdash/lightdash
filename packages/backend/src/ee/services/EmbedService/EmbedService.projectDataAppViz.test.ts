@@ -1,6 +1,7 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     applyEmbeddedAbility,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     type AnonymousAccount,
@@ -187,6 +188,55 @@ describe('EmbedService project chart types', () => {
             ),
         ).rejects.toThrow('Project mismatch');
     });
+
+    it.each([
+        [true, false, false],
+        [false, false, false],
+    ])(
+        'resolves Chart Studio=%s, library=%s, data apps=%s for the embed organization',
+        async (chartStudio, library, dataApps) => {
+            const featureFlagModel = {
+                get: vi.fn().mockImplementation(async ({ featureFlagId }) => ({
+                    enabled:
+                        (featureFlagId === FeatureFlags.ChartTypeRegistry &&
+                            library) ||
+                        (featureFlagId === FeatureFlags.EnableDataApps &&
+                            dataApps),
+                })),
+            };
+            const list = vi
+                .fn()
+                .mockResolvedValue({ data: [], pagination: undefined });
+            const service = buildService({
+                appModel: { listDataAppVisualizations: list },
+                featureFlagModel,
+                chartStudioAvailable: chartStudio,
+            });
+            const result = service.listEmbedProjectDataAppVisualizations(
+                account(),
+                PROJECT_UUID,
+            );
+            if (chartStudio || library || dataApps)
+                await expect(result).resolves.toMatchObject({ data: [] });
+            else {
+                await expect(result).rejects.toThrow(
+                    'Chart types are not enabled',
+                );
+                expect(list).not.toHaveBeenCalled();
+            }
+            if (chartStudio) {
+                expect(featureFlagModel.get).not.toHaveBeenCalled();
+            } else {
+                expect(featureFlagModel.get).toHaveBeenCalledWith({
+                    user: {
+                        userUuid: 'embed-user-1',
+                        organizationUuid: ORGANIZATION_UUID,
+                    },
+                    featureFlagId: FeatureFlags.ChartTypeRegistry,
+                });
+            }
+        },
+    );
 
     it.each(['schema', 'metadata', 'preview'] as const)(
         'rejects %s access before reading chart types when Explore is denied',

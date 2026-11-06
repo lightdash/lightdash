@@ -1,51 +1,18 @@
 .page {
-    min-height: calc(100dvh - var(--navbar-height));
-    margin: calc(-1 * var(--mantine-spacing-md));
-    padding: var(--mantine-spacing-lg) var(--mantine-spacing-md) rem(80px);
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--navbar-height));
     background: var(--ld-color-page);
 }
 
-/* Page pads by sm below sm, so cancel only that much or the page scrolls sideways */
-@media (max-width: $mantine-breakpoint-sm) {
-    .page {
-        margin: calc(-1 * var(--mantine-spacing-sm));
-    }
-}
-
-.column {
+.content {
     display: flex;
+    flex: 1;
     flex-direction: column;
-    gap: var(--mantine-spacing-lg);
     width: 100%;
-    max-width: rem(880px);
+    min-height: 0;
+    max-width: var(--page-content-max-width-large, 1440px);
     margin: 0 auto;
-}
-
-.header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--mantine-spacing-sm) var(--mantine-spacing-md);
-}
-
-.headerText {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.title {
-    font-size: rem(20px);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.15;
-}
-
-.pill {
-    height: rem(22px);
-    padding: 0 rem(8px);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: 999px;
 }
 
 .statusDot {
@@ -57,7 +24,7 @@
 }
 
 .statusDot[data-status='running'] {
-    background: var(--mantine-color-text);
+    background: var(--mantine-color-indigo-filled);
     animation: pulse 1.6s ease-in-out infinite;
 }
 
@@ -66,84 +33,38 @@
 }
 
 .statusDot[data-status='failed'] {
-    background: var(--mantine-color-orange-filled);
+    background: var(--mantine-color-red-filled);
 }
 
-.tabular {
-    font-variant-numeric: tabular-nums;
-}
-
-.problem {
-    display: flex;
-    gap: var(--mantine-spacing-sm);
-    align-items: flex-start;
-    padding: var(--mantine-spacing-md);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
-}
-
-.problemIcon {
-    flex: 0 0 auto;
-    margin-top: 2px;
-    color: var(--mantine-color-orange-6);
-}
-
-.track {
+.workspace {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    flex: 1;
+    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
     gap: var(--mantine-spacing-md);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-
-    @media (max-width: $mantine-breakpoint-sm) {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        row-gap: var(--mantine-spacing-sm);
-    }
+    min-height: 0;
 }
 
-.trackStep {
+.panel {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-}
-
-.trackStep[data-state='not_started'] {
-    color: var(--mantine-color-dimmed);
-}
-
-.trackDuration {
-    flex: 0 0 auto;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-}
-
-.trackBar {
-    position: relative;
-    transition: background-color 300ms cubic-bezier(0.22, 1, 0.36, 1);
-    height: 3px;
+    min-height: 0;
     overflow: hidden;
-    border-radius: 2px;
-    background: var(--mantine-color-default-border);
 }
 
-.trackStep[data-state='completed'] .trackBar {
-    background: var(--mantine-color-text);
+.panelHeader {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-sm);
+    height: 44px;
+    padding: 0 var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-.trackStep[data-state='stopped'] .trackBar {
-    background: var(--mantine-color-orange-5);
-}
-
-.trackStep[data-state='active'] .trackBar::after {
-    position: absolute;
-    inset: 0;
-    width: 40%;
-    border-radius: inherit;
-    background: var(--mantine-color-text);
-    animation: sweep 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-    content: '';
+.panelBody {
+    flex: 1;
+    min-height: 0;
 }
 
 .stages {
@@ -170,10 +91,6 @@
 
 .stageGlyph {
     display: flex;
-    transition:
-        border-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
-        background-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
-        color 200ms cubic-bezier(0.22, 1, 0.36, 1);
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
@@ -307,7 +224,152 @@
     color: var(--mantine-color-green-light-color);
 }
 
+.emptyActivity {
+    max-width: 480px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.fileBrowser {
+    min-height: 0;
+    height: 100%;
+}
+
+.filePanel {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+}
+
+.fileTree {
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    background: var(--ld-color-page);
+}
+
+.fileResizeHandle {
+    position: relative;
+    display: flex;
+    flex: 0 0 1px;
+    width: 1px;
+    color: transparent;
+    cursor: col-resize;
+    background: var(--mantine-color-ldGray-3);
+    outline: none;
+    transition: background-color 120ms ease;
+}
+
 /* Wider invisible hit area so a 1px line stays easy to grab */
+.fileResizeHandle::before {
+    content: '';
+    position: absolute;
+    inset: 0 -4px;
+}
+
+.fileResizeHandle:hover,
+.fileResizeHandle[data-active],
+.fileResizeHandle:focus-visible {
+    background: var(--mantine-color-ldGray-5);
+}
+
+.fileTreeItem {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 32px;
+    padding-block: 6px;
+    padding-inline-end: 10px;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.fileTreeToggle,
+.fileTreeIcon {
+    display: flex;
+    flex: 0 0 20px;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    line-height: 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.fileTreeToggle svg,
+.fileTreeIcon svg {
+    flex: 0 0 auto;
+    display: block;
+}
+
+.fileTreeItem:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.fileTreeItem[data-recent='true'] {
+    animation: flash 1.8s ease-out;
+}
+
+.fileTreeItem[data-selected='true'] {
+    color: var(--mantine-color-text);
+    font-weight: 500;
+    background: var(--mantine-color-default-hover);
+}
+
+.filePreview {
+    display: grid;
+    grid-template-rows: 36px minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    background: var(--mantine-color-body);
+}
+
+.filePreviewHeader {
+    height: 36px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
+}
+
+.filePreviewScroll {
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.filePreviewCode {
+    min-height: 100%;
+    margin: 0;
+    border-radius: 0;
+}
+
+.markdownPreviewContainer {
+    min-height: 100%;
+    padding: var(--mantine-spacing-lg);
+    color: var(--mantine-color-text);
+    background: var(--mantine-color-body);
+}
+
+.markdownPreview {
+    color: inherit;
+    font-size: var(--mantine-font-size-sm);
+    background: transparent;
+}
+
+.plainTextPreview {
+    min-height: 100%;
+    margin: 0;
+    padding: var(--mantine-spacing-md);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+}
+
 @keyframes pulse {
     0%,
     100% {
@@ -319,13 +381,13 @@
     }
 }
 
-@keyframes sweep {
+@keyframes flash {
     from {
-        transform: translateX(-100%);
+        background: var(--mantine-color-indigo-light);
     }
 
     to {
-        transform: translateX(250%);
+        background: transparent;
     }
 }
 
@@ -342,23 +404,21 @@
 @media (prefers-reduced-motion: reduce) {
     .statusDot[data-status='running'],
     .stage[data-state='active'] .stageGlyph,
-    .trackStep[data-state='active'] .trackBar::after,
-    .livePulse,
-    .liveStep,
-    .chip {
+    .fileTreeItem[data-recent='true'] {
         animation: none;
     }
 }
 
-.journey {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-md);
-    padding: var(--mantine-spacing-md);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
-}
+@media (max-width: 900px) {
+    .page {
+        height: auto;
+    }
 
-.journeySteps {
-    margin-top: var(--mantine-spacing-md);
+    .workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .panel {
+        height: 520px;
+    }
 }

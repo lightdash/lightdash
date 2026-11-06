@@ -75,37 +75,3 @@ export const useBigqueryDatasets = (
             isAuthenticated && projectId !== undefined && projectId.length > 0,
     });
 };
-
-const getKeyfileDatasets = async (
-    lightdashApi: LightdashApi,
-    keyfileContents: Record<string, string>,
-) =>
-    lightdashApi<ApiBigqueryDatasets['results']>({
-        url: `/bigquery/datasets`,
-        method: 'POST',
-        body: JSON.stringify({ keyfileContents }),
-    });
-
-/** Datasets a service account key can see; a metadata call, no queries run */
-export const useBigqueryKeyfileDatasets = (
-    keyfileContents: Record<string, string> | undefined,
-) => {
-    const lightdashApi = useLightdashApi();
-    const projectId = keyfileContents?.project_id;
-    const clientEmail = keyfileContents?.client_email;
-    return useQuery<ApiBigqueryDatasets['results'], ApiError>({
-        // The key itself stays out of the cache key
-        queryKey: [
-            'bigquery-keyfile-datasets',
-            projectId,
-            clientEmail,
-            keyfileContents?.private_key_id,
-        ],
-        queryFn: () => getKeyfileDatasets(lightdashApi, keyfileContents!),
-        enabled:
-            typeof projectId === 'string' &&
-            typeof keyfileContents?.private_key === 'string',
-        retry: false,
-        staleTime: Infinity,
-    });
-};

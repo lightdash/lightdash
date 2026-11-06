@@ -1,8 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
-    QueryExecutionContext,
-    QuerySurface,
     type AgentSuggestionModelChip,
     type AiAgent,
     type Explore,
@@ -69,9 +67,6 @@ function buildService() {
     const getCopilotConfig = vi.fn().mockResolvedValue({});
     const featureFlagGet = vi.fn().mockResolvedValue({ enabled: false });
     const getSpaces = vi.fn().mockResolvedValue([]);
-    const getWarehouseTables = vi.fn().mockResolvedValue({
-        db: { public: { events: {} } },
-    });
     const service = new AiAgentService({
         analytics: { track },
         prometheusMetrics: metrics,
@@ -83,7 +78,7 @@ function buildService() {
                 .mockResolvedValue({ model: { modelId: 'test-model' } }),
         },
         featureFlagService: { get: featureFlagGet },
-        projectService: { getSpaces, getWarehouseTables },
+        projectService: { getSpaces },
         aiAgentToolsService: {
             canAuthorContent: vi.fn().mockResolvedValue(false),
         },
@@ -123,8 +118,6 @@ function buildService() {
         getVerifiedQuestions,
         getSpaces,
         getCopilotConfig,
-        getWarehouseTables,
-        featureFlagGet,
     };
 }
 
@@ -175,39 +168,6 @@ describe('AiAgentService getAgentSuggestions', () => {
                     ...client,
                 }),
             }),
-        );
-    });
-});
-
-describe('AiAgentService suggestion warehouse tables', () => {
-    beforeEach(() => vi.clearAllMocks());
-    const sqlInput = { ...input, enableSqlMode: true };
-
-    it('lists tables in the AI context when agent identity is off', async () => {
-        const { service, getWarehouseTables } = buildService();
-        const user = { ...suggestionUser, abilityRules: [] };
-        await service.getAgentSuggestions(user, sqlInput);
-        expect(getWarehouseTables).toHaveBeenCalledExactlyOnceWith(
-            user,
-            'project-1',
-            QueryExecutionContext.AI,
-            QuerySurface.APP,
-        );
-        expect(vi.mocked(generateAgentSuggestions).mock.calls[0][1]).toEqual(
-            expect.objectContaining({ warehouseTables: ['db.public.events'] }),
-        );
-    });
-
-    it('lists tables live as the agent when agent identity is on', async () => {
-        const { service, getWarehouseTables, featureFlagGet } = buildService();
-        featureFlagGet.mockResolvedValue({ enabled: true });
-        const user = { ...suggestionUser, abilityRules: [] };
-        await service.getAgentSuggestions(user, sqlInput);
-        expect(getWarehouseTables).toHaveBeenCalledExactlyOnceWith(
-            user,
-            'project-1',
-            QueryExecutionContext.AI,
-            QuerySurface.APP,
         );
     });
 });

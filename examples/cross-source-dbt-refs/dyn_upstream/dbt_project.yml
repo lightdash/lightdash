@@ -1,0 +1,8 @@
+name: dyn_upstream
+version: '1.0.0'
+config-version: 2
+profile: cross_source_refs
+model-paths: ['models']
+models:
+  dyn_upstream:
+    +materialized: table

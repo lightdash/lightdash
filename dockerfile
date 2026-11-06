@@ -315,11 +315,6 @@ COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY --from=build-visualization /usr/app/packages/visualization/ ./packages/visualization/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY packages/frontend ./packages/frontend
-# Vite resolves tsconfigs through the root tsconfig.json, which loads every project it references
-COPY packages/backend/tsconfig.json ./packages/backend/
-COPY packages/cli/tsconfig.json ./packages/cli/
-COPY packages/warehouses/tsconfig.json ./packages/warehouses/
-COPY packages/formula-tests/tsconfig.json ./packages/formula-tests/
 
 ARG SENTRY_AUTH_TOKEN=""
 ARG SENTRY_ORG=""

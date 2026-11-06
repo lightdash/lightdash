@@ -6007,20 +6007,16 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
-            const { enabled: isNewOnboarding } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.NewOnboarding,
-                });
             await this.createAgent(
                 user,
                 {
-                    name: isNewOnboarding ? 'Analytics agent' : 'Aurora',
+                    name: 'Aurora',
                     projectUuid,
                     description: null,
                     integrations: [],
                     tags: null,
-                    instruction: `You are ${isNewOnboarding ? '' : 'Aurora, '}this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
+                    instruction:
+                        "You are Aurora, this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
                     imageUrl: null,
                     groupAccess: [],
                     userAccess: [],
@@ -8242,13 +8238,6 @@ export class AiAgentService extends BaseService {
         if (!hasAccess) {
             throw new ForbiddenError(
                 'Insufficient permissions to access this agent thread',
-            );
-        }
-
-        // A reply generated here would never reach the Slack conversation.
-        if (thread.createdFrom === 'slack') {
-            throw new ForbiddenError(
-                'This thread was created in Slack. Continue the conversation in Slack.',
             );
         }
 
@@ -16828,22 +16817,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         }),
                     );
 
-                // A project with only live sources has no warehouse to run SQL on
                 const warehouseCredentials = canRunSql
-                    ? await this.projectModel
-                          .getWarehouseCredentialsForBinding(
-                              prompt.projectUuid,
-                              {
-                                  kind: 'connection',
-                                  warehouseConnectionUuid: null,
-                              },
-                          )
-                          .catch((error: unknown) => {
-                              if (error instanceof NotFoundError) return null;
-                              throw error;
-                          })
+                    ? await this.projectModel.getWarehouseCredentialsForBinding(
+                          prompt.projectUuid,
+                          { kind: 'connection', warehouseConnectionUuid: null },
+                      )
                     : null;
-                if (!warehouseCredentials) canRunSql = false;
                 const warehouseConnections = canRunSql
                     ? await this.projectModel.getWarehouseConnectionsMetadata(
                           prompt.projectUuid,
@@ -17000,9 +16979,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     }
                 }
 
-                // Stored context is readable on any connection; only writeback needs Git.
                 const projectContextEnabled =
-                    hasTrustedPromptUserIdentity &&
+                    aiWritebackEnabled &&
+                    writebackConnectionSupport.supportsProjectContext &&
                     (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
                         user,
                     ));

@@ -52,9 +52,7 @@ export type AgentOnboardingRunEvent = {
 
 export type AgentOnboardingHandoff = {
     summary: string | null;
-    /** Set only by runs that build the starter dashboard */
     dashboardUrl: string | null;
-    starterQuestions: string[];
 };
 
 export type AgentOnboardingUsage = {

@@ -5,6 +5,8 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
+    CrossSourceDbtRefs = 'cross-source-dbt-refs',
     DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and
@@ -137,6 +139,14 @@ export enum FeatureFlags {
     SsoOrganizationSettings = 'sso-organization-settings',
 
     /**
+     * Enable query results caching. DB value (user/org override or flag
+     * default) takes precedence; falls back to the RESULTS_CACHE_ENABLED env
+     * var when no DB row is set. Lets shared-instance customers (eu1/app)
+     * opt in per-org without a redeploy.
+     */
+    ResultsCacheEnabled = 'results-cache-enabled',
+
+    /**
      * Show a persistent trial warning banner for an organization on shared
      * instances. This does not block product access.
      */
@@ -150,10 +160,8 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Show the coding-agent project onboarding flow. With NewOnboarding, people
-     * without a repo can start an onboarding run right after connecting their
-     * warehouse. The CLI, APIs, and installed skills remain available
-     * independently.
+     * Show the coding-agent project onboarding flow. This gates only the UI;
+     * the CLI, APIs, and installed skills remain available independently.
      */
     CodingAgentOnboarding = 'coding-agent-onboarding',
 
@@ -210,8 +218,7 @@ export enum FeatureFlags {
     /**
      * Enable api query sources: queries sent live to an external API (HogQL
      * to PostHog) through a project connection, and the Live data sources
-     * project settings page. Off by default; enable per org. Also on wherever
-     * NewOnboarding is on, unless a user or org override turns it off.
+     * project settings page. Off by default; enable per org.
      */
     ApiQuerySources = 'api-query-sources',
 
@@ -221,6 +228,14 @@ export enum FeatureFlags {
      * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.
      */
     QueryHistory = 'query-history',
+
+    /**
+     * Semantic Studio, the internal name of the Semantic Layer page
+     * (/projects/{projectUuid}/semantic-layer): every kind of explore in one
+     * tree, with field details and live data source field editing. Off by
+     * default.
+     */
+    SemanticStudio = 'semantic-studio',
 
     /**
      * Configurable retention for AI agent threads. Off by default; enabled
@@ -248,6 +263,17 @@ export enum FeatureFlags {
      * still delete threads from the agent admin threads view. Off by default.
      */
     AiDisableThreadDeletion = 'ai-disable-thread-deletion',
+
+    /**
+     * Enables the chart type library — browsing and installing official
+     * chart types from the configured chart registry — and, as an either/or
+     * gate with Chart Studio availability and `EnableDataApps`, usage of
+     * installed chart types (picking, configuring, rendering). Authoring,
+     * editing, and forking chart types follow Chart Studio availability
+     * (a valid licence and a configured sandbox provider), not this flag.
+     * Default: off.
+     */
+    ChartTypeRegistry = 'chart-type-registry',
 
     /**
      * Custom metrics created while building a chart inside a dashboard are
@@ -300,12 +326,6 @@ export enum FeatureFlags {
      * cancel it and retry on a new connection.
      */
     RedshiftStalledQueryRecovery = 'redshift-stalled-query-recovery',
-    /**
-     * Experiment, off by default: dashboards always fit the screen in view
-     * mode, and the fit to screen toggle is removed. Enabled for internal
-     * instances only while we gather feedback.
-     */
-    DashboardFitToScreenDefault = 'dashboard-fit-to-screen-default',
 }
 
 export type FeatureFlag = {

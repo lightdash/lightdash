@@ -132,6 +132,7 @@ import { OnboardingAgentService } from './services/OnboardingAgentService/Onboar
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
+import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
@@ -521,13 +522,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             }) =>
                 new OnboardingAgentService({
                     lightdashConfig: context.lightdashConfig,
-                    analytics: context.lightdashAnalytics,
                     agentOnboardingRunModel:
                         models.getAgentOnboardingRunModel<AgentOnboardingRunModel>(),
                     sandboxRegistryModel:
                         models.getSandboxRegistryModel<SandboxRegistryModel>(),
                     projectModel: models.getProjectModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     personalAccessTokenService:
                         repository.getPersonalAccessTokenService(),
                     promptService: repository.getPromptService(),
@@ -582,13 +581,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     account,
                                     projectUuid,
                                     connectionUuid,
-                                ),
-                        listSchemaTables: (account, projectUuid) =>
-                            repository
-                                .getExternalConnectionService<ExternalConnectionService>()
-                                .listApiSourceSchemaTables(
-                                    account,
-                                    projectUuid,
                                 ),
                     }),
                 );
@@ -1166,7 +1158,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
                 repository,
                 utils,
-                clients,
             }) =>
                 new ExternalConnectionService({
                     allowedPrivateHostCidrs:
@@ -1177,8 +1168,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
-                    schedulerClient:
-                        clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectModel: models.getProjectModel(),
                     savedChartModel: models.getSavedChartModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
@@ -1366,6 +1355,24 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             .getCustomSqlProvenance(args),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
+                    onProjectCreated: ({
+                        user,
+                        projectUuid,
+                        projectType,
+                        provisioningSource,
+                    }) =>
+                        provisionOnboardingHomepage({
+                            user,
+                            projectUuid,
+                            projectType,
+                            provisioningSource,
+                            featureFlagService:
+                                repository.getFeatureFlagService(),
+                            projectModel: models.getProjectModel(),
+                            projectHomepageModel:
+                                models.getProjectHomepageModel<ProjectHomepageModel>(),
+                            analytics: context.lightdashAnalytics,
+                        }),
                     provisionPlaygroundProject: ({
                         user,
                         projectService,
@@ -1963,8 +1970,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getProjectHomepageService<ProjectHomepageService>(),
                 externalSourceService:
                     context.serviceRepository.getExternalSourceService<ExternalSourceService>(),
-                externalConnectionService:
-                    context.serviceRepository.getExternalConnectionService<ExternalConnectionService>(),
                 aiThreadFileService:
                     context.serviceRepository.getAiThreadFileService<AiThreadFileService>(),
                 mobilePushNotificationService:

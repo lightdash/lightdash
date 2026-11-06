@@ -118,8 +118,7 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
                     break;
                 case 'ERROR':
                     notifications.hide(TOAST_KEY_FOR_REFRESH_JOB);
-                    // Quiet jobs report failures inline where they were started
-                    if (!isQuietJob) setIsJobsDrawerOpen(true);
+                    setIsJobsDrawerOpen(true);
             }
         },
         [

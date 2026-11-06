@@ -87,7 +87,7 @@ export class GithubAppService extends BaseService {
         this.analytics = args.analytics;
     }
 
-    async installRedirect(user: SessionUser, returnToPath?: string) {
+    async installRedirect(user: SessionUser) {
         this.analytics.track({
             event: 'github_install.started',
             userId: user.userUuid,
@@ -97,7 +97,7 @@ export class GithubAppService extends BaseService {
         });
 
         const returnToUrl = new URL(
-            this.toSameOriginPath(returnToPath),
+            '/generalSettings/integrations',
             this.lightdashConfig.siteUrl,
         );
         const randomID = nanoid().replace('_', ''); // we use _ as separator, don't allow this character on the nanoid
@@ -236,8 +236,7 @@ export class GithubAppService extends BaseService {
                     }
                 }, 1000 * 60);
 
-                redirectUrl.searchParams.set('status', 'github_request_sent');
-                return redirectUrl.href;
+                return `${redirectUrl.href}?status=github_request_sent`;
             }
 
             if (!selectedInstallationId) {

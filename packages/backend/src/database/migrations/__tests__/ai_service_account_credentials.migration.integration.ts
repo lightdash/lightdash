@@ -6,10 +6,6 @@ import {
 } from '../../../testing/migratedDatabase';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { down, up } from '../20261008120000_add_ai_service_account_credentials';
-import {
-    down as downAgentTableLists,
-    up as upAgentTableLists,
-} from '../20261105120000_create_ai_agent_warehouse_table_lists';
 
 let migrated: MigratedDatabase;
 const encryptionUtil = new EncryptionUtil({
@@ -303,7 +299,6 @@ test('ciphertext re-encryption keeps the slot generation and auth intact', async
 
 test('reverses and reapplies the migration', async () => {
     await migrated.database.transaction(async (trx) => {
-        await downAgentTableLists(trx);
         await down(trx);
         expect(
             await trx.schema.hasTable('ai_service_account_credentials'),
@@ -312,7 +307,6 @@ test('reverses and reapplies the migration', async () => {
         expect(
             await trx.schema.hasTable('ai_service_account_credentials'),
         ).toBe(true);
-        await upAgentTableLists(trx);
     });
 });
 

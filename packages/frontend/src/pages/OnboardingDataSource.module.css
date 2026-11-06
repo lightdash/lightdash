@@ -1,183 +1,81 @@
-.connectColumn {
+.page {
+    min-height: calc(100dvh - var(--navbar-height));
+    background-color: var(--mantine-color-white);
+    display: flex;
+    flex-direction: column;
+}
+
+.column {
+    flex: 1;
     width: 100%;
-    flex: 1;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 56px var(--mantine-spacing-xxl) var(--mantine-spacing-xl);
     display: flex;
     flex-direction: column;
+    gap: var(--mantine-spacing-xl);
 }
 
-.connectColumn > :global(.mantine-Stack-root),
-.connectColumn form > :global(.mantine-Stack-root) {
-    flex: 1;
-}
-
-.connectColumn form {
-    flex: 1;
+.warehouseCard {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    padding: 24px 12px;
+    transition:
+        box-shadow 100ms ease,
+        border-color 100ms ease;
 }
 
-/* Flattens the shared warehouse form into the onboarding card; styles only */
-.connectColumn :global([data-connection-card]) {
-    /* Paper's p prop is inline, so only !important flattens it here */
-    padding: 0 !important;
-    border: 0;
-    background: transparent;
+.warehouseCardEnabled {
+    cursor: pointer;
 }
 
-.connectColumn :global([data-connection-card]) > div {
-    grid-template-columns: minmax(0, 1fr);
+.warehouseCardEnabled:hover {
+    box-shadow: var(--mantine-shadow-md);
+    border-color: var(--mantine-color-ldGray-4);
 }
 
-/* The page title already names the warehouse */
-.connectColumn :global([data-connection-card]) > div > div:first-child {
-    display: none;
+.warehouseLabel {
+    font-weight: 600;
+    font-size: 15px;
 }
 
-/* The schema only matters to dbt here, so it shows only to fix an error */
-.connectColumn :global([data-dbt-only-schema='true']:not(:has([data-error]))) {
-    display: none;
+.heroCard {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--mantine-spacing-md);
+    padding: 24px;
+    transition:
+        box-shadow 100ms ease,
+        border-color 100ms ease;
 }
 
-.connectColumn :global([data-form-collapse]) {
-    align-self: stretch;
-    justify-content: flex-start;
-    margin-top: var(--mantine-spacing-xs);
-    margin-bottom: var(--mantine-spacing-sm);
-    padding: var(--mantine-spacing-md) 0 var(--mantine-spacing-xs);
-    border-top: 1px solid var(--mantine-color-default-border);
-    border-radius: 0;
-    height: auto;
-    color: var(--mantine-color-dimmed);
+.heroName {
+    font-weight: 600;
+    font-size: 18px;
 }
 
-.connectColumn :global([data-form-collapse] .mantine-Button-inner) {
-    justify-content: flex-start;
+.connectColumn {
+    flex: 1;
+    width: 100%;
+    max-width: 52rem;
+    margin: 0 auto;
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-sm);
 }
 
-.connectColumn :global([data-form-collapse]) + * {
-    margin-top: var(--mantine-spacing-xs);
-}
-
-.connectColumn :global([data-form-collapse]:hover) {
-    background: transparent;
-    color: var(--mantine-color-text);
-}
-
-.logo {
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
-    background: var(--mantine-color-body);
-}
-
-.logo :global(.mantine-Avatar-root) {
-    width: 24px;
-    min-width: 24px;
-    height: 24px;
-    border-radius: 0;
-    background: transparent;
-}
-
-.logo :global(.mantine-Avatar-image) {
-    object-fit: contain;
-}
-
-.connectColumn :global([data-form-footer]) {
-    position: sticky;
-    margin-top: auto;
-    bottom: calc(var(--mantine-spacing-xl) * -1);
-    z-index: 2;
-    margin-inline: calc(var(--mantine-spacing-xl) * -1);
-    margin-bottom: calc(var(--mantine-spacing-xl) * -1);
-    padding: var(--mantine-spacing-md) var(--mantine-spacing-xl);
-    border-top: 1px solid var(--mantine-color-default-border);
-    background: var(--mantine-color-body);
-}
-
-/* Short related fields share a row */
-@media (width >= $mantine-breakpoint-sm) {
-    .connectColumn
-        :global(
-            [data-connection-card]
-                .mantine-Stack-root:has(
-                    > .mantine-InputWrapper-root input[name='warehouse.user'],
-                    > .mantine-InputWrapper-root
-                        input[name='warehouse.accessKeyId']
-                )
-        ) {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        column-gap: var(--mantine-spacing-md);
-        row-gap: var(--stack-gap);
+@media (width < $mantine-breakpoint-sm) {
+    .column {
+        padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
     }
+}
 
-    .connectColumn
-        :global(
-            [data-connection-card]
-                .mantine-Stack-root:has(
-                    > .mantine-InputWrapper-root input[name='warehouse.user'],
-                    > .mantine-InputWrapper-root
-                        input[name='warehouse.accessKeyId']
-                )
-        )
-        > * {
-        grid-column: 1 / -1;
-    }
-
-    .connectColumn
-        :global(
-            [data-connection-card]
-                .mantine-Stack-root:has(
-                    > .mantine-InputWrapper-root input[name='warehouse.user'],
-                    > .mantine-InputWrapper-root
-                        input[name='warehouse.accessKeyId']
-                )
-        )
-        > :global(.mantine-InputWrapper-root:has(input[name='warehouse.user'])),
-    .connectColumn
-        :global(
-            [data-connection-card]
-                .mantine-Stack-root:has(
-                    > .mantine-InputWrapper-root input[name='warehouse.user'],
-                    > .mantine-InputWrapper-root
-                        input[name='warehouse.accessKeyId']
-                )
-        )
-        > :global(
-            .mantine-InputWrapper-root:has(input[name='warehouse.password'])
-        ),
-    .connectColumn
-        :global(
-            [data-connection-card]
-                .mantine-Stack-root:has(
-                    > .mantine-InputWrapper-root input[name='warehouse.user'],
-                    > .mantine-InputWrapper-root
-                        input[name='warehouse.accessKeyId']
-                )
-        )
-        > :global(
-            .mantine-InputWrapper-root:has(input[name='warehouse.accessKeyId'])
-        ),
-    .connectColumn
-        :global(
-            [data-connection-card]
-                .mantine-Stack-root:has(
-                    > .mantine-InputWrapper-root input[name='warehouse.user'],
-                    > .mantine-InputWrapper-root
-                        input[name='warehouse.accessKeyId']
-                )
-        )
-        > :global(
-            .mantine-InputWrapper-root:has(
-                input[name='warehouse.secretAccessKey']
-            )
-        ) {
-        grid-column: auto;
-    }
+.heroCard,
+.warehouseCard {
+    font: inherit;
+    color: inherit;
+    text-align: left;
 }
 
 @media (width < $mantine-breakpoint-sm) {
@@ -193,36 +91,4 @@
     .connectColumn :global(.mantine-Button-root) {
         min-height: 44px;
     }
-}
-
-/* Onboarding keeps the repo step to what a first connection needs; defaults cover the rest */
-.connectColumn
-    :global(
-        .mantine-InputWrapper-root:has(input[name='dbt.branch'])
-            > .mantine-InputWrapper-description
-    ) {
-    display: none;
-}
-
-.connectColumn
-    :global(
-        .mantine-InputWrapper-root:has(
-                input[name='dbt.project_sub_path'],
-                input[name='dbt.host_domain'],
-                input[name='dbt.discovery_api_endpoint']
-            )
-            > .mantine-InputWrapper-description
-    ) {
-    display: none;
-}
-
-/* Optional dbt Cloud extras that only matter once the project is running */
-.connectColumn
-    :global(
-        .mantine-InputWrapper-root:has(
-            input[name='dbt.webhook_hmac_secret'],
-            input[name='dbt.tags']
-        )
-    ) {
-    display: none;
 }

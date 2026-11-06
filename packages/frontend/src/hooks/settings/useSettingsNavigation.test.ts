@@ -42,7 +42,7 @@ const settingsContext = (
     isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
     externalSourcesFlag: undefined,
-    isResultsCacheAvailable: false,
+    isResultsCacheEnabled: false,
     embeddingEnabled: undefined,
     allowPasswordAuthentication: false,
     hasSocialLogin: false,
@@ -454,7 +454,7 @@ describe('Agent identity settings navigation', () => {
 });
 
 describe('Project connections settings navigation', () => {
-    const projectItems = (overrides: Partial<SettingsContext>) => {
+    const projectLabels = (overrides: Partial<SettingsContext>) => {
         const { result } = renderHook(() =>
             useSettingsNavigation(
                 settingsContext({
@@ -487,23 +487,10 @@ describe('Project connections settings navigation', () => {
                 }),
             ),
         );
-        return result.current.find(({ id }) => id === 'current-project')!.items;
+        return result.current
+            .find(({ id }) => id === 'current-project')!
+            .items.map(({ label }) => label);
     };
-    const projectLabels = (overrides: Partial<SettingsContext>) =>
-        projectItems(overrides).map(({ label }) => label);
-
-    it('links Live data sources to the Semantic Layer page, marked as moved', () => {
-        const item = projectItems({ isApiQuerySourcesEnabled: true }).find(
-            ({ label }) => label === 'Live data sources',
-        );
-        expect(item).toMatchObject({
-            to: '/projects/project/semantic-layer/kinds/live',
-            movedTo: 'Semantic Layer',
-        });
-        expect(item?.keywords).toEqual(
-            expect.arrayContaining(['posthog', 'semantic layer']),
-        );
-    });
 
     it('shows Live data sources without Data app connections when only live sources are enabled', () => {
         const labels = projectLabels({ isApiQuerySourcesEnabled: true });

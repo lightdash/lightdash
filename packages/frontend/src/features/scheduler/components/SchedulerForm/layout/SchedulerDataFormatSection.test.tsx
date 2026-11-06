@@ -28,8 +28,10 @@ const health = vi.hoisted(() => ({
 
 const resultsCache = vi.hoisted(() => ({ enabled: true }));
 
-vi.mock('../../../../../hooks/useProjectResultsCacheSettings', () => ({
-    useIsResultsCacheEnabled: vi.fn(() => resultsCache.enabled),
+vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: vi.fn(() => ({
+        data: { enabled: resultsCache.enabled },
+    })),
 }));
 
 vi.mock('../../../../../hooks/health/useHealth', () => ({

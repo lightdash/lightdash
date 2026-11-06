@@ -1,0 +1,15 @@
+version: 2
+models:
+  - name: trino_nations
+    config:
+      access: public
+    columns:
+      - name: nation_id
+        meta:
+          dimension: { type: number }
+          metrics:
+            nation_count: { type: count_distinct }
+      - name: nation_name
+        meta: { dimension: { type: string } }
+      - name: region_id
+        meta: { dimension: { type: number } }

@@ -13,8 +13,6 @@ import type {
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AwsWebIdentityController } from './../controllers/awsWebIdentityController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-import { BigqueryController } from './../controllers/BigqueryController';
-// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { BigquerySSOController } from './../controllers/bigquerySSOController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { BigqueryWorkloadIdentityController } from './../controllers/bigqueryWorkloadIdentityController';
@@ -5914,12 +5912,11 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DateZoomControlAsCode: {
+    DateZoomControl: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                sectionSlug: { dataType: 'string' },
                 sectionId: { dataType: 'string' },
                 hidden: { dataType: 'boolean' },
                 granularity: {
@@ -5974,7 +5971,26 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardControlSectionAsCode: {
+    DateZoomConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tileTargets: {
+                    ref: 'Record_string.DateZoomTileTarget_',
+                    required: true,
+                },
+                controls: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DateZoomControl' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardControlSection: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -5982,8 +5998,7 @@ const models: TsoaRoute.Models = {
                 inline: { dataType: 'boolean' },
                 collapsed: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
-                id: { dataType: 'string' },
-                slug: { dataType: 'string' },
+                id: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -6060,7 +6075,6 @@ const models: TsoaRoute.Models = {
                     ref: 'Record_string.DashboardParameterTarget_',
                     required: true,
                 },
-                sectionSlug: { dataType: 'string' },
                 sectionId: { dataType: 'string' },
                 valueType: {
                     ref: 'Required_Pick_LightdashProjectParameter.type-or-multiple__',
@@ -6101,11 +6115,6 @@ const models: TsoaRoute.Models = {
                         ref: 'DashboardParameterControlAsCode',
                     },
                 },
-                parameterSectionSlugs: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { dataType: 'string' },
-                },
                 parameterSections: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
@@ -6115,7 +6124,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'DashboardControlSectionAsCode',
+                        ref: 'DashboardControlSection',
                     },
                 },
                 customMetrics: {
@@ -6123,23 +6132,7 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refObject', ref: 'AdditionalMetric' },
                 },
                 requiredFiltersNote: { dataType: 'string' },
-                dateZoomConfig: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        tileTargets: {
-                            ref: 'Record_string.DateZoomTileTarget_',
-                            required: true,
-                        },
-                        controls: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'DateZoomControlAsCode',
-                            },
-                            required: true,
-                        },
-                    },
-                },
+                dateZoomConfig: { ref: 'DateZoomConfig' },
                 defaultDateZoomGranularity: {
                     dataType: 'union',
                     subSchemas: [
@@ -6699,112 +6692,101 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    target: { ref: 'DashboardFieldTarget', required: true },
-                    label: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                        required: true,
-                    },
-                    settings: { dataType: 'any' },
-                    disabled: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    required: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    caseSensitive: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    operator: { ref: 'FilterOperator', required: true },
-                    values: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'array', array: { dataType: 'any' } },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    includeNull: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    tileTargets: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'DashboardTileTargets' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    singleValue: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    requiredGroupId: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    lockedTabUuids: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'array',
-                                array: { dataType: 'string' },
-                            },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    sectionId: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    sectionSlug: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_DashboardFilterRuleAsCode.id_': {
+    'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                target: { ref: 'DashboardFieldTarget', required: true },
+                label: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                settings: { dataType: 'any' },
+                disabled: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                required: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                caseSensitive: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                operator: { ref: 'FilterOperator', required: true },
+                values: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'any' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                includeNull: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                tileTargets: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DashboardTileTargets' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                singleValue: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                requiredGroupId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                lockedTabUuids: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                sectionId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DashboardFilterRule.id_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__',
             validators: {},
         },
     },
@@ -6862,21 +6844,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardFilterRuleAsCode: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'DashboardFilterRule' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: { sectionSlug: { dataType: 'string' } },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardAsCode: {
         dataType: 'refAlias',
         type: {
@@ -6905,21 +6872,21 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'DashboardFilterRuleAsCode',
+                                ref: 'DashboardFilterRule',
                             },
                         },
                         metrics: {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'DashboardFilterRuleAsCode',
+                                ref: 'DashboardFilterRule',
                             },
                         },
                         dimensions: {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'Omit_DashboardFilterRuleAsCode.id_',
+                                ref: 'Omit_DashboardFilterRule.id_',
                             },
                         },
                     },
@@ -8151,105 +8118,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                target: { ref: 'DashboardFieldTarget', required: true },
-                label: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                settings: { dataType: 'any' },
-                disabled: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                required: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                caseSensitive: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                operator: { ref: 'FilterOperator', required: true },
-                values: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'any' } },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                includeNull: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                tileTargets: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DashboardTileTargets' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                singleValue: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                requiredGroupId: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                lockedTabUuids: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                sectionId: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_DashboardFilterRule.id_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardScheduledDeliveryAsCode: {
         dataType: 'refAlias',
         type: {
@@ -9408,62 +9276,6 @@ const models: TsoaRoute.Models = {
     PromotedSpace: {
         dataType: 'refAlias',
         type: { ref: 'SpaceSummaryBase', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DateZoomControl: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                sectionId: { dataType: 'string' },
-                hidden: { dataType: 'boolean' },
-                granularity: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DateGranularity' },
-                        { dataType: 'string' },
-                    ],
-                    required: true,
-                },
-                name: { dataType: 'string', required: true },
-                uuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DateZoomConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                tileTargets: {
-                    ref: 'Record_string.DateZoomTileTarget_',
-                    required: true,
-                },
-                controls: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'DateZoomControl' },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardControlSection: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                inline: { dataType: 'boolean' },
-                collapsed: { dataType: 'boolean' },
-                name: { dataType: 'string', required: true },
-                id: { dataType: 'string', required: true },
-                slug: { dataType: 'string' },
-            },
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardParameterControl: {
@@ -11135,7 +10947,7 @@ const models: TsoaRoute.Models = {
                                                 dataType: 'array',
                                                 array: {
                                                     dataType: 'refAlias',
-                                                    ref: 'DashboardFilterRuleAsCode',
+                                                    ref: 'DashboardFilterRule',
                                                 },
                                             },
                                             { dataType: 'undefined' },
@@ -11148,7 +10960,7 @@ const models: TsoaRoute.Models = {
                                                 dataType: 'array',
                                                 array: {
                                                     dataType: 'refAlias',
-                                                    ref: 'DashboardFilterRuleAsCode',
+                                                    ref: 'DashboardFilterRule',
                                                 },
                                             },
                                             { dataType: 'undefined' },
@@ -11161,7 +10973,7 @@ const models: TsoaRoute.Models = {
                                                 dataType: 'array',
                                                 array: {
                                                     dataType: 'refAlias',
-                                                    ref: 'Omit_DashboardFilterRuleAsCode.id_',
+                                                    ref: 'Omit_DashboardFilterRule.id_',
                                                 },
                                             },
                                             { dataType: 'undefined' },
@@ -15808,105 +15620,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'refAlias',
                         ref: 'ExternalConnectionApiUsage',
                     },
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSourceSchemaEvent: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                count: { dataType: 'double', required: true },
-                name: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSourceSchemaScan: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        requestedAt: { dataType: 'datetime', required: true },
-                        status: {
-                            dataType: 'enum',
-                            enums: ['pending'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        propertyKeys: {
-                            dataType: 'union',
-                            subSchemas: [
-                                {
-                                    dataType: 'array',
-                                    array: { dataType: 'string' },
-                                },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                            required: true,
-                        },
-                        eventsTruncated: {
-                            dataType: 'boolean',
-                            required: true,
-                        },
-                        events: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'ApiSourceSchemaEvent',
-                            },
-                            required: true,
-                        },
-                        windowDays: { dataType: 'double', required: true },
-                        scannedAt: { dataType: 'datetime', required: true },
-                        status: {
-                            dataType: 'enum',
-                            enums: ['ready'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        error: { dataType: 'string', required: true },
-                        scannedAt: { dataType: 'datetime', required: true },
-                        status: {
-                            dataType: 'enum',
-                            enums: ['failed'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiExternalConnectionSchemaResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'ApiSourceSchemaScan' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -22445,37 +22158,6 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 upgradeConsumingCharts: { dataType: 'boolean' },
             },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__installedSlugs_description-Slugsthiscallinstalled--already-installedonesareleftout_-string-Array__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    results: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            installedSlugs: {
-                                dataType: 'array',
-                                array: { dataType: 'string' },
-                                required: true,
-                            },
-                        },
-                        required: true,
-                    },
-                    status: { dataType: 'enum', enums: ['ok'], required: true },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiInstallStarterChartTypesResponse: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'ApiSuccess__installedSlugs_description-Slugsthiscallinstalled--already-installedonesareleftout_-string-Array__',
             validators: {},
         },
     },
@@ -47538,11 +47220,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                starterQuestions: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
                 dashboardUrl: {
                     dataType: 'union',
                     subSchemas: [
@@ -63525,7 +63202,6 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['ingestExternalSource'] },
                 { dataType: 'enum', enums: ['ingestExternalSourceAttachment'] },
                 { dataType: 'enum', enums: ['maintainExternalSources'] },
-                { dataType: 'enum', enums: ['scanApiSourceSchema'] },
                 { dataType: 'enum', enums: ['sweepUnclaimedAiThreadFiles'] },
                 { dataType: 'enum', enums: ['mobilePushLiveActivityStart'] },
                 { dataType: 'enum', enums: ['mobilePushLiveActivity'] },
@@ -63583,7 +63259,6 @@ const models: TsoaRoute.Models = {
                 },
                 { dataType: 'enum', enums: ['reconcilePlaygroundBundles'] },
                 { dataType: 'enum', enums: ['backfillDefaultUserSpaces'] },
-                { dataType: 'enum', enums: ['warmWarehouseTablesCache'] },
                 { dataType: 'enum', enums: ['learnSandboxCommand'] },
             ],
             validators: {},
@@ -66475,66 +66150,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiReplaceProjectContextResults: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        entryCount: { dataType: 'double', required: true },
-                        ingested: {
-                            dataType: 'enum',
-                            enums: [true],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        reason: {
-                            dataType: 'enum',
-                            enums: ['ai_agent_reviews_disabled'],
-                            required: true,
-                        },
-                        ingested: {
-                            dataType: 'enum',
-                            enums: [false],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccess_ApiReplaceProjectContextResults_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    ref: 'ApiReplaceProjectContextResults',
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiReplaceProjectContextBody: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: { yaml: { dataType: 'string', required: true } },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiProjectColorPaletteResponse: {
         dataType: 'refAlias',
         type: {
@@ -67170,34 +66785,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ResultsCacheStatus: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                enabled: { dataType: 'boolean', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccess_ResultsCacheStatus_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'ResultsCacheStatus', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiResultsCacheStatusResponse: {
-        dataType: 'refAlias',
-        type: { ref: 'ApiSuccess_ResultsCacheStatus_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ResultsCacheClearSchedule: {
         dataType: 'refAlias',
         type: {
@@ -67252,11 +66839,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                cacheEnabledSetByInstance: {
-                    dataType: 'boolean',
-                    required: true,
-                },
-                cacheEnabled: { dataType: 'boolean', required: true },
                 projectUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -67294,8 +66876,8 @@ const models: TsoaRoute.Models = {
                         { dataType: 'double' },
                         { dataType: 'enum', enums: [null] },
                     ],
+                    required: true,
                 },
-                cacheEnabled: { dataType: 'boolean' },
             },
             validators: {},
         },
@@ -88958,7 +88540,6 @@ export function RegisterRoutes(app: Router) {
             name: 'connectionUuid',
             dataType: 'string',
         },
-        returnTo: { in: 'query', name: 'returnTo', dataType: 'string' },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/live-sources/posthog/oauth/start',
@@ -90037,7 +89618,6 @@ export function RegisterRoutes(app: Router) {
             name: 'connectionUuid',
             dataType: 'string',
         },
-        returnTo: { in: 'query', name: 'returnTo', dataType: 'string' },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/live-sources/google/oauth/start',
@@ -91156,73 +90736,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getExternalConnectionApiUsage',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsExternalConnectionController_getExternalConnectionSchema: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        connectionUuid: {
-            in: 'path',
-            name: 'connectionUuid',
-            required: true,
-            dataType: 'string',
-        },
-    };
-    app.get(
-        '/api/v1/ee/projects/:projectUuid/external-connections/:connectionUuid/schema',
-        ...fetchMiddlewares<RequestHandler>(ExternalConnectionController),
-        ...fetchMiddlewares<RequestHandler>(
-            ExternalConnectionController.prototype.getExternalConnectionSchema,
-        ),
-
-        async function ExternalConnectionController_getExternalConnectionSchema(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsExternalConnectionController_getExternalConnectionSchema,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ExternalConnectionController>(
-                        ExternalConnectionController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getExternalConnectionSchema',
                     controller,
                     response,
                     next,
@@ -95667,67 +95180,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'installRegistryChartType',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsAppGenerateController_installStarterChartTypes: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-    };
-    app.post(
-        '/api/v1/ee/projects/:projectUuid/apps/registry/starter-charts/install',
-        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
-        ...fetchMiddlewares<RequestHandler>(
-            AppGenerateController.prototype.installStarterChartTypes,
-        ),
-
-        async function AppGenerateController_installStarterChartTypes(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsAppGenerateController_installStarterChartTypes,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<AppGenerateController>(
-                        AppGenerateController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'installStarterChartTypes',
                     controller,
                     response,
                     next,
@@ -111443,67 +110895,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getActiveRun',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsOnboardingAgentController_getLatestRun: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-    };
-    app.get(
-        '/api/v1/ee/projects/:projectUuid/agent-onboarding/latest',
-        ...fetchMiddlewares<RequestHandler>(OnboardingAgentController),
-        ...fetchMiddlewares<RequestHandler>(
-            OnboardingAgentController.prototype.getLatestRun,
-        ),
-
-        async function OnboardingAgentController_getLatestRun(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsOnboardingAgentController_getLatestRun,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<OnboardingAgentController>(
-                        OnboardingAgentController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getLatestRun',
                     controller,
                     response,
                     next,
@@ -129829,71 +129220,6 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectController_replaceProjectContext: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'ApiReplaceProjectContextBody',
-        },
-    };
-    app.put(
-        '/api/v1/projects/:projectUuid/project-context',
-        ...fetchMiddlewares<RequestHandler>(ProjectController),
-        ...fetchMiddlewares<RequestHandler>(
-            ProjectController.prototype.replaceProjectContext,
-        ),
-
-        async function ProjectController_replaceProjectContext(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectController_replaceProjectContext,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ProjectController>(ProjectController);
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'replaceProjectContext',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsProjectController_getProjectColorPalette: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -130676,65 +130002,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateProjectPreviewExpirationSettings',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectController_getProjectResultsCacheStatus: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-    };
-    app.get(
-        '/api/v1/projects/:projectUuid/results-cache-config/status',
-        ...fetchMiddlewares<RequestHandler>(ProjectController),
-        ...fetchMiddlewares<RequestHandler>(
-            ProjectController.prototype.getProjectResultsCacheStatus,
-        ),
-
-        async function ProjectController_getProjectResultsCacheStatus(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectController_getProjectResultsCacheStatus,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ProjectController>(ProjectController);
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getProjectResultsCacheStatus',
                     controller,
                     response,
                     next,
@@ -138054,7 +137321,6 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        redirect: { in: 'query', name: 'redirect', dataType: 'string' },
     };
     app.get(
         '/api/v1/github/install',
@@ -143254,65 +142520,6 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsCatalogController_getMetricTables: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-    };
-    app.get(
-        '/api/v1/projects/:projectUuid/dataCatalog/metrics/tables',
-        ...fetchMiddlewares<RequestHandler>(CatalogController),
-        ...fetchMiddlewares<RequestHandler>(
-            CatalogController.prototype.getMetricTables,
-        ),
-
-        async function CatalogController_getMetricTables(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsCatalogController_getMetricTables,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<CatalogController>(CatalogController);
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getMetricTables',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsCatalogController_getMetricOwners: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -146299,71 +145506,6 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: undefined,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsBigqueryController_getBigQueryDatasetsFromKeyfile: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                keyfileContents: {
-                    ref: 'Record_string.unknown_',
-                    required: true,
-                },
-            },
-        },
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-    };
-    app.post(
-        '/api/v1/bigquery/datasets',
-        ...fetchMiddlewares<RequestHandler>(BigqueryController),
-        ...fetchMiddlewares<RequestHandler>(
-            BigqueryController.prototype.getBigQueryDatasetsFromKeyfile,
-        ),
-
-        async function BigqueryController_getBigQueryDatasetsFromKeyfile(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsBigqueryController_getBigQueryDatasetsFromKeyfile,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<BigqueryController>(BigqueryController);
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getBigQueryDatasetsFromKeyfile',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);

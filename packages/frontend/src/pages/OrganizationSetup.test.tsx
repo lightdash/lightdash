@@ -13,10 +13,6 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
 
-vi.mock('../ee/features/homepageBuilder/hooks/useProjectHomepage', () => ({
-    useHomepageBuilderFlag: () => ({ isEnabled: false, isLoading: false }),
-}));
-
 const toasterMocks = vi.hoisted(() => ({
     showToastApiError: vi.fn(),
     showToastSuccess: vi.fn(),
@@ -90,11 +86,7 @@ const mockOrgApi = (name: string, { optional = false } = {}) => {
     return interceptor.reply(200, { status: 'ok', results: { name } });
 };
 
-const mockBrandFetch = (
-    name: string,
-    ready?: Promise<void>,
-    colors: { hex: string; type: string; brightness: null }[] = [],
-) =>
+const mockBrandFetch = (name: string, ready?: Promise<void>) =>
     nock(BASE_API_URL)
         .post('/api/v1/org/brand/fetch')
         .reply(200, async () => {
@@ -107,23 +99,12 @@ const mockBrandFetch = (
                     name,
                     description: null,
                     logos: [],
-                    colors,
+                    colors: [],
                     fonts: [],
                     updatedAt: new Date().toISOString(),
                 },
             };
         });
-
-const pickReferral = async (
-    user: ReturnType<typeof userEvent.setup>,
-    answer: string,
-) => {
-    await user.click(await screen.findByRole('radio', { name: 'Other' }));
-    await user.type(
-        screen.getByRole('textbox', { name: 'Where did you hear about us?' }),
-        answer,
-    );
-};
 
 const selectRole = async (user: ReturnType<typeof userEvent.setup>) => {
     const roleSelect = await screen.findByPlaceholderText('Select your role');
@@ -163,13 +144,13 @@ describe('OrganizationSetup', () => {
 
         // invited members do not see the referral question
         expect(
-            screen.queryByRole('radiogroup', {
+            screen.queryByRole('textbox', {
                 name: /How did you hear about us/,
             }),
         ).not.toBeInTheDocument();
 
         const submitButton = await screen.findByRole('button', {
-            name: 'Continue',
+            name: 'Finish',
         });
         expect(submitButton).toBeDisabled();
 
@@ -177,8 +158,6 @@ describe('OrganizationSetup', () => {
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
-                firstName: 'David',
-                lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
@@ -188,46 +167,6 @@ describe('OrganizationSetup', () => {
 
         expect(submitButton).toBeEnabled();
 
-        await user.click(submitButton);
-
-        await waitFor(() => expect(scope.isDone()).toBe(true));
-    });
-
-    it('holds Continue until the user has a first and last name', async () => {
-        const user = userEvent.setup();
-
-        mockOrgApi('test organization');
-        renderSetupPage({
-            user: {
-                isSetupComplete: false,
-                organizationName: 'test organization',
-                email: 'demo@lightdash.com',
-                firstName: '',
-                lastName: '',
-            },
-            health: { mode: LightdashMode.DEFAULT },
-        });
-
-        await screen.findByPlaceholderText('Select your role');
-        await selectRole(user);
-        const submitButton = screen.getByRole('button', { name: 'Continue' });
-        expect(submitButton).toBeDisabled();
-
-        await user.type(screen.getByLabelText(/First name/), ' Ada ');
-        await user.type(screen.getByLabelText(/Last name/), 'Lovelace');
-
-        const scope = nock(BASE_API_URL)
-            .patch('/api/v1/user/me/complete', {
-                firstName: ' Ada ',
-                lastName: 'Lovelace',
-                jobTitle: 'Software Engineer',
-                enableEmailDomainAccess: false,
-                isMarketingOptedIn: true,
-                isTrackingAnonymized: false,
-            })
-            .reply(200);
-
-        expect(submitButton).toBeEnabled();
         await user.click(submitButton);
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
@@ -250,6 +189,8 @@ describe('OrganizationSetup', () => {
         });
 
         const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        expect(screen.getByText('Brand')).toBeInTheDocument();
+        expect(screen.getByText('Revenue overview')).toBeInTheDocument();
         await user.clear(nameInput);
         await user.type(nameInput, 'test organization');
         await user.click(
@@ -260,13 +201,14 @@ describe('OrganizationSetup', () => {
 
         await selectRole(user);
 
-        await pickReferral(user, '  a podcast  ');
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, '  a podcast  ');
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 organizationName: 'test organization',
-                firstName: 'David',
-                lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
                 howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: true,
@@ -278,9 +220,7 @@ describe('OrganizationSetup', () => {
             .put('/api/v1/org/brand', () => true)
             .reply(200, { status: 'ok', results: null });
 
-        await user.click(
-            await screen.findByRole('button', { name: 'Continue' }),
-        );
+        await user.click(await screen.findByRole('button', { name: 'Finish' }));
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
@@ -310,8 +250,6 @@ describe('OrganizationSetup', () => {
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
-                firstName: 'David',
-                lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
@@ -321,14 +259,12 @@ describe('OrganizationSetup', () => {
 
         // invited members do not see the referral question
         expect(
-            screen.queryByRole('radiogroup', {
+            screen.queryByRole('textbox', {
                 name: /How did you hear about us/,
             }),
         ).not.toBeInTheDocument();
 
-        await user.click(
-            await screen.findByRole('button', { name: 'Continue' }),
-        );
+        await user.click(await screen.findByRole('button', { name: 'Finish' }));
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
     });
@@ -355,15 +291,18 @@ describe('OrganizationSetup', () => {
             await screen.findByRole('button', { name: 'Continue' }),
         );
 
-        await selectRole(user);
-        await screen.findByRole('radiogroup', {
+        await screen.findByRole('textbox', {
             name: /How did you hear about us/,
         });
+        await selectRole(user);
 
-        await pickReferral(user, '   ');
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, '   ');
 
         const submitButton = await screen.findByRole('button', {
-            name: 'Continue',
+            name: 'Finish',
         });
         expect(submitButton).toBeEnabled();
 
@@ -431,7 +370,7 @@ describe('OrganizationSetup', () => {
         expect(completionRequestCount).toBe(0);
     });
 
-    it('shows an inline name error when the field loses focus', async () => {
+    it('names the offending character in a danger callout when the field loses focus', async () => {
         const user = userEvent.setup();
 
         const nameInput = await renderNameStep();
@@ -441,9 +380,6 @@ describe('OrganizationSetup', () => {
         expect(alert).toHaveTextContent(PERIOD_TITLE);
         expect(alert).toHaveTextContent(RULE_BODY);
         expect(nameInput).toHaveAttribute('aria-invalid', 'true');
-        expect(nameInput).toHaveAccessibleDescription(
-            `${PERIOD_TITLE} ${RULE_BODY}`,
-        );
         expect(screen.getAllByText(PERIOD_TITLE)).toHaveLength(1);
         expect(screen.getAllByText(RULE_BODY)).toHaveLength(1);
     });
@@ -474,7 +410,7 @@ describe('OrganizationSetup', () => {
         ).toBeInTheDocument();
     });
 
-    it('describes the inline error plainly when several kinds of character fail', async () => {
+    it('titles the callout plainly when several kinds of character fail', async () => {
         const user = userEvent.setup();
 
         const nameInput = await renderNameStep();
@@ -498,7 +434,7 @@ describe('OrganizationSetup', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('clears the inline error as soon as the typed value becomes valid', async () => {
+    it('clears the callout as soon as the typed value becomes valid', async () => {
         const user = userEvent.setup();
 
         const nameInput = await renderNameStep();
@@ -597,16 +533,26 @@ describe('OrganizationSetup', () => {
                 },
             });
             await screen.findByPlaceholderText('Acme Analytics');
+            expect(screen.queryByText('Brand')).not.toBeInTheDocument();
             expect(
-                screen.queryByText(/pulled your branding/),
+                screen.queryByRole('button', { name: /Select theme color/ }),
             ).not.toBeInTheDocument();
+            expect(screen.getByText('Revenue overview')).toBeInTheDocument();
+            expect(
+                screen.getByText('A preview of Lightdash.'),
+            ).toBeInTheDocument();
             await user.click(
                 await screen.findByRole('button', { name: 'Continue' }),
             );
             await selectRole(user);
-            await pickReferral(user, 'A colleague');
+            await user.type(
+                await screen.findByRole('textbox', {
+                    name: /How did you hear about us/,
+                }),
+                'A colleague',
+            );
             await user.click(
-                await screen.findByRole('button', { name: 'Continue' }),
+                await screen.findByRole('button', { name: 'Finish' }),
             );
             await screen.findByText('Home page');
             expect(complete.isDone()).toBe(true);
@@ -648,16 +594,13 @@ describe('OrganizationSetup', () => {
         await screen.findByPlaceholderText('Select your role');
         await selectRole(user);
 
-        await pickReferral(user, 'a podcast');
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, 'a podcast');
 
         releaseBrand();
-        await user.click(screen.getByRole('button', { name: 'Back' }));
-        await waitFor(() =>
-            expect(screen.getByPlaceholderText('Acme Analytics')).toHaveValue(
-                'Acme Inc',
-            ),
-        );
-        await user.click(screen.getByRole('button', { name: 'Continue' }));
+        await screen.findByText('lightdash.com');
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', (body) => {
@@ -669,9 +612,7 @@ describe('OrganizationSetup', () => {
             .put('/api/v1/org/brand', () => true)
             .reply(200, { status: 'ok', results: null });
 
-        await user.click(
-            await screen.findByRole('button', { name: 'Continue' }),
-        );
+        await user.click(await screen.findByRole('button', { name: 'Finish' }));
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
@@ -680,35 +621,11 @@ describe('OrganizationSetup', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('renders Back as a separate button from the workspace submit button', async () => {
-        const user = userEvent.setup();
-        const nameInput = await renderNameStep();
-        await user.clear(nameInput);
-        await user.type(nameInput, 'Acme');
-
-        const continueButton = screen.getByRole('button', {
-            name: 'Continue',
-        });
-        await user.click(continueButton);
-        await screen.findByPlaceholderText('Select your role');
-
-        const backButton = screen.getByRole('button', { name: 'Back' });
-        expect(backButton).not.toBe(continueButton);
-        expect(backButton).toHaveAttribute('type', 'button');
-
-        await user.click(backButton);
-        expect(
-            await screen.findByPlaceholderText('Acme Analytics'),
-        ).toHaveValue('Acme');
-    });
-
     it('completes setup with a sanitized punctuated brand name', async () => {
         const user = userEvent.setup();
 
         mockOrgApi('');
-        mockBrandFetch('Acme Inc.', undefined, [
-            { hex: '#ff5a1f', type: 'accent', brightness: null },
-        ]);
+        mockBrandFetch('Acme Inc.');
 
         renderSetupPage({
             user: {
@@ -725,9 +642,6 @@ describe('OrganizationSetup', () => {
 
         const nameInput = await screen.findByPlaceholderText('Acme Analytics');
         await waitFor(() => expect(nameInput).toHaveValue('Acme Inc'));
-        expect(
-            screen.getByText(/pulled your branding from lightdash.com/),
-        ).toBeInTheDocument();
 
         await user.click(
             await screen.findByRole('button', { name: 'Continue' }),
@@ -736,106 +650,29 @@ describe('OrganizationSetup', () => {
         await screen.findByPlaceholderText('Select your role');
         await selectRole(user);
 
-        await user.click(await screen.findByRole('radio', { name: 'Podcast' }));
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, 'a podcast');
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 organizationName: 'Acme Inc',
-                firstName: 'David',
-                lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
-                howDidYouHearAboutUs: 'Podcast',
+                howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: true,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
             })
-            .reply(200, { status: 'ok', results: {} });
+            .reply(200);
         const brandScope = nock(BASE_API_URL)
             .put('/api/v1/org/brand', () => true)
             .reply(200, { status: 'ok', results: null });
-        const paletteScope = nock(BASE_API_URL)
-            .post(
-                '/api/v1/org/color-palettes',
-                (body: { name: string; colors: string[] }) =>
-                    body.name === 'Acme Inc brand' &&
-                    body.colors[0] === '#ff5a1f' &&
-                    body.colors.length > 1,
-            )
-            .reply(200, {
-                status: 'ok',
-                results: { colorPaletteUuid: 'palette-1' },
-            })
-            .post('/api/v1/org/color-palettes/palette-1/active')
-            .reply(200, { status: 'ok', results: null });
 
-        await user.click(
-            await screen.findByRole('button', { name: 'Continue' }),
-        );
+        await user.click(await screen.findByRole('button', { name: 'Finish' }));
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
-        await waitFor(() => expect(paletteScope.isDone()).toBe(true));
-    });
-
-    it('does not create a brand palette when completing setup fails', async () => {
-        const user = userEvent.setup();
-
-        mockOrgApi('');
-        mockBrandFetch('Acme Inc.', undefined, [
-            { hex: '#ff5a1f', type: 'accent', brightness: null },
-        ]);
-
-        renderSetupPage({
-            user: {
-                isSetupComplete: false,
-                organizationName: '',
-                email: 'demo@lightdash.com',
-            },
-            health: {
-                mode: LightdashMode.DEFAULT,
-                hasBrandfetch: true,
-                license: { hasLicenseKey: true, valid: true },
-            },
-        });
-
-        const nameInput = await screen.findByPlaceholderText('Acme Analytics');
-        await waitFor(() => expect(nameInput).toHaveValue('Acme Inc'));
-        await user.click(
-            await screen.findByRole('button', { name: 'Continue' }),
-        );
-
-        await screen.findByPlaceholderText('Select your role');
-        await selectRole(user);
-        await user.click(await screen.findByRole('radio', { name: 'Podcast' }));
-
-        const scope = nock(BASE_API_URL)
-            .patch('/api/v1/user/me/complete')
-            .reply(500, {
-                status: 'error',
-                error: { name: 'Error', statusCode: 500, data: {} },
-            });
-        nock(BASE_API_URL)
-            .put('/api/v1/org/brand', () => true)
-            .optionally()
-            .reply(200, { status: 'ok', results: null });
-        const createPalette = vi.fn(() => ({
-            status: 'ok',
-            results: { colorPaletteUuid: 'palette-1' },
-        }));
-        nock(BASE_API_URL)
-            .post('/api/v1/org/color-palettes')
-            .optionally()
-            .reply(200, createPalette);
-
-        await user.click(
-            await screen.findByRole('button', { name: 'Continue' }),
-        );
-
-        await waitFor(() => expect(scope.isDone()).toBe(true));
-        await waitFor(() =>
-            expect(toasterMocks.showToastApiError).toHaveBeenCalled(),
-        );
-        expect(createPalette).not.toHaveBeenCalled();
     });
 
     it('falls back to the domain-derived name when the brand name has no usable characters', async () => {
@@ -856,6 +693,7 @@ describe('OrganizationSetup', () => {
         });
 
         const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        await screen.findByText('lightdash.com');
         await waitFor(() => expect(nameInput).toHaveValue('Lightdash'));
     });
 
@@ -884,7 +722,10 @@ describe('OrganizationSetup', () => {
         await screen.findByPlaceholderText('Select your role');
         await selectRole(user);
 
-        await pickReferral(user, 'a podcast');
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, 'a podcast');
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete')
@@ -903,9 +744,7 @@ describe('OrganizationSetup', () => {
             .optionally()
             .reply(200, { status: 'ok', results: null });
 
-        await user.click(
-            await screen.findByRole('button', { name: 'Continue' }),
-        );
+        await user.click(await screen.findByRole('button', { name: 'Finish' }));
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() =>

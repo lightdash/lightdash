@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
     buildProjectTree,
     findNode,
-    pageNodes,
     refExists,
     resolveRef,
     searchProject,
@@ -316,64 +315,5 @@ describe('searchProject', () => {
         const { results, total } = searchProject(tree, 'order', [], 1);
         expect(results).toHaveLength(1);
         expect(total).toBe(2);
-    });
-});
-
-describe('pageNodes', () => {
-    const labels = (nodes: { label: string }[]) => nodes.map((n) => n.label);
-
-    it('lists a source the tree folded into its kind', () => {
-        const shop = project(
-            [warehouse, posthog],
-            [
-                explore('orders', 'warehouse'),
-                explore('events', 'posthog'),
-                explore('persons', 'posthog'),
-            ],
-        );
-        const tree = buildProjectTree(shop);
-        const ref = { type: 'source', sourceId: 'posthog' } as const;
-        expect(findNode(tree.nodes, 'source:posthog')).toBeUndefined();
-        expect(labels(pageNodes(shop, tree, ref))).toEqual([
-            'events',
-            'persons',
-        ]);
-    });
-
-    it('lists a kind and source folded into the root', () => {
-        const shop = project(
-            [posthog],
-            [explore('events', 'posthog'), explore('persons', 'posthog')],
-        );
-        const tree = buildProjectTree(shop);
-        const all = ['events', 'persons'];
-        expect(
-            labels(pageNodes(shop, tree, { type: 'kind', kind: 'live' })),
-        ).toEqual(all);
-        expect(
-            labels(
-                pageNodes(shop, tree, { type: 'source', sourceId: 'posthog' }),
-            ),
-        ).toEqual(all);
-    });
-
-    it('lists nothing for a source without explores', () => {
-        const shop = project(
-            [warehouse, posthog, stripe],
-            [explore('orders', 'warehouse'), explore('events', 'posthog')],
-        );
-        const tree = buildProjectTree(shop);
-        expect(
-            pageNodes(shop, tree, { type: 'source', sourceId: 'stripe' }),
-        ).toEqual([]);
-        expect(pageNodes(shop, tree, { type: 'kind', kind: 'files' })).toEqual(
-            [],
-        );
-    });
-
-    it('lists the root for no page', () => {
-        const shop = project([warehouse], [explore('orders', 'warehouse')]);
-        const tree = buildProjectTree(shop);
-        expect(pageNodes(shop, tree, null)).toBe(tree.nodes);
     });
 });

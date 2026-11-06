@@ -6,7 +6,6 @@ import {
     WarehouseTypes,
     type Job,
 } from '@lightdash/common';
-import { notifications } from '@mantine/notifications';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
@@ -127,18 +126,6 @@ const renderProjectFlow = () =>
         </MemoryRouter>,
     );
 
-const renderOnboardingDbtFlow = () =>
-    renderWithProviders(
-        <MemoryRouter initialEntries={['/onboarding/dbt']}>
-            <ActiveJobProvider>
-                <CreateProjectConnection
-                    isCreatingFirstProject
-                    selectedWarehouse={WarehouseTypes.POSTGRES}
-                />
-            </ActiveJobProvider>
-        </MemoryRouter>,
-    );
-
 const fillConnectionForm = async () => {
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText(/^Host/), 'localhost');
@@ -203,7 +190,6 @@ describe('CreateProjectConnection project name', () => {
 describe('CreateProjectConnection in-flight job recovery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        notifications.clean();
     });
 
     it('resumes the creating state when a create-project job is already in flight', async () => {
@@ -214,7 +200,9 @@ describe('CreateProjectConnection in-flight job recovery', () => {
         expect(
             await screen.findByText('Creating your project'),
         ).toBeInTheDocument();
-        expect(screen.getByText('Testing the connection')).toBeInTheDocument();
+        expect(screen.getByText('Testing adaptor')).toBeInTheDocument();
+        expect(screen.getByText('Creating project')).toBeInTheDocument();
+        expect(screen.getByText('0/2 steps complete')).toBeInTheDocument();
 
         expect(screen.queryByLabelText(/^Host/)).not.toBeInTheDocument();
         expect(
@@ -326,30 +314,6 @@ describe('CreateProjectConnection in-flight job recovery', () => {
         expect(
             calls.filter(({ url }) => url === CREATE_PROJECT_URL),
         ).toHaveLength(1);
-    });
-
-    it('shows the running job toast outside onboarding', async () => {
-        routeApi({ activeJob: () => buildJob() });
-
-        renderProjectFlow();
-
-        expect(await screen.findByText('View log')).toBeInTheDocument();
-    });
-
-    it('keeps the running job inline on the onboarding dbt step', async () => {
-        const calls = routeApi({ activeJob: () => buildJob() });
-
-        renderOnboardingDbtFlow();
-
-        expect(
-            await screen.findByText('Creating your project'),
-        ).toBeInTheDocument();
-        await waitFor(() =>
-            expect(
-                calls.some(({ url }) => url === `/jobs/${IN_FLIGHT_JOB_UUID}`),
-            ).toBe(true),
-        );
-        expect(screen.queryByText('View log')).not.toBeInTheDocument();
     });
 
     it('surfaces the failing step when the resumed job errors', async () => {

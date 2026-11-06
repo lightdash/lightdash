@@ -94,9 +94,13 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
+
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
-    const isResultsCacheAvailable = health?.license?.valid === true;
     const isServiceAccountsEnabled = health?.license?.valid === true;
 
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
@@ -241,7 +245,7 @@ export const useSettingsContext = (): SettingsContext => {
         isChartStudioAvailable,
         isApiQuerySourcesEnabled: apiQuerySourcesFlag?.enabled ?? false,
         externalSourcesFlag,
-        isResultsCacheAvailable,
+        isResultsCacheEnabled,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,

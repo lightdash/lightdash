@@ -1,0 +1,6 @@
+version: 2
+models:
+  - name: dim_c
+    access: public
+  - name: customers
+    access: public

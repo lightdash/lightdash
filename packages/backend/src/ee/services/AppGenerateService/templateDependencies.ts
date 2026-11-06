@@ -25,7 +25,7 @@ export const TEMPLATE_DEV_DEPENDENCIES: Record<string, string> = {
     postcss: '8.5.25',
     tailwindcss: '3.4.17',
     typescript: '7.0.2',
-    vite: '8.1.6',
+    vite: '8.0.16',
 };
 
 // Copy of sandboxes/data-apps/template/package.json `dependencies` — the

@@ -239,20 +239,3 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.ATHENA]: AthenaDefaultValues,
     [WarehouseTypes.DUCKDB]: DuckdbDefaultValues,
 };
-
-// Onboarding prefills the conventional schema so a first connection needs fewer fields
-export const onboardingWarehouseDefaultValues: typeof warehouseDefaultValues = {
-    ...warehouseDefaultValues,
-    [WarehouseTypes.POSTGRES]: { ...PostgresDefaultValues, schema: 'public' },
-    [WarehouseTypes.REDSHIFT]: { ...RedshiftDefaultValues, schema: 'public' },
-    [WarehouseTypes.SNOWFLAKE]: { ...SnowflakeDefaultValues, schema: 'PUBLIC' },
-    [WarehouseTypes.DATABRICKS]: {
-        ...DatabricksDefaultValues,
-        database: 'default',
-    },
-    [WarehouseTypes.CLICKHOUSE]: {
-        ...ClickhouseDefaultValues,
-        schema: 'default',
-    },
-    [WarehouseTypes.ATHENA]: { ...AthenaDefaultValues, schema: 'default' },
-};

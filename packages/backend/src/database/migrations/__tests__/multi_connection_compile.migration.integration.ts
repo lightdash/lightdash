@@ -11,7 +11,6 @@ import {
     FieldType,
     getCatalogMissingEntries,
     getDeferredExploreName,
-    getExternalModelNodesFromManifest,
     getModelsFromManifest,
     getPreAggregateExploreName,
     InlineErrorType,
@@ -28,10 +27,8 @@ import {
     SupportedDbtAdapter,
     SupportedDbtVersions,
     type CreateWarehouseCredentials,
-    type DbtExternalModelNode,
     type DbtManifest,
     type DbtProjectConfig,
-    type DbtRawModelNode,
     type Explore,
     type ExploreError,
     type PossibleAbilities,
@@ -181,9 +178,6 @@ describe('Multi-connection compile on the real schema', () => {
         { name: 'customers', database: ORIGINAL_DB, table: 'customers' },
     ];
     const sourceManifests: Record<string, DbtManifest> = {};
-    let primaryManifestOverride: DbtManifest | undefined;
-    const fixtureModelNode = (manifest: DbtManifest, id: string) =>
-        manifest.nodes[id] as DbtRawModelNode & DbtManifest['nodes'][string];
     const fetchedWith: { source: string; dbname: string }[] = [];
 
     const fetchSourceManifest = async (
@@ -322,24 +316,6 @@ describe('Multi-connection compile on the real schema', () => {
             warehouseConnectionUuid,
         );
 
-    const insertSourceProjectName = (
-        projectUuid: string,
-        dbtSourceUuid: string,
-        projectName: string,
-        nodes: DbtExternalModelNode[] = [],
-    ) =>
-        database('dbt_source_ref_catalogs').insert({
-            project_uuid: projectUuid,
-            dbt_source_uuid: dbtSourceUuid,
-            connection_group: 'original',
-            project_name: projectName,
-            dbt_version: '1.7.0',
-            status: 'confirmed',
-            nodes: JSON.stringify(nodes),
-            nodes_digest: 'existing-catalog-fixture',
-            compile_job_uuid: null,
-        });
-
     const compile = async (
         fixture: Fixture,
         primary: FixtureModel[] = primaryModels,
@@ -349,6 +325,7 @@ describe('Multi-connection compile on the real schema', () => {
         failure: {
             sources: string[];
             phase: 'prepare' | 'manifest';
+            crossSourceRefs: boolean;
             onWarning?: (warning: string) => Promise<void>;
         } | null = null,
     ) => {
@@ -377,9 +354,7 @@ describe('Multi-connection compile on the real schema', () => {
                             if (failure?.sources.includes('primary'))
                                 throw new DbtError('Primary parse failed');
                             return {
-                                manifest:
-                                    primaryManifestOverride ??
-                                    dbtManifest('primary', primary),
+                                manifest: dbtManifest('primary', primary),
                                 timings: {
                                     gitRefreshMs: null,
                                     depsMs: null,
@@ -403,14 +378,23 @@ describe('Multi-connection compile on the real schema', () => {
                         },
                     },
                     dbtVersion: SupportedDbtVersions.V1_8,
+                    crossSourceRefsEnabled: failure?.crossSourceRefs ?? false,
                     mixedWarehouseConnectionsEnabled: false,
                     onSourceWarning: failure?.onWarning,
+                    prepareSourceManifest: async (source) => {
+                        if (
+                            failure?.phase === 'prepare' &&
+                            failure.sources.includes(source.name)
+                        )
+                            throw new Error('Repository clone failed');
+                        return null;
+                    },
                     fetchSourceManifest: async (...args) => {
-                        if (failure?.sources.includes(args[0].name)) {
-                            if (failure.phase === 'prepare')
-                                throw new Error('Repository clone failed');
+                        if (
+                            failure?.phase === 'manifest' &&
+                            failure.sources.includes(args[0].name)
+                        )
                             throw new DbtError('Source parse failed');
-                        }
                         return fetchSourceManifest(args[0], args[1]);
                     },
                     loadExtraCredentials: loadExtraCredentials(
@@ -475,7 +459,6 @@ describe('Multi-connection compile on the real schema', () => {
         );
 
     const setDefaultSourceManifests = () => {
-        primaryManifestOverride = undefined;
         sourceManifests.marketing = dbtManifest('marketing', [
             { name: 'campaigns', database: ORIGINAL_DB, table: 'campaigns' },
         ]);
@@ -546,6 +529,9 @@ describe('Multi-connection compile on the real schema', () => {
             database,
         });
         compiler = new MultiConnectionCompiler({
+            dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
+                database,
+            }),
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
@@ -718,6 +704,7 @@ describe('Multi-connection compile on the real schema', () => {
                                 warehouseConnectionUuids: [],
                             },
                             persistArtifacts: async () => {},
+                            signal: context.controller.signal,
                         },
                         beforeWrite,
                     );
@@ -811,6 +798,7 @@ describe('Multi-connection compile on the real schema', () => {
                                   warehouseConnectionUuids: [],
                               },
                               persistArtifacts: async () => {},
+                              signal: context.controller.signal,
                           });
                 await expect(saving).rejects.toBeInstanceOf(
                     CompileInterruptedError,
@@ -1001,18 +989,22 @@ describe('Multi-connection compile on the real schema', () => {
                                 : '',
                     });
                     return {
-                        getDbtManifest: async () => {
+                        prepareDbtSource: async () => {
                             if (options.failedSources?.includes(name))
                                 throw new Error('Repository clone failed');
                             return {
-                                manifest: sourceManifests[name],
-                                timings: {
-                                    gitRefreshMs: null,
-                                    depsMs: null,
-                                    manifestMs: 0,
-                                },
+                                projectDir: null,
+                                timings: { gitRefreshMs: null, depsMs: null },
                             };
                         },
+                        getDbtManifest: async () => ({
+                            manifest: sourceManifests[name],
+                            timings: {
+                                gitRefreshMs: null,
+                                depsMs: null,
+                                manifestMs: 0,
+                            },
+                        }),
                         releaseDisk: async () => {},
                         destroy: async () => {},
                     };
@@ -2320,11 +2312,18 @@ Sources in this project: Core models, marketing, finance.`;
 
             test('accepts a fresh single-package preview using the parent ref catalog', async () => {
                 const parent = await setup();
-                await insertSourceProjectName(
-                    parent.fixture.projectUuid,
-                    parent.primary.dbtSourceUuid,
-                    'analytics',
-                );
+                await new DbtSourceRefCatalogModel({
+                    database,
+                }).upsertProvisional({
+                    projectUuid: parent.fixture.projectUuid,
+                    dbtSourceUuid: parent.primary.dbtSourceUuid,
+                    connectionGroup: 'original',
+                    projectName: 'analytics',
+                    dbtVersion: '1.7.0',
+                    nodes: [],
+                    referencedProjects: [],
+                    compileJobUuid: null,
+                });
                 await database('cached_explore')
                     .where('project_uuid', parent.fixture.projectUuid)
                     .delete();
@@ -3201,11 +3200,18 @@ Sources in this project: Core models, marketing, finance.`;
                             "explore #- '{tables,orders,dbtPackageName}' #- '{tables,retired,dbtPackageName}'",
                         ),
                     });
-                await insertSourceProjectName(
-                    fixture.projectUuid,
-                    primary.dbtSourceUuid,
-                    'analytics',
-                );
+                await new DbtSourceRefCatalogModel({
+                    database,
+                }).upsertProvisional({
+                    projectUuid: fixture.projectUuid,
+                    dbtSourceUuid: primary.dbtSourceUuid,
+                    connectionGroup: 'original',
+                    projectName: 'analytics',
+                    dbtVersion: '1.7.0',
+                    nodes: [],
+                    referencedProjects: [],
+                    compileJobUuid: null,
+                });
                 await deploy();
                 expect(
                     Object.keys(await bindings(fixture.projectUuid)),
@@ -3991,6 +3997,7 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: [],
                             phase: 'prepare',
+                            crossSourceRefs: true,
                         },
                     );
                     const deployed = (
@@ -4045,6 +4052,7 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: ['marketing'],
                             phase: 'prepare',
+                            crossSourceRefs: true,
                         },
                     );
                     expect(
@@ -4142,16 +4150,23 @@ Sources in this project: Core models, marketing, finance.`;
                     fixture,
                     primaryModels,
                     postgresWarehouse(ORIGINAL_DB),
-                    { sources: [], phase: 'prepare' },
+                    { sources: [], phase: 'prepare', crossSourceRefs: true },
                 );
-                await insertSourceProjectName(
-                    fixture.projectUuid,
-                    fixture.sourceUuids.marketing,
-                    'marketing',
-                    getExternalModelNodesFromManifest(
-                        sourceManifests.marketing,
-                    ),
+                const sourceCatalog = await database('dbt_source_ref_catalogs')
+                    .where({
+                        project_uuid: fixture.projectUuid,
+                        dbt_source_uuid: fixture.sourceUuids.marketing,
+                    })
+                    .first();
+                expect(sourceCatalog?.project_name).toBe('marketing');
+                expect(
+                    sourceCatalog?.nodes.map((node) => node.package_name),
+                ).toEqual(
+                    expect.arrayContaining(['marketing', 'synthetic_vendor']),
                 );
+                expect(
+                    sourceCatalog?.nodes.map((node) => node.package_name),
+                ).not.toContain('reference_only');
                 const names = ['campaigns', 'settlements', 'vendor_receipt'];
                 const deployed = (await cachedExplores(fixture.projectUuid))
                     .filter((row) => names.includes(row.name))
@@ -4417,11 +4432,18 @@ Sources in this project: Core models, marketing, finance.`;
                             ['primary', identity.dbtSourceUuid],
                             ['finance', fixture.sourceUuids.finance],
                         ].map(async ([projectName, dbtSourceUuid]) => {
-                            await insertSourceProjectName(
-                                fixture.projectUuid,
+                            await new DbtSourceRefCatalogModel({
+                                database,
+                            }).upsertProvisional({
+                                projectUuid: fixture.projectUuid,
                                 dbtSourceUuid,
+                                connectionGroup: 'original',
                                 projectName,
-                            );
+                                dbtVersion: '1.7.0',
+                                nodes: [],
+                                referencedProjects: [],
+                                compileJobUuid: null,
+                            });
                         }),
                     );
                     const user = await compilingUser(fixture.projectUuid);
@@ -5386,6 +5408,7 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: ['marketing'],
                             phase,
+                            crossSourceRefs: true,
                         },
                     );
                     const after = await database('cached_explore')
@@ -5431,17 +5454,8 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: [],
                             phase: 'prepare',
+                            crossSourceRefs: true,
                         },
-                    );
-                    await insertSourceProjectName(
-                        fixture.projectUuid,
-                        fixture.sourceUuids.marketing,
-                        'marketing',
-                    );
-                    await insertSourceProjectName(
-                        fixture.projectUuid,
-                        fixture.sourceUuids.finance,
-                        'finance',
                     );
                     const rows = await cachedExplores(fixture.projectUuid);
                     const campaigns = rows.find(
@@ -5523,6 +5537,7 @@ Sources in this project: Core models, marketing, finance.`;
                     {
                         sources: ['marketing', 'finance'],
                         phase: 'manifest',
+                        crossSourceRefs: false,
                     },
                 );
                 const after = await cachedExplores(fixture.projectUuid);
@@ -5554,6 +5569,7 @@ Sources in this project: Core models, marketing, finance.`;
                     {
                         sources: ['marketing'],
                         phase: 'manifest',
+                        crossSourceRefs: true,
                     },
                 );
                 expect(
@@ -5578,6 +5594,7 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: ['primary'],
                             phase: 'manifest',
+                            crossSourceRefs: true,
                         },
                     ),
                 ).rejects.toThrow('Primary parse failed');
@@ -5649,6 +5666,7 @@ Sources in this project: Core models, marketing, finance.`;
                     {
                         sources: ['marketing'],
                         phase: 'manifest',
+                        crossSourceRefs: true,
                     },
                 );
                 expect(
@@ -5675,12 +5693,8 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: [],
                             phase: 'prepare',
+                            crossSourceRefs: true,
                         },
-                    );
-                    await insertSourceProjectName(
-                        fixture.projectUuid,
-                        fixture.sourceUuids.marketing,
-                        'marketing',
                     );
                     if (ownership === 'legacy')
                         await database('cached_explore')
@@ -5743,6 +5757,7 @@ Sources in this project: Core models, marketing, finance.`;
                             {
                                 sources: ['marketing'],
                                 phase: 'manifest',
+                                crossSourceRefs: true,
                                 onWarning: (warning) =>
                                     jobs.appendJobStepWarning(
                                         jobUuid,
@@ -7083,6 +7098,9 @@ Sources in this project: Core models, marketing, finance.`;
                 .orderBy('name');
         const freshCompiler = () =>
             new MultiConnectionCompiler({
+                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
+                    database,
+                }),
                 projectModel,
                 projectDbtSourcesModel,
                 warehouseConnectionCompileModel,
@@ -8814,6 +8832,13 @@ Sources in this project: Core models, marketing, finance.`;
         const bindingAnalytics = { track: vi.fn() };
         const bindingService = () =>
             new WarehouseConnectionBindingService({
+                dbtSourceRefCatalogModel: { deleteForSource: vi.fn() },
+                featureFlagService: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    })),
+                } as never,
                 projectModel,
                 warehouseConnectionCompileModel,
                 warehouseConnectionModel,
@@ -9057,6 +9082,9 @@ Sources in this project: Core models, marketing, finance.`;
 
         const dbtSourcesService = () =>
             new ProjectDbtSourcesService({
+                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
+                    database,
+                }),
                 lightdashConfig: lightdashConfigMock,
                 analytics: { track: vi.fn() } as never,
                 projectModel,
@@ -9161,500 +9189,5 @@ Sources in this project: Core models, marketing, finance.`;
                 orders: null,
             });
         });
-    });
-    test.each([
-        { versioned: false, baseIncluded: true, refusal: 'none' },
-        { versioned: true, baseIncluded: true, refusal: 'none' },
-        { versioned: false, baseIncluded: false, refusal: 'none' },
-        { versioned: true, baseIncluded: false, refusal: 'none' },
-        { versioned: false, baseIncluded: false, refusal: 'zero' },
-        { versioned: false, baseIncluded: true, refusal: 'multiple' },
-    ] as const)(
-        'preview allocation: preview publication distinguishes model identity from additional explore names (versioned $versioned, base $baseIncluded, refusal $refusal)',
-        async ({ versioned, baseIncluded, refusal }) => {
-            const parent = await createProject();
-            await bind(parent, 'finance', null);
-            sourceManifests.finance = dbtManifest('finance', [
-                { name: 'payments', database: ORIGINAL_DB, table: 'payments' },
-            ]);
-            fixtureModelNode(
-                sourceManifests.finance,
-                'model.finance.payments',
-            ).meta = {
-                explores: { payments_report: {} },
-            };
-            if (versioned) {
-                const node = fixtureModelNode(
-                    sourceManifests.finance,
-                    'model.finance.payments',
-                );
-                sourceManifests.finance.nodes = {
-                    'model.finance.payments.v2': Object.assign(node, {
-                        unique_id: 'model.finance.payments.v2',
-                        version: 2,
-                        latest_version: 2,
-                    }),
-                };
-            }
-            primaryManifestOverride = dbtManifest('primary', [
-                { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
-            ]);
-            fixtureModelNode(
-                primaryManifestOverride,
-                'model.primary.orders',
-            ).meta = {
-                joins: [
-                    {
-                        join: 'finance__payments',
-                        sql_on: '${orders.id} = ${finance__payments.id}',
-                    },
-                ],
-            };
-            await compile(parent);
-            const uploaded = (await cachedExplores(parent.projectUuid))
-                .map((row) => row.explore)
-                .filter((item) => baseIncluded || item.name !== 'payments');
-            const destination = await createProject();
-            await bind(destination, 'finance', null);
-            const parentIdentity = await projectModel.getDbtSourceIdentity(
-                parent.projectUuid,
-            );
-            const destinationIdentity = await projectModel.getDbtSourceIdentity(
-                destination.projectUuid,
-            );
-            const sourcesByPackage = new Map([
-                ['primary', destinationIdentity.dbtSourceUuid],
-                ['marketing', destination.sourceUuids.marketing],
-                ['finance', destination.sourceUuids.finance],
-            ]);
-            const sourceAliases = new Map([
-                [
-                    parentIdentity.dbtSourceUuid,
-                    destinationIdentity.dbtSourceUuid,
-                ],
-                [
-                    parent.sourceUuids.marketing,
-                    destination.sourceUuids.marketing,
-                ],
-                [parent.sourceUuids.finance, destination.sourceUuids.finance],
-            ]);
-            const publish = async (explores: (Explore | ExploreError)[]) =>
-                compiler.save(
-                    destination.projectUuid,
-                    await compiler.preparePreviewDeploy({
-                        projectUuid: destination.projectUuid,
-                        explores: structuredClone(explores),
-                        sourcesByPackage,
-                        sourceAliases,
-                    }),
-                );
-            if (refusal !== 'none') {
-                const report = uploaded.find(
-                    (e) => e.name === 'payments_report',
-                )!;
-                if (refusal === 'zero')
-                    uploaded.push({
-                        ...structuredClone(report),
-                        name: 'payments_other_report',
-                        dbtModelIdentity: {
-                            ...report.dbtModelIdentity!,
-                            modelName: 'payments_other_report',
-                        },
-                    });
-                else {
-                    report.dbtModelIdentity = {
-                        ...report.dbtModelIdentity!,
-                        modelName: 'payments',
-                        uniqueId: 'model.finance.alternative',
-                    };
-                    const orders = uploaded.find(
-                        (e) => e.name === 'orders',
-                    ) as Explore;
-                    delete orders.tables.finance__payments.dbtModelUniqueId;
-                }
-                await expect(publish(uploaded)).rejects.toThrow(
-                    'Cannot resolve joined model "payments"',
-                );
-                expect(await cachedExplores(destination.projectUuid)).toEqual(
-                    [],
-                );
-                return;
-            }
-            await expect(publish(uploaded)).resolves.toBeDefined();
-            const saved = await cachedExplores(destination.projectUuid);
-            const orders = saved.find((row) => row.name === 'orders')!
-                .explore as Explore;
-            expect(orders.tables.finance__payments.dbtSourceUuid).toBe(
-                destination.sourceUuids.finance,
-            );
-            expect(orders.tables.finance__payments.dbtModelUniqueId).toBe(
-                versioned
-                    ? 'model.finance.payments.v2'
-                    : 'model.finance.payments',
-            );
-            expect(
-                saved.find((row) => row.name === 'payments_report'),
-            ).toBeDefined();
-        },
-    );
-    test('source availability: preserves join meaning through provider failure and recovery', async () => {
-        const fixture = await createProject();
-        await bind(fixture, 'finance', null);
-        sourceManifests.marketing = dbtManifest('marketing', [
-            { name: 'regions', database: ORIGINAL_DB, table: 'campaigns' },
-        ]);
-        sourceManifests.finance = dbtManifest('finance', [
-            { name: 'regions', database: ORIGINAL_DB, table: 'payments' },
-        ]);
-        primaryManifestOverride = dbtManifest('primary', [
-            { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
-        ]);
-        fixtureModelNode(primaryManifestOverride, 'model.primary.orders').meta =
-            {
-                explores: {
-                    orders_dup_regions: {
-                        joins: [
-                            {
-                                join: 'regions',
-                                alias: 'region',
-                                sql_on: '${orders.id} = ${region.id}',
-                            },
-                        ],
-                    },
-                    orders_gamma_regions: {
-                        joins: [
-                            {
-                                join: 'finance__regions',
-                                alias: 'region',
-                                sql_on: '${orders.id} = ${region.id}',
-                            },
-                        ],
-                    },
-                },
-            };
-        const stagedGenerations: (Explore | ExploreError)[][] = [];
-        const save = compiler.save.bind(compiler);
-        vi.spyOn(compiler, 'save').mockImplementation(
-            async (projectUuid, compilation, beforeWrite) => {
-                const staged: (Explore | ExploreError)[] = [];
-                for await (const stagedExplore of compilation.exploreStream)
-                    staged.push(stagedExplore);
-                stagedGenerations.push(structuredClone(staged));
-                return save(
-                    projectUuid,
-                    {
-                        ...compilation,
-                        exploreStream: (async function* stagedExplores() {
-                            yield* staged;
-                        })(),
-                    },
-                    beforeWrite,
-                );
-            },
-        );
-        const phases: Record<
-            string,
-            { rows: CachedExploreRow[]; warnings: string[] }
-        > = {};
-        await (['healthy', 'failed', 'recovered'] as const).reduce(
-            async (previous, phase) => {
-                await previous;
-                const result = await compile(
-                    fixture,
-                    primaryModels,
-                    postgresWarehouse(ORIGINAL_DB),
-                    phase === 'failed'
-                        ? { sources: ['finance'], phase: 'manifest' }
-                        : null,
-                );
-                phases[phase] = {
-                    rows: await cachedExplores(fixture.projectUuid),
-                    warnings: result.warnings,
-                };
-            },
-            Promise.resolve(),
-        );
-        const get = (phase: string, name: string) =>
-            phases[phase].rows.find((row) => row.name === name)!
-                .explore as Explore;
-        const ambiguous = (phase: string) => {
-            expect(get(phase, 'orders_dup_regions').joinedTables).toEqual([]);
-            expect(get(phase, 'orders_dup_regions').warnings).toEqual(
-                expect.arrayContaining([
-                    expect.objectContaining({
-                        type: InlineErrorType.MISSING_TABLE,
-                        message: expect.stringContaining('ambiguous'),
-                    }),
-                ]),
-            );
-            expect(
-                get(phase, 'orders_gamma_regions').tables.region.dbtSourceUuid,
-            ).toBe(fixture.sourceUuids.finance);
-        };
-        ambiguous('healthy');
-        ambiguous('recovered');
-        for (const [index, phase] of [
-            'healthy',
-            'failed',
-            'recovered',
-        ].entries()) {
-            for (const name of ['orders_dup_regions', 'orders_gamma_regions']) {
-                const staged = stagedGenerations[index].find(
-                    (e) => e.name === name,
-                ) as Explore;
-                const published = get(phase, name);
-                expect(staged.warnings ?? []).toEqual(published.warnings ?? []);
-                expect(staged.joinedTables).toHaveLength(
-                    published.joinedTables.length,
-                );
-                if (phase !== 'failed' && name === 'orders_gamma_regions') {
-                    for (const target of [
-                        staged.tables.region,
-                        published.tables.region,
-                    ])
-                        expect(target).toMatchObject({
-                            dbtSourceUuid: fixture.sourceUuids.finance,
-                            dbtPackageName: 'finance',
-                            dbtModelUniqueId: 'model.finance.regions',
-                        });
-                }
-            }
-        }
-
-        const carried = phases.failed.rows.find(
-            (row) =>
-                (row.explore as Explore).dbtModelIdentity?.sourceUuid ===
-                fixture.sourceUuids.finance,
-        );
-        expect(carried).toBeDefined();
-        expect(carried?.explore).toEqual(
-            phases.healthy.rows.find(
-                (row) =>
-                    row.explore.dbtModelIdentity?.sourceUuid ===
-                    fixture.sourceUuids.finance,
-            )?.explore,
-        );
-        expect(phases.failed.warnings).toEqual(
-            expect.arrayContaining([
-                expect.stringContaining('kept its 1 explores'),
-            ]),
-        );
-        expect(get('failed', 'orders_dup_regions').joinedTables).toEqual([]);
-        expect(get('failed', 'orders_dup_regions').warnings).toEqual([
-            expect.objectContaining({
-                type: InlineErrorType.MISSING_TABLE,
-                message:
-                    'Join "region" to table "regions" was skipped because source inventory is unavailable: finance.',
-            }),
-        ]);
-        expect(get('failed', 'orders_gamma_regions').joinedTables).toEqual([]);
-        expect(get('failed', 'orders_gamma_regions').warnings).toEqual([
-            expect.objectContaining({
-                type: InlineErrorType.MISSING_TABLE,
-                message:
-                    'Join "region" to table "finance__regions" was skipped because source "finance" inventory is unavailable.',
-            }),
-        ]);
-    });
-
-    test('NUL metadata becomes a typed model error before publication without retargeting dependents', async () => {
-        const fixture = await createProject();
-        await bind(fixture, 'finance', null);
-        sourceManifests.marketing = dbtManifest('marketing', [
-            { name: 'orders', database: ORIGINAL_DB, table: 'campaigns' },
-        ]);
-        sourceManifests.finance = dbtManifest('finance', [
-            { name: 'payments', database: ORIGINAL_DB, table: 'payments' },
-        ]);
-        fixtureModelNode(
-            sourceManifests.finance,
-            'model.finance.payments',
-        ).meta = {
-            joins: [
-                {
-                    join: 'orders',
-                    alias: 'target',
-                    sql_on: '${payments.id} = ${target.id}',
-                },
-            ],
-        };
-        primaryManifestOverride = dbtManifest('primary', primaryModels);
-        fixtureModelNode(primaryManifestOverride, 'model.primary.orders').meta =
-            {
-                label: 'private-prefix\u0000private-suffix',
-            };
-        fixtureModelNode(
-            primaryManifestOverride,
-            'model.primary.customers',
-        ).meta = {
-            joins: [
-                {
-                    join: 'orders',
-                    alias: 'target',
-                    sql_on: '${customers.id} = ${target.id}',
-                },
-            ],
-        };
-        await expect(compile(fixture)).resolves.toBeDefined();
-        const rows = await cachedExplores(fixture.projectUuid);
-        const invalid = rows.find(
-            (row) =>
-                row.explore.dbtModelIdentity?.uniqueId ===
-                'model.primary.orders',
-        )!.explore;
-        expect(invalid).toMatchObject({
-            errors: [
-                {
-                    type: InlineErrorType.METADATA_PARSE_ERROR,
-                    message: expect.stringContaining('meta.label'),
-                },
-            ],
-            dbtModelIdentity: {
-                packageName: 'primary',
-                uniqueId: 'model.primary.orders',
-            },
-        });
-        expect(JSON.stringify(invalid)).not.toContain('private-prefix');
-        for (const uniqueId of [
-            'model.primary.customers',
-            'model.finance.payments',
-        ]) {
-            const dependent = rows.find(
-                (row) => row.explore.dbtModelIdentity?.uniqueId === uniqueId,
-            )!.explore as Explore;
-            expect(dependent.joinedTables).toEqual([]);
-            expect(dependent.tables.target).toBeUndefined();
-            expect(dependent.warnings?.length).toBeGreaterThan(0);
-        }
-        expect(
-            rows.find(
-                (row) =>
-                    row.explore.dbtModelIdentity?.uniqueId ===
-                    'model.marketing.orders',
-            )?.explore,
-        ).not.toHaveProperty('errors');
-    });
-
-    test.each([
-        'primary-identity',
-        'additional-identity',
-        'primary-wide',
-        'additional-wide',
-    ] as const)(
-        'NUL %s uses source failure policy and preserves prior cache',
-        async (mode) => {
-            const fixture = await createProject();
-            await compile(fixture);
-            const before = await cachedExplores(fixture.projectUuid);
-            const primary = mode.startsWith('primary');
-            primaryManifestOverride = dbtManifest('primary', primaryModels);
-            const manifest = primary
-                ? primaryManifestOverride
-                : sourceManifests.finance;
-            if (mode.endsWith('identity'))
-                fixtureModelNode(
-                    manifest,
-                    primary ? 'model.primary.orders' : 'model.finance.payments',
-                ).name = 'invalid\u0000identity';
-            else manifest.metadata.generated_at = 'invalid\u0000date';
-            if (primary) {
-                await expect(compile(fixture)).rejects.toThrow(
-                    'U+0000 is not supported',
-                );
-                expect(await cachedExplores(fixture.projectUuid)).toEqual(
-                    before,
-                );
-            } else {
-                const result = await compile(fixture);
-                expect(result.warnings).toEqual([
-                    expect.stringContaining('kept its 1 explores'),
-                ]);
-                expect(result.warnings[0]).toContain('Source "finance"');
-                expect(result.warnings[0]).toContain(
-                    mode.endsWith('identity')
-                        ? 'model.name'
-                        : 'manifest.metadata.generated_at',
-                );
-                expect(result.warnings[0]).not.toContain('invalid');
-                const after = await cachedExplores(fixture.projectUuid);
-                expect(
-                    after.find((row) => row.name === 'payments')?.explore,
-                ).toEqual(
-                    before.find((row) => row.name === 'payments')?.explore,
-                );
-                expect(
-                    after.find((row) => row.name === 'orders')?.explore,
-                ).not.toHaveProperty('errors');
-            }
-            expect(
-                JSON.stringify(await cachedExplores(fixture.projectUuid)),
-            ).not.toContain('invalid\\u0000');
-        },
-    );
-    test.each(['plain label', 'literal\\u0000'])(
-        'NUL validation preserves valid label %s through publication',
-        async (label) => {
-            const fixture = await createProject();
-            primaryManifestOverride = dbtManifest('primary', primaryModels);
-            fixtureModelNode(
-                primaryManifestOverride,
-                'model.primary.orders',
-            ).meta = {
-                label,
-            };
-            await compile(fixture);
-            const orders = (await cachedExplores(fixture.projectUuid)).find(
-                (row) => row.name === 'orders',
-            )!.explore;
-            expect(orders).not.toHaveProperty('errors');
-            expect(orders.label).toBe(label);
-        },
-    );
-
-    test('NUL strict compilation rolls back a publication stream and leaves prior explores intact', async () => {
-        const fixture = await createProject();
-        await compile(fixture);
-        const before = await cachedExplores(fixture.projectUuid);
-        const manifest = dbtManifest('primary', primaryModels);
-        fixtureModelNode(manifest, 'model.primary.orders').meta = {
-            label: 'invalid\u0000label',
-        };
-        const adapter = new DbtManifestProjectAdapter({
-            parsedManifest: manifest,
-            dbtVersion: SupportedDbtVersions.V1_8,
-            warehouseClient: warehouseClientFromCredentials(
-                postgresWarehouse(ORIGINAL_DB),
-            ),
-            cachedWarehouse: {
-                warehouseCatalog: {},
-                onWarehouseCatalogChange: async () => {},
-            },
-        });
-        await expect(
-            compiler.save(fixture.projectUuid, {
-                exploreStream: (async function* strictPublication() {
-                    yield {
-                        ...before[0].explore,
-                        label: 'must not be published',
-                    };
-                    yield* await adapter.prepareExploreStream(
-                        undefined,
-                        false,
-                        false,
-                        true,
-                    );
-                })(),
-                bindingOf: () => null,
-                carry: { kind: 'connections', warehouseConnectionUuids: [] },
-                persistArtifacts: async () => {},
-            }),
-        ).rejects.toThrow('U+0000 is not supported');
-        expect(await cachedExplores(fixture.projectUuid)).toEqual(before);
-        expect(
-            await database('cached_explore_staging').where(
-                'project_uuid',
-                fixture.projectUuid,
-            ),
-        ).toEqual([]);
     });
 });

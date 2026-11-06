@@ -31,7 +31,7 @@ export type EnsureOrganizationOverrideOutcome =
     | 'already_enabled'
     | 'kept_disabled';
 
-export type FeatureFlagQueryOptions = {
+type FeatureFlagQueryOptions = {
     trx?: Knex;
     /** Set false for admin listings so they don't inflate flag-usage telemetry. */
     recordCheck?: boolean;
@@ -57,6 +57,12 @@ export class FeatureFlagModel {
         this.featureFlagHandlers = {
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
+            [FeatureFlags.ResultsCacheEnabled]: (flagArgs, options) =>
+                this.getWithEnvFallback(
+                    flagArgs,
+                    this.lightdashConfig.results.cacheEnabled,
+                    options,
+                ),
         };
     }
 

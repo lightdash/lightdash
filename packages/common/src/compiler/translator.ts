@@ -5,10 +5,6 @@ import {
     qualifyManifestNames,
 } from '../dbt/qualifiedName';
 import {
-    assertValidDbtModelIdentifiers,
-    getDbtModelTextError,
-} from '../dbt/validateDbtText';
-import {
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
@@ -28,7 +24,6 @@ import {
 } from '../types/dbt';
 import {
     CompileError,
-    DbtModelTextError,
     MissingCatalogEntryError,
     NotSupportedError,
     ParseError,
@@ -1509,16 +1504,7 @@ export const instantiateNestedTables = ({
     );
 };
 
-export type DbtJoinAvailability = Readonly<{
-    unavailableSources: readonly Readonly<{
-        sourceUuid: string;
-        sourceName: string;
-    }>[];
-}>;
-
 export type ConvertExploresOptions = {
-    joinAvailability?: DbtJoinAvailability;
-    unavailableModels?: readonly ModelInventoryEntry[];
     disableTimestampConversion?: boolean;
     allowPartialCompilation?: boolean;
     postProcessors?: ExplorePostProcessor[];
@@ -1559,10 +1545,7 @@ export async function* iterateExplores(
         includeModelIdentity = deferExploreNaming,
         modelInventory = models,
         allowCrossSourceJoinFallback = true,
-        joinAvailability,
-        unavailableModels = [],
     } = options ?? {};
-    models.forEach((model) => assertValidDbtModelIdentifiers(model));
     const resolvedNamesByUniqueId = deferExploreNaming
         ? new Map(
               models.map((model) => [
@@ -1636,27 +1619,11 @@ export async function* iterateExplores(
         representative: candidates[0],
         target: selectJoinTarget(candidates),
     }));
-    const unavailableGroups = new Map<string, ModelInventoryEntry>();
-    unavailableModels.forEach((model) => {
-        const key = getManifestNamespaceKey(model, model.name);
-        if (key !== undefined && !versionGroups.has(key))
-            unavailableGroups.set(key, model);
-    });
-    const allJoinTargets: {
-        representative: ModelInventoryEntry;
-        target: DbtModelNode | null;
-    }[] = [
-        ...joinTargets,
-        ...[...unavailableGroups.values()].map((representative) => ({
-            representative,
-            target: null,
-        })),
-    ];
     const buildJoinLookup = (
-        keyFor: (model: ModelInventoryEntry) => string | undefined,
+        keyFor: (model: DbtModelNode) => string | undefined,
     ) => {
         const lookup = new Map<string, DbtModelNode | null>();
-        allJoinTargets.forEach(({ representative, target }) => {
+        joinTargets.forEach(({ representative, target }) => {
             const key = keyFor(representative);
             if (key !== undefined)
                 lookup.set(key, lookup.has(key) ? null : target);
@@ -1707,18 +1674,6 @@ export async function* iterateExplores(
                     );
                     return join;
                 }
-                const unavailableSources =
-                    joinAvailability?.unavailableSources ?? [];
-                const unavailableTarget = unavailableSources.find((source) =>
-                    join.join.startsWith(`${source.sourceName}__`),
-                );
-                if (unavailableTarget) {
-                    joinResolutionErrors.set(
-                        join,
-                        `source "${unavailableTarget.sourceName}" inventory is unavailable`,
-                    );
-                    return join;
-                }
                 if (
                     !(
                         model.lightdash_model_inventory_complete ??
@@ -1728,20 +1683,6 @@ export async function* iterateExplores(
                     joinResolutionErrors.set(
                         join,
                         'the full own-source model inventory is unavailable, so cross-source fallback is unsafe',
-                    );
-                    return join;
-                }
-                const unavailableSiblings = unavailableSources.filter(
-                    (source) =>
-                        source.sourceUuid !== model.lightdash_source_uuid,
-                );
-                if (unavailableSiblings.length > 0) {
-                    joinResolutionErrors.set(
-                        join,
-                        `source inventory is unavailable: ${unavailableSiblings
-                            .map((source) => source.sourceName)
-                            .sort()
-                            .join(', ')}`,
                     );
                     return join;
                 }
@@ -1834,8 +1775,6 @@ export async function* iterateExplores(
 
         // If there are any errors compiling the table return an ExploreError
         try {
-            const textError = getDbtModelTextError(model);
-            if (textError !== null) throw textError;
             const table = convertTable(
                 adapterType,
                 model,
@@ -1889,45 +1828,28 @@ export async function* iterateExplores(
                 });
             }
         } catch (e: unknown) {
-            if (e instanceof DbtModelTextError) {
-                if (!allowPartialCompilation) throw e;
-                exploreErrors.push({
-                    name: model.name,
-                    label: friendlyName(
-                        originalNamesByUniqueId.get(model.unique_id) ??
-                            model.name,
-                    ),
-                    errors: [
-                        {
-                            type: InlineErrorType.METADATA_PARSE_ERROR,
-                            message: e.message,
-                        },
-                    ],
-                });
-            } else {
-                const exploreError: ExploreError = {
-                    name: model.name,
-                    label: meta.label || friendlyName(model.name),
-                    tags,
-                    groupLabel: meta.group_label,
-                    ...(meta.groups && meta.groups.length > 0
-                        ? { groups: meta.groups }
-                        : {}),
-                    errors: [
-                        {
-                            type:
-                                e instanceof ParseError
-                                    ? InlineErrorType.METADATA_PARSE_ERROR
-                                    : InlineErrorType.NO_DIMENSIONS_FOUND,
-                            message:
-                                e instanceof Error
-                                    ? e.message
-                                    : `Could not convert dbt model: "${model.name}" into an explore`,
-                        },
-                    ],
-                };
-                exploreErrors.push(exploreError);
-            }
+            const exploreError: ExploreError = {
+                name: model.name,
+                label: meta.label || friendlyName(model.name),
+                tags,
+                groupLabel: meta.group_label,
+                ...(meta.groups && meta.groups.length > 0
+                    ? { groups: meta.groups }
+                    : {}),
+                errors: [
+                    {
+                        type:
+                            e instanceof ParseError
+                                ? InlineErrorType.METADATA_PARSE_ERROR
+                                : InlineErrorType.NO_DIMENSIONS_FOUND,
+                        message:
+                            e instanceof Error
+                                ? e.message
+                                : `Could not convert dbt model: "${model.name}" into an explore`,
+                    },
+                ],
+            };
+            exploreErrors.push(exploreError);
         }
 
         if ((modelIndex + 1) % MODELS_PER_EVENT_LOOP_YIELD === 0) {

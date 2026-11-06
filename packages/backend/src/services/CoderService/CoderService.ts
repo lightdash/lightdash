@@ -227,10 +227,6 @@ import {
     getScheduledDeliveryTargetKey,
     getScheduledDeliveryTargetsAsCode,
 } from './scheduledContent';
-import {
-    getDashboardWithSectionIds,
-    getDashboardWithSectionSlugs,
-} from './sectionSlugs';
 
 type RuntimeChartAsCode = Omit<ChartAsCode, 'chartConfig'> & {
     chartConfig: ChartConfig;
@@ -271,19 +267,6 @@ type CoderServiceArguments = {
         WarehouseConnectionModel,
         'getProject' | 'list'
     >;
-    // Lazy accessor (not the instance): AppGenerateService depends on
-    // CoderService, so resolving it eagerly here would cycle. Only wired when
-    // EE license is active; core builds resolve undefined and data-app slug
-    // renames stay unsupported.
-    getAppGenerateService?: () => DataAppSlugRenamer | undefined;
-};
-
-type DataAppSlugRenamer = {
-    renameAppSlug(
-        user: SessionUser,
-        projectUuid: string,
-        args: { from: string; to: string },
-    ): Promise<void>;
 };
 
 type SqlChartsAsCodeResult = {
@@ -379,10 +362,6 @@ export class CoderService extends BaseService {
 
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
-    private readonly getAppGenerateService?: () =>
-        | DataAppSlugRenamer
-        | undefined;
-
     constructor({
         agentActionLogModel,
         lightdashConfig,
@@ -409,7 +388,6 @@ export class CoderService extends BaseService {
         userModel,
         directAccessService,
         warehouseConnectionModel,
-        getAppGenerateService,
     }: CoderServiceArguments) {
         super();
         this.agentActionLogModel = agentActionLogModel;
@@ -438,7 +416,6 @@ export class CoderService extends BaseService {
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
-        this.getAppGenerateService = getAppGenerateService;
         this.virtualViewCoder = new VirtualViewCoder({
             projectModel,
             projectService,
@@ -1995,7 +1972,6 @@ export class CoderService extends BaseService {
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         verificationMap: Map<string, ContentVerificationInfo>,
-        useSectionSlugs = false,
     ): DashboardAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === dashboard.spaceUuid,
@@ -2190,9 +2166,7 @@ export class CoderService extends BaseService {
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
-        return useSectionSlugs
-            ? getDashboardWithSectionSlugs(dashboardAsCode)
-            : dashboardAsCode;
+        return dashboardAsCode;
     }
 
     private static convertTabsWithSlugsToUuids(
@@ -2754,9 +2728,7 @@ export class CoderService extends BaseService {
             );
 
         const controlsEnabled = dashboardsWithAccess.some(
-            (dashboard) =>
-                dashboard.config?.parameterControls !== undefined ||
-                dashboard.config?.controlSections !== undefined,
+            (dashboard) => dashboard.config?.parameterControls !== undefined,
         )
             ? await this.dashboardService.areDashboardControlsEnabled(
                   user,
@@ -2769,7 +2741,6 @@ export class CoderService extends BaseService {
                     dashboard,
                     spaces,
                     dashboardVerificationMap,
-                    controlsEnabled,
                 );
             }
             const { parameterControls: _ignored, ...config } = dashboard.config;
@@ -2777,7 +2748,6 @@ export class CoderService extends BaseService {
                 { ...dashboard, config },
                 spaces,
                 dashboardVerificationMap,
-                controlsEnabled,
             );
         });
 
@@ -3667,35 +3637,7 @@ export class CoderService extends BaseService {
         return this.makeChartAsCodePortable(projectUuid, chartAsCode);
     }
 
-    private async transformDashboardForExport(
-        user: SessionUser,
-        dashboard: DashboardDAO,
-        spaces: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
-        verificationMap: Map<string, ContentVerificationInfo>,
-    ): Promise<DashboardAsCode> {
-        const controlsEnabled =
-            dashboard.config?.parameterControls !== undefined ||
-            dashboard.config?.controlSections !== undefined
-                ? await this.dashboardService.areDashboardControlsEnabled(
-                      user,
-                      dashboard.organizationUuid,
-                  )
-                : false;
-        const { parameterControls, ...config } = dashboard.config ?? {
-            isDateZoomDisabled: false,
-        };
-        return CoderService.transformDashboard(
-            !controlsEnabled && parameterControls !== undefined
-                ? { ...dashboard, config }
-                : dashboard,
-            spaces,
-            verificationMap,
-            controlsEnabled,
-        );
-    }
-
     async getCurrentDashboardAsCode(
-        user: SessionUser,
         dashboardUuid: string,
     ): Promise<DashboardAsCode> {
         const dashboard =
@@ -3708,8 +3650,7 @@ export class CoderService extends BaseService {
                 ContentType.DASHBOARD,
                 [dashboard.uuid],
             );
-        return this.transformDashboardForExport(
-            user,
+        return CoderService.transformDashboard(
             dashboard,
             spaces,
             verificationMap,
@@ -3741,7 +3682,6 @@ export class CoderService extends BaseService {
     // Drafts review: render the dashboard's as-code document with an
     // unpublished draft's fields applied on top of the published version
     async getDashboardAsCodeWithOverlay(
-        user: SessionUser,
         dashboardUuid: string,
         overlay: object,
     ): Promise<DashboardAsCode> {
@@ -3773,12 +3713,7 @@ export class CoderService extends BaseService {
                 ContentType.DASHBOARD,
                 [merged.uuid],
             );
-        return this.transformDashboardForExport(
-            user,
-            merged,
-            spaces,
-            verificationMap,
-        );
+        return CoderService.transformDashboard(merged, spaces, verificationMap);
     }
 
     // The repo's content_as_code flags travel with uploads; stamping them as
@@ -3914,8 +3849,7 @@ export class CoderService extends BaseService {
             await this.recordAppliedSnapshot(
                 projectUuid,
                 ContentAsCodeType.DASHBOARD,
-                await this.transformDashboardForExport(
-                    user,
+                CoderService.transformDashboard(
                     dashboard,
                     spaces,
                     verificationMap,
@@ -4737,15 +4671,10 @@ export class CoderService extends BaseService {
         if (!from) {
             throw new ParameterError('The source slug must not be empty');
         }
-        // Data-app slugs follow the server's own shape check
-        // (isValidDataAppSlug, applied in AppGenerateService.renameAppSlug),
-        // which allows more than generateSlug emits — e.g. consecutive
-        // hyphens and up to 255 characters.
         if (
-            resourceType !== ContentType.DATA_APP &&
-            (!to ||
-                to.length > MAX_CONTENT_SLUG_LENGTH ||
-                generateSlug(to) !== to)
+            !to ||
+            to.length > MAX_CONTENT_SLUG_LENGTH ||
+            generateSlug(to) !== to
         ) {
             throw new ParameterError(
                 `The target slug must contain between 1 and ${MAX_CONTENT_SLUG_LENGTH} lowercase letters, numbers, or hyphen-separated words`,
@@ -4768,10 +4697,7 @@ export class CoderService extends BaseService {
                 const { inheritsFromOrgOrProject, access } =
                     await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        {
-                            type: 'space',
-                            spaceUuid: chart.spaceUuid,
-                        },
+                        { type: 'space', spaceUuid: chart.spaceUuid },
                     );
                 if (
                     auditedAbility.cannot(
@@ -4820,22 +4746,8 @@ export class CoderService extends BaseService {
                 });
                 return;
             }
-            case ContentType.DATA_APP: {
-                // Permission checks (manage on the app, registry guard) live
-                // in AppGenerateService.renameAppSlug.
-                const appGenerateService = this.getAppGenerateService?.();
-                if (!appGenerateService) {
-                    throw new NotImplementedError(
-                        'Data apps are not available on this instance',
-                    );
-                }
-                await appGenerateService.renameAppSlug(user, projectUuid, {
-                    from,
-                    to,
-                });
-                return;
-            }
             case ContentType.SPACE:
+            case ContentType.DATA_APP:
             case ContentType.DOCUMENT:
                 throw new NotImplementedError(
                     `Slug renaming is not supported for resource type "${resourceType}" yet`,
@@ -5799,17 +5711,13 @@ export class CoderService extends BaseService {
                 };
             }
         }
-        const dashboardWithResolvedSections = getDashboardWithSectionIds(
-            dashboardWithDefaults,
-            existingDashboard?.config,
-        );
         const { tabs: tabsWithUuids, tabUuidsBySlug } =
             CoderService.convertTabsWithSlugsToUuids(
-                dashboardWithResolvedSections.tabs,
+                dashboardWithDefaults.tabs,
                 existingDashboard?.tabs,
             );
         let dashboardWithResolvedTabs = {
-            ...dashboardWithResolvedSections,
+            ...dashboardWithDefaults,
             tabs: tabsWithUuids,
         };
         const { tiles: resolvedTiles, warnings: tileWarnings } =

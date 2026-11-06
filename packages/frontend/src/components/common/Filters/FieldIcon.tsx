@@ -11,10 +11,19 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
+import {
+    Icon123,
+    IconAbc,
+    IconCalendar,
+    IconClockHour4,
+    IconMathFunction,
+    IconTag,
+    IconToggleLeft,
+} from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import { getFieldColor } from '../../../utils/fieldColors';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
-import { FIELD_ICONS, getItemIconName } from './utils/fieldIconUtils';
+import { getItemIconName } from './utils/fieldIconUtils';
 
 const getFieldIcon = (
     field: Field | TableCalculation | AdditionalMetric | CustomDimension,
@@ -52,9 +61,22 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
             size,
             color: iconColor,
         };
-        return (
-            <MantineIcon icon={FIELD_ICONS[getFieldIcon(item)]} {...props} />
-        );
+        switch (getFieldIcon(item)) {
+            case 'citation':
+                return <MantineIcon icon={IconAbc} {...props} />;
+            case 'numerical':
+                return <MantineIcon icon={Icon123} {...props} />;
+            case 'calendar':
+                return <MantineIcon icon={IconCalendar} {...props} />;
+            case 'time':
+                return <MantineIcon icon={IconClockHour4} {...props} />;
+            case 'segmented-control':
+                return <MantineIcon icon={IconToggleLeft} {...props} />;
+            case 'function':
+                return <MantineIcon icon={IconMathFunction} {...props} />;
+            case 'tag':
+                return <MantineIcon icon={IconTag} {...props} />;
+        }
     },
 );
 

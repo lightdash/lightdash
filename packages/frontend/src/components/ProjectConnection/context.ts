@@ -15,8 +15,6 @@ export type ProjectFormContext = {
     projectUuid?: string;
     warehouseConnectionUuid?: string | null;
     dbtSourceWarehouseConnectionUuid?: string | null;
-    // Onboarding: GitHub OAuth shows only the sign-in until it is connected
-    revealAfterSignIn?: boolean;
 };
 
 const Context = createContext<ProjectFormContext | undefined>(undefined);

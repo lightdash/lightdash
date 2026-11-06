@@ -10,10 +10,7 @@ import {
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
 } from '../database/entities/externalConnections';
-import {
-    ExternalConnectionModel,
-    parseApiSourceSchemaScan,
-} from './ExternalConnectionModel';
+import { ExternalConnectionModel } from './ExternalConnectionModel';
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
 const ORG_UUID = '00000000-0000-0000-0000-000000000002';
@@ -969,32 +966,6 @@ describe('ExternalConnectionModel', () => {
 
             const result = await model.getSampleConnectionUuid(SAMPLE_UUID);
             expect(result).toBeUndefined();
-        });
-    });
-});
-
-describe('parseApiSourceSchemaScan', () => {
-    const requestedAt = new Date('2026-11-04T10:00:00.000Z');
-
-    it('keeps a recent pending scan pending', () => {
-        expect(
-            parseApiSourceSchemaScan(
-                { status: 'pending', requestedAt: requestedAt.toISOString() },
-                new Date(requestedAt.getTime() + 60 * 1000),
-            ),
-        ).toEqual({ status: 'pending', requestedAt });
-    });
-
-    it('reports a pending scan that outlived its worker as failed', () => {
-        expect(
-            parseApiSourceSchemaScan(
-                { status: 'pending', requestedAt: requestedAt.toISOString() },
-                new Date(requestedAt.getTime() + 60 * 60 * 1000),
-            ),
-        ).toEqual({
-            status: 'failed',
-            scannedAt: requestedAt,
-            error: 'The schema scan did not finish',
         });
     });
 });

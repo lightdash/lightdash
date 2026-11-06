@@ -55,8 +55,6 @@ export enum PageName {
     JOIN_ORGANIZATION = 'join_organization',
     ORGANIZATION_SETUP = 'organization_setup',
     ONBOARDING_DATA_SOURCE = 'onboarding_data_source',
-    ONBOARDING_MODELS = 'onboarding_models',
-    ONBOARDING_TOOLS = 'onboarding_tools',
     ONBOARDING_DBT = 'onboarding_dbt',
     ONBOARDING_INVITE_EXPERT = 'onboarding_invite_expert',
     AGENT_ONBOARDING_START = 'agent_onboarding_start',
@@ -247,8 +245,6 @@ export enum EventName {
     ORGANIZATION_SETUP_STEP_COMPLETED = 'organization_setup_step.completed',
     ORGANIZATION_BRAND_DETECTED = 'organization_brand.detected',
     ONBOARDING_WAREHOUSE_SELECTED = 'onboarding_warehouse.selected',
-    ONBOARDING_SCREEN_VIEWED = 'onboarding_screen.viewed',
-    ONBOARDING_STEP_SKIPPED = 'onboarding_step.skipped',
     LIVE_DATA_SOURCE_REQUESTED = 'live_data_source.requested',
     BIGQUERY_SSO_SIGNIN_CLICKED = 'bigquery_sso.signin_clicked',
     BIGQUERY_SSO_SIGNIN_COMPLETED = 'bigquery_sso.signin_completed',
@@ -267,7 +263,6 @@ export enum EventName {
     AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED = 'agent_onboarding_demo_offer.accepted',
     AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN = 'agent_onboarding_completion_toast.shown',
     AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED = 'agent_onboarding_completion_toast.clicked',
-    ONBOARDING_DONE_ACTION_CLICKED = 'onboarding_done.action_clicked',
     CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED = 'create_project_columns_defined_button.click',
 
     // Chart type library (registry) funnel

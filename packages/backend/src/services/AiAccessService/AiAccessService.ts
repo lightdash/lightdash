@@ -1228,26 +1228,19 @@ export class AiAccessService extends BaseService {
                 organizationUuid,
             });
         }
-        const connection = await this.loadCredentials(
-            projectUuid,
-            warehouseConnectionUuid,
-        );
+        const connection =
+            warehouseConnectionUuid === null
+                ? await this.projectModel.getWarehouseCredentialsForBinding(
+                      projectUuid,
+                      { kind: 'connection', warehouseConnectionUuid: null },
+                  )
+                : await this.warehouseConnectionModel.getCredentials(
+                      await this.warehouseConnectionModel.getProject(
+                          projectUuid,
+                      ),
+                      warehouseConnectionUuid,
+                  );
         return { connection, organizationUuid };
-    }
-
-    private async loadCredentials(
-        projectUuid: string,
-        warehouseConnectionUuid: string | null,
-    ): Promise<CreateWarehouseCredentials> {
-        return warehouseConnectionUuid === null
-            ? this.projectModel.getWarehouseCredentialsForBinding(projectUuid, {
-                  kind: 'connection',
-                  warehouseConnectionUuid: null,
-              })
-            : this.warehouseConnectionModel.getCredentials(
-                  await this.warehouseConnectionModel.getProject(projectUuid),
-                  warehouseConnectionUuid,
-              );
     }
 
     async getCapabilities(
@@ -1380,42 +1373,13 @@ export class AiAccessService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string | null,
     ): Promise<AiAccessForUser> {
-        const organizationUuid = await this.authorizeProject(
+        const { connection, organizationUuid } = await this.loadConnection(
             account,
             projectUuid,
-            'view',
-        );
-        await this.assertFeatureEnabled({
-            userUuid: account.user.id,
-            organizationUuid,
-        });
-        const connection = await this.loadCredentials(
-            projectUuid,
             warehouseConnectionUuid,
-        ).catch((error: unknown) => {
-            // A project with only live sources has no warehouse identity to check
-            if (
-                error instanceof NotFoundError &&
-                warehouseConnectionUuid === null
-            )
-                return null;
-            throw error;
-        });
-        if (connection === null) {
-            return {
-                requirementSource: null,
-                identity: null,
-                source: null,
-                marker: null,
-                projectUuid,
-                warehouseConnectionUuid,
-                enabled: false,
-                principalKind: null,
-                refusal: null,
-                expiresAt: null,
-                principalName: null,
-            };
-        }
+            'view',
+            true,
+        );
         return this.getAiAccessForUser({
             projectUuid,
             warehouseConnectionUuid,

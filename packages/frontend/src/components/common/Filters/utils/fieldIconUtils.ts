@@ -3,15 +3,6 @@ import {
     MetricType,
     TableCalculationType,
 } from '@lightdash/common';
-import {
-    Icon123,
-    IconAbc,
-    IconCalendar,
-    IconClockHour4,
-    IconMathFunction,
-    IconTag,
-    IconToggleLeft,
-} from '@tabler/icons-react';
 
 export const getItemIconName = (
     type: DimensionType | MetricType | TableCalculationType,
@@ -41,13 +32,3 @@ export const getItemIconName = (
             return 'numerical';
     }
 };
-
-export const FIELD_ICONS = {
-    citation: IconAbc,
-    numerical: Icon123,
-    calendar: IconCalendar,
-    time: IconClockHour4,
-    'segmented-control': IconToggleLeft,
-    function: IconMathFunction,
-    tag: IconTag,
-} as const;

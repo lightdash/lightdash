@@ -440,18 +440,18 @@ describe('FeatureFlagModel', () => {
         });
 
         it('leaves config-derived flags to their handler', async () => {
-            // ai-copilot and enable-timezone-support are excluded so previews
-            // never advertise unconfigured backends.
+            // ai-copilot, results-cache-enabled and enable-timezone-support are
+            // excluded so previews never advertise unconfigured backends.
             const model = buildModel({
                 ...previewConfig,
-                query: {
-                    ...lightdashConfigMock.query,
-                    enableTimezoneSupport: false,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: false,
                 },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                featureFlagId: FeatureFlags.ResultsCacheEnabled,
             });
 
             expect(result.enabled).toBe(false);
@@ -621,6 +621,50 @@ describe('FeatureFlagModel', () => {
         });
     });
 
+    describe('default_enabled honoured over env fallback', () => {
+        // ResultsCacheEnabled resolves to lightdashConfig.results.cacheEnabled
+        // only when the DB has no opinion. A concrete default_enabled in the
+        // DB wins, so `false` must beat an env fallback of `true`, while
+        // `null` (no default set) falls through to it.
+        const cacheEnabledConfig = {
+            results: { ...lightdashConfigMock.results, cacheEnabled: true },
+        };
+
+        it('default_enabled:false overrides an env fallback of true', async () => {
+            const model = buildModel(
+                cacheEnabledConfig,
+                buildFakeDatabase({ flag: { default_enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.ResultsCacheEnabled,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.ResultsCacheEnabled,
+                enabled: false,
+            });
+        });
+
+        it('default_enabled:null falls through to the env fallback', async () => {
+            const model = buildModel(
+                cacheEnabledConfig,
+                buildFakeDatabase({ flag: { default_enabled: null } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.ResultsCacheEnabled,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.ResultsCacheEnabled,
+                enabled: true,
+            });
+        });
+    });
+
     describe('EnableTimezoneSupport defaults to on', () => {
         const withTimezoneSupport = (enableTimezoneSupport: boolean) => ({
             query: { ...lightdashConfigMock.query, enableTimezoneSupport },
@@ -628,41 +672,6 @@ describe('FeatureFlagModel', () => {
 
         it('is enabled when neither config nor database has an opinion', async () => {
             const model = buildModel({}, buildFakeDatabase({}));
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-                user: dbUser,
-            });
-
-            expect(result).toEqual({
-                id: FeatureFlags.EnableTimezoneSupport,
-                enabled: true,
-            });
-        });
-
-        // The fallback only applies when the database has no opinion
-        it('default_enabled:false overrides the fallback of true', async () => {
-            const model = buildModel(
-                {},
-                buildFakeDatabase({ flag: { default_enabled: false } }),
-            );
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-                user: dbUser,
-            });
-
-            expect(result).toEqual({
-                id: FeatureFlags.EnableTimezoneSupport,
-                enabled: false,
-            });
-        });
-
-        it('default_enabled:null falls through to the fallback', async () => {
-            const model = buildModel(
-                {},
-                buildFakeDatabase({ flag: { default_enabled: null } }),
-            );
 
             const result = await model.get({
                 featureFlagId: FeatureFlags.EnableTimezoneSupport,

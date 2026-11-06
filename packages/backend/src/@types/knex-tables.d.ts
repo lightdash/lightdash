@@ -21,10 +21,6 @@ import {
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
 import {
-    AiAgentWarehouseTableListsTable,
-    AiAgentWarehouseTableListsTableName,
-} from '../database/entities/aiAgentWarehouseTableLists';
-import {
     AiServiceAccountCredentialsTable,
     AiServiceAccountCredentialsTableName,
 } from '../database/entities/aiServiceAccountCredentials';
@@ -54,10 +50,6 @@ import {
     AppVersionsTable,
     AppVersionsTableName,
 } from '../database/entities/apps';
-import {
-    AppSlugMappingsTableName,
-    AppSlugMappingTable,
-} from '../database/entities/appSlugMappings';
 import {
     AwsWebIdentityAudiencesTable,
     AwsWebIdentityAudiencesTableName,
@@ -823,7 +815,6 @@ declare module 'knex/types/tables' {
         [CredentialsTableName]: CredentialsTable;
         [OrganizationAgentIdentityRulesTableName]: OrganizationAgentIdentityRulesTable;
         [AiServiceAccountCredentialsTableName]: AiServiceAccountCredentialsTable;
-        [AiAgentWarehouseTableListsTableName]: AiAgentWarehouseTableListsTable;
         [OrganizationSnowflakeAgentClientsTableName]: OrganizationSnowflakeAgentClientsTable;
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;
@@ -850,7 +841,6 @@ declare module 'knex/types/tables' {
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
         [DashboardSlugMappingsTableName]: DashboardSlugMappingTable;
-        [AppSlugMappingsTableName]: AppSlugMappingTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;

@@ -4,55 +4,87 @@ import {
 } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import {
+    IconChartBar,
     IconCheck,
     IconDatabaseSearch,
     IconLayersLinked,
-    IconMessageQuestion,
     type Icon,
 } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './AgentOnboardingRunPage.module.css';
-import { useNow } from './hooks/useNow';
 import {
     AGENT_ONBOARDING_PROGRESS_STAGES,
-    AGENT_ONBOARDING_STAGE_ACTIVE_LABELS,
     formatStageDuration,
-    getStageStates,
     getAgentOnboardingProgressStageTimings,
     type AgentOnboardingProgressStage,
+    type AgentOnboardingProgressStageTiming,
 } from './utils';
 
 const STAGE_CONFIG: Record<
     AgentOnboardingProgressStage,
-    { label: string; description: string; icon: Icon }
+    { label: string; activeLabel: string; description: string; icon: Icon }
 > = {
     explore: {
         label: 'Explore your warehouse',
+        activeLabel: 'Exploring your warehouse',
         description: 'Reads your tables to find a useful starting point.',
         icon: IconDatabaseSearch,
     },
     semantic_layer: {
         label: 'Build the semantic layer',
+        activeLabel: 'Building the semantic layer',
         description: 'Turns your data into reusable metrics and dimensions.',
         icon: IconLayersLinked,
     },
-    questions: {
-        label: 'Write starter questions',
-        description: 'Checks a few questions your data can answer right away.',
-        icon: IconMessageQuestion,
+    dashboard: {
+        label: 'Create a starter dashboard',
+        activeLabel: 'Creating a starter dashboard',
+        description: 'Puts the first charts and filters together for you.',
+        icon: IconChartBar,
     },
     ready: {
         label: 'Verify and hand off',
+        activeLabel: 'Verifying and handing off',
         description: 'Checks everything works and opens the project.',
         icon: IconCheck,
     },
 };
 
+type StageState = AgentOnboardingProgressStageTiming['state'] | 'stopped';
+
+// A cancelled or failed run leaves its last started stage unfinished
+const getStageStates = (
+    run: AgentOnboardingRun | undefined,
+    timings: AgentOnboardingProgressStageTiming[] | undefined,
+): StageState[] => {
+    if (!run || !timings) {
+        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'not_started');
+    }
+    if (run.status === 'completed') {
+        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'completed');
+    }
+    const states: StageState[] = timings.map(({ state }) => state);
+    if (run.status === 'cancelled' || run.status === 'failed') {
+        const lastStartedIndex = states.findLastIndex(
+            (state) => state !== 'not_started',
+        );
+        if (lastStartedIndex >= 0) states[lastStartedIndex] = 'stopped';
+    }
+    return states;
+};
+
 export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
     run,
 }) => {
-    const now = useNow(!!run && !isAgentOnboardingRunTerminal(run.status));
+    const [now, setNow] = useState(Date.now());
+    const isTerminal = !run || isAgentOnboardingRunTerminal(run.status);
+
+    useEffect(() => {
+        if (isTerminal) return;
+        const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+        return () => window.clearInterval(timer);
+    }, [isTerminal]);
 
     const timings = useMemo(
         () =>
@@ -99,9 +131,7 @@ export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
                                 className={classes.stageLabel}
                             >
                                 {state === 'active'
-                                    ? AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[
-                                          stage
-                                      ]
+                                    ? config.activeLabel
                                     : config.label}
                             </Text>
                             <Text fz="xs" c="dimmed">

@@ -2,7 +2,6 @@ import {
     PayloadTooLargeError,
     type AgentOnboardingStage,
 } from '@lightdash/common';
-import yaml from 'js-yaml';
 import {
     CLAUDE_SKILLS_DIR,
     CLI_WRAPPER_PATH,
@@ -21,8 +20,6 @@ const LIGHTDASH_COMMAND_PATTERN = new RegExp(
         CLI_WRAPPER_PATH,
     )})\\s+([\\w-]+)`,
 );
-
-export const STARTER_QUESTIONS_PATH = /^lightdash-starter-questions\.ya?ml$/;
 
 type BuildManagedOnboardingPromptArgs = {
     basePrompt: string;
@@ -122,7 +119,6 @@ export const classifyOnboardingStage = (
     if (
         /(^|\/)lightdash\/(charts|dashboards)\//.test(path) ||
         /(^|\/)lightdash\/agent-starter-.*\.ya?ml$/.test(path) ||
-        STARTER_QUESTIONS_PATH.test(path) ||
         /^contentType:\s*(chart|dashboard)\s*$/m.test(content)
     ) {
         return 'building_dashboard';
@@ -232,27 +228,6 @@ export const containsOnboardingSecret = (
     ].some((pattern) => pattern.test(text));
 };
 
-const MAX_STARTER_QUESTIONS = 5;
-
-export const parseStarterQuestions = (text: string): string[] => {
-    let parsed: unknown;
-    try {
-        parsed = yaml.load(text);
-    } catch {
-        return [];
-    }
-    const questions =
-        parsed && typeof parsed === 'object' && 'questions' in parsed
-            ? parsed.questions
-            : null;
-    if (!Array.isArray(questions)) return [];
-    return questions
-        .filter((question): question is string => typeof question === 'string')
-        .map((question) => question.trim())
-        .filter(Boolean)
-        .slice(0, MAX_STARTER_QUESTIONS);
-};
-
 export const isOnboardingOutputFile = (path: string): boolean => {
     const segments = path.split('/');
     if (
@@ -267,7 +242,6 @@ export const isOnboardingOutputFile = (path: string): boolean => {
     }
     return (
         /^lightdash\.config\.ya?ml$/.test(path) ||
-        STARTER_QUESTIONS_PATH.test(path) ||
         /^lightdash\/.+\.ya?ml$/.test(path) ||
         /^LIGHTDASH_(?:ONBOARDING_)?HANDOFF(?:_\d{4}-\d{2}-\d{2}(?:-\d+)?)?\.md$/.test(
             path,

@@ -123,7 +123,6 @@ const operationContracts = {
     'ProjectController.getDashboards': pathProject,
     'ProjectDashboardControllerV2.getTileParameterReferences': pathProject,
     'ProjectController.replaceYamlTags': pathProject,
-    'ProjectController.replaceProjectContext': pathProject,
     'ProjectController.replaceProjectTableGroups': pathProject,
     'ProjectDbtSourcesController.listProjectDbtSources': pathProject,
     'ProjectDefaultsController.replaceProjectDefaults': pathProject,

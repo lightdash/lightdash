@@ -26,31 +26,22 @@ export class PromptService extends BaseService {
 
     async getPrompt(name: string): Promise<string> {
         const availablePrompts = ['project-onboarding'];
+        let promptPath: string;
+
         switch (name) {
             case 'project-onboarding':
-                return this.readPrompt(name, 'projectOnboarding.md');
+                promptPath = path.join(
+                    PROMPTS_SOURCE_DIR,
+                    'projectOnboarding.md',
+                );
+                break;
             default:
                 throw new NotFoundError(
                     `Prompt not found: ${name}. Available prompts: ${availablePrompts.join(', ')}`,
                 );
         }
-    }
 
-    async getProjectOnboardingPrompt(
-        writesStarterQuestions: boolean,
-    ): Promise<string> {
-        return this.readPrompt(
-            'project-onboarding',
-            writesStarterQuestions
-                ? 'projectOnboardingStarterQuestions.md'
-                : 'projectOnboarding.md',
-        );
-    }
-
-    private async readPrompt(name: string, fileName: string): Promise<string> {
-        const prompt = (
-            await readFile(path.join(PROMPTS_SOURCE_DIR, fileName), 'utf8')
-        )
+        const prompt = (await readFile(promptPath, 'utf8'))
             .replaceAll(
                 '<Lightdash instance URL>',
                 this.lightdashConfig.siteUrl.replace(/\/+$/, ''),

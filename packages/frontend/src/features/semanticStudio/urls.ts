@@ -97,24 +97,3 @@ export const parseSemanticStudioPath = (pathname: string): StudioRoute => {
         });
     return { ref: refOf(segments) };
 };
-
-/** The live data sources page: every source with its usage and controls. */
-export const getSemanticStudioLiveSourcesUrl = (projectUuid: string): string =>
-    getSemanticStudioUrl(projectUuid, { ref: { type: 'kind', kind: 'live' } });
-
-/**
- * Where an old Settings › Live data sources link lands: the rest of its path
- * (`/:connectionUuid` or `/:connectionUuid/fields`) names one source, and the
- * query string carries sign-in results and `?add=true` across unchanged.
- */
-export const getLiveDataSourcesRedirectUrl = (
-    projectUuid: string,
-    rest: string,
-    search: string,
-): string => {
-    const [connectionUuid] = rest.split('/').filter(Boolean);
-    const path = connectionUuid
-        ? getSemanticStudioSourceUrl(projectUuid, connectionUuid)
-        : getSemanticStudioLiveSourcesUrl(projectUuid);
-    return `${path}${search}`;
-};

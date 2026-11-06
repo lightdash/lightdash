@@ -110,7 +110,6 @@ import type {
     ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
-    ApiReplaceProjectContextResults,
     ApiResolvedHomepageResponse,
     ApiSkillsAsCodeListResponse,
     ApiSkillsAsCodeUpsertResponse,
@@ -419,7 +418,6 @@ import { type ResultColumns, type ResultRow } from './results';
 import {
     type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
-    type ApiResultsCacheStatusResponse,
 } from './resultsCacheProjectSettings';
 import {
     type ApiRoadmapFollowProjectResponse,
@@ -1474,7 +1472,6 @@ type ApiResults =
     | ApiExploreResults
     | ApiStatusResults
     | ApiRefreshResults
-    | ApiReplaceProjectContextResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
     | WarehouseConnectionTestResults
@@ -1785,7 +1782,6 @@ type ApiResults =
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
     | ApiResultsCacheProjectSettingsResponse['results']
-    | ApiResultsCacheStatusResponse['results']
     | ApiResultsCacheInvalidationResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']

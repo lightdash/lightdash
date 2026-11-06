@@ -400,29 +400,3 @@ export type ApiExternalConnectionApiUsageResponse = {
     status: 'ok';
     results: ExternalConnectionApiUsage[];
 };
-
-export type ApiSourceSchemaEvent = {
-    name: string;
-    count: number;
-};
-
-/** What a live source's schema scan found, kept so onboarding and the AI agent know its data up front. */
-export type ApiSourceSchemaScan =
-    | { status: 'pending'; requestedAt: Date }
-    | {
-          status: 'ready';
-          scannedAt: Date;
-          windowDays: number;
-          /** Busiest first; capped, see eventsTruncated. */
-          events: ApiSourceSchemaEvent[];
-          eventsTruncated: boolean;
-          /** Null when the property scan failed. */
-          propertyKeys: string[] | null;
-      }
-    | { status: 'failed'; scannedAt: Date; error: string };
-
-export type ApiExternalConnectionSchemaResponse = {
-    status: 'ok';
-    /** Null when the connection was never scanned. */
-    results: ApiSourceSchemaScan | null;
-};

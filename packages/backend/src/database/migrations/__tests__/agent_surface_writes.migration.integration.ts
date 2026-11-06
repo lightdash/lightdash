@@ -468,7 +468,6 @@ describe('trusted surface to persisted chart identity', () => {
             aiOrganizationSettingsService: {
                 isMcpEnabled: vi.fn().mockResolvedValue(true),
                 isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
-                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(false),
             },
             orgAiCopilotConfigResolver: {
                 isOrgBedrockRouted: vi.fn().mockResolvedValue(false),

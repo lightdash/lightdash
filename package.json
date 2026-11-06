@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "3.168.0",
+    "version": "3.156.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -39,7 +39,7 @@
         "tsx": "4.23.12",
         "turbo": "2.9.14",
         "typescript": "7.0.2",
-        "smol-toml": "1.9.0"
+        "smol-toml": "1.6.1"
     },
     "scripts": {
         "test:playground-content": "tsx scripts/playground-bundle/content.test.ts && tsx scripts/playground-bundle/learnBundle.test.ts",
@@ -177,8 +177,7 @@
         "ldenv:test": "tsx --test scripts/ldenv/*.test.ts",
         "ldenv:typecheck": "tsc --project scripts/ldenv/tsconfig.json",
         "ldenv:lint": "pnpm -F backend exec sh -c 'cd ../.. && oxlint -c scripts/ldenv/oxlint.json scripts/ldenv'",
-        "ldenv:format": "oxfmt --check scripts/ldenv",
-        "dev:onboarding": "pnpm -F backend dev:onboarding"
+        "ldenv:format": "oxfmt --check scripts/ldenv"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [

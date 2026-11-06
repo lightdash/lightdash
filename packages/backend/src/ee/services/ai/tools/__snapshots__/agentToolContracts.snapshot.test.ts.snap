@@ -179,7 +179,6 @@ When no discovered metric matches the request, create a custom metric in the sam
 
 - You are not given the query results; the user reads them in the chart. Never state figures, counts, totals, rankings or trends, even approximate ones, and do not comment on not seeing the results. Reply in one or two plain sentences that say what each chart shows (fields by label, filters, sorts), with no bullets, metric caveats or offers to rerun. For example: "I queried distinct order count by order month. The September count is in the first chart; the second lists all months ranked by count, highest first."
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
-- A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
 
 ## Limitations
 
@@ -384,7 +383,6 @@ When no discovered metric matches the request, create a custom metric in the sam
 
 - You are not given the query results; the user reads them in the chart. Never state figures, counts, totals, rankings or trends, even approximate ones, and do not comment on not seeing the results. Reply in one or two plain sentences that say what each chart shows (fields by label, filters, sorts), with no bullets, metric caveats or offers to rerun. For example: "I queried distinct order count by order month. The September count is in the first chart; the second lists all months ranked by count, highest first."
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
-- A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
 
 ## Limitations
 
@@ -510,7 +508,6 @@ When no discovered metric matches the request, create a custom metric in the sam
 
 - You are not given the query results; the user reads them in the chart. Never state figures, counts, totals, rankings or trends, even approximate ones, and do not comment on not seeing the results. Reply in one or two plain sentences that say what each chart shows (fields by label, filters, sorts), with no bullets, metric caveats or offers to rerun. For example: "I queried distinct order count by order month. The September count is in the first chart; the second lists all months ranked by count, highest first."
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
-- A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
 
 ## Limitations
 
@@ -676,7 +673,7 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 ## Answering data questions
 
 - Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.
-- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.
+- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row; aggregating in a duckdb or python node waits on an extra query and sees only the rows within its source node's limit.
 - Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, the change between a metric and its period comparison, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals and reshaping.
 - Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
 - For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
@@ -710,7 +707,6 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 
 - You are not given the query results; the user reads them in the chart. Never state figures, counts, totals, rankings or trends, even approximate ones, and do not comment on not seeing the results. Reply in one or two plain sentences that say what each chart shows (fields by label, filters, sorts), with no bullets, metric caveats or offers to rerun. For example: "I queried distinct order count by order month. The September count is in the first chart; the second lists all months ranked by count, highest first."
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
-- A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
 
 ## Limitations
 
@@ -18463,7 +18459,7 @@ Each result renders as its own artifact with a "Continue exploring in SQL Runner
     },
   },
   {
-    "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb nodes join or transform other nodes' results. One call returns the terminal node's rows; every other submitted node is listed with its columns and first rows.
+    "description": "Run a pipeline: one or more nodes submitted together, where duckdb nodes join or transform other nodes' results. One call returns one node's rows, the terminal node's, so exactly one submitted node may go unread by the others: to get several results, combine them in one duckdb node (UNION ALL or JOIN) or submit them in separate calls. Every other submitted node is listed with its columns and first rows.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -18471,7 +18467,7 @@ Node kinds:
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
 - "duckdb": DuckDB SQL over other results declared in "references".
 
-A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.",
     "inputSchema": {
@@ -18542,7 +18538,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                               "type": "string",
                             },
                             "name": {
-                              "description": "snake_case name. The metric's field id is "<table>_<name>"; defining it selects it, and the id works in sorts, metric filters and periodComparisons.",
+                              "description": "snake_case name. The metric's field id is "<table>_<name>": list it in "metrics" to select it, and use it in sorts, metric filters and periodComparisons.",
                               "pattern": "^[a-z][a-z0-9_]*$",
                               "type": "string",
                             },
@@ -18701,7 +18697,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                           "additionalProperties": false,
                           "properties": {
                             "metricFieldId": {
-                              "description": "Metric to compare: a field id in "metrics" or a custom metric's.",
+                              "description": "Metric to compare: a field id in "metrics", explore or custom.",
                               "type": "string",
                             },
                             "periodOffset": {
@@ -18758,7 +18754,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       },
                     ],
                     "default": null,
-                    "description": "Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
+                    "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
                   },
                   "sourceType": {
                     "const": "semanticLayer",
@@ -18954,7 +18950,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
         },
         "terminalNodeId": {
           "default": null,
-          "description": "The terminal node. Null picks the last submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
+          "description": "The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
           "type": [
             "string",
             "null",
@@ -19170,7 +19166,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                             "type": "null",
                           },
                         ],
-                        "description": "First rows of a node submitted in this call other than the terminal node: 5, more for a node no other node reads; null otherwise or when data access is disabled.",
+                        "description": "First 5 rows of a node submitted in this call other than the terminal node; null otherwise or when data access is disabled.",
                       },
                       "sourceType": {
                         "enum": [

@@ -37,12 +37,17 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
         return (
             <Paper className={classes.emptyCard} variant="dotted">
                 <Group gap="sm" wrap="nowrap">
-                    <Box className={classes.iconTileSmall}>
-                        <MantineIcon icon={IconTable} size={16} />
+                    <Box className={classes.iconTile}>
+                        <MantineIcon icon={IconTable} size={18} />
                     </Box>
-                    <Text fz="sm" fw={500} flex={1} miw={0} truncate="end">
-                        Use a table
-                    </Text>
+                    <Stack gap={2} flex={1} miw={0}>
+                        <Text fz="sm" fw={500}>
+                            Use a table
+                        </Text>
+                        <Text fz="xs" c="dimmed" lh={1.5}>
+                            Preview with fields from one of your tables.
+                        </Text>
+                    </Stack>
                     <DataSourcePicker
                         opened={pickerOpened}
                         onOpenedChange={setPickerOpened}
@@ -57,10 +62,9 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
                             leftSection={
                                 <MantineIcon icon={IconSearch} size={14} />
                             }
-                            aria-label="Choose table"
                             onClick={() => setPickerOpened((opened) => !opened)}
                         >
-                            Choose
+                            Choose table
                         </Button>
                     </DataSourcePicker>
                 </Group>

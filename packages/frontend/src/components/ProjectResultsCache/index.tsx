@@ -25,7 +25,6 @@ import useApp from '../../providers/App/useApp';
 import MantineModal from '../common/MantineModal';
 import { NumberInput } from '../common/NumberInput';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { ResultsCacheClearScheduleForm } from './ResultsCacheClearScheduleForm';
 
 const MIN_TTL_MINUTES = MIN_RESULTS_CACHE_TTL_SECONDS / 60;
@@ -208,69 +207,12 @@ const ClearResultsCache: FC<ClearCacheProps> = ({
     );
 };
 
-type EnableCacheProps = {
-    projectUuid: string;
-    cacheEnabled: boolean;
-    cacheEnabledSetByInstance: boolean;
-    canToggle: boolean;
-};
-
-const getToggleDescription = (
-    cacheEnabledSetByInstance: boolean,
-    canToggle: boolean,
-): string | undefined => {
-    if (cacheEnabledSetByInstance) {
-        return 'Set by your instance admin. Contact them to change it.';
-    }
-    if (!canToggle) return 'Only project admins can change this.';
-    return undefined;
-};
-
-const EnableResultsCache: FC<EnableCacheProps> = ({
-    projectUuid,
-    cacheEnabled,
-    cacheEnabledSetByInstance,
-    canToggle,
-}) => {
-    const { mutate: updateSettings, isLoading } =
-        useUpdateResultsCacheSettings(projectUuid);
-
-    return (
-        <SettingsGridCard>
-            <Box>
-                <Title order={5}>Cached results</Title>
-                <Text c="dimmed" fz="xs">
-                    Reuse results when the same query runs again.
-                </Text>
-            </Box>
-            <Switch
-                label="Enable results caching"
-                description={getToggleDescription(
-                    cacheEnabledSetByInstance,
-                    canToggle,
-                )}
-                checked={cacheEnabled}
-                disabled={isLoading || cacheEnabledSetByInstance || !canToggle}
-                onChange={(event) =>
-                    updateSettings({
-                        cacheEnabled: event.currentTarget.checked,
-                    })
-                }
-            />
-        </SettingsGridCard>
-    );
-};
-
 type Props = {
     projectUuid: string;
 };
 
 const ProjectResultsCache: FC<Props> = ({ projectUuid }) => {
-    const {
-        data: settings,
-        isLoading,
-        isError,
-    } = useResultsCacheSettings(projectUuid);
+    const { data: settings, isLoading } = useResultsCacheSettings(projectUuid);
     const { user } = useApp();
     const canClearCache =
         user.data?.ability.can(
@@ -281,31 +223,19 @@ const ProjectResultsCache: FC<Props> = ({ projectUuid }) => {
             }),
         ) ?? false;
 
-    if (isError) {
-        return (
-            <SuboptimalState title="Couldn't load results caching settings" />
-        );
-    }
-    if (isLoading || !settings) {
-        return <Loader size="sm" />;
-    }
-
     return (
         <Stack gap="lg">
-            <EnableResultsCache
-                projectUuid={projectUuid}
-                cacheEnabled={settings.cacheEnabled}
-                cacheEnabledSetByInstance={settings.cacheEnabledSetByInstance}
-                canToggle={canClearCache}
-            />
-            {settings.cacheEnabled && (
-                <SettingsGridCard>
-                    <Box>
-                        <Title order={5}>Cache duration</Title>
-                        <Text c="dimmed" fz="xs">
-                            How long results stay cached.
-                        </Text>
-                    </Box>
+            <SettingsGridCard>
+                <Box>
+                    <Title order={5}>Cache duration</Title>
+                    <Text c="dimmed" fz="xs">
+                        How long cached results are kept before Lightdash
+                        queries the warehouse again.
+                    </Text>
+                </Box>
+                {isLoading || !settings ? (
+                    <Loader size="sm" />
+                ) : (
                     <ProjectResultsCacheForm
                         projectUuid={projectUuid}
                         initialTtlSeconds={settings.cacheTtlSeconds}
@@ -313,31 +243,30 @@ const ProjectResultsCache: FC<Props> = ({ projectUuid }) => {
                             settings.instanceDefaultTtlSeconds
                         }
                     />
-                </SettingsGridCard>
-            )}
-            {settings.cacheEnabled && canClearCache && (
+                )}
+            </SettingsGridCard>
+            {canClearCache && settings && (
                 <ClearResultsCache
                     projectUuid={projectUuid}
                     lastInvalidatedAt={settings.lastInvalidatedAt}
                 />
             )}
-            {(settings.cacheEnabled || settings.clearSchedule?.enabled) &&
-                canClearCache && (
-                    <SettingsGridCard>
-                        <Box>
-                            <Title order={5}>Clear on a schedule</Title>
-                            <Text c="dimmed" fz="xs">
-                                Clear cached results automatically, for example
-                                after a nightly data load.
-                            </Text>
-                        </Box>
-                        <ResultsCacheClearScheduleForm
-                            projectUuid={projectUuid}
-                            clearSchedule={settings.clearSchedule}
-                            schedulerTimezone={settings.schedulerTimezone}
-                        />
-                    </SettingsGridCard>
-                )}
+            {canClearCache && settings && (
+                <SettingsGridCard>
+                    <Box>
+                        <Title order={5}>Clear on a schedule</Title>
+                        <Text c="dimmed" fz="xs">
+                            Clear cached results automatically, for example
+                            after a nightly data load.
+                        </Text>
+                    </Box>
+                    <ResultsCacheClearScheduleForm
+                        projectUuid={projectUuid}
+                        clearSchedule={settings.clearSchedule}
+                        schedulerTimezone={settings.schedulerTimezone}
+                    />
+                </SettingsGridCard>
+            )}
         </Stack>
     );
 };

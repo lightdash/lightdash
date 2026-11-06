@@ -1,4 +1,3 @@
-import { ExploreType } from '../../types/explore';
 import { filterExploreByTags } from './filterExploreByTags';
 
 describe('AiService', () => {
@@ -705,39 +704,6 @@ describe('AiService', () => {
                             dimensions: {},
                             metrics: {},
                         },
-                    },
-                },
-            }),
-        ).toBeUndefined();
-    });
-
-    test('should return live data source explores untouched when AI tags are configured', async () => {
-        const explore = {
-            type: ExploreType.API_SOURCE,
-            baseTable: 'google_analytics_report',
-            tags: [],
-            tables: {
-                google_analytics_report: {
-                    dimensions: { date: {} },
-                    metrics: { sessions: {} },
-                },
-            },
-        };
-        expect(
-            filterExploreByTags({ availableTags: ['ai-enabled'], explore }),
-        ).toEqual(explore);
-    });
-
-    test('should still hide untagged virtual explores when AI tags are configured', async () => {
-        expect(
-            filterExploreByTags({
-                availableTags: ['ai-enabled'],
-                explore: {
-                    type: ExploreType.VIRTUAL,
-                    baseTable: 'my_view',
-                    tags: [],
-                    tables: {
-                        my_view: { dimensions: { id: {} }, metrics: {} },
                     },
                 },
             }),

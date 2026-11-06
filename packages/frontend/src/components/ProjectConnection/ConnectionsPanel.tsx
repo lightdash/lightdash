@@ -9,6 +9,7 @@ import {
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
     type WarehouseTypes,
+    type ApiWarehouseConnectionsResponse,
     type CreateWarehouseCredentials,
     type Project,
     type WarehouseConnection,
@@ -41,13 +42,13 @@ import { useRef, useState, type FC } from 'react';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import {
     hidesConnectionsPanel,
+    isSingleConnectionProject,
     useCreateWarehouseConnection,
     useDeleteWarehouseConnection,
     useRenameWarehouseConnection,
     useUpdateWarehouseConnection,
     useWarehouseConnection,
     useWarehouseConnections,
-    type ProjectWarehouseConnectionsMode,
 } from '../../hooks/useWarehouseConnections';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
@@ -497,17 +498,16 @@ const ConnectionActionModal: FC<{
 };
 
 const useCanAddConnection = (
-    data: ProjectWarehouseConnectionsMode | undefined,
+    data: ApiWarehouseConnectionsResponse['results'] | undefined,
 ): boolean => {
     const mixedWarehouseFlag = useServerFeatureFlag(
         FeatureFlags.MixedWarehouseConnections,
     );
-    if (data?.mode !== 'multiple') return false;
-    const original = data.connections.find(
+    const original = data?.connections.find(
         (connection) => connection.isOriginal,
     );
     return (
-        data.capabilities.canAddConnection &&
+        data?.capabilities.canAddConnection === true &&
         supportsMultipleConnections(
             original?.warehouseType ?? null,
             mixedWarehouseFlag.data?.enabled === true,
@@ -525,10 +525,7 @@ const ConnectionsPanelContent: FC<{
     const [isAddOpen, setIsAddOpen] = useState(false);
     const canAddConnection = useCanAddConnection(data);
 
-    if (!isEnabled || hidesConnectionsPanel(error)) {
-        return null;
-    }
-    if (error === null && data?.mode === 'single') {
+    if (isEnabled && isSingleConnectionProject(error)) {
         return (
             <EnableMultipleConnectionsCard
                 projectUuid={projectUuid}
@@ -536,9 +533,11 @@ const ConnectionsPanelContent: FC<{
             />
         );
     }
+    if (!isEnabled || hidesConnectionsPanel(error)) {
+        return null;
+    }
 
-    const listing = data?.mode === 'multiple' ? data : undefined;
-    const connections = listing?.connections ?? [];
+    const connections = data?.connections ?? [];
     const originalWarehouseType = connections.find(
         (connection) => connection.isOriginal,
     )?.warehouseType;
@@ -558,7 +557,7 @@ const ConnectionsPanelContent: FC<{
                         Failed to load connections.
                     </Text>
                 )}
-                {listing && (
+                {data && (
                     <Stack gap={0}>
                         {connections.map((connection) => (
                             <ConnectionRow
@@ -584,9 +583,9 @@ const ConnectionsPanelContent: FC<{
                     <Tooltip
                         w={300}
                         disabled={
-                            canAddConnection || !listing?.capabilities.reason
+                            canAddConnection || !data?.capabilities.reason
                         }
-                        label={listing?.capabilities.reason}
+                        label={data?.capabilities.reason}
                     >
                         <Box>
                             <Button

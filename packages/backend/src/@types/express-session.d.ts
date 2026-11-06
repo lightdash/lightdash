@@ -1,7 +1,6 @@
 import 'express-session';
 import {
     type GoogleOAuthSession,
-    type LiveSourceReturnTo,
     type PendingGoogleLiveSource,
     type PostHogOAuthSession,
 } from '../ee/services/ExternalConnectionService/ExternalConnectionService';
@@ -41,7 +40,6 @@ declare module 'express-session' {
             };
             postHog?: PostHogOAuthSession;
             googleLiveSource?: GoogleOAuthSession;
-            liveSourceReturnTo?: LiveSourceReturnTo;
             isPopup?: boolean | undefined;
             databricks?: {
                 projectUuid?: string | undefined;

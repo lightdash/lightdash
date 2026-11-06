@@ -1,7 +1,5 @@
 import {
-    assertValidDbtManifestIdentifiers,
     DbtError,
-    DbtManifestTextError,
     getDbtManifestVersion,
     getExternalModelNodesFromManifest,
     isDbtRpcManifestResults,
@@ -15,13 +13,13 @@ import {
     CompileInterruptedError,
     throwIfCompileAborted,
 } from '../scheduler/compileShutdown';
+import { DbtSourceDiskError } from './DbtSourceDiskPool';
 
 export type SourceFailurePhase = 'prepare' | 'manifest' | 'dependency';
 
 export const isFatalSourceFailure = (error: unknown): boolean => {
     if (error instanceof DbtSourceError)
         return isFatalSourceFailure(error.cause);
-    if (error instanceof DbtManifestTextError) return false;
     if (
         error instanceof DbtError &&
         /found a cycle|cyclic dependency|ambiguous|ambiguity/i.test(
@@ -34,23 +32,13 @@ export const isFatalSourceFailure = (error: unknown): boolean => {
         return true;
     return (
         error instanceof CompileInterruptedError ||
+        error instanceof DbtSourceDiskError ||
         (error instanceof Error &&
             ['AbortError', 'TimeoutError'].includes(error.name))
     );
 };
 
-const getManifestTextFailure = (
-    error: unknown,
-): DbtManifestTextError | null => {
-    if (error instanceof DbtSourceError)
-        return getManifestTextFailure(error.cause);
-    return error instanceof DbtManifestTextError ? error : null;
-};
-
-export const validateDbtSourceManifest = (
-    manifest: DbtManifest,
-    sourceName?: string,
-): void => {
+export const validateDbtSourceManifest = (manifest: DbtManifest): void => {
     if (
         !isDbtRpcManifestResults({ manifest }) ||
         !isSupportedDbtAdapter(manifest.metadata)
@@ -58,7 +46,6 @@ export const validateDbtSourceManifest = (
         throw new DbtError(
             'The dbt manifest is invalid or uses an unsupported adapter.',
         );
-    assertValidDbtManifestIdentifiers(manifest, sourceName);
     getDbtManifestVersion(manifest);
     getExternalModelNodesFromManifest(manifest);
 };
@@ -98,8 +85,7 @@ export class SourceFailureIsolation {
             manifest: 'could not parse, list models, or validate the manifest',
             dependency: 'a referenced dbt source failed',
         };
-        const textFailure = getManifestTextFailure(error);
-        const warning = `Source "${sourceName}" failed: ${reasons[phase]}; ${carriedExploreCount > 0 ? `kept its ${carriedExploreCount} explores from the last successful refresh` : 'no explores from a previous successful refresh are available; nothing was carried'}.${textFailure === null ? '' : ` ${textFailure.message}`}`;
+        const warning = `Source "${sourceName}" failed: ${reasons[phase]}; ${carriedExploreCount > 0 ? `kept its ${carriedExploreCount} explores from the last successful refresh` : 'no explores from a previous successful refresh are available; nothing was carried'}.`;
         await this.onWarning(warning);
         this.failedSourceUuids.push(sourceUuid);
         this.warnings.push(warning);

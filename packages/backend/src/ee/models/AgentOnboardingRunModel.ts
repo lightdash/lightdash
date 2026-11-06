@@ -111,17 +111,6 @@ export class AgentOnboardingRunModel {
             .first();
     }
 
-    async findLatestRunForProject(
-        projectUuid: string,
-    ): Promise<DbAgentOnboardingRun | undefined> {
-        return this.database<AgentOnboardingRunsTable>(
-            AgentOnboardingRunsTableName,
-        )
-            .where('project_uuid', projectUuid)
-            .orderBy('created_at', 'desc')
-            .first();
-    }
-
     async hasActiveRunForOrganization(
         organizationUuid: string,
     ): Promise<boolean> {
@@ -267,38 +256,6 @@ export class AgentOnboardingRunModel {
             });
 
         return updated > 0;
-    }
-
-    async markFailedIfIdle(
-        agentOnboardingRunUuid: string,
-        idleMs: number,
-        errorMessage: string,
-    ): Promise<boolean> {
-        const updated = await this.database<AgentOnboardingRunsTable>(
-            AgentOnboardingRunsTableName,
-        )
-            .where('agent_onboarding_run_uuid', agentOnboardingRunUuid)
-            .where('status', 'running')
-            .whereRaw('updated_at < now() - ?::interval', [
-                `${idleMs} milliseconds`,
-            ])
-            .update({
-                status: 'failed',
-                error_message: errorMessage,
-                completed_at: this.database.fn.now() as unknown as Date,
-                updated_at: this.database.fn.now() as unknown as Date,
-            });
-
-        return updated > 0;
-    }
-
-    async heartbeat(agentOnboardingRunUuid: string): Promise<void> {
-        await this.database<AgentOnboardingRunsTable>(
-            AgentOnboardingRunsTableName,
-        )
-            .where('agent_onboarding_run_uuid', agentOnboardingRunUuid)
-            .where('status', 'running')
-            .update({ updated_at: this.database.fn.now() as unknown as Date });
     }
 
     async markCancelled(agentOnboardingRunUuid: string): Promise<boolean> {

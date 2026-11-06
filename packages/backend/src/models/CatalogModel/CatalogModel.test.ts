@@ -643,44 +643,6 @@ describe('CatalogModel', () => {
         );
     });
 
-    describe('getMetricTableNames', () => {
-        test('lists distinct tables of visible metrics with search permissions applied', async () => {
-            tracker.on
-                .select(({ sql }) => sql.includes('distinct'))
-                .response([
-                    { table_name: 'customers' },
-                    { table_name: 'orders' },
-                ]);
-
-            const result = await model.getMetricTableNames({
-                projectUuid: MOCK_PROJECT_UUID,
-                tablesConfiguration: {
-                    tableSelection: {
-                        type: TableSelectionType.WITH_NAMES,
-                        value: ['orders', 'customers'],
-                    },
-                },
-                userAttributes: { department: ['sales'] },
-                context: CatalogSearchContext.SPOTLIGHT,
-            });
-
-            expect(result).toEqual(['customers', 'orders']);
-            expect(tracker.history.all).toHaveLength(1);
-            const { sql } = tracker.history.select[0];
-            expect(sql).toMatch(
-                /^select distinct "catalog_search"\."table_name" from/,
-            );
-            expect(sql).toContain('"catalog_search"."spotlight_show" =');
-            expect(sql).toContain('"catalog_search"."type" =');
-            expect(sql).toContain('"catalog_search"."field_type" =');
-            expect(sql).toContain('COALESCE(required_attributes');
-            expect(sql).toContain('COALESCE(any_attributes');
-            expect(sql).toContain('"catalog_search"."table_name" in');
-            expect(sql).not.toContain('search_rank');
-            expect(sql).toContain('order by "catalog_search"."table_name"');
-        });
-    });
-
     describe('createMetricsTree', () => {
         test('should create tree with nodes and edges in clean state', async () => {
             // Mock the tree insert (returning created row)

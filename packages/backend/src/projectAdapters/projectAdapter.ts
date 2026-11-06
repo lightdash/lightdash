@@ -6,7 +6,6 @@ import {
     DbtVersionOption,
     ParameterError,
     resolveDbtVersion,
-    type DbtJoinAvailability,
     type WarehouseClient,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -46,11 +45,7 @@ export const projectAdapterFromConfig = async (
     analytics?: LightdashAnalytics,
     // MANIFEST-only: project dir for Lightdash config and selected model ids.
     // Ignored by every other adapter type.
-    manifestOptions?: {
-        projectDir?: string;
-        selectedModelIds?: string[];
-        joinAvailability?: DbtJoinAvailability;
-    },
+    manifestOptions?: { projectDir?: string; selectedModelIds?: string[] },
 ): Promise<ProjectAdapter> => {
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
@@ -99,7 +94,6 @@ export const projectAdapterFromConfig = async (
                     : { manifest: config.manifest }),
                 dbtProjectDir: manifestOptions?.projectDir,
                 selectedModelIds: manifestOptions?.selectedModelIds,
-                joinAvailability: manifestOptions?.joinAvailability,
             });
 
         case DbtProjectType.DBT_CLOUD_IDE:

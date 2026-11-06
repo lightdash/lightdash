@@ -2,22 +2,15 @@ import {
     assertUnreachable,
     type RegistryChartTypeListItem,
 } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Button,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    UnstyledButton,
-} from '@mantine/core';
-import { IconDownload, IconPhoto } from '@tabler/icons-react';
+import { Badge, Box, Group, Paper, Stack, Text } from '@mantine/core';
+import { IconPhoto } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import { useAppColorScheme } from '../../../providers/ColorSchemeContext';
 import { registryThumbnailPath } from '../utils/registryAssetUrl';
 import classes from './ChartTypeLibraryCard.module.css';
+import ChartTypeReleaseStageBadge from './ChartTypeReleaseStageBadge';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 import RegistryAssetImage from './RegistryAssetImage';
 
@@ -54,17 +47,9 @@ const StateBadge: FC<{ item: RegistryChartTypeListItem }> = ({ item }) => {
 type Props = {
     item: RegistryChartTypeListItem;
     onClick: () => void;
-    /** Installs straight from the card; null when it can't be installed here. */
-    onInstall: (() => void) | null;
-    isInstalling: boolean;
 };
 
-const ChartTypeLibraryCard: FC<Props> = ({
-    item,
-    onClick,
-    onInstall,
-    isInstalling,
-}) => {
+const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
     const { colorScheme } = useAppColorScheme();
     const thumbnail = registryThumbnailPath(item, colorScheme);
     const placeholder = (
@@ -75,9 +60,12 @@ const ChartTypeLibraryCard: FC<Props> = ({
         </Paper>
     );
     return (
-        <Paper
+        <PolymorphicPaperButton
+            component="button"
+            type="button"
             withBorder
-            radius="lg"
+            radius="md"
+            shadow="subtle"
             className={classes.card}
             onClick={onClick}
         >
@@ -93,39 +81,22 @@ const ChartTypeLibraryCard: FC<Props> = ({
                     placeholder
                 )}
             </Box>
-            <Stack gap="xs" px="xs" pt="sm" pb="xs">
+            <Stack gap="xs" p="sm">
                 <Group gap="xs" wrap="nowrap" justify="space-between">
-                    <UnstyledButton className={classes.hit} miw={0}>
-                        <Text fz="sm" fw={500} truncate="end">
-                            {item.name}
-                        </Text>
-                    </UnstyledButton>
+                    <Text fz={13} fw={600} truncate="end">
+                        {item.name}
+                    </Text>
                     <Group gap={4} wrap="nowrap" flex="0 0 auto">
+                        <ChartTypeReleaseStageBadge stage={item.releaseStage} />
                         <OfficialChartTypeBadge />
                     </Group>
                 </Group>
-                <Text fz="xs" c="dimmed" lh={1.35} lineClamp={1}>
+                <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
                     {item.description || 'No description'}
                 </Text>
                 <StateBadge item={item} />
             </Stack>
-            {onInstall && (
-                <Button
-                    size="xs"
-                    color="dark"
-                    leftSection={<MantineIcon icon={IconDownload} />}
-                    className={classes.install}
-                    loading={isInstalling}
-                    aria-label={`Install ${item.name}`}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onInstall();
-                    }}
-                >
-                    Install
-                </Button>
-            )}
-        </Paper>
+        </PolymorphicPaperButton>
     );
 };
 

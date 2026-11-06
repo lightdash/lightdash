@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isAppScheduler,
     isChartScheduler,
     isDashboardScheduler,
@@ -33,8 +34,8 @@ import {
 import { isEqual } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
 import useHealth from '../../../../../hooks/health/useHealth';
-import { useIsResultsCacheEnabled } from '../../../../../hooks/useProjectResultsCacheSettings';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
 import { Limit, Values } from '../../types';
 import { SchedulerFormChartFilterOverridesTab } from '../SchedulerFormChartFilterOverridesTab';
@@ -104,9 +105,12 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     filtersWithUnmetRequirements,
 }) => {
     const form = useSchedulerFormContext();
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const health = useHealth();
     const projectUuid = useProjectUuid();
-    const isResultsCacheEnabled = useIsResultsCacheEnabled(projectUuid);
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
     const isDashboard = dashboard !== undefined;
 

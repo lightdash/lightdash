@@ -19,7 +19,6 @@ import {
     documentAsCodeSchema,
     doesPatchTouchSqlChartSql,
     Explore,
-    ExploreType,
     FeatureFlags,
     filterExploreByTags,
     filterStaticFilterAutocompleteValues,
@@ -1364,6 +1363,12 @@ export class AiAgentToolsService extends BaseService {
         return types;
     }
 
+    private async customChartTypesEnabled(
+        context: AiAgentToolsRuntimeContext,
+    ): Promise<boolean> {
+        return this.appGenerateService.chartTypesEnabledFor(context.user);
+    }
+
     static readonly CUSTOM_CHART_TYPES_INLINE_LIMIT = 10;
 
     static readonly CUSTOM_CHART_TYPES_SEARCH_LIMIT = 10;
@@ -1372,6 +1377,9 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
     ): ReturnType<ListCustomChartTypesFn> {
         return this.getRuntimeCached(context, 'customChartTypes', async () => {
+            if (!(await this.customChartTypesEnabled(context))) {
+                return { types: [], totalCount: 0 };
+            }
             const { data, pagination } =
                 await this.appModel.listDataAppVisualizations(
                     context.projectUuid,
@@ -1397,6 +1405,9 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.findCustomChartTypes`,
             args,
             async () => {
+                if (!(await this.customChartTypesEnabled(context))) {
+                    return [];
+                }
                 if ('slug' in args) {
                     const row =
                         await this.appModel.findDataAppVisualizationBySlug(
@@ -1560,6 +1571,9 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         slug: string,
     ): ReturnType<ResolveCustomChartTypeFn> {
+        if (!(await this.customChartTypesEnabled(context))) {
+            return null;
+        }
         const row = await this.appModel.findDataAppVisualizationBySlug(
             context.projectUuid,
             slug,
@@ -4755,7 +4769,6 @@ export class AiAgentToolsService extends BaseService {
         {
             queries,
             terminalNodeId,
-            otherUnreadNodeIds,
             sampleNodeIds,
             onNodeStatus,
             deadlineMs,
@@ -4919,10 +4932,9 @@ export class AiAgentToolsService extends BaseService {
                     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
                 );
 
-                const otherUnreadSubmissions = submissions.filter(
-                    (submission) =>
-                        otherUnreadNodeIds.includes(submission.nodeId),
-                );
+                // Polling only the terminal node is sufficient: its execution
+                // waits on every referenced result and fails if any upstream
+                // query fails.
 
                 // A failed run marks the nodes its status read did not settle.
                 const emitUnfinishedAsError = (message: string) => {
@@ -4957,13 +4969,9 @@ export class AiAgentToolsService extends BaseService {
 
                 let outcome: ComposerRunOutcome;
                 try {
-                    // Polling the unread nodes suffices: a node waits on every
-                    // result it reads and fails if any of them fails.
-                    const polled = await this.pollComposerResultNodes({
+                    const polled = await this.pollComposerTerminal({
                         context,
                         submissions,
-                        otherUnreadSubmissions,
-                        sampleNodeIds,
                         terminalSubmission,
                         pageSize,
                         deadlineMs,
@@ -5037,7 +5045,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A failed sample read gives a null sample and never fails the run; a status with a sample already keeps it. */
+    /** A failed sample read gives a null sample and never fails the run. */
     private async readComposerNodeSamples(
         context: AiAgentToolsRuntimeContext,
         submissions: SourceQuerySubmission[],
@@ -5052,8 +5060,7 @@ export class AiAgentToolsService extends BaseService {
                 if (
                     !submission ||
                     status.state !== QueryHistoryStatus.READY ||
-                    !sampleNodeIds.includes(status.nodeId) ||
-                    status.sample !== null
+                    !sampleNodeIds.includes(status.nodeId)
                 )
                     return status;
                 try {
@@ -5083,51 +5090,6 @@ export class AiAgentToolsService extends BaseService {
                 }
             }),
         );
-    }
-
-    /**
-     * Waits for the other unread nodes first, so the terminal's status read sees them settled.
-     * Their rows come from that wait, so a failed read fails the run instead of dropping rows.
-     */
-    private async pollComposerResultNodes({
-        otherUnreadSubmissions,
-        sampleNodeIds,
-        ...args
-    }: Parameters<AiAgentToolsService['pollComposerTerminal']>[0] & {
-        otherUnreadSubmissions: SourceQuerySubmission[];
-        sampleNodeIds: string[];
-    }): Promise<ComposerRunOutcome | ComposerRunningOutcome> {
-        const samplesByNodeId = new Map<string, Record<string, AnyType>[]>();
-        const withUnreadNodeSamples = <
-            T extends ComposerRunOutcome | ComposerRunningOutcome,
-        >(
-            outcome: T,
-        ): T => ({
-            ...outcome,
-            nodeStatuses: outcome.nodeStatuses.map((status) => {
-                const rows = samplesByNodeId.get(status.nodeId);
-                return rows && sampleNodeIds.includes(status.nodeId)
-                    ? { ...status, sample: rows }
-                    : status;
-            }),
-        });
-        for (const terminalSubmission of otherUnreadSubmissions) {
-            // eslint-disable-next-line no-await-in-loop
-            const polled = await this.pollComposerTerminal({
-                ...args,
-                terminalSubmission,
-                pageSize: sampleNodeIds.includes(terminalSubmission.nodeId)
-                    ? COMPOSER_QUERY_PREVIEW_ROW_LIMIT
-                    : 1,
-            });
-            if (polled.status !== 'success')
-                return withUnreadNodeSamples(polled);
-            samplesByNodeId.set(
-                terminalSubmission.nodeId,
-                polled.terminal.rows,
-            );
-        }
-        return withUnreadNodeSamples(await this.pollComposerTerminal(args));
     }
 
     private async pollComposerTerminal({
@@ -5482,45 +5444,23 @@ export class AiAgentToolsService extends BaseService {
                         : undefined;
 
                 const startedAt = Date.now();
-                const queryContext =
-                    context.source === 'mcp'
-                        ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
-                        : QueryExecutionContext.AI;
-                const explore = await this.getExploreForRuntime(context, {
-                    table: args.table,
-                }).catch(() => null);
-                // Live sources answer through their API, which only the async query path reaches
                 const results =
-                    explore?.type === ExploreType.API_SOURCE
-                        ? await this.asyncQueryService.searchFieldValuesAndWait(
-                              {
-                                  account: context.account,
-                                  projectUuid: context.projectUuid,
-                                  table: args.table,
-                                  fieldId: args.fieldId,
-                                  search: args.query,
-                                  limit: 100,
-                                  filters: andFilters,
-                                  context: queryContext,
-                                  querySurface: context.querySurface,
-                                  userAttributeOverrides:
-                                      context.userAttributeOverrides,
-                              },
-                          )
-                        : await this.projectService.searchFieldUniqueValues(
-                              context.account,
-                              context.projectUuid,
-                              args.table,
-                              args.fieldId,
-                              args.query,
-                              100,
-                              andFilters,
-                              false,
-                              undefined,
-                              context.userAttributeOverrides,
-                              queryContext,
-                              context.querySurface,
-                          );
+                    await this.projectService.searchFieldUniqueValues(
+                        context.account,
+                        context.projectUuid,
+                        args.table,
+                        args.fieldId,
+                        args.query,
+                        100,
+                        andFilters,
+                        false,
+                        undefined,
+                        context.userAttributeOverrides,
+                        context.source === 'mcp'
+                            ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
+                            : QueryExecutionContext.AI,
+                        context.querySurface,
+                    );
                 const output =
                     context.source === 'mcp' ? results : results.results;
                 Logger.info(

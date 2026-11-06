@@ -5,7 +5,6 @@ import {
     mapValues,
     pickBy,
 } from 'es-toolkit/compat';
-import { ExploreType } from '../../types/explore';
 
 type FilterableTable = {
     dimensions: Record<string, { tags?: string[] }>;
@@ -13,7 +12,6 @@ type FilterableTable = {
 };
 
 type FilterableExplore<T extends FilterableTable = FilterableTable> = {
-    type?: ExploreType;
     tags: string[];
     baseTable: string;
     tables: { [tableName: string]: T };
@@ -89,10 +87,6 @@ function hasMatchingTags<
  * | No explore tag, base table fields tagged        | Only matching fields visible              |
  * | No explore tag, only joined table fields tagged | Explore hidden (base table requirement)   |
  * | No matching tags anywhere                       | Explore hidden                            |
- * | Live data source explore (`API_SOURCE`)         | Everything is visible                     |
- *
- * Live data source explores are built from an integration, not dbt, so they
- * never carry tags; the agent's live-sources prompt already lists them.
  */
 export function filterExploreByTags<E extends FilterableExplore>({
     explore,
@@ -101,11 +95,7 @@ export function filterExploreByTags<E extends FilterableExplore>({
     explore: E;
     availableTags: string[] | null;
 }) {
-    if (
-        !availableTags ||
-        availableTags.length === 0 ||
-        explore.type === ExploreType.API_SOURCE
-    ) {
+    if (!availableTags || availableTags.length === 0) {
         return explore;
     }
 

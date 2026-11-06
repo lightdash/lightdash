@@ -26,7 +26,6 @@ import {
     ApiProjectResponse,
     ApiResultsCacheInvalidationResponse,
     ApiResultsCacheProjectSettingsResponse,
-    ApiResultsCacheStatusResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSpaceSummaryListResponse,
@@ -73,8 +72,6 @@ import {
     type ApiGetTagsResponse,
     type ApiRefreshBody,
     type ApiRefreshResults,
-    type ApiReplaceProjectContextBody,
-    type ApiReplaceProjectContextResults,
     type ApiSuccess,
     type ApiTableGroupsResults,
     type ApiUpdateDashboardsResponse,
@@ -146,14 +143,6 @@ import {
 import { BaseController } from './baseController';
 
 const isPositiveIntegerString = (value: string): boolean => /^\d+$/.test(value);
-
-// Body coercion turns a null boolean into false, so reject it before validation runs
-const rejectNullCacheEnabled: express.RequestHandler = (req, _res, next) => {
-    if (req.body?.cacheEnabled === null) {
-        throw new ParameterError('cacheEnabled must be true or false');
-    }
-    next();
-};
 
 @Route('/api/v1/projects')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -1090,43 +1079,6 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         };
     }
 
-    /**
-     * Replace the project's AI agent context with the contents of
-     * `lightdash.project_context.yml`. Sent by the CLI on deploy/preview so
-     * projects without a Git connection get the same context a server-side
-     * compile would ingest. The CLI only calls this when the file exists, so
-     * removing the file leaves the stored entries unchanged; send an empty
-     * `entries: []` file to clear them. Requires the organization's "Review AI
-     * agent turns" setting; when it is off the entries are left unchanged.
-     * @summary Replace project AI context
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Put('{projectUuid}/project-context')
-    @OperationId('replaceProjectContext')
-    async replaceProjectContext(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-        @Body() body: ApiReplaceProjectContextBody,
-    ): Promise<ApiSuccess<ApiReplaceProjectContextResults>> {
-        assertRegisteredAccount(req.account);
-        const results = await this.services
-            .getProjectService()
-            .replaceProjectContextFromFile({
-                user: toSessionUser(req.account),
-                projectUuid,
-                fileContents: body.yaml,
-            });
-        return {
-            status: 'ok',
-            results,
-        };
-    }
-
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/colorPalette')
@@ -1525,30 +1477,8 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
-     * Whether query results are cached for a project. Readable by anyone who
-     * can view the project.
-     * @summary Get results cache status
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('{projectUuid}/results-cache-config/status')
-    @OperationId('getProjectResultsCacheStatus')
-    async getProjectResultsCacheStatus(
-        @Path() projectUuid: UUID,
-        @Request() req: express.Request,
-    ): Promise<ApiResultsCacheStatusResponse> {
-        const results = await this.services
-            .getProjectService()
-            .getProjectResultsCacheStatus(req.account!, projectUuid);
-        return {
-            status: 'ok',
-            results,
-        };
-    }
-
-    /**
-     * Get the results cache settings for a project: whether caching is
-     * enabled and its TTL. A null TTL means the instance-wide default applies.
+     * Get the results cache TTL for a project. A null TTL means the
+     * instance-wide default applies.
      * @summary Get results cache settings
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -1573,8 +1503,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
-     * Enable or disable results caching for a project, or update its TTL.
-     * Omitted fields keep their current value. Pass a null TTL to fall back to
+     * Update the results cache TTL for a project. Pass null to fall back to
      * the instance-wide default.
      * @summary Update results cache settings
      */
@@ -1582,7 +1511,6 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
-        rejectNullCacheEnabled,
     ])
     @SuccessResponse('200', 'Updated')
     @Patch('{projectUuid}/results-cache-config')

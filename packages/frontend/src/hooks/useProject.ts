@@ -6,10 +6,7 @@ import {
     type ApiJobStartedResults,
     type ApiWarehouseConnectionTestBody,
     type WarehouseConnectionTestResults,
-    type ApiErrorDetail,
     type CreateProject,
-    type CreateProjectOptionalCredentials,
-    DbtProjectType,
     omitEmptySecrets,
     type CreateWarehouseCredentials,
     type DataTimezonePreviewRequest,
@@ -31,7 +28,6 @@ import { useLocation } from 'react-router';
 import { type LightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
-import { type CreateProjectErrorCategory } from '../providers/Tracking/types';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import useToaster from './toaster/useToaster';
@@ -49,7 +45,7 @@ const createProject = async (lightdashApi: LightdashApi, data: CreateProject) =>
 
 const createProjectWithoutCompile = async (
     lightdashApi: LightdashApi,
-    data: CreateProjectOptionalCredentials,
+    data: CreateProject,
 ) =>
     lightdashApi<ApiCreateProjectResults>({
         url: `/org/projects`,
@@ -158,27 +154,10 @@ export const useUpdateMutation = (uuid: string) => {
     );
 };
 
-const getCreateProjectErrorCategory = ({
-    name,
-    statusCode,
-}: ApiErrorDetail): CreateProjectErrorCategory => {
-    if (name === 'NetworkError') return 'network';
-    switch (statusCode) {
-        case 401:
-            return 'authentication';
-        case 403:
-            return 'permission';
-        case 404:
-            return 'not_found';
-        case 408:
-        case 504:
-            return 'timeout';
-        default:
-            return 'unknown';
-    }
-};
-
-export const useCreateMutation = (options?: { quietJobToast?: boolean }) => {
+export const useCreateMutation = (options?: {
+    quietJobToast?: boolean;
+    warehouseOnly?: boolean;
+}) => {
     const lightdashApi = useLightdashApi();
     const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { showToastApiError, showToastInfo } = useToaster();
@@ -219,10 +198,7 @@ export const useCreateMutation = (options?: { quietJobToast?: boolean }) => {
                     properties: {
                         warehouse: data.warehouseConnection.type,
                         errorType: error.name,
-                        failedStep: null,
-                        errorCategory: getCreateProjectErrorCategory(error),
-                        warehouseOnly:
-                            data.dbtConnection.type === DbtProjectType.NONE,
+                        warehouseOnly: options?.warehouseOnly,
                         onboardingFlow,
                     },
                 });
@@ -239,23 +215,22 @@ export const useCreateProjectWithoutCompileMutation = () => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
-    return useMutation<
-        ApiCreateProjectResults,
-        ApiError,
-        CreateProjectOptionalCredentials
-    >((data) => createProjectWithoutCompile(lightdashApi, data), {
-        mutationKey: ['project_create_without_compile'],
-        retry: false,
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['projects']);
+    return useMutation<ApiCreateProjectResults, ApiError, CreateProject>(
+        (data) => createProjectWithoutCompile(lightdashApi, data),
+        {
+            mutationKey: ['project_create_without_compile'],
+            retry: false,
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['projects']);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to create project',
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to create project',
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 const updateWarehouseCredentials = async (

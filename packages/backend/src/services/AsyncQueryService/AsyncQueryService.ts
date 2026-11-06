@@ -168,7 +168,6 @@ import {
     type ExecuteAsyncUnderlyingDataRequestParams,
     type ExploresResultsCacheInvalidation,
     type ExternalSourceTableReference,
-    type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
     type MergeQueryChart,
@@ -1454,8 +1453,8 @@ export class AsyncQueryService extends ProjectService {
         reader: QueryResultReader = buildResultReader(account),
     ): Promise<CreateCacheResult> {
         if (!invalidateCache) {
-            // CommercialCacheService gates internally on the project's
-            // results cache setting.
+            // CommercialCacheService gates internally on the
+            // ResultsCacheEnabled feature flag (DB → env fallback).
             const existingCache =
                 await this.cacheService?.findCachedResultsFile(
                     projectUuid,
@@ -6523,11 +6522,29 @@ export class AsyncQueryService extends ProjectService {
                         userUuid: account.user.id,
                         organizationUuid: account.organization.organizationUuid,
                     });
-                    await this.trackFirstQuery(
-                        account,
-                        account.organization.organizationUuid,
-                        onboardingFlow,
-                    );
+                    const onboardingRecord =
+                        await this.onboardingModel.getByOrganizationUuid(
+                            account.organization.organizationUuid,
+                        );
+
+                    if (!onboardingRecord.ranQueryAt) {
+                        await this.onboardingModel.update(
+                            account.organization.organizationUuid,
+                            {
+                                ranQueryAt: new Date(),
+                            },
+                        );
+                        this.analytics.trackAccount(account, {
+                            event: 'onboarding.step_completed',
+                            properties: {
+                                step: 'first_query',
+                                stepIndex: 5,
+                                onboardingFlow,
+                                organizationId:
+                                    account.organization.organizationUuid,
+                            },
+                        });
+                    }
 
                     // Mirrors runAsyncWarehouseQuery's resolvedDataTimezone:
                     // the session (data) timezone changes results without
@@ -8717,41 +8734,6 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             valueFieldId: fieldId,
             labelFieldId,
-        };
-    }
-
-    /** Field values for callers that cannot poll, like agent tools on live sources */
-    async searchFieldValuesAndWait(
-        args: ExecuteAsyncFieldValueSearchArgs,
-    ): Promise<FieldValueSearchResult> {
-        const { queryUuid, cacheMetadata, valueFieldId } =
-            await this.executeAsyncFieldValueSearch(args);
-        await this.pollForQueryCompletion({
-            account: args.account,
-            projectUuid: args.projectUuid,
-            queryUuid,
-        });
-        const page = await this.getAsyncQueryResults({
-            account: args.account,
-            projectUuid: args.projectUuid,
-            queryUuid,
-            pageSize: args.limit,
-            reader: buildResultReader(
-                args.account,
-                args.context,
-                args.querySurface ?? null,
-            ),
-        });
-        if (page.status !== QueryHistoryStatus.READY) {
-            throw new UnexpectedServerError(
-                `Field value search ended with status ${page.status}`,
-            );
-        }
-        return {
-            search: args.search,
-            results: page.rows.map((row) => row[valueFieldId]?.value.raw),
-            cached: cacheMetadata.cacheHit,
-            refreshedAt: new Date(),
         };
     }
 
@@ -11969,7 +11951,6 @@ export class AsyncQueryService extends ProjectService {
         if (effectiveLimit > maxLimit) {
             throw new ParameterError(`limit must be at most ${maxLimit} rows`);
         }
-        await this.trackFirstQueryForAccount(account);
         const requestParameters: ExecuteAsyncApiQueryRequestParams = {
             connectionUuid,
             payload,
@@ -12005,7 +11986,6 @@ export class AsyncQueryService extends ProjectService {
                     tableCalculations: [],
                     additionalMetrics: [],
                 },
-                explore: null,
             },
             toResult: (result) => ({
                 rows: result.rows,
@@ -12038,26 +12018,6 @@ export class AsyncQueryService extends ProjectService {
      * Answers a metric query on a live data source explore with one call to
      * its integration. Callers MUST authorize the account for the explore.
      */
-    private async trackFirstQueryForAccount(account: Account): Promise<void> {
-        assertIsAccountWithOrg(account);
-        const { organizationUuid } = account.organization;
-        // Analytics only: never fail the query
-        try {
-            await this.trackFirstQuery(
-                account,
-                organizationUuid,
-                await this.getOnboardingFlow({
-                    userUuid: account.user.id,
-                    organizationUuid,
-                }),
-            );
-        } catch (error) {
-            this.logger.warn(
-                `Failed to track first query for organization ${organizationUuid}: ${getErrorMessage(error)}`,
-            );
-        }
-    }
-
     private async executePreparedApiSourceQuery(
         args: PreparedAsyncQueryArgs,
         requestParameters: ExecuteAsyncQueryRequestParams,
@@ -12092,7 +12052,6 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Live data sources are not enabled');
         }
         await this.assertApiQuerySourcesEnabled(account);
-        await this.trackFirstQueryForAccount(account);
 
         const metricQuery = queryComposer.getMetricQuery();
         const fields = queryComposer.getFields();
@@ -12126,7 +12085,7 @@ export class AsyncQueryService extends ProjectService {
                 requestParameters.invalidateCache ??
                 args.invalidateCache ??
                 false,
-            history: { fields, requestParameters, metricQuery, explore },
+            history: { fields, requestParameters, metricQuery },
             toResult: (result) =>
                 toApiSourceResult({ compiled, rows: result.rows, fields }),
         });
@@ -12173,8 +12132,6 @@ export class AsyncQueryService extends ProjectService {
             fields: ItemsMap | null;
             requestParameters: ExecuteAsyncQueryRequestParams;
             metricQuery: MetricQuery;
-            /** The live explore a metric query reads; null for a raw api query. */
-            explore: Explore | null;
         };
         toResult: ApiResultShaper;
     }): Promise<{
@@ -12185,17 +12142,14 @@ export class AsyncQueryService extends ProjectService {
     }> {
         assertIsAccountWithOrg(account);
         const identityEnabled = await this.isResultIdentityEnabled(account);
-        // Same inputs as the result read check, which fingerprints a live
-        // explore's results with the explore and its scope.
         const resultEntitlementFingerprint = identityEnabled
-            ? await this.getCurrentResultEntitlementFingerprint({
-                  projectUuid,
+            ? getQueryResultEntitlementFingerprint({
                   parameters: getQueryResultRequestParameters(
                       history.requestParameters,
                       {},
                   ),
                   controls: await this.getUserAttributes({ account }),
-                  explore: history.explore,
+                  explore: null,
                   metricQuery: history.metricQuery,
               })
             : null;
@@ -12814,8 +12768,6 @@ export class AsyncQueryService extends ProjectService {
         } catch (e) {
             throw new ParameterError(getErrorMessage(e));
         }
-
-        await this.trackFirstQueryForAccount(account);
 
         // Parameter values change the executed SQL without changing its text
         const sharedCacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
@@ -13503,8 +13455,6 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             parameters,
         );
-
-        await this.trackFirstQueryForAccount(account);
 
         // Table versions invalidate cached SQL results after refresh.
         const externalSourceSalt = resolvedTables

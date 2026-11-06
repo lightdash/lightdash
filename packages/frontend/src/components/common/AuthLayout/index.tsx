@@ -168,6 +168,30 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
             <DocumentTitle title={pageTitle} />
 
             <Box className={classes.root}>
+                {!isBranded && (
+                    <Box
+                        ref={brandPanelRef}
+                        className={classes.brandPanel}
+                        data-stage="idle"
+                    >
+                        <LightdashWordmark className={classes.brandWordmark} />
+
+                        <Stack gap="lg" className={classes.brandIntro}>
+                            <Title order={1} className={classes.headline}>
+                                Analytics at the speed of code.
+                            </Title>
+                            <Text className={classes.subcopy}>
+                                The only open-source, AI-native BI platform that
+                                lets AI build, refactor, and ship analytics in
+                                minutes.
+                            </Text>
+                            {withCustomerLogos && <CustomerLogos />}
+                        </Stack>
+
+                        <ListeningBlocks />
+                    </Box>
+                )}
+
                 <Box
                     className={classes.formPanel}
                     onFocusCapture={handleFormFocus}
@@ -198,29 +222,6 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                         {footer}
                     </Stack>
                 </Box>
-                {!isBranded && (
-                    <Box
-                        ref={brandPanelRef}
-                        className={classes.brandPanel}
-                        data-stage="idle"
-                    >
-                        <LightdashWordmark className={classes.brandWordmark} />
-
-                        <Stack gap="lg" className={classes.brandIntro}>
-                            <Title order={1} className={classes.headline}>
-                                Analytics at the speed of code.
-                            </Title>
-                            <Text className={classes.subcopy}>
-                                The only open-source, AI-native BI platform that
-                                lets AI build, refactor, and ship analytics in
-                                minutes.
-                            </Text>
-                            {withCustomerLogos && <CustomerLogos />}
-                        </Stack>
-
-                        <ListeningBlocks />
-                    </Box>
-                )}
             </Box>
         </AuthPanelContext.Provider>
     );

@@ -26,13 +26,10 @@ const createUniqueViolation = (): DatabaseError => {
     return error;
 };
 
-const buildService = ({ isNewOnboarding = false } = {}) => {
+const buildService = () => {
     const findAllAgents = vi.fn<AiAgentModel['findAllAgents']>();
     const service = new AiAgentService({
         aiAgentModel: { findAllAgents },
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({ enabled: isNewOnboarding }),
-        },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const getIsCopilotEnabled = vi.spyOn(service, 'getIsCopilotEnabled');
     const createAgent = vi.spyOn(service, 'createAgent');
@@ -74,46 +71,9 @@ describe('AiAgentService.provisionDefaultAgent', () => {
         expect(createAgent).not.toHaveBeenCalled();
     });
 
-    it.each([
-        [
-            false,
-            'Aurora',
-            "You are Aurora, this organization's analytics agent.",
-        ],
-        [
-            true,
-            'Analytics agent',
-            "You are this organization's analytics agent.",
-        ],
-    ])(
-        'names the default agent by the new onboarding flag (%s)',
-        async (isNewOnboarding, name, opening) => {
-            const { service, findAllAgents, getIsCopilotEnabled, createAgent } =
-                buildService({ isNewOnboarding });
-            getIsCopilotEnabled.mockResolvedValue(true);
-            findAllAgents.mockResolvedValue([]);
-            createAgent.mockResolvedValue(
-                {} as Awaited<ReturnType<AiAgentService['createAgent']>>,
-            );
-
-            await service.provisionDefaultAgent(user, PROJECT_UUID);
-
-            expect(createAgent).toHaveBeenCalledWith(
-                user,
-                expect.objectContaining({
-                    name,
-                    instruction: expect.stringMatching(
-                        new RegExp(`^${opening}`),
-                    ),
-                }),
-                { autoProvisioned: true },
-            );
-        },
-    );
-
-    it('creates the default agent with the starter configuration', async () => {
+    it('creates Aurora with the starter configuration', async () => {
         const { service, findAllAgents, getIsCopilotEnabled, createAgent } =
-            buildService({ isNewOnboarding: true });
+            buildService();
         getIsCopilotEnabled.mockResolvedValue(true);
         findAllAgents.mockResolvedValue([]);
         createAgent.mockResolvedValue(
@@ -125,13 +85,13 @@ describe('AiAgentService.provisionDefaultAgent', () => {
         expect(createAgent).toHaveBeenCalledWith(
             user,
             {
-                name: 'Analytics agent',
+                name: 'Aurora',
                 projectUuid: PROJECT_UUID,
                 description: null,
                 integrations: [],
                 tags: null,
                 instruction:
-                    "You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
+                    "You are Aurora, this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
                 imageUrl: null,
                 groupAccess: [],
                 userAccess: [],

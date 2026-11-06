@@ -1,0 +1,9 @@
+name: trino_xconn
+version: '1.0.0'
+config-version: 2
+profile: mixed_xref_trino
+model-paths: ['models']
+models:
+  trino_xconn:
+    +materialized: view
+    +schema: xref

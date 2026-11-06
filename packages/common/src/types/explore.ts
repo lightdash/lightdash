@@ -280,14 +280,6 @@ export const isSummaryExploreError = (
     summary.errors !== null &&
     summary.errors !== undefined;
 
-// Compiled from a dbt or Lightdash YAML deploy, not a virtual/uploaded/pre-aggregate explore
-export const isSemanticLayerExplore = (summary: SummaryExplore): boolean =>
-    !isSummaryExploreError(summary) &&
-    (summary.type === undefined || summary.type === ExploreType.DEFAULT);
-
-export const hasSemanticLayerExplore = (summaries: SummaryExplore[]): boolean =>
-    summaries.some(isSemanticLayerExplore);
-
 export type Table = TableBase & {
     dimensions: { [fieldName: string]: Dimension }; // Field names must be unique across dims and metrics
     metrics: { [fieldName: string]: Metric }; //

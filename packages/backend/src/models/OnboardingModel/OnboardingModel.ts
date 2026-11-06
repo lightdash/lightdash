@@ -27,7 +27,6 @@ const TRAINING_COPY_ORG_SLOT_NAMESPACE = 19350431;
  * organization's keys and lets two transactions hold "the same" slot.
  */
 const TRAINING_COPY_ORG_SLOT_STRIDE = 64;
-export const ONBOARDING_AGENT_PAT_DESCRIPTION_PREFIX = 'Agent onboarding run ';
 export const TRAINING_COPY_ORG_LIMIT_MESSAGE =
     'Your organization is already making its limit of training copies. Try again in a moment';
 
@@ -229,20 +228,6 @@ export class OnboardingModel {
                     .first(),
             )
             .update({ playground_content_seed_version: version });
-    }
-
-    async setRanQueryAtIfUnset(organizationUuid: string): Promise<boolean> {
-        const updated = await this.database(OnboardingTableName)
-            .where(
-                'organization_id',
-                this.database(OrganizationTableName)
-                    .where('organization_uuid', organizationUuid)
-                    .select('organization_id')
-                    .first(),
-            )
-            .whereNull('ranQuery_at')
-            .update({ ranQuery_at: new Date() });
-        return updated > 0;
     }
 
     async update(

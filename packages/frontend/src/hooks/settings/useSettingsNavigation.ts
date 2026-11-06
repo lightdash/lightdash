@@ -53,7 +53,6 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
-import { getSemanticStudioLiveSourcesUrl } from '../../features/semanticStudio/urls';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
@@ -103,7 +102,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         externalSourcesFlag,
-        isResultsCacheAvailable,
+        isResultsCacheEnabled,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
@@ -1006,7 +1005,7 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (isResultsCacheAvailable) {
+            if (isResultsCacheEnabled) {
                 projectItems.push({
                     label: 'Results caching',
                     to: `${base}/caching`,
@@ -1159,26 +1158,13 @@ export const useSettingsNavigation = (
             }
 
             if (isApiQuerySourcesEnabled && canManageProjectConnections) {
-                // Managed on the Semantic Layer page; still listed here so
-                // people who look for it in settings find their way.
                 projectItems.push({
                     label: 'Live data sources',
-                    to: getSemanticStudioLiveSourcesUrl(project.projectUuid),
+                    to: `${base}/liveDataSources`,
                     icon: IconBroadcast,
-                    keywords: [
-                        'posthog',
-                        'google analytics',
-                        'search console',
-                        'integration',
-                        'api',
-                        'saas',
-                        'live',
-                        'sources',
-                        'semantic layer',
-                    ],
+                    keywords: ['posthog', 'api', 'saas', 'live', 'sources'],
                     children: [],
                     exact: true,
-                    movedTo: 'Semantic Layer',
                 });
             }
 
@@ -1406,7 +1392,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,
-        isResultsCacheAvailable,
+        isResultsCacheEnabled,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,

@@ -88,7 +88,7 @@ const dashboardAsCode = {
     tabs: [],
 } as unknown as DashboardAsCode;
 
-const buildService = (overrides: AnyType = {}) =>
+const buildService = () =>
     new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
@@ -176,7 +176,6 @@ const buildService = (overrides: AnyType = {}) =>
         organizationMemberProfileModel: {} as AnyType,
         userModel: {} as AnyType,
         warehouseConnectionModel: {} as never,
-        ...overrides,
     });
 
 const registerContentAccessTests = (
@@ -296,56 +295,6 @@ const registerContentAccessTests = (
                 ).not.toHaveBeenCalled();
             },
         );
-    });
-
-    describe('CoderService data app slug rename', () => {
-        const request = {
-            resourceType: ContentType.DATA_APP,
-            from: 'old-app',
-            to: 'new-app',
-        };
-        const writeUser = () =>
-            makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
-
-        // App slugs follow isValidDataAppSlug (consecutive/trailing hyphens,
-        // up to 255 chars) — the chart/dashboard generateSlug check must not
-        // reject them at this entry point.
-        it.each(['sales--report', 'sales-', 'a'.repeat(255)])(
-            'delegates app-style target %s to the app slug renamer',
-            async (to) => {
-                const renameAppSlug = vi.fn(async () => {});
-                const service = buildService({
-                    getAppGenerateService: () => ({ renameAppSlug }),
-                });
-                await service.renameContentSlug(writeUser(), PROJECT_UUID, {
-                    ...request,
-                    to,
-                });
-                expect(renameAppSlug).toHaveBeenCalledExactlyOnceWith(
-                    expect.anything(),
-                    PROJECT_UUID,
-                    { from: request.from, to },
-                );
-            },
-        );
-
-        it('reports data apps unavailable when the EE accessor is absent', async () => {
-            const service = buildService();
-            await expect(
-                service.renameContentSlug(writeUser(), PROJECT_UUID, request),
-            ).rejects.toThrow('Data apps are not available on this instance');
-        });
-
-        it('requires project write access before delegating', async () => {
-            const renameAppSlug = vi.fn(async () => {});
-            const service = buildService({
-                getAppGenerateService: () => ({ renameAppSlug }),
-            });
-            await expect(
-                service.renameContentSlug(makeUser([]), PROJECT_UUID, request),
-            ).rejects.toThrow(ForbiddenError);
-            expect(renameAppSlug).not.toHaveBeenCalled();
-        });
     });
 
     const chartCreateRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
@@ -1569,7 +1518,6 @@ const registerContentAccessTests = (
         const upsertWithControls = async (
             projectParameters: { name: string; config: AnyType }[],
             enabled = true,
-            sectionSlug = 'calendar',
         ) => {
             const service = buildService();
             vi.mocked(
@@ -1630,13 +1578,9 @@ const registerContentAccessTests = (
                     },
                     config: {
                         isDateZoomDisabled: false,
-                        controlSections: [
-                            { slug: 'calendar', name: 'Calendar' },
-                        ],
                         parameterControls: [
                             {
                                 id: 'control-uuid',
-                                sectionSlug,
                                 label: null,
                                 value: 'monday',
                                 valueType: { type: 'string', multiple: false },
@@ -1667,17 +1611,6 @@ const registerContentAccessTests = (
             const created = await upsertWithControls([
                 { name: 'week_start', config: { label: 'Week start' } },
             ]);
-            const section = created.config?.controlSections?.[0];
-            expect(section).toMatchObject({
-                slug: 'calendar',
-                name: 'Calendar',
-            });
-            expect(section?.id).toMatch(
-                /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-            );
-            expect(created.config?.parameterControls?.[0].sectionId).toBe(
-                section?.id,
-            );
             const tileUuid = created.tiles[0].uuid!;
             expect(created.parameters).toEqual({
                 week_start: { parameterName: 'week_start', value: 'monday' },
@@ -1688,7 +1621,7 @@ const registerContentAccessTests = (
         });
 
         it('uses legacy values and ignores incoming controls when disabled', async () => {
-            const created = await upsertWithControls([], false, 'missing');
+            const created = await upsertWithControls([], false);
             expect(created.parameters).toEqual({
                 week_start: { parameterName: 'week_start', value: 'stale' },
                 currency: { parameterName: 'currency', value: 'EUR' },
@@ -3326,271 +3259,6 @@ describe('bound grant upload effects', () => {
             };
             expect(creators[kind]).toHaveBeenCalledOnce();
             expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
-        },
-    );
-});
-
-describe.each([true, false])(
-    'CoderService section exports with saved parameter controls=%s',
-    (withControls) => {
-        it.each([true, false])(
-            'exports saved sections with controls enabled=%s',
-            async (enabled) => {
-                const service = buildService();
-                const dashboard: DashboardDAO = {
-                    ...dashboardMock,
-                    uuid: 'dashboard-uuid',
-                    slug: 'dashboard',
-                    spaceUuid: SPACE_UUID,
-                    tabs: [],
-                    tiles: [],
-                    config: {
-                        isDateZoomDisabled: false,
-                        controlSections: [
-                            { id: 'saved-section', name: 'Saved section' },
-                        ],
-                        parameterSections: { currency: 'saved-section' },
-                        ...(withControls && {
-                            parameterControls: [
-                                {
-                                    id: 'saved-control',
-                                    label: 'Currency',
-                                    value: 'USD',
-                                    valueType: {
-                                        type: 'string' as const,
-                                        multiple: false,
-                                    },
-                                    parameters: {},
-                                    sectionId: 'saved-section',
-                                },
-                            ],
-                        }),
-                    },
-                    filters: {
-                        dimensions: [
-                            {
-                                id: 'filter',
-                                target: {
-                                    fieldId: 'orders_status',
-                                    tableName: 'orders',
-                                },
-                                operator: FilterOperator.EQUALS,
-                                label: undefined,
-                                sectionId: 'saved-section',
-                            },
-                        ],
-                        metrics: [],
-                        tableCalculations: [],
-                    },
-                };
-                vi.mocked(service.dashboardModel.find).mockResolvedValue([
-                    dashboard,
-                ]);
-                vi.mocked(
-                    service.dashboardModel.getByIdOrSlug,
-                ).mockResolvedValue(dashboard);
-                service.dashboardModel.getSlugAliasesForUuids = vi.fn(
-                    async () => [],
-                );
-                service.contentVerificationModel.getByContentUuids = vi.fn(
-                    async () => new Map(),
-                );
-                vi.spyOn(
-                    service as AnyType,
-                    'filterPrivateContent',
-                ).mockImplementation(
-                    async (
-                        _user: AnyType,
-                        _project: AnyType,
-                        content: AnyType,
-                    ) => content,
-                );
-                vi.mocked(
-                    service.dashboardService.areDashboardControlsEnabled,
-                ).mockResolvedValue(enabled);
-                const result = await (service as AnyType).findDashboardsAsCode(
-                    makeSessionUser([]),
-                    PROJECT_UUID,
-                    undefined,
-                );
-                expect(
-                    service.dashboardService.areDashboardControlsEnabled,
-                ).toHaveBeenCalledOnce();
-                const exported = result.dashboards[0];
-                const current = await service.getCurrentDashboardAsCode(
-                    makeSessionUser([]),
-                    dashboard.uuid,
-                );
-                const draft = await service.getDashboardAsCodeWithOverlay(
-                    makeSessionUser([]),
-                    dashboard.uuid,
-                    { name: 'Draft name' },
-                );
-                for (const writeback of [current, draft]) {
-                    expect(writeback.config?.controlSections).toEqual(
-                        exported.config.controlSections,
-                    );
-                    expect(writeback.filters).toEqual(exported.filters);
-                    expect(writeback.config?.parameterControls).toEqual(
-                        exported.config.parameterControls,
-                    );
-                }
-
-                if (enabled) {
-                    expect(exported.config.controlSections).toEqual([
-                        { slug: 'saved-section', name: 'Saved section' },
-                    ]);
-                    expect(exported.filters.dimensions[0].sectionSlug).toBe(
-                        'saved-section',
-                    );
-                    expect(
-                        exported.filters.dimensions[0].sectionId,
-                    ).toBeUndefined();
-                    expect(exported.config.parameterSectionSlugs).toEqual({
-                        currency: 'saved-section',
-                    });
-                    expect(exported.config.parameterSections).toBeUndefined();
-                } else {
-                    expect(exported.config.controlSections).toEqual(
-                        dashboard.config!.controlSections,
-                    );
-                    expect(exported.filters.dimensions[0].sectionId).toBe(
-                        'saved-section',
-                    );
-                    expect(
-                        exported.filters.dimensions[0].sectionSlug,
-                    ).toBeUndefined();
-                    expect(exported.config.parameterSections).toEqual({
-                        currency: 'saved-section',
-                    });
-                    expect(
-                        exported.config.parameterSectionSlugs,
-                    ).toBeUndefined();
-                    expect(exported.config.parameterControls).toBeUndefined();
-                }
-            },
-        );
-    },
-);
-
-describe('CoderService section uploads with the flag disabled', () => {
-    it.each(['legacy', 'portable'] as const)(
-        'prepares a %s reupload without replacing saved parameter controls',
-        async (format) => {
-            const service = buildService();
-            const savedConfig: NonNullable<DashboardDAO['config']> = {
-                isDateZoomDisabled: false,
-                controlSections: [
-                    { id: 'saved-section', name: 'Saved section' },
-                ],
-                parameterControls: [
-                    {
-                        id: 'saved-control',
-                        label: 'Currency',
-                        value: 'USD',
-                        valueType: { type: 'string', multiple: false },
-                        parameters: {},
-                        sectionId: 'saved-section',
-                    },
-                ],
-            };
-            const existing: DashboardDAO = {
-                ...dashboardMock,
-                uuid: 'dashboard-uuid',
-                slug: 'dashboard',
-                spaceUuid: SPACE_UUID,
-                tabs: [],
-                tiles: [],
-                config: savedConfig,
-            };
-            vi.mocked(service.dashboardModel.find).mockResolvedValue([
-                existing,
-            ]);
-            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
-                existing,
-            );
-            vi.mocked(
-                service.dashboardService.areDashboardControlsEnabled,
-            ).mockResolvedValue(false);
-            vi.mocked(
-                service.promoteService.getPromotedDashboard,
-            ).mockRejectedValue(new Error('captured upload'));
-            const sectionReference =
-                format === 'legacy'
-                    ? { sectionId: 'saved-section' }
-                    : { sectionSlug: 'saved-section' };
-            const uploaded: DashboardAsCode = {
-                ...dashboardAsCode,
-                filters: {
-                    dimensions: [
-                        {
-                            target: {
-                                fieldId: 'orders_status',
-                                tableName: 'orders',
-                            },
-                            operator: FilterOperator.EQUALS,
-                            label: undefined,
-                            ...sectionReference,
-                        },
-                    ],
-                },
-                config: {
-                    isDateZoomDisabled: false,
-                    controlSections: [
-                        {
-                            ...(format === 'legacy'
-                                ? { id: 'saved-section' }
-                                : { slug: 'saved-section' }),
-                            name: 'Renamed section',
-                        },
-                    ],
-                    // Disabled incoming controls must be ignored before resolving their references.
-                    parameterControls: [
-                        {
-                            sectionSlug: 'unknown-section',
-                            label: 'Incoming',
-                            value: 'EUR',
-                            valueType: { type: 'string', multiple: false },
-                            parameters: {},
-                        },
-                    ],
-                },
-            };
-            await expect(
-                service.upsertDashboard(
-                    makeSessionUser([
-                        { subject: 'ContentAsCode', action: 'create' },
-                        { subject: 'Dashboard', action: 'update' },
-                    ]),
-                    PROJECT_UUID,
-                    'dashboard',
-                    uploaded,
-                ),
-            ).rejects.toThrow('captured upload');
-            expect(
-                service.promoteService.getPromotedDashboard,
-            ).toHaveBeenCalledWith(
-                expect.anything(),
-                expect.objectContaining({
-                    config: expect.objectContaining({
-                        controlSections: [
-                            expect.objectContaining({
-                                id: 'saved-section',
-                                name: 'Renamed section',
-                            }),
-                        ],
-                        parameterControls: savedConfig.parameterControls,
-                    }),
-                    filters: expect.objectContaining({
-                        dimensions: [
-                            expect.objectContaining({
-                                sectionId: 'saved-section',
-                            }),
-                        ],
-                    }),
-                }),
-                PROJECT_UUID,
-            );
         },
     );
 });

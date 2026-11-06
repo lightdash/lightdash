@@ -605,9 +605,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.installRegistryChartType': [
         AgentCapability.ContentWrite,
     ],
-    'AppGenerateController.installStarterChartTypes': [
-        AgentCapability.ContentWrite,
-    ],
     'AppGenerateController.iterateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.listDataAppVisualizations': [
         AgentCapability.ReadDiscover,
@@ -629,9 +626,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.uploadImage': [AgentCapability.DeployUpload],
     'AppGenerateController.uploadThumbnail': [AgentCapability.DeployUpload],
     'AppGenerateController.verifyDataApp': [AgentCapability.Publish],
-    'BigqueryController.getBigQueryDatasetsFromKeyfile': [
-        AgentCapability.ReadDiscover,
-    ],
     'BigquerySSOController.get': [AgentCapability.ReadDiscover],
     'BigquerySSOController.getBigQueryDatabases': [
         AgentCapability.ReadDiscover,
@@ -656,7 +650,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'CatalogController.getMetadata': [AgentCapability.ReadDiscover],
     'CatalogController.getMetric': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricOwners': [AgentCapability.ReadDiscover],
-    'CatalogController.getMetricTables': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsCatalog': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsTree': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsTreeDetails': [AgentCapability.ReadDiscover],
@@ -881,9 +874,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnectionApiUsage': [
         AgentCapability.ReadDiscover,
     ],
-    'ExternalConnectionController.getExternalConnectionSchema': [
-        AgentCapability.ReadDiscover,
-    ],
     'ExternalConnectionController.getLiveSourceFields': [
         AgentCapability.Administration,
     ],
@@ -1060,7 +1050,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'OnboardingAgentController.createRun': [AgentCapability.Administration],
     'OnboardingAgentController.getActiveRun': [AgentCapability.ReadDiscover],
     'OnboardingAgentController.getFile': [AgentCapability.ReadDiscover],
-    'OnboardingAgentController.getLatestRun': [AgentCapability.ReadDiscover],
     'OnboardingAgentController.getRun': [AgentCapability.ReadDiscover],
     'OrgAppsController.getDataAppActivity': [AgentCapability.ReadDiscover],
     'OrgRoadmapController.followProject': [AgentCapability.Administration],
@@ -1559,9 +1548,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.getProjectResultsCacheSettings': [
         AgentCapability.ReadDiscover,
     ],
-    'ProjectController.getProjectResultsCacheStatus': [
-        AgentCapability.ReadDiscover,
-    ],
     'ProjectController.getProjectTableGroups': [AgentCapability.ReadDiscover],
     'ProjectController.getProjectUserWarehouseCredentials': [
         AgentCapability.ReadDiscover,
@@ -1585,7 +1571,6 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Query,
     ],
     'ProjectController.refreshPreAggregates': [AgentCapability.Query],
-    'ProjectController.replaceProjectContext': [AgentCapability.DeployUpload],
     'ProjectController.replaceProjectTableGroups': [
         AgentCapability.Administration,
     ],

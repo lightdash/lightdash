@@ -11,7 +11,6 @@ import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/use
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
-import { getNoProjectPath } from '../utils/noProjectPath';
 import ErrorState from './common/ErrorState';
 import PageSpinner from './PageSpinner';
 
@@ -69,10 +68,15 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
             ) ?? false;
 
         if (canCreateProject) {
-            const pathname = getNoProjectPath({
-                isNewOnboardingEnabled: orgSetupPageFlag.data?.enabled ?? false,
-                isHomepageBuilderEnabled: homepageBuilderFlag.isEnabled,
-            });
+            const isNewOnboardingEnabled =
+                orgSetupPageFlag.data?.enabled ?? false;
+            const showGetStarted =
+                homepageBuilderFlag.isEnabled && isNewOnboardingEnabled;
+            const pathname = showGetStarted
+                ? '/get-started'
+                : isNewOnboardingEnabled
+                  ? '/onboarding/data-source'
+                  : '/createProject';
             return <Navigate to={{ pathname }} state={{ from: location }} />;
         }
     }

@@ -1,4 +1,4 @@
-import { FeatureFlags, type HomepageHeroDensity } from '@lightdash/common';
+import { type HomepageHeroDensity } from '@lightdash/common';
 import {
     Box,
     SegmentedControl,
@@ -7,8 +7,7 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import { useState, type FC } from 'react';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { DayOneAskInput } from '../DayOneAskInput';
 import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
@@ -23,15 +22,13 @@ import {
     RecommendedActionsChecklist,
     RecommendedActionsChecklistPlaceholder,
 } from './RecommendedActionsChecklist';
-import { SetupGuide } from './setupGuide/SetupGuide';
-import { useCanAiAnswer } from './setupGuide/useCanAiAnswer';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 import { useRecommendedActions } from './useRecommendedActions';
 
 // The day-0 hero, as a reusable unit: greeting + the real agent chat
 // composer with live suggestions. Shared between DayOneHomepage (always
 // greets) and this block (greeting is a per-homepage toggle). The setup
-// guide replaces the suggestion chips when enabled.
+// checklist replaces the suggestion chips when enabled.
 export const AskAiHero: FC<{
     projectUuid: string;
     showGreeting: boolean;
@@ -47,50 +44,33 @@ export const AskAiHero: FC<{
 }) => {
     const { user } = useApp();
     const actions = useRecommendedActions(projectUuid);
-    const isNewOnboarding =
-        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
-    // The greeting's wording comes from the same statuses the setup guide
-    // holds on, so neither reveals before the other. The composer holds its own slot from the first
+    // One answer for the whole hero: the greeting's wording and whether there
+    // is a checklist at all come from the same statuses, so they arrive
+    // together or not at all. The composer holds its own slot from the first
     // render — gating its mount here would stop it fetching until the reveal
     // and land it a beat late.
-    const aiAnswer = useCanAiAnswer(projectUuid, actions);
-    const isReady = !actions.isLoading && !aiAnswer.isLoading;
-    const [prefillRequest, setPrefillRequest] = useState(0);
+    const isReady = !actions.isLoading;
+    const isWarehouseConnected =
+        actions.statuses['connect-warehouse'].isComplete;
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting &&
                 (isReady ? (
                     <Text component="h1" className={layout.heroGreeting}>
-                        {aiAnswer.canAnswer
+                        {isWarehouseConnected
                             ? `${getGreeting(user.data?.firstName)}. What do you want to know?`
                             : "Let's get started"}
                     </Text>
                 ) : (
                     <Skeleton h={34} w={320} radius="sm" />
                 ))}
-            <Box w="100%" data-tour="home-ask">
-                <DayOneAskInput
-                    projectUuid={projectUuid}
-                    preview={preview}
-                    prefillRequest={prefillRequest}
-                />
+            <Box w="100%">
+                <DayOneAskInput projectUuid={projectUuid} preview={preview} />
             </Box>
             {showRecommendedActions &&
-                (isNewOnboarding ? (
-                    <Box w="100%">
-                        <SetupGuide
-                            projectUuid={projectUuid}
-                            actions={actions}
-                            onAsk={() => setPrefillRequest((n) => n + 1)}
-                            withTour={!preview}
-                        />
-                    </Box>
-                ) : isReady ? (
+                (isReady ? (
                     actions.hasPendingActions && (
-                        <RecommendedActionsChecklist
-                            projectUuid={projectUuid}
-                            actions={actions}
-                        />
+                        <RecommendedActionsChecklist actions={actions} />
                     )
                 ) : (
                     <RecommendedActionsChecklistPlaceholder

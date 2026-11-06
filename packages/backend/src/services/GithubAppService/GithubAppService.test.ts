@@ -310,36 +310,6 @@ describe('GithubAppService', () => {
             expect(getGithubUserAuthorizeUrl).toHaveBeenCalledTimes(1);
         });
 
-        it('adds the request status to a return path that has a query', async () => {
-            vi.useFakeTimers();
-            try {
-                const service = buildService();
-                const oauth = {
-                    ...buildOauth(),
-                    returnTo: `${lightdashConfigMock.siteUrl}/onboarding/tools/p?step=team`,
-                };
-                githubMocks.listInstallations.mockResolvedValue({
-                    data: { installations: [] },
-                });
-
-                await expect(
-                    service.installCallback(
-                        user,
-                        oauth,
-                        'test-code',
-                        oauth.state,
-                        undefined,
-                        'request',
-                    ),
-                ).resolves.toBe(
-                    `${lightdashConfigMock.siteUrl}/onboarding/tools/p?step=team&status=github_request_sent`,
-                );
-            } finally {
-                vi.clearAllTimers();
-                vi.useRealTimers();
-            }
-        });
-
         it('keeps an administrator approval request pending until GitHub exposes the installation', async () => {
             const track = vi.spyOn(analyticsMock, 'track');
             vi.useFakeTimers();

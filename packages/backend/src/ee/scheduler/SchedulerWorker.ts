@@ -26,15 +26,11 @@ import {
 import { TypedEETaskList } from '../../scheduler/types';
 import { type JiraAppService } from '../../services/JiraAppService/JiraAppService';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
-import { toFailedScan } from '../../services/QuerySourceService/api/posthog/postHogSchemaScan';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type AppStateModel } from '../models/AppStateModel';
-import {
-    API_SOURCE_SCHEMA_SCAN_TIMEOUT_MS,
-    type ExternalConnectionModel,
-} from '../models/ExternalConnectionModel';
+import { type ExternalConnectionModel } from '../models/ExternalConnectionModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { type ScimRequestLogModel } from '../models/ScimRequestLogModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
@@ -49,7 +45,6 @@ import type { AnalyticsProjectService } from '../services/AnalyticsProjectServic
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { DataAppAnalysisService } from '../services/DataAppAnalysisService/DataAppAnalysisService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
-import type { ExternalConnectionService } from '../services/ExternalConnectionService/ExternalConnectionService';
 import type { ExternalSourceService } from '../services/ExternalSourceService/ExternalSourceService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 import { type MobilePushNotificationService } from '../services/MobilePushNotificationService/MobilePushNotificationService';
@@ -58,7 +53,6 @@ import { ProjectContextService } from '../services/ProjectContextService/Project
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
 import { createReviewJiraIssue } from './tasks/createReviewJiraIssue';
 import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
-import { scanApiSourceSchema } from './tasks/scanApiSourceSchema';
 import { sendContentReviewNotification } from './tasks/sendContentReviewNotification';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
 
@@ -165,10 +159,6 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
         'runIngest' | 'markIngestError' | 'maintain'
     >;
     aiThreadFileService: Pick<AiThreadFileService, 'sweepExpiredUnclaimed'>;
-    externalConnectionService: Pick<
-        ExternalConnectionService,
-        'scanApiSourceSchema'
-    >;
     mobilePushNotificationService: Pick<
         MobilePushNotificationService,
         | 'deliverLiveActivityStart'
@@ -239,8 +229,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly aiThreadFileService: CommercialSchedulerWorkerArguments['aiThreadFileService'];
 
-    protected readonly externalConnectionService: CommercialSchedulerWorkerArguments['externalConnectionService'];
-
     protected readonly mobilePushNotificationService: CommercialSchedulerWorkerArguments['mobilePushNotificationService'];
 
     protected readonly contentReviewRequestModel: ContentReviewRequestModel;
@@ -288,7 +276,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
         this.aiThreadFileService = args.aiThreadFileService;
-        this.externalConnectionService = args.externalConnectionService;
         this.mobilePushNotificationService = args.mobilePushNotificationService;
         this.contentReviewRequestModel = args.contentReviewRequestModel;
         this.contentReviewSettingsModel = args.contentReviewSettingsModel;
@@ -1195,34 +1182,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 ),
             [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: async () => {
                 await this.externalSourceService.maintain();
-            },
-            [EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: async (
-                payload,
-                helpers,
-            ) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        () =>
-                            scanApiSourceSchema({
-                                userService: this.userService,
-                                externalConnectionService:
-                                    this.externalConnectionService,
-                                externalConnectionModel:
-                                    this.externalConnectionModel,
-                            })(payload),
-                    ),
-                    helpers.job,
-                    API_SOURCE_SCHEMA_SCAN_TIMEOUT_MS,
-                    async (_job, error) =>
-                        this.externalConnectionModel.setApiSourceSchema(
-                            payload.externalConnectionUuid,
-                            toFailedScan(error),
-                        ),
-                );
             },
             [EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: async () => {
                 await this.aiThreadFileService.sweepExpiredUnclaimed();

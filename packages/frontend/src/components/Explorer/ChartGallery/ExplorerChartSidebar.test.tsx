@@ -334,9 +334,7 @@ describe('ExplorerChartSidebar', () => {
             />,
         );
 
-        expect(
-            screen.getByRole('img', { name: 'Built by Lightdash' }),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Built by Lightdash')).toBeInTheDocument();
         expect(screen.queryByText('Custom')).not.toBeInTheDocument();
     });
 
@@ -361,7 +359,7 @@ describe('ExplorerChartSidebar', () => {
 
         expect(screen.getByText('Custom')).toBeInTheDocument();
         expect(
-            screen.queryByRole('img', { name: 'Built by Lightdash' }),
+            screen.queryByText('Built by Lightdash'),
         ).not.toBeInTheDocument();
     });
 
@@ -375,7 +373,7 @@ describe('ExplorerChartSidebar', () => {
 
         expect(screen.queryByText('Custom')).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('img', { name: 'Built by Lightdash' }),
+            screen.queryByText('Built by Lightdash'),
         ).not.toBeInTheDocument();
     });
 

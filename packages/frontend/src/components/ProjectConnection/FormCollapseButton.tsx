@@ -15,7 +15,6 @@ const FormCollapseButton: FC<
             variant="subtle"
             size="compact-sm"
             className={classes.button}
-            data-form-collapse
             leftSection={
                 isSectionOpen ? (
                     <MantineIcon icon={IconChevronUp} />

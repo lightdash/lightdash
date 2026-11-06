@@ -39,11 +39,6 @@ export type SettingsNavigationItem = {
     pageSections?: SettingsPageSection[];
     children: SettingsNavigationItem[];
     exact?: boolean;
-    /**
-     * The page moved out of settings to the page named here; `to` leads
-     * there, and the entry is marked so it isn't mistaken for a settings page.
-     */
-    movedTo?: string;
     onClick?: () => void;
     /** `data-tour-nav` for scope walkthroughs; hints are declared in SettingsNavigation. */
     tourNav?: string;
@@ -98,7 +93,7 @@ export type SettingsContext = {
     // Chart Studio uses org themes, so it opens Themes without data apps.
     isChartStudioAvailable: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
-    isResultsCacheAvailable: boolean;
+    isResultsCacheEnabled: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;

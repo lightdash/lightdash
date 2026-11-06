@@ -1873,11 +1873,11 @@ program
 program
     .command('slug-update')
     .description(
-        'Rename a chart, dashboard, or data app slug and update its local references',
+        'Rename a chart or dashboard slug and update its local references',
     )
     .addOption(
         new Option('--type <resource-type>', 'content type to rename')
-            .choices(['chart', 'dashboard', 'app'])
+            .choices(['chart', 'dashboard'])
             .default('chart'),
     )
     .option('--verbose', 'show verbose output', false)

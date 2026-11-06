@@ -505,6 +505,11 @@ describe('custom chart type external connection authorization', () => {
             options: { connectionOrganizationUuid: 'another-org' },
             error: ForbiddenError,
         },
+        {
+            description: 'disabled chart types',
+            options: { flagsEnabled: false },
+            error: ForbiddenError,
+        },
     ])(
         'rejects $description before loading credentials',
         async ({ options, error }) => {

@@ -189,19 +189,6 @@ export const getPopMetricIdsByBaseMetricId = (
     return popMetricIdsByBase;
 };
 
-/** Defining an aggregation custom metric selects it. */
-export const getSelectedMetricIds = (
-    metricIds: readonly string[],
-    additionalMetrics: AdditionalMetric[],
-): string[] => [
-    ...new Set([
-        ...metricIds,
-        ...additionalMetrics
-            .filter((metric) => !isPeriodOverPeriodAdditionalMetric(metric))
-            .map(getItemId),
-    ]),
-];
-
 export const expandMetricsWithPopAdditionalMetrics = (
     metricIds: readonly string[] | null | undefined,
     additionalMetrics: AdditionalMetric[],

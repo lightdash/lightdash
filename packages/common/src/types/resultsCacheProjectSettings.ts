@@ -12,9 +12,6 @@ export type ResultsCacheClearSchedule = {
 
 export type ResultsCacheProjectSettings = {
     projectUuid: string;
-    cacheEnabled: boolean;
-    /** True when the deprecated RESULTS_CACHE_ENABLED env var sets caching for every project. */
-    cacheEnabledSetByInstance: boolean;
     cacheTtlSeconds: number | null;
     instanceDefaultTtlSeconds: number;
     lastInvalidatedAt: Date | null;
@@ -28,20 +25,11 @@ export type UpdateResultsCacheClearSchedule = {
 };
 
 export type UpdateResultsCacheProjectSettings = {
-    /** Omit to keep the current value. */
-    cacheEnabled?: boolean;
-    /** Omit to keep the current value. Pass null to use the instance default. */
-    cacheTtlSeconds?: number | null;
+    cacheTtlSeconds: number | null;
 };
 
 export type ApiResultsCacheProjectSettingsResponse =
     ApiSuccess<ResultsCacheProjectSettings>;
-
-export type ResultsCacheStatus = {
-    enabled: boolean;
-};
-
-export type ApiResultsCacheStatusResponse = ApiSuccess<ResultsCacheStatus>;
 
 export type ResultsCacheInvalidation = {
     projectUuid: string;

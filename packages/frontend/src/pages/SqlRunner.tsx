@@ -1,4 +1,4 @@
-import { FeatureFlags, getFieldQuoteChar } from '@lightdash/common';
+import { getFieldQuoteChar } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 import { Provider } from 'react-redux';
@@ -15,7 +15,6 @@ import { SqlRunnerSidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
 import { HeaderCreate } from '../features/sqlRunner/components/Header/HeaderCreate';
-import { NoWarehouseState } from '../features/sqlRunner/components/NoWarehouseState';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
 import { SqlRunnerConnectionScope } from '../features/sqlRunner/multiConnection/components/SqlRunnerConnectionScope';
@@ -49,7 +48,6 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useProject } from '../hooks/useProject';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -295,9 +293,6 @@ const SqlRunnerNewPage = ({
 }) => {
     const projectUuid = useProjectUuid();
     const { data: project, isInitialLoading, error } = useProject(projectUuid);
-    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources, {
-        enabled: !!project && !project.warehouseConnection,
-    });
 
     if (error) return <ErrorState error={error.error} />;
     if (isInitialLoading || !project) {
@@ -306,16 +301,6 @@ const SqlRunnerNewPage = ({
     if (project.provisioningSource === 'analytics') {
         return (
             <SuboptimalState title="SQL Runner is unavailable for managed analytics projects" />
-        );
-    }
-    if (liveSourcesFlag.isInitialLoading) {
-        return <SuboptimalState title="Loading project" loading />;
-    }
-    if (!project.warehouseConnection && liveSourcesFlag.data?.enabled) {
-        return (
-            <Page title="SQL Runner" withFullHeight noContentPadding>
-                <NoWarehouseState project={project} />
-            </Page>
         );
     }
 

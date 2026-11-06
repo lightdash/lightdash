@@ -1,0 +1,71 @@
+version: 2
+groups:
+  - name: core
+    owner:
+      name: Fixture owner
+      email: fixture@example.com
+models:
+  - name: public_model
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.id
+    columns:
+      - name: id
+        meta:
+          dimension:
+            type: number
+  - name: protected_model
+    config:
+      meta:
+        primary_key: id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.id
+    columns:
+      - name: id
+        meta:
+          dimension:
+            type: number
+  - name: private_model
+    access: private
+    group: core
+    config:
+      meta:
+        primary_key: id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.id
+    columns:
+      - name: id
+        meta:
+          dimension:
+            type: number
+  - name: dim_product
+    access: public
+    latest_version: 2
+    versions:
+      - v: 1
+      - v: 2
+    config:
+      meta:
+        primary_key: product_id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.product_id
+    columns:
+      - name: product_id
+        meta:
+          dimension:
+            type: number
+      - name: product_name
+        meta:
+          dimension:
+            type: string

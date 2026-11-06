@@ -59,7 +59,6 @@ import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
-import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import {
     selectCustomDimensions,
     selectMetricQuery,
@@ -79,6 +78,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { resolveNewCalculationEditMode } from '../../../utils/mixedWarehouseConnections';
+import { useAiAccessGate } from '../../aiAccess/useAiAccessGate';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
 import { FormulaForm, type FormulaFormHandle } from './FormulaForm/FormulaForm';
@@ -204,9 +204,9 @@ const TableCalculationModal: FC<Props> = ({
         warehouseType !== null &&
         (SUPPORTED_DIALECTS as readonly string[]).includes(warehouseType);
 
-    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid, {
-        enabled: health?.ai?.isAmbientAiEnabled === true,
-    });
+    const { disabled: accessDisabled } = useAiAccessGate(projectUuid);
+    const isAmbientAiEnabled =
+        !accessDisabled && health?.ai?.isAmbientAiEnabled === true;
     const { data: customRolesFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.CustomRoles,
     );

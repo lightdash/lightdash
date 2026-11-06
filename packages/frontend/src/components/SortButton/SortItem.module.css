@@ -1,6 +1,6 @@
 .sortItem {
     border-radius: var(--mantine-radius-sm);
-    transition: box-shadow 100ms ease;
+    transition: all 100ms ease;
 }
 
 .sortItemDragging {

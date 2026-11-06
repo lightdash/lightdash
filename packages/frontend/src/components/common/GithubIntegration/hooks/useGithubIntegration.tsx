@@ -16,14 +16,13 @@ const getGithubConfig = async (lightdashApi: LightdashApi) =>
         body: undefined,
     });
 
-export const useGithubConfig = (enabled = true) => {
+export const useGithubConfig = () => {
     const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
 
     return useQuery<GitIntegrationConfiguration, ApiError>({
         queryKey: ['github_installation'],
         queryFn: () => getGithubConfig(lightdashApi),
-        enabled,
         retry: false,
         staleTime: 5 * 60 * 1000, // 5 minutes - the installation rarely changes; install detection drives its own refetch()
         onError: ({ error }) => {

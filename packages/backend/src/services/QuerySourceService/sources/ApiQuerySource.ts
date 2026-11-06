@@ -6,7 +6,6 @@ import {
     type ApiSourceQuery,
     type QuerySourceDefinition,
     type QuerySourceSchema,
-    type QuerySourceSchemaTable,
     type RegisteredAccount,
     type SourceQuery,
 } from '@lightdash/common';
@@ -26,16 +25,9 @@ export type ApiConnectorResolver = (
     connectionUuid: string,
 ) => Promise<MeteredApiConnector>;
 
-/** Schema tables of the connections the caller may query, from their last scans. */
-export type ApiSchemaTablesResolver = (
-    account: RegisteredAccount,
-    projectUuid: string,
-) => Promise<QuerySourceSchemaTable[]>;
-
 type ApiQuerySourceArguments = {
     asyncQueryService: Pick<AsyncQueryService, 'executeAsyncApiQuery'>;
     getApiConnector: ApiConnectorResolver;
-    listSchemaTables: ApiSchemaTablesResolver;
 };
 
 /**
@@ -58,12 +50,9 @@ export class ApiQuerySource implements QuerySourceClient {
 
     private readonly getApiConnector: ApiConnectorResolver;
 
-    private readonly listSchemaTables: ApiSchemaTablesResolver;
-
     constructor(args: ApiQuerySourceArguments) {
         this.asyncQueryService = args.asyncQueryService;
         this.getApiConnector = args.getApiConnector;
-        this.listSchemaTables = args.listSchemaTables;
     }
 
     private static assertSourceQuery(query: SourceQuery): ApiSourceQuery {
@@ -75,14 +64,11 @@ export class ApiQuerySource implements QuerySourceClient {
         return query;
     }
 
-    async scanSchema({
-        account,
-        projectUuid,
-    }: ScanSchemaArgs): Promise<QuerySourceSchema> {
-        assertRegisteredAccount(account);
+    // eslint-disable-next-line class-methods-use-this
+    async scanSchema(_args: ScanSchemaArgs): Promise<QuerySourceSchema> {
         return {
             sourceType: QuerySourceType.API,
-            tables: await this.listSchemaTables(account, projectUuid),
+            tables: [],
         };
     }
 

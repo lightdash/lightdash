@@ -1851,14 +1851,6 @@ export class ServiceRepository
                     directAccessService: this.getDirectAccessService(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
-                    // Lazy accessor: AppGenerateService depends on
-                    // CoderService, so resolving it eagerly here would cycle.
-                    // Core builds resolve undefined and data-app slug renames
-                    // stay unsupported.
-                    getAppGenerateService: () =>
-                        this.providers.appGenerateService
-                            ? this.getAppGenerateService<AppGenerateService>()
-                            : undefined,
                 }),
         );
     }
@@ -2410,6 +2402,8 @@ export class ServiceRepository
             'projectDbtSourcesService',
             () =>
                 new ProjectDbtSourcesService({
+                    dbtSourceRefCatalogModel:
+                        this.models.getDbtSourceRefCatalogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -2427,6 +2421,8 @@ export class ServiceRepository
             'warehouseConnectionService',
             () =>
                 new WarehouseConnectionService({
+                    dbtSourceRefCatalogModel:
+                        this.models.getDbtSourceRefCatalogModel(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
                     projectModel: this.models.getProjectModel(),
@@ -2463,6 +2459,9 @@ export class ServiceRepository
             'warehouseConnectionBindingService',
             () =>
                 new WarehouseConnectionBindingService({
+                    dbtSourceRefCatalogModel:
+                        this.models.getDbtSourceRefCatalogModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                     projectModel: this.models.getProjectModel(),
                     warehouseConnectionCompileModel:
                         this.models.getWarehouseConnectionCompileModel(),

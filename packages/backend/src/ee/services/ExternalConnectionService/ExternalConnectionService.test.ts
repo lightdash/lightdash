@@ -217,7 +217,6 @@ function buildService(opts: {
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         } as never,
-        schedulerClient: { scanApiSourceSchema: vi.fn() },
     });
     return { service, model, orgAiCopilotConfigResolver };
 }

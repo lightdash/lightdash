@@ -1,0 +1,6 @@
+version: 2
+models:
+    - name: base
+      access: public
+    - name: uses
+      access: public

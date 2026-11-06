@@ -1,13 +1,7 @@
-import {
-    ExploreType,
-    FeatureFlags,
-    type ApiExploresResults,
-    type HealthState,
-} from '@lightdash/common';
+import { FeatureFlags, type HealthState } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useExplores } from '../hooks/useExplores';
 import { useProject } from '../hooks/useProject';
 import { useProjects } from '../hooks/useProjects';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -24,10 +18,6 @@ vi.mock('../hooks/useProjects', () => ({
 
 vi.mock('../hooks/useProject', () => ({
     useProject: vi.fn(),
-}));
-
-vi.mock('../hooks/useExplores', () => ({
-    useExplores: vi.fn(),
 }));
 
 vi.mock('../hooks/useActiveProject', () => ({
@@ -56,10 +46,7 @@ const renderAt = (path: string, healthOverrides?: Partial<HealthState>) =>
                     path="/onboarding/dbt/:method?"
                     element={<OnboardingDbt />}
                 />
-                <Route
-                    path="/onboarding/tools/:projectUuid"
-                    element={<LocationProbe />}
-                />
+                <Route path="/get-started" element={<LocationProbe />} />
                 <Route
                     path="/generalSettings/integrations"
                     element={<LocationProbe />}
@@ -75,18 +62,6 @@ const mockProjects = (projectUuids: string[]) => {
     } as unknown as ReturnType<typeof useProjects>);
 };
 
-const mockExplores = (explores: ApiExploresResults) => {
-    vi.mocked(useExplores).mockReturnValue({
-        data: explores,
-    } as unknown as ReturnType<typeof useExplores>);
-};
-
-const mockWarehouseProject = (provisioningSource: string | null) => {
-    vi.mocked(useProject).mockReturnValue({
-        data: { projectUuid: 'project-1', provisioningSource },
-    } as unknown as ReturnType<typeof useProject>);
-};
-
 describe('OnboardingDbt', () => {
     beforeEach(() => {
         vi.mocked(useServerFeatureFlag).mockReturnValue({
@@ -97,14 +72,13 @@ describe('OnboardingDbt', () => {
         vi.mocked(useProject).mockReturnValue({
             data: undefined,
         } as unknown as ReturnType<typeof useProject>);
-        mockExplores([]);
     });
 
     it('offers both setup paths and a docs link on the choice screen', async () => {
         renderAt('/onboarding/dbt');
 
         expect(
-            await screen.findByText('Connect your dbt project'),
+            await screen.findByText("Let's get you set up!"),
         ).toBeInTheDocument();
         expect(screen.getByText('Using your CLI')).toBeInTheDocument();
         expect(screen.getByText('with lightdash deploy')).toBeInTheDocument();
@@ -132,47 +106,7 @@ describe('OnboardingDbt', () => {
         ).toBeInTheDocument();
     });
 
-    it('deploys into the existing warehouse project instead of creating one', async () => {
-        mockWarehouseProject(null);
-        renderAt('/onboarding/dbt/cli');
-
-        expect(
-            await screen.findByText('lightdash deploy --project project-1'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByText('lightdash deploy --create'),
-        ).not.toBeInTheDocument();
-    });
-
-    it('creates a project when the active project is a playground', async () => {
-        mockWarehouseProject('playground');
-        renderAt('/onboarding/dbt/cli');
-
-        expect(
-            await screen.findByText('lightdash deploy --create'),
-        ).toBeInTheDocument();
-    });
-
-    it('moves on to the tools step once the existing project has explores', async () => {
-        mockWarehouseProject(null);
-        mockExplores([
-            {
-                name: 'orders',
-                label: 'Orders',
-                tags: [],
-                type: ExploreType.DEFAULT,
-            },
-        ] as unknown as ApiExploresResults);
-        renderAt('/onboarding/dbt/cli');
-
-        await waitFor(() =>
-            expect(screen.getByTestId('location')).toHaveTextContent(
-                '/onboarding/tools/project-1',
-            ),
-        );
-    });
-
-    it('moves on to the tools step once a new project is detected', async () => {
+    it('redirects to get-started once a new project is detected', async () => {
         const { rerender } = renderAt('/onboarding/dbt/cli');
 
         expect(await screen.findByText('Waiting for data')).toBeInTheDocument();
@@ -185,17 +119,14 @@ describe('OnboardingDbt', () => {
                         path="/onboarding/dbt/:method?"
                         element={<OnboardingDbt />}
                     />
-                    <Route
-                        path="/onboarding/tools/:projectUuid"
-                        element={<LocationProbe />}
-                    />
+                    <Route path="/get-started" element={<LocationProbe />} />
                 </Routes>
             </MemoryRouter>,
         );
 
         await waitFor(() =>
             expect(screen.getByTestId('location')).toHaveTextContent(
-                '/onboarding/tools/project-2',
+                '/get-started',
             ),
         );
     });
@@ -204,7 +135,7 @@ describe('OnboardingDbt', () => {
         renderAt('/onboarding/dbt/nonsense');
 
         expect(
-            await screen.findByText('Connect your dbt project'),
+            await screen.findByText("Let's get you set up!"),
         ).toBeInTheDocument();
     });
 });
