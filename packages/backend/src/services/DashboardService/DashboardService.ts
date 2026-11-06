@@ -688,6 +688,7 @@ export class DashboardService
                 dashboard.config?.dateZoomConfig?.tileTargets ?? {},
             ).length,
             ...DashboardService.getSectionEventProperties(dashboard),
+            ...DashboardService.getParameterControlEventProperties(dashboard),
         };
     }
 
@@ -709,6 +710,28 @@ export class DashboardService
             ).length,
             collapsedByDefaultSectionsCount: controlSections.filter(
                 ({ collapsed }) => collapsed === true,
+            ).length,
+        };
+    }
+
+    // Counts only: parameter names, tile uuids and values never leave the dashboard
+    static getParameterControlEventProperties(
+        dashboard: Pick<DashboardDAO, 'config' | 'filters'>,
+    ) {
+        const parameterControls = dashboard.config?.parameterControls ?? [];
+        return {
+            parameterControlsCount: parameterControls.length,
+            parameterControlsWithNonAllTargetsCount: parameterControls.filter(
+                ({ parameters }) =>
+                    Object.values(parameters).some(
+                        (target) => target !== 'all',
+                    ),
+            ).length,
+            filtersWithCustomTileTargetsCount: [
+                ...(dashboard.filters?.dimensions ?? []),
+                ...(dashboard.filters?.metrics ?? []),
+            ].filter(
+                ({ tileTargets }) => Object.keys(tileTargets ?? {}).length > 0,
             ).length,
         };
     }
@@ -3064,6 +3087,9 @@ export class DashboardService
                         (filter) => (filter.lockedTabUuids?.length ?? 0) > 0,
                     ).length,
                     ...DashboardService.getSectionEventProperties(
+                        updatedDashboard,
+                    ),
+                    ...DashboardService.getParameterControlEventProperties(
                         updatedDashboard,
                     ),
                 },

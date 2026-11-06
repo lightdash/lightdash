@@ -1645,6 +1645,9 @@ type UpdatedDashboardEvent = BaseTrack & {
         sectionsCount: number;
         sectionedFiltersCount: number;
         collapsedByDefaultSectionsCount: number;
+        parameterControlsCount: number;
+        parameterControlsWithNonAllTargetsCount: number;
+        filtersWithCustomTileTargetsCount: number;
     };
 };
 
@@ -1674,6 +1677,9 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         sectionsCount: number;
         sectionedFiltersCount: number;
         collapsedByDefaultSectionsCount: number;
+        parameterControlsCount: number;
+        parameterControlsWithNonAllTargetsCount: number;
+        filtersWithCustomTileTargetsCount: number;
     };
 };
 
