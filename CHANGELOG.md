@@ -1,3 +1,10 @@
+# [3.177.0](https://github.com/lightdash/lightdash/compare/3.176.2...3.177.0) (2026-11-06)
+
+
+### Features
+
+* **custom-charts:** show AI Vega generation wherever ambient AI is on ([#31834](https://github.com/lightdash/lightdash/issues/31834)) ([a52cfaa](https://github.com/lightdash/lightdash/commit/a52cfaa22ab6c864be1577359af87d5ce469171b))
+
 ## [3.176.2](https://github.com/lightdash/lightdash/compare/3.176.1...3.176.2) (2026-11-06)
 
 
