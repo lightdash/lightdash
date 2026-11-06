@@ -818,391 +818,434 @@ export function useAppSdkBridge({
                 return;
             }
 
-            if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
-                const { inUse, instructions, analyseOnLoad } = data as {
-                    inUse?: unknown;
-                    instructions?: unknown;
-                    analyseOnLoad?: unknown;
-                };
-                if (inUse === true) {
-                    onInsightsInUse?.();
-                }
-                // App code is untrusted: cap the author guidance here so a
-                // runaway string never reaches the analysis request.
-                onInsightInstructionsChange?.(
-                    typeof instructions === 'string'
-                        ? instructions
-                              .trim()
-                              .slice(
-                                  0,
-                                  DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
-                              ) || null
-                        : null,
-                );
-                onInsightAnalyseOnLoadChange?.(
-                    typeof analyseOnLoad === 'boolean' ? analyseOnLoad : null,
-                );
-                pushInsights();
-                return;
-            }
+            await handleAppSdkAppMessage();
 
-            if (data?.type === APP_SDK_INSIGHT_ACTION_MESSAGE) {
-                const { action, anomalyId, requestId, instruction, sources } =
-                    data as {
+            async function handleAppSdkAppMessage() {
+                if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
+                    const { inUse, instructions, analyseOnLoad } = data as {
+                        inUse?: unknown;
+                        instructions?: unknown;
+                        analyseOnLoad?: unknown;
+                    };
+                    if (inUse === true) {
+                        onInsightsInUse?.();
+                    }
+                    // App code is untrusted: cap the author guidance here so a
+                    // runaway string never reaches the analysis request.
+                    onInsightInstructionsChange?.(
+                        typeof instructions === 'string'
+                            ? instructions
+                                  .trim()
+                                  .slice(
+                                      0,
+                                      DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+                                  ) || null
+                            : null,
+                    );
+                    onInsightAnalyseOnLoadChange?.(
+                        typeof analyseOnLoad === 'boolean'
+                            ? analyseOnLoad
+                            : null,
+                    );
+                    pushInsights();
+                    return;
+                }
+
+                if (data?.type === APP_SDK_INSIGHT_ACTION_MESSAGE) {
+                    const {
+                        action,
+                        anomalyId,
+                        requestId,
+                        instruction,
+                        sources,
+                    } = data as {
                         action?: unknown;
                         anomalyId?: unknown;
                         requestId?: unknown;
                         instruction?: unknown;
                         sources?: unknown;
                     };
-                if (action === 'analyse') {
-                    onInsightAction?.({ action });
-                } else if (
-                    (action === 'investigate' || action === 'continue') &&
-                    typeof anomalyId === 'string'
-                ) {
-                    onInsightAction?.({ action, anomalyId });
-                } else if (
-                    action === 'investigate-instruction' &&
-                    typeof requestId === 'string' &&
-                    typeof instruction === 'string' &&
-                    instruction.trim().length > 0 &&
-                    Array.isArray(sources) &&
-                    sources.length > 0 &&
-                    sources.every(
-                        (s): s is { queryUuid: string; label?: unknown } =>
-                            typeof (s as { queryUuid?: unknown })?.queryUuid ===
-                            'string',
-                    )
-                ) {
-                    // App code is untrusted: cap the instruction here so a
-                    // runaway string never reaches the investigation request.
-                    onInsightAction?.({
-                        action,
-                        requestId,
-                        instruction: instruction
-                            .trim()
-                            .slice(
-                                0,
-                                DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
-                            ),
-                        sources: sources.map((s) => ({
-                            queryUuid: s.queryUuid,
-                            label: typeof s.label === 'string' ? s.label : null,
-                        })),
-                    });
-                } else if (
-                    action === 'continue-instruction' &&
-                    typeof requestId === 'string'
-                ) {
-                    onInsightAction?.({ action, requestId });
-                }
-                return;
-            }
-
-            if (data?.type === APP_SDK_MOUNTED_QUERIES_MESSAGE) {
-                const { queryUuids } = data as { queryUuids?: unknown };
-                if (
-                    Array.isArray(queryUuids) &&
-                    queryUuids.every((q) => typeof q === 'string')
-                ) {
-                    onMountedQueriesChange?.(queryUuids);
-                }
-                return;
-            }
-
-            if (data?.type === 'lightdash:inspect:selected') {
-                const label = typeof data.label === 'string' ? data.label : '';
-                if (label && onElementSelected) {
-                    onElementSelected({ label });
-                }
-                return;
-            }
-
-            if (data?.type === 'lightdash:lineage:available') {
-                // Only trust announces that carry proof of stamped elements.
-                // Legacy SDK bundles announced unconditionally, enabling the
-                // Inspect-data toggle in apps where clicks can never resolve.
-                const stampCount: unknown = data.stampCount;
-                if (typeof stampCount === 'number' && stampCount > 0) {
-                    onLineageAvailable?.();
-                }
-                return;
-            }
-
-            if (data?.type === 'lightdash:sdk:url-state-change') {
-                if (!onUrlStateChange) return;
-                const state: unknown = data.state;
-                // Untrusted app payload: accept only a plain object under the
-                // size cap, and warn — a silent drop looks like a broken URL.
-                const reject = (reason: string) =>
-                    console.warn(
-                        `[lightdash] Ignoring app URL state update: ${reason}`,
-                    );
-                if (
-                    typeof state !== 'object' ||
-                    state === null ||
-                    Array.isArray(state)
-                ) {
-                    reject('not a plain object');
+                    if (action === 'analyse') {
+                        onInsightAction?.({ action });
+                    } else if (
+                        (action === 'investigate' || action === 'continue') &&
+                        typeof anomalyId === 'string'
+                    ) {
+                        onInsightAction?.({ action, anomalyId });
+                    } else if (
+                        action === 'investigate-instruction' &&
+                        typeof requestId === 'string' &&
+                        typeof instruction === 'string' &&
+                        instruction.trim().length > 0 &&
+                        Array.isArray(sources) &&
+                        sources.length > 0 &&
+                        sources.every(
+                            (s): s is { queryUuid: string; label?: unknown } =>
+                                typeof (s as { queryUuid?: unknown })
+                                    ?.queryUuid === 'string',
+                        )
+                    ) {
+                        // App code is untrusted: cap the instruction here so a
+                        // runaway string never reaches the investigation request.
+                        onInsightAction?.({
+                            action,
+                            requestId,
+                            instruction: instruction
+                                .trim()
+                                .slice(
+                                    0,
+                                    DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
+                                ),
+                            sources: sources.map((s) => ({
+                                queryUuid: s.queryUuid,
+                                label:
+                                    typeof s.label === 'string'
+                                        ? s.label
+                                        : null,
+                            })),
+                        });
+                    } else if (
+                        action === 'continue-instruction' &&
+                        typeof requestId === 'string'
+                    ) {
+                        onInsightAction?.({ action, requestId });
+                    }
                     return;
                 }
-                try {
-                    if (JSON.stringify(state).length > MAX_URL_STATE_CHARS) {
-                        reject(`over ${MAX_URL_STATE_CHARS} chars serialized`);
+
+                if (data?.type === APP_SDK_MOUNTED_QUERIES_MESSAGE) {
+                    const { queryUuids } = data as { queryUuids?: unknown };
+                    if (
+                        Array.isArray(queryUuids) &&
+                        queryUuids.every((q) => typeof q === 'string')
+                    ) {
+                        onMountedQueriesChange?.(queryUuids);
+                    }
+                    return;
+                }
+
+                if (data?.type === 'lightdash:inspect:selected') {
+                    const label =
+                        typeof data.label === 'string' ? data.label : '';
+                    if (label && onElementSelected) {
+                        onElementSelected({ label });
+                    }
+                    return;
+                }
+
+                if (data?.type === 'lightdash:lineage:available') {
+                    // Only trust announces that carry proof of stamped elements.
+                    // Legacy SDK bundles announced unconditionally, enabling the
+                    // Inspect-data toggle in apps where clicks can never resolve.
+                    const stampCount: unknown = data.stampCount;
+                    if (typeof stampCount === 'number' && stampCount > 0) {
+                        onLineageAvailable?.();
+                    }
+                    return;
+                }
+
+                if (data?.type === 'lightdash:sdk:url-state-change') {
+                    if (!onUrlStateChange) return;
+                    const state: unknown = data.state;
+                    // Untrusted app payload: accept only a plain object under the
+                    // size cap, and warn — a silent drop looks like a broken URL.
+                    const reject = (reason: string) =>
+                        console.warn(
+                            `[lightdash] Ignoring app URL state update: ${reason}`,
+                        );
+                    if (
+                        typeof state !== 'object' ||
+                        state === null ||
+                        Array.isArray(state)
+                    ) {
+                        reject('not a plain object');
                         return;
                     }
-                } catch {
-                    reject('not JSON-serializable');
+                    try {
+                        if (
+                            JSON.stringify(state).length > MAX_URL_STATE_CHARS
+                        ) {
+                            reject(
+                                `over ${MAX_URL_STATE_CHARS} chars serialized`,
+                            );
+                            return;
+                        }
+                    } catch {
+                        reject('not JSON-serializable');
+                        return;
+                    }
+                    onUrlStateChange(state as Record<string, unknown>);
                     return;
                 }
-                onUrlStateChange(state as Record<string, unknown>);
-                return;
-            }
 
-            if (data?.type === 'lightdash:lineage:selected') {
-                const queryUuid =
-                    typeof data.queryUuid === 'string' ? data.queryUuid : '';
-                if (queryUuid && onLineageSelected) {
-                    onLineageSelected({ queryUuid });
-                }
-                return;
-            }
-
-            if (data?.type === 'lightdash:sdk:gsheet-export-request') {
-                const req = data as {
-                    id: string;
-                    title: string;
-                    columns: GsheetExportColumn[];
-                    rows: GsheetExportRow[];
-                };
-                const respondGsheet = (resp: {
-                    fileUrl?: string;
-                    error?: string;
-                }) =>
-                    iframeRef.current?.contentWindow?.postMessage(
-                        {
-                            type: 'lightdash:sdk:gsheet-export-response',
-                            id: req.id,
-                            ...resp,
-                        },
-                        '*',
-                    );
-                // Guard against iframe requests that arrive before health/user
-                // queries resolve — otherwise the non-null assertions below
-                // throw a TypeError that the app developer sees as a generic
-                // "Export failed" with no diagnostic.
-                if (!health.data || !user.data) {
-                    respondGsheet({
-                        error: 'Still loading, try again shortly',
-                    });
+                if (data?.type === 'lightdash:lineage:selected') {
+                    const queryUuid =
+                        typeof data.queryUuid === 'string'
+                            ? data.queryUuid
+                            : '';
+                    if (queryUuid && onLineageSelected) {
+                        onLineageSelected({ queryUuid });
+                    }
                     return;
                 }
-                try {
-                    const { fileUrl } = await handleGsheetExport(
-                        {
-                            title: req.title,
-                            columns: req.columns,
-                            rows: req.rows,
-                        },
-                        {
-                            capability: capabilities?.gsheetExport === true,
-                            health: health.data,
-                            ability: user.data.ability,
-                            projectUuid: projectUuid ?? '',
-                            organizationUuid: user.data.organizationUuid ?? '',
-                            getAccessToken: () =>
-                                getGdriveAccessToken(lightdashApi),
-                            triggerLogin: triggerGdriveLogin,
-                            lightdashApi: ({ url, method, body }) =>
-                                lightdashApi({
-                                    url,
-                                    method,
-                                    body: body ?? undefined,
-                                }),
-                        },
-                    );
-                    respondGsheet({ fileUrl });
-                } catch (e) {
-                    respondGsheet({
-                        error: e instanceof Error ? e.message : 'Export failed',
-                    });
-                }
-                return;
-            }
 
-            if (data?.type === APP_SDK_APP_STATE_MESSAGE) {
-                const req = data as AppStateBridgeRequest;
-                const respondAppState = (response: {
-                    result?: unknown;
-                    error?: AppStateBridgeError;
-                }) => {
-                    iframeRef.current?.contentWindow?.postMessage(
-                        {
-                            type: APP_SDK_APP_STATE_RESPONSE_MESSAGE,
-                            id: req.id,
-                            ...response,
-                        },
-                        '*',
-                    );
-                };
-                // The backend authorizes the viewer against the app and
-                // enforces the flag and caps; the host only routes the call.
-                const resolved = resolveAppStateRequest(
-                    `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/state`,
-                    req,
-                );
-                if (!resolved) {
-                    respondAppState({
-                        error: {
-                            code: 'invalid',
-                            message: 'Unknown app state request',
-                        },
-                    });
-                    return;
-                }
-                try {
-                    const res = await fetch(resolveFetchUrl(resolved.path), {
-                        method: resolved.method,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...getEmbedAuthHeaders(embedToken),
-                        },
-                        ...(resolved.body !== undefined
-                            ? { body: JSON.stringify(resolved.body) }
-                            : {}),
-                        // Writes flushed as the page unloads must outlive it.
-                        keepalive: resolved.method !== 'GET',
-                    });
-                    const json = await res.json();
-                    if (json.status === 'ok') {
-                        respondAppState({
-                            result:
-                                req.op === 'history'
-                                    ? (json.results?.versions ?? [])
-                                    : json.results,
+                if (data?.type === 'lightdash:sdk:gsheet-export-request') {
+                    const req = data as {
+                        id: string;
+                        title: string;
+                        columns: GsheetExportColumn[];
+                        rows: GsheetExportRow[];
+                    };
+                    const respondGsheet = (resp: {
+                        fileUrl?: string;
+                        error?: string;
+                    }) =>
+                        iframeRef.current?.contentWindow?.postMessage(
+                            {
+                                type: 'lightdash:sdk:gsheet-export-response',
+                                id: req.id,
+                                ...resp,
+                            },
+                            '*',
+                        );
+                    // Guard against iframe requests that arrive before health/user
+                    // queries resolve — otherwise the non-null assertions below
+                    // throw a TypeError that the app developer sees as a generic
+                    // "Export failed" with no diagnostic.
+                    if (!health.data || !user.data) {
+                        respondGsheet({
+                            error: 'Still loading, try again shortly',
                         });
-                    } else {
-                        respondAppState({
-                            error: mapAppStateApiError(res.status, json.error),
+                        return;
+                    }
+                    try {
+                        const { fileUrl } = await handleGsheetExport(
+                            {
+                                title: req.title,
+                                columns: req.columns,
+                                rows: req.rows,
+                            },
+                            {
+                                capability: capabilities?.gsheetExport === true,
+                                health: health.data,
+                                ability: user.data.ability,
+                                projectUuid: projectUuid ?? '',
+                                organizationUuid:
+                                    user.data.organizationUuid ?? '',
+                                getAccessToken: () =>
+                                    getGdriveAccessToken(lightdashApi),
+                                triggerLogin: triggerGdriveLogin,
+                                lightdashApi: ({ url, method, body }) =>
+                                    lightdashApi({
+                                        url,
+                                        method,
+                                        body: body ?? undefined,
+                                    }),
+                            },
+                        );
+                        respondGsheet({ fileUrl });
+                    } catch (e) {
+                        respondGsheet({
+                            error:
+                                e instanceof Error
+                                    ? e.message
+                                    : 'Export failed',
                         });
                     }
-                } catch (err) {
-                    respondAppState({
-                        error: {
-                            code: 'unavailable',
-                            message:
-                                err instanceof Error
-                                    ? err.message
-                                    : 'App state request failed',
-                        },
-                    });
+                    return;
                 }
-                return;
-            }
 
-            if (data?.type === 'lightdash:sdk:external-fetch') {
-                const {
-                    id: externalId,
-                    alias,
-                    method: externalMethod,
-                    path: externalPath,
-                    query: externalQuery,
-                    body: externalBody,
-                } = data;
-
-                const respondExternal = (response: {
-                    result?: unknown;
-                    error?: string;
-                }) => {
-                    iframeRef.current?.contentWindow?.postMessage(
-                        {
-                            type: 'lightdash:sdk:external-fetch-response',
-                            id: externalId,
-                            ...response,
-                        },
-                        '*',
-                    );
-                };
-
-                // Report the fetch to the external-requests inspector. Base
-                // request fields are captured up front; each call overlays the
-                // lifecycle status (and, on settle, the response/duration).
-                const startedAt = Date.now();
-                const emitExternal = (
-                    fields: Partial<ExternalRequestEvent> & {
-                        status: ExternalRequestEvent['status'];
-                    },
-                ) => {
-                    onExternalRequestEvent?.({
-                        id: externalId,
-                        timestamp: startedAt,
-                        alias: typeof alias === 'string' ? alias : 'unknown',
-                        method: externalMethod === 'POST' ? 'POST' : 'GET',
-                        path:
-                            typeof externalPath === 'string'
-                                ? externalPath
-                                : '',
-                        query:
-                            (externalQuery as
-                                | Record<string, string>
-                                | undefined) ?? null,
-                        requestBody: externalBody ?? null,
-                        httpStatus: null,
-                        contentType: null,
-                        responseBody: null,
-                        truncated: null,
-                        durationMs: null,
-                        error: null,
-                        ...fields,
-                    });
-                };
-
-                emitExternal({ status: 'pending' });
-
-                // Host-supplied chart context only; the backend resolves the
-                // alias, attaches secrets, and authorizes this endpoint, so
-                // ALLOWED_ROUTES is deliberately not consulted here.
-                const externalFetchPath = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/external-fetch`;
-                const externalFetchBody: ExternalFetchRequest = {
-                    connectionAlias: alias,
-                    method: externalMethod ?? 'GET',
-                    path: externalPath,
-                    query: externalQuery,
-                    body: externalBody,
-                    chartContext,
-                };
-
-                try {
-                    const res = await fetch(
-                        resolveFetchUrl(externalFetchPath),
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...getEmbedAuthHeaders(embedToken),
+                if (data?.type === APP_SDK_APP_STATE_MESSAGE) {
+                    const req = data as AppStateBridgeRequest;
+                    const respondAppState = (response: {
+                        result?: unknown;
+                        error?: AppStateBridgeError;
+                    }) => {
+                        iframeRef.current?.contentWindow?.postMessage(
+                            {
+                                type: APP_SDK_APP_STATE_RESPONSE_MESSAGE,
+                                id: req.id,
+                                ...response,
                             },
-                            body: JSON.stringify(externalFetchBody),
-                        },
+                            '*',
+                        );
+                    };
+                    // The backend authorizes the viewer against the app and
+                    // enforces the flag and caps; the host only routes the call.
+                    const resolved = resolveAppStateRequest(
+                        `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/state`,
+                        req,
                     );
-                    const json = await res.json();
-                    if (json.status === 'ok') {
-                        const result = json.results as
-                            | ExternalFetchResponse
-                            | undefined;
-                        emitExternal({
-                            status: 'ready',
-                            httpStatus: result?.status ?? null,
-                            contentType: result?.contentType ?? null,
-                            responseBody: result?.body ?? null,
-                            truncated: result?.truncated ?? null,
-                            durationMs: Date.now() - startedAt,
+                    if (!resolved) {
+                        respondAppState({
+                            error: {
+                                code: 'invalid',
+                                message: 'Unknown app state request',
+                            },
                         });
-                        respondExternal({ result: json.results });
-                    } else {
+                        return;
+                    }
+                    try {
+                        const res = await fetch(
+                            resolveFetchUrl(resolved.path),
+                            {
+                                method: resolved.method,
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    ...getEmbedAuthHeaders(embedToken),
+                                },
+                                ...(resolved.body !== undefined
+                                    ? { body: JSON.stringify(resolved.body) }
+                                    : {}),
+                                // Writes flushed as the page unloads must outlive it.
+                                keepalive: resolved.method !== 'GET',
+                            },
+                        );
+                        const json = await res.json();
+                        if (json.status === 'ok') {
+                            respondAppState({
+                                result:
+                                    req.op === 'history'
+                                        ? (json.results?.versions ?? [])
+                                        : json.results,
+                            });
+                        } else {
+                            respondAppState({
+                                error: mapAppStateApiError(
+                                    res.status,
+                                    json.error,
+                                ),
+                            });
+                        }
+                    } catch (err) {
+                        respondAppState({
+                            error: {
+                                code: 'unavailable',
+                                message:
+                                    err instanceof Error
+                                        ? err.message
+                                        : 'App state request failed',
+                            },
+                        });
+                    }
+                    return;
+                }
+
+                if (data?.type === 'lightdash:sdk:external-fetch') {
+                    const {
+                        id: externalId,
+                        alias,
+                        method: externalMethod,
+                        path: externalPath,
+                        query: externalQuery,
+                        body: externalBody,
+                    } = data;
+
+                    const respondExternal = (response: {
+                        result?: unknown;
+                        error?: string;
+                    }) => {
+                        iframeRef.current?.contentWindow?.postMessage(
+                            {
+                                type: 'lightdash:sdk:external-fetch-response',
+                                id: externalId,
+                                ...response,
+                            },
+                            '*',
+                        );
+                    };
+
+                    // Report the fetch to the external-requests inspector. Base
+                    // request fields are captured up front; each call overlays the
+                    // lifecycle status (and, on settle, the response/duration).
+                    const startedAt = Date.now();
+                    const emitExternal = (
+                        fields: Partial<ExternalRequestEvent> & {
+                            status: ExternalRequestEvent['status'];
+                        },
+                    ) => {
+                        onExternalRequestEvent?.({
+                            id: externalId,
+                            timestamp: startedAt,
+                            alias:
+                                typeof alias === 'string' ? alias : 'unknown',
+                            method: externalMethod === 'POST' ? 'POST' : 'GET',
+                            path:
+                                typeof externalPath === 'string'
+                                    ? externalPath
+                                    : '',
+                            query:
+                                (externalQuery as
+                                    | Record<string, string>
+                                    | undefined) ?? null,
+                            requestBody: externalBody ?? null,
+                            httpStatus: null,
+                            contentType: null,
+                            responseBody: null,
+                            truncated: null,
+                            durationMs: null,
+                            error: null,
+                            ...fields,
+                        });
+                    };
+
+                    emitExternal({ status: 'pending' });
+
+                    // Host-supplied chart context only; the backend resolves the
+                    // alias, attaches secrets, and authorizes this endpoint, so
+                    // ALLOWED_ROUTES is deliberately not consulted here.
+                    const externalFetchPath = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/external-fetch`;
+                    const externalFetchBody: ExternalFetchRequest = {
+                        connectionAlias: alias,
+                        method: externalMethod ?? 'GET',
+                        path: externalPath,
+                        query: externalQuery,
+                        body: externalBody,
+                        chartContext,
+                    };
+
+                    try {
+                        const res = await fetch(
+                            resolveFetchUrl(externalFetchPath),
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    ...getEmbedAuthHeaders(embedToken),
+                                },
+                                body: JSON.stringify(externalFetchBody),
+                            },
+                        );
+                        const json = await res.json();
+                        if (json.status === 'ok') {
+                            const result = json.results as
+                                | ExternalFetchResponse
+                                | undefined;
+                            emitExternal({
+                                status: 'ready',
+                                httpStatus: result?.status ?? null,
+                                contentType: result?.contentType ?? null,
+                                responseBody: result?.body ?? null,
+                                truncated: result?.truncated ?? null,
+                                durationMs: Date.now() - startedAt,
+                            });
+                            respondExternal({ result: json.results });
+                        } else {
+                            const errorMessage =
+                                json.error?.message ??
+                                `External fetch failed (${res.status})`;
+                            emitExternal({
+                                status: 'error',
+                                error: errorMessage,
+                                durationMs: Date.now() - startedAt,
+                            });
+                            respondExternal({ error: errorMessage });
+                        }
+                    } catch (err) {
                         const errorMessage =
-                            json.error?.message ??
-                            `External fetch failed (${res.status})`;
+                            err instanceof Error
+                                ? err.message
+                                : 'Unknown error';
                         emitExternal({
                             status: 'error',
                             error: errorMessage,
@@ -1210,510 +1253,514 @@ export function useAppSdkBridge({
                         });
                         respondExternal({ error: errorMessage });
                     }
-                } catch (err) {
-                    const errorMessage =
-                        err instanceof Error ? err.message : 'Unknown error';
-                    emitExternal({
-                        status: 'error',
-                        error: errorMessage,
-                        durationMs: Date.now() - startedAt,
-                    });
-                    respondExternal({ error: errorMessage });
-                }
-                return;
-            }
-
-            if (data?.type !== 'lightdash:sdk:fetch') return;
-
-            const { id, metadata } = data;
-            let { method, path, body } = data;
-
-            const respond = (response: {
-                result?: unknown;
-                error?: string;
-            }) => {
-                // Wildcard targetOrigin — see handleIframeLoad below. The
-                // parent's `event.source` and route allowlist do the security
-                // work; matching against expectedPreviewOrigin only adds
-                // noise from race conditions during iframe (re)mount.
-                iframeRef.current?.contentWindow?.postMessage(
-                    { type: 'lightdash:sdk:fetch-response', id, ...response },
-                    '*',
-                );
-            };
-
-            // Bridge-only virtual route: the viz posts semantic click intent;
-            // the host rewrites it into the real underlying-data request, then
-            // the standard pipeline (allowlist, project pinning, auth) applies.
-            if (path === APP_SDK_VIZ_UNDERLYING_DATA_PATH) {
-                if (!rewriteVizUnderlyingDataRequest) {
-                    respond({
-                        error: 'Underlying data is not available for this visualization.',
-                    });
                     return;
                 }
-                try {
-                    ({ method, path, body } =
-                        rewriteVizUnderlyingDataRequest(body));
-                } catch (err) {
-                    respond({
-                        error:
-                            err instanceof Error
-                                ? err.message
-                                : 'Invalid underlying-data request.',
-                    });
-                    return;
-                }
-            }
 
-            if (path === APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH) {
-                if (!onVizUnderlyingDataIntent) {
-                    respond({
-                        error: 'Underlying data is not available for this visualization.',
-                    });
-                    return;
-                }
-                try {
-                    onVizUnderlyingDataIntent(body);
-                    respond({ result: {} });
-                } catch (err) {
-                    respond({
-                        error:
-                            err instanceof Error
-                                ? err.message
-                                : 'Invalid underlying-data request.',
-                    });
-                }
-                return;
-            }
+                if (data?.type !== 'lightdash:sdk:fetch') return;
 
-            // Bridge-only virtual route: the viz posts a drill click intent;
-            // the host resolves it and opens its drill dialog. Answered here —
-            // nothing is forwarded to the API.
-            if (path === APP_SDK_VIZ_DRILL_DOWN_PATH) {
-                if (!onVizDrillDownIntent) {
-                    respond({
-                        error: 'Drill-down is not available for this visualization.',
-                    });
-                    return;
-                }
-                try {
-                    onVizDrillDownIntent(body);
-                    respond({ result: {} });
-                } catch (err) {
-                    respond({
-                        error:
-                            err instanceof Error
-                                ? err.message
-                                : 'Invalid drill-down request.',
-                    });
-                }
-                return;
-            }
+                const { id, metadata } = data;
+                let { method, path, body } = data;
 
-            // Bridge-only virtual route: the viz posts a data-point click;
-            // the host renders its native context menu. Answered here —
-            // nothing is forwarded to the API.
-            if (path === APP_SDK_VIZ_POINT_MENU_PATH) {
-                if (!onVizPointMenuIntent) {
-                    respond({
-                        error: 'The data point menu is not available for this visualization.',
-                    });
-                    return;
-                }
-                try {
-                    respond({ result: onVizPointMenuIntent(body) });
-                } catch (err) {
-                    respond({
-                        error:
-                            err instanceof Error
-                                ? err.message
-                                : 'Invalid point-menu request.',
-                    });
-                }
-                return;
-            }
-
-            if (path === APP_SDK_VIZ_SUBTOTALS_PATH) {
-                const unavailable = {
-                    error: 'Subtotals are not available for this visualization.',
-                };
-                if (
-                    !dataAppVizMode ||
-                    method.toUpperCase() !== 'POST' ||
-                    !onVizSubtotalsIntent
-                ) {
-                    respond(unavailable);
-                    return;
-                }
-                // The failure reason stays in the host; the iframe is untrusted.
-                try {
-                    respond({ result: await onVizSubtotalsIntent(body) });
-                } catch {
-                    respond(unavailable);
-                }
-                return;
-            }
-
-            // Host-answered virtual route: only the trimmed chart list leaves
-            // the host — space access/member data never enters the iframe.
-            if (path === APP_SDK_SPACE_CHARTS_PATH) {
-                const request = parseAppSdkSpaceChartsRequest(body);
-                if (request === null) {
-                    respond({ error: 'Invalid space-charts request.' });
-                    return;
-                }
-                respond({
-                    result: await fetchSpaceCharts({
-                        projectUuid,
-                        spaceRef: request.space,
-                        embedToken,
-                        appUuid,
-                    }),
-                });
-                return;
-            }
-
-            // Host-answered virtual route: only the base table leaves the
-            // host, never the explore itself.
-            if (path === APP_SDK_EXPLORE_BASE_TABLE_PATH) {
-                const request = parseAppSdkExploreBaseTableRequest(body);
-                if (request === null) {
-                    respond({ error: 'Invalid explore base-table request.' });
-                    return;
-                }
-                const result: AppSdkExploreBaseTableResult = {
-                    baseTable: await fetchExploreBaseTable({
-                        projectUuid,
-                        exploreName: request.exploreName,
-                        embedToken,
-                        appUuid,
-                    }),
-                };
-                respond({ result });
-                return;
-            }
-
-            if (!isAllowedAppSdkRoute(method, path)) {
-                respond({ error: `Blocked: ${method} ${path}` });
-                return;
-            }
-
-            const requestProjectUuid = extractAppSdkRouteProjectUuid(path);
-            if (
-                requestProjectUuid !== null &&
-                requestProjectUuid !== projectUuid
-            ) {
-                respond({
-                    error: `Blocked: request targets project ${requestProjectUuid}, but this app belongs to ${projectUuid}`,
-                });
-                return;
-            }
-
-            // Record the pre-stamp body — dashboard filters/invalidateCache/
-            // context are per-render decoration, not part of the query's identity.
-            if (
-                isMetricQueryPost(method, path) ||
-                isChartQueryPost(method, path)
-            ) {
-                deliveryCapture?.onInitiation({
-                    requestId: id,
-                    method,
-                    path,
-                    body,
-                    label:
-                        ((metadata as Record<string, unknown> | undefined)
-                            ?.label as string | undefined) ?? null,
-                });
-            }
-
-            // Stamp dashboard filters, the cache-invalidation flag, and a
-            // query-context override onto outgoing query bodies. The backend
-            // drops filters whose fields aren't in the query's/chart's
-            // explore, so it's safe to send the full set on every call. All
-            // three apply to inline metric queries AND linked (/query/chart)
-            // charts, so a dashboard filter, refresh, or delivery-capture
-            // context reaches linked charts too. App attribution rides on the
-            // LightdashAppUuidHeader instead (see the fetch below).
-            const stampFilters =
-                (isMetricQueryPost(method, path) ||
-                    isChartQueryPost(method, path)) &&
-                !!dashboardFilters;
-            const stampInvalidate =
-                (isMetricQueryPost(method, path) ||
-                    isChartQueryPost(method, path)) &&
-                !!invalidateCache;
-            const stampContext =
-                (isMetricQueryPost(method, path) ||
-                    isChartQueryPost(method, path)) &&
-                !!queryContextOverride;
-            const effectiveBody =
-                stampFilters || stampInvalidate || stampContext
-                    ? {
-                          ...(body as Record<string, unknown> | undefined),
-                          ...(stampFilters ? { dashboardFilters } : {}),
-                          ...(stampInvalidate ? { invalidateCache } : {}),
-                          ...(stampContext
-                              ? { context: queryContextOverride }
-                              : {}),
-                      }
-                    : body;
-
-            // Track metric query submissions
-            if (isMetricQueryPost(method, path) && onQueryEvent && body) {
-                const query = (body as { query?: Record<string, unknown> })
-                    ?.query;
-                const sdkLabel = (
-                    metadata as Record<string, unknown> | undefined
-                )?.label as string | undefined;
-                if (query) {
-                    onQueryEvent({
-                        id,
-                        timestamp: Date.now(),
-                        label: sdkLabel ?? null,
-                        exploreName: (query.exploreName as string) ?? 'unknown',
-                        dimensions: (query.dimensions as string[]) ?? [],
-                        metrics: (query.metrics as string[]) ?? [],
-                        filters: query.filters ?? {},
-                        sorts: (query.sorts as unknown[]) ?? [],
-                        tableCalculations:
-                            (query.tableCalculations as QueryEventTableCalculation[]) ??
-                            [],
-                        additionalMetrics:
-                            (query.additionalMetrics as QueryEventAdditionalMetric[]) ??
-                            [],
-                        limit: (query.limit as number) ?? 0,
-                        queryUuid: null,
-                        status: 'pending',
-                        rowCount: null,
-                        durationMs: null,
-                        error: null,
-                        rawMetricQuery: query,
-                    });
-                }
-            }
-
-            // In embed mode, rewrite the user-info fetch to the embed
-            // endpoint so the SDK's getUser() resolves against the JWT's
-            // synthesized user instead of a session-only route.
-            const effectivePath =
-                embedToken &&
-                embedProjectUuid &&
-                method.toUpperCase() === 'GET' &&
-                path === '/api/v1/user'
-                    ? `/api/v1/embed/${embedProjectUuid}/user-info`
-                    : path;
-
-            // Emits a terminal `error` QueryEvent re-keyed to the POST id
-            // when a metric-query POST fails before the SDK ever gets a
-            // queryUuid. Without it, the pending entry stays in
-            // MinimalApp's in-flight set forever and the screenshot
-            // indicator never mounts. The GET-poll error/ready paths
-            // already emit their own terminal events, so this only runs
-            // for the POST.
-            const emitPostFailure = (errorMessage: string) => {
-                if (
-                    !isMetricQueryPost(method, path) &&
-                    !isChartQueryPost(method, path)
-                )
-                    return;
-                deliveryCapture?.onPostFailure(id, errorMessage);
-                if (!onQueryEvent) return;
-                onQueryEvent({
-                    id,
-                    timestamp: Date.now(),
-                    label: null,
-                    exploreName: '',
-                    dimensions: [],
-                    metrics: [],
-                    filters: {},
-                    sorts: [],
-                    tableCalculations: [],
-                    additionalMetrics: [],
-                    limit: 0,
-                    queryUuid: null,
-                    status: 'error',
-                    rowCount: null,
-                    durationMs: null,
-                    error: errorMessage,
-                    rawMetricQuery: null,
-                });
-            };
-
-            try {
-                // SDK embeds: a bare `fetch(path)` resolves against the
-                // host's origin, not Lightdash. Rewrite to an absolute URL
-                // against the SDK's stashed instance URL when present.
-                const res = await fetch(resolveFetchUrl(effectivePath), {
-                    method,
-                    headers: {
-                        ...getAppSdkRequestHeaders(embedToken, appUuid),
-                        ...(isMetricQueryPost(method, path)
-                            ? {
-                                  [LightdashAppPreviewTokenHeader]:
-                                      previewToken,
-                              }
-                            : {}),
-                        // The SDK fetches the export's fileUrl from inside
-                        // the sandboxed iframe, where session cookies don't
-                        // attach — ask the backend for a SIGNED URL that
-                        // survives that credential-less fetch.
-                        ...(isAppSdkScheduleDownloadRoute(method, path)
-                            ? { [LightdashSignedDownloadHeader]: 'true' }
-                            : {}),
-                    },
-                    ...(effectiveBody
-                        ? { body: JSON.stringify(effectiveBody) }
-                        : {}),
-                });
-
-                const json = await res.json();
-
-                if (json.status === 'ok') {
-                    if (
-                        isMetricQueryPost(method, path) ||
-                        isChartQueryPost(method, path)
-                    ) {
-                        deliveryCapture?.onPostResponse(
+                const respond = (response: {
+                    result?: unknown;
+                    error?: string;
+                }) => {
+                    // Wildcard targetOrigin — see handleIframeLoad below. The
+                    // parent's `event.source` and route allowlist do the security
+                    // work; matching against expectedPreviewOrigin only adds
+                    // noise from race conditions during iframe (re)mount.
+                    iframeRef.current?.contentWindow?.postMessage(
+                        {
+                            type: 'lightdash:sdk:fetch-response',
                             id,
-                            json.results ?? null,
-                        );
+                            ...response,
+                        },
+                        '*',
+                    );
+                };
+
+                // Bridge-only virtual route: the viz posts semantic click intent;
+                // the host rewrites it into the real underlying-data request, then
+                // the standard pipeline (allowlist, project pinning, auth) applies.
+                if (path === APP_SDK_VIZ_UNDERLYING_DATA_PATH) {
+                    if (!rewriteVizUnderlyingDataRequest) {
+                        respond({
+                            error: 'Underlying data is not available for this visualization.',
+                        });
+                        return;
                     }
+                    try {
+                        ({ method, path, body } =
+                            rewriteVizUnderlyingDataRequest(body));
+                    } catch (err) {
+                        respond({
+                            error:
+                                err instanceof Error
+                                    ? err.message
+                                    : 'Invalid underlying-data request.',
+                        });
+                        return;
+                    }
+                }
 
-                    // Track metric query initiation response (has queryUuid)
+                if (path === APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH) {
+                    if (!onVizUnderlyingDataIntent) {
+                        respond({
+                            error: 'Underlying data is not available for this visualization.',
+                        });
+                        return;
+                    }
+                    try {
+                        onVizUnderlyingDataIntent(body);
+                        respond({ result: {} });
+                    } catch (err) {
+                        respond({
+                            error:
+                                err instanceof Error
+                                    ? err.message
+                                    : 'Invalid underlying-data request.',
+                        });
+                    }
+                    return;
+                }
+
+                // Bridge-only virtual route: the viz posts a drill click intent;
+                // the host resolves it and opens its drill dialog. Answered here —
+                // nothing is forwarded to the API.
+                if (path === APP_SDK_VIZ_DRILL_DOWN_PATH) {
+                    if (!onVizDrillDownIntent) {
+                        respond({
+                            error: 'Drill-down is not available for this visualization.',
+                        });
+                        return;
+                    }
+                    try {
+                        onVizDrillDownIntent(body);
+                        respond({ result: {} });
+                    } catch (err) {
+                        respond({
+                            error:
+                                err instanceof Error
+                                    ? err.message
+                                    : 'Invalid drill-down request.',
+                        });
+                    }
+                    return;
+                }
+
+                // Bridge-only virtual route: the viz posts a data-point click;
+                // the host renders its native context menu. Answered here —
+                // nothing is forwarded to the API.
+                if (path === APP_SDK_VIZ_POINT_MENU_PATH) {
+                    if (!onVizPointMenuIntent) {
+                        respond({
+                            error: 'The data point menu is not available for this visualization.',
+                        });
+                        return;
+                    }
+                    try {
+                        respond({ result: onVizPointMenuIntent(body) });
+                    } catch (err) {
+                        respond({
+                            error:
+                                err instanceof Error
+                                    ? err.message
+                                    : 'Invalid point-menu request.',
+                        });
+                    }
+                    return;
+                }
+
+                if (path === APP_SDK_VIZ_SUBTOTALS_PATH) {
+                    const unavailable = {
+                        error: 'Subtotals are not available for this visualization.',
+                    };
                     if (
-                        (isMetricQueryPost(method, path) ||
-                            isChartQueryPost(method, path)) &&
-                        onQueryEvent &&
-                        json.results?.queryUuid
+                        !dataAppVizMode ||
+                        method.toUpperCase() !== 'POST' ||
+                        !onVizSubtotalsIntent
                     ) {
-                        const initLabel = (
-                            metadata as Record<string, unknown> | undefined
-                        )?.label as string | undefined;
+                        respond(unavailable);
+                        return;
+                    }
+                    // The failure reason stays in the host; the iframe is untrusted.
+                    try {
+                        respond({ result: await onVizSubtotalsIntent(body) });
+                    } catch {
+                        respond(unavailable);
+                    }
+                    return;
+                }
 
-                        // Displaced by results-cache dedupe (see ref comment
-                        // above); `queryUuid: null` avoids masking the real terminal.
-                        const displacedId = queryUuidToPostIdRef.current.get(
-                            json.results.queryUuid,
-                        );
-                        if (displacedId !== undefined && displacedId !== id) {
-                            onQueryEvent({
-                                ...TERMINAL_EVENT_DEFAULTS,
-                                id: displacedId,
-                                timestamp: Date.now(),
-                                queryUuid: null,
-                                status: 'ready',
-                                rowCount: null,
-                                durationMs: null,
-                                error: null,
-                            });
-                        }
-                        queryUuidToPostIdRef.current.set(
-                            json.results.queryUuid,
-                            id,
-                        );
+                // Host-answered virtual route: only the trimmed chart list leaves
+                // the host — space access/member data never enters the iframe.
+                if (path === APP_SDK_SPACE_CHARTS_PATH) {
+                    const request = parseAppSdkSpaceChartsRequest(body);
+                    if (request === null) {
+                        respond({ error: 'Invalid space-charts request.' });
+                        return;
+                    }
+                    respond({
+                        result: await fetchSpaceCharts({
+                            projectUuid,
+                            spaceRef: request.space,
+                            embedToken,
+                            appUuid,
+                        }),
+                    });
+                    return;
+                }
+
+                // Host-answered virtual route: only the base table leaves the
+                // host, never the explore itself.
+                if (path === APP_SDK_EXPLORE_BASE_TABLE_PATH) {
+                    const request = parseAppSdkExploreBaseTableRequest(body);
+                    if (request === null) {
+                        respond({
+                            error: 'Invalid explore base-table request.',
+                        });
+                        return;
+                    }
+                    const result: AppSdkExploreBaseTableResult = {
+                        baseTable: await fetchExploreBaseTable({
+                            projectUuid,
+                            exploreName: request.exploreName,
+                            embedToken,
+                            appUuid,
+                        }),
+                    };
+                    respond({ result });
+                    return;
+                }
+
+                if (!isAllowedAppSdkRoute(method, path)) {
+                    respond({ error: `Blocked: ${method} ${path}` });
+                    return;
+                }
+
+                const requestProjectUuid = extractAppSdkRouteProjectUuid(path);
+                if (
+                    requestProjectUuid !== null &&
+                    requestProjectUuid !== projectUuid
+                ) {
+                    respond({
+                        error: `Blocked: request targets project ${requestProjectUuid}, but this app belongs to ${projectUuid}`,
+                    });
+                    return;
+                }
+
+                // Record the pre-stamp body — dashboard filters/invalidateCache/
+                // context are per-render decoration, not part of the query's identity.
+                if (
+                    isMetricQueryPost(method, path) ||
+                    isChartQueryPost(method, path)
+                ) {
+                    deliveryCapture?.onInitiation({
+                        requestId: id,
+                        method,
+                        path,
+                        body,
+                        label:
+                            ((metadata as Record<string, unknown> | undefined)
+                                ?.label as string | undefined) ?? null,
+                    });
+                }
+
+                // Stamp dashboard filters, the cache-invalidation flag, and a
+                // query-context override onto outgoing query bodies. The backend
+                // drops filters whose fields aren't in the query's/chart's
+                // explore, so it's safe to send the full set on every call. All
+                // three apply to inline metric queries AND linked (/query/chart)
+                // charts, so a dashboard filter, refresh, or delivery-capture
+                // context reaches linked charts too. App attribution rides on the
+                // LightdashAppUuidHeader instead (see the fetch below).
+                const stampFilters =
+                    (isMetricQueryPost(method, path) ||
+                        isChartQueryPost(method, path)) &&
+                    !!dashboardFilters;
+                const stampInvalidate =
+                    (isMetricQueryPost(method, path) ||
+                        isChartQueryPost(method, path)) &&
+                    !!invalidateCache;
+                const stampContext =
+                    (isMetricQueryPost(method, path) ||
+                        isChartQueryPost(method, path)) &&
+                    !!queryContextOverride;
+                const effectiveBody =
+                    stampFilters || stampInvalidate || stampContext
+                        ? {
+                              ...(body as Record<string, unknown> | undefined),
+                              ...(stampFilters ? { dashboardFilters } : {}),
+                              ...(stampInvalidate ? { invalidateCache } : {}),
+                              ...(stampContext
+                                  ? { context: queryContextOverride }
+                                  : {}),
+                          }
+                        : body;
+
+                // Track metric query submissions
+                if (isMetricQueryPost(method, path) && onQueryEvent && body) {
+                    const query = (body as { query?: Record<string, unknown> })
+                        ?.query;
+                    const sdkLabel = (
+                        metadata as Record<string, unknown> | undefined
+                    )?.label as string | undefined;
+                    if (query) {
                         onQueryEvent({
                             id,
                             timestamp: Date.now(),
-                            label: initLabel ?? null,
+                            label: sdkLabel ?? null,
                             exploreName:
-                                json.results?.metricQuery?.exploreName ??
-                                'unknown',
-                            dimensions:
-                                json.results?.metricQuery?.dimensions ?? [],
-                            metrics: json.results?.metricQuery?.metrics ?? [],
-                            filters: json.results?.metricQuery?.filters ?? {},
-                            sorts: json.results?.metricQuery?.sorts ?? [],
+                                (query.exploreName as string) ?? 'unknown',
+                            dimensions: (query.dimensions as string[]) ?? [],
+                            metrics: (query.metrics as string[]) ?? [],
+                            filters: query.filters ?? {},
+                            sorts: (query.sorts as unknown[]) ?? [],
                             tableCalculations:
-                                json.results?.metricQuery?.tableCalculations ??
+                                (query.tableCalculations as QueryEventTableCalculation[]) ??
                                 [],
                             additionalMetrics:
-                                json.results?.metricQuery?.additionalMetrics ??
+                                (query.additionalMetrics as QueryEventAdditionalMetric[]) ??
                                 [],
-                            limit: json.results?.metricQuery?.limit ?? 0,
-                            queryUuid: json.results.queryUuid,
-                            status: 'running',
+                            limit: (query.limit as number) ?? 0,
+                            queryUuid: null,
+                            status: 'pending',
                             rowCount: null,
                             durationMs: null,
                             error: null,
-                            rawMetricQuery: null,
+                            rawMetricQuery: query,
                         });
                     }
+                }
 
-                    // Track query result polling responses
-                    if (isQueryResultGet(method, path)) {
-                        const result = json.results;
-                        // Re-key terminal events to the POST id so consumers
-                        // see a single stable id across the pending →
-                        // ready/error lifecycle. Falls back to the GET id
-                        // only if the mapping is missing (shouldn't happen
-                        // in normal flow — the POST always runs first).
-                        const lifecycleId: string =
-                            (result?.queryUuid &&
-                                queryUuidToPostIdRef.current.get(
-                                    result.queryUuid,
-                                )) ??
-                            id;
-                        if (result?.status === 'ready') {
-                            queryUuidToPostIdRef.current.delete(
-                                result.queryUuid,
-                            );
-                            deliveryCapture?.onTerminal(result.queryUuid, {
-                                status: 'ready',
-                                rowCount: result.totalResults ?? null,
-                            });
-                            onQueryEvent?.({
-                                ...TERMINAL_EVENT_DEFAULTS,
-                                id: lifecycleId,
-                                timestamp: Date.now(),
-                                queryUuid: result.queryUuid,
-                                status: 'ready',
-                                // Use totalResults (full row count across all
-                                // pages), not rows.length (just this page).
-                                // The SDK paginates internally — the app sees
-                                // every row, so the inspector should too.
-                                rowCount: result.totalResults ?? null,
-                                durationMs:
-                                    result.metadata?.performance
-                                        ?.initialQueryExecutionMs ?? null,
-                                error: null,
-                            });
-                        } else if (
-                            result?.status === 'error' ||
-                            result?.status === 'expired'
+                // In embed mode, rewrite the user-info fetch to the embed
+                // endpoint so the SDK's getUser() resolves against the JWT's
+                // synthesized user instead of a session-only route.
+                const effectivePath =
+                    embedToken &&
+                    embedProjectUuid &&
+                    method.toUpperCase() === 'GET' &&
+                    path === '/api/v1/user'
+                        ? `/api/v1/embed/${embedProjectUuid}/user-info`
+                        : path;
+
+                // Emits a terminal `error` QueryEvent re-keyed to the POST id
+                // when a metric-query POST fails before the SDK ever gets a
+                // queryUuid. Without it, the pending entry stays in
+                // MinimalApp's in-flight set forever and the screenshot
+                // indicator never mounts. The GET-poll error/ready paths
+                // already emit their own terminal events, so this only runs
+                // for the POST.
+                const emitPostFailure = (errorMessage: string) => {
+                    if (
+                        !isMetricQueryPost(method, path) &&
+                        !isChartQueryPost(method, path)
+                    )
+                        return;
+                    deliveryCapture?.onPostFailure(id, errorMessage);
+                    if (!onQueryEvent) return;
+                    onQueryEvent({
+                        id,
+                        timestamp: Date.now(),
+                        label: null,
+                        exploreName: '',
+                        dimensions: [],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        additionalMetrics: [],
+                        limit: 0,
+                        queryUuid: null,
+                        status: 'error',
+                        rowCount: null,
+                        durationMs: null,
+                        error: errorMessage,
+                        rawMetricQuery: null,
+                    });
+                };
+
+                try {
+                    // SDK embeds: a bare `fetch(path)` resolves against the
+                    // host's origin, not Lightdash. Rewrite to an absolute URL
+                    // against the SDK's stashed instance URL when present.
+                    const res = await fetch(resolveFetchUrl(effectivePath), {
+                        method,
+                        headers: {
+                            ...getAppSdkRequestHeaders(embedToken, appUuid),
+                            ...(isMetricQueryPost(method, path)
+                                ? {
+                                      [LightdashAppPreviewTokenHeader]:
+                                          previewToken,
+                                  }
+                                : {}),
+                            // The SDK fetches the export's fileUrl from inside
+                            // the sandboxed iframe, where session cookies don't
+                            // attach — ask the backend for a SIGNED URL that
+                            // survives that credential-less fetch.
+                            ...(isAppSdkScheduleDownloadRoute(method, path)
+                                ? { [LightdashSignedDownloadHeader]: 'true' }
+                                : {}),
+                        },
+                        ...(effectiveBody
+                            ? { body: JSON.stringify(effectiveBody) }
+                            : {}),
+                    });
+
+                    const json = await res.json();
+
+                    if (json.status === 'ok') {
+                        if (
+                            isMetricQueryPost(method, path) ||
+                            isChartQueryPost(method, path)
                         ) {
-                            queryUuidToPostIdRef.current.delete(
-                                result.queryUuid,
+                            deliveryCapture?.onPostResponse(
+                                id,
+                                json.results ?? null,
                             );
-                            deliveryCapture?.onTerminal(result.queryUuid, {
-                                status: 'error',
-                                error: result.error ?? 'Query failed',
-                            });
-                            onQueryEvent?.({
-                                ...TERMINAL_EVENT_DEFAULTS,
-                                id: lifecycleId,
+                        }
+
+                        // Track metric query initiation response (has queryUuid)
+                        if (
+                            (isMetricQueryPost(method, path) ||
+                                isChartQueryPost(method, path)) &&
+                            onQueryEvent &&
+                            json.results?.queryUuid
+                        ) {
+                            const initLabel = (
+                                metadata as Record<string, unknown> | undefined
+                            )?.label as string | undefined;
+
+                            // Displaced by results-cache dedupe (see ref comment
+                            // above); `queryUuid: null` avoids masking the real terminal.
+                            const displacedId =
+                                queryUuidToPostIdRef.current.get(
+                                    json.results.queryUuid,
+                                );
+                            if (
+                                displacedId !== undefined &&
+                                displacedId !== id
+                            ) {
+                                onQueryEvent({
+                                    ...TERMINAL_EVENT_DEFAULTS,
+                                    id: displacedId,
+                                    timestamp: Date.now(),
+                                    queryUuid: null,
+                                    status: 'ready',
+                                    rowCount: null,
+                                    durationMs: null,
+                                    error: null,
+                                });
+                            }
+                            queryUuidToPostIdRef.current.set(
+                                json.results.queryUuid,
+                                id,
+                            );
+                            onQueryEvent({
+                                id,
                                 timestamp: Date.now(),
-                                queryUuid: result.queryUuid,
-                                status: 'error',
+                                label: initLabel ?? null,
+                                exploreName:
+                                    json.results?.metricQuery?.exploreName ??
+                                    'unknown',
+                                dimensions:
+                                    json.results?.metricQuery?.dimensions ?? [],
+                                metrics:
+                                    json.results?.metricQuery?.metrics ?? [],
+                                filters:
+                                    json.results?.metricQuery?.filters ?? {},
+                                sorts: json.results?.metricQuery?.sorts ?? [],
+                                tableCalculations:
+                                    json.results?.metricQuery
+                                        ?.tableCalculations ?? [],
+                                additionalMetrics:
+                                    json.results?.metricQuery
+                                        ?.additionalMetrics ?? [],
+                                limit: json.results?.metricQuery?.limit ?? 0,
+                                queryUuid: json.results.queryUuid,
+                                status: 'running',
                                 rowCount: null,
                                 durationMs: null,
-                                error: result.error ?? 'Query failed',
+                                error: null,
+                                rawMetricQuery: null,
                             });
                         }
-                    }
 
-                    respond({ result: json.results });
-                } else {
+                        // Track query result polling responses
+                        if (isQueryResultGet(method, path)) {
+                            const result = json.results;
+                            // Re-key terminal events to the POST id so consumers
+                            // see a single stable id across the pending →
+                            // ready/error lifecycle. Falls back to the GET id
+                            // only if the mapping is missing (shouldn't happen
+                            // in normal flow — the POST always runs first).
+                            const lifecycleId: string =
+                                (result?.queryUuid &&
+                                    queryUuidToPostIdRef.current.get(
+                                        result.queryUuid,
+                                    )) ??
+                                id;
+                            if (result?.status === 'ready') {
+                                queryUuidToPostIdRef.current.delete(
+                                    result.queryUuid,
+                                );
+                                deliveryCapture?.onTerminal(result.queryUuid, {
+                                    status: 'ready',
+                                    rowCount: result.totalResults ?? null,
+                                });
+                                onQueryEvent?.({
+                                    ...TERMINAL_EVENT_DEFAULTS,
+                                    id: lifecycleId,
+                                    timestamp: Date.now(),
+                                    queryUuid: result.queryUuid,
+                                    status: 'ready',
+                                    // Use totalResults (full row count across all
+                                    // pages), not rows.length (just this page).
+                                    // The SDK paginates internally — the app sees
+                                    // every row, so the inspector should too.
+                                    rowCount: result.totalResults ?? null,
+                                    durationMs:
+                                        result.metadata?.performance
+                                            ?.initialQueryExecutionMs ?? null,
+                                    error: null,
+                                });
+                            } else if (
+                                result?.status === 'error' ||
+                                result?.status === 'expired'
+                            ) {
+                                queryUuidToPostIdRef.current.delete(
+                                    result.queryUuid,
+                                );
+                                deliveryCapture?.onTerminal(result.queryUuid, {
+                                    status: 'error',
+                                    error: result.error ?? 'Query failed',
+                                });
+                                onQueryEvent?.({
+                                    ...TERMINAL_EVENT_DEFAULTS,
+                                    id: lifecycleId,
+                                    timestamp: Date.now(),
+                                    queryUuid: result.queryUuid,
+                                    status: 'error',
+                                    rowCount: null,
+                                    durationMs: null,
+                                    error: result.error ?? 'Query failed',
+                                });
+                            }
+                        }
+
+                        respond({ result: json.results });
+                    } else {
+                        const errorMessage =
+                            json.error?.message ?? `API error (${res.status})`;
+                        emitPostFailure(errorMessage);
+                        respond({ error: errorMessage });
+                    }
+                } catch (err) {
                     const errorMessage =
-                        json.error?.message ?? `API error (${res.status})`;
+                        err instanceof Error ? err.message : 'Unknown error';
                     emitPostFailure(errorMessage);
                     respond({ error: errorMessage });
                 }
-            } catch (err) {
-                const errorMessage =
-                    err instanceof Error ? err.message : 'Unknown error';
-                emitPostFailure(errorMessage);
-                respond({ error: errorMessage });
             }
         },
         [
