@@ -14,6 +14,7 @@ import {
     Autocomplete,
     Box,
     Button,
+    Checkbox,
     Group,
     Image,
     Menu,
@@ -32,7 +33,6 @@ import {
     IconBroadcast,
     IconCheck,
     IconChevronDown,
-    IconChevronRight,
     IconDatabase,
     IconFileSpreadsheet,
     IconFileTypeCsv,
@@ -49,6 +49,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {
+    Fragment,
     memo,
     useCallback,
     useEffect,
@@ -455,19 +456,6 @@ export const SettingsLink: FC<{
 // ---------------------------------------------------------------------------
 // Field table (virtualised: PostHog alone has 2,310 fields)
 
-/** "In use" in the row: just a check, shown when the field is in use.
- * It's state, not a control; you change it in the field's details. */
-const InUseMark: FC<{ field: Field }> = ({ field }) => (
-    // A native title: a tooltip per row is the costliest part of a row.
-    <Box
-        className={classes.inUseMark}
-        title={field.inUse ? 'In use' : 'Not in use'}
-        aria-label={field.inUse ? 'In use' : 'Not in use'}
-    >
-        {field.inUse ? <MantineIcon icon={IconCheck} size={14} /> : null}
-    </Box>
-);
-
 const DIVIDER_HEIGHT = 36;
 
 type FieldListRow =
@@ -510,116 +498,93 @@ const FieldRow = memo<{
     top: number;
     selected: boolean;
     tabStop: boolean;
-    showUsage: boolean;
     /** From a joined table, not the explore's own. */
     joined: boolean;
     unsaved: boolean;
     onOpen: (field: Field) => void;
-}>(
-    ({
-        field,
-        index,
-        top,
-        selected,
-        tabStop,
-        showUsage,
-        joined,
-        unsaved,
-        onOpen,
-    }) => {
-        const summary = summaryOf(field.description);
-        return (
-            <Box className={classes.fieldItem} top={top}>
-                <Box
-                    className={classes.fieldRow}
-                    data-selected={selected}
-                    data-plain={!showUsage}
-                    data-off={!field.inUse}
-                    data-field-index={index}
-                    data-field-id={field.id}
-                    role="row"
-                    aria-selected={selected}
-                    tabIndex={tabStop ? 0 : -1}
-                    onClick={() => onOpen(field)}
-                >
-                    {showUsage ? (
-                        <Box className={classes.fieldInUse}>
-                            <InUseMark field={field} />
-                        </Box>
-                    ) : null}
-                    <Group gap={8} wrap="nowrap" className={classes.fieldName}>
-                        <Box flex="none" display="flex">
-                            <FieldTypeIcon field={field} />
-                        </Box>
-                        <Text
-                            truncate
-                            className={classes.fieldLabel}
-                            title={field.label}
-                        >
-                            {field.label}
-                        </Text>
-                        {joined ? (
-                            <Text truncate className={classes.fieldTable}>
-                                {field.table}
-                            </Text>
-                        ) : null}
-                        {unsaved ? (
-                            <Text className={classes.fieldUnsaved}>
-                                Unsaved
-                            </Text>
-                        ) : null}
-                        {field.visibleTo ? (
-                            <Tooltip
-                                label={`Only people with ${field.visibleTo}`}
-                                openDelay={300}
-                            >
-                                <Box flex="none" display="flex">
-                                    <MantineIcon
-                                        icon={IconLock}
-                                        size={12}
-                                        color="dimmed"
-                                    />
-                                </Box>
-                            </Tooltip>
-                        ) : null}
-                    </Group>
+}>(({ field, index, top, selected, tabStop, joined, unsaved, onOpen }) => {
+    const summary = summaryOf(field.description);
+    return (
+        <Box className={classes.fieldItem} top={top}>
+            <Box
+                className={classes.fieldRow}
+                data-selected={selected}
+                data-off={!field.inUse}
+                data-field-index={index}
+                data-field-id={field.id}
+                role="row"
+                aria-selected={selected}
+                tabIndex={tabStop ? 0 : -1}
+                onClick={() => onOpen(field)}
+            >
+                <Group gap={8} wrap="nowrap" className={classes.fieldName}>
+                    <Box flex="none" display="flex">
+                        <FieldTypeIcon field={field} />
+                    </Box>
                     <Text
                         truncate
-                        className={classes.fieldDescription}
-                        title={summary || undefined}
+                        className={classes.fieldLabel}
+                        title={field.label}
                     >
-                        {summary}
+                        {field.label}
                     </Text>
-                    {showUsage ? (
-                        <Text
-                            className={`${classes.fieldCount} ${classes.usedCell}`}
-                        >
-                            {field.chartUsage
-                                ? field.chartUsage.toLocaleString()
-                                : ''}
+                    {joined ? (
+                        <Text truncate className={classes.fieldTable}>
+                            {field.table}
                         </Text>
                     ) : null}
-                    <Box className={classes.fieldChevron}>
-                        <MantineIcon icon={IconChevronRight} size={14} />
-                    </Box>
-                </Box>
+                    {unsaved ? (
+                        <Text className={classes.fieldUnsaved}>Unsaved</Text>
+                    ) : null}
+                    {field.visibleTo ? (
+                        <Tooltip
+                            label={`Only people with ${field.visibleTo}`}
+                            openDelay={300}
+                        >
+                            <Box flex="none" display="flex">
+                                <MantineIcon
+                                    icon={IconLock}
+                                    size={12}
+                                    color="dimmed"
+                                />
+                            </Box>
+                        </Tooltip>
+                    ) : null}
+                </Group>
+                <Text
+                    truncate
+                    className={classes.fieldDescription}
+                    title={summary || undefined}
+                >
+                    {summary}
+                </Text>
             </Box>
-        );
-    },
-);
+        </Box>
+    );
+});
 
 export const FieldList: FC<{
     view: ViewModel;
     explore: Explore;
     fields: Field[];
-    /** Live data sources: the In use check and chart counts. */
-    showUsage: boolean;
+    /** Fields not in use that match but are hidden; offered when none show. */
+    hiddenCount: number;
+    onShowHidden: () => void;
     /** The field whose details are open, from the URL. */
     openFieldId: string | null;
     /** Click or Enter opens a field's details; arrows move between rows. */
     onOpen: (field: Field) => void;
     toolbar?: ReactNode;
-}> = ({ view, explore, fields, showUsage, openFieldId, onOpen, toolbar }) => {
+}> = ({
+    view,
+    explore,
+    fields,
+    hiddenCount,
+    onShowHidden,
+    openFieldId,
+    onOpen,
+    toolbar,
+}) => {
     const parentRef = useRef<HTMLDivElement>(null);
     const rows = useMemo(() => toRows(fields), [fields]);
     const rowIndexByField = useMemo(
@@ -725,20 +690,32 @@ export const FieldList: FC<{
     return (
         <Box className={classes.table} onKeyDown={handleTableKeyDown}>
             {toolbar}
-            <Box
-                className={classes.fieldHeader}
-                data-plain={!showUsage}
-                role="presentation"
-            >
-                {showUsage ? <span /> : null}
+            <Box className={classes.fieldHeader} role="presentation">
                 <span>Field</span>
                 <span>Description</span>
-                {showUsage ? (
-                    <span className={classes.usedCell}>Used in</span>
-                ) : null}
-                <span />
             </Box>
-            {fields.length === 0 ? (
+            {fields.length === 0 && hiddenCount > 0 ? (
+                <Stack gap={8} align="center" py="xl">
+                    <Stack gap={2} align="center">
+                        <Text fz="sm" fw={500}>
+                            {hiddenCount === 1
+                                ? '1 hidden field matches'
+                                : `${hiddenCount.toLocaleString()} hidden fields match`}
+                        </Text>
+                        <Text fz="xs" c="dimmed">
+                            Fields not in use are hidden.
+                        </Text>
+                    </Stack>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        className={classes.pressable}
+                        onClick={onShowHidden}
+                    >
+                        Show hidden
+                    </Button>
+                </Stack>
+            ) : fields.length === 0 ? (
                 <Stack gap={2} align="center" py="xl">
                     <Text fz="sm" fw={500}>
                         No fields match
@@ -789,7 +766,6 @@ export const FieldList: FC<{
                                     top={item.start}
                                     selected={field.id === activeFieldId}
                                     tabStop={index === tabStop}
-                                    showUsage={showUsage}
                                     joined={field.table !== explore.name}
                                     unsaved={!!view.getDraft(explore, field)}
                                     onOpen={openRow}
@@ -805,12 +781,10 @@ export const FieldList: FC<{
 
 const FILTER_LABELS: Record<FieldFilter, string> = {
     all: 'All fields',
-    inUse: 'In use',
-    notInUse: 'Not in use',
     noDescription: 'Missing description',
 };
 
-/** The table's top edge: search and one filter menu. */
+/** The table's top edge: search, Show hidden and one filter menu. */
 export const FieldListToolbar: FC<{
     filter: FieldFilter;
     onFilterChange: (filter: FieldFilter) => void;
@@ -819,8 +793,10 @@ export const FieldListToolbar: FC<{
     showInternal: boolean;
     onShowInternalChange: (value: boolean) => void;
     hasInternal: boolean;
-    /** In use filters only where fields can be turned off. */
-    showInUse: boolean;
+    showHidden: boolean;
+    onShowHiddenChange: (value: boolean) => void;
+    /** Fields not in use; only live data sources have any. */
+    hasHidden: boolean;
 }> = ({
     filter,
     onFilterChange,
@@ -829,7 +805,9 @@ export const FieldListToolbar: FC<{
     showInternal,
     onShowInternalChange,
     hasInternal,
-    showInUse,
+    showHidden,
+    onShowHiddenChange,
+    hasHidden,
 }) => (
     <Group className={classes.tableToolbar} gap="xs" wrap="nowrap">
         <TextInput
@@ -845,6 +823,17 @@ export const FieldListToolbar: FC<{
                 if (event.key === 'Escape' && query) onQueryChange('');
             }}
         />
+        {hasHidden ? (
+            <Checkbox
+                size="xs"
+                label="Show hidden"
+                className={classes.showHidden}
+                checked={showHidden}
+                onChange={(event) =>
+                    onShowHiddenChange(event.currentTarget.checked)
+                }
+            />
+        ) : null}
         <Menu position="bottom-end" width={200}>
             <Menu.Target>
                 <Button
@@ -860,25 +849,19 @@ export const FieldListToolbar: FC<{
                 </Button>
             </Menu.Target>
             <Menu.Dropdown>
-                {(Object.keys(FILTER_LABELS) as FieldFilter[])
-                    .filter(
-                        (value) =>
-                            showInUse ||
-                            (value !== 'inUse' && value !== 'notInUse'),
-                    )
-                    .map((value) => (
-                        <Menu.Item
-                            key={value}
-                            rightSection={
-                                filter === value ? (
-                                    <MantineIcon icon={IconCheck} size={14} />
-                                ) : null
-                            }
-                            onClick={() => onFilterChange(value)}
-                        >
-                            {FILTER_LABELS[value]}
-                        </Menu.Item>
-                    ))}
+                {(Object.keys(FILTER_LABELS) as FieldFilter[]).map((value) => (
+                    <Menu.Item
+                        key={value}
+                        rightSection={
+                            filter === value ? (
+                                <MantineIcon icon={IconCheck} size={14} />
+                            ) : null
+                        }
+                        onClick={() => onFilterChange(value)}
+                    >
+                        {FILTER_LABELS[value]}
+                    </Menu.Item>
+                ))}
                 {hasInternal ? (
                     <>
                         <Menu.Divider />
@@ -970,8 +953,10 @@ const DetailModal: FC<{
     onClose: () => void;
     /** Editable properties; left out when nothing here can be edited. */
     editable?: ReactNode;
-    /** Everything else about it, read only. */
-    facts: ReactNode;
+    /** Everything else about it, read only; left out when there's nothing. */
+    facts?: ReactNode;
+    /** One quiet line under the properties: where it comes from and so on. */
+    summary?: ReactNode;
     /** Left: what saving does or why you can't. Right: the actions. */
     note?: ReactNode;
     actions: ReactNode;
@@ -985,6 +970,7 @@ const DetailModal: FC<{
     onClose,
     editable,
     facts,
+    summary,
     note,
     actions,
     onSaveHotkey,
@@ -1023,9 +1009,14 @@ const DetailModal: FC<{
         >
             <Box className={classes.detailList}>
                 {editable}
-                {editable ? <Box className={classes.detailDivider} /> : null}
+                {editable && facts ? (
+                    <Box className={classes.detailDivider} />
+                ) : null}
                 {facts}
             </Box>
+            {summary ? (
+                <Text className={classes.detailSummary}>{summary}</Text>
+            ) : null}
             <Group
                 className={classes.modalFooter}
                 justify="space-between"
@@ -1051,6 +1042,46 @@ const CloseButton: FC<{ onClose: () => void }> = ({ onClose }) => (
         Close
     </Button>
 );
+
+/** "count_distinct" reads "Count distinct". */
+const typeLabel = (type: string): string => {
+    const words = type.replace(/_/g, ' ');
+    return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+/** Where the field comes from, its charts and its last change, in a line. */
+const FieldSummary: FC<{ field: Field }> = ({ field }) => {
+    const parts: ReactNode[] = [
+        <span key="definition">
+            {field.definition.label}{' '}
+            <code className={classes.detailSummaryCode}>
+                {field.definition.value}
+            </code>
+        </span>,
+    ];
+    if (field.chartUsage !== null) {
+        parts.push(
+            field.chartUsage
+                ? `Used in ${field.chartUsage.toLocaleString()} chart${field.chartUsage === 1 ? '' : 's'}`
+                : 'Not used in any chart',
+        );
+    }
+    if (field.lastEdit) {
+        parts.push(
+            `Changed by ${field.lastEdit.by} ${dayjs(field.lastEdit.at).fromNow()}`,
+        );
+    }
+    return (
+        <>
+            {parts.map((part, index) => (
+                <Fragment key={index}>
+                    {index > 0 ? ' · ' : null}
+                    {part}
+                </Fragment>
+            ))}
+        </>
+    );
+};
 
 export const FieldDetailModal: FC<{
     view: ViewModel;
@@ -1080,6 +1111,17 @@ export const FieldDetailModal: FC<{
             onSuccess: discard,
         });
     };
+    const facts = [
+        field.table !== explore.name
+            ? { term: 'Table', value: field.tableLabel }
+            : null,
+        field.group && !(isLive && canEdit)
+            ? { term: 'Group', value: field.group }
+            : null,
+        field.visibleTo
+            ? { term: 'Visible to', value: `People with ${field.visibleTo}` }
+            : null,
+    ].filter((fact) => fact !== null);
     const note =
         !canEdit && isLive ? (
             <Group gap={6} wrap="nowrap" miw={0}>
@@ -1094,7 +1136,7 @@ export const FieldDetailModal: FC<{
         <DetailModal
             icon={<FieldTypeIcon field={field} size="lg" />}
             title={field.label}
-            subtitle={`${field.fieldKind === 'metric' ? 'Metric' : 'Dimension'} in ${explore.label}`}
+            subtitle={`${typeLabel(field.type)} ${field.fieldKind === 'metric' ? 'metric' : 'dimension'} in ${explore.label}`}
             onClose={onClose}
             onSaveHotkey={canEdit && dirty ? save : undefined}
             focusBody={!canEdit}
@@ -1179,47 +1221,17 @@ export const FieldDetailModal: FC<{
                 </>
             }
             facts={
-                <>
-                    <PropertyRow term="Type">
-                        <Value>{field.type}</Value>
-                    </PropertyRow>
-                    <PropertyRow term={field.definition.label}>
-                        <Value code>{field.definition.value}</Value>
-                    </PropertyRow>
-                    {field.table !== explore.name ? (
-                        <PropertyRow term="Table">
-                            <Value>{field.tableLabel}</Value>
-                        </PropertyRow>
-                    ) : null}
-                    {field.group && !(isLive && canEdit) ? (
-                        <PropertyRow term="Group">
-                            <Value>{field.group}</Value>
-                        </PropertyRow>
-                    ) : null}
-                    {field.visibleTo ? (
-                        <PropertyRow term="Visible to">
-                            <Value>People with {field.visibleTo}</Value>
-                        </PropertyRow>
-                    ) : null}
-                    {field.chartUsage !== null ? (
-                        <PropertyRow term="Used in">
-                            <Value>
-                                {field.chartUsage
-                                    ? `${field.chartUsage.toLocaleString()} chart${field.chartUsage === 1 ? '' : 's'}`
-                                    : 'No charts'}
-                            </Value>
-                        </PropertyRow>
-                    ) : null}
-                    {field.lastEdit ? (
-                        <PropertyRow term="Last change">
-                            <Value>
-                                {field.lastEdit.by},{' '}
-                                {dayjs(field.lastEdit.at).fromNow()}
-                            </Value>
-                        </PropertyRow>
-                    ) : null}
-                </>
+                facts.length > 0 ? (
+                    <>
+                        {facts.map(({ term, value }) => (
+                            <PropertyRow key={term} term={term}>
+                                <Value>{value}</Value>
+                            </PropertyRow>
+                        ))}
+                    </>
+                ) : undefined
             }
+            summary={<FieldSummary field={field} />}
             note={note}
             actions={
                 canEdit ? (

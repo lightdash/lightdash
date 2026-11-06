@@ -35,42 +35,56 @@ const fields = [
 ];
 const names = (list: Field[]) => list.map(({ name }) => name);
 
+const visible = { showHidden: false, showInternal: false };
+const everything = { showHidden: true, showInternal: true };
+
 describe('filterFields', () => {
-    it('hides internal fields that are not in use unless asked', () => {
-        expect(names(filterFields(fields, 'all', '', false))).not.toContain(
-            'raw_payload',
-        );
-        expect(names(filterFields(fields, 'all', '', false))).toContain(
+    it('hides fields not in use until asked', () => {
+        expect(names(filterFields(fields, 'all', '', visible))).toEqual([
+            'account_id',
             'kept_internal',
-        );
-        expect(names(filterFields(fields, 'all', '', true))).toContain(
-            'raw_payload',
-        );
+            'notes',
+            'revenue',
+        ]);
+        expect(
+            names(
+                filterFields(fields, 'all', '', {
+                    showHidden: true,
+                    showInternal: false,
+                }),
+            ),
+        ).toEqual(['account_id', 'email', 'kept_internal', 'notes', 'revenue']);
     });
 
-    it('filters by in use and missing description', () => {
-        expect(names(filterFields(fields, 'notInUse', '', true))).toEqual([
-            'email',
+    it('shows internal fields not in use only with internal fields on', () => {
+        const withInternal = { showHidden: false, showInternal: true };
+        expect(names(filterFields(fields, 'all', '', withInternal))).toContain(
             'raw_payload',
-        ]);
-        expect(names(filterFields(fields, 'noDescription', '', true))).toEqual([
-            'notes',
-        ]);
+        );
+        expect(
+            names(filterFields(fields, 'all', '', withInternal)),
+        ).not.toContain('email');
+    });
+
+    it('filters by missing description', () => {
+        expect(
+            names(filterFields(fields, 'noDescription', '', everything)),
+        ).toEqual(['notes']);
     });
 
     it('matches label, name and definition, case-insensitively', () => {
-        expect(names(filterFields(fields, 'all', 'ACCOUNT id', false))).toEqual(
-            ['account_id'],
-        );
-        expect(names(filterFields(fields, 'all', 'amount_usd', false))).toEqual(
-            ['revenue'],
-        );
-        expect(names(filterFields(fields, 'all', '  email ', false))).toEqual([
-            'email',
-        ]);
-        expect(filterFields(fields, 'all', 'nothing-like-this', true)).toEqual(
-            [],
-        );
+        expect(
+            names(filterFields(fields, 'all', 'ACCOUNT id', visible)),
+        ).toEqual(['account_id']);
+        expect(
+            names(filterFields(fields, 'all', 'amount_usd', visible)),
+        ).toEqual(['revenue']);
+        expect(
+            names(filterFields(fields, 'all', '  email ', everything)),
+        ).toEqual(['email']);
+        expect(
+            filterFields(fields, 'all', 'nothing-like-this', everything),
+        ).toEqual([]);
     });
 });
 
