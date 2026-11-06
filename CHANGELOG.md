@@ -1,3 +1,10 @@
+## [3.177.1](https://github.com/lightdash/lightdash/compare/3.177.0...3.177.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **documents:** validate live data source charts against their integration ([#32197](https://github.com/lightdash/lightdash/issues/32197)) ([18d6314](https://github.com/lightdash/lightdash/commit/18d6314d26c2c3cf4bf5b88a57d3c9b0af2934d0))
+
 # [3.177.0](https://github.com/lightdash/lightdash/compare/3.176.2...3.177.0) (2026-11-06)
 
 
