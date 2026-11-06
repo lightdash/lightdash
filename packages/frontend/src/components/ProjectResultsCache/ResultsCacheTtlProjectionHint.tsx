@@ -3,6 +3,7 @@ import { Anchor, Box, Divider, Group, Stack, Text } from '@mantine/core';
 import { Fragment, type FC } from 'react';
 import { useResultsCacheTtlProjections } from '../../hooks/useProjectResultsCacheSettings';
 import { formatCacheDuration } from './formatCacheDuration';
+import { formatCompactNumber } from './formatCompactNumber';
 import { formatWarehouseTime } from './formatWarehouseTime';
 import classes from './ResultsCacheTtlProjectionHint.module.css';
 
@@ -70,7 +71,7 @@ export const ResultsCacheTtlProjectionHint: FC<Props> = ({
                                 </Box>
                                 <Divider orientation="vertical" />
                                 <Text fz="sm" className={classes.hits}>
-                                    {`+${projection.additionalHits.toLocaleString()} potential hits`}
+                                    {`+${formatCompactNumber(projection.additionalHits)} potential hits`}
                                 </Text>
                                 <Divider orientation="vertical" />
                                 <Text fz="sm">

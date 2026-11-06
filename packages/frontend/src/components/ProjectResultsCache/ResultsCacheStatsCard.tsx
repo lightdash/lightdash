@@ -32,6 +32,7 @@ import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { formatCacheDuration } from './formatCacheDuration';
+import { formatCompactNumber } from './formatCompactNumber';
 import { formatWarehouseTime } from './formatWarehouseTime';
 import classes from './ResultsCacheStatsCard.module.css';
 
@@ -141,7 +142,7 @@ const StatsSkeleton: FC<{ columns: number; withFooter: boolean }> = ({
 );
 
 const pluralizeMisses = (count: number) =>
-    `${count.toLocaleString()} avoidable ${count === 1 ? 'miss' : 'misses'}`;
+    `${formatCompactNumber(count)} avoidable ${count === 1 ? 'miss' : 'misses'}`;
 
 type RecommendationsProps = {
     projectUuid: string;
@@ -217,7 +218,7 @@ const Recommendations: FC<RecommendationsProps> = ({ projectUuid, stats }) => {
                                 </Table.Td>
                                 <Table.Td>{reasonLabel(row.reason)}</Table.Td>
                                 <Table.Td>
-                                    {row.misses.toLocaleString()}
+                                    {formatCompactNumber(row.misses)}
                                 </Table.Td>
                                 <Table.Td>
                                     {formatWarehouseTime(
@@ -242,8 +243,8 @@ type StatsContentProps = {
 const StatsContent: FC<StatsContentProps> = ({ projectUuid, stats }) => {
     const items: StatProps[] = [
         { label: 'Hit rate', value: formatPercent(stats.summary.hitRate) },
-        { label: 'Hits', value: stats.summary.hits.toLocaleString() },
-        { label: 'Misses', value: stats.summary.misses.toLocaleString() },
+        { label: 'Hits', value: formatCompactNumber(stats.summary.hits) },
+        { label: 'Misses', value: formatCompactNumber(stats.summary.misses) },
         {
             label: 'Warehouse time saved',
             value: formatWarehouseTime(
@@ -335,7 +336,7 @@ const EstimatedUsage: FC<UsageProps> = ({ projectUuid, days }) => {
         { label: 'Estimated hit rate', value: formatPercent(baseline.hitRate) },
         {
             label: 'Queries served from cache',
-            value: baseline.hits.toLocaleString(),
+            value: formatCompactNumber(baseline.hits),
         },
         {
             label: 'Warehouse time saved',
@@ -358,7 +359,7 @@ const EstimatedUsage: FC<UsageProps> = ({ projectUuid, days }) => {
                 ))}
             </SimpleGrid>
             <Text c="dimmed" fz="xs">
-                {`Estimated by replaying the ${baseline.runs.toLocaleString()} queries from this period with a ${formatCacheDuration(
+                {`Estimated by replaying the ${formatCompactNumber(baseline.runs)} queries from this period with a ${formatCacheDuration(
                     estimate.currentTtlSeconds,
                 )} cache duration.`}
             </Text>
