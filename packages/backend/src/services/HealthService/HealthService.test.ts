@@ -189,6 +189,48 @@ describe('health', () => {
             expect(health.dataApps.runtimeAvailable).toBe(expected);
         },
     );
+    it.each([
+        ['no', licenseService, true, false],
+        ['an invalid', invalidLicenseService, true, false],
+        ['a valid', validLicenseService, false, false],
+        ['a valid', validLicenseService, true, true],
+    ])(
+        'reports ambient AI only with a valid licence and an Anthropic key (%s licence, key %s)',
+        async (_licence, caseLicenseService, hasAnthropicKey, expected) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    ai: {
+                        ...lightdashConfigMock.ai,
+                        copilot: {
+                            ...lightdashConfigMock.ai.copilot,
+                            providers: {
+                                ...lightdashConfigMock.ai.copilot.providers,
+                                ...(hasAnthropicKey
+                                    ? {
+                                          anthropic: {
+                                              apiKey: 'mock_anthropic_key',
+                                          },
+                                      }
+                                    : {}),
+                            },
+                        },
+                    },
+                } as typeof lightdashConfigMock,
+                licenseService: caseLicenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
+                featureFlagModel: featureFlagModelMock,
+            });
+            const health = await service.getHealthState(undefined);
+            expect(health.ai.isAmbientAiEnabled).toBe(expected);
+        },
+    );
     it('Should return last version as undefined when fails fetch', async () => {
         (getDockerHubVersion as import('vitest').Mock).mockImplementationOnce(
             () => undefined,
