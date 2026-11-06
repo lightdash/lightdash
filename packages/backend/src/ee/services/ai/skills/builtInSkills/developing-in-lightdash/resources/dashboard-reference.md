@@ -640,12 +640,12 @@ When dashboard controls are enabled, `config.controlOrder` sets the order of con
 }
 ```
 
-- Reads always include the full list, in the order the bar shows, even for a dashboard that was never reordered. An edit that leaves a never-reordered dashboard in the default order stores no order.
+- Reads always include the full list, in the order the bar shows, even for a dashboard that was never reordered. An edit whose order renders the default bar stores no order.
 - Reorder by moving entries. Unknown or repeated slugs are rejected, and the error lists the valid ones.
 - A section's members come from each control's `sectionSlug`, not from the list. Entries only place sections among loose controls and order members inside a section.
 - Within one kind, that kind's own array wins: two filters keep the order of `filters.dimensions` (dimensions and metrics separately), parameter controls the order of `parameterControls`, sections the order of `controlSections`. The list decides how kinds interleave.
 - `newLine: true` starts a new bar line; without it, an entry shares the line of the entry before it. Section members never start a line: on a section member it passes to the next entry in the list outside a section, and is dropped if there is none. Line starts stay with their position when a kind's array is reordered. Once `controlOrder` is present, line placement comes from `newLine` and `controlSections[].inline` is ignored.
-- On a never-reordered dashboard, a control that is new in this upload or edit and missing from the list keeps its default place; every other control missing from the list goes to the end of its section, or of the bar, inline. When you add or remove a control, add or remove its entry too.
+- Controls missing from the list go to the end of their section, or of the bar, inline. To place a new control, add its entry; when you remove a control, remove its entry too.
 - A file without `controlOrder` resets the bar to the default order: filters, then parameter controls, then sections.
 - Date zoom can't be ordered yet.
 
