@@ -757,6 +757,70 @@ describe('CoderService', () => {
         });
     });
 
+    describe('filters without optional keys', () => {
+        const metric = {
+            id: 'metric-id',
+            label: undefined,
+            target: { fieldId: 'orders_total', tableName: 'orders' },
+            operator: 'greaterThan',
+            values: [1],
+        };
+
+        it('downloads a metric filter without tile targets unchanged', () => {
+            const result = CoderService.getFiltersWithTileSlugs({
+                filters: {
+                    dimensions: [],
+                    metrics: [metric],
+                    tableCalculations: [],
+                },
+                tiles: [],
+            } as AnyType);
+            expect(JSON.stringify(result.metrics[0])).toBe(
+                JSON.stringify(metric),
+            );
+        });
+
+        it('uploads without adding tile targets, mints a missing metric id and drops table calculation slugs', () => {
+            const { id: _id, ...withoutId } = metric;
+            const result = CoderService.getFiltersWithTileUuids(
+                {
+                    filters: {
+                        metrics: [withoutId],
+                        tableCalculations: [{ ...metric, slug: 'calc' }],
+                    },
+                } as AnyType,
+                [],
+                { dimensions: [], metrics: [] },
+                true,
+            );
+            expect(result.metrics[0]).not.toHaveProperty('tileTargets');
+            expect(result.metrics[0].id).toMatch(/^[0-9a-f-]{36}$/);
+            expect(result.tableCalculations[0]).toStrictEqual(metric);
+        });
+
+        it('uploads over saved filters that predate the metric list', () => {
+            const result = CoderService.getFiltersWithTileUuids(
+                {
+                    filters: {
+                        dimensions: [
+                            {
+                                target: metric.target,
+                                slug: 'orders-total',
+                                tileTargets: {},
+                            },
+                        ],
+                    },
+                } as AnyType,
+                [],
+                {
+                    dimensions: [{ ...metric, id: 'saved-id' }],
+                } as AnyType,
+                true,
+            );
+            expect(result.dimensions[0].id).toBe('saved-id');
+        });
+    });
+
     describe('stable dimension filter ids on upload', () => {
         const status = { fieldId: 'orders_status', tableName: 'orders' };
         const amount = { fieldId: 'orders_amount', tableName: 'orders' };

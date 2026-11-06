@@ -7,6 +7,7 @@ import {
     type DashboardControlSectionAsCode,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import { PORTABLE_SLUG_PATTERN } from './dashboardReferences';
 
 type SectionReference = { sectionId?: string; sectionSlug?: string };
 type DashboardWithSectionIds = Omit<DashboardAsCode, 'config'> & {
@@ -135,7 +136,7 @@ export const getDashboardWithSectionIds = (
     const idBySlug = new Map<string, string>();
     const resolved = sections.map(({ id, slug, ...section }) => {
         if (slug !== undefined) {
-            if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
+            if (!PORTABLE_SLUG_PATTERN.test(slug))
                 throw new ParameterError(
                     `Invalid dashboard section slug "${slug}"`,
                 );

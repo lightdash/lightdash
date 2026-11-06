@@ -63,6 +63,9 @@ export const getTileSlugForTileUuid = (
     return contentSlug;
 };
 
+/** The slug format files use for filters, parameter controls and sections */
+export const PORTABLE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 const getTileTargetsWithSlugs = (
     dashboard: DashboardDAO,
     tileTargets: DashboardFilterRule['tileTargets'],
@@ -87,11 +90,13 @@ export const getFiltersWithTileSlugs = (
         slug: string | undefined,
     ): DashboardFilterRule => ({
         ...filter,
-        tileTargets: getTileTargetsWithSlugs(
-            dashboard,
-            filter.tileTargets,
-            tileSlugs,
-        ),
+        ...(filter.tileTargets && {
+            tileTargets: getTileTargetsWithSlugs(
+                dashboard,
+                filter.tileTargets,
+                tileSlugs,
+            ),
+        }),
         ...(slug !== undefined && { slug }),
     });
     const dimensionCount = dashboard.filters.dimensions.length;
@@ -100,6 +105,11 @@ export const getFiltersWithTileSlugs = (
         dimensions: dashboard.filters.dimensions.map((filter, index) => ({
             ...toCode(filter, filterSlugs?.[index]),
             id: undefined,
+            tileTargets: getTileTargetsWithSlugs(
+                dashboard,
+                filter.tileTargets,
+                tileSlugs,
+            ),
         })),
         // Stored filters can predate the metric and table calculation lists
         ...(dashboard.filters.metrics && {
@@ -163,7 +173,7 @@ export const getStableDimensionFilterIds = (
     const saved = savedFilters.dimensions;
     const savedSlugs = getDashboardFilterSlugs([
         ...saved,
-        ...savedFilters.metrics,
+        ...(savedFilters.metrics ?? []),
     ]);
     const claimed = new Set<string>();
     const bySlug = uploadedFilters.map(({ slug }) => {
@@ -205,10 +215,7 @@ const assertValidFilterSlugs = (
     const seen = new Set<string>();
     rules.forEach(({ slug }) => {
         if (slug === undefined) return;
-        if (
-            typeof slug !== 'string' ||
-            !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
-        )
+        if (typeof slug !== 'string' || !PORTABLE_SLUG_PATTERN.test(slug))
             throw new ParameterError(`Invalid dashboard filter slug "${slug}"`);
         if (seen.has(slug))
             throw new ParameterError(
@@ -241,7 +248,19 @@ export const getFiltersWithTileUuids = (
         })),
         savedFilters,
     );
-    const savedRules = [...savedFilters.dimensions, ...savedFilters.metrics];
+    // Stored filters can predate the metric list
+    const savedRules = [
+        ...savedFilters.dimensions,
+        ...(savedFilters.metrics ?? []),
+    ];
+    const withTileUuidTargets = <T extends Omit<DashboardFilterRule, 'slug'>>(
+        filter: T,
+    ): T => ({
+        ...filter,
+        ...(filter.tileTargets && {
+            tileTargets: getTileTargetsWithUuids(tiles, filter.tileTargets),
+        }),
+    });
     const withTileUuids = ({
         slug: uploadedSlug,
         ...filter
@@ -250,21 +269,25 @@ export const getFiltersWithTileUuids = (
             fileSlug(uploadedSlug) ??
             savedRules.find((saved) => saved.id === filter.id)?.slug;
         return {
-            ...filter,
-            tileTargets: getTileTargetsWithUuids(tiles, filter.tileTargets),
+            ...withTileUuidTargets(filter),
             ...(slug !== undefined && { slug }),
         };
     };
     return {
-        metrics: metrics.map(withTileUuids),
+        // Hand-written metric filters can omit the id an order ref needs
+        metrics: metrics.map((filter) =>
+            withTileUuids({ ...filter, id: filter.id || uuidv4() }),
+        ),
+        // Not on the bar, so never slugged
         tableCalculations: (dashboard.filters?.tableCalculations ?? []).map(
-            (filter) => ({
-                ...filter,
-                tileTargets: getTileTargetsWithUuids(tiles, filter.tileTargets),
-            }),
+            ({ slug: _slug, ...filter }) => withTileUuidTargets(filter),
         ),
         dimensions: dimensions.map((filter, index) =>
-            withTileUuids({ ...filter, id: ids[index] }),
+            withTileUuids({
+                ...filter,
+                id: ids[index],
+                tileTargets: filter.tileTargets ?? {},
+            }),
         ),
     };
 };

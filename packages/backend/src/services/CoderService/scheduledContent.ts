@@ -59,7 +59,7 @@ export const getDashboardScheduledDeliveryFiltersWithTileSlugs = (
     filters: DashboardFilterRule[] | undefined,
 ): Omit<DashboardFilterRule, 'id'>[] | null => {
     if (!filters) return null;
-    return filters.map((filter) => ({
+    return filters.map(({ slug: _slug, ...filter }) => ({
         ...filter,
         id: undefined,
         tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
@@ -77,8 +77,12 @@ export const getDashboardScheduledDeliveryFiltersWithTileUuids = (
 ): DashboardFilterRule[] | undefined => {
     if (!filters) return undefined;
     // Delivery overrides match the dashboard's filters by id first, so carry the dashboard filter's id.
-    const ids = getStableDimensionFilterIds(filters, dashboard.filters);
-    return filters.map((filter, index) => ({
+    // Deliveries carry no slugs: match by table and field only
+    const ids = getStableDimensionFilterIds(
+        filters.map(({ target }) => ({ target })),
+        dashboard.filters,
+    );
+    return filters.map(({ slug: _slug, ...filter }, index) => ({
         ...filter,
         id: ids[index],
         tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<

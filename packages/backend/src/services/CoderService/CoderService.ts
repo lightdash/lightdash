@@ -2159,7 +2159,11 @@ export class CoderService extends BaseService {
         const orderedControls =
             controlsEnabled && config?.controlOrder !== undefined
                 ? {
-                      filters: dashboard.filters,
+                      filters: {
+                          dimensions: dashboard.filters.dimensions,
+                          // Stored filters can predate the metric list
+                          metrics: dashboard.filters.metrics ?? [],
+                      },
                       parameterControls: config.parameterControls ?? [],
                       sections: config.controlSections ?? [],
                   }
