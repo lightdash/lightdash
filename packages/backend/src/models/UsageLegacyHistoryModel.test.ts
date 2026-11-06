@@ -272,14 +272,12 @@ describe('retained database content activity for Analytics history', () => {
             tracker.on.select(matches(table)).responseOnce(fullPage);
             tracker.on.select(matches(table)).responseOnce([tied, later]);
             tracker.on.select(matches(table)).responseOnce([]);
-            tracker.on
-                .select(matches(table))
-                .responseOnce([
-                    storedRow({
-                        content_id: secondContent,
-                        source_id: '00000000-0000-0000-0000-000000001002',
-                    }),
-                ]);
+            tracker.on.select(matches(table)).responseOnce([
+                storedRow({
+                    content_id: secondContent,
+                    source_id: '00000000-0000-0000-0000-000000001002',
+                }),
+            ]);
             tracker.on.select(matches(table)).response([]);
             const rows = await collect();
             expect(rows.map(({ event_ts }) => event_ts)).toEqual([
