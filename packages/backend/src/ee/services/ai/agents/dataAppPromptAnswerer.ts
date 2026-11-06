@@ -7,7 +7,9 @@ import {
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
-const MAX_OUTPUT_TOKENS = 700;
+// Runaway guard, not a length limit: it also covers the thinking that
+// adaptive models (e.g. Haiku 5.5) do before answering.
+const MAX_OUTPUT_TOKENS = 4096;
 
 const SYSTEM_PROMPT = `You answer a question from a data app about the query results the viewer has open.
 The app author wrote the question; the viewer sees your answer inside the app.
