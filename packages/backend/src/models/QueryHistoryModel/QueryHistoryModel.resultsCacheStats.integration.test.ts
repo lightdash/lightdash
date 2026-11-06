@@ -34,6 +34,7 @@ describe('QueryHistoryModel results cache stats', () => {
     let organizationUuid: string;
     let projectUuid: string;
     let chartUuid: string;
+    let savedSqlUuid: string;
 
     beforeAll(async () => {
         migrated = await createMigratedDatabase(undefined, {
@@ -71,7 +72,9 @@ describe('QueryHistoryModel results cache stats', () => {
             })
             .returning(['project_id', 'project_uuid']);
         projectUuid = project.project_uuid;
-        const [{ space_id: spaceId }] = await database('spaces')
+        const [{ space_id: spaceId, space_uuid: spaceUuid }] = await database(
+            'spaces',
+        )
             .insert({
                 name: 'Reports',
                 slug: 'reports',
@@ -81,7 +84,7 @@ describe('QueryHistoryModel results cache stats', () => {
                 inherit_parent_permissions: true,
                 is_default_user_space: false,
             })
-            .returning('space_id');
+            .returning(['space_id', 'space_uuid']);
         [{ saved_query_uuid: chartUuid }] = await database('saved_queries')
             .insert({
                 name: 'Revenue',
@@ -95,6 +98,17 @@ describe('QueryHistoryModel results cache stats', () => {
                 dashboard_uuid: null,
             })
             .returning('saved_query_uuid');
+        [{ saved_sql_uuid: savedSqlUuid }] = await database('saved_sql')
+            .insert({
+                name: 'Orders SQL',
+                description: null,
+                slug: 'orders-sql',
+                project_uuid: projectUuid,
+                created_by_user_uuid: userUuid,
+                space_uuid: spaceUuid,
+                dashboard_uuid: null,
+            })
+            .returning('saved_sql_uuid');
     });
     afterAll(async () => {
         await migrated?.destroy();
@@ -116,6 +130,8 @@ describe('QueryHistoryModel results cache stats', () => {
         context = QueryExecutionContext.CHART,
         status = 'ready',
         withChart = true,
+        requestParameters,
+        exploreName = 'orders',
     }: {
         minutesAgo: number;
         cacheKey?: string;
@@ -127,6 +143,8 @@ describe('QueryHistoryModel results cache stats', () => {
         context?: QueryExecutionContext;
         status?: string;
         withChart?: boolean;
+        requestParameters?: object;
+        exploreName?: string;
     }) => {
         const createdAt = new Date(Date.now() - minutesAgo * MINUTE);
         await database<Record<string, unknown>>('query_history').insert({
@@ -134,9 +152,10 @@ describe('QueryHistoryModel results cache stats', () => {
             organization_uuid: organizationUuid,
             context,
             compiled_sql: 'select 1',
-            metric_query: { exploreName: 'orders' },
+            metric_query: { exploreName },
             fields: {},
-            request_parameters: withChart ? { chartUuid } : {},
+            request_parameters:
+                requestParameters ?? (withChart ? { chartUuid } : {}),
             status,
             cache_key: cacheKey,
             created_at: createdAt,
@@ -316,6 +335,59 @@ describe('QueryHistoryModel results cache stats', () => {
         expect(rows.map((row) => [row.chartKind, row.warehouseTimeMs])).toEqual(
             [['chart', 1000]],
         );
+    });
+
+    test('SQL chart misses are attributed to the saved SQL chart', async () => {
+        for (const minutesAgo of [50, 40]) {
+            // eslint-disable-next-line no-await-in-loop
+            await insertRun({
+                minutesAgo,
+                reason: ResultsCacheMissReason.EXPIRED,
+                exploreName: 'sql_query_explorer',
+                requestParameters: {
+                    sql: 'select 1',
+                    resultSource: {
+                        savedSqlUuid,
+                        dashboardUuid: null,
+                        tileUuid: null,
+                    },
+                },
+            });
+        }
+
+        const rows = await model.getResultsCacheRecommendationRows(
+            projectUuid,
+            7,
+            thresholds,
+        );
+
+        expect(rows).toEqual([
+            {
+                reason: ResultsCacheStatsMissReason.EXPIRED,
+                chartKind: 'sqlChart',
+                target: savedSqlUuid,
+                name: 'Orders SQL',
+                slug: 'orders-sql',
+                misses: 2,
+                warehouseTimeMs: 4000,
+            },
+        ]);
+    });
+
+    test('SQL runner misses without a saved chart are not recommended', async () => {
+        for (const minutesAgo of [50, 40]) {
+            // eslint-disable-next-line no-await-in-loop
+            await insertRun({
+                minutesAgo,
+                reason: ResultsCacheMissReason.EXPIRED,
+                exploreName: 'sql_query_explorer',
+                requestParameters: { sql: 'select 1' },
+            });
+        }
+
+        await expect(
+            model.getResultsCacheRecommendationRows(projectUuid, 7, thresholds),
+        ).resolves.toEqual([]);
     });
 
     test('replay rows only cover keys with a miss after another run, ordered by key and time', async () => {

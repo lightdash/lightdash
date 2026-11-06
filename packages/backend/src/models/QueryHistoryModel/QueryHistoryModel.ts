@@ -52,6 +52,7 @@ import type {
     ResultsCacheRecommendationRow,
 } from '../../services/ResultsCacheStats/resultsCacheStats';
 import type { TtlReplayRun } from '../../services/ResultsCacheStats/ttlProjections';
+import { SQL_QUERY_MOCK_EXPLORER_NAME } from '../../utils/QueryBuilder/SqlQueryComposer';
 import {
     pauseBetweenBatchesMs,
     type RetentionCleanupOptions,
@@ -1387,8 +1388,11 @@ export class QueryHistoryModel {
         SELECT
             ${QueryHistoryModel.RESULTS_CACHE_RUN_COLUMNS},
             qh.request_parameters->>'chartUuid' AS chart_uuid,
-            qh.request_parameters->>'savedSqlUuid' AS saved_sql_uuid,
-            qh.metric_query->>'exploreName' AS explore_name
+            COALESCE(
+                qh.request_parameters->>'savedSqlUuid',
+                qh.request_parameters->'resultSource'->>'savedSqlUuid'
+            ) AS saved_sql_uuid,
+            NULLIF(qh.metric_query->>'exploreName', '${SQL_QUERY_MOCK_EXPLORER_NAME}') AS explore_name
         FROM ${QueryHistoryTableName} qh
         WHERE ${QueryHistoryModel.RESULTS_CACHE_RUN_FILTER}
     )`;
