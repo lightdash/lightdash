@@ -787,12 +787,18 @@ never-reordered dashboard downloads without either. Filter slugs come from the
 field id, suffixed `-1`, `-2` when several filters share a field, and a slug is
 saved once a file supplies it.
 
+`controlOrder` only decides how kinds interleave and where sections sit.
+Within a kind, the array order wins: swapping two dimension filters inside
+`controlOrder` changes nothing, so reorder `filters.dimensions` instead.
+
 Uploads match dimension filters by slug first, then by table and field, to keep
-their IDs. Unknown, duplicate, malformed and `dateZoom` refs are rejected with
-the valid slugs listed; parameter refs need `config.parameterControls` in the
-file. A file without `controlOrder` resets the bar to the default order. With
-the flag off, downloads omit both keys and uploads ignore them, keeping the
-saved order and filter slugs.
+their IDs. Once a slug is saved, renaming it in a file makes it a new filter
+with a new ID. Unknown, duplicate, malformed and `dateZoom` refs are rejected
+with the valid slugs listed; parameter refs need `config.parameterControls` in
+the file. When dashboard controls are on, a file without `controlOrder` resets
+the bar to the default order. With the flag off, downloads omit both keys and
+uploads ignore them, keeping the saved order and filter slugs. Scheduled
+delivery filters carry no slugs.
 
 Metric and table calculation filters write `tileTargets` by tile slug, like
 dimension filters; uploads still accept tile UUID keys from older files.
