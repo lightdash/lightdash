@@ -1,9 +1,12 @@
+import { type AnyType } from '../../types/any';
 import { type DateZoom } from '../../types/api/paginatedQuery';
 import { type UUID } from '../../types/api/uuid';
 import { type ExternalSourceType } from '../../types/externalSources';
 import {
+    type DashboardFieldTarget,
     type DashboardFilterRule,
-    type DashboardFilters,
+    type FilterOperator,
+    type FilterRule,
 } from '../../types/filter';
 import { type PullRequestProvider } from '../../types/gitIntegration';
 import { type ParametersValuesMap } from '../../types/parameters';
@@ -30,14 +33,34 @@ export type AiAgentModelConfig = {
  * were applied to the chart on screen at that moment.
  */
 export type AiChartRuntimeOverrides = {
-    dashboardFilters?: DashboardFilters;
+    dashboardFilters?: AiChartRuntimeDashboardFilters;
     dashboardParameters?: ParametersValuesMap;
     dateZoom?: DateZoom;
 };
 
+// DashboardFilterRule's schema minus slug: a new key here breaks an inline anyOf in agent requests
+type AiChartRuntimeDashboardFilterRule = FilterRule<
+    FilterOperator,
+    DashboardFieldTarget,
+    AnyType,
+    AnyType
+> &
+    Omit<DashboardFilterRule, keyof FilterRule | 'slug'>;
+
+export type AiChartRuntimeDashboardFilters = {
+    dimensions: AiChartRuntimeDashboardFilterRule[];
+    metrics: AiChartRuntimeDashboardFilterRule[];
+    tableCalculations: AiChartRuntimeDashboardFilterRule[];
+};
+
 export type AiDashboardFilterRule = Omit<
     DashboardFilterRule,
-    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId' | 'sectionId'
+    | 'id'
+    | 'tileTargets'
+    | 'lockedTabUuids'
+    | 'requiredGroupId'
+    | 'sectionId'
+    | 'slug'
 >;
 
 export type AiDashboardFilters = {
