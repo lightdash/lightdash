@@ -31,7 +31,8 @@ export const ResultsCacheTtlProjectionHint: FC<Props> = ({
         isError ||
         !data ||
         data.kind !== 'projections' ||
-        data.baseline.runs === 0
+        data.baseline.runs === 0 ||
+        data.projections.length === 0
     )
         return null;
 

@@ -18,6 +18,7 @@ import {
     toClearScheduleUpdate,
     useClearScheduleForm,
 } from './clearScheduleForm';
+import { formatCacheDuration } from './formatCacheDuration';
 import { formatCacheEventTime } from './formatCacheEventTime';
 import { ResultsCacheClearScheduleFields } from './ResultsCacheClearScheduleFields';
 import { ResultsCacheTtlProjectionHint } from './ResultsCacheTtlProjectionHint';
@@ -26,28 +27,10 @@ const MIN_TTL_MINUTES = MIN_RESULTS_CACHE_TTL_SECONDS / 60;
 const MAX_TTL_MINUTES = MAX_RESULTS_CACHE_TTL_SECONDS / 60;
 
 const MINUTES_PER_HOUR = 60;
-const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
-
-const plural = (value: number, unit: string) =>
-    `${value} ${unit}${value === 1 ? '' : 's'}`;
-
-const formatDuration = (minutes: number): string => {
-    if (minutes >= 2 * MINUTES_PER_DAY && minutes % MINUTES_PER_DAY === 0) {
-        return plural(minutes / MINUTES_PER_DAY, 'day');
-    }
-    if (minutes >= MINUTES_PER_HOUR) {
-        const hours = minutes / MINUTES_PER_HOUR;
-        return plural(
-            Number.isInteger(hours) ? hours : Number(hours.toFixed(1)),
-            'hour',
-        );
-    }
-    return plural(minutes, 'minute');
-};
 
 const formatDurationHint = (minutes: number | ''): string | null =>
     typeof minutes === 'number' && minutes >= MINUTES_PER_HOUR
-        ? `= ${formatDuration(minutes)}`
+        ? `= ${formatCacheDuration(minutes * 60)}`
         : null;
 
 type DurationFormValues = {
