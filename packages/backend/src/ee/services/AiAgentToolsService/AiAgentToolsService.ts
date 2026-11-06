@@ -4380,21 +4380,6 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    private async getSavedChartAiLimit(
-        context: AiAgentToolsRuntimeContext,
-        chartUuid: string,
-    ): Promise<number> {
-        const { metricQuery } = await this.savedChartModel.get(
-            chartUuid,
-            undefined,
-            { projectUuid: context.projectUuid },
-        );
-        return getValidAiQueryLimit(
-            metricQuery.limit,
-            this.lightdashConfig.ai.copilot.maxQueryLimit,
-        );
-    }
-
     private runSavedChartQuery(
         context: AiAgentToolsRuntimeContext,
         args: Parameters<RunSavedChartQueryFn>[0],
@@ -4403,6 +4388,11 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runSavedChartQuery`,
             args,
             async () => {
+                const limit = getValidAiQueryLimit(
+                    args.limit,
+                    this.lightdashConfig.ai.copilot.maxQueryLimit,
+                );
+
                 if (!args.dashboardSlug) {
                     await this.assertSavedChartSpaceInScope(
                         context,
@@ -4411,10 +4401,6 @@ export class AiAgentToolsService extends BaseService {
                         'read',
                     );
 
-                    const limit = await this.getSavedChartAiLimit(
-                        context,
-                        args.chartUuid,
-                    );
                     await context.onWarehouseQuery?.();
                     return this.asyncQueryService.executeSavedChartQueryAndGetResults(
                         {
@@ -4461,10 +4447,6 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
-                const limit = await this.getSavedChartAiLimit(
-                    context,
-                    args.chartUuid,
-                );
                 await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
                     {

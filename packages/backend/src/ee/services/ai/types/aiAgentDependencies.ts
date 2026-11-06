@@ -529,10 +529,11 @@ export type RunAsyncQueryFn = (
     executionStats: WarehouseExecutionStats | null;
 }>;
 
-/** Runs a saved explore chart at its saved limit, clamped to the AI max. */
 export type RunSavedChartQueryFn = (args: {
     chartUuid: string;
     dashboardSlug: string | null;
+    /** The chart's saved limit; clamped to the AI max. */
+    limit: number;
     onQueryPrepared?: (
         execution: Pick<
             ApiExecuteAsyncMetricQueryResults,

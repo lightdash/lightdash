@@ -474,6 +474,10 @@ export const getRunContentQuery = ({
                             source.type === 'dashboardChart'
                                 ? source.dashboardSlug
                                 : null,
+                        limit: getValidAiQueryLimit(
+                            metricQuery.limit,
+                            maxLimit,
+                        ),
                         ...(reviewQuery
                             ? {
                                   onQueryPrepared: (execution) => {

@@ -140,6 +140,7 @@ describe('answer evidence', () => {
         await wrapped.runSavedChartQuery({
             chartUuid: 'chart',
             dashboardSlug: null,
+            limit: 100,
         });
         await wrapped.runSqlJob({ sql: 'select 100 as revenue', limit: 100 });
         await wrapped.runComposerQueries({
@@ -154,6 +155,7 @@ describe('answer evidence', () => {
         expect(runSavedChartQuery).toHaveBeenCalledExactlyOnceWith({
             chartUuid: 'chart',
             dashboardSlug: null,
+            limit: 100,
         });
         expect(runSqlJob).toHaveBeenCalledExactlyOnceWith({
             sql: 'select 100 as revenue',

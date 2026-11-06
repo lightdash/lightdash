@@ -2434,6 +2434,7 @@ describe('AiAgentToolsService', () => {
             runtime.runSavedChartQuery({
                 chartUuid: 'blocked-chart-uuid',
                 dashboardSlug: null,
+                limit: 100,
             }),
         ).rejects.toThrow(NotFoundError);
         expect(executeSavedChartQueryAndGetResults).not.toHaveBeenCalled();
@@ -2485,9 +2486,6 @@ describe('AiAgentToolsService', () => {
                     spaceUuid: 'allowed-space-uuid',
                 }),
             },
-            savedChartModel: {
-                get: vi.fn().mockResolvedValue({ metricQuery: { limit: 100 } }),
-            },
             asyncQueryService: {
                 executeSavedChartQueryAndGetResults,
             },
@@ -2500,6 +2498,7 @@ describe('AiAgentToolsService', () => {
             runtime.runSavedChartQuery({
                 chartUuid: 'allowed-chart-uuid',
                 dashboardSlug: null,
+                limit: 100,
                 onQueryPrepared,
             }),
         ).resolves.toEqual({ rows: [] });
@@ -2517,76 +2516,6 @@ describe('AiAgentToolsService', () => {
         );
     });
 
-    it.each([
-        { savedLimit: 50, expectedLimit: 50 },
-        { savedLimit: 10000, expectedLimit: 500 },
-    ])(
-        'runs a saved chart at its saved limit $savedLimit, clamped to the AI max',
-        async ({ savedLimit, expectedLimit }) => {
-            const executeSavedChartQueryAndGetResults = vi
-                .fn()
-                .mockResolvedValue({ rows: [] });
-            const service = makeService({
-                savedChartModel: {
-                    get: vi.fn().mockResolvedValue({
-                        metricQuery: { limit: savedLimit },
-                    }),
-                },
-                asyncQueryService: { executeSavedChartQueryAndGetResults },
-            });
-
-            await service
-                .createRuntime(makeRuntimeContext())
-                .runSavedChartQuery({
-                    chartUuid: 'chart-uuid',
-                    dashboardSlug: null,
-                });
-
-            expect(
-                executeSavedChartQueryAndGetResults.mock.calls[0][0],
-            ).toMatchObject({ chartUuid: 'chart-uuid', limit: expectedLimit });
-        },
-    );
-
-    it('runs a dashboard chart at its saved limit', async () => {
-        const executeDashboardChartQueryAndGetResults = vi
-            .fn()
-            .mockResolvedValue({ rows: [] });
-        const service = makeService({
-            dashboardService: {
-                getByIdOrSlug: vi.fn().mockResolvedValue({
-                    uuid: 'dashboard-uuid',
-                    spaceUuid: 'allowed-space-uuid',
-                    filters: {
-                        dimensions: [],
-                        metrics: [],
-                        tableCalculations: [],
-                    },
-                    tiles: [
-                        {
-                            uuid: 'tile-uuid',
-                            type: 'saved_chart',
-                            properties: { savedChartUuid: 'chart-uuid' },
-                        },
-                    ],
-                }),
-            },
-            savedChartModel: {
-                get: vi.fn().mockResolvedValue({ metricQuery: { limit: 50 } }),
-            },
-            asyncQueryService: { executeDashboardChartQueryAndGetResults },
-        });
-
-        await service.createRuntime(makeRuntimeContext()).runSavedChartQuery({
-            chartUuid: 'chart-uuid',
-            dashboardSlug: 'dashboard',
-        });
-
-        expect(
-            executeDashboardChartQueryAndGetResults.mock.calls[0][0],
-        ).toMatchObject({ tileUuid: 'tile-uuid', limit: 50 });
-    });
-
     it('checks the warehouse budget at the saved-chart query boundary', async () => {
         const executeSavedChartQueryAndGetResults = vi.fn();
         const onWarehouseQuery = vi
@@ -2599,9 +2528,6 @@ describe('AiAgentToolsService', () => {
                 get: vi.fn().mockResolvedValue({
                     spaceUuid: 'allowed-space-uuid',
                 }),
-            },
-            savedChartModel: {
-                get: vi.fn().mockResolvedValue({ metricQuery: { limit: 100 } }),
             },
             asyncQueryService: {
                 executeSavedChartQueryAndGetResults,
@@ -2618,6 +2544,7 @@ describe('AiAgentToolsService', () => {
             runtime.runSavedChartQuery({
                 chartUuid: 'allowed-chart-uuid',
                 dashboardSlug: null,
+                limit: 100,
             }),
         ).rejects.toThrow('Deep Research exceeded its warehouse-query budget');
         expect(onWarehouseQuery).toHaveBeenCalledOnce();
@@ -2645,6 +2572,7 @@ describe('AiAgentToolsService', () => {
             runtime.runSavedChartQuery({
                 chartUuid: 'blocked-chart-uuid',
                 dashboardSlug: 'blocked-dashboard',
+                limit: 100,
             }),
         ).rejects.toThrow(NotFoundError);
         expect(executeDashboardChartQueryAndGetResults).not.toHaveBeenCalled();
@@ -8222,28 +8150,22 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
         );
     });
 
-    it.each([
-        { savedLimit: 10000, expectedLimit: 500 },
-        { savedLimit: null, expectedLimit: 500 },
-    ])(
-        'clamps a SQL chart saved limit of $savedLimit to the AI max',
-        async ({ savedLimit, expectedLimit }) => {
-            const { service, executeAsyncSqlChartQuery } = makeSqlChartService(
-                [],
-                { ...sqlChart, limit: savedLimit as number },
-            );
+    it('clamps a SQL chart saved limit above the AI max', async () => {
+        const { service, executeAsyncSqlChartQuery } = makeSqlChartService([], {
+            ...sqlChart,
+            limit: 10000,
+        });
 
-            await expect(
-                service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
-                    chartSlug: 'orders-by-status',
-                    dashboardSlug: null,
-                }),
-            ).resolves.toMatchObject({ limit: expectedLimit });
-            expect(executeAsyncSqlChartQuery).toHaveBeenCalledExactlyOnceWith(
-                expect.objectContaining({ limit: expectedLimit }),
-            );
-        },
-    );
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: null,
+            }),
+        ).resolves.toMatchObject({ limit: 500 });
+        expect(executeAsyncSqlChartQuery).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ limit: 500 }),
+        );
+    });
 
     it('runs a SQL chart tile at its saved limit with its dashboard filters', async () => {
         const { service, executeAsyncDashboardSqlChartQuery } =
