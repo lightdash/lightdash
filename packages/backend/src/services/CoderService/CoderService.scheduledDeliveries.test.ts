@@ -9,6 +9,8 @@ import {
     SchedulerFormat,
     ThresholdOperator,
     type AlertAsCode,
+    type DashboardDAO,
+    type DashboardFilterRule,
     type Filters,
     type FiltersInput,
     type GoogleSheetsSyncAsCode,
@@ -19,6 +21,7 @@ import {
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { CoderService } from './CoderService';
+import { getDashboardScheduledDeliveryFiltersWithTileUuids } from './scheduledContent';
 
 const projectUuid = 'project-uuid';
 const organizationUuid = 'organization-uuid';
@@ -597,6 +600,67 @@ describe('CoderService scheduled deliveries as code', () => {
 
         expect(result).toEqual({ action: PromotionAction.UPDATE });
         expect(schedulerService.updateScheduler).toHaveBeenCalledOnce();
+    });
+});
+
+describe('dashboard scheduled delivery filter ids', () => {
+    const status = { fieldId: 'orders_status', tableName: 'orders' };
+    const amount = { fieldId: 'orders_amount', tableName: 'orders' };
+    const dashboard = {
+        tiles: [],
+        filters: {
+            dimensions: [
+                { id: 'status-id', target: status },
+                { id: 'amount-id', target: amount },
+            ],
+        },
+    } as unknown as DashboardDAO;
+    const upload = (targets: (typeof status)[]) =>
+        (
+            getDashboardScheduledDeliveryFiltersWithTileUuids(
+                dashboard,
+                targets.map(
+                    (target) =>
+                        ({
+                            target,
+                            operator: FilterOperator.EQUALS,
+                            values: ['x'],
+                        }) as Omit<DashboardFilterRule, 'id'>,
+                ),
+            ) ?? []
+        ).map(({ id }) => id);
+
+    it("carries the delivery's dashboard filter id on matching overrides", () => {
+        expect(upload([amount, status])).toEqual(['amount-id', 'status-id']);
+    });
+
+    it('mints ids for new or ambiguous overrides', () => {
+        const ids = upload([
+            status,
+            status,
+            { fieldId: 'orders_date', tableName: 'orders' },
+        ]);
+        expect(new Set(ids).size).toBe(3);
+        expect(ids).not.toContain('status-id');
+        expect(ids).not.toContain('amount-id');
+    });
+
+    it('carries no ids from a dashboard without that filter', () => {
+        const ids = getDashboardScheduledDeliveryFiltersWithTileUuids(
+            {
+                tiles: [],
+                filters: { dimensions: [{ id: 'amount-id', target: amount }] },
+            } as unknown as DashboardDAO,
+            [{ target: status, operator: FilterOperator.EQUALS }] as Omit<
+                DashboardFilterRule,
+                'id'
+            >[],
+        );
+        expect(ids?.[0].id).not.toBe('amount-id');
+    });
+
+    it('keeps the remaining id when an override is removed', () => {
+        expect(upload([amount])).toEqual(['amount-id']);
     });
 });
 

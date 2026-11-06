@@ -15,8 +15,10 @@ import {
     type ScheduledDeliveryTargetAsCode,
     type SchedulerAndTargets,
 } from '@lightdash/common';
-import { v4 as uuidv4 } from 'uuid';
-import { getTileSlugForTileUuid } from './dashboardReferences';
+import {
+    getStableDimensionFilterIds,
+    getTileSlugForTileUuid,
+} from './dashboardReferences';
 
 export const getScheduledDeliveryTargetsAsCode = (
     scheduler: SchedulerAndTargets,
@@ -74,9 +76,14 @@ export const getDashboardScheduledDeliveryFiltersWithTileUuids = (
     filters: Omit<DashboardFilterRule, 'id'>[] | null,
 ): DashboardFilterRule[] | undefined => {
     if (!filters) return undefined;
-    return filters.map((filter) => ({
+    // Delivery overrides match the dashboard's filters by id first, so carry the dashboard filter's id.
+    const ids = getStableDimensionFilterIds(
+        filters,
+        dashboard.filters.dimensions,
+    );
+    return filters.map((filter, index) => ({
         ...filter,
-        id: uuidv4(),
+        id: ids[index],
         tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
             Record<string, DashboardTileTarget>
         >((result, [tileSlug, target]) => {
