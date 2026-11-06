@@ -20,6 +20,7 @@ import {
     OrganizationMemberRole,
     PossibleAbilities,
     PromotionAction,
+    reconcileDashboardControlOrder,
     SavedMergeDefinition,
     SessionUser,
     SpaceMemberRole,
@@ -3975,7 +3976,7 @@ describe('CoderService dashboard control order as code', () => {
         expect(saved.config?.controlOrder).toEqual(orderWithLines);
     });
 
-    it('drops line starts on section members and never writes them', async () => {
+    it('passes a section member line start to the next bar control', async () => {
         const memberLine = savedOrder.map((ref) =>
             ref.id === 'second-id' ? { ...ref, newLine: true } : ref,
         );
@@ -3983,21 +3984,97 @@ describe('CoderService dashboard control order as code', () => {
             savedDashboard({ controlOrder: memberLine }),
             true,
         );
-        expect(JSON.stringify(file.config?.controlOrder)).not.toContain(
-            'newLine',
-        );
+        expect(
+            file.config?.controlOrder?.filter(({ newLine }) => newLine),
+        ).toEqual([{ kind: 'filter', slug: 'orders-status-1', newLine: true }]);
         const saved = await upload({
             ...file,
             config: {
                 ...file.config!,
-                controlOrder: file.config!.controlOrder!.map((ref) =>
-                    ref.slug === 'orders-status-2'
-                        ? { ...ref, newLine: true }
-                        : ref,
-                ),
+                controlOrder: [
+                    { kind: DashboardControlRefKind.PARAMETER, slug: 'region' },
+                    {
+                        kind: DashboardControlRefKind.FILTER,
+                        slug: 'orders-total',
+                    },
+                    { kind: DashboardControlRefKind.SECTION, slug: 'calendar' },
+                    {
+                        kind: DashboardControlRefKind.FILTER,
+                        slug: 'orders-status-2',
+                        newLine: true,
+                    },
+                    {
+                        kind: DashboardControlRefKind.FILTER,
+                        slug: 'orders-status-1',
+                    },
+                ],
             },
         });
-        expect(saved.config?.controlOrder).toEqual(savedOrder);
+        expect(saved.config?.controlOrder).toEqual(memberLine);
+    });
+
+    it('keeps each line start in its position when the file reorders dimension filters', async () => {
+        const orderWithLines = savedOrder.map((ref) =>
+            ref.id === 'first-id' ? { ...ref, newLine: true } : ref,
+        );
+        const saved = savedDashboard({
+            controlOrder: orderWithLines,
+            controlSections: [],
+        });
+        const ungrouped = {
+            ...saved,
+            filters: {
+                ...saved.filters,
+                dimensions: saved.filters.dimensions.map(
+                    ({ sectionId: _sectionId, ...filter }) => filter,
+                ),
+            },
+        } as DashboardDAO;
+        const file = download(ungrouped, true);
+        const result = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [...file.filters!.dimensions!].reverse(),
+                },
+            },
+            { saved: ungrouped },
+        );
+        const lineStarts = (order: AnyType[]) =>
+            order.map(({ newLine }) => newLine === true);
+        expect(lineStarts(result.config!.controlOrder!)).toEqual(
+            lineStarts(file.config!.controlOrder!),
+        );
+        expect(result.filters.dimensions.map(({ id }) => id)).toEqual([
+            'second-id',
+            'first-id',
+        ]);
+        const reconciled = reconcileDashboardControlOrder({
+            controlOrder: result.config!.controlOrder,
+            filters: result.filters,
+            parameterControls: result.config!.parameterControls!,
+            sections: [],
+        }).map(({ id, newLine }) => [id, newLine]);
+        expect(reconciled.filter(([, newLine]) => newLine)).toHaveLength(1);
+        const fileLinePosition = file.config!.controlOrder!.findIndex(
+            ({ newLine }) => newLine,
+        );
+        expect(reconciled[fileLinePosition][1]).toBe(true);
+    });
+
+    it('keeps a stored order with line starts verbatim on a flag-off upload', async () => {
+        const orderWithLines = savedOrder.map((ref) =>
+            ref.id === 'section-id' || ref.id === 'second-id'
+                ? { ...ref, newLine: true }
+                : ref,
+        );
+        const saved = savedDashboard({ controlOrder: orderWithLines });
+        const result = await upload(
+            withOrder([{ kind: 'filter', slug: 'orders-total' }]),
+            { enabled: false, saved },
+        );
+        expect(result.config?.controlOrder).toEqual(orderWithLines);
     });
 
     it('keeps the ids of two filters on one field when the file reorders them', async () => {

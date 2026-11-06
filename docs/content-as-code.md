@@ -789,11 +789,16 @@ saved once a file supplies it.
 
 `controlOrder` only decides how kinds interleave, where sections sit and
 where bar lines start: an entry with `newLine: true` starts a new bar line, and
-every other entry shares the line of the entry before it (`newLine` is ignored
-on section members). Without a saved order, lines follow each section's
-`inline`.
-Within a kind, the array order wins: swapping two dimension filters inside
-`controlOrder` changes nothing, so reorder `filters.dimensions` instead.
+every other entry shares the line of the entry before it. A line start on a
+section member, which sits inside its section, passes to the next control on
+the bar. Without a saved
+order, lines follow each section's `inline`. Controls left out of
+`controlOrder` go to the end of their container, inline.
+
+Within a kind, the array order decides which control sits in each of that
+kind's positions, and line starts stay with their position: swapping two
+dimension filters inside `controlOrder` moves only their line starts, so
+reorder `filters.dimensions` to swap the filters themselves.
 
 Uploads match dimension filters by slug first, then by table and field, to keep
 their IDs. Once a slug is saved, renaming it in a file makes it a new filter

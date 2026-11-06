@@ -32,10 +32,7 @@ const getFilterRules = ({
 // The slugs a file uses for each control, by kind, in array order
 const getControlSlugs = (
     controls: OrderedControls,
-): Record<OrderableKind, { id: string; slug: string; member: boolean }[]> => {
-    const sectionIds = new Set(controls.sections.map(({ id }) => id));
-    const isMember = (sectionId: string | undefined) =>
-        sectionId !== undefined && sectionIds.has(sectionId);
+): Record<OrderableKind, { id: string; slug: string }[]> => {
     const rules = getFilterRules(controls);
     const filterSlugs = getDashboardFilterSlugs(rules);
     const parameterSlugs = getParameterControlsWithSlugs(
@@ -43,25 +40,20 @@ const getControlSlugs = (
     ).map(({ slug }) => slug!);
     const sectionSlugList = sectionSlugs(controls.sections);
     return {
-        [DashboardControlRefKind.FILTER]: rules.map(
-            ({ id, sectionId }, index) => ({
-                id,
-                slug: filterSlugs[index],
-                member: isMember(sectionId),
-            }),
-        ),
+        [DashboardControlRefKind.FILTER]: rules.map(({ id }, index) => ({
+            id,
+            slug: filterSlugs[index],
+        })),
         [DashboardControlRefKind.PARAMETER]: controls.parameterControls.map(
-            ({ id, sectionId }, index) => ({
+            ({ id }, index) => ({
                 id,
                 slug: parameterSlugs[index],
-                member: isMember(sectionId),
             }),
         ),
         [DashboardControlRefKind.SECTION]: controls.sections.map(
             ({ id }, index) => ({
                 id,
                 slug: sectionSlugList[index],
-                member: false,
             }),
         ),
     };
@@ -143,11 +135,11 @@ export const getControlOrderWithIds = (
         if (seen.has(key))
             return reject(`The ${kind} "${slug}" appears more than once`);
         seen.add(key);
-        // Line starts inside a section are ignored, so they aren't stored
+        // A section member's line start passes to the next bar control, so keep it
         return {
             kind,
             id: control.id,
-            ...(newLine === true && !control.member && { newLine: true }),
+            ...(newLine === true && { newLine: true }),
         };
     });
 };
