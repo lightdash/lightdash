@@ -9,6 +9,7 @@ type Props = {
     isLoading: boolean;
     hasResults: boolean;
     sql: string | null;
+    durationMs: number | null;
     emptyMessage: ReactNode;
     chart: ReactNode;
     table: ReactNode;
@@ -20,6 +21,7 @@ export const EventAnalyticsContent: FC<Props> = ({
     isLoading,
     hasResults,
     sql,
+    durationMs,
     emptyMessage,
     chart,
     table,
@@ -40,7 +42,7 @@ export const EventAnalyticsContent: FC<Props> = ({
                 <>
                     <div className={styles.chartContainer}>{chart}</div>
                     <div className={styles.tableContainer}>{table}</div>
-                    <GeneratedSql sql={sql} />
+                    <GeneratedSql sql={sql} durationMs={durationMs} />
                 </>
             )}
 

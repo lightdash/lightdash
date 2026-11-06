@@ -4,10 +4,14 @@ import { useState, type FC } from 'react';
 
 type Props = {
     sql: string | null;
+    durationMs: number | null;
 };
 
-/** Collapsible view of the SQL behind a result. */
-export const GeneratedSql: FC<Props> = ({ sql }) => {
+const formatDuration = (ms: number) =>
+    ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
+
+/** Collapsible view of the SQL behind a result, with the warehouse round trip time. */
+export const GeneratedSql: FC<Props> = ({ sql, durationMs }) => {
     const [opened, setOpened] = useState(false);
 
     if (!sql) return null;
@@ -24,6 +28,11 @@ export const GeneratedSql: FC<Props> = ({ sql }) => {
                     <Text size="sm" c="dimmed">
                         {opened ? 'Hide generated SQL' : 'Show generated SQL'}
                     </Text>
+                    {durationMs !== null && (
+                        <Text size="sm" c="dimmed">
+                            · ran in {formatDuration(durationMs)}
+                        </Text>
+                    )}
                 </Group>
             </UnstyledButton>
             <Collapse expanded={opened}>

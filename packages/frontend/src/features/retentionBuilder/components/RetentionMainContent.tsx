@@ -23,6 +23,7 @@ export const RetentionMainContent: FC<Props> = ({ projectUuid }) => {
             isLoading={isLoading}
             hasResults={results !== null}
             sql={results?.sql ?? null}
+            durationMs={results?.durationMs ?? null}
             emptyMessage={
                 <>
                     Choose an explore and a starting event

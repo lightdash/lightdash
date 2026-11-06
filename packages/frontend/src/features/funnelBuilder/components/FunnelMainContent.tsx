@@ -20,6 +20,7 @@ export const FunnelMainContent: FC<Props> = ({ projectUuid }) => {
             isLoading={isLoading}
             hasResults={results !== null}
             sql={results?.sql ?? null}
+            durationMs={results?.durationMs ?? null}
             emptyMessage={
                 <>
                     Choose an explore and at least 2 steps

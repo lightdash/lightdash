@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     getFieldMap,
     isExploreError,
+    QueryExecutionContext,
     resolveEventAnalyticsDateRange,
     type EventNamesRequest,
     type Explore,
@@ -185,7 +186,12 @@ export class EventAnalyticsService extends BaseService {
                     }),
                 });
 
-                const rows = await this.runSql(user, projectUuid, sql, binding);
+                const { rows } = await this.runSql(
+                    user,
+                    projectUuid,
+                    sql,
+                    binding,
+                );
 
                 return rows
                     .map((row) => row.event_name)
@@ -231,7 +237,7 @@ export class EventAnalyticsService extends BaseService {
                     timezone: 'UTC',
                     now: new Date(),
                 });
-                const results = await this.runSql(
+                const { rows, durationMs } = await this.runSql(
                     user,
                     projectUuid,
                     sql,
@@ -245,15 +251,19 @@ export class EventAnalyticsService extends BaseService {
                         organizationId: organizationUuid,
                         projectId: projectUuid,
                         exploreName: request.exploreName,
+                        warehouseType: sqlBuilder.getAdapterType(),
                         stepCount: request.steps.length,
                         hasBreakdown: !!request.breakdownDimensionId,
                         hasConversionWindow: !!request.conversionWindow,
                         hasFilters: !!request.filters?.dimensions,
+                        dateRangeType: request.dateRange.type,
+                        durationMs,
+                        rowCount: rows.length,
                     },
                 });
 
                 return {
-                    steps: results.map((row) => ({
+                    steps: rows.map((row) => ({
                         stepOrder: Number(row.step_order),
                         stepName: String(row.step_name),
                         totalUsers: Number(row.total_users),
@@ -269,6 +279,7 @@ export class EventAnalyticsService extends BaseService {
                                 : String(row.breakdown_value),
                     })),
                     sql,
+                    durationMs,
                 };
             },
         );
@@ -310,7 +321,12 @@ export class EventAnalyticsService extends BaseService {
                     timezone: 'UTC',
                     now,
                 });
-                const rows = await this.runSql(user, projectUuid, sql, binding);
+                const { rows, durationMs } = await this.runSql(
+                    user,
+                    projectUuid,
+                    sql,
+                    binding,
+                );
                 const { cohorts, averages } = parseRetentionRows(
                     rows,
                     request,
@@ -324,6 +340,7 @@ export class EventAnalyticsService extends BaseService {
                         organizationId: organizationUuid,
                         projectId: projectUuid,
                         exploreName: request.exploreName,
+                        warehouseType: sqlBuilder.getAdapterType(),
                         unit: request.unit,
                         periods: request.periods,
                         cohortType: request.cohortType,
@@ -332,6 +349,10 @@ export class EventAnalyticsService extends BaseService {
                         anyReturnEvent: request.returnEvent === null,
                         hasBreakdown: !!request.breakdownDimensionId,
                         hasFilters: !!request.filters?.dimensions,
+                        dateRangeType: request.dateRange.type,
+                        durationMs,
+                        rowCount: rows.length,
+                        cohortCount: cohorts.length,
                     },
                 });
 
@@ -341,26 +362,30 @@ export class EventAnalyticsService extends BaseService {
                     cohorts,
                     averages,
                     sql,
+                    durationMs,
                 };
             },
         );
     }
 
+    /** Runs the SQL and returns its rows with the wall-clock duration. */
     private async runSql(
         user: SessionUser,
         projectUuid: string,
         sql: string,
         binding: ConnectionBinding,
-    ): Promise<Record<string, unknown>[]> {
+    ): Promise<{ rows: Record<string, unknown>[]; durationMs: number }> {
         this.logger.debug('Running event analytics query', { sql });
+        const startedAt = Date.now();
         try {
             const results = await this.projectService.runSqlQuery(
                 user,
                 projectUuid,
                 sql,
                 binding,
+                QueryExecutionContext.EVENT_ANALYTICS,
             );
-            return results.rows;
+            return { rows: results.rows, durationMs: Date.now() - startedAt };
         } catch (error) {
             this.logger.error('Event analytics query failed', { sql, error });
             throw error;

@@ -77,6 +77,8 @@ export type RetentionQueryResult = {
     averages: RetentionAverageResult[];
     /** The SQL that produced the result, for debugging */
     sql: string;
+    /** Warehouse round trip, in milliseconds */
+    durationMs: number;
 };
 
 export type ApiRetentionQueryResponse = {
