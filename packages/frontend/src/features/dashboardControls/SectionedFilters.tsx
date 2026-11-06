@@ -38,7 +38,7 @@ import {
     IconFilter,
     IconPlus,
 } from '@tabler/icons-react';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual, partition } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -1022,10 +1022,17 @@ export const SectionedFilters: FC<Props> = ({
                     const section = { id: uuidv4(), name };
                     focusNewSection.current = { id: section.id, exit };
                     dispatch(dashboardEditActions.addControlSection(section));
+                    const [parameterIds, ruleIds] = partition(
+                        naming.moveIds,
+                        (id) =>
+                            parameterEntries.some(
+                                ({ control }) => control.id === id,
+                            ),
+                    );
                     const filtersMoved =
                         naming.moveIds.length > 0
                             ? moveToSection(
-                                  naming.moveIds,
+                                  ruleIds,
                                   section.id,
                                   [...sections, section],
                                   // The creation is the event, with filtersMoved
@@ -1033,14 +1040,7 @@ export const SectionedFilters: FC<Props> = ({
                               )
                             : 0;
                     // The parameter controls it takes, once the section exists
-                    moveParametersTo(
-                        naming.moveIds.filter((id) =>
-                            parameterEntries.some(
-                                ({ control }) => control.id === id,
-                            ),
-                        ),
-                        section.id,
-                    );
+                    moveParametersTo(parameterIds, section.id);
                     track({
                         name: EventName.DASHBOARD_SECTION_CREATED,
                         properties: {
@@ -1084,9 +1084,8 @@ export const SectionedFilters: FC<Props> = ({
     const allRules = groupRulesBySection(dashboardFilters, sections).flatMap(
         ({ rules }) => rules,
     );
-    // The bar's end: a capsule that starts a section, once there is a filter
-    // Once there is a filter: a parameter dropped on it starts no section
-    const isGhostShown = allRules.length > 0;
+    // The bar's end: a capsule that starts a section, once there is a control
+    const isGhostShown = allRules.length > 0 || parameterEntries.length > 0;
     const fieldOf = ({ rule, group }: SectionRule) =>
         getDashboardFilterField<DashboardFilterableField>(
             group === 'metrics'
@@ -1274,7 +1273,7 @@ export const SectionedFilters: FC<Props> = ({
         // Onto the New section capsule: name it, then the pill (or the
         // selection it carries) moves in; no section starts during an edit
         if (over && String(over.id) === NEW_SECTION_TARGET_ID) {
-            if (isEditing || (isParameterDrag && !isCarryingSelection)) return;
+            if (isEditing) return;
             setNaming({
                 moveIds: isCarryingSelection ? allSelected : [activeId],
                 source: 'new_section_drop',
@@ -1304,7 +1303,7 @@ export const SectionedFilters: FC<Props> = ({
             return;
         }
         // A parameter control moves among parameter controls, into a
-        // section or out of one; never into a new section
+        // section or out of one
         if (isParameterDrag) {
             if (!over || over.id === active.id) return;
             const overId = String(over.id);
