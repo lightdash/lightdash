@@ -12157,8 +12157,8 @@ describe('ProjectService', () => {
             errors: [{ message: 'broken explore' }],
         } as unknown as ExploreError;
 
-        const compileAndCollectWarnings = async (
-            explores: (Explore | ExploreError)[],
+        const collectWarnings = async (
+            save: (warningService: ProjectService) => Promise<unknown>,
         ) => {
             const warningService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
@@ -12172,12 +12172,7 @@ describe('ProjectService', () => {
                 'warn',
             );
             try {
-                await warningService.saveExploresToCacheAndIndexCatalog({
-                    userUuid: user.userUuid,
-                    projectUuid,
-                    explores,
-                    compilationSource: 'cli_deploy',
-                });
+                await save(warningService);
                 return warn.mock.calls.filter(
                     ([message]) => message === warningMessage,
                 );
@@ -12185,6 +12180,19 @@ describe('ProjectService', () => {
                 warn.mockRestore();
             }
         };
+
+        const compileAndCollectWarnings = (
+            explores: (Explore | ExploreError)[],
+        ) =>
+            collectWarnings((warningService) =>
+                warningService.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores,
+                    compilationSource: 'cli_deploy',
+                    jobUuid: 'compile-job-uuid',
+                }),
+            );
 
         test('logs one warning with counts when a compile finishes with errored explores', async () => {
             const calls = await compileAndCollectWarnings([
@@ -12198,6 +12206,71 @@ describe('ProjectService', () => {
                     {
                         projectUuid,
                         organizationUuid: 'organizationUuid',
+                        compilationSource: 'cli_deploy',
+                        jobUuid: 'compile-job-uuid',
+                        errorExploresCount: 1,
+                        totalExploresCount: 2,
+                    },
+                ],
+            ]);
+        });
+
+        test('counts explores that error at publication on the multi-connection naming path', async () => {
+            projectModel.saveMultiConnectionExplores.mockImplementationOnce(
+                async (_projectUuid, stream, _carry, _beforeWrite, naming) => {
+                    const streamed: (Explore | ExploreError)[] = [];
+                    for await (const { explore } of stream)
+                        streamed.push(explore);
+                    naming?.onPublished?.([streamed[0], erroredExplore]);
+                    return { cachedExploreUuids: [] };
+                },
+            );
+
+            const calls = await collectWarnings((warningService) =>
+                (
+                    warningService as unknown as {
+                        saveExploreStreamToCacheAndIndexCatalog(args: {
+                            userUuid: string;
+                            projectUuid: string;
+                            compilationSource: 'refresh_dbt';
+                            jobUuid: string;
+                            exploreStream: AsyncIterable<Explore>;
+                            multiConnection: null;
+                            exploreNaming: {
+                                mode: 'refresh';
+                                models: [];
+                                refreshedSourceUuids: string[];
+                                warnings: string[];
+                            };
+                        }): Promise<unknown>;
+                    }
+                ).saveExploreStreamToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    compilationSource: 'refresh_dbt',
+                    jobUuid: 'refresh-job-uuid',
+                    multiConnection: null,
+                    exploreNaming: {
+                        mode: 'refresh',
+                        models: [],
+                        refreshedSourceUuids: [],
+                        warnings: [],
+                    },
+                    exploreStream: (async function* namedExploreStream() {
+                        yield validExplore;
+                        yield { ...validExplore, name: 'colliding_explore' };
+                    })(),
+                }),
+            );
+
+            expect(calls).toEqual([
+                [
+                    warningMessage,
+                    {
+                        projectUuid,
+                        organizationUuid: 'organizationUuid',
+                        compilationSource: 'refresh_dbt',
+                        jobUuid: 'refresh-job-uuid',
                         errorExploresCount: 1,
                         totalExploresCount: 2,
                     },

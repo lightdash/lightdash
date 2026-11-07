@@ -4794,6 +4794,8 @@ export class ProjectService
             this.logger.warn('Compile finished with errored explores', {
                 projectUuid,
                 organizationUuid,
+                compilationSource,
+                jobUuid: jobUuid ?? null,
                 errorExploresCount: compilationReport.errorExploresCount,
                 totalExploresCount: compilationReport.totalExploresCount,
             });
