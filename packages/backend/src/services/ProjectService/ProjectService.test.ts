@@ -12149,6 +12149,69 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('compile errored explores warning', () => {
+        const warningMessage = 'Compile finished with errored explores';
+        const erroredExplore = {
+            name: 'broken_explore',
+            label: 'Broken explore',
+            errors: [{ message: 'broken explore' }],
+        } as unknown as ExploreError;
+
+        const compileAndCollectWarnings = async (
+            explores: (Explore | ExploreError)[],
+        ) => {
+            const service = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            const warn = vi.spyOn(
+                (
+                    service as unknown as {
+                        logger: { warn: (...args: unknown[]) => void };
+                    }
+                ).logger,
+                'warn',
+            );
+            try {
+                await service.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores,
+                    compilationSource: 'cli_deploy',
+                });
+                return warn.mock.calls.filter(
+                    ([message]) => message === warningMessage,
+                );
+            } finally {
+                warn.mockRestore();
+            }
+        };
+
+        test('logs one warning with counts when a compile finishes with errored explores', async () => {
+            const calls = await compileAndCollectWarnings([
+                validExplore,
+                erroredExplore,
+            ]);
+
+            expect(calls).toEqual([
+                [
+                    warningMessage,
+                    {
+                        projectUuid,
+                        organizationUuid: 'organizationUuid',
+                        errorExploresCount: 1,
+                        totalExploresCount: 2,
+                    },
+                ],
+            ]);
+        });
+
+        test('does not log the warning when no explore has errors', async () => {
+            const calls = await compileAndCollectWarnings([validExplore]);
+
+            expect(calls).toEqual([]);
+        });
+    });
+
     describe('pre-aggregate refreshes', () => {
         const adminUser: SessionUser = {
             ...user,
