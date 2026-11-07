@@ -1469,7 +1469,22 @@ export class AiAgentService extends BaseService {
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
     }): Promise<AiAgentModelConfig | null> {
-        if (threadModelConfig) return threadModelConfig;
+        if (threadModelConfig) {
+            if (
+                requestedModelConfig &&
+                (requestedModelConfig.modelProvider !==
+                    threadModelConfig.modelProvider ||
+                    requestedModelConfig.modelName !==
+                        threadModelConfig.modelName ||
+                    (requestedModelConfig.reasoning ?? false) !==
+                        (threadModelConfig.reasoning ?? false))
+            ) {
+                throw new ParameterError(
+                    "modelConfig must match the thread's model and reasoning settings. Omit modelConfig to continue this thread, or start a new thread to use a different configuration.",
+                );
+            }
+            return threadModelConfig;
+        }
         const pickedModelConfig = requestedModelConfig ?? agentModelConfig;
         const modelConfig =
             pickedModelConfig ??

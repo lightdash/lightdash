@@ -21,9 +21,13 @@ a thread starts.
 
 ## Follow-ups
 
-The thread composer shows the thread's model and has no picker. The server
-ignores a model sent with a follow-up, and neither a new pick nor a change to
-the agent's model moves an existing thread. When the thread's model is
+The thread composer shows the thread's model and has no picker. Omit
+`modelConfig` when sending a follow-up to reuse the thread's configuration.
+An explicit `modelConfig` must match the recorded model provider, model name
+and reasoning setting; a different configuration returns HTTP 400 before the
+message is stored. Omitted reasoning and `reasoning: false` are equivalent.
+Start a new thread to use a different configuration. A change to the agent's
+model does not move an existing thread. When the thread's model is
 deprecated, the thread keeps running on it and the composer warns the user,
 pointing to a new thread for the newer model. A thread with no recorded model
 resolves like a new thread on each prompt.

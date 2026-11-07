@@ -906,6 +906,7 @@ export type ApiAiAgentThreadCreateRequest = {
     /** First message. Optional when `binding` or `threadContext` is set; the thread then starts empty. */
     prompt?: string;
     context?: AiPromptContextInput;
+    /** Model and reasoning settings for the first prompt. The thread keeps its first recorded configuration. */
     modelConfig?: AiAgentModelConfig;
     originatingInstallationUuid?: string;
     /** Internal feature-speed battle; accepted only behind battle mode. */
@@ -921,6 +922,7 @@ export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
 export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
     context?: AiPromptContextInput;
+    /** Must match the thread's recorded model and reasoning settings, otherwise returns HTTP 400. Omit to reuse them; start a new thread to change them. If no configuration is recorded yet, selects it for this prompt. */
     modelConfig?: AiAgentModelConfig;
     originatingInstallationUuid?: string;
     /**
