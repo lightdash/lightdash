@@ -1,4 +1,4 @@
-import { Center, Loader, Paper, Stack, Text } from '@mantine/core';
+import { Paper, Stack, Text } from '@mantine/core';
 import { clsx } from 'clsx';
 import { useMemo, type FC, type ReactNode } from 'react';
 import { ChartDataTable } from '../../../../../components/DataViz/visualizations/ChartDataTable';
@@ -6,6 +6,7 @@ import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults'
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import styles from './AiArtifactTableVisualization.module.css';
 import { getAiArtifactTableConfig } from './AiArtifactTableVisualization.utils';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { useArtifactResultRows } from './useArtifactResultRows';
 
 type Props = {
@@ -30,15 +31,7 @@ export const AiArtifactTableVisualization: FC<Props> = ({
     );
 
     if (isLoading) {
-        return (
-            <Center h={300}>
-                <Loader
-                    type="dots"
-                    color="ldGray.6"
-                    delayedMessage={loadingMessage}
-                />
-            </Center>
-        );
+        return <ArtifactLoadingSketch shape="table" label={loadingMessage} />;
     }
 
     if (columns.length === 0) {
