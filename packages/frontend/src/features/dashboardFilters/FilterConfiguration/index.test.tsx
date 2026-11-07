@@ -113,6 +113,22 @@ const anyValueRule: DashboardFilterRule = {
     label: undefined,
 };
 
+// A touch tap: touchstart, then touchend and the mouse events a frame or more
+// later, all at the point first touched
+const tap = async (target: HTMLElement, afterTouchStart?: () => void) => {
+    fireEvent.touchStart(target);
+    afterTouchStart?.();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    fireEvent.touchEnd(target);
+    fireEvent.mouseDown(target);
+    fireEvent.mouseUp(target);
+    fireEvent.click(target, { detail: 1 });
+};
+
+// Mantine marks the input while its list is open
+const isValueListOpen = (input: HTMLInputElement) =>
+    input.hasAttribute('data-expanded');
+
 describe('FilterConfiguration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -225,6 +241,124 @@ describe('FilterConfiguration', () => {
             );
         },
     );
+
+    // The value list sits in the editor's flow: if it closed on touchstart,
+    // Apply would move before the tap's mousedown landed
+    it.each(['typed', 'picked'])(
+        'saves a %s value when Apply is tapped with the value list open',
+        async (entry) => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onSave = vi.fn();
+            const onListClose = vi.fn();
+
+            renderWithProviders(
+                <FilterConfiguration
+                    isEditMode={false}
+                    tiles={[]}
+                    tabs={[]}
+                    availableTileFilters={{}}
+                    field={mockField}
+                    defaultFilterRule={anyValueRule}
+                    originalFilterRule={anyValueRule}
+                    popoverProps={{ onClose: onListClose }}
+                    onSave={onSave}
+                />,
+            );
+
+            const input = document.querySelector(
+                'input[data-autofocus]',
+            ) as HTMLInputElement;
+            await user.click(input);
+            await user.type(input, 'North Outlet');
+            if (entry === 'picked') {
+                await user.click(
+                    screen.getByRole('option', {
+                        name: /North Outlet/,
+                        hidden: true,
+                    }),
+                );
+            }
+            expect(isValueListOpen(input)).toBe(true);
+
+            await tap(screen.getByRole('button', { name: 'Apply' }), () => {
+                expect.soft(isValueListOpen(input)).toBe(true);
+                expect.soft(onListClose).not.toHaveBeenCalled();
+            });
+
+            expect(onSave).toHaveBeenCalledTimes(1);
+            expect(onSave).toHaveBeenCalledWith(
+                expect.objectContaining({ values: ['North Outlet'] }),
+            );
+        },
+    );
+
+    it('does not apply when a touch on Apply turns into a scroll', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode={false}
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={anyValueRule}
+                originalFilterRule={anyValueRule}
+                onSave={onSave}
+            />,
+        );
+
+        const input = document.querySelector(
+            'input[data-autofocus]',
+        ) as HTMLInputElement;
+        await user.click(input);
+        await user.type(input, 'North Outlet');
+
+        // A scroll sends no mouse events after the touch
+        const applyButton = screen.getByRole('button', { name: 'Apply' });
+        fireEvent.touchStart(applyButton);
+        fireEvent.touchMove(applyButton);
+        fireEvent.touchEnd(applyButton);
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(input).toHaveValue('North Outlet');
+    });
+
+    it('closes the value list when a tap lands outside it, without saving', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+        const onListClose = vi.fn();
+
+        renderWithProviders(
+            <>
+                <div data-testid="outside" />
+                <FilterConfiguration
+                    isEditMode={false}
+                    tiles={[]}
+                    tabs={[]}
+                    availableTileFilters={{}}
+                    field={mockField}
+                    defaultFilterRule={anyValueRule}
+                    originalFilterRule={anyValueRule}
+                    popoverProps={{ onClose: onListClose }}
+                    onSave={onSave}
+                />
+            </>,
+        );
+
+        const input = document.querySelector(
+            'input[data-autofocus]',
+        ) as HTMLInputElement;
+        await user.click(input);
+        await user.type(input, 'North Outlet');
+
+        await tap(screen.getByTestId('outside'));
+
+        expect(isValueListOpen(input)).toBe(false);
+        expect(onListClose).toHaveBeenCalled();
+        expect(onSave).not.toHaveBeenCalled();
+    });
 
     it('searches SQL columns as they arrive and shows more are loading', async () => {
         const country = { reference: 'country', type: DimensionType.STRING };
