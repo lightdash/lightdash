@@ -1105,6 +1105,7 @@ export const AiAgentFormSetup = ({
                                         />
 
                                         <MultiSelect
+                                            searchable
                                             variant="subtle"
                                             label={
                                                 <Group gap="xs">
