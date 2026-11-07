@@ -12160,19 +12160,19 @@ describe('ProjectService', () => {
         const compileAndCollectWarnings = async (
             explores: (Explore | ExploreError)[],
         ) => {
-            const service = getMockedProjectService(
+            const warningService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
             );
             const warn = vi.spyOn(
                 (
-                    service as unknown as {
+                    warningService as unknown as {
                         logger: { warn: (...args: unknown[]) => void };
                     }
                 ).logger,
                 'warn',
             );
             try {
-                await service.saveExploresToCacheAndIndexCatalog({
+                await warningService.saveExploresToCacheAndIndexCatalog({
                     userUuid: user.userUuid,
                     projectUuid,
                     explores,
