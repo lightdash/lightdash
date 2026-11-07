@@ -85,8 +85,7 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_TREES_EDGE_CREATED
         | EventName.METRICS_CATALOG_TREES_EDGE_REMOVED
         | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED
-        | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
-        | EventName.AGENT_SETUP_PROMPT_COPIED;
+        | EventName.BIGQUERY_SSO_SIGNIN_CLICKED;
     properties?: {};
 };
 
