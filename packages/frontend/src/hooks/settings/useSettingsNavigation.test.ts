@@ -21,9 +21,8 @@ const settingsContext = (
     project: undefined,
     showImpersonationPanel: false,
     isCustomRolesEnabled: false,
-    isProLimitsEnabled: false,
     canAccessAnalyticsSettings: false,
-    isAnalyticsProjectFlagLoading: false,
+    isAnalyticsProjectLoading: false,
     isOrganizationRoadmapEnabled: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,
@@ -43,11 +42,10 @@ const settingsContext = (
     isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
     externalSourcesFlag: undefined,
-    isResultsCacheEnabled: false,
+    isResultsCacheAvailable: false,
     embeddingEnabled: undefined,
     allowPasswordAuthentication: false,
     hasSocialLogin: false,
-    isGroupManagementEnabled: false,
     isAgentIdentityEnabled: false,
     isAgentIdentityFlagLoading: false,
     isGitProject: false,
@@ -455,7 +453,7 @@ describe('Agent identity settings navigation', () => {
 });
 
 describe('Project connections settings navigation', () => {
-    const projectLabels = (overrides: Partial<SettingsContext>) => {
+    const projectItems = (overrides: Partial<SettingsContext>) => {
         const { result } = renderHook(() =>
             useSettingsNavigation(
                 settingsContext({
@@ -488,10 +486,53 @@ describe('Project connections settings navigation', () => {
                 }),
             ),
         );
-        return result.current
-            .find(({ id }) => id === 'current-project')!
-            .items.map(({ label }) => label);
+        return result.current.find(({ id }) => id === 'current-project')!.items;
     };
+    const projectLabels = (overrides: Partial<SettingsContext>) =>
+        projectItems(overrides).map(({ label }) => label);
+
+    it('links Live data sources to the Semantic Layer page, marked as moved', () => {
+        const item = projectItems({ isApiQuerySourcesEnabled: true }).find(
+            ({ label }) => label === 'Live data sources',
+        );
+        expect(item).toMatchObject({
+            to: '/projects/project/semantic-layer/kinds/live',
+            movedTo: 'Semantic Layer',
+        });
+        expect(item?.keywords).toEqual(
+            expect.arrayContaining(['posthog', 'semantic layer']),
+        );
+    });
+
+    it('links External sources to the Semantic Layer page, marked as moved', () => {
+        const item = projectItems({
+            externalSourcesFlag: { id: 'external-sources', enabled: true },
+            health: {
+                softDelete: { enabled: false },
+                preAggregates: { enabled: false },
+                externalSources: { engineAvailable: true },
+            } as SettingsContext['health'],
+            user: {
+                ability: new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'ExternalSource',
+                        conditions: {
+                            organizationUuid: 'org',
+                            projectUuid: 'project',
+                        },
+                    },
+                ]),
+            } as SettingsContext['user'],
+        }).find(({ label }) => label === 'External sources');
+        expect(item).toMatchObject({
+            to: '/projects/project/semantic-layer/kinds/files',
+            movedTo: 'Semantic Layer',
+        });
+        expect(item?.keywords).toEqual(
+            expect.arrayContaining(['csv', 'semantic layer']),
+        );
+    });
 
     it('shows Live data sources without Data app connections when only live sources are enabled', () => {
         const labels = projectLabels({ isApiQuerySourcesEnabled: true });

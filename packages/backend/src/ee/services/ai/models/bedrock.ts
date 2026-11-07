@@ -6,9 +6,9 @@ import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import type { EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import {
+    BEDROCK_MAX_OUTPUT_TOKENS,
     ModelPreset,
     ReasoningEffort,
-    XHIGH_MAX_OUTPUT_TOKENS,
     XHIGH_THINKING_BUDGET_TOKENS,
 } from './presets';
 import { AiModel } from './types';
@@ -89,11 +89,13 @@ export const getBedrockModel = (
         model,
         callOptions: {
             ...preset.callOptions,
+            // For budget-style presets, the SDK adds the thinking budget
+            // on top of this cap.
+            maxOutputTokens:
+                config.maxOutputTokens ??
+                preset.callOptions.maxOutputTokens ??
+                BEDROCK_MAX_OUTPUT_TOKENS,
             ...(reasoningEnabled && { temperature: undefined }),
-            ...(reasoningEnabled &&
-                effort === 'xhigh' && {
-                    maxOutputTokens: XHIGH_MAX_OUTPUT_TOKENS,
-                }),
         },
         providerOptions: {
             [PROVIDER]: {

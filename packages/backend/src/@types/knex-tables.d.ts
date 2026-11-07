@@ -21,6 +21,10 @@ import {
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
 import {
+    AiAgentWarehouseTableListsTable,
+    AiAgentWarehouseTableListsTableName,
+} from '../database/entities/aiAgentWarehouseTableLists';
+import {
     AiServiceAccountCredentialsTable,
     AiServiceAccountCredentialsTableName,
 } from '../database/entities/aiServiceAccountCredentials';
@@ -50,6 +54,10 @@ import {
     AppVersionsTable,
     AppVersionsTableName,
 } from '../database/entities/apps';
+import {
+    AppSlugMappingsTableName,
+    AppSlugMappingTable,
+} from '../database/entities/appSlugMappings';
 import {
     AwsWebIdentityAudiencesTable,
     AwsWebIdentityAudiencesTableName,
@@ -481,6 +489,10 @@ import {
 } from '../database/entities/sshKeyPairs';
 import { TagsTable, TagsTableName } from '../database/entities/tags';
 import {
+    UsageProcessingStatusTable,
+    UsageProcessingStatusTableName,
+} from '../database/entities/usageProcessingStatus';
+import {
     GroupUserAttributesTable,
     GroupUserAttributeTable,
     OrganizationMemberUserAttributesTable,
@@ -528,16 +540,14 @@ import {
     WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
 import {
-    AgentOnboardingRunsTable,
-    AgentOnboardingRunsTableName,
-} from '../ee/database/entities/agentOnboarding';
-import {
     AiAgentToolCallErrorTable,
     AiAgentToolCallErrorTableName,
     AiAgentToolCallTable,
     AiAgentToolCallTableName,
     AiAgentToolResultTable,
     AiAgentToolResultTableName,
+    AiOrganizationMcpProjectsTable,
+    AiOrganizationMcpProjectsTableName,
     AiPromptContextTable,
     AiPromptContextTableName,
     AiPromptDecisionShadowTable,
@@ -744,6 +754,10 @@ import {
     MobilePushInstallationTable,
 } from '../ee/database/entities/mobilePushNotifications';
 import {
+    OrganizationBrandLogoFilesTable,
+    OrganizationBrandLogoFilesTableName,
+} from '../ee/database/entities/organizationBrand';
+import {
     OrganizationHomepageSettingsTable,
     OrganizationHomepageSettingsTableName,
 } from '../ee/database/entities/organizationHomepageSettings';
@@ -791,6 +805,7 @@ declare module 'knex/types/tables' {
         [OAuth2AuthorizationCodesTableName]: OAuth2AuthorizationCodesTable;
         [OAuth2AccessTokensTableName]: OAuth2AccessTokensTable;
         [OAuth2RefreshTokensTableName]: OAuth2RefreshTokensTable;
+        [AiOrganizationMcpProjectsTableName]: AiOrganizationMcpProjectsTable;
         [ExploreNameAllocationsTableName]: ExploreNameAllocationsTable;
         [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
@@ -804,6 +819,7 @@ declare module 'knex/types/tables' {
         [CredentialsTableName]: CredentialsTable;
         [OrganizationAgentIdentityRulesTableName]: OrganizationAgentIdentityRulesTable;
         [AiServiceAccountCredentialsTableName]: AiServiceAccountCredentialsTable;
+        [AiAgentWarehouseTableListsTableName]: AiAgentWarehouseTableListsTable;
         [OrganizationSnowflakeAgentClientsTableName]: OrganizationSnowflakeAgentClientsTable;
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;
@@ -830,6 +846,7 @@ declare module 'knex/types/tables' {
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
         [DashboardSlugMappingsTableName]: DashboardSlugMappingTable;
+        [AppSlugMappingsTableName]: AppSlugMappingTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
@@ -942,7 +959,6 @@ declare module 'knex/types/tables' {
         [MobilePushInstallationsTableName]: MobilePushInstallationTable;
         [AiAgentLiveActivitiesTableName]: AiAgentLiveActivityTable;
         [AiAgentLiveActivityStartAttemptsTableName]: AiAgentLiveActivityStartAttemptTable;
-        [AgentOnboardingRunsTableName]: AgentOnboardingRunsTable;
         [HomepageRecommendedActionSkipsTableName]: HomepageRecommendedActionSkipsTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
@@ -988,6 +1004,7 @@ declare module 'knex/types/tables' {
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [WarehouseConnectCodeTableName]: WarehouseConnectCodeTable;
         [AiUsageLedgerTableName]: AiUsageLedgerTable;
+        [UsageProcessingStatusTableName]: UsageProcessingStatusTable;
         [AiCreditRateCardTableName]: AiCreditRateCardTable;
         [AiCreditContractsTableName]: AiCreditContractsTable;
         [AiCreditHoldsTableName]: AiCreditHoldsTable;
@@ -1007,6 +1024,7 @@ declare module 'knex/types/tables' {
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [OrganizationDesignsTableName]: OrganizationDesignsTable;
         [OrganizationDesignFilesTableName]: OrganizationDesignFilesTable;
+        [OrganizationBrandLogoFilesTableName]: OrganizationBrandLogoFilesTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;

@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    ExploreType,
     FeatureFlags,
     getItemId,
     isAdditionalMetric,
@@ -643,7 +644,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             isSelected={isSelected}
                             isOpened={isMenuOpen}
                             hasDescription={!!description}
-                            basicActionsOnly={isRegistryMetric}
+                            // Live data sources can't run custom fields yet
+                            basicActionsOnly={
+                                isRegistryMetric ||
+                                exploreData?.type === ExploreType.API_SOURCE
+                            }
                             allowRegistryEdit={isRegistryMetric}
                             onViewDescription={onOpenDescriptionView}
                             onMenuChange={onToggleMenu}

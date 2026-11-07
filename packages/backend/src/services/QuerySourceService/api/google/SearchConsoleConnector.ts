@@ -5,15 +5,21 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    ApiConnector,
-    ApiConnectorColumn,
-    ApiConnectorDescription,
-    ApiConnectorExecuteArgs,
-    ApiConnectorResult,
-    ApiConnectorTransport,
+import {
+    ALL_PUSHDOWN_REFUSED,
+    type ApiConnector,
+    type ApiConnectorCapabilities,
+    type ApiConnectorColumn,
+    type ApiConnectorDescription,
+    type ApiConnectorExecuteArgs,
+    type ApiConnectorResult,
+    type ApiConnectorTransport,
 } from '../ApiConnector';
 import { toGoogleApiError } from './googleApiError';
+import {
+    SEARCH_CONSOLE_DATE_FILTERS,
+    SEARCH_CONSOLE_STRING_FILTERS,
+} from './searchConsoleSemanticLayer';
 
 export const SEARCH_CONSOLE_ORIGIN = 'https://searchconsole.googleapis.com';
 export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
@@ -21,6 +27,8 @@ export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
 // One request returns at most 25,000 rows; the connector asks for one more
 // than the limit to detect truncation itself.
 const SEARCH_CONSOLE_MAX_ROWS = 25_000;
+/** The most rows one query can ask for; one fewer than the API's cap, to detect truncation. */
+export const SEARCH_CONSOLE_MAX_QUERY_ROWS = SEARCH_CONSOLE_MAX_ROWS - 1;
 const SEARCH_CONSOLE_TIMEOUT_MS = 30_000;
 // Search Analytics allows 1,200 queries a minute per site and per user.
 const SEARCH_CONSOLE_LIMITS = {
@@ -28,6 +36,32 @@ const SEARCH_CONSOLE_LIMITS = {
     callsPerMinute: 600,
     callsPerHour: 20_000,
     callsPerQuery: 1,
+};
+
+/**
+ * Search Analytics ANDs one flat list of dimension filters and can't filter
+ * metrics. Several values and prefix or suffix matches compile to RE2
+ * regex filters. Dates are one range in Pacific
+ * Time. Everything SQL-like is refused.
+ */
+export const SEARCH_CONSOLE_CAPABILITIES: ApiConnectorCapabilities = {
+    filters: {
+        operators: {
+            string: SEARCH_CONSOLE_STRING_FILTERS,
+            date: SEARCH_CONSOLE_DATE_FILTERS,
+        },
+        multipleValues: true,
+        or: false,
+        nestedGroups: false,
+    },
+    metricFilters: false,
+    dates: {
+        rangeRequired: true,
+        operators: SEARCH_CONSOLE_DATE_FILTERS,
+        grains: [],
+        timezone: 'fixed',
+    },
+    pushdown: ALL_PUSHDOWN_REFUSED,
 };
 
 const DIMENSIONS = [
@@ -154,9 +188,10 @@ export class SearchConsoleConnector implements ApiConnector {
             label: 'Search Console',
             level: 3,
             queryLanguage: 'Search Analytics JSON',
-            maxRows: SEARCH_CONSOLE_MAX_ROWS - 1,
+            maxRows: SEARCH_CONSOLE_MAX_QUERY_ROWS,
             timeoutMs: SEARCH_CONSOLE_TIMEOUT_MS,
             limits: SEARCH_CONSOLE_LIMITS,
+            capabilities: SEARCH_CONSOLE_CAPABILITIES,
         };
     }
 

@@ -5,13 +5,14 @@ import {
 } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { DatabaseError } from 'pg';
 import { queryEventsCompactedColumns } from '../analytics/eventStream/queryEventsStream';
 import { QUERY_HISTORY_BACKFILL_EVENT } from '../analytics/eventStream/queryHistoryBackfill';
 import { UsageQueryHistoryModel } from './UsageQueryHistoryModel';
 
 describe('retained query history for Analytics backfill', () => {
     const organizationUuid = '00000000-0000-0000-0000-000000000001';
-    const before = '2026-10-26T12:34:56.789Z';
+    const before = '2026-10-01T15:34:56.789Z';
     let database: Knex;
     let tracker: ReturnType<typeof getTracker>;
     let model: UsageQueryHistoryModel;
@@ -41,11 +42,19 @@ describe('retained query history for Analytics backfill', () => {
         return rows;
     };
 
+    const historyPages = () =>
+        tracker.history.select.filter(
+            ({ sql }) => !sql.includes('min("created_at")'),
+        );
+
     beforeEach(() => {
         database = knex({ client: MockClient, dialect: 'pg' });
         tracker = getTracker();
         tracker.reset();
         tracker.on.any(/^SET /i).response([]);
+        tracker.on
+            .select(/min\("created_at"\)/)
+            .response([{ created_at: new Date('2026-10-01T15:04:05.123Z') }]);
         model = new UsageQueryHistoryModel(database);
     });
 
@@ -57,7 +66,7 @@ describe('retained query history for Analytics backfill', () => {
     it('selects successful and failed queries, including errors without execution timing', async () => {
         tracker.on.select('query_history').response([]);
         await collect();
-        const { sql: rawSql, bindings } = tracker.history.select[0];
+        const { sql: rawSql, bindings } = historyPages()[0];
         const sql = normalizeSql(rawSql);
         expect(sql).toContain('"q"."status" in (?, ?)');
         expect(sql).not.toContain(
@@ -80,7 +89,7 @@ describe('retained query history for Analytics backfill', () => {
         tracker.on.select('query_history').response([]);
         const untrustedOrg = "organization' OR true --";
         await collect(untrustedOrg);
-        const { sql: rawSql, bindings } = tracker.history.select[0];
+        const { sql: rawSql, bindings } = historyPages()[0];
         const sql = normalizeSql(rawSql);
         expect(sql).toContain(
             'inner join "projects" as "p" on "p"."project_uuid" = "q"."project_uuid"',
@@ -106,10 +115,10 @@ describe('retained query history for Analytics backfill', () => {
         tracker.on.select('query_history').response([]);
         const rows = await collect();
         expect(rows[0].error).toBe(`${'x'.repeat(987)}… [truncated]`);
-        expect(normalizeSql(tracker.history.select[0].sql)).toContain(
+        expect(normalizeSql(historyPages()[0].sql)).toContain(
             'LEFT("q"."error", ?) AS "error"',
         );
-        expect(tracker.history.select[0].bindings).toContain(1001);
+        expect(historyPages()[0].bindings).toContain(1001);
     });
 
     it('exports the complete stream schema with error text but without SQL or invented timing and identity', async () => {
@@ -167,7 +176,7 @@ describe('retained query history for Analytics backfill', () => {
         expect(JSON.stringify(rows)).not.toMatch(
             /private|secret|external-person|compiled_sql|credentials/,
         );
-        const selected = tracker.history.select[0].sql;
+        const selected = historyPages()[0].sql;
         expect(selected).not.toContain('"q"."compiled_sql"');
         expect(selected).toContain('"q"."error"');
         expect(selected).not.toContain('"q"."created_by_account"');
@@ -195,7 +204,7 @@ describe('retained query history for Analytics backfill', () => {
             second.query_uuid,
             third.query_uuid,
         ]);
-        const pages = tracker.history.select;
+        const pages = historyPages();
         expect(pages).toHaveLength(4);
         expect(normalizeSql(pages[0].sql)).not.toContain(
             '("q"."created_at", "q"."query_uuid") > (?, ?)',
@@ -216,7 +225,7 @@ describe('retained query history for Analytics backfill', () => {
             expect(page.sql).not.toMatch(/\boffset\b/i);
             expect(page.bindings).toContain(1000);
         }
-        expect(tracker.history.transactions).toHaveLength(4);
+        expect(tracker.history.transactions).toHaveLength(5);
         expect(
             tracker.history.transactions.every(
                 (transaction) => transaction.state === 'committed',
@@ -226,6 +235,88 @@ describe('retained query history for Analytics backfill', () => {
             tracker.history.all.filter(
                 ({ sql }) => sql === 'SET TRANSACTION READ ONLY',
             ),
-        ).toHaveLength(4);
+        ).toHaveLength(5);
+    });
+
+    it('advances across empty hours and resets pagination for each time window', async () => {
+        const cutoff = '2026-10-01T18:00:00.000001Z';
+        const first = queryRow();
+        const later = queryRow({
+            query_uuid: '00000000-0000-0000-0000-000000000020',
+            event_ts: '2026-10-01T17:30:00.123456Z',
+        });
+        const last = queryRow({
+            query_uuid: '00000000-0000-0000-0000-000000000030',
+            event_ts: '2026-10-01T18:00:00.000000Z',
+        });
+        for (const rows of [[first], [], [], [later], [last], []]) {
+            tracker.on.select('query_history').responseOnce(rows);
+        }
+        const ids: string[] = [];
+        for await (const line of model.getJsonLines(organizationUuid, cutoff)) {
+            try {
+                ids.push(JSON.parse(line).query_id);
+            } catch {
+                throw new Error('Invalid exported JSON');
+            }
+        }
+        expect(ids).toEqual([
+            first.query_uuid,
+            later.query_uuid,
+            last.query_uuid,
+        ]);
+        const pages = historyPages();
+        for (const [index, lower] of [
+            [0, '2026-10-01T15:00:00.000Z'],
+            [2, '2026-10-01T16:00:00.000Z'],
+            [3, '2026-10-01T17:00:00.000Z'],
+        ] as const) {
+            expect(pages[index].bindings).toContain(lower);
+            expect(normalizeSql(pages[index].sql)).not.toContain(
+                '("q"."created_at", "q"."query_uuid") > (?, ?)',
+            );
+        }
+        expect(pages[3].bindings).toContain(cutoff);
+        expect(pages[4].bindings).toContain(later.event_ts);
+    });
+
+    it('shrinks only the remaining time range after a timeout without losing cursor progress', async () => {
+        const first = queryRow({ event_ts: '2026-10-01T15:20:00.000000Z' });
+        const second = queryRow({
+            query_uuid: '00000000-0000-0000-0000-000000000020',
+            event_ts: '2026-10-01T15:25:00.000000Z',
+        });
+        const third = queryRow({
+            query_uuid: '00000000-0000-0000-0000-000000000030',
+            event_ts: '2026-10-01T15:30:00.000000Z',
+        });
+        const timeout = new DatabaseError('statement timeout', 0, 'error');
+        timeout.code = '57014';
+        tracker.on.select('query_history').responseOnce([first]);
+        tracker.on.select('query_history').simulateErrorOnce(timeout);
+        tracker.on.select('query_history').responseOnce([second]);
+        tracker.on.select('query_history').responseOnce([]);
+        tracker.on.select('query_history').responseOnce([third]);
+        tracker.on.select('query_history').response([]);
+        expect((await collect()).map((row) => row.query_id)).toEqual([
+            first.query_uuid,
+            second.query_uuid,
+            third.query_uuid,
+        ]);
+        const pages = historyPages();
+        expect(pages[2].bindings).toContain('2026-10-01T15:27:28.395Z');
+        expect(pages[2].bindings).toContain(first.event_ts);
+        expect(pages[4].bindings).toContain('2026-10-01T15:27:28.395Z');
+        expect(normalizeSql(pages[4].sql)).not.toContain(
+            '("q"."created_at", "q"."query_uuid") > (?, ?)',
+        );
+    });
+
+    it('does not retry non-timeout database failures', async () => {
+        tracker.on
+            .select('query_history')
+            .simulateError('database unavailable');
+        await expect(collect()).rejects.toThrow('database unavailable');
+        expect(historyPages()).toHaveLength(1);
     });
 });

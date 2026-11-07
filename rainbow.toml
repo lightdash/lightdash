@@ -147,7 +147,6 @@ CUSTOM_ROLES_ENABLED = "true"
 MCP_ENABLED = "true"
 EMBEDDING_ENABLED = "true"             # the embed specs need it
 PERSISTENT_DOWNLOAD_URLS_ENABLED = "true"
-GROUPS_ENABLED = "true"
 EXTENDED_USAGE_ANALYTICS = "true"
 MICROSOFT_TEAMS_ENABLED = "true"
 APPS_RUNTIME_ENABLED = "true"          # data apps; the E2B key below makes it usable
@@ -289,6 +288,10 @@ host = "api.anthropic.com"          # Ask AI, data apps
 port = 443
 
 [[egress.allow]]
+host = "api.openai.com"             # Ask AI on OpenAI models (OPENAI_API_KEY)
+port = 443
+
+[[egress.allow]]
 host = "api.typesafe.ai"            # Jev decisions (JEV_API_KEY)
 port = 443
 
@@ -297,7 +300,7 @@ host = "api.brandfetch.io"          # organization brand lookup
 port = 443
 
 [[egress.allow]]
-host = "api.e2b.dev"                # data-app sandboxes (control plane only; sandbox hosts are per-run)
+host = "api.e2b.app"                # data-app sandboxes (control plane only; sandbox hosts are per-run)
 port = 443
 
 [[egress.allow]]
@@ -315,6 +318,26 @@ port = 443
 
 [[egress.allow]]
 host = "codeload.github.com"
+port = 443
+
+# MCP clients identify with a client ID metadata document served from their
+# own origin (OAuthService/clientIdMetadataDocument.ts fetches it at
+# authorize). Without these, connecting the env's MCP server from ChatGPT,
+# Claude, Grok or Cursor fails with "Invalid client_id or redirect_uri".
+[[egress.allow]]
+host = "chatgpt.com"
+port = 443
+
+[[egress.allow]]
+host = "claude.ai"
+port = 443
+
+[[egress.allow]]
+host = "grok.com"
+port = 443
+
+[[egress.allow]]
+host = "cursor.com"
 port = 443
 
 # BigQuery (the warehouse test suites): the API and the token endpoint.
@@ -400,6 +423,7 @@ WAREHOUSE_TRINO_HOST = "host"
 # Integrations, in the order of the [[egress.allow]] list. Each is optional:
 # with no value stored the variable is absent and the feature stays off.
 ANTHROPIC_API_KEY = "api-key"
+OPENAI_API_KEY = "api-key"
 BRANDFETCH_API_KEY = "api-key"
 E2B_API_KEY = "api-key"
 E2B_TEMPLATE_TAG = "config"            # data-app sandbox template; defaults to the app version

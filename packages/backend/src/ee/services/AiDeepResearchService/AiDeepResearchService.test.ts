@@ -1928,6 +1928,54 @@ describe('AiDeepResearchService', () => {
             ]);
         });
 
+        it('publishes the narrative without charts when the Document rejects a chart', async () => {
+            const create = vi
+                .fn()
+                .mockRejectedValueOnce(
+                    new Error('Invalid chart "chart-1": not supported'),
+                )
+                .mockResolvedValue({
+                    documentUuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
+                    name: 'Revenue investigation',
+                    slug: 'revenue-investigation',
+                });
+            const { service, model, documentService } = buildService({
+                executor: vi.fn().mockResolvedValue({
+                    status: 'completed',
+                    report: chartReport,
+                    warehouseQueryUuids: [chart.queryUuid],
+                }),
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue(chartProvenance()),
+                },
+                queryHistoryModel: {
+                    getByQueryUuid: vi
+                        .fn()
+                        .mockResolvedValue(verifiedChartQuery),
+                },
+                documentService: { create },
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(documentService.create).toHaveBeenCalledTimes(2);
+            const [, , { content }] = documentService.create.mock.calls[1];
+            expect(content.charts).toEqual({});
+            expect(content.markdown).not.toContain('<document-chart');
+            expect(model.markFailed).not.toHaveBeenCalled();
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.not.stringContaining('<chart '),
+                expect.objectContaining({
+                    dropped: [
+                        expect.objectContaining({ key: chart.queryUuid }),
+                    ],
+                }),
+            );
+        });
+
         it('publishes a chart whose filters were written as expressions', async () => {
             const completedOrdersFilters = {
                 dimensions: {

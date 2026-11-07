@@ -5,8 +5,7 @@ import {
     isNumericItem,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
-import isEqual from 'lodash/isEqual';
-import pickBy from 'lodash/pickBy';
+import { isEqual, pickBy } from 'es-toolkit/compat';
 import { type VisualizationStoreState } from '.';
 import { type VisualizationInputs } from './inputs';
 

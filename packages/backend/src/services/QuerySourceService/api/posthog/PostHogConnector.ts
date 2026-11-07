@@ -9,15 +9,62 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    ApiConnector,
-    ApiConnectorColumn,
-    ApiConnectorDescription,
-    ApiConnectorExecuteArgs,
-    ApiConnectorResponse,
-    ApiConnectorResult,
-    ApiConnectorTransport,
+import {
+    ALL_PUSHDOWN_REFUSED,
+    type ApiConnector,
+    type ApiConnectorCapabilities,
+    type ApiConnectorColumn,
+    type ApiConnectorDescription,
+    type ApiConnectorExecuteArgs,
+    type ApiConnectorResponse,
+    type ApiConnectorResult,
+    type ApiConnectorTransport,
 } from '../ApiConnector';
+import {
+    POSTHOG_DATE_FILTERS,
+    POSTHOG_FILTERS_BY_TYPE,
+    POSTHOG_MAX_SCANNED_PROPERTIES,
+    POSTHOG_METRIC_FILTERS,
+} from './posthogSemanticLayer';
+
+/**
+ * HogQL is SQL, so filters take any shape and dates are ordinary filters.
+ * Table calculations, custom fields and pivots could compile into HogQL
+ * too, but stay refused until that is built.
+ */
+export const POSTHOG_CAPABILITIES: ApiConnectorCapabilities = {
+    filters: {
+        operators: {
+            ...POSTHOG_FILTERS_BY_TYPE,
+            metric: POSTHOG_METRIC_FILTERS,
+        },
+        multipleValues: true,
+        or: true,
+        nestedGroups: true,
+    },
+    metricFilters: true,
+    dates: {
+        rangeRequired: false,
+        operators: POSTHOG_DATE_FILTERS,
+        grains: [],
+        timezone: 'configurable',
+    },
+    // HogQL is SQL: the warehouse SQL builder compiles these into the query
+    pushdown: {
+        ...ALL_PUSHDOWN_REFUSED,
+        tableCalculations: 'native',
+        customDimensions: 'native',
+        customMetrics: 'native',
+        periodOverPeriod: 'native',
+    },
+};
+
+const PROPERTY_DEFINITIONS_PAGE_SIZE = 500;
+
+const propertyDefinitionsPageSchema = z.object({
+    next: z.string().nullish(),
+    results: z.array(z.unknown()),
+});
 
 // PostHog silently returns at most 50k rows, so the connector asks for one
 // more than the limit to detect truncation itself.
@@ -41,6 +88,9 @@ export type PostHogConnectorArgs = {
 
 export const getPostHogQueryPath = (projectId: string) =>
     `/api/projects/${projectId}/query/`;
+
+export const getPostHogPropertyDefinitionsPrefix = (projectId: string) =>
+    `/api/projects/${projectId}/property_definitions/`;
 
 const successSchema = z.object({
     columns: z.array(z.string()),
@@ -103,7 +153,43 @@ export class PostHogConnector implements ApiConnector {
             maxRows: POSTHOG_MAX_ROWS - 1,
             timeoutMs: POSTHOG_TIMEOUT_MS,
             limits: POSTHOG_LIMITS,
+            capabilities: POSTHOG_CAPABILITIES,
         };
+    }
+
+    /** Every property definition of one kind, a page at a time, up to the scan cap. */
+    async getPropertyDefinitions(
+        type: 'event' | 'person',
+    ): Promise<{ results: unknown[] }> {
+        const readPage = async (offset: number) => {
+            const response = await this.send({
+                method: 'GET',
+                path: getPostHogPropertyDefinitionsPrefix(this.projectId),
+                query: {
+                    type,
+                    limit: String(PROPERTY_DEFINITIONS_PAGE_SIZE),
+                    ...(offset > 0 ? { offset: String(offset) } : {}),
+                },
+                body: null,
+            });
+            if (response.status < 200 || response.status >= 300) {
+                throw this.toError(response);
+            }
+            const page = propertyDefinitionsPageSchema.safeParse(response.body);
+            return page.success ? page.data : { results: [], next: null };
+        };
+        const readFrom = async (offset: number): Promise<unknown[]> => {
+            const page = await readPage(offset);
+            const nextOffset = offset + page.results.length;
+            const hasMore =
+                Boolean(page.next) &&
+                page.results.length > 0 &&
+                nextOffset < POSTHOG_MAX_SCANNED_PROPERTIES;
+            return hasMore
+                ? [...page.results, ...(await readFrom(nextOffset))]
+                : page.results;
+        };
+        return { results: await readFrom(0) };
     }
 
     async execute({

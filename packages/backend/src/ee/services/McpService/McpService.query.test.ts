@@ -201,6 +201,12 @@ const nodeColumns: Record<
 };
 // orders returns its full limit of 500 rows; totals aggregates them to 2.
 const nodeRowCounts: Record<string, number> = { orders: 500, totals: 2 };
+const nodeSamples: Record<string, Record<string, unknown>[]> = {
+    orders: [
+        { orders_status: 'completed', orders_count: 3 },
+        { orders_status: 'placed', orders_count: 1 },
+    ],
+};
 
 const makeService = ({
     agent = null,
@@ -217,9 +223,11 @@ const makeService = ({
         async ({
             queries,
             terminalNodeId,
+            sampleNodeIds,
         }: {
             queries: SourceQuery[];
             terminalNodeId: string;
+            sampleNodeIds: string[];
         }) => {
             const submissions = queries.map((query) => ({
                 nodeId: query.nodeId!,
@@ -234,6 +242,10 @@ const makeService = ({
                     error: null,
                     rowCount: nodeRowCounts[nodeId!] ?? 1,
                     columns: nodeColumns[nodeId!] ?? null,
+                    // Like the runtime, only ready nodes asked for get a sample.
+                    sample: sampleNodeIds.includes(nodeId!)
+                        ? (nodeSamples[nodeId!] ?? [])
+                        : null,
                 };
                 if (nodeId !== terminalNodeId || terminalOutcome === 'success')
                     return ready;
@@ -249,6 +261,7 @@ const makeService = ({
                             : null,
                     rowCount: null,
                     columns: null,
+                    sample: null,
                 };
             });
             if (terminalOutcome === 'running')
@@ -331,6 +344,7 @@ const makeService = ({
         },
         aiOrganizationSettingsService: {
             isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
         },
         analytics: { track: vi.fn() },
         asyncQueryService,
@@ -522,6 +536,7 @@ describe('McpService query tool', () => {
                             type: DimensionType.NUMBER,
                         },
                     ],
+                    sample: nodeSamples.orders,
                 },
                 {
                     nodeId: 'totals',
@@ -539,14 +554,98 @@ describe('McpService query tool', () => {
                         },
                         { reference: 'total', type: DimensionType.NUMBER },
                     ],
+                    sample: null,
                 },
             ],
         });
+        expect(textOf(result)).toContain(
+            [
+                `- orders: "Orders by status" (semanticLayer), queryUuid ${queryUuidFor('orders')}: 500 rows, limit 500. Reached its limit of 500, so more rows may exist (max 5000).`,
+                '  Columns: orders_status (string), orders_count (number)',
+                '  Sample, 2 of 500 rows:',
+                '  orders_status,orders_count',
+                '  completed,3',
+                '  placed,1',
+                `- totals: "Totals" (duckdb), queryUuid ${queryUuidFor('totals')}: 2 rows, limit 500.`,
+                '  Columns: orders_status (string), total (number)',
+            ].join('\n'),
+        );
         expect(textOf(result)).toContain(
             'Warning: "totals" reads "orders", which reached its limit',
         );
         expect(textOf(result)).toContain(
             'orders_status,total\ncompleted,3\nplaced,1',
+        );
+    });
+
+    it('returns the rows of every unread node, with the last as terminal', async () => {
+        const { service, call, runComposerQueriesUntilDeadline } =
+            makeService();
+        await createServer(service);
+
+        const result = await call(
+            McpToolName.QUERY,
+            pipelineArgs([ordersNode, { ...ordersNode, nodeId: 'statuses' }]),
+        );
+
+        expect(runComposerQueriesUntilDeadline).toHaveBeenCalledWith(
+            expect.objectContaining({
+                terminalNodeId: 'statuses',
+                otherUnreadNodeIds: ['orders'],
+            }),
+        );
+        expect(
+            mcpQueryStructuredOutputSchema.parse(result.structuredContent)
+                .nodes[0].sample,
+        ).toEqual(nodeSamples.orders);
+        expect(textOf(result)).toContain(
+            'Unread nodes orders returned rows too, listed with their nodes.',
+        );
+    });
+
+    it('names the terminal and each unfinished unread node when another unread node runs past the deadline', async () => {
+        const { service, call, runComposerQueriesUntilDeadline } =
+            makeService();
+        runComposerQueriesUntilDeadline.mockImplementationOnce(
+            async ({ queries }: { queries: SourceQuery[] }) => ({
+                status: 'running',
+                submissions: queries.map((query) => ({
+                    nodeId: query.nodeId!,
+                    sourceType: query.sourceType,
+                    queryUuid: queryUuidFor(query.nodeId!),
+                })),
+                nodeStatuses: [
+                    {
+                        nodeId: 'orders',
+                        state: QueryHistoryStatus.EXECUTING,
+                        error: null,
+                        rowCount: null,
+                        columns: null,
+                        sample: null,
+                    },
+                    {
+                        nodeId: 'totals',
+                        state: QueryHistoryStatus.READY,
+                        error: null,
+                        rowCount: 2,
+                        columns: nodeColumns.totals,
+                        sample: null,
+                    },
+                ],
+            }),
+        );
+        await createServer(service);
+
+        const result = await call(
+            McpToolName.QUERY,
+            pipelineArgs([
+                ordersNode,
+                { ...totalsNode, sql: 'SELECT 1 AS total', references: [] },
+            ]),
+        );
+
+        expect(textOf(result)).toContain(
+            `get_query_result with each queryUuid: ${queryUuidFor('totals')}, ${queryUuidFor('orders')}.`,
         );
     });
 
@@ -653,17 +752,32 @@ describe('McpService query tool', () => {
             terminalNodeId: 'totals',
             rowCount: null,
             nodes: [
-                { nodeId: 'orders', status: 'done', rowCount: 500 },
+                {
+                    nodeId: 'orders',
+                    status: 'done',
+                    rowCount: 500,
+                    sample: nodeSamples.orders,
+                },
                 {
                     nodeId: 'totals',
                     status: 'running',
                     rowCount: null,
                     columns: null,
+                    sample: null,
                 },
             ],
         });
         expect(textOf(running)).toContain(
             `get_query_result with queryUuid: ${queryUuidFor('totals')}`,
+        );
+        expect(textOf(running)).toContain(
+            [
+                '  Sample, 2 of 500 rows:',
+                '  orders_status,orders_count',
+                '  completed,3',
+                '  placed,1',
+                `- totals: "Totals" (duckdb), queryUuid ${queryUuidFor('totals')}: not finished: executing`,
+            ].join('\n'),
         );
 
         asyncQueryService.getAsyncQueryHistory.mockResolvedValue({
@@ -698,7 +812,7 @@ describe('McpService query tool', () => {
         });
     });
 
-    it('reports the failed node and the nodes that ran', async () => {
+    it('lists the failed node with its error first, then the nodes it reads with their columns and samples', async () => {
         const { service, call } = makeService({ terminalOutcome: 'failure' });
         await createServer(service);
 
@@ -708,9 +822,18 @@ describe('McpService query tool', () => {
         );
 
         expect(result.isError).toBe(true);
-        expect(textOf(result)).toContain('- orders: "Orders by status"');
         expect(textOf(result)).toContain(
-            '- totals: "Totals" (duckdb): error: Binder Error: column "nope" not found',
+            [
+                'Composer query failed.',
+                'Nodes in this pipeline, failed nodes first:',
+                '- totals: "Totals" (duckdb): failed: Binder Error: column "nope" not found',
+                '- orders: "Orders by status" (semanticLayer): 500 rows, limit 500. Reached its limit of 500, so more rows may exist (max 5000).',
+                '  Columns: orders_status (string), orders_count (number)',
+                '  Sample, 2 of 500 rows:',
+                '  orders_status,orders_count',
+                '  completed,3',
+                '  placed,1',
+            ].join('\n'),
         );
     });
 
@@ -783,7 +906,18 @@ describe('McpService query tool', () => {
             expect(result.structuredContent).toMatchObject({
                 sessionId,
                 terminalNodeId: 'top',
+                nodes: [
+                    { nodeId: 'orders', columns: null, sample: null },
+                    { nodeId: 'totals', columns: null, sample: null },
+                    { nodeId: 'top', sample: null },
+                ],
             });
+            expect(textOf(result)).toContain(
+                [
+                    `- totals: "Totals" (duckdb), queryUuid ${queryUuidFor('totals')}: 2 rows, limit 500. Reused from an earlier call.`,
+                    '- top: "Top status" (duckdb)',
+                ].join('\n'),
+            );
             expect(
                 runComposerQueriesUntilDeadline.mock.lastCall?.[0].queries.map(
                     ({ nodeId }) => nodeId,
@@ -804,9 +938,6 @@ describe('McpService query tool', () => {
 
             expect(result.isError).toBe(true);
             const [sessionId] = [...composerSessions.sessions.keys()];
-            expect(textOf(result)).toContain(
-                'Saved from this call: orders. Not saved: totals (failed: Binder Error: column "nope" not found).',
-            );
             expect(textOf(result)).toContain(`sessionId: ${sessionId}`);
             expect(
                 (
@@ -832,9 +963,6 @@ describe('McpService query tool', () => {
                 result.structuredContent,
             );
             expect(sessionId).not.toBeNull();
-            expect(textOf(result)).toContain(
-                'Saved from this call: orders. Not saved: totals (not finished: executing).',
-            );
             expect(
                 (
                     await composerSessions.model.listComposerQueryNodes(

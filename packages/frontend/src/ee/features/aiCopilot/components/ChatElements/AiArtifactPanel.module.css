@@ -2,11 +2,8 @@
     height: 100%;
     width: 100%;
     background: var(--mantine-color-body);
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: 12px;
-    box-shadow:
-        0 1px 2px rgba(15, 23, 42, 0.04),
-        0 8px 20px rgba(15, 23, 42, 0.05);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
     overflow: hidden;
     position: relative;
     animation: floatingPanelEnter 320ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -53,10 +50,11 @@
     position: relative;
 }
 
+/* Controls sit on the title row; the description wraps beneath the title. */
 .head {
     display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
+    align-items: flex-start;
+    gap: var(--mantine-spacing-md);
 }
 
 .headRight {
@@ -64,6 +62,28 @@
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
+}
+
+.windowControls {
+    flex-shrink: 0;
+}
+
+/* Same divider as the chat header's action groups. */
+.headDivider {
+    height: rem(16px);
+    align-self: center;
+    margin-inline: rem(4px);
+}
+
+/* Chart/Lineage toggle: as tall as the head's 24px icon buttons. */
+.headRight .viewToggle {
+    --sc-font-size: var(--mantine-font-size-xs);
+    --sc-padding: rem(1px) rem(10px);
+    padding: rem(2px);
+}
+
+.headRight .viewToggleLabel {
+    line-height: rem(18px);
 }
 
 .floatingPill {
@@ -118,4 +138,20 @@
 .displayedResultBody {
     height: 100%;
     min-height: 0;
+}
+
+/* Stacks the preview above an in-flow footer (e.g. the docked inspector). */
+.previewBodyStacked {
+    display: flex;
+    flex-direction: column;
+
+    & > iframe {
+        flex: 1;
+        min-height: 0;
+        height: auto;
+    }
+}
+
+.buildProgress {
+    width: min(100%, rem(280px));
 }

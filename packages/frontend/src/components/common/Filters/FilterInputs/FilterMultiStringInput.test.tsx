@@ -16,6 +16,14 @@ describe('FilterMultiStringInput', () => {
         expect(container.querySelectorAll('button')).toHaveLength(2);
     });
 
+    it('opens its list on focus, as the shipped filter popovers expect', () => {
+        renderWithProviders(
+            <FilterMultiStringInput values={[]} onChange={vi.fn()} />,
+        );
+        fireEvent.focus(screen.getByRole('textbox'));
+        expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
     it('adds a custom value on Enter', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
@@ -88,5 +96,32 @@ describe('FilterMultiStringInput', () => {
         expect(onChange).toHaveBeenCalledWith(['US', 'us', 'GB']);
         // The raw CSV must never be committed as a single value.
         expect(onChange).not.toHaveBeenCalledWith(['US, us, GB']);
+    });
+
+    it('discards a pasted CSV when its chooser is dismissed by a press outside', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+
+        renderWithProviders(
+            <FilterMultiStringInput values={[]} onChange={onChange} />,
+        );
+
+        const input = screen.getByRole('textbox');
+        await user.click(input);
+        // A browser paste fires the event, then inserts the text
+        fireEvent.paste(input, {
+            clipboardData: { getData: () => 'US, us, GB' },
+        });
+        fireEvent.change(input, { target: { value: 'US, us, GB' } });
+        expect(
+            await screen.findByRole('button', { name: /multiple values/i }),
+        ).toBeInTheDocument();
+
+        await user.click(document.body);
+
+        expect(
+            screen.queryByRole('button', { name: /multiple values/i }),
+        ).not.toBeInTheDocument();
+        expect(onChange).not.toHaveBeenCalled();
     });
 });

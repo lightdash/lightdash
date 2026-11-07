@@ -136,6 +136,7 @@ const makeMcpService = (
                 BuiltInSkills.getMcpResourceBody(uri),
         },
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpContentWritesEnabled: vi
                 .fn()
                 .mockResolvedValue(mcpContentWritesEnabled),
@@ -1368,6 +1369,7 @@ describe('MCP tool contracts', () => {
         ).toHaveBeenCalledWith({
             user: defaultSessionUser,
             projectUuid: 'project-uuid',
+            spaceUuids: null,
         });
     });
 });

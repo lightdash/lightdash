@@ -22,6 +22,9 @@ export const getPromptUsageAttribution = (
         embedSpaceUuid: isSlackPrompt(prompt)
             ? null
             : prompt.threadEmbedSpaceUuid,
+        embedExternalUserId: isSlackPrompt(prompt)
+            ? null
+            : prompt.externalUserId,
     }),
     externalUserId: isSlackPrompt(prompt) ? null : prompt.externalUserId,
 });

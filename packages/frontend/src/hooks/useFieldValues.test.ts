@@ -26,10 +26,6 @@ vi.mock('../ee/providers/Embed/useEmbed', () => ({
     default: vi.fn(() => ({ embedToken: undefined })),
 }));
 
-vi.mock('./useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
-}));
-
 vi.mock('./useSessionTimezone', () => ({
     useSessionTimezone: vi.fn(() => null),
 }));
@@ -298,6 +294,28 @@ describe('getFieldValuesAsync', () => {
     });
 });
 
+const mockFieldValueSearch = (values: string[]) => {
+    mockedLightdashApi
+        .mockResolvedValueOnce({
+            queryUuid: 'query-uuid',
+            cacheMetadata: { cacheHit: false },
+            valueFieldId: 'orders_status',
+            labelFieldId: null,
+        } as never)
+        .mockResolvedValueOnce({
+            status: QueryHistoryStatus.READY,
+            rows: values.map((value) => ({
+                orders_status: { value: { raw: value, formatted: value } },
+            })),
+            columns: {
+                orders_status: {
+                    reference: 'orders_status',
+                    type: DimensionType.STRING,
+                },
+            },
+        } as never);
+};
+
 describe('useFieldValues', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -353,12 +371,7 @@ describe('useFieldValues', () => {
     it.each([filtersForCountry('France'), undefined])(
         'clears retained suggestions immediately when active filters change to %j',
         async (nextFilters) => {
-            mockedLightdashApi.mockResolvedValueOnce({
-                search: '',
-                results: ['London'],
-                cached: false,
-                refreshedAt: new Date(),
-            });
+            mockFieldValueSearch(['London']);
             mockedLightdashApi.mockRejectedValueOnce(
                 new Error('Search failed'),
             );
@@ -395,12 +408,7 @@ describe('useFieldValues', () => {
     );
 
     it('preserves suggestions when only the filter group wrapper changes', async () => {
-        mockedLightdashApi.mockResolvedValue({
-            search: '',
-            results: ['London'],
-            cached: false,
-            refreshedAt: new Date(),
-        });
+        mockFieldValueSearch(['London']);
         const { result, rerender } = renderHookWithProviders(
             (filters: AndFilterGroup) =>
                 useFieldValues(
@@ -422,23 +430,45 @@ describe('useFieldValues', () => {
         rerender({ ...filtersForCountry('UK'), id: 'new-wrapper-id' });
 
         expect(result.current.results).toEqual([{ value: 'London' }]);
-        expect(sharedLightdashApi).toHaveBeenCalledTimes(1);
+        // One execute and one poll
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(2);
     });
 
     it('keeps autocomplete results independent for distinct active filters', async () => {
-        mockedLightdashApi
-            .mockResolvedValueOnce({
-                search: '',
-                results: ['London'],
-                cached: false,
-                refreshedAt: new Date(),
-            })
-            .mockResolvedValueOnce({
-                search: '',
-                results: ['Paris'],
-                cached: false,
-                refreshedAt: new Date(),
-            });
+        mockedLightdashApi.mockImplementation((async ({
+            url,
+            body,
+        }: {
+            url: string;
+            body?: string;
+        }) => {
+            if (url.endsWith('/query/field-values')) {
+                const country = body?.includes('France') ? 'France' : 'UK';
+                return {
+                    queryUuid: country,
+                    cacheMetadata: { cacheHit: false },
+                    valueFieldId: 'orders_status',
+                    labelFieldId: null,
+                };
+            }
+            const value = url.endsWith('/France') ? 'Paris' : 'London';
+            return {
+                status: QueryHistoryStatus.READY,
+                rows: [
+                    {
+                        orders_status: {
+                            value: { raw: value, formatted: value },
+                        },
+                    },
+                ],
+                columns: {
+                    orders_status: {
+                        reference: 'orders_status',
+                        type: DimensionType.STRING,
+                    },
+                },
+            };
+        }) as never);
 
         const { result } = renderHookWithProviders(() => ({
             uk: useFieldValues(
@@ -527,12 +557,7 @@ describe('useFieldValues', () => {
             { value: 'trial', label: 'Trial account' },
         ]);
 
-        mockedLightdashApi.mockResolvedValueOnce({
-            search: 'act',
-            results: ['active', 'prospect'],
-            cached: false,
-            refreshedAt: new Date('2026-06-29T09:00:00.000Z'),
-        } as never);
+        mockFieldValueSearch(['active', 'prospect']);
 
         const fetchedResult = renderHookWithProviders(() =>
             useFieldValues(

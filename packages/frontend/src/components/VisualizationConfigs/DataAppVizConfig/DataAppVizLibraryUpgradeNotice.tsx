@@ -1,10 +1,10 @@
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import { type DataAppViz } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import ChartTypeUpgradeModal from '../../../features/chartTypes/components/ChartTypeUpgradeModal';
+import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useRegistryChartTypes } from '../../../features/chartTypes/hooks/useRegistryChartTypes';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import Callout from '../../common/Callout';
 
 type Props = {
@@ -18,9 +18,7 @@ const DataAppVizLibraryUpgradeNotice: FC<Props> = ({
 }) => {
     const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
     const canUpgrade = useCanCreateDataApp(projectUuid);
-    const registryEnabled =
-        useServerFeatureFlag(FeatureFlags.ChartTypeRegistry).data?.enabled ===
-        true;
+    const registryEnabled = useChartTypesEnabled().enabled;
     const { data } = useRegistryChartTypes(projectUuid, registryEnabled);
     const registryUpdate = data?.charts.find(
         (entry) =>

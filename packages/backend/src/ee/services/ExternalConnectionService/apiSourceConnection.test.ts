@@ -4,7 +4,10 @@ import {
     type CreateExternalConnection,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
-import { getGa4ReportPath } from '../../../services/QuerySourceService/api/google/Ga4Connector';
+import {
+    getGa4MetadataPath,
+    getGa4ReportPath,
+} from '../../../services/QuerySourceService/api/google/Ga4Connector';
 import { getSearchConsoleQueryPath } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
 import {
     validateApiSourceConnection,
@@ -32,10 +35,13 @@ const config = (
 });
 
 describe('withApiSourceAccessRules', () => {
-    it('limits a PostHog connection to its query endpoint', () => {
+    it('limits a PostHog connection to its query and property endpoints', () => {
         expect(withApiSourceAccessRules(config())).toMatchObject({
-            allowedPathPrefixes: ['/api/projects/303731/query/'],
-            allowedMethods: ['POST'],
+            allowedPathPrefixes: [
+                '/api/projects/303731/query/',
+                '/api/projects/303731/property_definitions/',
+            ],
+            allowedMethods: ['POST', 'GET'],
             allowedContentTypes: ['application/json'],
             timeoutMs: 45_000,
             responseMaxBytes: 25 * 1024 * 1024,
@@ -157,9 +163,21 @@ describe('Google Analytics connections', () => {
             }),
         );
 
-    it('sends reports only to the connected property', () => {
+    it('sends reports and metadata reads only to the connected property', () => {
         const { allowedPathPrefixes, allowedMethods, origin } = ga4('123456');
-        expect(allowedMethods).toEqual(['POST']);
+        expect(allowedMethods).toEqual(['POST', 'GET']);
+        expect(
+            buildOutboundUrl(
+                origin,
+                normalizeAndValidatePath(
+                    getGa4MetadataPath('123456'),
+                    allowedPathPrefixes,
+                ),
+                undefined,
+            ),
+        ).toBe(
+            'https://analyticsdata.googleapis.com/v1beta/properties/123456/metadata',
+        );
         const path = normalizeAndValidatePath(
             getGa4ReportPath('123456'),
             allowedPathPrefixes,

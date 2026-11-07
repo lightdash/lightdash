@@ -104,17 +104,14 @@ default, so behavior is identical to before.
 
 ---
 
-## Access — the `pro-limits` feature flag
+## Access
 
-Unlike the scheduled-delivery Exporting panel, the **Limits** panel is gated behind the
-`FeatureFlags.ProLimits` (`pro-limits`) feature flag — it's a Pro capability, so only enable the panel for orgs
-that should configure it. Enable it via `LIGHTDASH_ENABLE_FEATURE_FLAGS=pro-limits` (self-hosted escape hatch),
-a `feature_flags` row, or a per-org `feature_flag_overrides` row.
+Org admins (`manage` on `Organization`) see the **Limits** panel and can write `queryLimit` and `csvCellsLimit`
+through `PATCH /api/v1/org/settings`. No feature flag gates either one.
 
-The flag gates **both** the panel (frontend) **and** the update API: `OrganizationSettingsService.updateOrganizationSettings`
-rejects changes to `query_limit`/`csv_cells_limit` for an org without the flag (`ForbiddenError`), so the gate
-can't be bypassed with a direct `PATCH`. The other org-settings fields (scheduled delivery) are not gated.
-**Reads and enforcement** of any already-stored override are always on — only writing the limits is gated.
+Admins can lower the query row limit below `LIGHTDASH_QUERY_MAX_LIMIT` and raise the CSV cell limit up to
+`max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)`. Query and export services read the stored limits through
+`resolveOrganizationExportLimits` (`resolveExportLimits.ts`).
 
 ---
 
@@ -125,7 +122,6 @@ can't be bypassed with a direct `PATCH`. The other org-settings fields (schedule
 | Setting types + resolver | `packages/common/src/types/organizationSettings.ts` (`queryLimit`, `csvCellsLimit`) |
 | CSV cap config | `parseConfig.ts` (`query.csvMaxLimit` from `LIGHTDASH_CSV_MAX_LIMIT`) |
 | Org-aware health | `HealthService.ts` (`query.maxLimit` / `defaultLimit` / `csvCellsLimit` effective; `queryMaxLimit` / `csvMaxLimit` ceilings) |
-| Feature flag | `packages/common/src/types/featureFlags.ts` (`ProLimits = 'pro-limits'`) |
 | DB column + entity | migration `..._add_export_limits_to_organization_settings.ts`, `entities/organizationSettings.ts` |
 | Model + service validation | `OrganizationSettingsModel.ts`, `OrganizationSettingsService.ts` |
 | Limit resolution helper | `services/OrganizationSettingsService/resolveExportLimits.ts` |

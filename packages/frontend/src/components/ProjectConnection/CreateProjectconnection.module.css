@@ -5,3 +5,9 @@
 .submitButton {
     align-self: end;
 }
+
+.formBody {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}

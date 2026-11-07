@@ -129,7 +129,9 @@ import {
     selectInvalidateCache,
     selectIsDateZoomAppliedToTile,
     useDashboardSelector,
+    useTileDashboardParameterInputs,
 } from '../../features/dashboard/store';
+import { useTileQueryQueueVisibility } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -752,6 +754,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const appliedParameterValues = useDashboardSelector(
             selectAppliedParameterValues,
         );
+        const tileParameterInputs = useTileDashboardParameterInputs(
+            tileUuid,
+            appliedParameterValues,
+        );
         const { mutate: exportSavedChartImage } = useSavedChartImageExport();
         const canExportSavedDataAppVizImage =
             isSavedDataAppVizDashboardImageExportAvailable({
@@ -762,7 +768,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 ).every((filters) => filters.length === 0),
                 hasParameterOverrides: hasDashboardTileParameterOverrides({
                     usedParameterValues: usedParametersValues ?? {},
-                    dashboardValues: appliedParameterValues,
+                    dashboardValues: tileParameterInputs.dashboardValues,
                     chartSavedValues: chart.parameters ?? {},
                 }),
                 hasUnpublishedChanges: !!chart.hasUnpublishedChanges,
@@ -1523,12 +1529,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     key,
                                                                     definitions:
                                                                         parameterDefinitions,
-                                                                    dashboardValues:
-                                                                        appliedParameterValues,
+                                                                    ...tileParameterInputs,
                                                                     chartSavedValues:
                                                                         chart.parameters ??
                                                                         {},
-                                                                    isTargeted: true,
                                                                 },
                                                             ),
                                                             getUiString,
@@ -2689,6 +2693,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         resultsData.isFetchingFirstPage,
         resultsData.error,
     ]);
+    useTileQueryQueueVisibility(props.tile.uuid);
 
     // Publish this tile's query as an AI analysis source once it settles.
     const queryUuid = readyQuery.data?.executeQueryResponse.queryUuid ?? null;

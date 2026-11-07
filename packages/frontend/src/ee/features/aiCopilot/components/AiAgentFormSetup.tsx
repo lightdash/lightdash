@@ -270,12 +270,6 @@ export const AiAgentFormSetup = ({
         }),
     );
 
-    const scrollToKnowledgeAndData = useCallback(() => {
-        document
-            .getElementById('knowledge-and-data')
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, []);
-
     const handleDeleteClick = useCallback(() => {
         setDeleteModalOpen(true);
     }, []);
@@ -317,10 +311,6 @@ export const AiAgentFormSetup = ({
     const { data: slackInstallation, isLoading: isLoadingSlackInstallation } =
         useGetSlack();
 
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
     const threadRetentionFlagQuery = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
     );
@@ -330,10 +320,6 @@ export const AiAgentFormSetup = ({
     );
     const composerQueriesAvailable =
         composeSqlRunnerFlagQuery.data?.enabled === true;
-
-    const isGroupsEnabled =
-        userGroupsFeatureFlagQuery.isSuccess &&
-        userGroupsFeatureFlagQuery.data.enabled;
 
     const handlePersistedMcpServerChange = useCallback(
         (value: string[]) => {
@@ -359,14 +345,9 @@ export const AiAgentFormSetup = ({
         [form],
     );
 
-    const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups(
-        {
-            includeMembers: 5,
-        },
-        {
-            enabled: isGroupsEnabled,
-        },
-    );
+    const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups({
+        includeMembers: 5,
+    });
 
     const groupOptions = useMemo(
         () =>
@@ -952,7 +933,7 @@ export const AiAgentFormSetup = ({
                                 label={
                                     <SwitchLabel
                                         text="Create and edit content"
-                                        help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                        help="Requires reading rows to be enabled. Users only get the actions their role allows."
                                         badge={<BetaBadge />}
                                     />
                                 }
@@ -1028,20 +1009,6 @@ export const AiAgentFormSetup = ({
                                 />
                             )}
                         </Stack>
-
-                        <Text size="xs" c="dimmed">
-                            Which explores, spaces and documents it can read is
-                            set in{' '}
-                            <Anchor
-                                component="button"
-                                type="button"
-                                size="xs"
-                                onClick={scrollToKnowledgeAndData}
-                            >
-                                Knowledge &amp; data
-                            </Anchor>
-                            .
-                        </Text>
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
@@ -1115,8 +1082,8 @@ export const AiAgentFormSetup = ({
                                         />
                                         <Radio
                                             value="specific"
-                                            label={`Specific users ${isGroupsEnabled ? ' & groups' : ''}`}
-                                            description={`Only the users${isGroupsEnabled ? ' and groups ' : ' '}you choose. Admins and developers (Manage AI Agents scope) always have access.`}
+                                            label="Specific users & groups"
+                                            description="Only the users and groups you choose. Admins and developers (Manage AI Agents scope) always have access."
                                         />
                                     </Stack>
                                 </Radio.Group>
@@ -1125,7 +1092,6 @@ export const AiAgentFormSetup = ({
                                     <Stack pl="xl">
                                         <UserAccessMultiSelect
                                             projectUuid={projectUuid!}
-                                            isGroupsEnabled={isGroupsEnabled}
                                             selectedUserDetails={
                                                 userAccessDetails
                                             }
@@ -1138,66 +1104,63 @@ export const AiAgentFormSetup = ({
                                             }}
                                         />
 
-                                        {isGroupsEnabled && (
-                                            <MultiSelect
-                                                variant="subtle"
-                                                label={
-                                                    <Group gap="xs">
-                                                        <Text fz="sm" fw={500}>
-                                                            Group Access
-                                                        </Text>
-                                                        <Tooltip
-                                                            label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
-                                                            position="right"
-                                                            maw="250px"
-                                                        >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconInfoCircle
-                                                                }
-                                                            />
-                                                        </Tooltip>
-                                                    </Group>
-                                                }
-                                                description="Select groups that can access this agent."
-                                                placeholder={
-                                                    isLoadingGroups
-                                                        ? 'Loading groups...'
-                                                        : groupOptions.length ===
-                                                            0
-                                                          ? 'No groups available'
-                                                          : 'Select groups or leave empty for all users'
-                                                }
-                                                data={groupOptions}
-                                                disabled={
-                                                    isLoadingGroups ||
-                                                    groupOptions.length === 0
-                                                }
-                                                comboboxProps={{
-                                                    transitionProps: {
-                                                        transition: 'pop',
-                                                        duration: 200,
-                                                    },
-                                                }}
-                                                clearable
-                                                {...form.getInputProps(
+                                        <MultiSelect
+                                            variant="subtle"
+                                            label={
+                                                <Group gap="xs">
+                                                    <Text fz="sm" fw={500}>
+                                                        Group Access
+                                                    </Text>
+                                                    <Tooltip
+                                                        label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
+                                                        position="right"
+                                                        maw="250px"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconInfoCircle
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                </Group>
+                                            }
+                                            description="Select groups that can access this agent."
+                                            placeholder={
+                                                isLoadingGroups
+                                                    ? 'Loading groups...'
+                                                    : groupOptions.length === 0
+                                                      ? 'No groups available'
+                                                      : 'Select groups or leave empty for all users'
+                                            }
+                                            data={groupOptions}
+                                            disabled={
+                                                isLoadingGroups ||
+                                                groupOptions.length === 0
+                                            }
+                                            comboboxProps={{
+                                                transitionProps: {
+                                                    transition: 'pop',
+                                                    duration: 200,
+                                                },
+                                            }}
+                                            clearable
+                                            {...form.getInputProps(
+                                                'groupAccess',
+                                            )}
+                                            value={
+                                                form.getInputProps(
                                                     'groupAccess',
-                                                )}
-                                                value={
-                                                    form.getInputProps(
-                                                        'groupAccess',
-                                                    ).value ?? []
-                                                }
-                                                onChange={(value) => {
-                                                    form.setFieldValue(
-                                                        'groupAccess',
-                                                        value.length > 0
-                                                            ? value
-                                                            : [],
-                                                    );
-                                                }}
-                                            />
-                                        )}
+                                                ).value ?? []
+                                            }
+                                            onChange={(value) => {
+                                                form.setFieldValue(
+                                                    'groupAccess',
+                                                    value.length > 0
+                                                        ? value
+                                                        : [],
+                                                );
+                                            }}
+                                        />
                                     </Stack>
                                 )}
                             </Stack>

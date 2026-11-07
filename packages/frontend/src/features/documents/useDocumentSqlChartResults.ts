@@ -37,7 +37,8 @@ export const useDocumentSqlChartResults = ({
         spaceUuid: spaceUuid ?? undefined,
     });
     const { documentUuid, versionUuid, chartId } = reference;
-    return useQuery<DocumentSqlChartResults, ApiError>({
+    // Polling throws a plain `Error` when the warehouse query fails
+    return useQuery<DocumentSqlChartResults, ApiError | Error>({
         queryKey: [
             'document-sql-chart-results',
             projectUuid,

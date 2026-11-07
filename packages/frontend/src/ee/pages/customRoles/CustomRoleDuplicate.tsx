@@ -1,10 +1,12 @@
 import { type RoleLevel, type RoleWithScopes } from '@lightdash/common';
-import { Center, Loader, Select, Stack } from '@mantine/core';
-import startCase from 'lodash/startCase';
+import { Select } from '@mantine/core';
+import { startCase } from 'es-toolkit/compat';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
+import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
+import { SettingsSection } from '../../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
+import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { RoleBuilder } from '../../features/customRoles/components/RoleBuilder';
 import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
 
@@ -59,40 +61,35 @@ export const CustomRoleDuplicate = () => {
     };
 
     if (getAllRoles.isLoading) {
-        return (
-            <Center h="100vh">
-                <Loader />
-            </Center>
-        );
+        return <EmptyStateLoader title="Loading roles" />;
     }
 
     return (
-        <Stack gap="md" h="100%">
-            <PageBreadcrumbs
-                items={[
-                    {
-                        title: 'Custom roles',
-                        to: '/generalSettings/customRoles',
-                    },
-                    {
-                        title: 'Duplicate role',
-                        active: true,
-                    },
-                ]}
-            />
-
-            <SettingsCard>
-                <Select
-                    label="Select role to duplicate"
-                    placeholder="Choose a role"
-                    searchable
-                    nothingFoundMessage="No roles found"
-                    data={rolesSelectData}
-                    required
-                    value={sourceRoleId}
-                    onChange={(value) => setSourceRoleId(value ?? '')}
-                />
-            </SettingsCard>
+        <SettingsPage
+            fillHeight
+            title="Duplicate role"
+            description="Start a new role from an existing role's type and permissions."
+            breadcrumbs={[
+                {
+                    title: 'Custom roles',
+                    to: '/generalSettings/customRoles',
+                },
+            ]}
+        >
+            <SettingsSection label="Source role" description={null}>
+                <SettingsCard>
+                    <Select
+                        label="Select role to duplicate"
+                        placeholder="Choose a role"
+                        searchable
+                        nothingFoundMessage="No roles found"
+                        data={rolesSelectData}
+                        required
+                        value={sourceRoleId}
+                        onChange={(value) => setSourceRoleId(value ?? '')}
+                    />
+                </SettingsCard>
+            </SettingsSection>
 
             {sourceRole && (
                 <RoleBuilder
@@ -111,6 +108,6 @@ export const CustomRoleDuplicate = () => {
                     rederiveScopesOnLevelChange
                 />
             )}
-        </Stack>
+        </SettingsPage>
     );
 };

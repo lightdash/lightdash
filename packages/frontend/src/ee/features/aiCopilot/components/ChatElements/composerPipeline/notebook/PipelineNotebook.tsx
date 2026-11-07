@@ -34,7 +34,8 @@ import { useComposerNodeRowsLabel } from '../../composerNodeStatus';
 import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
 import { ComposerNodeIcon } from '../ComposerNodeIcon';
-import { nodeTypeLabelOf, type PipelineNode } from '../groupPipeline';
+import { type NodeLineage, type PipelineNode } from '../groupPipeline';
+import { useComposerNodeTypeLabel } from '../useComposerNodeLiveSource';
 import { CellQueryPanels, CellQueryToggles, ExploreSource } from './NodeQuery';
 import styles from './PipelineNotebook.module.css';
 import {
@@ -45,6 +46,7 @@ import {
 import { useExploreFromHere } from './useExploreFromHere';
 
 const FLASH_MS = 1200;
+const CELL_SCROLL_GAP = 16;
 
 const formatDuration = (ms: number) =>
     ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
@@ -70,26 +72,33 @@ export type PipelineNotebookProps = {
     chatNodeIds: ReadonlySet<string>;
     /** Null when the pipeline can't be pinned to a chat. */
     onAddToChat: ((node: PipelineNode) => void) | null;
+    /** Selects the node in the lineage graph. */
+    onSelectNode: (nodeId: string) => void;
+    /** The lineage drawn in the notebook. */
+    onLineageChange: (lineage: NodeLineage | null) => void;
 };
 
 const CellStatus: FC<{
     query: SourceQuery;
     status: ComposerRunNodeStatus | undefined;
-}> = ({ query, status }) => (
-    <Tooltip label={nodeTypeLabelOf(query)}>
-        <Box className={styles.cellIcon}>
-            {status && status.status !== 'success' ? (
-                <NodeStatusIndicator status={status.status} />
-            ) : (
-                <ComposerNodeIcon query={query} size={14} />
-            )}
-        </Box>
-    </Tooltip>
-);
+}> = ({ query, status }) => {
+    const typeLabel = useComposerNodeTypeLabel(query);
+    return (
+        <Tooltip label={typeLabel}>
+            <Box className={styles.cellIcon}>
+                {status && status.status !== 'success' ? (
+                    <NodeStatusIndicator status={status.status} />
+                ) : (
+                    <ComposerNodeIcon query={query} size={14} />
+                )}
+            </Box>
+        </Tooltip>
+    );
+};
 
 type CellProps = Omit<
     PipelineNotebookProps,
-    'ref' | 'nodes' | 'chatNodeIds'
+    'ref' | 'nodes' | 'chatNodeIds' | 'onSelectNode' | 'onLineageChange'
 > & {
     node: PipelineNode;
     /** The nodes this one reads. */
@@ -316,7 +325,11 @@ const NotebookCell: FC<CellProps> = ({
                             <UnstyledButton
                                 key={reference.nodeId}
                                 className={styles.referencePill}
-                                onClick={() => onJump(reference.nodeId)}
+                                onClick={(event) => {
+                                    // The cell's own click would reselect this cell.
+                                    event.stopPropagation();
+                                    onJump(reference.nodeId);
+                                }}
                                 onMouseEnter={() => onLineageHover(true)}
                                 onMouseLeave={() => onLineageHover(false)}
                             >
@@ -353,32 +366,17 @@ const branchPath = (
     return `M ${trunkX} ${y} H ${endX}`;
 };
 
-/** A trunk in the gutter with a branch into each cell; the hovered cell's branch drawn on its own. */
-const lineagePaths = (
-    relatedYs: number[],
-    hoveredY: number,
-    trunkX: number,
-    endX: number,
-) => {
-    const ys = [...relatedYs, hoveredY];
+/** A trunk in the gutter with a branch into each cell. */
+const lineagePath = (ys: number[], trunkX: number, endX: number) => {
     const top = Math.min(...ys);
     const bottom = Math.max(...ys);
-    return {
-        d: [
-            `M ${trunkX} ${top + CORNER} V ${bottom - CORNER}`,
-            ...relatedYs.map((y) => branchPath(y, top, bottom, trunkX, endX)),
-        ].join(' '),
-        anchorD: branchPath(hoveredY, top, bottom, trunkX, endX),
-    };
+    return [
+        `M ${trunkX} ${top + CORNER} V ${bottom - CORNER}`,
+        ...ys.map((y) => branchPath(y, top, bottom, trunkX, endX)),
+    ].join(' ');
 };
 
-type Lineage = {
-    nodeId: string;
-    relatedIds: ReadonlySet<string>;
-    d: string;
-    /** The hovered cell's own branch, drawn darker. */
-    anchorD: string;
-};
+type Lineage = NodeLineage & { d: string };
 
 // Skips cells the pointer only sweeps across.
 const HOVER_INTENT_MS = 150;
@@ -388,8 +386,11 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     ref,
     nodes,
     chatNodeIds,
+    onSelectNode,
+    onLineageChange,
     ...cellProps
 }) => {
+    const notebookEl = useRef<HTMLDivElement>(null);
     const cellEls = useRef(new Map<string, HTMLDivElement>());
     const [flashNodeId, setFlashNodeId] = useState<string | null>(null);
     const [lineage, setLineage] = useState<Lineage | null>(null);
@@ -400,10 +401,23 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
         () => new Map(nodes.map((node) => [node.nodeId, node])),
         [nodes],
     );
+    const hideLineage = () => {
+        window.clearTimeout(intentTimer.current);
+        setIsLineageVisible(false);
+        onLineageChange(null);
+    };
     const focusNode = (nodeId: string) => {
-        cellEls.current
-            .get(nodeId)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        onSelectNode(nodeId);
+        // Lines drawn before the scroll would leave a hook pointing off-screen.
+        hideLineage();
+        const cell = cellEls.current.get(nodeId);
+        // Scrolls only the notebook; scrollIntoView would also nudge the page.
+        if (cell) {
+            notebookEl.current?.scrollTo({
+                top: cell.offsetTop - CELL_SCROLL_GAP,
+                behavior: 'smooth',
+            });
+        }
         setFlashNodeId(nodeId);
         window.setTimeout(
             () =>
@@ -432,13 +446,13 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
             return el ? [y(el)] : [];
         });
         if (relatedYs.length === 0) return;
-        const hoveredY = y(hovered);
+        const nodeLineage = { nodeId, relatedIds: new Set(related) };
         setLineage({
-            nodeId,
-            relatedIds: new Set(related),
-            ...lineagePaths(relatedYs, hoveredY, trunkX, endX),
+            ...nodeLineage,
+            d: lineagePath([...relatedYs, y(hovered)], trunkX, endX),
         });
         setIsLineageVisible(true);
+        onLineageChange(nodeLineage);
     };
     const showLineage = (nodeId: string) => {
         window.clearTimeout(intentTimer.current);
@@ -447,31 +461,19 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
             HOVER_INTENT_MS,
         );
     };
-    const hideLineage = () => {
-        window.clearTimeout(intentTimer.current);
-        setIsLineageVisible(false);
-    };
     useEffect(() => () => window.clearTimeout(intentTimer.current), []);
 
     useImperativeHandle(ref, () => ({ focusNode, showLineage, hideLineage }));
 
     return (
-        <Stack gap="lg" className={styles.notebook}>
+        <Stack gap="lg" className={styles.notebook} ref={notebookEl}>
             <svg
                 className={styles.lineage}
                 data-lineage
                 data-visible={isLineageVisible}
                 aria-hidden
             >
-                {lineage && (
-                    <>
-                        <path d={lineage.d} />
-                        <path
-                            d={lineage.anchorD}
-                            className={styles.lineageAnchor}
-                        />
-                    </>
-                )}
+                {lineage && <path d={lineage.d} />}
             </svg>
             {nodes.map((node) => (
                 <Box
@@ -480,6 +482,7 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
                         if (el) cellEls.current.set(node.nodeId, el);
                         else cellEls.current.delete(node.nodeId);
                     }}
+                    onClick={() => onSelectNode(node.nodeId)}
                     data-lineage-role={
                         !isLineageVisible || !lineage
                             ? undefined

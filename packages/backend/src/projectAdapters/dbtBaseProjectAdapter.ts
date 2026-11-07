@@ -1,6 +1,7 @@
 import {
     AnyType,
     applyMetricFlowMetricsToModels,
+    assertValidDbtManifestIdentifiers,
     attachTypesToModels,
     catalogHasTimestampDomains,
     DbtManifestVersion,
@@ -14,6 +15,7 @@ import {
     friendlyName,
     getCompiledModels,
     getDbtManifestVersion,
+    getDbtModelTextError,
     getDeferredExploreName,
     getMissingCatalogEntries,
     getModelInventoryFromManifest,
@@ -34,6 +36,7 @@ import {
     SupportedDbtAdapter,
     SupportedDbtVersions,
     type AttachTypesDiagnostics,
+    type DbtJoinAvailability,
     type LightdashProjectConfig,
     type ProjectContextEntry,
     type WarehouseCatalogMissingEntry,
@@ -88,6 +91,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         dbtVersion: SupportedDbtVersions,
         dbtProjectDir?: string,
         analytics?: LightdashAnalytics,
+        private readonly joinAvailability?: DbtJoinAvailability,
     ) {
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
@@ -304,6 +308,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         Logger.debug('Get dbt manifest');
         const { manifest, selectedModelIds } =
             await this.dbtClient.getDbtManifest();
+        assertValidDbtManifestIdentifiers(manifest);
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
             throw new ParseError(
@@ -359,6 +364,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 models,
                 manifestVersion,
                 deferExploreNaming,
+                allowPartialCompilation,
             );
 
         // Translate MetricFlow definitions (semantic_models + metrics) into
@@ -408,6 +414,29 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             this.warehouseClient.credentials.disableTimestampConversion ===
                 true;
 
+        const validatedIds = new Set(
+            validatedModels.map((model) => model.unique_id),
+        );
+        const unavailableModels = Object.freeze(
+            models
+                .filter((model) => !validatedIds.has(model.unique_id))
+                .map(
+                    ({
+                        name,
+                        package_name,
+                        lightdash_source_name,
+                        version,
+                        latest_version,
+                    }) =>
+                        Object.freeze({
+                            name,
+                            package_name,
+                            lightdash_source_name,
+                            version,
+                            latest_version,
+                        }),
+                ),
+        );
         const explores = iterateExplores(
             typedModels,
             loadSources,
@@ -420,6 +449,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 postProcessors,
                 deferExploreNaming,
                 modelInventory: getModelInventoryFromManifest(manifest),
+                joinAvailability: this.joinAvailability,
+                unavailableModels,
                 allowCrossSourceJoinFallback:
                     manifest.lightdash_model_inventory_complete !== false,
             },
@@ -655,10 +686,46 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         models: DbtRawModelNode[],
         manifestVersion: DbtManifestVersion,
         includeModelIdentity: boolean = false,
+        allowPartialCompilation: boolean = true,
     ): [DbtModelNode[], ExploreError[]] {
         const validator = new ManifestValidator(manifestVersion);
         return models.reduce(
             ([validModels, invalidModels], model) => {
+                const textError = getDbtModelTextError(model);
+                if (textError !== null) {
+                    if (!allowPartialCompilation) throw textError;
+                    const invalid: ExploreError = {
+                        name: model.name,
+                        label: friendlyName(model.name),
+                        ...(includeModelIdentity
+                            ? {
+                                  dbtModelIdentity: {
+                                      sourceUuid:
+                                          model.lightdash_source_uuid ?? null,
+                                      sourceName:
+                                          model.lightdash_source_name ?? null,
+                                      packageName: model.package_name,
+                                      uniqueId: model.unique_id,
+                                      modelName: model.name,
+                                      ...(model.version != null
+                                          ? {
+                                                version: model.version,
+                                                latestVersion:
+                                                    model.latest_version,
+                                            }
+                                          : {}),
+                                  },
+                              }
+                            : {}),
+                        errors: [
+                            {
+                                type: InlineErrorType.METADATA_PARSE_ERROR,
+                                message: textError.message,
+                            },
+                        ],
+                    };
+                    return [validModels, [...invalidModels, invalid]];
+                }
                 let error: InlineError | undefined;
                 // Match against json schema
                 const [isValid, errorMessage] = validator.isModelValid(model);

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     assertRegisteredAccount,
+    buildMergeQueryFromMergeDefinition,
     BulkActionable,
     computeContentDraftStaleness,
     ContentAsCodeType,
@@ -24,14 +25,23 @@ import {
     ForbiddenError,
     generateSlug,
     getDashboardDeleteAccess,
+    getErrorMessage,
+    getExploreParameterDefinitions,
     getItemId,
+    getParameterMirror,
+    getParameterReferences,
+    getQueryParameterReferences,
+    getReferencedParameterDefinitions,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
     isDashboardScheduler,
+    isDashboardSqlChartTile,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
+    isExploreError,
     isJwtUser,
+    isMergeMetricSource,
     isUserWithOrg,
     isValidDashboardTilePositions,
     isValidFrequency,
@@ -55,6 +65,7 @@ import {
     UpdateMultipleDashboards,
     UserDashboardsSummary,
     type Account,
+    type AnonymousAccount,
     type ChartFieldUpdates,
     type ChartVersionDifference,
     type ChartVersionSummary,
@@ -63,18 +74,23 @@ import {
     type DashboardBasicDetailsWithTileTypes,
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
+    type DashboardTileParameterReferences,
+    type DashboardTileParameterReferencesTile,
     type DashboardTileTarget,
     type DashboardVersion,
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
+    type MetricQuery,
+    type ParameterDefinitions,
+    type SavedChartDAO,
     type UpdateDashboardCustomMetric,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { uniq } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
-import { uniq } from 'lodash';
 import pLimit from 'p-limit';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -104,7 +120,10 @@ import {
     type ContentDraftBase,
 } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import {
+    DashboardModel,
+    validateAndPruneDashboardConfig,
+} from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -117,9 +136,11 @@ import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createDashboardChartTiles } from '../../utils/dashboardTileUtils';
+import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -163,6 +184,10 @@ type DashboardServiceArguments = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    projectService: Pick<
+        ProjectService,
+        'findExplores' | 'projectParametersModel'
+    >;
 };
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
@@ -181,6 +206,71 @@ type DashboardDraftOverlay = Partial<
         | 'spaceUuid'
     >
 >;
+
+const TILE_LOAD_CONCURRENCY = 5;
+const MAX_PARAMETER_REFERENCE_TILES = 200;
+
+type ParameterReferencesResult =
+    | {
+          parameterReferences: string[];
+          parameterDefinitions: ParameterDefinitions;
+          error: null;
+      }
+    | { parameterReferences: null; error: string };
+
+const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
+    parameterReferences: null,
+    error: typeof e === 'string' ? e : getErrorMessage(e),
+});
+
+type ParameterReferencesLookup = (
+    uuid: string,
+) => ParameterReferencesResult | undefined;
+
+const toError = (e: unknown): Error =>
+    e instanceof Error ? e : new Error(getErrorMessage(e));
+
+type ChartQuery = { exploreName: string; metricQuery: MetricQuery };
+
+/** The queries a chart runs, each against its own explore; a merge runs one per metric source. */
+const getChartQueries = (chart: SavedChartDAO): ChartQuery[] =>
+    chart.merge
+        ? buildMergeQueryFromMergeDefinition(chart.metricQuery, chart.merge)
+              .sources.filter(isMergeMetricSource)
+              .map(({ metricQuery }) => ({
+                  exploreName: metricQuery.exploreName,
+                  metricQuery,
+              }))
+        : [{ exploreName: chart.tableName, metricQuery: chart.metricQuery }];
+
+const getChartParameterReferences = (
+    queries: ChartQuery[],
+    explores: Map<string, Explore | ExploreError | Error>,
+): string[] =>
+    uniq(
+        queries.flatMap(({ exploreName, metricQuery }) => {
+            const explore = explores.get(exploreName);
+            if (explore instanceof Error) throw explore;
+            if (!explore || isExploreError(explore)) {
+                throw new NotFoundError(
+                    `Explore "${exploreName}" is not available`,
+                );
+            }
+            return getQueryParameterReferences(explore, metricQuery);
+        }),
+    );
+
+const toLookup =
+    (
+        results: Map<string, ParameterReferencesResult>,
+    ): ParameterReferencesLookup =>
+    (uuid) =>
+        results.get(uuid);
+
+const getFailedResults =
+    (e: unknown): ParameterReferencesLookup =>
+    () =>
+        parameterReferencesFailure(e);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -263,6 +353,8 @@ export class DashboardService
     spacePermissionService: SpacePermissionService;
 
     contentVerificationModel: ContentVerificationModel;
+
+    private readonly projectService: DashboardServiceArguments['projectService'];
 
     async scheduleExportContent(
         account: Account,
@@ -375,6 +467,7 @@ export class DashboardService
             customViewportWidth: data.customViewportWidth,
             selectedTabs: data.selectedTabs ?? null,
             parameters: data.parameters,
+            tileParameters: data.tileParameters,
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             userUuid: account.user.id,
@@ -420,6 +513,7 @@ export class DashboardService
         organizationMemberProfileModel,
         spacePermissionService,
         contentVerificationModel,
+        projectService,
     }: DashboardServiceArguments) {
         super();
         this.featureFlagModel = featureFlagModel;
@@ -448,6 +542,7 @@ export class DashboardService
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.projectService = projectService;
     }
 
     async verifyDashboard(
@@ -545,6 +640,13 @@ export class DashboardService
         });
     }
 
+    // Service accounts aren't a person viewers can contact, so they never own
+    static getDefaultOwnerUserUuid(
+        user: Pick<SessionUser, 'userUuid' | 'serviceAccount'>,
+    ): string | null {
+        return user.serviceAccount ? null : user.userUuid;
+    }
+
     static getCreateEventProperties(
         dashboard: DashboardDAO,
     ): CreateDashboardOrVersionEvent['properties'] {
@@ -586,6 +688,7 @@ export class DashboardService
                 dashboard.config?.dateZoomConfig?.tileTargets ?? {},
             ).length,
             ...DashboardService.getSectionEventProperties(dashboard),
+            ...DashboardService.getParameterControlEventProperties(dashboard),
         };
     }
 
@@ -607,6 +710,28 @@ export class DashboardService
             ).length,
             collapsedByDefaultSectionsCount: controlSections.filter(
                 ({ collapsed }) => collapsed === true,
+            ).length,
+        };
+    }
+
+    // Counts only: parameter names, tile uuids and values never leave the dashboard
+    static getParameterControlEventProperties(
+        dashboard: Pick<DashboardDAO, 'config' | 'filters'>,
+    ) {
+        const parameterControls = dashboard.config?.parameterControls ?? [];
+        return {
+            parameterControlsCount: parameterControls.length,
+            parameterControlsWithNonAllTargetsCount: parameterControls.filter(
+                ({ parameters }) =>
+                    Object.values(parameters).some(
+                        (target) => target !== 'all',
+                    ),
+            ).length,
+            filtersWithCustomTileTargetsCount: [
+                ...(dashboard.filters?.dimensions ?? []),
+                ...(dashboard.filters?.metrics ?? []),
+            ].filter(
+                ({ tileTargets }) => Object.keys(tileTargets ?? {}).length > 0,
             ).length,
         };
     }
@@ -898,6 +1023,423 @@ export class DashboardService
             ...dashboard,
             verification: verifications.get(dashboard.uuid) ?? null,
         }));
+    }
+
+    /**
+     * The parameters each tile's query uses, read from its saved query and
+     * explore without compiling. A tile that can't be loaded or viewed
+     * reports its own error.
+     */
+    async areDashboardControlsEnabled(
+        user: SessionUser,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid, userUuid: user.userUuid },
+            featureFlagId: FeatureFlags.DashboardControls,
+        });
+        return enabled;
+    }
+
+    async getTileParameterReferences(
+        account: Account,
+        projectUuid: string,
+        tiles: DashboardTileParameterReferencesTile[],
+    ): Promise<DashboardTileParameterReferences[]> {
+        if (tiles.length > MAX_PARAMETER_REFERENCE_TILES) {
+            throw new ParameterError(
+                `A request can list the parameters of at most ${MAX_PARAMETER_REFERENCE_TILES} tiles`,
+            );
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                organizationUuid: account.organization.organizationUuid,
+                userUuid: account.isRegisteredUser()
+                    ? account.user.id
+                    : undefined,
+            },
+            featureFlagId: FeatureFlags.DashboardControls,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Dashboard controls are not enabled');
+        }
+        const sources = isJwtUser(account)
+            ? await this.getEmbedDashboardTileSources(
+                  account,
+                  projectUuid,
+                  tiles,
+              )
+            : tiles;
+        const projectDefinitions: ParameterDefinitions = Object.fromEntries(
+            (
+                await this.projectService.projectParametersModel.find(
+                    projectUuid,
+                )
+            ).map(({ name, config }) => [
+                name,
+                { ...config, type: config.type || 'string' },
+            ]),
+        );
+        // One kind failing outright keeps the other kind's results
+        const [chartResults, sqlResults] = await Promise.all([
+            this.getSavedChartParameterReferences(
+                account,
+                projectUuid,
+                uniq(sources.flatMap((tile) => tile?.savedChartUuid ?? [])),
+                projectDefinitions,
+            )
+                .then(toLookup)
+                .catch(getFailedResults),
+            this.getSavedSqlParameterReferences(
+                account,
+                projectUuid,
+                uniq(sources.flatMap((tile) => tile?.savedSqlUuid ?? [])),
+                projectDefinitions,
+            )
+                .then(toLookup)
+                .catch(getFailedResults),
+        ]);
+        return tiles.map(({ tileUuid }, index) => {
+            const source = sources[index];
+            if (source === null) {
+                return {
+                    tileUuid,
+                    ...parameterReferencesFailure(
+                        'Tile is not on the embedded dashboard',
+                    ),
+                };
+            }
+            const result =
+                (source.savedChartUuid &&
+                    chartResults(source.savedChartUuid)) ||
+                (source.savedSqlUuid && sqlResults(source.savedSqlUuid)) ||
+                parameterReferencesFailure('Tile has no saved chart');
+            return { tileUuid, ...result };
+        });
+    }
+
+    /**
+     * An embed lists only its token's dashboard tiles, with the queries saved
+     * on that dashboard; a tile missing from it maps to null.
+     */
+    private async getEmbedDashboardTileSources(
+        account: AnonymousAccount,
+        projectUuid: string,
+        tiles: DashboardTileParameterReferencesTile[],
+    ): Promise<(DashboardTileParameterReferencesTile | null)[]> {
+        const { content } = account.access;
+        if (content.type !== 'dashboard' || !content.dashboardUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow listing tile parameters outside a dashboard',
+            );
+        }
+        // The one check the per-chart embed checks share; each chart then
+        // comes from this dashboard's own tiles, so it belongs to it
+        const { embed } = account;
+        if (embed.projectUuid !== projectUuid) {
+            throw new ForbiddenError('Embed token does not allow this project');
+        }
+        if (
+            !embed.allowAllDashboards &&
+            !embed.dashboardUuids.includes(content.dashboardUuid)
+        ) {
+            throw new ForbiddenError(
+                `Dashboard ${content.dashboardUuid} is not embedded`,
+            );
+        }
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            content.dashboardUuid,
+            { projectUuid },
+        );
+        const dashboardTiles = new Map(
+            dashboard.tiles.map((tile) => [tile.uuid, tile]),
+        );
+        return tiles.map(({ tileUuid }) => {
+            const tile = dashboardTiles.get(tileUuid);
+            if (!tile) return null;
+            return {
+                tileUuid,
+                savedChartUuid: isDashboardChartTileType(tile)
+                    ? (tile.properties.savedChartUuid ?? null)
+                    : null,
+                savedSqlUuid: isDashboardSqlChartTile(tile)
+                    ? tile.properties.savedSqlUuid
+                    : null,
+            };
+        });
+    }
+
+    private async getSavedChartParameterReferences(
+        account: Account,
+        projectUuid: string,
+        savedChartUuids: string[],
+        projectDefinitions: ParameterDefinitions,
+    ): Promise<Map<string, ParameterReferencesResult>> {
+        const results = new Map<string, ParameterReferencesResult>();
+        // Each chart load makes several DB calls too; a failure stays with its tile
+        const loaded = await runWithConcurrency(
+            savedChartUuids,
+            TILE_LOAD_CONCURRENCY,
+            (uuid) =>
+                // Published version: a tile running a viewer's draft replaces these once it runs
+                this.savedChartModel
+                    .get(uuid, undefined, { projectUuid })
+                    .then((chart) => {
+                        // The model also resolves slugs; results are keyed by uuid
+                        if (chart.uuid === uuid) return chart;
+                        results.set(
+                            uuid,
+                            parameterReferencesFailure(
+                                `Saved chart ${uuid} must be addressed by its uuid`,
+                            ),
+                        );
+                        return null;
+                    })
+                    .catch((e) => {
+                        results.set(uuid, parameterReferencesFailure(e));
+                        return null;
+                    }),
+        );
+        const charts = loaded.filter(
+            (chart): chart is SavedChartDAO => chart !== null,
+        );
+        if (charts.length === 0) return results;
+
+        // A stored merge that can't be rebuilt fails its own tile only
+        const chartQueries = new Map<string, ChartQuery[]>();
+        charts.forEach((chart) => {
+            try {
+                chartQueries.set(chart.uuid, getChartQueries(chart));
+            } catch (e) {
+                results.set(chart.uuid, parameterReferencesFailure(e));
+            }
+        });
+        const [viewableChartUuids, explores] = await Promise.all([
+            // Embed charts come from the token's dashboard, checked once above
+            isJwtUser(account)
+                ? new Set(charts.map(({ uuid }) => uuid))
+                : this.getViewableChartUuids(account, charts),
+            this.findTileExplores(
+                account,
+                projectUuid,
+                uniq(
+                    [...chartQueries.values()]
+                        .flat()
+                        .map(({ exploreName }) => exploreName),
+                ),
+            ),
+        ]);
+        charts.forEach((chart) => {
+            if (!viewableChartUuids.has(chart.uuid)) {
+                results.set(
+                    chart.uuid,
+                    parameterReferencesFailure(
+                        "You don't have access to view this chart",
+                    ),
+                );
+                return;
+            }
+            const queries = chartQueries.get(chart.uuid);
+            if (!queries) return;
+            try {
+                const parameterReferences = getChartParameterReferences(
+                    queries,
+                    explores,
+                );
+                const definitions = queries.reduce<ParameterDefinitions>(
+                    (acc, { exploreName }) => {
+                        const explore = explores.get(exploreName);
+                        return explore &&
+                            !(explore instanceof Error) &&
+                            !isExploreError(explore)
+                            ? {
+                                  ...acc,
+                                  ...getExploreParameterDefinitions(explore),
+                              }
+                            : acc;
+                    },
+                    projectDefinitions,
+                );
+                results.set(chart.uuid, {
+                    parameterReferences,
+                    parameterDefinitions: getReferencedParameterDefinitions(
+                        definitions,
+                        parameterReferences,
+                    ),
+                    error: null,
+                });
+            } catch (e) {
+                results.set(chart.uuid, parameterReferencesFailure(e));
+            }
+        });
+        return results;
+    }
+
+    /**
+     * Loads every explore in one call; when that call refuses (one explore the
+     * viewer can't access), loads them one by one so only that explore fails.
+     */
+    private async findTileExplores(
+        account: Account,
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<Map<string, Explore | ExploreError | Error>> {
+        const findExplores = (names: string[]) =>
+            this.projectService.findExplores({
+                account,
+                projectUuid,
+                exploreNames: names,
+                organizationUuid: account.organization.organizationUuid,
+            });
+        if (exploreNames.length === 0) return new Map();
+        try {
+            return new Map(Object.entries(await findExplores(exploreNames)));
+        } catch (batchError) {
+            if (exploreNames.length === 1) {
+                return new Map([[exploreNames[0], toError(batchError)]]);
+            }
+            const explores = await runWithConcurrency(
+                exploreNames,
+                TILE_LOAD_CONCURRENCY,
+                (name) =>
+                    findExplores([name]).then((found) => found[name], toError),
+            );
+            return new Map(
+                exploreNames.flatMap((name, index) => {
+                    const explore = explores[index];
+                    return explore === undefined ? [] : [[name, explore]];
+                }),
+            );
+        }
+    }
+
+    private async getViewableChartUuids(
+        account: Account,
+        charts: SavedChartDAO[],
+    ): Promise<Set<string>> {
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                account.user.id,
+                charts.map((chart) => ({
+                    type: 'chart' as const,
+                    chartUuid: chart.uuid,
+                    dashboardUuid: chart.dashboardUuid ?? null,
+                    spaceUuid: chart.spaceUuid,
+                })),
+            );
+        const contextByChartUuid = new Map(
+            accessResults.map(({ target, context }) => [
+                target.chartUuid,
+                context,
+            ]),
+        );
+        const auditedAbility = this.createAuditedAbility(account);
+        return new Set(
+            charts
+                .filter((chart) => {
+                    const context = contextByChartUuid.get(chart.uuid);
+                    return (
+                        !!context &&
+                        auditedAbility.can(
+                            'view',
+                            subject('SavedChart', {
+                                organizationUuid: context.organizationUuid,
+                                projectUuid: context.projectUuid,
+                                inheritsFromOrgOrProject:
+                                    context.inheritsFromOrgOrProject,
+                                access: context.access,
+                                metadata: {
+                                    savedChartUuid: chart.uuid,
+                                    savedChartName: chart.name,
+                                },
+                            }),
+                        )
+                    );
+                })
+                .map(({ uuid }) => uuid),
+        );
+    }
+
+    private async getSavedSqlParameterReferences(
+        account: Account,
+        projectUuid: string,
+        savedSqlUuids: string[],
+        projectDefinitions: ParameterDefinitions,
+    ): Promise<Map<string, ParameterReferencesResult>> {
+        const results = new Map<string, ParameterReferencesResult>();
+        const loaded = await runWithConcurrency(
+            savedSqlUuids,
+            TILE_LOAD_CONCURRENCY,
+            (uuid) =>
+                this.savedSqlModel
+                    .getByUuid(uuid, { projectUuid })
+                    .catch((e) => {
+                        results.set(uuid, parameterReferencesFailure(e));
+                        return null;
+                    }),
+        );
+        const sqlCharts = loaded.filter(
+            (sqlChart): sqlChart is NonNullable<typeof sqlChart> =>
+                sqlChart !== null,
+        );
+        if (sqlCharts.length === 0) return results;
+
+        const viewableSqlUuids = isJwtUser(account)
+            ? new Set(sqlCharts.map(({ savedSqlUuid }) => savedSqlUuid))
+            : await this.getViewableSqlChartUuids(account, sqlCharts);
+        sqlCharts.forEach((sqlChart) => {
+            const canView = viewableSqlUuids.has(sqlChart.savedSqlUuid);
+            results.set(
+                sqlChart.savedSqlUuid,
+                canView
+                    ? {
+                          parameterReferences: getParameterReferences(
+                              sqlChart.sql,
+                          ),
+                          parameterDefinitions:
+                              getReferencedParameterDefinitions(
+                                  projectDefinitions,
+                                  getParameterReferences(sqlChart.sql),
+                              ),
+                          error: null,
+                      }
+                    : parameterReferencesFailure(
+                          "You don't have access to view this SQL chart",
+                      ),
+            );
+        });
+        return results;
+    }
+
+    private async getViewableSqlChartUuids(
+        account: Account,
+        sqlCharts: { savedSqlUuid: string; space: { uuid: string } }[],
+    ): Promise<Set<string>> {
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                account.user.id,
+                sqlCharts.map((sqlChart) => ({
+                    type: 'sqlChart' as const,
+                    savedSqlUuid: sqlChart.savedSqlUuid,
+                    spaceUuid: sqlChart.space.uuid,
+                })),
+            );
+        const auditedAbility = this.createAuditedAbility(account);
+        return new Set(
+            accessResults
+                .filter(
+                    ({ target, context }) =>
+                        !!context &&
+                        auditedAbility.can(
+                            'view',
+                            subject('SavedChart', {
+                                ...context,
+                                metadata: { savedSqlUuid: target.savedSqlUuid },
+                            }),
+                        ),
+                )
+                .map(({ target }) => target.savedSqlUuid),
+        );
     }
 
     async getByIdOrSlug(
@@ -1541,10 +2083,39 @@ export class DashboardService
             );
         }
 
-        const createDashboard = {
+        let createDashboard = {
             ...dashboard,
+            ownerUserUuid:
+                dashboard.ownerUserUuid === undefined
+                    ? DashboardService.getDefaultOwnerUserUuid(user)
+                    : dashboard.ownerUserUuid,
             slug: generateSlug(dashboard.name),
         };
+        if (dashboard.config?.parameterControls !== undefined) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: {
+                    organizationUuid: space.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+                featureFlagId: FeatureFlags.DashboardControls,
+            });
+            if (enabled) {
+                const controls = dashboard.config.parameterControls;
+                const config = validateAndPruneDashboardConfig(
+                    dashboard.config,
+                    dashboard.tiles,
+                );
+                createDashboard = {
+                    ...createDashboard,
+                    config,
+                    parameters: getParameterMirror(controls),
+                };
+            } else {
+                const { parameterControls: _ignored, ...config } =
+                    dashboard.config;
+                createDashboard = { ...createDashboard, config };
+            }
+        }
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             createDashboard,
@@ -1792,6 +2363,7 @@ export class DashboardService
             name: data.dashboardName,
             slug: dashboard.slug,
             tabs: newTabs,
+            ownerUserUuid: DashboardService.getDefaultOwnerUserUuid(user),
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -1835,17 +2407,19 @@ export class DashboardService
                 }),
             );
 
-            const remapTileTargets = (
-                tileTargets: Record<string, DashboardTileTarget> | undefined,
-            ): Record<string, DashboardTileTarget> | undefined => {
-                if (!tileTargets) return undefined;
-                return Object.fromEntries(
-                    Object.entries(tileTargets).map(([key, value]) => [
+            const remapTileUuidKeys = <T>(
+                byTileUuid: Record<string, T>,
+            ): Record<string, T> =>
+                Object.fromEntries(
+                    Object.entries(byTileUuid).map(([key, value]) => [
                         tileUuidMap.get(key) ?? key,
                         value,
                     ]),
                 );
-            };
+            const remapTileTargets = (
+                tileTargets: Record<string, DashboardTileTarget> | undefined,
+            ): Record<string, DashboardTileTarget> | undefined =>
+                tileTargets && remapTileUuidKeys(tileTargets);
 
             const remappedFilters: typeof newDashboard.filters = {
                 dimensions: newDashboard.filters.dimensions.map((filter) => ({
@@ -1871,23 +2445,51 @@ export class DashboardService
                     filters: remappedFilters,
                     tabs: newTabs,
                     parameters: newDashboard.parameters,
-                    config: newDashboard.config?.dateZoomConfig
-                        ? {
-                              ...newDashboard.config,
-                              dateZoomConfig: {
-                                  ...newDashboard.config.dateZoomConfig,
-                                  tileTargets: Object.fromEntries(
-                                      Object.entries(
-                                          newDashboard.config.dateZoomConfig
-                                              .tileTargets,
-                                      ).map(([key, value]) => [
-                                          tileUuidMap.get(key) ?? key,
-                                          value,
-                                      ]),
-                                  ),
-                              },
-                          }
-                        : newDashboard.config,
+                    config: newDashboard.config && {
+                        ...newDashboard.config,
+                        ...(newDashboard.config.dateZoomConfig && {
+                            dateZoomConfig: {
+                                ...newDashboard.config.dateZoomConfig,
+                                tileTargets: remapTileUuidKeys(
+                                    newDashboard.config.dateZoomConfig
+                                        .tileTargets,
+                                ),
+                            },
+                        }),
+                        ...(newDashboard.config.parameterControls && {
+                            parameterControls:
+                                newDashboard.config.parameterControls.map(
+                                    (control) => ({
+                                        ...control,
+                                        parameters: Object.fromEntries(
+                                            Object.entries(
+                                                control.parameters,
+                                            ).map(([key, target]) => {
+                                                if (target === 'all') {
+                                                    return [key, target];
+                                                }
+                                                const remap = (id: string) =>
+                                                    tileUuidMap.get(id) ?? id;
+                                                return [
+                                                    key,
+                                                    'only' in target
+                                                        ? {
+                                                              only: target.only.map(
+                                                                  remap,
+                                                              ),
+                                                          }
+                                                        : {
+                                                              except: target.except.map(
+                                                                  remap,
+                                                              ),
+                                                          },
+                                                ];
+                                            }),
+                                        ),
+                                    }),
+                                ),
+                        }),
+                    },
                 },
                 user,
                 projectUuid,
@@ -2138,13 +2740,27 @@ export class DashboardService
 
     private async applyOpenDraftOverlay(
         user: SessionUser,
-        dashboard: Dashboard,
+        publishedDashboard: Dashboard,
     ): Promise<Dashboard> {
         try {
             const settings = await this.contentAsCodeProjectSettingsModel.get(
-                dashboard.projectUuid,
+                publishedDashboard.projectUuid,
             );
-            if (!settings?.syncEnabled) return dashboard;
+            if (!settings?.syncEnabled) return publishedDashboard;
+            const repositorySnapshot =
+                await this.contentAsCodeSnapshotModel.get(
+                    publishedDashboard.projectUuid,
+                    ContentAsCodeType.DASHBOARD,
+                    publishedDashboard.slug,
+                );
+            const dashboard: Dashboard = repositorySnapshot
+                ? {
+                      ...publishedDashboard,
+                      managedFromRepository: {
+                          filePath: repositorySnapshot.filePath,
+                      },
+                  }
+                : publishedDashboard;
             const draft = await this.contentDraftModel.findOpenDraft(
                 dashboard.projectUuid,
                 'dashboard',
@@ -2219,7 +2835,7 @@ export class DashboardService
             return dashboardForViewer;
         } catch (error) {
             this.logger.warn('Draft overlay failed', error);
-            return dashboard;
+            return publishedDashboard;
         }
     }
 
@@ -2258,7 +2874,8 @@ export class DashboardService
                 projectUuid: options?.projectUuid,
             },
         );
-        const { preserveVerification, ...dashboardFields } = dashboard;
+        const { preserveVerification, ...incomingFields } = dashboard;
+        let dashboardFields = incomingFields;
 
         const currentSpace = await this.spacePermissionService.resolveAccess(
             user.userUuid,
@@ -2289,6 +2906,69 @@ export class DashboardService
             projectUuid: existingDashboardDao.projectUuid,
             organizationUuid: existingDashboardDao.organizationUuid,
         });
+
+        if (
+            isDashboardVersionedFields(incomingFields) &&
+            incomingFields.config
+        ) {
+            const incomingControls = incomingFields.config.parameterControls;
+            const savedControls =
+                existingDashboardDao.config?.parameterControls;
+            if (incomingControls !== undefined || savedControls !== undefined) {
+                const { enabled } = await this.featureFlagModel.get({
+                    user: {
+                        organizationUuid: existingDashboardDao.organizationUuid,
+                        userUuid: user.userUuid,
+                    },
+                    featureFlagId: FeatureFlags.DashboardControls,
+                });
+                if (enabled && incomingControls !== undefined) {
+                    validateAndPruneDashboardConfig(
+                        incomingFields.config,
+                        incomingFields.tiles,
+                    );
+                    const savedSlugs = new Map<string, string>(
+                        (savedControls ?? []).flatMap((control) =>
+                            control.slug === undefined
+                                ? []
+                                : [[control.id, control.slug] as const],
+                        ),
+                    );
+                    const controls = incomingControls.map((control) => ({
+                        ...control,
+                        ...(control.slug === undefined &&
+                            savedSlugs.has(control.id) && {
+                                slug: savedSlugs.get(control.id),
+                            }),
+                    }));
+                    const config = {
+                        ...incomingFields.config,
+                        parameterControls: controls,
+                    };
+                    validateAndPruneDashboardConfig(
+                        config,
+                        incomingFields.tiles,
+                    );
+                    dashboardFields = {
+                        ...incomingFields,
+                        config,
+                        parameters: getParameterMirror(controls),
+                    };
+                } else {
+                    const { parameterControls: _ignored, ...config } =
+                        incomingFields.config;
+                    dashboardFields = {
+                        ...incomingFields,
+                        config: {
+                            ...config,
+                            ...(savedControls !== undefined && {
+                                parameterControls: savedControls,
+                            }),
+                        },
+                    };
+                }
+            }
+        }
 
         const draftResult = await this.maybeStoreDraft(
             user,
@@ -2407,6 +3087,9 @@ export class DashboardService
                         (filter) => (filter.lockedTabUuids?.length ?? 0) > 0,
                     ).length,
                     ...DashboardService.getSectionEventProperties(
+                        updatedDashboard,
+                    ),
+                    ...DashboardService.getParameterControlEventProperties(
                         updatedDashboard,
                     ),
                 },

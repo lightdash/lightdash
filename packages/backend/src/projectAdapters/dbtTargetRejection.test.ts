@@ -27,14 +27,6 @@ afterEach(() => vi.restoreAllMocks());
 
 it.each([
     {
-        name: 'local',
-        create: () =>
-            new DbtLocalCredentialsProjectAdapter({
-                ...args,
-                projectDir: '/tmp/dbt',
-            }),
-    },
-    {
         name: 'git',
         create: () =>
             new DbtGitProjectAdapter({
@@ -66,4 +58,21 @@ it.each([
     expect(create).toThrow(args.dbtTarget.reason);
     expect(mkdtemp).not.toHaveBeenCalled();
     expect(writeFile).not.toHaveBeenCalled();
+});
+
+it('removes the local profile directory when the target is refused', () => {
+    const mkdtemp = vi.spyOn(fs, 'mkdtempSync');
+    const writeFile = vi.spyOn(fs, 'writeFileSync');
+    expect(
+        () =>
+            new DbtLocalCredentialsProjectAdapter({
+                ...args,
+                projectDir: '/tmp/dbt',
+            }),
+    ).toThrow(args.dbtTarget.reason);
+    const created = mkdtemp.mock.results[0];
+    if (created?.type !== 'return')
+        throw new Error('Expected a profile directory');
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(fs.existsSync(created.value)).toBe(false);
 });

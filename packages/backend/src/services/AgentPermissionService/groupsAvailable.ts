@@ -1,19 +1,9 @@
-import { FeatureFlags } from '@lightdash/common';
-import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
-
+/**
+ * Group-based AI agent permissions need a valid deployment licence. Groups
+ * themselves are always available.
+ */
 export const areOrganizationGroupsAvailable = async ({
-    organizationUuid,
     isLicensed,
-    featureFlagModel,
 }: {
-    organizationUuid: string;
     isLicensed: () => boolean;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
-}): Promise<boolean> =>
-    isLicensed() &&
-    (
-        await featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.UserGroupsEnabled,
-        })
-    ).enabled;
+}): Promise<boolean> => isLicensed();

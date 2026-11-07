@@ -29,12 +29,14 @@ import {
     IconFolders,
     IconLayoutDashboard,
     IconPuzzle,
+    IconStack2,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
 import { useChartTypesEnabled } from '../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
+import { canOpenSemanticStudio } from '../../features/semanticStudio/permissions';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -127,6 +129,15 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 projectUuid,
             }),
         ) ?? false;
+
+    const canOpenStudio =
+        user.data?.ability && user.data.organizationUuid
+            ? canOpenSemanticStudio(
+                  user.data.ability,
+                  user.data.organizationUuid,
+                  projectUuid,
+              )
+            : false;
 
     const hasFavorites = favorites && favorites.length > 0;
     const hasSpaces = isInitialLoading || (spaces && spaces.length > 0);
@@ -237,6 +248,16 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         Chart Studio
                     </Menu.Item>
                 )}
+
+                {canOpenStudio ? (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUuid}/semantic-layer`}
+                        leftSection={<MantineIcon icon={IconStack2} />}
+                    >
+                        Semantic Layer
+                    </Menu.Item>
+                ) : null}
 
                 {!hasMetrics && (
                     <MetricsLink projectUuid={projectUuid} asMenu />

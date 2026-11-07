@@ -9,8 +9,7 @@ import {
     type InteractivityOptions,
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
-import clone from 'lodash/clone';
-import isEqual from 'lodash/isEqual';
+import { clone, isEqual } from 'es-toolkit/compat';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
@@ -56,7 +55,7 @@ type Props = {
 /**
  * Applies saved, URL, session and SDK filters on load and keeps the URL and
  * embed host in sync with filter state. Renders nothing; it lives outside the
- * provider so filter edits don't re-render the whole dashboard context.
+ * provider so filter edits don't re-render the provider.
  */
 const DashboardFiltersSync: FC<Props> = ({
     dashboardIdentifier,

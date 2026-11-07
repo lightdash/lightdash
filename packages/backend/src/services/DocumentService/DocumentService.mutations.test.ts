@@ -1,9 +1,11 @@
 import {
     AgentActorSurface,
+    ApiConnectorType,
     assertUnreachable,
     ChartKind,
     ChartType,
     ConflictError,
+    ExploreType,
     ForbiddenError,
     getUserAbilityBuilder,
     MergeJoinType,
@@ -32,6 +34,11 @@ import {
     agentExecutionContext,
     createAgentExecutionContext,
 } from '../AiAccessService/agentExecutionContext';
+import {
+    buildApiSourceExplores,
+    toScannedLiveSourceFields,
+} from '../QuerySourceService/api/apiSourceExplores';
+import { getInitialLiveSourceFieldEdits } from '../QuerySourceService/api/liveSourceFields';
 import { DocumentService } from './DocumentService';
 
 const userUuid = 'document-author';
@@ -259,6 +266,7 @@ const setup = (dependencies: Record<string, unknown> = {}) => {
         resolveAccess: vi.fn().mockResolvedValue(context),
     };
     const projectService = {
+        getExplore: vi.fn().mockResolvedValue({ type: ExploreType.DEFAULT }),
         compileQuery: vi.fn().mockResolvedValue({
             compilationErrors: [],
             missingParameterReferences: new Set<string>(),
@@ -976,10 +984,15 @@ describe('DocumentService mutations', () => {
 
         await service.create(account, projectUuid, input);
 
+        expect(projectService.getExplore).toHaveBeenCalledWith(
+            account,
+            projectUuid,
+            'orders',
+        );
         expect(projectService.compileQuery).toHaveBeenCalledWith({
             account,
             projectUuid,
-            exploreName: 'orders',
+            explore: { type: ExploreType.DEFAULT },
             body: {
                 ...chart.metricQuery,
                 filters: {
@@ -1958,3 +1971,110 @@ describe.each(agentActionTestCases)(
         });
     },
 );
+
+describe('DocumentService live data source charts', () => {
+    const ga4Explore = () => {
+        const apiSource = {
+            connector: ApiConnectorType.GA4,
+            propertyId: '123',
+        } as const;
+        const scannedFields = toScannedLiveSourceFields(
+            apiSource.connector,
+            {},
+        );
+        const [explore] = buildApiSourceExplores({
+            connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
+            sourceName: 'google_analytics',
+            name: 'Google Analytics',
+            apiSource,
+            scannedFields,
+            edits: getInitialLiveSourceFieldEdits({
+                scannedFields,
+                isExistingSource: true,
+            }),
+        });
+        return explore;
+    };
+    const liveChart = (
+        exploreName: string,
+        overrides: Partial<SemanticChartAsCode['metricQuery']> = {},
+    ): ChartBlock => ({
+        type: 'chart',
+        content: {
+            source: 'semantic',
+            chart: {
+                ...chart,
+                tableName: exploreName,
+                metricQuery: {
+                    ...chart.metricQuery,
+                    exploreName,
+                    dimensions: [`${exploreName}_date`],
+                    metrics: [`${exploreName}_sessions`],
+                    ...overrides,
+                },
+            },
+        },
+    });
+
+    test('validates a live chart against its integration, not as SQL', async () => {
+        const { service, documentModel, projectService } = setup();
+        const explore = ga4Explore();
+        projectService.getExplore.mockResolvedValue(explore);
+        documentModel.create.mockResolvedValueOnce(document);
+
+        await service.create(makeAccount(), projectUuid, {
+            ...createInput,
+            content: toContent([markdown, liveChart(explore.name)]),
+        });
+
+        expect(projectService.compileQuery).not.toHaveBeenCalled();
+        expect(documentModel.create).toHaveBeenCalled();
+    });
+
+    test('rejects a live chart its integration cannot answer', async () => {
+        const { service, documentModel, projectService } = setup();
+        const explore = ga4Explore();
+        projectService.getExplore.mockResolvedValue(explore);
+
+        await expect(
+            service.create(makeAccount(), projectUuid, {
+                ...createInput,
+                content: toContent([
+                    markdown,
+                    liveChart(explore.name, {
+                        tableCalculations: [
+                            {
+                                name: 'double',
+                                displayName: 'Double',
+                                sql: `\${${explore.name}_sessions} * 2`,
+                            },
+                        ],
+                    }),
+                ]),
+            }),
+        ).rejects.toThrow(/^Invalid chart "c1": /);
+        expect(projectService.compileQuery).not.toHaveBeenCalled();
+        expect(documentModel.create).not.toHaveBeenCalled();
+    });
+
+    test('compiles a warehouse chart against the explore it looked up', async () => {
+        const { service, documentModel, projectService } = setup();
+        const explore = { type: ExploreType.DEFAULT, name: 'orders' };
+        projectService.getExplore.mockResolvedValue(explore);
+        documentModel.create.mockResolvedValueOnce(document);
+
+        await service.create(makeAccount(), projectUuid, {
+            ...createInput,
+            content: toContent([markdown, semantic]),
+        });
+
+        expect(projectService.getExplore).toHaveBeenCalledWith(
+            expect.anything(),
+            projectUuid,
+            'orders',
+        );
+        expect(projectService.compileQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ explore }),
+        );
+    });
+});

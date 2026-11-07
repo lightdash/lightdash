@@ -315,3 +315,8 @@ export type ApiInstallRegistryChartTypeResponse = ApiSuccess<{
     /** Saved charts repinned by `upgradeConsumingCharts` (0 when not requested). */
     upgradedChartCount: number;
 }>;
+
+export type ApiInstallStarterChartTypesResponse = ApiSuccess<{
+    /** Slugs this call installed; already-installed ones are left out */
+    installedSlugs: string[];
+}>;

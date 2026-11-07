@@ -67,6 +67,16 @@ const secureDocumentFetch: ClientIdMetadataDocumentFetch = async (
     return { status: response.status, bodyText: response.bodyText };
 };
 
+// Only public clients are issued tokens. A document may prefer another method
+// (ChatGPT prefers private_key_jwt) while also supporting `none`; our server
+// metadata advertises `none` only, so such clients fall back to it with PKCE.
+const isPublicClientDocument = (document: Record<string, unknown>): boolean => {
+    const preferred = document.token_endpoint_auth_method;
+    if (preferred === undefined || preferred === 'none') return true;
+    const supported = document.token_endpoint_auth_methods_supported;
+    return Array.isArray(supported) && supported.includes('none');
+};
+
 const parseDocument = (
     clientId: string,
     body: string,
@@ -93,8 +103,7 @@ const parseDocument = (
     )
         return null;
 
-    const authMethod = document.token_endpoint_auth_method;
-    if (authMethod !== undefined && authMethod !== 'none') return null;
+    if (!isPublicClientDocument(document)) return null;
 
     // Clients may advertise grants we do not issue (e.g. jwt-bearer); keep the
     // supported subset, but the client must be able to use the authorization code flow.

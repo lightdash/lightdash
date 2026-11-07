@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
 import { clsx } from 'clsx';
-import debounce from 'lodash/debounce';
+import { debounce } from 'es-toolkit/compat';
 import { darken } from 'polished';
 import {
     createContext,

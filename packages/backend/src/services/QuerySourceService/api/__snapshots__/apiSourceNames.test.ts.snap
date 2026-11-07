@@ -1,0 +1,115 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`live data source names > 'Google Analytics' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "google_analytics_report_active_users",
+        "google_analytics_report_average_session_duration",
+        "google_analytics_report_city",
+        "google_analytics_report_country",
+        "google_analytics_report_custom_event_order_value",
+        "google_analytics_report_custom_event_plan_type",
+        "google_analytics_report_custom_user_account_tier",
+        "google_analytics_report_date",
+        "google_analytics_report_date_month",
+        "google_analytics_report_date_week",
+        "google_analytics_report_date_year",
+        "google_analytics_report_device_category",
+        "google_analytics_report_ecommerce_purchases",
+        "google_analytics_report_engaged_sessions",
+        "google_analytics_report_engagement_rate",
+        "google_analytics_report_event_count",
+        "google_analytics_report_event_name",
+        "google_analytics_report_first_user_source",
+        "google_analytics_report_item_name",
+        "google_analytics_report_item_revenue",
+        "google_analytics_report_items_purchased",
+        "google_analytics_report_items_viewed",
+        "google_analytics_report_key_events",
+        "google_analytics_report_key_events_sign_up",
+        "google_analytics_report_landing_page",
+        "google_analytics_report_new_users",
+        "google_analytics_report_new_vs_returning",
+        "google_analytics_report_page_path",
+        "google_analytics_report_platform",
+        "google_analytics_report_screen_page_views",
+        "google_analytics_report_session_campaign",
+        "google_analytics_report_session_default_channel_group",
+        "google_analytics_report_session_medium",
+        "google_analytics_report_session_source",
+        "google_analytics_report_sessions",
+        "google_analytics_report_total_revenue",
+        "google_analytics_report_total_users",
+        "google_analytics_report_year_month",
+      ],
+      "name": "google_analytics_report",
+    },
+  ],
+  "reservedExploreNames": [
+    "google_analytics_ecommerce",
+  ],
+}
+`;
+
+exports[`live data source names > 'PostHog' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "posthog_events_browser",
+        "posthog_events_country",
+        "posthog_events_current_url",
+        "posthog_events_date",
+        "posthog_events_device_type",
+        "posthog_events_distinct_id",
+        "posthog_events_event",
+        "posthog_events_event_count",
+        "posthog_events_month",
+        "posthog_events_os",
+        "posthog_events_pathname",
+        "posthog_events_person_email",
+        "posthog_events_person_id",
+        "posthog_events_property_plan",
+        "posthog_events_referring_domain",
+        "posthog_events_timestamp",
+        "posthog_events_unique_sessions",
+        "posthog_events_unique_users",
+        "posthog_events_utm_source",
+        "posthog_events_week",
+      ],
+      "name": "posthog_events",
+    },
+  ],
+  "reservedExploreNames": [
+    "posthog_persons",
+    "posthog_sessions",
+  ],
+}
+`;
+
+exports[`live data source names > 'Search Console' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "search_console_performance_clicks",
+        "search_console_performance_country",
+        "search_console_performance_ctr",
+        "search_console_performance_date",
+        "search_console_performance_device",
+        "search_console_performance_impressions",
+        "search_console_performance_page",
+        "search_console_performance_position",
+        "search_console_performance_query",
+        "search_console_performance_search_appearance",
+      ],
+      "name": "search_console_performance",
+    },
+  ],
+  "reservedExploreNames": [
+    "search_console_search_appearance",
+  ],
+}
+`;

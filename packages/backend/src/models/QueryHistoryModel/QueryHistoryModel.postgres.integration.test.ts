@@ -95,7 +95,7 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
     beforeEach(async () => {
         tx = await database.transaction();
         await tx.raw(
-            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb, cache_key text, agent_identity jsonb, results_file_name text, results_created_at timestamptz, results_updated_at timestamptz, results_expires_at timestamptz, total_row_count bigint, columns jsonb, cache_generation integer NOT NULL DEFAULT 0, cache_invalidated_at timestamptz) ON COMMIT DROP`,
+            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb, metric_query jsonb, cache_key text, agent_identity jsonb, results_file_name text, results_created_at timestamptz, results_updated_at timestamptz, results_expires_at timestamptz, total_row_count bigint, columns jsonb, cache_generation integer NOT NULL DEFAULT 0, cache_invalidated_at timestamptz) ON COMMIT DROP`,
         );
         await tx.raw(
             `CREATE TEMP TABLE projects (project_uuid uuid, results_cache_generation integer NOT NULL DEFAULT 0) ON COMMIT DROP`,
@@ -324,9 +324,11 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                 lightdashConfig: lightdashConfigMock,
                 queryHistoryModel: model,
                 projectModel: {
-                    getEffectiveResultsCacheTtlSeconds: vi.fn(
-                        async () => 86400,
-                    ),
+                    getResultsCacheState: vi.fn(async () => ({
+                        enabled: true,
+                        cacheGeneration: 0,
+                        ttlSeconds: 86400,
+                    })),
                 } as never,
                 featureFlagModel: {
                     get: vi.fn(async () => ({ enabled: true })),
@@ -336,7 +338,7 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
             const newestAlias = await indexes.reduce(
                 async (previous, index) => {
                     await previous;
-                    const hit = await service.findCachedResultsFile(
+                    const hit = await service.lookupCachedResultsFile(
                         projectUuid,
                         'cache-key',
                         { userUuid: account.user.id },
@@ -349,7 +351,7 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                         fileName: 'original.jsonl',
                         resultProducer: producer,
                     });
-                    if (!hit?.queryUuid)
+                    if (!hit.cacheHit || !hit.queryUuid)
                         throw new Error(
                             'Expected a cache hit with its source query',
                         );
@@ -447,6 +449,148 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                 await expect(findLatest()).resolves.toBeUndefined();
                 await expect(findLatest('other-key')).resolves.toMatchObject({
                     queryUuid: otherChart,
+                });
+            });
+        });
+
+        describe('after an explore cache is invalidated', () => {
+            const insertExploreRun = async (
+                exploreName: string,
+                cacheKey: string,
+                createdAt = new Date(),
+            ) => {
+                const queryUuid = await insertCachedResult(null, createdAt);
+                await tx<DbQueryHistory>('query_history')
+                    .where('query_uuid', queryUuid)
+                    .update({
+                        cache_key: cacheKey,
+                        metric_query: {
+                            exploreName,
+                        } as unknown as DbQueryHistory['metric_query'],
+                    });
+                return queryUuid;
+            };
+            const invalidate = (
+                exploreNames: string[],
+                createdSince = new Date(Date.now() - 86400000),
+            ) =>
+                model.invalidateCachedResultsForExplores(
+                    projectUuid,
+                    exploreNames,
+                    createdSince,
+                );
+            const findLatest = (cacheKey: string) =>
+                model.findMostRecentByCacheKey(cacheKey, projectUuid, {
+                    excludeAgentProduced: true,
+                });
+
+            it('expires listed explores and leaves other explores cached', async () => {
+                await insertExploreRun('orders', 'orders-key');
+                await insertExploreRun('payments', 'payments-key');
+                const customers = await insertExploreRun(
+                    'customers',
+                    'customers-key',
+                );
+
+                await expect(invalidate(['orders', 'payments'])).resolves.toBe(
+                    2,
+                );
+
+                await expect(findLatest('orders-key')).resolves.toBeUndefined();
+                await expect(
+                    findLatest('payments-key'),
+                ).resolves.toBeUndefined();
+                await expect(
+                    findLatest('customers-key'),
+                ).resolves.toMatchObject({ queryUuid: customers });
+            });
+
+            it('expires another explore that shares the cache key', async () => {
+                await insertExploreRun('orders', 'shared-key');
+                await insertExploreRun('orders_copy', 'shared-key');
+
+                await expect(invalidate(['orders'])).resolves.toBe(2);
+                await expect(findLatest('shared-key')).resolves.toBeUndefined();
+            });
+
+            it('caches again after the next run', async () => {
+                await insertExploreRun('orders', 'orders-key');
+                await invalidate(['orders']);
+
+                const fresh = await insertExploreRun('orders', 'orders-key');
+                await expect(findLatest('orders-key')).resolves.toMatchObject({
+                    queryUuid: fresh,
+                });
+            });
+
+            it('stops an in-flight query from repopulating the cache', async () => {
+                const running = await insertExploreRun('orders', 'orders-key');
+                await tx<DbQueryHistory>('query_history')
+                    .where('query_uuid', running)
+                    .update({
+                        status: QueryHistoryStatus.PENDING,
+                        results_file_name: null,
+                    });
+
+                await invalidate(['orders']);
+                await tx<DbQueryHistory>('query_history')
+                    .where('query_uuid', running)
+                    .update({
+                        status: QueryHistoryStatus.READY,
+                        results_file_name: 'late.jsonl',
+                    });
+
+                await expect(findLatest('orders-key')).resolves.toBeUndefined();
+            });
+
+            it('leaves runs older than the window and other projects unmarked', async () => {
+                await insertExploreRun(
+                    'orders',
+                    'old-key',
+                    new Date(Date.now() - 2 * 86400000),
+                );
+                const otherProject = await insert({
+                    project: randomUUID(),
+                });
+                await tx<DbQueryHistory>('query_history')
+                    .where('query_uuid', otherProject)
+                    .update({
+                        cache_key: 'other-project-key',
+                        metric_query: {
+                            exploreName: 'orders',
+                        } as unknown as DbQueryHistory['metric_query'],
+                    });
+
+                await expect(invalidate(['orders'])).resolves.toBe(0);
+            });
+
+            it('invalidates a cache hit inserted after the clear', async () => {
+                const source = await insertExploreRun('orders', 'orders-key');
+                await invalidate(['orders']);
+                const lateHit = await insertExploreRun('orders', 'orders-key');
+
+                await model.inheritCacheInvalidation(
+                    lateHit,
+                    source,
+                    projectUuid,
+                );
+
+                await expect(findLatest('orders-key')).resolves.toBeUndefined();
+            });
+
+            it('keeps a cache hit of results that were not cleared', async () => {
+                // Earlier than the hit, so a same-millisecond insert can't tie
+                const source = await insertExploreRun(
+                    'orders',
+                    'orders-key',
+                    new Date(Date.now() - 1000),
+                );
+                const hit = await insertExploreRun('orders', 'orders-key');
+
+                await model.inheritCacheInvalidation(hit, source, projectUuid);
+
+                await expect(findLatest('orders-key')).resolves.toMatchObject({
+                    queryUuid: hit,
                 });
             });
         });

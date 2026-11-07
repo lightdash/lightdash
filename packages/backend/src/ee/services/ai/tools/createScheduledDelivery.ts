@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateScheduledDeliveryFn } from '../types/aiAgentDependencies';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -17,6 +18,7 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     createScheduledDelivery: CreateScheduledDeliveryFn;
+    siteUrl: string;
 };
 
 const toolDefinition = createScheduledDeliveryToolDefinition.for('agent');
@@ -55,6 +57,7 @@ type SuccessMetadata = Extract<
 
 const renderSummary = (
     delivery: ToolCreateScheduledDeliveryStructuredContent,
+    siteUrl: string,
 ): string =>
     [
         `Created scheduled delivery "${delivery.name}" (uuid: ${delivery.schedulerUuid}).`,
@@ -72,7 +75,7 @@ const renderSummary = (
         delivery.aiAugmentationAttached
             ? 'AI augmentation is attached and will write the delivery message on each send.'
             : null,
-        `Share this markdown link with the user verbatim (the link text must be the delivery name) — it opens the delivery's settings, where it can be reviewed, paused, edited or deleted: [${delivery.name}](${delivery.href})`,
+        `Share this markdown link with the user verbatim (the link text must be the delivery name) — it opens the delivery's settings, where it can be reviewed, paused, edited or deleted: [${delivery.name}](${toAbsoluteHref(siteUrl, delivery.href)})`,
         ...delivery.warnings,
     ]
         .filter(Boolean)
@@ -80,6 +83,7 @@ const renderSummary = (
 
 export const getCreateScheduledDelivery = ({
     createScheduledDelivery,
+    siteUrl,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -119,7 +123,7 @@ export const getCreateScheduledDelivery = ({
                 };
 
                 return {
-                    result: renderSummary(delivery),
+                    result: renderSummary(delivery, siteUrl),
                     metadata: {
                         status: 'success',
                         schedulerUuid: scheduler.schedulerUuid,

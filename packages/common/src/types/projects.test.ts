@@ -498,6 +498,18 @@ describe('omitted secrets on connection test', () => {
             }),
         ).toMatchObject({ keyfileContents: {} });
     });
+    it('allows federated BigQuery connections without a keyfile', () => {
+        const federated = {
+            ...bigquery,
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            keyfileContents: undefined,
+        };
+        expect(isMissingBigqueryKeyfile(federated)).toBe(false);
+        expect(fillOmittedSecrets(federated)).toMatchObject({
+            keyfileContents: {},
+        });
+    });
 });
 
 describe('preview tunnel credential merge', () => {

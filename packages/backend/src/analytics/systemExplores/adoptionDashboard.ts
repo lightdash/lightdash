@@ -313,7 +313,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         name: 'Ask AI questions each day',
         description:
             'Captured prompts submitted to the AI agent in the web app, including follow-ups and requests still pending or failed. Excludes Slack and embedded requests; one question can cause several AI calls.',
-        explore: 'agent_requests',
+        explore: 'agent_request_starts',
         dimensions: ['agent_requests_requested_at_day'],
         metrics: ['agent_requests_total_requests'],
         filters: askAi,
@@ -329,7 +329,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         name: 'People asking AI each week',
         description:
             'Distinct identified people submitting web-app AI agent prompts each week. Using other AI-powered features does not count here.',
-        explore: 'agent_requests',
+        explore: 'agent_request_starts',
         dimensions: ['agent_requests_requested_at_week'],
         metrics: ['agent_requests_distinct_requesters'],
         filters: askAi,
@@ -347,7 +347,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         name: 'Questions per active AI user each day',
         description:
             'Questions from identified web-app requesters divided by the distinct people asking that day. People who asked nothing are outside this average. No activity is not shown as a zero-person average.',
-        explore: 'agent_requests',
+        explore: 'agent_request_starts',
         dimensions: ['agent_requests_requested_at_day'],
         metrics: [
             'agent_requests_total_requests',
@@ -383,7 +383,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         name: 'Who is asking AI?',
         description:
             'People ranked by captured web-app AI agent questions. Missing names remain separate by identity; this does not count app building or background AI calls.',
-        explore: 'agent_requests',
+        explore: 'agent_request_starts',
         dimensions: ['agent_requests_user_name', 'agent_requests_user_id'],
         metrics: ['agent_requests_total_requests'],
         filters: askAi,
@@ -396,7 +396,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         name: 'Which agents are people asking?',
         description:
             'Web-app questions and distinct requesters for each AI agent. People can use several agents, so audiences overlap.',
-        explore: 'agent_requests',
+        explore: 'agent_request_starts',
         dimensions: ['agent_requests_agent_name', 'agent_requests_agent_id'],
         metrics: [
             'agent_requests_total_requests',

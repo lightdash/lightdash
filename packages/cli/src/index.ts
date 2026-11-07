@@ -759,10 +759,6 @@ program
         '--no-warehouse-credentials',
         'Create preview without warehouse credentials. Copies credentials from upstream project.',
     )
-    .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
-    )
     .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
@@ -1619,10 +1615,6 @@ program
         'Create project without warehouse credentials. Skips dbt compile + warehouse catalog',
     )
     .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
-    )
-    .option(
         '--disable-timestamp-conversion [true|false]',
         'Disable timestamp conversion to UTC for Snowflake warehouses. Only used when creating a new project with --create; otherwise the setting is read from the project settings.',
         parseDisableTimestampConversionOption,
@@ -1881,11 +1873,11 @@ program
 program
     .command('slug-update')
     .description(
-        'Rename a chart or dashboard slug and update its local references',
+        'Rename a chart, dashboard, or data app slug and update its local references',
     )
     .addOption(
         new Option('--type <resource-type>', 'content type to rename')
-            .choices(['chart', 'dashboard'])
+            .choices(['chart', 'dashboard', 'app'])
             .default('chart'),
     )
     .option('--verbose', 'show verbose output', false)

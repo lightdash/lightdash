@@ -45,6 +45,8 @@ export const aiServiceAccountFieldClassification = {
         sshTunnelPublicKey: 'routing',
         sshTunnelPrivateKey: 'routing',
         keyfileContents: 'identity',
+        workloadIdentityProvider: 'identity',
+        workloadIdentityAudience: 'identity',
         allowUserCredentials: 'identity',
         authenticationType: 'identity',
         requireUserCredentials: 'identity',

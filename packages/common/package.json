@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "3.107.0",
+  "version": "3.179.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +12,16 @@
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
+  "sideEffects": [
+    "./dist/*/index.js",
+    "./dist/*/utils/formatting.js",
+    "./dist/*/utils/metricsExplorer.js",
+    "./dist/*/visualizations/helpers/tooltipFormatter.js",
+    "./src/index.ts",
+    "./src/utils/formatting.ts",
+    "./src/utils/metricsExplorer.ts",
+    "./src/visualizations/helpers/tooltipFormatter.ts"
+  ],
   "exports": {
     ".": {
       "types": "./dist/esm/index.d.ts",
@@ -73,7 +83,6 @@
     "@casl/ability": "6.8.0",
     "@mastra/schema-compat": "0.11.2",
     "@sidvind/better-ajv-errors": "7.0.0",
-    "@types/lodash": "4.14.202",
     "ai": "7.0.106",
     "ajv": "8.18.0",
     "ajv-errors": "3.0.0",
@@ -84,20 +93,20 @@
     "dayjs": "1.11.10",
     "dependency-graph": "0.11.0",
     "echarts": "5.6.0",
-    "handlebars": "4.7.9",
+    "es-toolkit": "1.53.1",
+    "handlebars": "4.7.10",
     "js-yaml": "4.3.2",
     "liquidjs": "10.27.2",
-    "lodash": "4.18.1",
     "moment": "2.29.4",
     "moment-timezone": "0.5.48",
     "numfmt": "3.2.1",
     "pegjs": "0.10.0",
-    "sanitize-html": "2.17.7",
+    "sanitize-html": "2.18.1",
     "sql-formatter": "15.7.3",
     "type-fest": "4.32.0",
     "uuid": "11.1.1",
     "yaml": "2.8.3",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@babel/types": "7.29.0",

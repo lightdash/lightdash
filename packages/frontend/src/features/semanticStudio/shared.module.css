@@ -1,0 +1,475 @@
+/* Semantic Layer building blocks. */
+
+.logo {
+    flex: none;
+    object-fit: contain;
+}
+
+/* Field table: one raised surface, its toolbar inside the top edge.
+   Lines only where they separate: under the toolbar, header and rows. */
+
+.table {
+    container: field-table / inline-size;
+    display: flex;
+    flex-direction: column;
+    /* As tall as its rows, up to the space there is; then it scrolls. */
+    flex: 0 1 auto;
+    min-height: 0;
+    background: var(--mantine-color-body);
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.tableToolbar {
+    flex: none;
+    height: 44px;
+    padding: 0 8px 0 4px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+}
+
+.fieldList {
+    overflow: auto;
+    min-height: 0;
+    flex: 1;
+}
+
+.fieldListInner {
+    position: relative;
+    width: 100%;
+}
+
+/* Field and description. Rows sit indented under their Dimensions / Metrics
+   heading; fields not in use read dimmed when shown. */
+.fieldHeader,
+.fieldRow {
+    display: grid;
+    grid-template-columns: minmax(200px, 360px) minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px 0 28px;
+}
+
+@container field-table (max-width: 720px) {
+    .fieldHeader,
+    .fieldRow {
+        grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+    }
+}
+
+.fieldHeader {
+    flex: none;
+    height: 32px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+}
+
+/* Section row: Dimensions and Metrics each head their own block of rows,
+   which sit indented under it. The column header above stays plain. */
+.fieldDivider {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mantine-color-text);
+    background: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-dark-6)
+    );
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+}
+
+.fieldDividerCount {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--mantine-color-dimmed);
+    font-variant-numeric: tabular-nums;
+}
+
+/* One field row; its details open in a modal. */
+.fieldItem {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+}
+
+.fieldRow {
+    height: 36px;
+    cursor: pointer;
+}
+
+.fieldRow:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.fieldRow:focus-visible {
+    outline: 2px solid
+        light-dark(var(--mantine-color-ldGray-5), var(--mantine-color-dark-2));
+    outline-offset: -2px;
+}
+
+.fieldName {
+    min-width: 0;
+}
+
+/* The label keeps priority over the joined table name when space runs out. */
+.fieldLabel {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.fieldTable {
+    flex: 0 3 auto;
+    min-width: 0;
+    max-width: 40%;
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.fieldUnsaved {
+    flex: none;
+    font-size: 12px;
+    color: var(--mantine-color-yellow-8);
+}
+
+.fieldRow[data-off='true'] .fieldLabel,
+.fieldRow[data-restricted='true'] .fieldLabel {
+    color: var(--mantine-color-dimmed);
+}
+
+.fieldMeta {
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.fieldDescription {
+    font-size: 13px;
+    color: var(--mantine-color-dimmed);
+}
+
+.showHidden {
+    flex: none;
+    --checkbox-size: 14px;
+}
+
+.showHidden label {
+    padding-left: 6px;
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+/* Details modal: one list, each line a name and its value. Editable values
+   come first; a hairline separates them from the read-only ones. */
+.modalTitleSlot {
+    min-width: 0;
+    flex: 1;
+}
+
+.modalTitle {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 22px;
+    letter-spacing: -0.01em;
+}
+
+.detailList {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    column-gap: 16px;
+    row-gap: 6px;
+    align-items: start;
+}
+
+/* Every line is as tall as an input, so names and values share a centre. */
+.detailList .inlineStatic {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    line-height: 20px;
+}
+
+.detailDivider {
+    grid-column: 1 / -1;
+    margin: 10px 0;
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+}
+
+.inlineStatic[data-code='true'] {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.modalContent {
+    outline: none;
+}
+
+.modalFooter {
+    margin-top: 20px;
+}
+
+/* Names sit on the first line of their value. */
+.detailList .propertyTerm {
+    padding-top: 5px;
+}
+
+/* A control in a value cell, centred on the first line. */
+.detailControl {
+    min-height: 30px;
+}
+
+.sectionLabel {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+}
+
+/* Inline editing: reads as text at rest, an input on hover and focus. */
+.inlineInput,
+.inlineStatic {
+    /* Text lines up with the plain text around it; the border sits outside. */
+    margin: 0 -7px;
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--mantine-color-text);
+}
+
+.inlineInput {
+    min-height: 0;
+    height: auto;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+}
+
+.inlineInput:hover {
+    background: var(--mantine-color-default-hover);
+    border-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-dark-4)
+    );
+}
+
+.inlineInput:focus {
+    background: var(--mantine-color-body);
+    border-color: light-dark(
+        var(--mantine-color-ldGray-4),
+        var(--mantine-color-dark-3)
+    );
+}
+
+.inlineStatic[data-empty='true'],
+.inlineInput::placeholder {
+    color: var(--mantine-color-dimmed);
+}
+
+.properties {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    column-gap: 16px;
+    row-gap: 6px;
+    align-items: start;
+    padding-top: 18px;
+}
+
+.properties[data-size='page'] {
+    grid-template-columns: 120px minmax(0, 1fr);
+    max-width: 640px;
+    row-gap: 10px;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.propertyTerm {
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--mantine-color-dimmed);
+}
+
+.propertyValue {
+    font-size: 12px;
+    line-height: 20px;
+}
+
+/* Pressable things answer the press. */
+.pressable {
+    transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.pressable:active {
+    transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pressable,
+    .inlineInput {
+        transition: none;
+    }
+}
+
+/* Code */
+
+/* Search results: same rhythm and states as the tree beside them. */
+
+.searchScroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 8px 12px;
+}
+
+.resultHeader {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 30px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 8px 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+}
+
+.resultRow {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.resultRow:hover,
+.resultRow[data-active='true'] {
+    background: color-mix(in srgb, var(--mantine-color-text) 6%, transparent);
+}
+
+.resultRow[data-selected='true'] {
+    background: color-mix(in srgb, var(--mantine-color-text) 12%, transparent);
+}
+
+.resultIcon {
+    display: flex;
+    justify-content: center;
+}
+
+.resultLabel {
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--mantine-color-dimmed);
+}
+
+.match {
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+.resultPath {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--mantine-color-dimmed);
+    opacity: 0.8;
+}
+
+.resultMore {
+    padding: 8px 8px 0;
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.searchEmpty {
+    padding: 12px 16px;
+}
+
+.scrollFill {
+    overflow: auto;
+    min-height: 0;
+    flex: 1;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+/* Read-only markdown in the details, on the same line as other values. */
+.inlineMarkdown {
+    padding: 5px 0;
+    font-size: var(--mantine-font-size-sm);
+    line-height: 20px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/*
+ * A description in a form row reads as plain text: headings flatten to body
+ * text, rules give way to space (a hairline here looks like the modal's own
+ * divider) and every block takes the value colour.
+ */
+.inlineMarkdown,
+.inlineMarkdown :is(p, li, h1, h2, h3, h4, h5, h6) {
+    color: var(--mantine-color-text);
+}
+
+.inlineMarkdown :is(p, ul, ol, h1, h2, h3, h4, h5, h6) {
+    margin: 0 0 6px;
+    padding: 0;
+    border: 0;
+    font-size: inherit;
+    line-height: inherit;
+    font-weight: inherit;
+}
+
+.inlineMarkdown :is(p, ul, ol, h1, h2, h3, h4, h5, h6):last-child {
+    margin-bottom: 0;
+}
+
+.inlineMarkdown hr {
+    display: none;
+}
+
+/* The field's summary: a quiet line under its properties. */
+.detailSummary {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--mantine-color-dimmed);
+    overflow-wrap: anywhere;
+}
+
+.detailSummaryCode {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11px;
+    color: var(--mantine-color-text);
+}

@@ -1,8 +1,13 @@
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type DashboardHeader from '../../components/common/Dashboard/DashboardHeader';
 import { DashboardHeaderGuard } from './DashboardHeaderGuard';
+import {
+    ParameterEditorContext,
+    type ParameterEditorValue,
+} from './useParameterEditor';
 
 const mockSidebar = vi.hoisted(() => ({
     current: { isSidebarOpen: true, isViewer: false },
@@ -13,58 +18,102 @@ vi.mock('./useControlsSidebar', () => ({
         selector: (value: typeof mockSidebar.current) => unknown,
     ) => selector(mockSidebar.current),
 }));
-// The shipped header's shape: a title, then Add tile beside Save and Cancel
 vi.mock('../../components/common/Dashboard/DashboardHeader', () => ({
-    default: ({
-        onSaveDashboard,
-        onCancel,
-    }: ComponentProps<typeof DashboardHeader>) => (
+    default: () => (
         <header>
-            <a href="#title">Title</a>
-            <div>
-                <button>Add tile</button>
-                <button onClick={onSaveDashboard}>Save changes</button>
-                <button onClick={onCancel}>Cancel</button>
-            </div>
+            <button>Save changes</button>
+            <button>Cancel</button>
         </header>
     ),
 }));
 
-const headerProps = {
-    onSaveDashboard: vi.fn(),
-    onCancel: vi.fn(),
-} as unknown as ComponentProps<typeof DashboardHeader>;
+const renderGuard = () =>
+    render(
+        <MantineProvider>
+            <DashboardHeaderGuard
+                {...({} as ComponentProps<typeof DashboardHeader>)}
+            />
+        </MantineProvider>,
+    );
+
+const button = (name: string) =>
+    screen.getByRole('button', { name, hidden: true });
 
 describe('DashboardHeaderGuard', () => {
     beforeEach(() => {
-        mockSidebar.current = { isSidebarOpen: true, isViewer: false };
+        mockSidebar.current = { isSidebarOpen: false, isViewer: false };
     });
 
-    const isLocked = (name: string) =>
-        screen
-            .getByRole('button', { name, hidden: true })
-            .closest('[inert]') !== null;
-
-    it('locks the whole header, Save and Cancel included, while a filter is edited', () => {
-        render(<DashboardHeaderGuard {...headerProps} />);
-
-        expect(isLocked('Add tile')).toBe(true);
-        expect(screen.getByText('Title').closest('[inert]')).not.toBeNull();
-        expect(isLocked('Save changes')).toBe(true);
-        expect(isLocked('Cancel')).toBe(true);
-    });
-
-    it('unlocks the header once the editor closes', () => {
-        const { rerender } = render(<DashboardHeaderGuard {...headerProps} />);
-        mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: false };
-        rerender(<DashboardHeaderGuard {...headerProps} />);
-
+    it('renders the shipped header, unlocked', () => {
+        renderGuard();
+        expect(button('Save changes')).toBeInTheDocument();
         expect(document.querySelector('[inert]')).toBeNull();
     });
 
+    it('makes the whole header inert while an editor edits a filter', () => {
+        mockSidebar.current = { isSidebarOpen: true, isViewer: false };
+        renderGuard();
+        expect(button('Save changes').closest('[inert]')).not.toBeNull();
+        expect(button('Cancel').closest('[inert]')).not.toBeNull();
+    });
+
+    it.each([
+        [false, true],
+        [true, false],
+    ])(
+        'locks the header while a parameter control is edited (viewer %s: %s)',
+        (isViewer, isLocked) => {
+            mockSidebar.current = { isSidebarOpen: false, isViewer };
+            const noop = vi.fn();
+            const editor: ParameterEditorValue = {
+                editingId: 'region',
+                draft: null,
+                isNeedsValue: false,
+                newControl: null,
+                isViewer,
+                isAsking: false,
+                open: noop,
+                add: noop,
+                update: noop,
+                apply: noop,
+                cancel: noop,
+                resolvePending: noop,
+                move: noop,
+                remove: noop,
+                draftControls: null,
+                setKeyTiles: noop,
+                clearAllTiles: noop,
+                isMapping: false,
+                selectedKey: null,
+                mappingUndo: null,
+                startMapping: noop,
+                endMapping: noop,
+                cancelMapping: noop,
+                setTiles: noop,
+                undoMapping: noop,
+                selectKey: noop,
+                hoveredKey: null,
+                hoverKey: noop,
+                mapping: null,
+            };
+            render(
+                <MantineProvider>
+                    <ParameterEditorContext.Provider value={editor}>
+                        <DashboardHeaderGuard
+                            {...({} as ComponentProps<typeof DashboardHeader>)}
+                        />
+                    </ParameterEditorContext.Provider>
+                </MantineProvider>,
+            );
+            expect(button('Save changes').closest('[inert]') !== null).toBe(
+                isLocked,
+            );
+        },
+    );
+
     it('never locks the header while a viewer edits their filters', () => {
-        mockSidebar.current = { ...mockSidebar.current, isViewer: true };
-        render(<DashboardHeaderGuard {...headerProps} />);
+        mockSidebar.current = { isSidebarOpen: true, isViewer: true };
+        renderGuard();
         expect(document.querySelector('[inert]')).toBeNull();
     });
 });

@@ -104,11 +104,19 @@
    where the chart type came from. */
 .provenanceMark {
     position: absolute;
-    top: calc(var(--mantine-spacing-xs) / 2);
-    left: calc(var(--mantine-spacing-xs) / 2);
+    top: calc(var(--mantine-spacing-xs) / 2 + 4px);
+    right: calc(var(--mantine-spacing-xs) / 2 + 4px);
     z-index: 1;
     display: grid;
     place-items: center;
+    transition: opacity 100ms ease-out;
+}
+
+/* Gives the corner to the more-actions button while it shows. */
+.cardWrapper:has(.cardMoreActions):hover .provenanceMark,
+.cardWrapper:has(.cardMoreActions):has(:focus-visible) .provenanceMark,
+.cardWrapper[data-menu-open='true'] .provenanceMark {
+    opacity: 0;
 }
 
 .provenanceGlyph {
@@ -118,10 +126,11 @@
 }
 
 .provenanceGlyph[data-provenance='official'] {
-    color: light-dark(
-        var(--mantine-color-violet-6),
-        var(--mantine-color-violet-4)
-    );
+    color: var(--mantine-color-ldGray-5);
+}
+
+.provenanceGlyph[data-provenance='official'] path {
+    fill: currentColor;
 }
 
 /* Selection owns the color on the whole tile: the mark takes the selected

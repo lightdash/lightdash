@@ -1,7 +1,6 @@
 import { rolePresets, type RoleLevel } from '@lightdash/common';
-import { Stack } from '@mantine/core';
 import { useNavigate } from 'react-router';
-import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
+import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { RoleBuilder } from '../../features/customRoles/components/RoleBuilder';
 import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
 
@@ -32,20 +31,17 @@ export const CustomRoleCreate = () => {
     };
 
     return (
-        <Stack gap="md" h="100%">
-            <PageBreadcrumbs
-                items={[
-                    {
-                        title: 'Custom roles',
-                        to: '/generalSettings/customRoles',
-                    },
-                    {
-                        title: 'Create custom role',
-                        active: true,
-                    },
-                ]}
-            />
-
+        <SettingsPage
+            fillHeight
+            title="Create custom role"
+            description="Choose where the role can be assigned and which permissions it grants."
+            breadcrumbs={[
+                {
+                    title: 'Custom roles',
+                    to: '/generalSettings/customRoles',
+                },
+            ]}
+        >
             <RoleBuilder
                 initialValues={initialValues}
                 onSubmit={handleCreateRole}
@@ -53,6 +49,6 @@ export const CustomRoleCreate = () => {
                 mode="create"
                 presets={rolePresets}
             />
-        </Stack>
+        </SettingsPage>
     );
 };

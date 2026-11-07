@@ -22,6 +22,10 @@ import {
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import {
+    NOT_ON_LIVE_SOURCES,
+    useIsRefusedOnLiveSource,
+} from '../../../../features/externalConnections/liveSources/apiSourceExplore';
+import {
     selectCartesianDirtyChartType,
     selectCartesianEditor,
     selectCartesianLayout,
@@ -64,7 +68,13 @@ const selectColumnLimit = (state: VisualizationStoreState) =>
 
 export const Layout: FC<Props> = ({ items }) => {
     const { setPivotDimensions } = useVisualizationServices();
-    const { pivotDimensions } = useVisualizationInputs();
+    const { pivotDimensions, resultsData, unsavedMetricQuery } =
+        useVisualizationInputs();
+    const isPivotRefused = useIsRefusedOnLiveSource(
+        unsavedMetricQuery?.exploreName ??
+            resultsData?.metricQuery?.exploreName,
+        'pivots',
+    );
     const dirtyLayout = useVisualizationSelector(selectCartesianLayout);
     const validLayout = useVisualizationInputSelector(selectValidLayout);
     const cartesianType = useVisualizationSelector(
@@ -401,7 +411,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             <Group gap="one">
                                 <Config.Heading>Group</Config.Heading>
                             </Group>
-                            {canAddPivot && (
+                            {canAddPivot && !isPivotRefused && (
                                 <AddButton
                                     onClick={() => {
                                         const nextGroupField =
@@ -419,7 +429,17 @@ export const Layout: FC<Props> = ({ items }) => {
                                 />
                             )}
                         </Config.Group>
-                        {!chartHasMetricOrTableCalc &&
+                        {isPivotRefused &&
+                            !(pivotDimensions && !!pivotDimensions.length) && (
+                                <FieldSelect
+                                    items={[]}
+                                    onChange={() => {}}
+                                    disabled
+                                    placeholder={NOT_ON_LIVE_SOURCES}
+                                />
+                            )}
+                        {!isPivotRefused &&
+                            !chartHasMetricOrTableCalc &&
                             !(pivotDimensions && !!pivotDimensions.length) && (
                                 <FieldSelect
                                     items={[]}

@@ -45,8 +45,11 @@ trusted to see that information.
 The exporter reads at most 1,000 rows per Postgres page, ordered by an indexed
 key, with no OFFSET. Each page releases its connection before file IO. Postgres
 projects an explicit JSON field allowlist. Backpressure streams these rows to
-a private temporary file; it does not collect an organization or ID set in
-Node memory. Organizations and dimensions are processed sequentially.
+a private temporary file rather than collecting all exported rows in memory.
+If a chart page times out, the exporter resolves the organization's project IDs
+and retries that page once with explicit IDs to improve the query plan, retaining
+the ownership check. Subsequent pages use that plan; another timeout fails the
+snapshot normally. Organizations and dimensions are processed sequentially.
 Pagination cursors restart on every run; they do not select only new or changed
 records.
 The source queries live in
@@ -101,16 +104,16 @@ After deployment, click **Sync content** as an organization admin to compile the
 new fields in an existing project before updating managed sample dashboards.
 Re-running `POST /api/v1/org/analytics-project` also refreshes the models while
 preserving the project and saved content. New projects include them immediately.
-Existing authorization and feature-flag checks apply. No database migration or
+Existing authorization and deployment availability checks apply. No database migration or
 new configuration is required.
 
 The first dimension refresh does not have to finish before creating or updating
 an analytics project, provided supported event files already exist:
 
-| Storage state | Create or recompile project | Query using User name |
-| --- | --- | --- |
-| Event files exist; users snapshot is missing | Succeeds | Preserves events and displays `Unknown user` |
-| Event files and users snapshot exist | Succeeds | Resolves current names for matching users |
+| Storage state                                               | Create or recompile project                  | Query using User name                               |
+| ----------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------- |
+| Event files exist; users snapshot is missing                | Succeeds                                     | Preserves events and displays `Unknown user`        |
+| Event files and users snapshot exist                        | Succeeds                                     | Resolves current names for matching users           |
 | No supported event files, even if dimension snapshots exist | Returns the existing no-analytics-data error | Wait for daily event processing before provisioning |
 
 Restoring or publishing a missing users snapshot makes names available to new

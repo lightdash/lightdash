@@ -371,6 +371,9 @@ describe('trusted surface to persisted chart identity', () => {
                 aiOrganizationSettingsService: {
                     isMcpEnabled: vi.fn().mockResolvedValue(true),
                     isMcpContentWritesEnabled: vi.fn().mockResolvedValue(true),
+                    getMcpProjectAccess: vi
+                        .fn()
+                        .mockResolvedValue({ mode: 'all' }),
                 },
                 aiAgentSkillService: {
                     listMcpSkills: vi.fn().mockResolvedValue([]),
@@ -465,6 +468,7 @@ describe('trusted surface to persisted chart identity', () => {
             aiOrganizationSettingsService: {
                 isMcpEnabled: vi.fn().mockResolvedValue(true),
                 isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(false),
             },
             orgAiCopilotConfigResolver: {
                 isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
@@ -513,6 +517,7 @@ describe('trusted surface to persisted chart identity', () => {
         vi.mocked(generateAgentResponse).mockImplementation(
             async ({ dependencies }) => {
                 const tool = getCreateContent({
+                    siteUrl: 'https://app.lightdash.cloud',
                     createContent: dependencies.createContent,
                     sqlChartSaving: { mode: 'client_approved' },
                 });

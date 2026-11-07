@@ -29,11 +29,14 @@ import {
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
 import { useAppViewOutcomes } from './hooks/useAppViewOutcomes';
+import { useIframePdfExport } from './hooks/useIframePdfExport';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
 import { withColorSchemeParam } from './utils/appIframeUrl';
 
 export type AppIframePreviewHandle = {
     captureScreenshot: () => Promise<File>;
+    /** Runs the app's registered Download PDF builder; rejects if none. */
+    exportPdf: () => Promise<Blob>;
 };
 
 type Props = {
@@ -77,6 +80,8 @@ type Props = {
      *  resumed sandboxes never announce, so the Screenshot button stays
      *  hidden for them. */
     onScreenshotAvailabilityChange?: (available: boolean) => void;
+    /** Fires when the app registers a PDF export via `registerPdfExport`. */
+    onPdfExportAvailabilityChange?: (available: boolean) => void;
     /** Called when the user presses Esc to leave inspect mode. The handler
      *  lives on the parent's window because that's where focus actually
      *  sits during inspect mode (the toolbar button before any click; the
@@ -209,6 +214,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             inspectorEnabled,
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
+            onPdfExportAvailabilityChange,
             onInspectorCancelled,
             lineageEnabled,
             onLineageAvailabilityChange,
@@ -330,6 +336,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         const handleScreenshotAnnounce = useCallback(() => {
             onScreenshotAvailabilityChange?.(true);
         }, [onScreenshotAvailabilityChange]);
+        const handlePdfExportAnnounce = useCallback(() => {
+            onPdfExportAvailabilityChange?.(true);
+        }, [onPdfExportAvailabilityChange]);
         const handleLineageAnnounce = useCallback(() => {
             onLineageAvailabilityChange?.(true);
         }, [onLineageAvailabilityChange]);
@@ -364,6 +373,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onElementSelected,
             onInspectorAvailable: handleInspectorAnnounce,
             onScreenshotAvailable: handleScreenshotAnnounce,
+            onPdfExportAvailable: handlePdfExportAnnounce,
             dashboardFilters,
             invalidateCache,
             deliveryCapture,
@@ -396,9 +406,11 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onMountedQueriesChange,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
+        const { exportPdf } = useIframePdfExport(iframeRef);
 
-        useImperativeHandle(ref, () => ({ captureScreenshot }), [
+        useImperativeHandle(ref, () => ({ captureScreenshot, exportPdf }), [
             captureScreenshot,
+            exportPdf,
         ]);
 
         // Reset availability to false when the served bundle changes (new app or
@@ -412,11 +424,13 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         useEffect(() => {
             onInspectorAvailabilityChange?.(false);
             onScreenshotAvailabilityChange?.(false);
+            onPdfExportAvailabilityChange?.(false);
             onLineageAvailabilityChange?.(false);
         }, [
             identityKey,
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
+            onPdfExportAvailabilityChange,
             onLineageAvailabilityChange,
         ]);
 

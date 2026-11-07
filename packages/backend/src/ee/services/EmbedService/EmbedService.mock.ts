@@ -24,6 +24,7 @@ import { PermissionsService } from '../../../services/PermissionsService/Permiss
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import { AiAgentModel } from '../../models/AiAgentModel';
 import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { EmbedService } from './EmbedService';
@@ -136,6 +137,7 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     featureFlagModel: featureFlagModelMock,
     organizationModel: organizationModelMock,
     externalConnectionModel: {} as ExternalConnectionModel,
+    aiAgentModel: {} as AiAgentModel,
 };
 
 /** The mock config with or without a configured app runtime, which decides Chart Studio. */

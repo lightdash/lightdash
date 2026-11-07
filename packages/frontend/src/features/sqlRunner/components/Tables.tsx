@@ -18,7 +18,7 @@ import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
-import isEmpty from 'lodash/isEmpty';
+import { isEmpty } from 'es-toolkit/compat';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';

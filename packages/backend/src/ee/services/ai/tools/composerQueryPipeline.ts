@@ -1,15 +1,16 @@
 import {
     buildComposerArtifactPipeline,
+    COMPOSER_QUERY_MAX_UNREAD_NODES,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     getSourceQueryLimit,
     getSourceQueryResultReferences,
     hasReachedSourceQueryLimit,
+    ParameterError,
     QueryHistoryStatus,
     QuerySourceType,
     toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
-    type ComposerApiConnection,
     type ComposerNodeScopeName,
     type ComposerPipelineNode,
     type DimensionType,
@@ -20,53 +21,58 @@ import {
     type SubmittedSourceQuery,
     type ThreadComposerQueryNode,
     type ToolComposerQueriesArgs,
+    type ToolComposerQueriesStructuredContent,
     type ToolRunQueryAppliedParameters,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import type { ComposerNodeStatus } from '../types/aiAgentDependencies';
 import { getAppliedParameters } from '../utils/appliedParameters';
 import { validateQueryParameters } from '../utils/validators';
-import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
+import { resolveComposerQueryNode } from './composerSemanticLayerNode';
 import { validateSelectOnly } from './runSql';
 
-/**
- * Resolves which node the artifact should show: the explicit terminalNodeId
- * when given, otherwise the unique sink (the one node no other node
- * references in-submission). Throws a model-actionable error otherwise.
- */
-export const resolveTerminalNodeId = (
+/** Resolves the nodes whose rows are returned: every unread node, and the terminal (terminalNodeId, else the last unread node). */
+export const resolveResultNodes = (
     submitted: SubmittedSourceQuery[],
     terminalNodeId: string | null,
     pipeline: SourceQuery[],
-): string => {
+): { terminalNodeId: string; otherUnreadNodeIds: string[] } => {
     const nodeIds = new Set(submitted.map((query) => query.nodeId));
-    if (terminalNodeId !== null) {
-        if (!pipeline.some((node) => node.nodeId === terminalNodeId)) {
-            throw new Error(
-                `terminalNodeId "${terminalNodeId}" does not name a node in this pipeline`,
-            );
-        }
-        return terminalNodeId;
-    }
-
-    const referenced = new Set<string>();
-    submitted.forEach((query) => {
-        Object.values(getSourceQueryResultReferences(query))
-            .filter((reference) => nodeIds.has(reference))
-            .forEach((reference) => referenced.add(reference));
-    });
-
-    const sinks = submitted
+    const read = new Set(
+        submitted.flatMap((query) =>
+            Object.values(getSourceQueryResultReferences(query)).filter(
+                (reference) => nodeIds.has(reference),
+            ),
+        ),
+    );
+    const unread = submitted
         .map((query) => query.nodeId)
-        .filter((nodeId) => !referenced.has(nodeId));
-    if (sinks.length !== 1) {
-        throw new Error(
-            `The pipeline has ${sinks.length} sinks (${sinks.join(
+        .filter((nodeId) => !read.has(nodeId));
+    if (unread.length > COMPOSER_QUERY_MAX_UNREAD_NODES) {
+        throw new ParameterError(
+            `A call returns the rows of at most ${COMPOSER_QUERY_MAX_UNREAD_NODES} nodes, and no node reads ${unread.join(
                 ', ',
-            )}); pass terminalNodeId to pick which node's result this tool returns`,
+            )}. Combine some of them in one duckdb node (UNION ALL or JOIN), or submit them in separate calls; a later call can read any node from an earlier call by node id.`,
         );
     }
-    return sinks[0];
+    const terminal = terminalNodeId ?? unread.at(-1);
+    if (terminal === undefined) {
+        throw new ParameterError(
+            'Every node is read by another node, so the pipeline has a cycle. Remove the cycle.',
+        );
+    }
+    if (
+        terminalNodeId !== null &&
+        !pipeline.some((node) => node.nodeId === terminalNodeId)
+    ) {
+        throw new ParameterError(
+            `terminalNodeId "${terminalNodeId}" does not name a node in this pipeline`,
+        );
+    }
+    return {
+        terminalNodeId: terminal,
+        otherUnreadNodeIds: unread.filter((nodeId) => nodeId !== terminal),
+    };
 };
 
 export type ComposerAppliedParameters = ToolRunQueryAppliedParameters & {
@@ -76,6 +82,8 @@ export type ComposerAppliedParameters = ToolRunQueryAppliedParameters & {
 export type ComposerQueryPipeline = {
     queries: ComposerPipelineNode[];
     terminalNodeId: string;
+    /** Unread nodes besides the terminal; their rows are returned too. */
+    otherUnreadNodeIds: string[];
     appliedParameters: ComposerAppliedParameters[];
 };
 
@@ -92,7 +100,6 @@ export const buildComposerQueryPipeline = ({
     reusableNodes,
     scopeName = 'thread',
     enablePythonNodes,
-    apiConnections,
     canRunSql,
     sqlDisabledMessage,
 }: {
@@ -102,7 +109,6 @@ export const buildComposerQueryPipeline = ({
     reusableNodes: ThreadComposerQueryNode[];
     scopeName?: ComposerNodeScopeName;
     enablePythonNodes: boolean;
-    apiConnections: ComposerApiConnection[];
     canRunSql: boolean;
     sqlDisabledMessage: string;
 }): { pipeline: ComposerQueryPipeline } | { error: string } => {
@@ -124,7 +130,7 @@ export const buildComposerQueryPipeline = ({
     queryNodes.forEach((node) => {
         if (
             node.sourceType !== QuerySourceType.SEMANTIC_LAYER ||
-            node.parameters === null
+            !node.parameters
         )
             return;
         validateQueryParameters(
@@ -159,11 +165,7 @@ export const buildComposerQueryPipeline = ({
             : null;
         return applied ? [{ nodeId: node.nodeId, ...applied }] : [];
     });
-    const resolvedTerminalNodeId = resolveTerminalNodeId(
-        submitted,
-        terminalNodeId,
-        queries,
-    );
+    const resultNodes = resolveResultNodes(submitted, terminalNodeId, queries);
 
     if (
         !enablePythonNodes &&
@@ -174,25 +176,12 @@ export const buildComposerQueryPipeline = ({
         };
     }
 
-    if (
-        apiConnections.length === 0 &&
-        queries.some((node) => node.sourceType === QuerySourceType.API)
-    ) {
-        return {
-            error: 'This pipeline contains "api" nodes but api queries are not enabled. Rebuild the pipeline without them.',
-        };
-    }
-
-    const unknownConnectionNode = queries.find(
-        (node) =>
-            node.sourceType === QuerySourceType.API &&
-            !apiConnections.some(
-                ({ connectionUuid }) => connectionUuid === node.connectionUuid,
-            ),
+    const apiNode = queries.find(
+        (node) => node.sourceType === QuerySourceType.API,
     );
-    if (unknownConnectionNode) {
+    if (apiNode) {
         return {
-            error: `Node "${unknownConnectionNode.nodeId}" names a connection that is not available. Use one of the connectionUuid values listed in the tool description.`,
+            error: `Node "${apiNode.nodeId}" is an "api" node, which is no longer supported. Query a live data source with a semanticLayer node on its explore.`,
         };
     }
 
@@ -207,7 +196,7 @@ export const buildComposerQueryPipeline = ({
     return {
         pipeline: {
             queries,
-            terminalNodeId: resolvedTerminalNodeId,
+            ...resultNodes,
             appliedParameters,
         },
     };
@@ -220,17 +209,20 @@ export type ComposerPreview = {
     truncated: boolean;
 };
 
-export const buildComposerPreview = (terminal: {
-    columns: ResultColumns;
-    rows: Record<string, AnyType>[];
-    rowCount: number;
-}): ComposerPreview => {
+export const buildComposerPreview = (
+    terminal: {
+        columns: ResultColumns;
+        rows: Record<string, AnyType>[];
+        rowCount: number;
+    },
+    rowLimit: number,
+): ComposerPreview => {
     const columns = Object.values(terminal.columns).map(
         ({ reference, type }) => ({ reference, type }),
     );
     const references = columns.map((column) => column.reference);
     const rows = terminal.rows
-        .slice(0, COMPOSER_QUERY_PREVIEW_ROW_LIMIT)
+        .slice(0, rowLimit)
         .map((row) =>
             Object.fromEntries(references.map((col) => [col, row[col]])),
         );
@@ -238,7 +230,59 @@ export const buildComposerPreview = (terminal: {
         columns,
         rows,
         csv: stringify(rows, { header: true, columns: references }),
-        truncated: terminal.rowCount > COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+        truncated: terminal.rowCount > rowLimit,
+    };
+};
+
+/**
+ * Splits the preview across the terminal and the other unread nodes: a small
+ * result keeps every row, the rest share what is left.
+ */
+export const splitPreviewRows = (rowCounts: number[]): number[] => {
+    const smallestFirst = rowCounts
+        .map((_, index) => index)
+        .sort((a, b) => rowCounts[a] - rowCounts[b]);
+    const budgets = rowCounts.map(() => 0);
+    let remaining = COMPOSER_QUERY_PREVIEW_ROW_LIMIT;
+    smallestFirst.forEach((index, position) => {
+        const share = Math.floor(remaining / (smallestFirst.length - position));
+        budgets[index] = Math.min(rowCounts[index], share);
+        remaining -= budgets[index];
+    });
+    return budgets;
+};
+
+export const renderOtherUnreadNodesNote = (otherUnreadNodeIds: string[]) =>
+    otherUnreadNodeIds.length > 0
+        ? ` Unread nodes ${otherUnreadNodeIds.join(', ')} returned rows too, listed with their nodes.`
+        : '';
+
+/** Trims the other unread nodes' node samples to their share of the preview and returns the terminal's share. */
+export const shareComposerPreview = (
+    nodeStatuses: ComposerNodeStatus[],
+    otherUnreadNodeIds: string[],
+    terminalRowCount: number,
+): { nodeStatuses: ComposerNodeStatus[]; terminalRowLimit: number } => {
+    const unread = nodeStatuses.filter(({ nodeId }) =>
+        otherUnreadNodeIds.includes(nodeId),
+    );
+    const [terminalRowLimit, ...unreadRowLimits] = splitPreviewRows([
+        terminalRowCount,
+        ...unread.map(({ rowCount, sample }) =>
+            sample === null ? 0 : (rowCount ?? 0),
+        ),
+    ]);
+    return {
+        terminalRowLimit,
+        nodeStatuses: nodeStatuses.map((status) => {
+            const index = unread.indexOf(status);
+            return index === -1 || status.sample === null
+                ? status
+                : {
+                      ...status,
+                      sample: status.sample.slice(0, unreadRowLimits[index]),
+                  };
+        }),
     };
 };
 
@@ -253,108 +297,146 @@ export const toNodeColumns = (nodeStatuses: ComposerNodeStatus[]) =>
 export const isSaved = ({ state }: ComposerNodeStatus) =>
     state === QueryHistoryStatus.READY;
 
-export const renderSavedNodes = (
-    queries: ComposerPipelineNode[],
-    nodeStatuses: ComposerNodeStatus[],
-    reusableNodes: ThreadComposerQueryNode[],
-): string => {
-    const saved = new Set(
-        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
-    );
-    const savedNodeIds = queries
-        .filter((node) => saved.has(node.nodeId))
-        .map((node) => node.nodeId);
-    const notSaved = queries
-        .filter((node) => !saved.has(node.nodeId))
-        .map((node) => {
-            const unsavedReads = Object.values(
-                getSourceQueryResultReferences(node),
-            ).filter((reference) => !saved.has(reference));
-            const status = nodeStatuses.find(
-                ({ nodeId }) => nodeId === node.nodeId,
-            );
-            let reason: string;
-            if (unsavedReads.length > 0) {
-                reason = `not run: reads ${unsavedReads.join(', ')}`;
-            } else if (status?.error) {
-                reason = `failed: ${status.error}`;
-            } else {
-                reason = `not finished${status ? `: ${status.state}` : ''}`;
-            }
-            const earlier = reusableNodes.some(
-                ({ nodeId }) => nodeId === node.nodeId,
-            )
-                ? '; still saved from an earlier call'
-                : '';
-            return `${node.nodeId} (${reason}${earlier})`;
-        });
-    return [
-        savedNodeIds.length > 0
-            ? `Saved from this call: ${savedNodeIds.join(', ')}.`
+type ComposerNodeSummary =
+    ToolComposerQueriesStructuredContent['nodes'][number];
+
+const getReads = (node: SourceQuery) =>
+    Object.values(getSourceQueryResultReferences(node));
+
+export const toNodeSummary = (
+    node: ComposerPipelineNode,
+    status: ComposerNodeStatus | undefined,
+    showColumns: boolean,
+): ComposerNodeSummary => ({
+    nodeId: node.nodeId,
+    title: node.title ?? null,
+    sourceType: node.sourceType,
+    rowCount: status?.rowCount ?? null,
+    limit: getSourceQueryLimit(node),
+    columns:
+        showColumns && status?.columns
+            ? toComposerNodeColumns(status.columns)
             : null,
-        notSaved.length > 0 ? `Not saved: ${notSaved.join(', ')}.` : null,
-    ]
-        .filter(Boolean)
-        .join(' ');
-};
+    sample: status?.sample ?? null,
+});
 
-export type ComposerNodeSummary = {
-    nodeId: string;
-    title: string | null;
-    sourceType: QuerySourceType;
-    rowCount: number | null;
-    limit: number;
-    queryUuid?: string;
+const describeCappedRows = (
+    node: ComposerNodeSummary,
+    maxQueryLimit: number,
+): string => {
+    const max = node.limit < maxQueryLimit ? ` (max ${maxQueryLimit})` : '';
+    return ` Reached its limit of ${node.limit}, so more rows may exist${max}.`;
 };
-
-export const toComposerNodeSummaries = (
-    queries: ComposerPipelineNode[],
-    nodeStatuses: ComposerNodeStatus[],
-): ComposerNodeSummary[] =>
-    queries.map((node) => ({
-        nodeId: node.nodeId,
-        title: node.title ?? null,
-        sourceType: node.sourceType,
-        rowCount:
-            nodeStatuses.find((status) => status.nodeId === node.nodeId)
-                ?.rowCount ?? null,
-        limit: getSourceQueryLimit(node),
-    }));
 
 export const hasReachedLimit = (node: ComposerNodeSummary) =>
     node.rowCount !== null && hasReachedSourceQueryLimit(node, node.rowCount);
 
-/** One line per node (status, rows, limit) plus warnings for nodes reading a node that reached its limit. */
-export const renderComposerNodeSummary = (
-    queries: SourceQuery[],
-    nodes: ComposerNodeSummary[],
-    nodeStatuses: ComposerNodeStatus[],
-    maxQueryLimit: number,
-): string => {
+const renderNodeDetails = ({
+    columns,
+    sample,
+    rowCount,
+}: ComposerNodeSummary): string[] => {
+    const columnLines =
+        columns === null
+            ? []
+            : [
+                  `Columns: ${columns
+                      .map(({ reference, type }) => `${reference} (${type})`)
+                      .join(', ')}`,
+              ];
+    const sampleLines =
+        sample === null || sample.length === 0
+            ? []
+            : [
+                  `Sample, ${sample.length} of ${rowCount ?? sample.length} rows:`,
+                  ...stringify(sample, {
+                      header: true,
+                      ...(columns === null
+                          ? {}
+                          : {
+                                columns: columns.map(
+                                    ({ reference }) => reference,
+                                ),
+                            }),
+                  })
+                      .trimEnd()
+                      .split('\n'),
+              ];
+    return [...columnLines, ...sampleLines].map((line) => `  ${line}`);
+};
+
+/** Every node of the pipeline in the given order, with its node columns and node sample under it when it has them. */
+export const renderComposerNodeListing = ({
+    queries,
+    nodes,
+    nodeStatuses,
+    reusableNodes,
+    submittedNodeIds,
+    maxQueryLimit,
+    queryUuids = new Map(),
+}: {
+    queries: ComposerPipelineNode[];
+    nodes: ComposerNodeSummary[];
+    nodeStatuses: ComposerNodeStatus[];
+    reusableNodes: ThreadComposerQueryNode[];
+    submittedNodeIds: Set<string>;
+    maxQueryLimit: number;
+    /** Shown in each node's label so the node can be read by its query uuid. */
+    queryUuids?: ReadonlyMap<string, string>;
+}): string => {
+    const saved = new Set(
+        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
+    );
     const reachedLimit = new Set(
         nodes.filter(hasReachedLimit).map((node) => node.nodeId),
     );
-    const nodeLines = nodes.map((node) => {
+    const getOutcome = (node: ComposerNodeSummary): string => {
+        if (node.rowCount !== null) {
+            const capped = reachedLimit.has(node.nodeId)
+                ? describeCappedRows(node, maxQueryLimit)
+                : '';
+            const reused = submittedNodeIds.has(node.nodeId)
+                ? ''
+                : ' Reused from an earlier call.';
+            return `${node.rowCount} rows, limit ${node.limit}.${capped}${reused}`;
+        }
+        const query = queries.find(({ nodeId }) => nodeId === node.nodeId);
         const status = nodeStatuses.find(
-            (candidate) => candidate.nodeId === node.nodeId,
+            ({ nodeId }) => nodeId === node.nodeId,
         );
+        const unsavedReads = (query ? getReads(query) : []).filter(
+            (reference) => !saved.has(reference),
+        );
+        let reason: string;
+        if (unsavedReads.length > 0) {
+            reason = `not run: reads ${unsavedReads.join(', ')}`;
+        } else if (status?.error) {
+            reason = `failed: ${status.error}`;
+        } else {
+            reason = `not finished${status ? `: ${status.state}` : ''}`;
+        }
+        const earlier = reusableNodes.some(
+            ({ nodeId }) => nodeId === node.nodeId,
+        )
+            ? '; still saved from an earlier call'
+            : '';
+        return `${reason}${earlier}`;
+    };
+    const nodeLines = nodes.map((node) => {
+        const queryUuid = queryUuids.get(node.nodeId);
         const label = [
             `- ${node.nodeId}`,
             node.title === null ? '' : `: "${node.title}"`,
             ` (${node.sourceType})`,
-            node.queryUuid ? `, queryUuid ${node.queryUuid}` : '',
+            queryUuid ? `, queryUuid ${queryUuid}` : '',
         ].join('');
-        const outcome =
-            node.rowCount === null
-                ? `${status?.state ?? 'not read'}${status?.error ? `: ${status.error}` : ''}`
-                : `${node.rowCount} rows`;
-        const capped = reachedLimit.has(node.nodeId)
-            ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
-            : '';
-        return `${label}: ${outcome}, limit ${node.limit}.${capped}`;
+        return [
+            `${label}: ${getOutcome(node)}`,
+            ...renderNodeDetails(node),
+        ].join('\n');
     });
     const warnings = queries.flatMap((query) =>
-        Object.values(getSourceQueryResultReferences(query))
+        getReads(query)
             .filter((reference) => reachedLimit.has(reference))
             .map(
                 (reference) =>
@@ -362,4 +444,42 @@ export const renderComposerNodeSummary = (
             ),
     );
     return [...nodeLines, ...warnings].join('\n');
+};
+
+/** A failed run's nodes: each failed node, then the nodes it reads, then the rest. */
+export const getFailedRunNodes = (
+    queries: ComposerPipelineNode[],
+    nodeStatuses: ComposerNodeStatus[],
+    submittedNodeIds: Set<string>,
+): ComposerNodeSummary[] => {
+    const saved = new Set(
+        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
+    );
+    const getStatus = (nodeId: string) =>
+        nodeStatuses.find((status) => status.nodeId === nodeId);
+    const failed = queries.filter(
+        (node) =>
+            !saved.has(node.nodeId) &&
+            !!getStatus(node.nodeId)?.error &&
+            getReads(node).every((reference) => saved.has(reference)),
+    );
+    const readByFailed = new Set(failed.flatMap(getReads));
+    const order = [
+        ...new Set([
+            ...failed.flatMap((node) => [node.nodeId, ...getReads(node)]),
+            ...queries.map(({ nodeId }) => nodeId),
+        ]),
+    ];
+    return order.flatMap((nodeId) => {
+        const node = queries.find((query) => query.nodeId === nodeId);
+        return node
+            ? [
+                  toNodeSummary(
+                      node,
+                      getStatus(nodeId),
+                      submittedNodeIds.has(nodeId) || readByFailed.has(nodeId),
+                  ),
+              ]
+            : [];
+    });
 };

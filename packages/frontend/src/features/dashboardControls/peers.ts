@@ -1,4 +1,5 @@
 import {
+    getDashboardFilterableFieldKey,
     getItemId,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
@@ -227,6 +228,92 @@ export const getFilterRows = (
     ]),
 ];
 
+// The dashboard's fields and metrics by id
+export type FieldsMap = Record<string, DashboardFilterableField | undefined>;
+
+// A chip is a field as a tile's explore labels it, keyed as the shipped bar
+// keys distinct filter fields: two explores can join one table under two
+// labels, so one field id is two chips. A SQL column goes by its reference
+const getFieldRowKey = (
+    fieldId: string,
+    field: DashboardFilterableField | undefined,
+): string => (field ? getDashboardFilterableFieldKey(field) : fieldId);
+
+// A chip: its key, and the field id or column reference it filters by
+export type FilterChip = { key: string; fieldId: string };
+
+// The field id a chip filters by. A key that is no chip (a field cleared off
+// its last tile) is the field a tile labels so; anything else stands for itself
+export const getChipFieldId = (
+    chips: FilterChip[],
+    key: string,
+    fieldsByTile: FieldsByTile,
+): string => {
+    const chip = chips.find((candidate) => candidate.key === key);
+    if (chip !== undefined) return chip.fieldId;
+    const field = Object.values(fieldsByTile ?? {})
+        .flat()
+        .find((candidate) => getDashboardFilterableFieldKey(candidate) === key);
+    return field === undefined ? key : getItemId(field);
+};
+
+// The chip a tile is on for the field: its own explore's, else the dashboard's
+export const getTileRowKey = (
+    tile: DashboardTile,
+    fieldId: string,
+    fieldsByTile: FieldsByTile,
+    fieldsMap: FieldsMap,
+): string =>
+    getFieldRowKey(
+        fieldId,
+        fieldsByTile?.[tile.uuid]?.find(
+            (field) => getItemId(field) === fieldId,
+        ) ?? fieldsMap[fieldId],
+    );
+
+// Whether a chip's counts and actions reach the tile. A key that is only an
+// id (a column, an unknown field) reaches every tile
+export const isTileInRow = (
+    tile: DashboardTile,
+    chip: FilterChip,
+    fieldsByTile: FieldsByTile,
+    fieldsMap: FieldsMap,
+): boolean =>
+    chip.key === chip.fieldId ||
+    getTileRowKey(tile, chip.fieldId, fieldsByTile, fieldsMap) === chip.key;
+
+// The chips: a row per label its tiles give the field, in tile order; a
+// field on no tile is one chip, as the dashboard labels it
+export const getFilterChips = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[] | undefined,
+    fieldsByTile: FieldsByTile,
+    fieldsMap: FieldsMap,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): FilterChip[] =>
+    getFilterRows(rule, tiles).flatMap((fieldId) => {
+        if (isSqlColumnRow(rule, fieldId)) return [{ key: fieldId, fieldId }];
+        const keys = (tiles ?? [])
+            .filter((tile) =>
+                isTileOnRow(
+                    rule,
+                    fieldId,
+                    tile,
+                    fieldsByTile,
+                    sqlColumnsByTile,
+                    false,
+                ),
+            )
+            .map((tile) =>
+                getTileRowKey(tile, fieldId, fieldsByTile, fieldsMap),
+            );
+        return (
+            keys.length > 0
+                ? [...new Set(keys)]
+                : [getFieldRowKey(fieldId, fieldsMap[fieldId])]
+        ).map((key) => ({ key, fieldId }));
+    });
+
 export const getFieldCount = (
     rule: DashboardFilterRule,
     fieldId: string,
@@ -288,6 +375,10 @@ export const getFieldScope = (
         replacedFieldIds: [...new Set(replacedFieldIds)],
     };
 };
+
+// The tiles an apply would change
+export const getChangeCount = (scope: FieldScope) =>
+    scope.unfiltered + scope.replaced;
 
 const withTileTargets = (
     rule: DashboardFilterRule,
@@ -531,6 +622,25 @@ export const getTabCounts = (
                 },
             ];
         }),
+    );
+
+// Mapping's counts: over the tiles that can take the filter only, so the
+// tabs add up to the mapping row's total
+export const getTakeableTabCounts = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): Record<string, TabCount> =>
+    getTabCounts(
+        rule,
+        tiles.filter((tile) =>
+            canTileTakeFilter(tile, fieldsByTile, sqlColumnsByTile),
+        ),
+        tabs,
+        fieldsByTile,
+        sqlColumnsByTile,
     );
 
 // Per tab: how many tiles the given field is on, out of every tile on the tab.

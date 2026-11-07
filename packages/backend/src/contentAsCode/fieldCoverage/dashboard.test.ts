@@ -21,6 +21,7 @@ describeContentAsCodeSchemaContract({
         'draftsAwaitingReview',
         'firstViewedAt',
         'hasUnpublishedChanges',
+        'managedFromRepository',
         'organizationUuid',
         // Represented as `ownerEmail` on the document for portability
         'owner',

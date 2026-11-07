@@ -1,15 +1,10 @@
 import {
-    DragDropContext,
-    Draggable,
-    Droppable,
-    type DropResult,
-} from '@hello-pangea/dnd';
-import {
     getGranularityMapFromItems,
     getReadableTextColor,
 } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
-import { useCallback, type FC } from 'react';
+import clsx from 'clsx';
+import { useState, type FC } from 'react';
 import {
     selectPieEditor,
     selectPieGroupColorDefaults,
@@ -19,6 +14,7 @@ import {
     useVisualizationSelector,
 } from '../../../features/visualization/store';
 import { usePieEditorActions } from '../../../hooks/usePieChartConfig';
+import { SortableItem, SortableList } from '../../common/Sortable/Sortable';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
@@ -77,15 +73,7 @@ export const Series: FC = () => {
 
     const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
 
-    const handleDragEnd = useCallback(
-        (result: DropResult) => {
-            if (!result.destination) return;
-            if (result.source.index === result.destination.index) return;
-
-            groupSortChange(result.source.index, result.destination.index);
-        },
-        [groupSortChange],
-    );
+    const [isDragging, setIsDragging] = useState(false);
 
     const firstGroupLabel = sortedGroupLabels[0];
     const firstGroupColor = firstGroupLabel
@@ -129,131 +117,97 @@ export const Series: FC = () => {
                         <Config.Heading>Series</Config.Heading>
                     </Config.Group>
                     {sortedGroupLabels.length === 0 ? null : (
-                        <DragDropContext onDragEnd={handleDragEnd}>
-                            <Droppable droppableId="droppable">
-                                {(droppableProvided, droppableSnapshot) => (
-                                    <Box
-                                        ref={droppableProvided.innerRef}
-                                        bg={
-                                            droppableSnapshot.isDraggingOver
-                                                ? 'ldGray.1'
-                                                : 'ldGray.0'
-                                        }
-                                        p="xs"
+                        <SortableList
+                            items={sortedGroupLabels}
+                            onReorder={groupSortChange}
+                            onDragStart={() => setIsDragging(true)}
+                            onDragEnd={() => setIsDragging(false)}
+                        >
+                            <Box
+                                bg={isDragging ? 'ldGray.1' : 'ldGray.0'}
+                                p="xs"
+                            >
+                                {sortedGroupLabels.map((groupLabel) => (
+                                    <SortableItem
+                                        key={groupLabel}
+                                        id={groupLabel}
                                     >
-                                        {sortedGroupLabels.map(
-                                            (groupLabel, index) => (
-                                                <Draggable
-                                                    key={groupLabel}
-                                                    draggableId={groupLabel}
-                                                    index={index}
-                                                >
-                                                    {(
-                                                        draggableProvided,
-                                                        draggableSnapshot,
-                                                    ) => (
-                                                        <GroupItem
-                                                            ref={
-                                                                draggableProvided.innerRef
-                                                            }
-                                                            {...draggableProvided.draggableProps}
-                                                            className={
-                                                                draggableSnapshot.isDragging
-                                                                    ? classes.draggingItem
-                                                                    : undefined
-                                                            }
-                                                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
-                                                            style={{
-                                                                ...draggableProvided
-                                                                    .draggableProps
-                                                                    .style,
-                                                                top: 'auto',
-                                                            }}
-                                                            dragHandleProps={
-                                                                draggableProvided.dragHandleProps
-                                                            }
-                                                            isOnlyItem={
-                                                                sortedGroupLabels.length ===
-                                                                1
-                                                            }
-                                                            granularityFields={
-                                                                granularityFields
-                                                            }
-                                                            swatches={
-                                                                colorPalette
-                                                            }
-                                                            defaultColor={
-                                                                groupColorDefaults[
-                                                                    groupLabel
-                                                                ]
-                                                            }
-                                                            defaultLabel={
-                                                                groupLabel
-                                                            }
-                                                            color={
-                                                                groupColorOverrides[
-                                                                    groupLabel
-                                                                ] ??
-                                                                getGroupColor(
-                                                                    groupFieldIds.join(
-                                                                        '_',
-                                                                    ),
-                                                                    groupLabel,
-                                                                )
-                                                            }
-                                                            label={
-                                                                groupLabelOverrides[
-                                                                    groupLabel
-                                                                ]
-                                                            }
-                                                            valueLabel={
-                                                                groupValueOptionOverrides[
-                                                                    groupLabel
-                                                                ]?.valueLabel ??
-                                                                valueLabel
-                                                            }
-                                                            showValue={
-                                                                groupValueOptionOverrides[
-                                                                    groupLabel
-                                                                ]?.showValue ??
-                                                                showValue
-                                                            }
-                                                            showPercentage={
-                                                                groupValueOptionOverrides[
-                                                                    groupLabel
-                                                                ]
-                                                                    ?.showPercentage ??
-                                                                showPercentage
-                                                            }
-                                                            valueLabelColor={
-                                                                groupValueOptionOverrides[
-                                                                    groupLabel
-                                                                ]
-                                                                    ?.valueLabelColor
-                                                            }
-                                                            defaultValueLabelColor={
-                                                                valueLabelColor
-                                                            }
-                                                            onLabelChange={
-                                                                groupLabelChange
-                                                            }
-                                                            onColorChange={
-                                                                groupColorChange
-                                                            }
-                                                            onValueOptionsChange={
-                                                                groupValueOptionChange
-                                                            }
-                                                        />
-                                                    )}
-                                                </Draggable>
-                                            ),
+                                        {(sortable) => (
+                                            <GroupItem
+                                                ref={sortable.ref}
+                                                className={clsx(
+                                                    sortable.className,
+                                                    sortable.isDragging &&
+                                                        classes.draggingItem,
+                                                )}
+                                                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+                                                style={sortable.style}
+                                                dragHandleProps={
+                                                    sortable.handleProps
+                                                }
+                                                isOnlyItem={
+                                                    sortedGroupLabels.length ===
+                                                    1
+                                                }
+                                                granularityFields={
+                                                    granularityFields
+                                                }
+                                                swatches={colorPalette}
+                                                defaultColor={
+                                                    groupColorDefaults[
+                                                        groupLabel
+                                                    ]
+                                                }
+                                                defaultLabel={groupLabel}
+                                                color={
+                                                    groupColorOverrides[
+                                                        groupLabel
+                                                    ] ??
+                                                    getGroupColor(
+                                                        groupFieldIds.join('_'),
+                                                        groupLabel,
+                                                    )
+                                                }
+                                                label={
+                                                    groupLabelOverrides[
+                                                        groupLabel
+                                                    ]
+                                                }
+                                                valueLabel={
+                                                    groupValueOptionOverrides[
+                                                        groupLabel
+                                                    ]?.valueLabel ?? valueLabel
+                                                }
+                                                showValue={
+                                                    groupValueOptionOverrides[
+                                                        groupLabel
+                                                    ]?.showValue ?? showValue
+                                                }
+                                                showPercentage={
+                                                    groupValueOptionOverrides[
+                                                        groupLabel
+                                                    ]?.showPercentage ??
+                                                    showPercentage
+                                                }
+                                                valueLabelColor={
+                                                    groupValueOptionOverrides[
+                                                        groupLabel
+                                                    ]?.valueLabelColor
+                                                }
+                                                defaultValueLabelColor={
+                                                    valueLabelColor
+                                                }
+                                                onLabelChange={groupLabelChange}
+                                                onColorChange={groupColorChange}
+                                                onValueOptionsChange={
+                                                    groupValueOptionChange
+                                                }
+                                            />
                                         )}
-
-                                        {droppableProvided.placeholder}
-                                    </Box>
-                                )}
-                            </Droppable>
-                        </DragDropContext>
+                                    </SortableItem>
+                                ))}
+                            </Box>
+                        </SortableList>
                     )}
                 </Config.Section>
             </Config>

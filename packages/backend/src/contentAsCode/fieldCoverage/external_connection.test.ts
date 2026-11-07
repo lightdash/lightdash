@@ -12,6 +12,8 @@ describeContentAsCodeSchemaContract({
         'externalConnectionUuid',
         'hasSecret',
         'kind',
+        // Server-assigned explore-name prefix of a live API source.
+        'liveSourceName',
         'organizationUuid',
         'projectUuid',
         // Carried by the document as `authType`.

@@ -1,0 +1,10 @@
+/* The live data sources table and summary, with external sources' columns. */
+
+.row {
+    composes: row from '../liveSources/LiveSources.module.css';
+    grid-template-columns: minmax(0, 1fr) 120px 96px 128px 88px 28px;
+}
+
+.summary {
+    composes: summary from '../liveSources/LiveSources.module.css';
+}

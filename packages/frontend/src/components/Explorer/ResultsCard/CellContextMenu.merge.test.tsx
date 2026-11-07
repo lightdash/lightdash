@@ -141,7 +141,6 @@ const MergedCellMenu: FC = () => {
                         >
                     }
                     itemsMap={{ orders_2_orders_count: mergedCount }}
-                    onExpand={vi.fn()}
                 />
             </Menu.Dropdown>
         </Menu>

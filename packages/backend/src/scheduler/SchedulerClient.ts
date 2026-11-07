@@ -53,10 +53,12 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     type AgentWorkMarker,
+    type CompactUsageEventsPayload,
     type DownloadAsyncQueryResultsPayload,
     type PreAggregateSchedulerDetails,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
+    type SyncAnalyticsContentPayload,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -1573,6 +1575,34 @@ export class SchedulerClient {
         return { jobId };
     }
 
+    async warmWarehouseTablesCache(payload: TraceTaskBase) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.WARM_WAREHOUSE_TABLES_CACHE,
+            payload,
+            now,
+            JobPriority.LOW,
+            1,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: SCHEDULER_TASKS.WARM_WAREHOUSE_TABLES_CACHE,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                userUuid: payload.userUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+                createdByUserUuid: payload.userUuid,
+            },
+        });
+
+        return { jobId };
+    }
+
     async backfillDefaultUserSpaces(payload: BackfillDefaultUserSpacesPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
@@ -1796,6 +1826,76 @@ export class SchedulerClient {
                 jobKey: `initial-usage-processing:${payload.organizationUuid}`,
                 jobKeyMode: 'unsafe_dedupe',
                 maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async scheduleUsageEventHistory(
+        payload: CompactUsageEventsPayload,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+            { ...payload, includeHistory: true },
+            {
+                queueName: 'usage-events-compaction',
+                jobKey: `usage-event-history:${payload.organizationUuid || 'all'}`,
+                jobKeyMode: 'preserve_run_at',
+                runAt: new Date(Date.now() + 60_000),
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async retryFailedUsageEventHistory(): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        // The installed JS wrapper drops attempts: 0; call Graphile's SQL API.
+        await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                `SELECT id FROM graphile_worker.reschedule_jobs(
+                    ARRAY(SELECT id FROM graphile_worker.jobs
+                          WHERE task_identifier = $1 AND key LIKE 'usage-event-history:%'
+                            AND attempts >= max_attempts AND locked_at IS NULL),
+                    run_at := NOW() + INTERVAL '1 minute', attempts := 0
+                )`,
+                [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS],
+            ),
+        );
+    }
+
+    async scheduleAnalyticsContentReconciliation(
+        organizationUuid: string | null,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+            { organizationUuid: organizationUuid ?? undefined },
+            {
+                queueName: 'analytics-content-reconciliation',
+                jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
+                // Allow the next processing run to revive exhausted retries.
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async scheduleAnalyticsContentSync(
+        payload: SyncAnalyticsContentPayload,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            payload,
+            {
+                queueName: 'analytics-content-sync',
+                jobKey: `analytics-content-sync:${payload.organizationUuid}`,
+                // Allow the next processing run to revive exhausted retries.
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 3,
                 priority: JobPriority.LOW,
             },
         );

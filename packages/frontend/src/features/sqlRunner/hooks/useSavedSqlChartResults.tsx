@@ -45,6 +45,8 @@ type SavedSqlChartDashboardCommonArgs = SavedSqlChartBaseArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
+    /** Keys the app's per-tile resolution leaves to the chart; set with the controls on */
+    excludedParameterKeys?: string[];
 };
 
 type SavedSqlChartRegisteredDashboardArgs = SavedSqlChartDashboardCommonArgs & {
@@ -167,6 +169,7 @@ export const useSavedSqlChartResults = (
                             dashboardFilters: args.dashboardFilters,
                             dashboardSorts: args.dashboardSorts,
                             parameters,
+                            excludedParameterKeys: args.excludedParameterKeys,
                         },
                     );
                 } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
@@ -181,6 +184,7 @@ export const useSavedSqlChartResults = (
                             savedSqlUuid,
                             context: args.context as QueryExecutionContext,
                             parameters,
+                            excludedParameterKeys: args.excludedParameterKeys,
                             invalidateCache: args.invalidateCache,
                         },
                     );
@@ -292,6 +296,8 @@ export const useSavedSqlChartResults = (
                                 dashboardSorts: args.dashboardSorts,
                                 limit: limit ?? MAX_SAFE_INTEGER,
                                 parameters,
+                                excludedParameterKeys:
+                                    args.excludedParameterKeys,
                             },
                         );
                 } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
@@ -307,6 +313,7 @@ export const useSavedSqlChartResults = (
                             context: args.context as QueryExecutionContext,
                             limit: limit ?? MAX_SAFE_INTEGER,
                             parameters,
+                            excludedParameterKeys: args.excludedParameterKeys,
                         },
                     );
                 } else {

@@ -4,34 +4,51 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
+    type LightdashProjectParameter,
 } from '@lightdash/common';
 import { Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router';
+import { v4 as uuidv4 } from 'uuid';
 import FieldSelect from '../../components/common/FieldSelect';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectAreParameterControlsSaved,
     selectDashboardFilters,
+    selectDashboardParameterDefinitions,
     selectDashboardTiles,
+    selectHaveParameterControlsChanged,
+    selectParameterControls,
+    selectParameterValues,
+    dashboardParametersActions,
+    useDashboardStore,
+    selectTileParameterReferences,
     useDashboardSelector,
 } from '../dashboard/store';
 import {
     getLinkCandidates,
     getLinkDefault,
     getLinkKey,
+    getParameterLinkPrompts,
+    type ParameterLinkPrompt,
 } from './linkCandidates';
+import { setParameterKeyTiles } from './parameterPeers';
 import { setTileField, type FieldsByTile } from './peers';
 import classes from './TileOverlay.module.css';
 import { getTileTitle } from './tileProps';
-import {
-    getTileSelector,
-    LOCKED_TILE_CLASS,
-    WAVE_BUCKETS,
-} from './tileSelector';
+import { getTileSelector, LOCKED_TILE_CLASS } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import {
+    getParameterEntryName,
+    useParameterBarControls,
+} from './useParameterBarControls';
+import { useParameterEditorSelector } from './useParameterEditor';
 import { usePortalTargets } from './usePortalTargets';
+
+// Dismissed with the filters' links: a key never looks like a rule id
+const getParameterLinkId = (key: string) => `parameter:${key}`;
 
 type Prompt = {
     rule: DashboardFilterRule;
@@ -215,6 +232,147 @@ const LinkCard: FC<CardProps> = ({
     );
 };
 
+type ParameterCardProps = {
+    tile: DashboardTile;
+    rows: ParameterLinkPrompt[];
+    definitions: Record<string, LightdashProjectParameter>;
+    tileParameterReferences: Record<string, string[]>;
+    controlNameOf: (id: string) => string;
+};
+
+const ParameterLinkCard: FC<ParameterCardProps> = ({
+    tile,
+    rows,
+    definitions,
+    tileParameterReferences,
+    controlNameOf,
+}) => {
+    const dismissLink = useControlsSidebarSelector((c) => c.dismissLink);
+    const add = useParameterEditorSelector((c) => c.add);
+    const store = useDashboardStore();
+    const parameterValues = useDashboardSelector(selectParameterValues);
+    const getUiString = useUiStrings();
+    const tileTitle = getTileTitle(
+        tile,
+        getUiString('filters.tileCard.thisTile'),
+    );
+
+    return (
+        <Stack
+            gap="sm"
+            className={`${classes.promptBody} ${classes.promptRows}`}
+        >
+            {rows.map(({ key, label, controlIds }) => {
+                const addToBar = () => {
+                    const tileUuids =
+                        controlIds.length > 0
+                            ? [tile.uuid]
+                            : Object.keys(tileParameterReferences).filter(
+                                  (tileUuid) =>
+                                      tileParameterReferences[
+                                          tileUuid
+                                      ].includes(key),
+                              );
+                    add({
+                        control: {
+                            id: uuidv4(),
+                            label: null,
+                            value: parameterValues[key] ?? null,
+                            valueType: {
+                                type: definitions[key]?.type ?? 'string',
+                                multiple: definitions[key]?.multiple ?? false,
+                            },
+                            parameters: {
+                                [key]:
+                                    controlIds.length > 0
+                                        ? { only: [tile.uuid] }
+                                        : 'all',
+                            },
+                        },
+                        parameterKeys: [key],
+                        tileUuids,
+                    });
+                };
+                return (
+                    <Stack gap="xs" key={key}>
+                        <Group justify="space-between" wrap="nowrap" gap="xs">
+                            <Text fz="sm">
+                                Uses{' '}
+                                <Text span fz="sm" fw={600}>
+                                    {label}
+                                </Text>
+                            </Text>
+                            <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                aria-label={`Skip ${label} on ${tileTitle}`}
+                                onClick={() => {
+                                    focusTile(tile.uuid);
+                                    dismissLink(
+                                        tile.uuid,
+                                        getParameterLinkId(key),
+                                    );
+                                }}
+                            >
+                                Skip
+                            </Button>
+                        </Group>
+                        <Group justify="flex-end" gap="xs">
+                            {controlIds.map((controlId, index) => (
+                                <Button
+                                    key={controlId}
+                                    size="compact-xs"
+                                    variant={index === 0 ? 'filled' : 'default'}
+                                    aria-label={`Set by ${controlNameOf(controlId)}: ${label} on ${tileTitle}`}
+                                    onClick={() => {
+                                        focusTile(tile.uuid);
+                                        const state =
+                                            store.getState().parameters;
+                                        if (state.parameterControls === null)
+                                            return;
+                                        const next = setParameterKeyTiles({
+                                            controls: state.parameterControls,
+                                            controlId,
+                                            key,
+                                            tileUuids: [tile.uuid],
+                                            tileParameterReferences:
+                                                state.tileParameterReferences,
+                                            included: true,
+                                            userParameterNames: Object.keys(
+                                                state.parameterDefinitions,
+                                            ),
+                                        });
+                                        if (next !== state.parameterControls)
+                                            store.dispatch(
+                                                dashboardParametersActions.setParameterControls(
+                                                    next,
+                                                ),
+                                            );
+                                    }}
+                                >
+                                    {`Set by ${controlNameOf(controlId)}`}
+                                </Button>
+                            ))}
+                            <Button
+                                size="compact-xs"
+                                variant={
+                                    controlIds.length === 0
+                                        ? 'filled'
+                                        : 'default'
+                                }
+                                aria-label={`Add to the bar: ${label} on ${tileTitle}`}
+                                onClick={addToBar}
+                            >
+                                Add to the bar
+                            </Button>
+                        </Group>
+                    </Stack>
+                );
+            })}
+        </Stack>
+    );
+};
+
 export const LinkPrompts: FC = () => {
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const newTileUuids = useControlsSidebarSelector((c) => c.newTileUuids);
@@ -226,7 +384,32 @@ export const LinkPrompts: FC = () => {
         (c) => c.filterableFieldsByTileUuid,
     );
     const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
-    const isEnabled = mode === 'edit' && !isSidebarOpen;
+    const parameterEditingId = useParameterEditorSelector((c) => c.editingId);
+    const controls = useDashboardSelector(selectParameterControls);
+    // Filled from the tiles, the list already has every parameter they use
+    const isControlListExplicit = useDashboardSelector(
+        (state) =>
+            selectAreParameterControlsSaved(state) ||
+            selectHaveParameterControlsChanged(state),
+    );
+    const references = useDashboardSelector(selectTileParameterReferences);
+    const definitions = useDashboardSelector(
+        selectDashboardParameterDefinitions,
+    );
+    const { entries } = useParameterBarControls();
+    const isParameterMapping = useParameterEditorSelector((c) => c.isMapping);
+    // Never on a tile card: a filter's or a parameter control's
+    const isEnabled =
+        mode === 'edit' &&
+        !isSidebarOpen &&
+        parameterEditingId === null &&
+        !isParameterMapping;
+    // Parameter rows never stack on a parameter control's tile overlays
+    const isParameterEnabled =
+        mode === 'edit' &&
+        parameterEditingId === null &&
+        controls !== null &&
+        isControlListExplicit;
 
     const prompts = useMemo(() => {
         const tiles = (dashboardTiles ?? []).filter((tile) =>
@@ -252,9 +435,30 @@ export const LinkPrompts: FC = () => {
                 );
                 return [{ rule, candidates, defaultChoice }];
             });
-            return rows.length === 0 ? [] : [{ tile, rows }];
+            const parameterRows =
+                controls === null || !isParameterEnabled
+                    ? []
+                    : getParameterLinkPrompts({
+                          tileUuid: tile.uuid,
+                          controls,
+                          tileParameterReferences: references,
+                          definitions,
+                      }).filter(
+                          ({ key }) =>
+                              !dismissedLinks.includes(
+                                  getLinkKey(
+                                      tile.uuid,
+                                      getParameterLinkId(key),
+                                  ),
+                              ),
+                      );
+            return [{ tile, rows, parameterRows }];
         });
     }, [
+        controls,
+        isParameterEnabled,
+        references,
+        definitions,
         dashboardTiles,
         newTileUuids,
         dashboardFilters.dimensions,
@@ -262,9 +466,17 @@ export const LinkPrompts: FC = () => {
         fieldsByTile,
         fieldsMap,
     ]);
-    const tileUuids = useMemo(
-        () => prompts.map(({ tile }) => tile.uuid),
+    const shown = useMemo(
+        () =>
+            prompts.filter(
+                ({ rows, parameterRows }) =>
+                    rows.length > 0 || parameterRows.length > 0,
+            ),
         [prompts],
+    );
+    const tileUuids = useMemo(
+        () => shown.map(({ tile }) => tile.uuid),
+        [shown],
     );
     const targets = usePortalTargets(
         tileUuids,
@@ -276,19 +488,31 @@ export const LinkPrompts: FC = () => {
         (fieldId: string) => fieldsMap[fieldId]?.label ?? fieldId,
         [fieldsMap],
     );
+    // As the bar names its pills, else its first parameter's label
+    const controlNameOf = useCallback(
+        (id: string) => {
+            const entry = entries.find(({ control }) => control.id === id);
+            if (entry) return getParameterEntryName(entry);
+            const control = controls?.find((item) => item.id === id);
+            const key = control && Object.keys(control.parameters)[0];
+            return (
+                control?.label ?? (key ? definitions[key]?.label || key : id)
+            );
+        },
+        [entries, controls, definitions],
+    );
 
     if (!isEnabled) return null;
 
     return (
         <>
-            {prompts.map(({ tile, rows }, index) => {
+            {shown.map(({ tile, rows, parameterRows }) => {
                 const element = targets[tile.uuid];
                 if (!element) return null;
                 return createPortal(
                     <div
                         className={`${classes.overlay} ${LOCKED_TILE_CLASS}`}
                         data-controls-overlay
-                        data-wave={index % WAVE_BUCKETS}
                     >
                         <Paper
                             shadow="md"
@@ -296,13 +520,26 @@ export const LinkPrompts: FC = () => {
                             radius="md"
                             className={`${classes.card} ${classes.promptCard}`}
                         >
-                            <LinkCard
-                                tile={tile}
-                                rows={rows}
-                                fieldsByTile={fieldsByTile}
-                                fieldsMap={fieldsMap}
-                                getLabel={getLabel}
-                            />
+                            <Stack gap="md" className={classes.promptStack}>
+                                {rows.length > 0 && (
+                                    <LinkCard
+                                        tile={tile}
+                                        rows={rows}
+                                        fieldsByTile={fieldsByTile}
+                                        fieldsMap={fieldsMap}
+                                        getLabel={getLabel}
+                                    />
+                                )}
+                                {parameterRows.length > 0 && (
+                                    <ParameterLinkCard
+                                        tile={tile}
+                                        rows={parameterRows}
+                                        definitions={definitions}
+                                        tileParameterReferences={references}
+                                        controlNameOf={controlNameOf}
+                                    />
+                                )}
+                            </Stack>
                         </Paper>
                     </div>,
                     element,

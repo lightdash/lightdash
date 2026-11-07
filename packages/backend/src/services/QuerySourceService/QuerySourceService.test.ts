@@ -45,6 +45,7 @@ import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
 import { SqlQuerySource } from './sources/SqlQuerySource';
 import type {
     QuerySourceClient,
+    SourceQueryAiAttribution,
     SourceQueryExecutionContext,
     SubmitSourceQueryArgs,
 } from './types';
@@ -53,10 +54,13 @@ const account = buildAccount();
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 const organizationUuid = 'test-org-uuid';
-const executionContext: SourceQueryExecutionContext = {
+const executionContext: SourceQueryExecutionContext & {
+    aiAttribution: SourceQueryAiAttribution | null;
+} = {
     parameters: {},
     userAttributeOverrides: {},
     invalidateCache: false,
+    aiAttribution: null,
 };
 
 const createFakeSource = (
@@ -301,13 +305,18 @@ describe('QuerySourceService', () => {
             );
         });
 
-        it('tracks which source types a batch combined', async () => {
+        it('tracks which source types a batch combined, and for which prompt', async () => {
             const fakes = createRegistryWithFakes();
             const { service } = createService(fakes.registry);
             const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
 
             await service.executeSourceQueries({
                 ...executionContext,
+                aiAttribution: {
+                    aiAgentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                },
                 account,
                 projectUuid,
                 queries: [
@@ -331,6 +340,9 @@ describe('QuerySourceService', () => {
                 properties: expect.objectContaining({
                     projectId: projectUuid,
                     context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                    aiAgentId: 'agent-uuid',
+                    threadId: 'thread-uuid',
+                    promptId: 'prompt-uuid',
                     nodeCount: 2,
                     sqlNodeCount: 1,
                     duckdbNodeCount: 1,
@@ -417,6 +429,7 @@ describe('QuerySourceService', () => {
                 parameters: { region: 'EU' },
                 userAttributeOverrides: { tenant: ['acme'] },
                 invalidateCache: true,
+                aiAttribution: null,
                 queries: [
                     {
                         nodeId: 'orders',
@@ -1377,6 +1390,7 @@ describe('composer pipelines return the standard results interface', () => {
             parameters: { region: 'EU' },
             userAttributeOverrides: {},
             invalidateCache: true,
+            aiAttribution: null,
             queries: [duckdbNode],
         });
         expect(

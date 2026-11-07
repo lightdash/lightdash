@@ -1242,7 +1242,6 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
         'SCHEDULER_EXCLUDE_TASKS',
     );
 
-    // If neither is set, return undefined (run all tasks)
     if (includeTasks.length === 0 && excludeTasks.length === 0) {
         return ALL_TASK_NAMES;
     }
@@ -1292,6 +1291,14 @@ const isDisabledBoolean = (value: string | undefined): boolean =>
     value !== undefined && ['0', 'false'].includes(value.trim().toLowerCase());
 
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
+    const maxOutputTokens = getIntegerFromEnvironmentVariable(
+        'BEDROCK_MAX_OUTPUT_TOKENS',
+    );
+    if (maxOutputTokens !== undefined && maxOutputTokens < 1) {
+        throw new ParseError(
+            `Cannot parse environment variable "BEDROCK_MAX_OUTPUT_TOKENS". Value must be a positive integer but BEDROCK_MAX_OUTPUT_TOKENS=${maxOutputTokens}`,
+        );
+    }
     const baseUrl = process.env.BEDROCK_BASE_URL
         ? normalizeLlmGatewayBaseUrl(
               process.env.BEDROCK_BASE_URL,
@@ -1312,6 +1319,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1333,6 +1341,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1352,6 +1361,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1741,10 +1751,6 @@ export type LightdashConfig = {
         sourceFetchConcurrency: number | undefined;
         sourceFetchDiskBudgetBytes: number | undefined;
         sourceFetchDiskPerSourceBytes: number;
-        crossSourcePrepareTimeoutMs: number;
-        crossSourceLsTimeoutMs: number;
-        crossSourceResolutionTimeoutMs: number;
-        crossSourceMaxPasses: number;
     };
     database: {
         connectionUri: string | undefined;
@@ -1780,6 +1786,7 @@ export type LightdashConfig = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        maxConcurrentTileQueries: number | null;
         disableSentryTracking: boolean;
     };
     // This is the override color palette for the organization
@@ -1791,7 +1798,8 @@ export type LightdashConfig = {
     s3?: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
     results: {
-        cacheEnabled: boolean;
+        /** @deprecated When set, forces results caching on or off for every project. */
+        cacheEnabled: boolean | null;
         autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
@@ -1843,9 +1851,16 @@ export type LightdashConfig = {
                 maxBatches: number;
             };
         };
-    };
-    groups: {
-        enabled: boolean | undefined;
+        appStateHistory: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                keepVersions: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
+            };
+        };
     };
     persistentDownloadUrls: {
         enabled: boolean;
@@ -1888,9 +1903,6 @@ export type LightdashConfig = {
             allowedOrigins: string[];
             enablePostMessage: boolean;
         };
-    };
-    organizationWarehouseCredentials: {
-        enabled: boolean;
     };
     athenaWarehouseIamRoleAuth: {
         enabled: boolean;
@@ -2228,7 +2240,6 @@ export type AppRuntimeConfig = {
     e2bPythonTemplateName: string;
     e2bPythonTemplateTag: string;
     /** OCI image used by managed project onboarding with the Docker provider. */
-    sandboxAgentOnboardingDockerImage: string;
     /**
      * How long a *running* sandbox can be idle before the backend suspends it.
      * Feeds the native-pause provider's own idle policy (Lambda MicroVMs'
@@ -2332,8 +2343,6 @@ export type AppRuntimeConfig = {
         sandboxSecret: string | null;
     };
     /** E2B template used by managed project onboarding. */
-    e2bAgentOnboardingTemplateName: string;
-    e2bAgentOnboardingTemplateTag: string;
     /**
      * Claude Code OpenTelemetry tracing for data-app builds. When enabled, the
      * `claude` CLI in the sandbox exports OTLP traces (a span per LLM request /
@@ -2836,9 +2845,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.E2B_PYTHON_TEMPLATE_NAME || 'lightdash-python-runner',
         e2bPythonTemplateTag:
             process.env.E2B_PYTHON_TEMPLATE_TAG ?? (VERSION as string),
-        sandboxAgentOnboardingDockerImage:
-            process.env.SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE ||
-            'lightdash-agent-onboarding:local',
         sandboxIdleTimeoutMs,
         sandboxSnapshotRetentionMs,
         lambdaMicroVm: {
@@ -2896,12 +2902,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.AZURE_SANDBOXES_PYTHON_GROUP || null,
         azureSandboxesPythonDiskImage:
             process.env.AZURE_SANDBOXES_PYTHON_DISK_IMAGE || null,
-        e2bAgentOnboardingTemplateName:
-            process.env.E2B_AGENT_ONBOARDING_TEMPLATE_NAME ||
-            'lightdash-agent-onboarding',
-        e2bAgentOnboardingTemplateTag:
-            process.env.E2B_AGENT_ONBOARDING_TEMPLATE_TAG ??
-            (VERSION as string),
         otel: parseDataAppOtelConfig(),
         dependencyRegistryHosts: (
             process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||
@@ -3012,23 +3012,12 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
 > = [
     // Add per migration; truthy env value enables the flag.
     ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
-    // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
-    // from the feature flag) — keep the config field, but translate the env
-    // var to the unified allowlist for the flag system too.
-    ['GROUPS_ENABLED', 'user-groups-enabled'],
     ['SHOW_EXECUTION_TIME', 'show-execution-time'],
     // EMBEDDING_ENABLED is also read by HealthService (exposed via the health
     // endpoint) and EmbedService (allowAll config). Keep the config field, but
     // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
     ['SCIM_ENABLED', 'scim-token-management'],
-    // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
-    // (exposed via the health endpoint). Keep the config field, but translate
-    // the env var to the unified allowlist for the flag system.
-    [
-        'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
-        'organization-warehouse-credentials',
-    ],
     // Self-hosted switch for data apps; forces the flag on.
     ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
@@ -3038,6 +3027,15 @@ const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
 > = [
     // Add per migration; truthy env value disables the flag.
 ];
+
+// Unset means each project decides; any other value forces caching on or off for every project
+const parseResultsCacheEnabled = (
+    value: string | undefined,
+): boolean | null => {
+    const normalized = value?.trim().toLowerCase();
+    if (!normalized) return null;
+    return ['1', 'true'].includes(normalized);
+};
 
 const parseCertificateFingerprints = (value: string | undefined): string[] =>
     (value ?? '')
@@ -3250,6 +3248,14 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
     const usageEventsS3 = parseUsageEventsS3Config();
     const usageEventsEnabled = licenseKey !== null && usageEventsS3 !== null;
+    const resultsCacheEnabled = parseResultsCacheEnabled(
+        process.env.RESULTS_CACHE_ENABLED,
+    );
+    if (resultsCacheEnabled !== null) {
+        console.warn(
+            'RESULTS_CACHE_ENABLED is deprecated. Unset it and enable results caching per project in project settings.',
+        );
+    }
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
@@ -3711,21 +3717,6 @@ export const parseConfig = (): LightdashConfig => {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
-            crossSourceMaxPasses:
-                getIntegerFromEnvironmentVariable(
-                    'DBT_CROSS_SOURCE_MAX_PASSES',
-                ) ?? 3,
-            crossSourcePrepareTimeoutMs:
-                getIntegerFromEnvironmentVariable(
-                    'DBT_SOURCE_PREPARE_TIMEOUT_MS',
-                ) ?? 180000,
-            crossSourceLsTimeoutMs:
-                getIntegerFromEnvironmentVariable('DBT_SOURCE_LS_TIMEOUT_MS') ??
-                300000,
-            crossSourceResolutionTimeoutMs:
-                getIntegerFromEnvironmentVariable(
-                    'DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS',
-                ) ?? 1200000,
             sourceFetchDiskBudgetBytes: getIntegerFromEnvironmentVariable(
                 'DBT_SOURCE_FETCH_DISK_BUDGET_BYTES',
             ),
@@ -3798,6 +3789,13 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
                 ) || 20,
+            maxConcurrentTileQueries: process.env
+                .LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES
+                ? getPositiveIntegerFromEnvironmentVariable(
+                      'LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES',
+                      1,
+                  )
+                : null,
             disableSentryTracking:
                 process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
                 'true',
@@ -3834,7 +3832,7 @@ export const parseConfig = (): LightdashConfig => {
         },
         s3: parseBaseS3Config(),
         results: {
-            cacheEnabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+            cacheEnabled: resultsCacheEnabled,
             autocompleteEnabled:
                 process.env.AUTOCOMPLETE_CACHE_ENABLED === 'true',
             cacheStateTimeSeconds: parseInt(
@@ -3956,11 +3954,33 @@ export const parseConfig = (): LightdashConfig => {
                         ) ?? 100,
                 },
             },
-        },
-        groups: {
-            enabled: process.env.GROUPS_ENABLED
-                ? process.env.GROUPS_ENABLED === 'true'
-                : undefined,
+            appStateHistory: {
+                cleanup: {
+                    enabled:
+                        process.env.APP_STATE_HISTORY_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_RETENTION_DAYS',
+                        ) ?? 90,
+                    keepVersions:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_KEEP_VERSIONS',
+                        ) ?? 50,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
+                },
+            },
         },
         persistentDownloadUrls: {
             // Protected links always use the persistent URL service. Signed
@@ -4071,11 +4091,6 @@ export const parseConfig = (): LightdashConfig => {
                     process.env.EMBED_EVENT_SYSTEM_POST_MESSAGE_ENABLED ===
                     'true',
             },
-        },
-        organizationWarehouseCredentials: {
-            enabled:
-                process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED ===
-                'true',
         },
         athenaWarehouseIamRoleAuth: {
             enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',

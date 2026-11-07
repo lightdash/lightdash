@@ -68,7 +68,7 @@ const QueryAFiltersCard: FC = memo(() => {
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const { data } = useExplore(tableName);
-    const { startOfWeek } = useExploreWarehouseConnection(
+    const { startOfWeek, warehouseType } = useExploreWarehouseConnection(
         tableName,
         projectUuid,
     );
@@ -419,6 +419,7 @@ const QueryAFiltersCard: FC = memo(() => {
                     projectUuid={projectUuid}
                     itemsMap={fieldsWithSuggestions}
                     startOfWeek={startOfWeek ?? undefined}
+                    warehouseType={warehouseType}
                     popoverProps={{
                         withinPortal: true,
                     }}

@@ -12,6 +12,8 @@ import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clsx from 'clsx';
 import {
     forwardRef,
+    useEffect,
+    useState,
     type FC,
     type HTMLAttributes,
     type ReactNode,
@@ -29,9 +31,7 @@ import {
 const LABEL_TOOLTIP_MIN_LENGTH = 40;
 const COMPARISON_LABEL_TOOLTIP_MIN_LENGTH = 30;
 
-const BigNumberText: FC<
-    TextProps & { children: ReactNode; isHeading?: boolean }
-> = forwardRef<
+const BigNumberText = forwardRef<
     HTMLDivElement,
     TextProps & { children: ReactNode; isHeading?: boolean }
 >(({ children, isHeading = false, className, ...textProps }, ref) => (
@@ -92,6 +92,25 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
     ...wrapperProps
 }) => {
     const [setRef, observerElementSize] = useResizeObserver();
+    const [valueElement, setValueElement] = useState<HTMLDivElement | null>(
+        null,
+    );
+    const [isValueTruncated, setIsValueTruncated] = useState(false);
+
+    useEffect(() => {
+        if (!valueElement) return;
+
+        const measureOverflow = () => {
+            setIsValueTruncated(
+                valueElement.scrollWidth > valueElement.clientWidth,
+            );
+        };
+        const observer = new ResizeObserver(measureOverflow);
+        observer.observe(valueElement);
+        measureOverflow();
+
+        return () => observer.disconnect();
+    }, [value, valueElement]);
 
     const {
         valueFontSize,
@@ -111,6 +130,8 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
 
     const valueNode = (
         <BigNumberText
+            ref={setValueElement}
+            truncate="end"
             fz={valueFontSize}
             fw={600}
             isHeading
@@ -145,11 +166,21 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
         >
             <Tooltip
                 maw={400}
+                multiline
                 position="top"
-                label={descriptionLabel}
-                disabled={!descriptionLabel}
+                label={
+                    <Stack gap="xs">
+                        {isValueTruncated && (
+                            <Text fz="sm" className={styles.valueTooltipLabel}>
+                                {value}
+                            </Text>
+                        )}
+                        {descriptionLabel}
+                    </Stack>
+                }
+                disabled={!isValueTruncated && !descriptionLabel}
             >
-                <Flex justify="center" align="center">
+                <Flex justify="center" align="center" maw="100%">
                     {renderValue ? renderValue(valueNode) : valueNode}
                 </Flex>
             </Tooltip>

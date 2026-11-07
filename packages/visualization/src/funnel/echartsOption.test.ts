@@ -369,6 +369,25 @@ describe('buildFunnelEchartsOption', () => {
         expect(option!.animation).toBe(true);
     });
 
+    test('rounds half-way percentages up on the decimal value', () => {
+        const option = buildFunnelEchartsOption({
+            ...buildInput({
+                dataInput: FunnelChartDataInput.COLUMN,
+                fieldId: 'events_count',
+                labels: { showPercentage: true },
+            }),
+            maxValue: 4,
+        });
+        const series = (option!.series as FunnelSeriesOption[])[0];
+        const labelFormatter = (
+            series.label as { formatter: (params: unknown) => string }
+        ).formatter;
+
+        expect(labelFormatter({ name: 'Signed up', value: 2.929 })).toContain(
+            '73.23%',
+        );
+    });
+
     test('outside labels take the foreground color and the vertical legend sits left', () => {
         const option = buildFunnelEchartsOption({
             ...buildInput({

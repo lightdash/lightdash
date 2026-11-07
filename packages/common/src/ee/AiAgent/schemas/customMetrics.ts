@@ -265,4 +265,5 @@ Example B — "Revenue by month with year-over-year comparison"
   queryConfig.dimensions: ["orders_order_date_month"]
   queryConfig.metrics: ["orders_revenue"]
   customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]`,
-    );
+    )
+    .meta({ id: 'CustomMetrics' });

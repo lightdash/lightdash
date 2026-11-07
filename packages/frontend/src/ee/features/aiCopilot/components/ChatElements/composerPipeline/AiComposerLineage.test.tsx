@@ -1,4 +1,5 @@
 import {
+    ApiConnectorType,
     FilterOperator,
     QuerySourceType,
     VizIndexType,
@@ -6,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { useLiveSourceExplore } from '../../../../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import mockIntersectingObserver from '../../../../../../testing/intersectingObserver';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
@@ -20,8 +22,21 @@ const compiledSql = vi.mocked(useCompiledSqlFromMetricQuery);
 vi.mock('../../../../../../hooks/useExplore', () => ({
     useExploreByProjectUuid: vi.fn(() => ({ data: undefined })),
 }));
+vi.mock(
+    '../../../../../../features/externalConnections/liveSources/apiSourceExplore',
+    async (importOriginal) => ({
+        ...(await importOriginal<object>()),
+        useLiveSourceExplore: vi.fn(() => null),
+    }),
+);
+const liveSourceExplore = vi.mocked(useLiveSourceExplore);
 
 beforeAll(mockIntersectingObserver);
+// jsdom has no Element.scrollTo; the notebook scrolls itself to a focused cell.
+const scrollTo = vi.fn();
+beforeAll(() => {
+    window.Element.prototype.scrollTo = scrollTo;
+});
 
 const queries: SourceQuery[] = [
     {
@@ -80,10 +95,19 @@ const linkedNodeIds = () =>
 const resultsToggle = (nodeId: string) =>
     cell(nodeId).getByRole('button', { name: /^(View results|[\d,]+ rows?)/ });
 
+const cellIds = () =>
+    [...document.querySelectorAll('[data-node-id]')]
+        .map((el) => el.getAttribute('data-node-id'))
+        .filter((id) => !id?.startsWith('rf'));
+
 describe('AiComposerLineage graph', () => {
     it('renders one node per pipeline node and marks the terminal', () => {
         renderPanel({});
         expect(nodeButtons()).toHaveLength(3);
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'aria-pressed',
+            'false',
+        );
         expect(nodeButton('Orders with amounts')).toHaveAttribute(
             'data-terminal',
             'true',
@@ -102,6 +126,74 @@ describe('AiComposerLineage graph', () => {
         ).toHaveAttribute('data-flash', 'true');
     });
 
+    it('selects a clicked node and clears it on Escape', () => {
+        renderPanel({});
+        fireEvent.click(nodeButton('Average amount'));
+        expect(nodeButton('Average amount')).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+        expect(nodeButton('Orders by status')).toHaveAttribute(
+            'data-dimmed',
+            'true',
+        );
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(nodeButton('Average amount')).toHaveAttribute(
+            'aria-pressed',
+            'false',
+        );
+        expect(nodeButton('Orders by status')).toHaveAttribute(
+            'data-dimmed',
+            'false',
+        );
+    });
+
+    it('explains faded nodes while one is selected, and clears from the hint', () => {
+        renderPanel({});
+        fireEvent.click(nodeButton('Average amount'));
+        expect(
+            screen.getByText('Faded steps are not linked to Average amount'),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+        expect(
+            screen.queryByText(/^Faded steps are not linked/),
+        ).not.toBeInTheDocument();
+        expect(nodeButton('Orders by status')).toHaveAttribute(
+            'data-dimmed',
+            'false',
+        );
+    });
+
+    it('selects a node from its cell, without a hint when nothing fades', () => {
+        renderPanel({});
+        fireEvent.click(cell('joined').getByText('Orders with amounts'));
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+        expect(
+            screen.queryByText(/^Faded steps are not linked/),
+        ).not.toBeInTheDocument();
+    });
+
+    it('keeps every step and scrolls to a node picked in the graph or a reference', () => {
+        renderPanel({});
+        scrollTo.mockClear();
+        fireEvent.click(nodeButton('Orders with amounts'));
+        expect(cellIds()).toEqual(['orders', 'amounts', 'joined']);
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(
+            cell('joined').getByRole('button', { name: /Average amount/ }),
+        );
+        expect(cellIds()).toEqual(['orders', 'amounts', 'joined']);
+        expect(scrollTo).toHaveBeenCalledTimes(2);
+        expect(nodeButton('Average amount')).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+    });
+
     it('links the hovered graph node to its cells and dims unlinked nodes', async () => {
         renderPanel({
             queries: [
@@ -118,6 +210,10 @@ describe('AiComposerLineage graph', () => {
             nodeButton(title).closest('.react-flow__node')!;
         fireEvent.mouseEnter(flowNode('Orders by status'));
         await waitFor(() => expect(linkedNodeIds()).toEqual(['joined']));
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'data-lineage-role',
+            'related',
+        );
         expect(nodeButton('Unrelated')).toHaveAttribute('data-dimmed', 'true');
         expect(nodeButton('Average amount')).toHaveAttribute(
             'data-dimmed',
@@ -311,6 +407,28 @@ describe('AiComposerLineage steps', () => {
         );
     });
 
+    it("marks a hovered reference's lineage in the graph too", async () => {
+        renderPanel({});
+        const pill = cell('joined').getByRole('button', {
+            name: 'Average amount',
+        });
+        fireEvent.mouseEnter(pill);
+        await waitFor(() =>
+            expect(nodeButton('Average amount')).toHaveAttribute(
+                'data-lineage-role',
+                'related',
+            ),
+        );
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'data-lineage-role',
+            'hovered',
+        );
+        fireEvent.mouseLeave(pill);
+        expect(nodeButton('Average amount')).not.toHaveAttribute(
+            'data-lineage-role',
+        );
+    });
+
     it('ignores a pointer sweeping across a cell title', async () => {
         renderPanel({});
         const title = cell('orders').getByText('Orders by status');
@@ -396,6 +514,30 @@ describe('AiComposerLineage semantic nodes', () => {
         expect(
             cell('orders').getByTestId('semantic-node-sort'),
         ).toHaveTextContent('Orders count');
+    });
+
+    it('labels a semantic node on a live data source as one in the graph', () => {
+        liveSourceExplore.mockImplementation((exploreName) =>
+            exploreName === 'orders'
+                ? {
+                      connectionUuid: 'conn-1',
+                      connector: ApiConnectorType.GA4,
+                      label: 'Google Analytics',
+                  }
+                : null,
+        );
+        renderPanel({
+            queries: [semanticOrders, queries[1], queries[2]],
+        });
+        expect(
+            within(nodeButton('Orders by status')).getByText(
+                'Live data source',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(nodeButton('Average amount')).getByText('Warehouse SQL'),
+        ).toBeInTheDocument();
+        liveSourceExplore.mockImplementation(() => null);
     });
 
     it('compiles a semantic node query only once SQL query is opened', async () => {

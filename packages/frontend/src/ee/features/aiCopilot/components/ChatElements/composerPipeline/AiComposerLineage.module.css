@@ -1,6 +1,26 @@
 .graph {
+    position: relative;
     height: 100%;
     background: var(--ld-color-page);
+}
+
+.graphPane {
+    position: relative;
+}
+
+/* Explains the faded nodes while one is focused. */
+.focusHint {
+    position: absolute;
+    top: var(--mantine-spacing-xs);
+    left: var(--mantine-spacing-xs);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    max-width: calc(100% - rem(64px));
+    min-height: rem(28px);
+    padding: 0 var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-md);
 }
 
 .steps {
@@ -18,7 +38,7 @@
 .graphNode {
     display: flex;
     flex-direction: column;
-    width: 232px;
+    width: 216px;
     padding: 0;
     background: var(--mantine-color-body);
     font: inherit;
@@ -35,6 +55,16 @@
     border-color: var(--mantine-color-ldGray-4);
 }
 
+/* The notebook's lineage, so a cell scrolled out of view still shows. */
+.graphNode[data-lineage-role] {
+    border-color: var(--mantine-color-ldGray-6);
+}
+
+.graphNode[data-selected='true'] {
+    border-color: var(--mantine-color-text);
+    box-shadow: 0 0 0 1px var(--mantine-color-text);
+}
+
 .graphNode[data-dimmed='true'] {
     opacity: 0.4;
 }
@@ -47,6 +77,14 @@
 
 .graphNodeHead {
     padding: 8px 10px;
+}
+
+/* Attribution stays (license) but sits quietly in the corner, clear of nodes. */
+.graph :global(.react-flow__attribution) {
+    padding: 0 4px;
+    background: transparent;
+    font-size: var(--mantine-font-size-xs);
+    opacity: 0.6;
 }
 
 .graphNodeIcon {
@@ -68,6 +106,7 @@
 }
 
 .graphNodeTitle {
+    overflow-wrap: anywhere;
     font-size: var(--mantine-font-size-sm);
     font-weight: 500;
     line-height: 1.3;
@@ -75,7 +114,7 @@
 }
 
 .graphNodeType {
-    font-size: var(--mantine-font-size-xs);
+    font-size: var(--mantine-font-size-sm);
     line-height: 1.3;
     color: var(--mantine-color-dimmed);
 }
@@ -111,4 +150,30 @@
 .splitHandle:hover,
 .splitHandle[data-active] {
     background-color: var(--mantine-color-ldGray-4);
+}
+
+/* A grip on the divider so the graph/steps split reads as draggable. */
+.splitHandle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: rem(32px);
+    height: rem(4px);
+    border-radius: var(--mantine-radius-xl);
+    background-color: var(--mantine-color-ldGray-3);
+    transform: translate(-50%, -50%);
+    transition: background-color 150ms ease;
+    pointer-events: none;
+}
+
+.splitHandle:hover::before,
+.splitHandle:focus-visible::before,
+.splitHandle[data-active]::before {
+    background-color: var(--mantine-color-ldGray-5);
+}
+
+.split {
+    height: 100%;
+    min-height: 0;
 }

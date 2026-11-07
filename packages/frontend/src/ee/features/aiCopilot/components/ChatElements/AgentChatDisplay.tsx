@@ -3,6 +3,7 @@ import { Box, Divider, Flex, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCrop, IconInfoCircle } from '@tabler/icons-react';
 import {
     Fragment,
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -103,6 +104,22 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     onChoiceSelect,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
+    const composerFooter = useRef<HTMLDivElement>(null);
+    const hasComposer = !!children;
+    // Reveals (scrollIntoView, focus, find) must stop above the sticky composer.
+    useEffect(() => {
+        const viewportEl = viewport.current;
+        const footerEl = composerFooter.current;
+        if (!viewportEl || !footerEl) return undefined;
+        const observer = new ResizeObserver(() => {
+            viewportEl.style.setProperty(
+                '--chat-composer-height',
+                `${footerEl.offsetHeight}px`,
+            );
+        });
+        observer.observe(footerEl);
+        return () => observer.disconnect();
+    }, [hasComposer]);
     const { data: mcpServers } = useAgentAiMcpServers(projectUuid, agentUuid, {
         enabled: !!projectUuid && !!agentUuid,
     });
@@ -192,7 +209,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     gap="xl"
                     flex={1}
                 >
-                    <Stack flex={1}>
+                    <Stack flex={1} gap="lg">
                         {projectUuid && (
                             <ThreadSetupHeader
                                 thread={thread}
@@ -243,6 +260,10 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                                 }
                                                 isLastMessage={
                                                     i === xs.length - 1
+                                                }
+                                                canRetry={
+                                                    thread.createdFrom !==
+                                                    'slack'
                                                 }
                                                 debug={debug}
                                                 projectUuid={projectUuid}
@@ -312,6 +333,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
 
                 {children ? (
                     <Box
+                        ref={composerFooter}
                         className={styles.composerFooter}
                         pos="sticky"
                         bottom={0}

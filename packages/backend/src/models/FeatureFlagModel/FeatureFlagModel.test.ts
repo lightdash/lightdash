@@ -155,70 +155,70 @@ const buildFakeWriteDatabase = ({
 };
 
 describe('FeatureFlagModel', () => {
-    describe.each([FeatureFlags.DbtPartialParse, FeatureFlags.AgentIdentity])(
-        '%s production rollout',
-        (featureFlagId) => {
-            const config = {
-                previewFeatureFlags: { enabled: false },
-                enabledFeatureFlags: new Set<string>(),
-                disabledFeatureFlags: new Set<string>(),
-            };
-            it('is off without database or ENV configuration', async () => {
-                const model = buildModel(config, buildFakeDatabase({}));
-                await expect(
-                    model.get({ featureFlagId, user: dbUser }),
-                ).resolves.toEqual({
-                    id: featureFlagId,
-                    enabled: false,
+    describe.each([
+        FeatureFlags.DbtPartialParse,
+        FeatureFlags.AgentIdentity,
+        FeatureFlags.BigqueryWorkloadIdentityAuth,
+    ])('%s production rollout', (featureFlagId) => {
+        const config = {
+            previewFeatureFlags: { enabled: false },
+            enabledFeatureFlags: new Set<string>(),
+            disabledFeatureFlags: new Set<string>(),
+        };
+        it('is off without database or ENV configuration', async () => {
+            const model = buildModel(config, buildFakeDatabase({}));
+            await expect(
+                model.get({ featureFlagId, user: dbUser }),
+            ).resolves.toEqual({
+                id: featureFlagId,
+                enabled: false,
+            });
+        });
+        it('supports Console enable, disable and re-enable without restart and isolates organizations', async () => {
+            const rows: FakeRows = { flag: { default_enabled: false } };
+            const model = buildModel(config, buildFakeDatabase(rows));
+            const get = (organizationUuid = dbUser.organizationUuid) =>
+                model.get({
+                    featureFlagId,
+                    user: { ...dbUser, organizationUuid },
                 });
-            });
-            it('supports Console enable, disable and re-enable without restart and isolates organizations', async () => {
-                const rows: FakeRows = { flag: { default_enabled: false } };
-                const model = buildModel(config, buildFakeDatabase(rows));
-                const get = (organizationUuid = dbUser.organizationUuid) =>
-                    model.get({
-                        featureFlagId,
-                        user: { ...dbUser, organizationUuid },
-                    });
-                expect((await get()).enabled).toBe(false);
-                rows.orgOverride = {
-                    organization_uuid: dbUser.organizationUuid,
-                    enabled: true,
-                };
-                expect((await get()).enabled).toBe(true);
-                expect((await get('other-org')).enabled).toBe(false);
-                rows.orgOverride.enabled = false;
-                expect((await get()).enabled).toBe(false);
-                rows.orgOverride.enabled = true;
-                expect((await get()).enabled).toBe(true);
-            });
-            it.each([
-                { enable: true, disable: false, expected: true },
-                { enable: false, disable: true, expected: false },
-                { enable: true, disable: true, expected: true },
-            ])(
-                'honors ENV precedence $enable / $disable',
-                async ({ enable, disable, expected }) => {
-                    const model = buildModel(
-                        {
-                            ...config,
-                            enabledFeatureFlags: new Set(
-                                enable ? [featureFlagId] : [],
-                            ),
-                            disabledFeatureFlags: new Set(
-                                disable ? [featureFlagId] : [],
-                            ),
-                        },
-                        buildFakeDatabase({ orgOverride: { enabled: true } }),
-                    );
-                    expect(
-                        (await model.get({ featureFlagId, user: dbUser }))
-                            .enabled,
-                    ).toBe(expected);
-                },
-            );
-        },
-    );
+            expect((await get()).enabled).toBe(false);
+            rows.orgOverride = {
+                organization_uuid: dbUser.organizationUuid,
+                enabled: true,
+            };
+            expect((await get()).enabled).toBe(true);
+            expect((await get('other-org')).enabled).toBe(false);
+            rows.orgOverride.enabled = false;
+            expect((await get()).enabled).toBe(false);
+            rows.orgOverride.enabled = true;
+            expect((await get()).enabled).toBe(true);
+        });
+        it.each([
+            { enable: true, disable: false, expected: true },
+            { enable: false, disable: true, expected: false },
+            { enable: true, disable: true, expected: true },
+        ])(
+            'honors ENV precedence $enable / $disable',
+            async ({ enable, disable, expected }) => {
+                const model = buildModel(
+                    {
+                        ...config,
+                        enabledFeatureFlags: new Set(
+                            enable ? [featureFlagId] : [],
+                        ),
+                        disabledFeatureFlags: new Set(
+                            disable ? [featureFlagId] : [],
+                        ),
+                    },
+                    buildFakeDatabase({ orgOverride: { enabled: true } }),
+                );
+                expect(
+                    (await model.get({ featureFlagId, user: dbUser })).enabled,
+                ).toBe(expected);
+            },
+        );
+    });
     describe('check telemetry', () => {
         beforeEach(() => {
             vi.mocked(record).mockReset();
@@ -365,19 +365,6 @@ describe('FeatureFlagModel', () => {
 
             expect(result.enabled).toBe(true);
         });
-
-        it('env var override takes precedence over config handlers that default to true', async () => {
-            const model = buildModel({
-                enabledFeatureFlags: new Set([FeatureFlags.UserGroupsEnabled]),
-                groups: { enabled: false },
-            });
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.UserGroupsEnabled,
-            });
-
-            expect(result.enabled).toBe(true);
-        });
     });
 
     describe('preview environment defaults', () => {
@@ -440,18 +427,18 @@ describe('FeatureFlagModel', () => {
         });
 
         it('leaves config-derived flags to their handler', async () => {
-            // ai-copilot, results-cache-enabled and enable-timezone-support are
-            // excluded so previews never advertise unconfigured backends.
+            // ai-copilot and enable-timezone-support are excluded so previews
+            // never advertise unconfigured backends.
             const model = buildModel({
                 ...previewConfig,
-                results: {
-                    ...lightdashConfigMock.results,
-                    cacheEnabled: false,
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: false,
                 },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.ResultsCacheEnabled,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result.enabled).toBe(false);
@@ -621,50 +608,6 @@ describe('FeatureFlagModel', () => {
         });
     });
 
-    describe('default_enabled honoured over env fallback', () => {
-        // ResultsCacheEnabled resolves to lightdashConfig.results.cacheEnabled
-        // only when the DB has no opinion. A concrete default_enabled in the
-        // DB wins, so `false` must beat an env fallback of `true`, while
-        // `null` (no default set) falls through to it.
-        const cacheEnabledConfig = {
-            results: { ...lightdashConfigMock.results, cacheEnabled: true },
-        };
-
-        it('default_enabled:false overrides an env fallback of true', async () => {
-            const model = buildModel(
-                cacheEnabledConfig,
-                buildFakeDatabase({ flag: { default_enabled: false } }),
-            );
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.ResultsCacheEnabled,
-                user: dbUser,
-            });
-
-            expect(result).toEqual({
-                id: FeatureFlags.ResultsCacheEnabled,
-                enabled: false,
-            });
-        });
-
-        it('default_enabled:null falls through to the env fallback', async () => {
-            const model = buildModel(
-                cacheEnabledConfig,
-                buildFakeDatabase({ flag: { default_enabled: null } }),
-            );
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.ResultsCacheEnabled,
-                user: dbUser,
-            });
-
-            expect(result).toEqual({
-                id: FeatureFlags.ResultsCacheEnabled,
-                enabled: true,
-            });
-        });
-    });
-
     describe('EnableTimezoneSupport defaults to on', () => {
         const withTimezoneSupport = (enableTimezoneSupport: boolean) => ({
             query: { ...lightdashConfigMock.query, enableTimezoneSupport },
@@ -672,6 +615,41 @@ describe('FeatureFlagModel', () => {
 
         it('is enabled when neither config nor database has an opinion', async () => {
             const model = buildModel({}, buildFakeDatabase({}));
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.EnableTimezoneSupport,
+                enabled: true,
+            });
+        });
+
+        // The fallback only applies when the database has no opinion
+        it('default_enabled:false overrides the fallback of true', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({ flag: { default_enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.EnableTimezoneSupport,
+                enabled: false,
+            });
+        });
+
+        it('default_enabled:null falls through to the fallback', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({ flag: { default_enabled: null } }),
+            );
 
             const result = await model.get({
                 featureFlagId: FeatureFlags.EnableTimezoneSupport,
@@ -847,47 +825,4 @@ describe('FeatureFlagModel', () => {
             expect(warnSpy).toHaveBeenCalled();
         });
     });
-});
-
-describe('analytics availability without a registered commercial model', () => {
-    it.each([
-        { name: 'stored default', rows: { flag: { default_enabled: true } } },
-        {
-            name: 'organization override',
-            rows: { orgOverride: { enabled: true } },
-        },
-        { name: 'user override', rows: { userOverride: { enabled: true } } },
-    ])('ignores a $name enabling analytics', async ({ rows }) => {
-        await expect(
-            buildModel({}, buildFakeDatabase(rows)).get({
-                featureFlagId: FeatureFlags.AnalyticsProject,
-                user: dbUser,
-            }),
-        ).resolves.toEqual({
-            id: FeatureFlags.AnalyticsProject,
-            enabled: false,
-        });
-    });
-
-    it.each([false, true])(
-        'ignores forced enablement with preview=%s',
-        async (preview) => {
-            const model = buildModel({
-                enabledFeatureFlags: new Set([FeatureFlags.AnalyticsProject]),
-                previewFeatureFlags: {
-                    ...lightdashConfigMock.previewFeatureFlags,
-                    enabled: preview,
-                },
-            });
-            await expect(
-                model.get({
-                    featureFlagId: FeatureFlags.AnalyticsProject,
-                    user: dbUser,
-                }),
-            ).resolves.toEqual({
-                id: FeatureFlags.AnalyticsProject,
-                enabled: false,
-            });
-        },
-    );
 });

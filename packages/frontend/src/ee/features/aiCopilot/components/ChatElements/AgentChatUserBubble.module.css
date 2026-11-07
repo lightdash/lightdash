@@ -1,7 +1,26 @@
 .bubble {
     align-self: flex-end;
     min-width: 0;
-    max-width: 100%;
+    max-width: 85%;
+}
+
+/* Revealed on hover or keyboard focus; opacity keeps the layout still. */
+.timestamp {
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+
+/* Under another person's name it stays visible, so the name never floats alone. */
+.timestamp[data-pinned],
+.bubble:hover .timestamp,
+.bubble:focus-within .timestamp {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .timestamp {
+        opacity: 1;
+    }
 }
 
 .contextGroup {
@@ -10,18 +29,14 @@
 }
 
 .messageCard {
+    max-width: 100%;
     overflow: visible;
-    background-color: color-mix(
-        in srgb,
-        var(--mantine-color-ldGray-1) 45%,
-        transparent
-    );
+    background-color: var(--mantine-color-ldGray-1);
 }
 
 .messageCard.emptyMessageCard {
-    border-style: dashed;
+    border: 1px dashed var(--mantine-color-ldGray-3);
     background-color: transparent;
-    border-color: var(--mantine-color-ldGray-3);
 }
 
 .steerCard {
@@ -33,9 +48,9 @@
 
 .markdown {
     background-color: transparent;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--mantine-color-ldGray-8);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.55;
+    color: var(--mantine-color-text);
 }
 
 .messageText {

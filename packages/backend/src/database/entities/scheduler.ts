@@ -55,6 +55,7 @@ export type SchedulerDb = {
     selected_tabs: string[] | null;
     include_links: boolean;
     plain_text_email: boolean;
+    use_cached_results: boolean;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
 };
@@ -181,6 +182,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'selected_tabs'
           | 'include_links'
           | 'plain_text_email'
+          | 'use_cached_results'
       > &
           SchedulerJsonWrite)
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>

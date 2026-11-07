@@ -1,5 +1,5 @@
 import { LightdashUser, type QueryResultProducer } from '@lightdash/common';
-import { CacheHitCacheResult } from './types';
+import { CacheLookupResult } from './types';
 
 export type CacheServiceUser = Pick<
     LightdashUser,
@@ -7,20 +7,11 @@ export type CacheServiceUser = Pick<
 >;
 
 export interface ICacheService {
-    /**
-     * Resolve whether results caching is enabled for the given user/org. The
-     * implementation reads the ResultsCacheEnabled feature flag (DB value
-     * with env fallback). Pass `undefined` for callers that don't have a
-     * user (rare — e.g. background jobs) — only the env fallback applies.
-     */
-    isResultsCacheEnabled: (
-        user: CacheServiceUser | undefined,
-    ) => Promise<boolean>;
-    findCachedResultsFile: (
+    lookupCachedResultsFile: (
         projectUuid: string,
         cacheKey: string,
         user: CacheServiceUser,
         requesterProducer?: QueryResultProducer | null,
         identityEnabled?: boolean,
-    ) => Promise<CacheHitCacheResult | null>;
+    ) => Promise<CacheLookupResult>;
 }

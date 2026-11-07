@@ -1,9 +1,9 @@
 import {
+    interpolateUiString,
     type AiAgentToolResult,
     type AiAgentToolName,
     type AiMcpServer,
     isToolName,
-    type ToolName,
 } from '@lightdash/common';
 import {
     Box,
@@ -11,15 +11,17 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { IconAlertCircle, IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
-import { ToolCallIcon } from './ToolCallIcon';
 import styles from './ToolCallRow.module.css';
+import { ToolCallRowIcon } from './ToolCallRowIcon';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
 import {
@@ -27,23 +29,10 @@ import {
     getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
+import { getStepListFailures } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { isToolWithoutDescription } from './utils/toolsWithoutDescription';
 import { type ToolCallSummary } from './utils/types';
-
-// Tools whose description renders something tall (e.g. a code block) and can't
-// be sensibly clipped to a single-line preview — collapse to verb + chevron.
-const HIDE_INLINE_PREVIEW = new Set<ToolName>([
-    'query',
-    'runComposerQueries',
-    'runSql',
-]);
-
-const INLINE_CHIP_PREVIEW_TOOLS = new Set<ToolName>([
-    'readContent',
-    'editContent',
-    'createContent',
-]);
 
 // Max chips shown inline when collapsed before "+N more".
 const MAX_CHIPS_COLLAPSED = 3;
@@ -74,6 +63,7 @@ export const ToolCallRow: FC<Props> = ({
     toolResults,
     display,
 }) => {
+    const getUiString = useUiStrings();
     const builtInToolName = isToolName(toolName) ? toolName : null;
     const linkedMcpServer =
         toolCalls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -102,6 +92,15 @@ export const ToolCallRow: FC<Props> = ({
         toolCalls.some(hasCallDescription) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
     const [expanded, setExpanded] = useState(false);
+    const failures = getStepListFailures(toolCalls, toolResults);
+    const effectiveStatus: ToolCallRowStatus =
+        failures.length > 0 ? 'error' : status;
+    const failureLabel = isGrouped
+        ? interpolateUiString(getUiString('aiAgent.activity.partlyFailed'), {
+              failed: failures.length,
+              total: toolCalls.length,
+          })
+        : getUiString('aiAgent.activity.failed');
 
     const chipLabels: (string | null)[] = toolCalls.map((tc) =>
         isToolName(tc.toolName)
@@ -117,80 +116,50 @@ export const ToolCallRow: FC<Props> = ({
     // show a count badge — no chevron, no click target.
     const isClickable = hasDescription;
 
-    // What goes in the trailing single-line preview slot.
+    // Collapsed rows show only what each call touched; detail lives behind the row.
     const renderInlinePreview = (): React.ReactNode => {
-        if (
-            !isGrouped &&
-            visibleChips.length > 0 &&
-            isToolName(toolCalls[0].toolName) &&
-            INLINE_CHIP_PREVIEW_TOOLS.has(toolCalls[0].toolName)
-        ) {
-            return (
-                <Group gap={4} wrap="nowrap" className={styles.chips}>
-                    <ToolCallChip className={styles.chipAppear}>
-                        {visibleChips[0].label}
-                    </ToolCallChip>
-                </Group>
-            );
-        }
-
-        if (
-            !isGrouped &&
-            hasDescription &&
-            isToolName(toolCalls[0].toolName) &&
-            !HIDE_INLINE_PREVIEW.has(toolCalls[0].toolName)
-        ) {
-            // Single call: show its description; clipped to one line by CSS.
-            return (
-                <Box className={styles.inlineDescription}>
-                    <ToolCallDescription
-                        toolName={toolCalls[0].toolName}
-                        toolCall={toolCalls[0]}
-                        toolResult={toolResults?.find(
-                            (result) =>
-                                result.toolCallId === toolCalls[0].toolCallId,
-                        )}
-                    />
-                </Box>
-            );
-        }
-        if (isGrouped && visibleChips.length > 0) {
-            const shown = visibleChips.slice(0, MAX_CHIPS_COLLAPSED);
-            const overflow = visibleChips.length - shown.length;
-            return (
-                <Group gap={4} wrap="nowrap" className={styles.chips}>
-                    {shown.map(({ label: chipLabel, idx }) => (
-                        <ToolCallChip
-                            key={`chip-${idx}`}
-                            className={styles.chipAppear}
-                            style={{ '--chip-delay': `${idx * 28}ms` }}
-                        >
-                            {chipLabel}
-                        </ToolCallChip>
-                    ))}
-                    {overflow > 0 && (
-                        <Text size="xs" c="dimmed" className={styles.overflow}>
-                            +{overflow}
-                        </Text>
-                    )}
-                </Group>
-            );
-        }
-        // Grouped tools without chips just rely on the badge next to the
-        // label; no extra trailing slot content.
-        return null;
+        if (visibleChips.length === 0) return null;
+        const shown = visibleChips.slice(0, MAX_CHIPS_COLLAPSED);
+        const overflow = visibleChips.length - shown.length;
+        return (
+            <Tooltip
+                label={visibleChips
+                    .map(({ label: chipLabel }) => chipLabel)
+                    .join(', ')}
+                multiline
+                maw={360}
+                openDelay={400}
+            >
+                <Text size="xs" truncate className={styles.target}>
+                    {shown.map(({ label: chipLabel }) => chipLabel).join(', ')}
+                    {overflow > 0 ? ` +${overflow}` : ''}
+                </Text>
+            </Tooltip>
+        );
     };
 
     const head = (
         <Group gap={8} align="center" wrap="nowrap" className={styles.head}>
-            <ToolCallIcon
-                toolName={toolName}
-                size={13}
-                stroke={1.6}
-                className={styles.icon}
-                mcpServer={mcpServer}
-                data-status={status}
-            />
+            {effectiveStatus === 'error' ? (
+                <MantineIcon
+                    icon={IconAlertCircle}
+                    size={13}
+                    stroke={1.6}
+                    className={styles.icon}
+                    data-status="error"
+                    aria-hidden
+                />
+            ) : (
+                <ToolCallRowIcon
+                    toolName={toolName}
+                    toolCalls={toolCalls}
+                    size={13}
+                    stroke={1.6}
+                    className={styles.icon}
+                    mcpServer={mcpServer}
+                    data-status={effectiveStatus}
+                />
+            )}
             {label ? (
                 <Text size="xs" className={styles.label}>
                     {label}
@@ -198,7 +167,12 @@ export const ToolCallRow: FC<Props> = ({
             ) : (
                 <Text size="xs" className={styles.label}>
                     Used {mcpDisplayMetadata?.label ?? 'MCP'}:{' '}
-                    <ToolCallChip maxWidth={260} className={styles.mcpToolChip}>
+                    <ToolCallChip
+                        maxWidth={260}
+                        variant="transparent"
+                        px={0}
+                        className={styles.mcpToolChip}
+                    >
                         {mcpToolDisplayName}
                     </ToolCallChip>
                 </Text>
@@ -206,7 +180,16 @@ export const ToolCallRow: FC<Props> = ({
             {isGrouped && (
                 <Box className={styles.countBadge}>{toolCalls.length}</Box>
             )}
-            <Box className={styles.previewSlot}>{renderInlinePreview()}</Box>
+            {failures.length > 0 && (
+                <Text size="xs" className={styles.failedLabel}>
+                    {failureLabel}
+                </Text>
+            )}
+            {!expanded && (
+                <Box className={styles.previewSlot}>
+                    {renderInlinePreview()}
+                </Box>
+            )}
             {isClickable && (
                 <MantineIcon
                     icon={IconChevronRight}
@@ -218,12 +201,40 @@ export const ToolCallRow: FC<Props> = ({
         </Group>
     );
 
+    const failureDetails = failures.filter((failure) => failure.message !== '');
+    const failureMessages =
+        failureDetails.length > 0 ? (
+            <Stack gap={2} className={styles.failureMessages}>
+                {failureDetails.map((failure) => (
+                    <Text
+                        key={failure.toolCallId}
+                        size="xs"
+                        ff="monospace"
+                        lineClamp={2}
+                        className={styles.failureMessage}
+                        title={failure.message}
+                    >
+                        {failure.message}
+                    </Text>
+                ))}
+            </Stack>
+        ) : null;
+
     if (!isClickable) {
-        return <Box className={styles.row}>{head}</Box>;
+        return (
+            <Box className={styles.row} data-status={effectiveStatus}>
+                {head}
+                {failureMessages}
+            </Box>
+        );
     }
 
     return (
-        <Box className={styles.row} data-expanded={expanded}>
+        <Box
+            className={styles.row}
+            data-expanded={expanded}
+            data-status={effectiveStatus}
+        >
             <UnstyledButton
                 onClick={() => setExpanded((prev) => !prev)}
                 aria-expanded={expanded}
@@ -232,6 +243,7 @@ export const ToolCallRow: FC<Props> = ({
             >
                 {head}
             </UnstyledButton>
+            {failureMessages}
             <Collapse
                 expanded={expanded}
                 transitionDuration={240}

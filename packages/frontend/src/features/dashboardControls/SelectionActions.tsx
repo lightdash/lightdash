@@ -4,12 +4,20 @@ import { IconFolderPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { formatPickedCount } from './barSelection';
 
 export type SelectionActionsProps = {
-    count: number;
-    /** Each section with how many filters it holds. */
+    /** Picked filter pills */
+    filterCount: number;
+    /** Picked parameter pills */
+    parameterCount: number;
+    /** Each section with how many pills it holds. */
     sections: (DashboardControlSection & { count: number })[];
-    /** Null takes the selected filters out of their sections. */
+    /** The section every selected pill is in, else null: "Move to" leaves it out. */
+    sharedSectionId: string | null;
+    /** Some selected pill is in a section: only then is "No section" a move. */
+    isAnyInSection: boolean;
+    /** Null takes the selected pills out of their sections. */
     onMove: (sectionId: string | null) => void;
     /** Names a new section, then moves the selection into it. */
     onMoveToNewSection: (source: 'selection_bar' | 'move_to_menu') => void;
@@ -19,15 +27,22 @@ export type SelectionActionsProps = {
 // "Move to new section", "Move to" and the two-click "Remove" over selected
 // filters, on the bar's selection bar
 export const SelectionActions: FC<SelectionActionsProps> = ({
-    count,
+    filterCount,
+    parameterCount,
     sections,
+    sharedSectionId,
+    isAnyInSection,
     onMove,
     onMoveToNewSection,
     onRemove,
 }) => {
     const getUiString = useUiStrings();
+    const count = filterCount + parameterCount;
     // The first click arms "Remove", the second removes; Escape or leaving disarms
     const [isRemoveArmed, setIsRemoveArmed] = useState(false);
+    const targets = sections.filter(
+        (section) => section.id !== sharedSectionId,
+    );
     return (
         <>
             <Button
@@ -62,23 +77,25 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                     >
                         New section
                     </Menu.Item>
-                    <Menu.Divider />
-                    {sections.map((section) => (
+                    {targets.length > 0 && <Menu.Divider />}
+                    {targets.map((section) => (
                         <Menu.Item
                             key={section.id}
                             onClick={() => onMove(section.id)}
                         >
                             {section.name ||
-                                getUiString('filters.rail.untitledSection')}
+                                getUiString('controls.untitledSection')}
                             <Text span inherit c="dimmed">
                                 {` · ${section.count}`}
                             </Text>
                         </Menu.Item>
                     ))}
-                    {sections.length > 0 && <Menu.Divider />}
-                    <Menu.Item onClick={() => onMove(null)}>
-                        No section
-                    </Menu.Item>
+                    {isAnyInSection && <Menu.Divider />}
+                    {isAnyInSection && (
+                        <Menu.Item onClick={() => onMove(null)}>
+                            No section
+                        </Menu.Item>
+                    )}
                 </Menu.Dropdown>
             </Menu>
             <Button
@@ -102,7 +119,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                 }}
             >
                 {isRemoveArmed
-                    ? `Remove ${count} ${count === 1 ? 'filter' : 'filters'}`
+                    ? `Remove ${formatPickedCount(filterCount, parameterCount)}`
                     : 'Remove'}
             </Button>
         </>

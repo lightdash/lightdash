@@ -510,6 +510,66 @@ describe('SavedChartService chart drafts', () => {
         );
     });
 
+    it('flags Git-managed charts with the file the repo keeps them in', async () => {
+        const { service } = buildService({
+            snapshot: {
+                snapshotHash: 'hash',
+                filePath: 'lightdash/charts/monthly-revenue.yml',
+            },
+        });
+
+        const result = await service['applyOpenDraftOverlay'](editor, {
+            ...chart,
+            ...spaceContext,
+        } as AnyType);
+
+        expect(result.managedFromRepository).toEqual({
+            filePath: 'lightdash/charts/monthly-revenue.yml',
+        });
+        expect(result.hasUnpublishedChanges).toBeUndefined();
+    });
+
+    it('flags Git-managed charts with no linked file', async () => {
+        const { service } = buildService({
+            snapshot: { snapshotHash: 'hash', filePath: null },
+        });
+
+        const result = await service['applyOpenDraftOverlay'](editor, {
+            ...chart,
+            ...spaceContext,
+        } as AnyType);
+
+        expect(result.managedFromRepository).toEqual({ filePath: null });
+    });
+
+    it('leaves UI-only charts unflagged', async () => {
+        const { service } = buildService({ snapshot: undefined });
+
+        const result = await service['applyOpenDraftOverlay'](editor, {
+            ...chart,
+            ...spaceContext,
+        } as AnyType);
+
+        expect(result.managedFromRepository).toBeUndefined();
+    });
+
+    it('still offers the dismissed draft after the chart is released', async () => {
+        const { service, contentDraftModel } = buildService({
+            snapshot: undefined,
+        });
+        contentDraftModel.findLatestDismissedDraft.mockResolvedValue({
+            uuid: 'dismissed-uuid',
+        });
+
+        const result = await service['applyOpenDraftOverlay'](editor, {
+            ...chart,
+            ...spaceContext,
+        } as AnyType);
+
+        expect(result.managedFromRepository).toBeUndefined();
+        expect(result.dismissedDraftUuid).toBe('dismissed-uuid');
+    });
+
     it('serves published content when a stored chart draft is invalid', async () => {
         const { service } = buildService({
             draft: {

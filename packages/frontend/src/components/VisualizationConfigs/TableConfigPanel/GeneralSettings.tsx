@@ -1,10 +1,20 @@
-import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
+import {
+    DndContext,
+    DragOverlay,
+    type DragEndEvent,
+    type DragStartEvent,
+} from '@dnd-kit/core';
 import {
     isPivotRowValue,
     isTableColumnVisible,
 } from '@lightdash/visualization/editor';
-import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
+import { Box, Checkbox, Group, Stack, Switch, Tooltip } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { createPortal } from 'react-dom';
+import {
+    NOT_ON_LIVE_SOURCES,
+    useIsRefusedOnLiveSource,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import {
     selectTableColumnProperties,
     selectTableEditor,
@@ -21,21 +31,29 @@ import {
     useTableEditorActions,
 } from '../../../hooks/tableVisualization/useTableConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { usePortalTarget } from '../../../providers/PortalTarget/usePortalTarget';
+import {
+    lockToAxis,
+    useSortableSensors,
+} from '../../common/Sortable/sortableUtils';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
     useVisualizationServices,
 } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import { GrabIcon } from '../common/GrabIcon';
 import { RowLimitControls } from '../common/RowLimitControls';
+import ColumnConfiguration from './ColumnConfiguration';
 import { MAX_PIVOTS } from './constants';
 import DroppableItemsList from './DroppableItemsList';
-
-enum DroppableIds {
-    COLUMNS = 'COLUMNS',
-    ROWS = 'ROWS',
-    METRICS = 'METRICS',
-}
+import {
+    DroppableIds,
+    findPivotList,
+    getPivotDrop,
+    pivotCollisionDetection,
+    type PivotDrop,
+} from './pivotDnd';
 
 const usePivotLayout = () => {
     const { pivotDimensions, columnOrder } = useVisualizationInputs();
@@ -59,6 +77,10 @@ const usePivotLayout = () => {
 const PivotLayout: FC = () => {
     const { setPivotDimensions, setPivotRows } = useVisualizationServices();
     const { resultsData } = useVisualizationInputs();
+    const isPivotRefused = useIsRefusedOnLiveSource(
+        resultsData?.metricQuery?.exploreName,
+        'pivots',
+    );
     const isPivotTableEnabled = useVisualizationInputSelector(
         selectTableIsPivotTableEnabled,
     );
@@ -67,18 +89,26 @@ const PivotLayout: FC = () => {
     );
     const { setMetricsAsRows } = useTableEditorActions();
     const { columns, rows, metrics } = usePivotLayout();
-    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const sensors = useSortableSensors();
+    const portalTarget = usePortalTarget();
     const { showToastError } = useToaster();
 
     const { dimensions } = resultsData?.metricQuery || {
         dimensions: [] as string[],
     };
 
-    const onDragEnd = useCallback(
-        ({ source, destination }: DropResult) => {
-            setIsDragging(false);
-            if (!destination) return;
+    const lists = useMemo(
+        () => ({
+            [DroppableIds.COLUMNS]: columns,
+            [DroppableIds.ROWS]: rows,
+            [DroppableIds.METRICS]: metrics,
+        }),
+        [columns, rows, metrics],
+    );
 
+    const onDrop = useCallback(
+        ({ source, destination }: PivotDrop) => {
             const sourceItems =
                 source.droppableId === DroppableIds.COLUMNS
                     ? columns
@@ -95,6 +125,12 @@ const PivotLayout: FC = () => {
                     source.droppableId === DroppableIds.ROWS &&
                     dimensions.includes(fieldId)
                 ) {
+                    if (isPivotRefused) {
+                        showToastError({
+                            title: `Pivots: ${NOT_ON_LIVE_SOURCES.toLowerCase()}`,
+                        });
+                        return;
+                    }
                     if (columns.length >= MAX_PIVOTS) {
                         showToastError({
                             title: 'Maximum number of pivots reached',
@@ -182,13 +218,37 @@ const PivotLayout: FC = () => {
             showToastError,
             dimensions,
             resultsData?.fields,
+            isPivotRefused,
         ],
     );
 
+    const onDragEnd = ({ active, over }: DragEndEvent) => {
+        setActiveId(null);
+        if (!over) return;
+        const translated = active.rect.current.translated;
+        const isBelowOverItem =
+            translated !== null &&
+            translated.top + translated.height / 2 >
+                over.rect.top + over.rect.height / 2;
+        const drop = getPivotDrop(lists, active.id, over.id, isBelowOverItem);
+        if (drop) onDrop(drop);
+    };
+
+    const getMetricsColumnConfigurationProps = () => ({
+        syncFreezeWith: metricsAsRows ? metrics : undefined,
+        hideFreezeToggle: !!isPivotTableEnabled && !metricsAsRows,
+    });
+
     return (
-        <DragDropContext
-            onDragStart={() => setIsDragging(true)}
+        <DndContext
+            sensors={sensors}
+            collisionDetection={pivotCollisionDetection}
+            modifiers={[lockToAxis.vertical]}
+            onDragStart={({ active }: DragStartEvent) =>
+                setActiveId(String(active.id))
+            }
             onDragEnd={onDragEnd}
+            onDragCancel={() => setActiveId(null)}
         >
             <Config>
                 <Config.Section>
@@ -196,7 +256,6 @@ const PivotLayout: FC = () => {
                     <DroppableItemsList
                         droppableId={DroppableIds.COLUMNS}
                         itemIds={columns}
-                        isDragging={isDragging}
                         disableReorder={false}
                         placeholder={
                             'Drag dimensions into this area to pivot your table'
@@ -207,7 +266,6 @@ const PivotLayout: FC = () => {
                     <DroppableItemsList
                         droppableId={DroppableIds.ROWS}
                         itemIds={rows}
-                        isDragging={isDragging}
                         disableReorder={false}
                         placeholder={
                             'Drag dimensions, metrics, or table calculations into this area'
@@ -230,17 +288,31 @@ const PivotLayout: FC = () => {
                                   })
                                 : []
                         }
-                        isDragging={isDragging}
                         disableReorder={true}
-                        getColumnConfigurationProps={() => ({
-                            syncFreezeWith: metricsAsRows ? metrics : undefined,
-                            hideFreezeToggle:
-                                !!isPivotTableEnabled && !metricsAsRows,
-                        })}
+                        getColumnConfigurationProps={
+                            getMetricsColumnConfigurationProps
+                        }
                     />
                 </Config.Section>
             </Config>
-        </DragDropContext>
+            {createPortal(
+                <DragOverlay dropAnimation={null}>
+                    {activeId !== null ? (
+                        <Group wrap="nowrap" gap="xs">
+                            <GrabIcon />
+                            <ColumnConfiguration
+                                fieldId={activeId}
+                                {...(findPivotList(lists, activeId) ===
+                                DroppableIds.METRICS
+                                    ? getMetricsColumnConfigurationProps()
+                                    : {})}
+                            />
+                        </Group>
+                    ) : null}
+                </DragOverlay>,
+                portalTarget,
+            )}
+        </DndContext>
     );
 };
 

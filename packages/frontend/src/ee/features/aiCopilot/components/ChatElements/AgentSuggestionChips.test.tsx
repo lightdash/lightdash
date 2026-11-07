@@ -1,6 +1,6 @@
 import { type AgentSuggestion } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 
@@ -30,5 +30,22 @@ describe('AgentSuggestionChips', () => {
         expect(screen.getByText('Suggestion 2')).toBeVisible();
         expect(screen.queryByText('Suggestion 3')).toBeNull();
         await waitFor(() => expect(onImpression).toHaveBeenCalledWith(2));
+    });
+
+    it('sends the clicked in-thread suggestion', () => {
+        const onChipClick = vi.fn();
+        render(
+            <MantineProvider env="test">
+                <AgentSuggestionChips
+                    chips={chips.slice(0, 3)}
+                    layout="compact"
+                    onChipClick={onChipClick}
+                />
+            </MantineProvider>,
+        );
+
+        expect(screen.getAllByRole('button')).toHaveLength(3);
+        fireEvent.click(screen.getByRole('button', { name: 'Suggestion 2' }));
+        expect(onChipClick).toHaveBeenCalledWith(chips[1], 1);
     });
 });

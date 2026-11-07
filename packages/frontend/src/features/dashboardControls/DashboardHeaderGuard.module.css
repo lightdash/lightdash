@@ -2,15 +2,3 @@
 .guard {
     display: contents;
 }
-
-/* Apply in the rail is the one filled button while a filter is edited:
-   Save reads as a default button until then */
-.guard[inert]
-    :global(.mantine-Button-root):is(
-        [data-variant='filled'],
-        :not([data-variant])
-    ) {
-    background-color: var(--mantine-color-default);
-    color: var(--mantine-color-default-color);
-    border: 1px solid var(--mantine-color-default-border);
-}

@@ -1,7 +1,14 @@
 import {
     type ApiError,
+    type ApiExploresResultsCacheInvalidationResponse,
     type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
+    type ApiResultsCacheStatusResponse,
+    type ApiResultsCacheStatsResponse,
+    type ApiResultsCacheTtlProjectionsResponse,
+    type InvalidateExploresResultsCache,
+    type ResultsCacheStatsDays,
+    type UpdateResultsCacheClearSchedule,
     type UpdateResultsCacheProjectSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +20,51 @@ const queryKey = (projectUuid: string) => [
     'results_cache_settings',
     projectUuid,
 ];
+
+const statusQueryKey = (projectUuid: string) => [
+    'results_cache_status',
+    projectUuid,
+];
+
+const getResultsCacheStatus = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
+    lightdashApi<ApiResultsCacheStatusResponse['results']>({
+        url: `/projects/${projectUuid}/results-cache-config/status`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const useResultsCacheStatus = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiResultsCacheStatusResponse['results'], ApiError>({
+        queryKey: statusQueryKey(projectUuid ?? ''),
+        queryFn: () => getResultsCacheStatus(lightdashApi, projectUuid!),
+        enabled: !!projectUuid,
+        // Only changes through the settings mutation, which invalidates it
+        staleTime: Infinity,
+    });
+};
+
+export const useIsResultsCacheEnabled = (projectUuid: string | undefined) =>
+    useResultsCacheStatus(projectUuid).data?.enabled === true;
+
+const statsQueryKey = (projectUuid: string, days: ResultsCacheStatsDays) => [
+    'results_cache_stats',
+    projectUuid,
+    days,
+];
+
+const ttlProjectionsQueryKeyPrefix = (projectUuid: string) => [
+    'results_cache_ttl_projections',
+    projectUuid,
+];
+
+const ttlProjectionsQueryKey = (
+    projectUuid: string,
+    days: ResultsCacheStatsDays,
+) => [...ttlProjectionsQueryKeyPrefix(projectUuid), days];
 
 const getResultsCacheSettings = async (
     lightdashApi: LightdashApi,
@@ -34,6 +86,42 @@ export const useResultsCacheSettings = (projectUuid: string) => {
         queryFn: () => getResultsCacheSettings(lightdashApi, projectUuid),
         enabled: !!projectUuid,
     });
+};
+
+export const useResultsCacheStats = (
+    projectUuid: string,
+    days: ResultsCacheStatsDays,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiResultsCacheStatsResponse['results'], ApiError>({
+        queryKey: statsQueryKey(projectUuid, days),
+        queryFn: () =>
+            lightdashApi<ApiResultsCacheStatsResponse['results']>({
+                url: `/projects/${projectUuid}/results-cache/stats?days=${days}`,
+                method: 'GET',
+                body: undefined,
+            }),
+        enabled: !!projectUuid,
+    });
+};
+
+export const useResultsCacheTtlProjections = (
+    projectUuid: string,
+    days: ResultsCacheStatsDays,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiResultsCacheTtlProjectionsResponse['results'], ApiError>(
+        {
+            queryKey: ttlProjectionsQueryKey(projectUuid, days),
+            queryFn: () =>
+                lightdashApi<ApiResultsCacheTtlProjectionsResponse['results']>({
+                    url: `/projects/${projectUuid}/results-cache/ttl-projections?days=${days}`,
+                    method: 'GET',
+                    body: undefined,
+                }),
+            enabled: !!projectUuid,
+        },
+    );
 };
 
 const updateResultsCacheSettings = async (
@@ -58,19 +146,71 @@ export const useUpdateResultsCacheSettings = (projectUuid: string) => {
         UpdateResultsCacheProjectSettings
     >((data) => updateResultsCacheSettings(lightdashApi, projectUuid, data), {
         mutationKey: ['results_cache_settings_update', projectUuid],
-        onSuccess: async () => {
+        onSuccess: async (_, data) => {
             showToastSuccess({
-                title: 'Cache duration updated',
+                title:
+                    data.cacheEnabled === undefined
+                        ? 'Cache duration updated'
+                        : `Results caching ${
+                              data.cacheEnabled ? 'enabled' : 'disabled'
+                          }`,
             });
-            await queryClient.invalidateQueries(queryKey(projectUuid));
+            await Promise.all([
+                queryClient.invalidateQueries(queryKey(projectUuid)),
+                queryClient.invalidateQueries(statusQueryKey(projectUuid)),
+                queryClient.invalidateQueries(
+                    ttlProjectionsQueryKeyPrefix(projectUuid),
+                ),
+            ]);
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update cache duration',
+                title: 'Failed to update results caching',
                 apiError: error,
             });
         },
     });
+};
+
+const updateResultsCacheClearSchedule = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    data: UpdateResultsCacheClearSchedule,
+) =>
+    lightdashApi<ApiResultsCacheProjectSettingsResponse['results']>({
+        url: `/projects/${projectUuid}/results-cache-config/clear-schedule`,
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+export const useUpdateResultsCacheClearSchedule = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiResultsCacheProjectSettingsResponse['results'],
+        ApiError,
+        UpdateResultsCacheClearSchedule
+    >(
+        (data) =>
+            updateResultsCacheClearSchedule(lightdashApi, projectUuid, data),
+        {
+            mutationKey: ['results_cache_clear_schedule_update', projectUuid],
+            onSuccess: async () => {
+                showToastSuccess({
+                    title: 'Clear schedule updated',
+                });
+                await queryClient.invalidateQueries(queryKey(projectUuid));
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update clear schedule',
+                    apiError: error,
+                });
+            },
+        },
+    );
 };
 
 const invalidateResultsCache = async (
@@ -152,4 +292,47 @@ export const useInvalidateContentResultsCache = () => {
             });
         },
     });
+};
+
+const invalidateExploresResultsCache = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    body: InvalidateExploresResultsCache,
+) =>
+    lightdashApi<ApiExploresResultsCacheInvalidationResponse['results']>({
+        url: `/projects/${projectUuid}/results-cache/invalidate/explores`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+export const useInvalidateExploresResultsCache = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiExploresResultsCacheInvalidationResponse['results'],
+        ApiError,
+        InvalidateExploresResultsCache
+    >(
+        (body) =>
+            invalidateExploresResultsCache(lightdashApi, projectUuid, body),
+        {
+            mutationKey: ['results_cache_invalidate_explores', projectUuid],
+            onSuccess: ({ exploreNames }) => {
+                showToastSuccess({
+                    title:
+                        exploreNames.length === 1
+                            ? 'Cached results cleared'
+                            : `Cached results cleared for ${exploreNames.length} explores`,
+                    subtitle: 'The next load queries the warehouse.',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to clear cached results',
+                    apiError: error,
+                });
+            },
+        },
+    );
 };

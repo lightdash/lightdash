@@ -1,4 +1,4 @@
-import { ChartType, FeatureFlags, type DataAppViz } from '@lightdash/common';
+import { ChartType, type DataAppViz } from '@lightdash/common';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
@@ -22,11 +22,6 @@ vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
 }));
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
-}));
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (flag: FeatureFlags) => ({
-        data: { enabled: flag === FeatureFlags.ChartTypeRegistry },
-    }),
 }));
 vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: () => false,
@@ -73,9 +68,12 @@ const startInstall = async () => {
         <Provider store={store}>
             <AddChartTypeMenu />
         </Provider>,
+        { health: { license: { hasLicenseKey: true, valid: true } } },
     );
     await userEvent.click(
-        screen.getByRole('button', { name: 'Add chart type from the library' }),
+        await screen.findByRole('button', {
+            name: 'Add chart type from the library',
+        }),
     );
     await userEvent.click(screen.getByRole('button', { name: 'Install' }));
     return {

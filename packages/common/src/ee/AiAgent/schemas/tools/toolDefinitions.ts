@@ -33,6 +33,10 @@ import {
 import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import {
+    DOCUMENT_CREATE_CONTENT_DESCRIPTION,
+    DOCUMENT_EDIT_CONTENT_DESCRIPTION,
+    documentCreateContentArgsSchema,
+    documentEditContentArgsSchema,
     MCP_CREATE_CONTENT_DESCRIPTION,
     MCP_EDIT_CONTENT_DESCRIPTION,
     MCP_READ_CONTENT_DESCRIPTION,
@@ -2164,6 +2168,23 @@ export const mcpEditContentToolDefinition = defineTool({
     availability: ['agent', 'mcp'],
     inputSchema: mcpEditContentArgsSchema,
     mcp: { name: 'edit_content', annotations: writeAnnotations },
+});
+
+// Agent tools for an actor who can save Documents but not charts or dashboards.
+export const documentCreateContentToolDefinition = defineTool({
+    name: 'createContent',
+    title: 'Create content',
+    description: DOCUMENT_CREATE_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: documentCreateContentArgsSchema,
+});
+
+export const documentEditContentToolDefinition = defineTool({
+    name: 'editContent',
+    title: 'Edit content',
+    description: DOCUMENT_EDIT_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: documentEditContentArgsSchema,
 });
 
 export const mcpToolDefinitions: readonly ToolDefinitionInstance[] =

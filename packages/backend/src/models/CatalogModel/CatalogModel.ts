@@ -42,8 +42,8 @@ import {
     type UpstreamFieldDiff,
     type UserAttributeValueMap,
 } from '@lightdash/common';
+import { chunk } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { chunk } from 'lodash';
 import { validate as isValidUuid } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -193,6 +193,22 @@ const parseMetricsTreeEdge = (
     projectUuid: row.project_uuid,
     createdFrom: row.source,
 });
+
+type CatalogSearchArgs = {
+    projectUuid: string;
+    exploreName?: string;
+    catalogSearch: ApiCatalogSearch;
+    excludeUnmatched?: boolean;
+    tablesConfiguration: TablesConfiguration;
+    userAttributes: UserAttributeValueMap;
+    paginateArgs?: KnexPaginateArgs;
+    sortArgs?: ApiSort;
+    context: CatalogSearchContext;
+    fullTextSearchOperator?: 'OR' | 'AND';
+    filteredExplores?: Explore[];
+    hasTimeDimension?: boolean;
+    tags?: string[];
+};
 
 export class CatalogModel {
     protected database: Knex;
@@ -463,7 +479,7 @@ export class CatalogModel {
         }, {});
     }
 
-    async search({
+    private async buildSearchQuery({
         projectUuid,
         exploreName,
         catalogSearch: {
@@ -478,28 +494,12 @@ export class CatalogModel {
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
-        paginateArgs,
-        sortArgs,
         context,
         fullTextSearchOperator = 'AND',
         filteredExplores,
         hasTimeDimension,
         tags,
-    }: {
-        projectUuid: string;
-        exploreName?: string;
-        catalogSearch: ApiCatalogSearch;
-        excludeUnmatched?: boolean;
-        tablesConfiguration: TablesConfiguration;
-        userAttributes: UserAttributeValueMap;
-        paginateArgs?: KnexPaginateArgs;
-        sortArgs?: ApiSort;
-        context: CatalogSearchContext;
-        fullTextSearchOperator?: 'OR' | 'AND';
-        filteredExplores?: Explore[];
-        hasTimeDimension?: boolean;
-        tags?: string[];
-    }): Promise<KnexPaginatedData<CatalogItem[]>> {
+    }: Omit<CatalogSearchArgs, 'paginateArgs' | 'sortArgs'>) {
         // filteredExplores enforces visibility through the type-specific allow-list
         // filter below, which only runs for Table/Field. Without an explicit type that
         // filter is skipped and nothing constrains the results, so fail loud instead.
@@ -955,6 +955,15 @@ export class CatalogModel {
             }
         }
 
+        return { catalogItemsQuery };
+    }
+
+    async search(
+        args: CatalogSearchArgs,
+    ): Promise<KnexPaginatedData<CatalogItem[]>> {
+        const { paginateArgs, sortArgs, filteredExplores } = args;
+        const { catalogItemsQuery } = await this.buildSearchQuery(args);
+
         const normalizedSortOrder =
             sortArgs?.order === 'desc' ? ('desc' as const) : ('asc' as const);
         const pageOrder = [
@@ -1193,6 +1202,26 @@ export class CatalogModel {
             pagination: paginatedCatalogItems.pagination,
             data: catalog,
         };
+    }
+
+    async getMetricTableNames(
+        args: Omit<
+            CatalogSearchArgs,
+            'catalogSearch' | 'paginateArgs' | 'sortArgs'
+        >,
+    ): Promise<string[]> {
+        const { catalogItemsQuery } = await this.buildSearchQuery({
+            ...args,
+            catalogSearch: {
+                type: CatalogType.Field,
+                filter: CatalogFilter.Metrics,
+            },
+        });
+        const rows: Pick<DbCatalog, 'table_name'>[] = await catalogItemsQuery
+            .clearSelect()
+            .distinct(`${CatalogTableName}.table_name`)
+            .orderBy(`${CatalogTableName}.table_name`);
+        return rows.map((row) => row.table_name);
     }
 
     async getMetadata(projectUuid: string, name: string): Promise<Explore> {

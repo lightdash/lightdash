@@ -1094,6 +1094,29 @@ Use a metric's default time dimension unless the user asks for a different one.
                       "const": "found",
                       "type": "string",
                     },
+                    "warehouseTables": {
+                      "description": "Warehouse table behind the base table and each joined table, as "database.schema.table"; null when the table reads custom SQL.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "table": {
+                            "type": "string",
+                          },
+                          "warehouseTable": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                        },
+                        "required": [
+                          "table",
+                          "warehouseTable",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
                   },
                   "required": [
                     "exploreId",
@@ -1103,6 +1126,7 @@ Use a metric's default time dimension unless the user asks for a different one.
                     "hint",
                     "baseTable",
                     "joinedTables",
+                    "warehouseTables",
                     "requiredFilters",
                     "parameters",
                     "baseDimensions",
@@ -3283,9 +3307,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                                   "type": "string",
                                                 },
                                                 {
-                                                  "format": "date-time",
-                                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                                  "type": "string",
+                                                  "anyOf": [
+                                                    {
+                                                      "format": "date-time",
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                      "type": "string",
+                                                    },
+                                                    {
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                      "type": "string",
+                                                    },
+                                                  ],
                                                 },
                                               ],
                                               "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -3621,9 +3653,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                                   "type": "string",
                                                 },
                                                 {
-                                                  "format": "date-time",
-                                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                                  "type": "string",
+                                                  "anyOf": [
+                                                    {
+                                                      "format": "date-time",
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                      "type": "string",
+                                                    },
+                                                    {
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                      "type": "string",
+                                                    },
+                                                  ],
                                                 },
                                               ],
                                               "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -3695,9 +3735,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                                   "type": "string",
                                                 },
                                                 {
-                                                  "format": "date-time",
-                                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                                  "type": "string",
+                                                  "anyOf": [
+                                                    {
+                                                      "format": "date-time",
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                                      "type": "string",
+                                                    },
+                                                    {
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                                      "type": "string",
+                                                    },
+                                                  ],
                                                 },
                                               ],
                                               "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -4617,9 +4665,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                         "type": "string",
                                       },
                                       {
-                                        "format": "date-time",
-                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                        "type": "string",
+                                        "anyOf": [
+                                          {
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                            "type": "string",
+                                          },
+                                          {
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                            "type": "string",
+                                          },
+                                        ],
                                       },
                                     ],
                                     "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -4955,9 +5011,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                         "type": "string",
                                       },
                                       {
-                                        "format": "date-time",
-                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                        "type": "string",
+                                        "anyOf": [
+                                          {
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                            "type": "string",
+                                          },
+                                          {
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                            "type": "string",
+                                          },
+                                        ],
                                       },
                                     ],
                                     "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -5029,9 +5093,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                         "type": "string",
                                       },
                                       {
-                                        "format": "date-time",
-                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                        "type": "string",
+                                        "anyOf": [
+                                          {
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                            "type": "string",
+                                          },
+                                          {
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                            "type": "string",
+                                          },
+                                        ],
                                       },
                                     ],
                                     "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -5836,9 +5908,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                         "type": "string",
                                       },
                                       {
-                                        "format": "date-time",
-                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                        "type": "string",
+                                        "anyOf": [
+                                          {
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                            "type": "string",
+                                          },
+                                          {
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                            "type": "string",
+                                          },
+                                        ],
                                       },
                                     ],
                                     "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -6174,9 +6254,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                         "type": "string",
                                       },
                                       {
-                                        "format": "date-time",
-                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                        "type": "string",
+                                        "anyOf": [
+                                          {
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                            "type": "string",
+                                          },
+                                          {
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                            "type": "string",
+                                          },
+                                        ],
                                       },
                                     ],
                                     "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -6248,9 +6336,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                         "type": "string",
                                       },
                                       {
-                                        "format": "date-time",
-                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                        "type": "string",
+                                        "anyOf": [
+                                          {
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                            "type": "string",
+                                          },
+                                          {
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                            "type": "string",
+                                          },
+                                        ],
                                       },
                                     ],
                                     "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -8197,9 +8293,17 @@ Reading the result: the values describe observed data, not the permitted filter 
                                     "type": "string",
                                   },
                                   {
-                                    "format": "date-time",
-                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                    "type": "string",
+                                    "anyOf": [
+                                      {
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                        "type": "string",
+                                      },
+                                      {
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                        "type": "string",
+                                      },
+                                    ],
                                   },
                                 ],
                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -8535,9 +8639,17 @@ Reading the result: the values describe observed data, not the permitted filter 
                                     "type": "string",
                                   },
                                   {
-                                    "format": "date-time",
-                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                    "type": "string",
+                                    "anyOf": [
+                                      {
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                        "type": "string",
+                                      },
+                                      {
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                        "type": "string",
+                                      },
+                                    ],
                                   },
                                 ],
                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -8609,9 +8721,17 @@ Reading the result: the values describe observed data, not the permitted filter 
                                     "type": "string",
                                   },
                                   {
-                                    "format": "date-time",
-                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                    "type": "string",
+                                    "anyOf": [
+                                      {
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                        "type": "string",
+                                      },
+                                      {
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                        "type": "string",
+                                      },
+                                    ],
                                   },
                                 ],
                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -9416,9 +9536,17 @@ Reading the result: the values describe observed data, not the permitted filter 
                                     "type": "string",
                                   },
                                   {
-                                    "format": "date-time",
-                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                    "type": "string",
+                                    "anyOf": [
+                                      {
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                        "type": "string",
+                                      },
+                                      {
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                        "type": "string",
+                                      },
+                                    ],
                                   },
                                 ],
                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -9754,9 +9882,17 @@ Reading the result: the values describe observed data, not the permitted filter 
                                     "type": "string",
                                   },
                                   {
-                                    "format": "date-time",
-                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                    "type": "string",
+                                    "anyOf": [
+                                      {
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                        "type": "string",
+                                      },
+                                      {
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                        "type": "string",
+                                      },
+                                    ],
                                   },
                                 ],
                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -9828,9 +9964,17 @@ Reading the result: the values describe observed data, not the permitted filter 
                                     "type": "string",
                                   },
                                   {
-                                    "format": "date-time",
-                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                    "type": "string",
+                                    "anyOf": [
+                                      {
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                        "type": "string",
+                                      },
+                                      {
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?:Z))$",
+                                        "type": "string",
+                                      },
+                                    ],
                                   },
                                 ],
                                 "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
@@ -10461,7 +10605,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Run composer queries",
       },
-      "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query, and later calls can reuse its node.
+      "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -10470,13 +10614,13 @@ Node kinds:
 - "duckdb": DuckDB SQL over other results declared in "references".
 - "python": pandas code over other results declared in "references".
 
-A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.
 
 A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
 
-Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes come with everything they read and are served from cache when possible, so results come back faster. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
+Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
-Returns a preview of the terminal node's rows and every node's queryUuid. The terminal node is the unique sink, or the node named in terminalNodeId. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
+Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -10487,8 +10631,12 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
             "type": "string",
           },
           "description": {
+            "default": null,
             "description": "A one-line description of what the pipeline computes.",
-            "type": "string",
+            "type": [
+              "string",
+              "null",
+            ],
           },
           "projectUuid": {
             "description": "Project UUID for this operation.",
@@ -10502,6 +10650,93 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
               "anyOf": [
                 {
                   "properties": {
+                    "customMetrics": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "properties": {
+                              "aggregation": {
+                                "description": "Aggregation over the base dimension. Number dimensions take any; string, date and timestamp dimensions take count, count_distinct, min or max; boolean dimensions take count or count_distinct.",
+                                "enum": [
+                                  "sum",
+                                  "average",
+                                  "count",
+                                  "count_distinct",
+                                  "min",
+                                  "max",
+                                  "median",
+                                  "percentile",
+                                ],
+                                "type": "string",
+                              },
+                              "description": {
+                                "description": "Shown to users as the metric's description. Null when the label is enough.",
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "dimensionFieldId": {
+                                "description": "Field id of the dimension to aggregate, a dimension of "table".",
+                                "type": "string",
+                              },
+                              "filter": {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 16384,
+                                    "minLength": 1,
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "null",
+                                  },
+                                ],
+                                "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. "orders_status equals=completed". Null aggregates every row.",
+                              },
+                              "label": {
+                                "description": "Column label shown to users.",
+                                "type": "string",
+                              },
+                              "name": {
+                                "description": "snake_case name. The metric's field id is "<table>_<name>"; defining it selects it, and the id works in sorts, metric filters and periodComparisons.",
+                                "pattern": "^[a-z][a-z0-9_]*$",
+                                "type": "string",
+                              },
+                              "percentile": {
+                                "anyOf": [
+                                  {
+                                    "maximum": 100,
+                                    "minimum": 0,
+                                    "type": "number",
+                                  },
+                                  {
+                                    "type": "null",
+                                  },
+                                ],
+                                "description": "0–100, set only for the percentile aggregation.",
+                              },
+                              "table": {
+                                "description": "Table of the base dimension; the metric belongs to it.",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "table",
+                              "name",
+                              "label",
+                              "aggregation",
+                              "dimensionFieldId",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query.",
+                    },
                     "description": {
                       "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
                       "type": "string",
@@ -10518,23 +10753,47 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                       "type": "string",
                     },
                     "filters": {
-                      "additionalProperties": false,
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "dimensions": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 16384,
+                                  "minLength": 1,
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "default": null,
+                              "description": "Flat filter expression for dimension fields.",
+                            },
+                            "metrics": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 16384,
+                                  "minLength": 1,
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "default": null,
+                              "description": "Flat filter expression for metric fields.",
+                            },
+                          },
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "default": null,
                       "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
-                      "properties": {
-                        "dimensions": {
-                          "description": "Flat filter expression for dimension fields.",
-                          "maxLength": 16384,
-                          "minLength": 1,
-                          "type": "string",
-                        },
-                        "metrics": {
-                          "description": "Flat filter expression for metric fields.",
-                          "maxLength": 16384,
-                          "minLength": 1,
-                          "type": "string",
-                        },
-                      },
-                      "type": "object",
                     },
                     "limit": {
                       "default": 500,
@@ -10589,29 +10848,71 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                           "type": "null",
                         },
                       ],
-                      "default": null,
                       "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
                     },
-                    "sorts": {
-                      "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
-                      "items": {
-                        "properties": {
-                          "descending": {
-                            "description": "If true sorts in descending order, ascending otherwise.",
-                            "type": "boolean",
+                    "periodComparisons": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "properties": {
+                              "metricFieldId": {
+                                "description": "Metric to compare: a field id in "metrics" or a custom metric's.",
+                                "type": "string",
+                              },
+                              "periodOffset": {
+                                "description": "Periods to look back: 1 for the previous period, 12 on a month grain for the same month last year.",
+                                "maximum": 9007199254740991,
+                                "minimum": 1,
+                                "type": "integer",
+                              },
+                              "timeDimensionFieldId": {
+                                "description": "Time dimension in "dimensions" with a day, week, month, quarter or year grain; the offset counts in that grain.",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "metricFieldId",
+                              "timeDimensionFieldId",
+                              "periodOffset",
+                            ],
+                            "type": "object",
                           },
-                          "fieldId": {
-                            "description": "Field id to sort by.",
-                            "type": "string",
-                          },
+                          "type": "array",
                         },
-                        "required": [
-                          "fieldId",
-                          "descending",
-                        ],
-                        "type": "object",
-                      },
-                      "type": "array",
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.",
+                    },
+                    "sorts": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "properties": {
+                              "descending": {
+                                "description": "If true sorts in descending order, ascending otherwise.",
+                                "type": "boolean",
+                              },
+                              "fieldId": {
+                                "description": "Field id to sort by.",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "fieldId",
+                              "descending",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "default": null,
+                      "description": "Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
                     },
                     "sourceType": {
                       "const": "semanticLayer",
@@ -10718,7 +11019,7 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                       "type": "string",
                     },
                     "sql": {
-                      "description": "DuckDB SQL over the tables "references" exposes.",
+                      "description": "DuckDB SQL over the tables "references" exposes. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: \`SUM(v) AS value\`, \`d AS day\` and \`fam AS label\` work, \`SUM(v) value\` does not. Double-quote a column named after a reserved word, such as \`"order"\`.",
                       "type": "string",
                     },
                     "title": {
@@ -10759,7 +11060,7 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                       "type": "string",
                     },
                     "sql": {
-                      "description": "DuckDB SQL over the tables "tables" declares.",
+                      "description": "DuckDB SQL over the tables "tables" declares. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: \`SUM(v) AS value\`, \`d AS day\` and \`fam AS label\` work, \`SUM(v) value\` does not. Double-quote a column named after a reserved word, such as \`"order"\`.",
                       "type": "string",
                     },
                     "tables": {
@@ -10800,7 +11101,18 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                 {
                   "properties": {
                     "code": {
-                      "description": "Python defining \`def run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame\`. inputs[name] is the referenced node's full result up to that node's limit, with its column ids as column names and every column already typed, so use them without re-parsing: numbers numeric, booleans nullable boolean, strings string, dates tz-naive datetime64 at midnight, timestamps tz-aware UTC datetime64. Return one DataFrame with unique column names matching ^[A-Za-z_][A-Za-z0-9_]{0,62}$. The index is dropped; a tz-naive datetime column holding only midnights is returned as dates, any other datetime column as timestamps; NaN, infinity and NaT become null. Rows past "limit" are dropped, so aggregate in Python when the output would be large. stdout is discarded; on an exception the traceback is returned. Libraries: pandas, numpy, scipy, pyarrow, scikit-learn, polars (convert results back with .to_pandas()). No network access and no package installs.",
+                      "description": "Python defining run(inputs, params) -> pandas.DataFrame. Shape every node like this:
+
+import pandas as pd
+
+def run(inputs, params):
+    df = inputs["orders"]                           # one DataFrame per reference, columns already typed
+    cutoff = pd.Timestamp("2026-01-01")             # all datetimes are tz-naive UTC wall clock; never tz_localize/tz_convert
+    out = df[df["created_at"] >= cutoff].groupby("customer_id", as_index=False)["revenue"].sum()
+    return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
+
+Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
+Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, polars 1.44. No network, no installs.",
                       "type": "string",
                     },
                     "description": {
@@ -10870,12 +11182,20 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
             "type": "string",
           },
           "terminalNodeId": {
-            "description": "The terminal node. Null picks the unique sink, the one submitted node no other submitted node reads; name a node when there are several sinks.",
-            "type": "string",
+            "default": null,
+            "description": "The terminal node. Null picks the last submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
+            "type": [
+              "string",
+              "null",
+            ],
           },
           "title": {
+            "default": null,
             "description": "A short title for the result.",
-            "type": "string",
+            "type": [
+              "string",
+              "null",
+            ],
           },
         },
         "required": [
@@ -10927,7 +11247,7 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                       "type": "null",
                     },
                   ],
-                  "description": "Result columns; null until the node is done.",
+                  "description": "Result columns of the terminal node and of nodes submitted in this call; null for reused nodes and until the node is done.",
                 },
                 "limit": {
                   "description": "Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.",
@@ -10960,6 +11280,24 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                     },
                   ],
                   "description": "Rows this node returned; null when its query is not ready.",
+                },
+                "sample": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": {},
+                        "propertyNames": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "First rows of a done node submitted in this call other than the terminal node: 5, more for a node no other node reads; null for the terminal node and for reused, failed or unfinished nodes.",
                 },
                 "sourceType": {
                   "enum": [
@@ -10994,10 +11332,11 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                 "sourceType",
                 "rowCount",
                 "limit",
+                "columns",
+                "sample",
                 "queryUuid",
                 "status",
                 "reachedLimit",
-                "columns",
               ],
               "type": "object",
             },
@@ -11024,7 +11363,7 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
             ],
           },
           "status": {
-            "description": "running when the terminal node outlived the wait; poll get_query_result with its queryUuid.",
+            "description": "running when a node outlived the wait; poll get_query_result with the queryUuids the result names.",
             "enum": [
               "done",
               "running",
@@ -13667,22 +14006,46 @@ Example B — "Revenue by month with year-over-year comparison"
             "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
             "properties": {
               "dimensions": {
+                "anyOf": [
+                  {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "Flat filter expression for dimension fields.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": "string",
               },
               "metrics": {
+                "anyOf": [
+                  {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "Flat filter expression for metric fields.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": "string",
               },
               "tableCalculations": {
+                "anyOf": [
+                  {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "Flat filter expression for table calculations.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": "string",
               },
             },
             "type": "object",

@@ -1,6 +1,7 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import { DimensionType, type TimestampDomain } from '../types/field';
+import { type WarehouseTypes } from '../types/projects';
 import { DateGranularity, TimeFrames } from '../types/timeFrames';
 
 export enum WeekDay {
@@ -12,6 +13,18 @@ export enum WeekDay {
     SATURDAY,
     SUNDAY,
 }
+
+export const getDefaultStartOfWeek = (
+    adapterType: SupportedDbtAdapter | WarehouseTypes,
+): WeekDay => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return WeekDay.SUNDAY;
+        default:
+            return WeekDay.MONDAY;
+    }
+};
 
 export const isWeekDay = (value: unknown): value is WeekDay =>
     Number.isSafeInteger(value) &&
@@ -916,10 +929,18 @@ const clickhouseConfig: WarehouseConfig = {
     getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
-            const intervalDiff = startOfWeek;
-            // Mode 1 makes toStartOfWeek() return Monday (matching Postgres DATE_TRUNC('week')),
-            // so the shift arithmetic is correct for all startOfWeek values.
-            return `addDays(toStartOfWeek(addDays(${originalSql}, -${intervalDiff}), 1), ${intervalDiff})`;
+            // Mode 1 starts weeks on Monday, mode 0 on Sunday. Other days
+            // shift with INTERVAL arithmetic: ClickHouse can't use addDays()
+            // for primary key pruning. The SQL is parenthesised so the shift
+            // applies to the whole expression, not just its last operand.
+            if (startOfWeek === WeekDay.MONDAY) {
+                return `toStartOfWeek(${originalSql}, 1)`;
+            }
+            if (startOfWeek === WeekDay.SUNDAY) {
+                return `toStartOfWeek(${originalSql}, 0)`;
+            }
+            const intervalDiff = `INTERVAL ${startOfWeek} DAY`;
+            return `(toStartOfWeek((${originalSql}) - ${intervalDiff}, 1) + ${intervalDiff})`;
         }
 
         switch (timeFrame) {

@@ -18,6 +18,7 @@ export const NewThreadButton: FC<Props> = ({ to, isCollapsed }) => (
             component={Link}
             to={to}
             size="xs"
+            fz="sm"
             {...(!isCollapsed && {
                 fullWidth: true,
                 justify: 'flex-start',

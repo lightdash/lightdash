@@ -1,0 +1,20 @@
+/* Mirrors the light info Alert: pale blue wash, dashed ink hairline, blue ink. */
+.estimate {
+    --estimate-ink: light-dark(
+        var(--mantine-color-blue-8),
+        var(--mantine-color-blue-4)
+    );
+    --estimate-bg: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-blue-0) 45%,
+            var(--mantine-color-body)
+        ),
+        color-mix(in srgb, var(--mantine-color-blue-9) 8%, transparent)
+    );
+    border: 1px dashed color-mix(in srgb, var(--estimate-ink) 8%, transparent);
+}
+
+.estimateTitle {
+    color: var(--estimate-ink);
+}

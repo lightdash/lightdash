@@ -45,10 +45,32 @@ function resolveVendorDirs(): { templateDir: string; authoringDir: string } {
 
 // --- Internal helpers ---
 
+// The pkg binary ships vendored package.json files under this name so pkg leaves them untouched.
+export const BUNDLED_PACKAGE_JSON_SUFFIX = '.vendored';
+
+export const toTemplateRelPath = (relPath: string): string => {
+    const posixPath = relPath.split(path.sep).join('/');
+    return posixPath === `package.json${BUNDLED_PACKAGE_JSON_SUFFIX}` ||
+        posixPath.endsWith(`/package.json${BUNDLED_PACKAGE_JSON_SUFFIX}`)
+        ? posixPath.slice(0, -BUNDLED_PACKAGE_JSON_SUFFIX.length)
+        : posixPath;
+};
+
 const toFile = (relPath: string, buf: Buffer): DataAppCodeFile => ({
-    path: relPath.split(path.sep).join('/'),
+    path: toTemplateRelPath(relPath),
     contentBase64: buf.toString('base64'),
 });
+
+const readTemplatePackageJson = (templateDir: string): string => {
+    const bundled = path.join(
+        templateDir,
+        `package.json${BUNDLED_PACKAGE_JSON_SUFFIX}`,
+    );
+    return readFileSync(
+        existsSync(bundled) ? bundled : path.join(templateDir, 'package.json'),
+        'utf-8',
+    );
+};
 
 /**
  * Recursively walks a directory, skipping any top-level entry whose name is in
@@ -92,10 +114,7 @@ export const loadTemplateDependencies = (
 ): Record<string, string> => {
     const { templateDir } = resolveVendorDirs();
     try {
-        const raw = readFileSync(
-            path.join(templateDir, 'package.json'),
-            'utf-8',
-        );
+        const raw = readTemplatePackageJson(templateDir);
         const rewritten = rewriteWorkspaceDeps(raw, sdkVersion);
         const parsed = JSON.parse(rewritten) as {
             dependencies?: Record<string, string>;

@@ -1,10 +1,16 @@
 import {
+    type DashboardControlSection,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    groupSectionsIntoLines,
+    moveSectionBy,
+    placeSection,
+    removeSectionKeepingLines,
     countSectionChanges,
+    getMoveNeighbours,
     groupRulesBySection,
     moveRuleToSection,
     moveRulesToSection,
@@ -322,5 +328,194 @@ describe('underPointerFor', () => {
         expect(collide(800)).toEqual(['bar-space-target']);
         // The keyboard has no pointer: the nearest centre, never the bar's
         expect(collide(295, false)[0]).toBe('a');
+    });
+
+    it('lands a capsule dragged into a line’s empty space beside that line’s nearest capsule', () => {
+        const rect = (left: number, right: number, top: number, height = 30) =>
+            ({
+                top,
+                bottom: top + height,
+                left,
+                right,
+                width: right - left,
+                height,
+            }) as ClientRect;
+        const section = { current: { kind: 'section' } };
+        const gap = { current: { kind: 'section', isLineGap: true } };
+        const droppableRects = new Map([
+            ['bar-space-target', rect(0, 800, 0)],
+            ['section-line:0', rect(0, 800, -12, 12)],
+            ['date', rect(0, 300, 0)],
+            ['section-line:1', rect(0, 800, 38, 12)],
+            ['lenses', rect(0, 700, 50)],
+            ['section-line:2', rect(0, 800, 94, 12)],
+        ]);
+        const dataOf = (id: string) =>
+            id.startsWith('section-line')
+                ? gap
+                : id === 'bar-space-target'
+                  ? { current: undefined }
+                  : section;
+        const collide = (x: number, y: number) =>
+            underPointerFor({
+                active: { id: 'lenses', data: section },
+                collisionRect: rect(x - 40, x + 40, y - 15),
+                droppableRects,
+                droppableContainers: [...droppableRects.keys()].map((id) => ({
+                    id,
+                    data: dataOf(id),
+                })),
+                pointerCoordinates: { x, y },
+            } as unknown as Parameters<typeof underPointerFor>[0]).map(
+                ({ id }) => id,
+            )[0];
+        expect(collide(450, 15)).toBe('date');
+        expect(collide(150, 15)).toBe('date');
+    });
+
+    it('picks the nearest capsule in the pointer’s row across uneven and wrapped rows', () => {
+        const rect = (left: number, right: number, top: number, height = 30) =>
+            ({
+                top,
+                bottom: top + height,
+                left,
+                right,
+                width: right - left,
+                height,
+            }) as ClientRect;
+        const section = { current: { kind: 'section' } };
+        const gap = { current: { kind: 'section', isLineGap: true } };
+        const collideIn =
+            (rects: [string, ClientRect][]) => (x: number, y: number) => {
+                const droppableRects = new Map(rects);
+                return underPointerFor({
+                    active: { id: 'moving', data: section },
+                    collisionRect: rect(x - 40, x + 40, y - 15),
+                    droppableRects,
+                    droppableContainers: rects.map(([id]) => ({
+                        id,
+                        data: id.startsWith('section-line') ? gap : section,
+                    })),
+                    pointerCoordinates: { x, y },
+                } as unknown as Parameters<typeof underPointerFor>[0])[0]?.id;
+            };
+        // An open capsule beside a collapsed one: below the short one's bottom
+        const uneven = collideIn([
+            ['section-line:0', rect(0, 800, -12, 12)],
+            ['open', rect(0, 300, 0, 200)],
+            ['short', rect(310, 500, 0, 30)],
+            ['section-line:1', rect(0, 800, 202, 12)],
+        ]);
+        expect(uneven(600, 100)).toBe('short');
+        // A wrapped line: the space between its rows is no line gap
+        const wrapped = collideIn([
+            ['section-line:0', rect(0, 400, -12, 12)],
+            ['a', rect(0, 150, 0, 36)],
+            ['b', rect(160, 300, 0, 36)],
+            ['c', rect(0, 150, 52, 36)],
+            ['section-line:1', rect(0, 400, 90, 12)],
+        ]);
+        expect(wrapped(250, 44)).toBe('b');
+        // Below every capsule still reaches the end line gap
+        expect(wrapped(200, 300)).toBe('section-line:1');
+    });
+});
+
+describe('getMoveNeighbours', () => {
+    const shown = () => true;
+
+    it('stays in the kind and section, skipping pills not on the tab', () => {
+        const bar = filters(
+            [rule('d1'), rule('s1', 'a'), rule('hidden'), rule('d2')],
+            [rule('m1')],
+        );
+        expect(
+            getMoveNeighbours(bar, 'd1', sections, (r) => r.id !== 'hidden'),
+        ).toEqual({ before: null, after: 'd2' });
+        expect(getMoveNeighbours(bar, 's1', sections, shown)).toEqual({
+            before: null,
+            after: null,
+        });
+        expect(getMoveNeighbours(bar, 'm1', sections, shown)).toEqual({
+            before: null,
+            after: null,
+        });
+        expect(getMoveNeighbours(bar, 'gone', sections, shown)).toEqual({
+            before: null,
+            after: null,
+        });
+    });
+});
+
+describe('section lines', () => {
+    const a = { id: 'a', name: 'A' };
+    const b: DashboardControlSection = { id: 'b', name: 'B', inline: true };
+    const c = { id: 'c', name: 'C' };
+    const d: DashboardControlSection = { id: 'd', name: 'D', inline: true };
+    const lineIds = (list: DashboardControlSection[]) =>
+        groupSectionsIntoLines(list).map((line) => line.map(({ id }) => id));
+
+    it('starts a line at every section that is not inline, the first always', () => {
+        expect(lineIds([{ ...a, inline: true }, b, c, d])).toEqual([
+            ['a', 'b'],
+            ['c', 'd'],
+        ]);
+    });
+
+    it('keeps a line start when its first section is removed', () => {
+        const next = removeSectionKeepingLines([a, b, c, d], 'a');
+        expect(lineIds(next)).toEqual([['b'], ['c', 'd']]);
+        expect(next[0]).not.toHaveProperty('inline');
+    });
+
+    it('joins a line beside a section, taking its start when dropped before it', () => {
+        expect(
+            lineIds(placeSection([a, c], 'c', { overId: 'a', side: 'after' })),
+        ).toEqual([['a', 'c']]);
+        expect(
+            lineIds(
+                placeSection([a, b, c], 'c', { overId: 'a', side: 'before' }),
+            ),
+        ).toEqual([['c', 'a', 'b']]);
+    });
+
+    it('gives a section a line of its own between lines, or last', () => {
+        expect(
+            lineIds(placeSection([a, b, c, d], 'b', { lineIndex: 1 })),
+        ).toEqual([['a'], ['b'], ['c', 'd']]);
+        expect(
+            lineIds(placeSection([a, b, c, d], 'a', { lineIndex: 2 })),
+        ).toEqual([['b'], ['c', 'd'], ['a']]);
+    });
+
+    it('returns the same array when nothing moves', () => {
+        const list = [a, b, c];
+        expect(placeSection(list, 'c', { lineIndex: 1 })).toBe(list);
+        expect(placeSection(list, 'b', { overId: 'a', side: 'after' })).toBe(
+            list,
+        );
+        expect(placeSection(list, 'a', { overId: 'a', side: 'after' })).toBe(
+            list,
+        );
+    });
+
+    it('moves by keyboard along the bar, and between lines', () => {
+        expect(lineIds(moveSectionBy([a, b, c], 'c', 'left'))).toEqual([
+            ['a', 'c', 'b'],
+        ]);
+        expect(lineIds(moveSectionBy([a, b, c], 'c', 'up'))).toEqual([
+            ['a', 'b', 'c'],
+        ]);
+        expect(lineIds(moveSectionBy([a, b, c], 'b', 'down'))).toEqual([
+            ['a'],
+            ['c', 'b'],
+        ]);
+        expect(lineIds(moveSectionBy([a, b, c], 'a', 'up'))).toEqual([
+            ['a'],
+            ['b'],
+            ['c'],
+        ]);
+        const alone = [a, c];
+        expect(moveSectionBy(alone, 'a', 'up')).toBe(alone);
     });
 });

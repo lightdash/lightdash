@@ -1,16 +1,17 @@
 import {
-    ApiConnectorType,
+    COMPOSER_QUERY_MAX_UNREAD_NODES,
     DimensionType,
     FilterOperator,
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
+    MetricType,
     ParameterError,
     QueryHistoryStatus,
     QuerySourceType,
+    TimeFrames,
     toolComposerQueriesOutputSchema,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
-    type ComposerApiConnection,
     type ComposerNodeColumn,
     type Explore,
     type ParameterDefinitions,
@@ -19,6 +20,7 @@ import {
     type SourceQuery,
     type SubmittedSourceQuery,
     type ThreadComposerQueryNode,
+    type ToolComposerCustomMetric,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
     type ToolComposerSemanticLayerNode,
@@ -26,12 +28,15 @@ import {
 import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
-import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
+import type {
+    ComposerNodeStatus,
+    SearchFieldValuesFn,
+} from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
-import { resolveTerminalNodeId } from './composerQueryPipeline';
-import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
+import { resolveResultNodes, splitPreviewRows } from './composerQueryPipeline';
+import { resolveComposerQueryNode } from './composerSemanticLayerNode';
 import {
     getRunComposerQueries,
     type FilterValueHintDependencies,
@@ -183,18 +188,12 @@ const pythonNode: ComposerNode = {
     limit: 500,
 };
 
-const postHogConnection: ComposerApiConnection = {
-    connectionUuid: '22222222-2222-4222-8222-222222222222',
-    name: 'Product analytics',
-    connector: ApiConnectorType.POSTHOG,
-};
-
 const apiNode: ComposerNode = {
     sourceType: QuerySourceType.API,
     nodeId: 'weekly_active_users',
     title: 'Weekly active users',
     description: 'Counts distinct people per week in PostHog.',
-    connectionUuid: postHogConnection.connectionUuid,
+    connectionUuid: '22222222-2222-4222-8222-222222222222',
     payload: {
         kind: 'query',
         query: 'SELECT toStartOfWeek(timestamp) AS week, count(DISTINCT person_id) AS wau FROM events GROUP BY week',
@@ -240,13 +239,14 @@ const readyNode = (
     error: null,
     rowCount,
     columns,
+    sample: null,
 });
 
 const unsettledNode = (
     nodeId: string,
     state: QueryHistoryStatus,
     error: string | null = null,
-) => ({ nodeId, state, error, rowCount: null, columns: null });
+) => ({ nodeId, state, error, rowCount: null, columns: null, sample: null });
 
 const revenueColumns: ResultColumns = {
     payments_month: { reference: 'payments_month', type: DimensionType.DATE },
@@ -255,6 +255,33 @@ const revenueColumns: ResultColumns = {
         type: DimensionType.NUMBER,
     },
 };
+
+const signupsColumns: ResultColumns = {
+    month: { reference: 'month', type: DimensionType.STRING },
+    signups: { reference: 'signups', type: DimensionType.NUMBER },
+};
+
+// What a node sample read returns, by node id.
+const nodeSamples: Record<string, Record<string, unknown>[]> = {
+    revenue: [
+        { payments_month: '2026-01-01', payments_total_revenue: 100 },
+        { payments_month: '2026-02-01', payments_total_revenue: 120 },
+    ],
+    signups: [{ month: '2026-01', signups: 12 }],
+};
+
+// The run reads a sample only for the node ids it is asked to sample.
+const withRequestedSamples = (
+    nodeStatuses: ComposerNodeStatus[],
+    sampleNodeIds: string[],
+) =>
+    nodeStatuses.map((status) => ({
+        ...status,
+        sample:
+            sampleNodeIds.includes(status.nodeId) && status.rowCount !== null
+                ? (nodeSamples[status.nodeId] ?? null)
+                : null,
+    }));
 
 const defaultRunResult = {
     status: 'success' as const,
@@ -286,7 +313,7 @@ const defaultRunResult = {
     },
     nodeStatuses: [
         readyNode('revenue', 12, revenueColumns),
-        readyNode('signups', 12),
+        readyNode('signups', 12, signupsColumns),
         readyNode('joined', 1),
     ],
 };
@@ -297,7 +324,6 @@ const makeTool = ({
     autoApproveSqlUserUuid = null,
     canRunSql = true,
     enablePythonNodes = false,
-    apiConnections = [],
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     prompt = makePrompt(),
@@ -312,7 +338,6 @@ const makeTool = ({
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
     enablePythonNodes?: boolean;
-    apiConnections?: ComposerApiConnection[];
     enableDataAccess?: boolean;
     waitForSqlApproval?: import('vitest').Mock;
     prompt?: AiWebAppPrompt | SlackPrompt;
@@ -331,13 +356,22 @@ const makeTool = ({
         runComposerQueries: vi
             .fn()
             .mockImplementation(
-                async ({ queries }: { queries: SourceQuery[] }) => ({
+                async ({
+                    queries,
+                    sampleNodeIds,
+                }: {
+                    queries: SourceQuery[];
+                    sampleNodeIds: string[];
+                }) => ({
                     ...defaultRunResult,
-                    nodeStatuses: queries.map(
-                        ({ nodeId = '' }) =>
-                            defaultRunResult.nodeStatuses.find(
-                                (status) => status.nodeId === nodeId,
-                            ) ?? readyNode(nodeId, 1),
+                    nodeStatuses: withRequestedSamples(
+                        queries.map(
+                            ({ nodeId = '' }) =>
+                                defaultRunResult.nodeStatuses.find(
+                                    (status) => status.nodeId === nodeId,
+                                ) ?? readyNode(nodeId, 1),
+                        ),
+                        sampleNodeIds,
                     ),
                 }),
             ),
@@ -357,7 +391,6 @@ const makeTool = ({
         enableDataAccess,
         canRunSql,
         enablePythonNodes,
-        apiConnections,
         autoApproveSql,
         autoApproveSqlUserUuid,
         useSlackStreamCard,
@@ -400,6 +433,8 @@ describe('getRunComposerQueries', () => {
                 expect.objectContaining({ nodeId: 'joined' }),
             ],
             terminalNodeId: 'joined',
+            otherUnreadNodeIds: [],
+            sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
         expect(successMetadata(output)).toEqual({
@@ -417,7 +452,16 @@ describe('getRunComposerQueries', () => {
                 'Composer query complete. Terminal node "joined" returned 1 rows.',
                 'Nodes in this pipeline:',
                 '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '  Columns: payments_month (date), payments_total_revenue (number)',
+                '  Sample, 2 of 12 rows:',
+                '  payments_month,payments_total_revenue',
+                '  2026-01-01,100',
+                '  2026-02-01,120',
                 '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '  Columns: month (string), signups (number)',
+                '  Sample, 1 of 12 rows:',
+                '  month,signups',
+                '  2026-01,12',
                 '- joined: "Revenue vs signups" (duckdb): 1 rows, limit 500.',
                 'Terminal columns: month (string), signups (number).',
             ].join('\n'),
@@ -437,6 +481,11 @@ describe('getRunComposerQueries', () => {
                     sourceType: QuerySourceType.SEMANTIC_LAYER,
                     rowCount: 12,
                     limit: 500,
+                    columns: [
+                        { reference: 'payments_month', type: 'date' },
+                        { reference: 'payments_total_revenue', type: 'number' },
+                    ],
+                    sample: nodeSamples.revenue,
                 },
                 {
                     nodeId: 'signups',
@@ -444,6 +493,11 @@ describe('getRunComposerQueries', () => {
                     sourceType: QuerySourceType.SQL,
                     rowCount: 12,
                     limit: 500,
+                    columns: [
+                        { reference: 'month', type: 'string' },
+                        { reference: 'signups', type: 'number' },
+                    ],
+                    sample: nodeSamples.signups,
                 },
                 {
                     nodeId: 'joined',
@@ -451,6 +505,8 @@ describe('getRunComposerQueries', () => {
                     sourceType: QuerySourceType.DUCKDB,
                     rowCount: 1,
                     limit: 500,
+                    columns: null,
+                    sample: null,
                 },
             ],
             columns: [
@@ -489,7 +545,34 @@ describe('getRunComposerQueries', () => {
         );
     });
 
-    it('defaults the terminal node to the unique sink', async () => {
+    it('drops the max from the capped marker once the limit is the max', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            nodeStatuses: [
+                readyNode('revenue', 5000),
+                readyNode('signups', 12),
+                readyNode('joined', 1),
+            ],
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    { ...semanticNode, limit: 5000 },
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.result).toContain(
+            '- revenue: "Revenue by month" (semanticLayer): 5000 rows, limit 5000. Reached its limit of 5000, so more rows may exist.',
+        );
+    });
+
+    it('defaults the terminal node to the unread node', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
         await executeTool(
@@ -507,20 +590,115 @@ describe('getRunComposerQueries', () => {
         );
     });
 
-    it('requires an explicit terminal node when the pipeline has multiple sinks', async () => {
+    it.each([
+        [null, 'signups', ['revenue']],
+        ['revenue', 'revenue', ['signups']],
+    ])(
+        'returns every unread node with terminalNodeId %s',
+        async (terminalNodeId, terminal, otherUnreadNodeIds) => {
+            const { tool, dependencies } = makeTool({ autoApproveSql: true });
+
+            const output = await executeTool(
+                tool,
+                makeArgs({ queries: [semanticNode, sqlNode], terminalNodeId }),
+            );
+
+            expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    terminalNodeId: terminal,
+                    otherUnreadNodeIds,
+                }),
+            );
+            expect(output.result).toContain(
+                `Unread nodes ${otherUnreadNodeIds[0]} returned rows too, listed with their nodes.`,
+            );
+        },
+    );
+
+    it('shares the preview between the terminal and the other unread nodes', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const breakdown = Array.from({ length: 60 }, (_, index) => ({
+            month: `m${index}`,
+            signups: index,
+        }));
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            terminal: {
+                ...defaultRunResult.terminal,
+                queryUuid: 'query-2',
+                rows: breakdown.slice(0, 50),
+                rowCount: 60,
+            },
+            nodeStatuses: [
+                {
+                    ...readyNode('revenue', 1, revenueColumns),
+                    sample: [
+                        {
+                            payments_month: '2026-01-01',
+                            payments_total_revenue: 220,
+                        },
+                    ],
+                },
+                readyNode('signups', 60, signupsColumns),
+            ],
+        });
 
         const output = await executeTool(
             tool,
-            makeArgs({
-                queries: [semanticNode, sqlNode],
-                terminalNodeId: null,
-            }),
+            makeArgs({ queries: [semanticNode, sqlNode] }),
         );
 
+        expect(output.result).toContain(
+            '  Sample, 1 of 1 rows:\n  payments_month,payments_total_revenue\n  2026-01-01,220',
+        );
+        expect(output.result).toContain('(Showing first 49 of 60 rows.)');
+        expect(output.structuredContent).toMatchObject({
+            preview: { truncated: true },
+        });
+    });
+
+    it(`rejects more than ${COMPOSER_QUERY_MAX_UNREAD_NODES} unread nodes before anything runs`, async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const queries = Array.from(
+            { length: COMPOSER_QUERY_MAX_UNREAD_NODES + 1 },
+            (_, index) => ({ ...semanticNode, nodeId: `n${index}` }),
+        );
+
+        const output = await executeTool(tool, makeArgs({ queries }));
+
         expect(output.metadata?.status).toBe('error');
-        expect(output.result).toContain('terminalNodeId');
+        expect(output.result).toContain(
+            `A call returns the rows of at most ${COMPOSER_QUERY_MAX_UNREAD_NODES} nodes, and no node reads n0, n1, n2, n3, n4, n5.`,
+        );
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('treats an unknown terminal node as an agent input error', () => {
+        expect(() =>
+            resolveResultNodes(
+                asSubmitted([semanticNode]),
+                'missing',
+                asSubmitted([semanticNode]),
+            ),
+        ).toThrow(ParameterError);
+    });
+
+    it.each([
+        [[240], [50]],
+        [
+            [1, 240],
+            [1, 49],
+        ],
+        [
+            [3, 100, 100],
+            [3, 23, 24],
+        ],
+        [
+            [100, 100, 100, 100, 100],
+            [10, 10, 10, 10, 10],
+        ],
+    ])('splits the preview rows %j as %j', (rowCounts, budgets) => {
+        expect(splitPreviewRows(rowCounts)).toEqual(budgets);
     });
 
     it('rejects sql nodes when SQL execution is disabled without asking for approval', async () => {
@@ -584,6 +762,8 @@ describe('getRunComposerQueries', () => {
                 },
             ],
             terminalNodeId: 'targets',
+            otherUnreadNodeIds: [],
+            sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
@@ -612,6 +792,8 @@ describe('getRunComposerQueries', () => {
                 composedNode,
             ],
             terminalNodeId: 'joined',
+            otherUnreadNodeIds: [],
+            sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
@@ -729,7 +911,14 @@ describe('getRunComposerQueries', () => {
             true,
         );
         expect(failed.result).toContain(
-            'Composer query failed.\nSaved from this call: revenue. Not saved: signups (failed: relation "raw.users" does not exist), joined (not run: reads signups).',
+            [
+                'Composer query failed.',
+                'Nodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:',
+                '- signups: "Signups by month" (sql): failed: relation "raw.users" does not exist',
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '  Columns: payments_month (date), payments_total_revenue (number)',
+                '- joined: "Revenue vs signups" (duckdb): not run: reads signups',
+            ].join('\n'),
         );
         expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
             'revenue',
@@ -762,7 +951,7 @@ describe('getRunComposerQueries', () => {
         );
     });
 
-    it('does not register a side sink that has not finished when the terminal is ready', async () => {
+    it('does not register a node that has not finished when the terminal it reads is ready', async () => {
         const { tool, dependencies, registry } = makeTool({
             autoApproveSql: true,
         });
@@ -770,14 +959,17 @@ describe('getRunComposerQueries', () => {
             ...defaultRunResult,
             nodeStatuses: [
                 readyNode('revenue', 12, revenueColumns),
-                unsettledNode('signups', QueryHistoryStatus.EXECUTING),
+                unsettledNode('joined', QueryHistoryStatus.EXECUTING),
             ],
         });
 
         const output = await executeTool(
             tool,
             makeArgs({
-                queries: [semanticNode, sqlNode],
+                queries: [
+                    semanticNode,
+                    { ...duckdbNode, references: ['revenue'] },
+                ],
                 terminalNodeId: 'revenue',
             }),
         );
@@ -803,7 +995,13 @@ describe('getRunComposerQueries', () => {
         const output = await executeTool(tool, makeArgs());
 
         expect(output.result).toContain(
-            'Composer query timed out after 5 minutes.\nSaved from this call: revenue. Not saved: signups (not finished: executing), joined (not run: reads signups).',
+            [
+                'Composer query timed out after 5 minutes.',
+                'Nodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:',
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '- signups: "Signups by month" (sql): not finished: executing',
+                '- joined: "Revenue vs signups" (duckdb): not run: reads signups',
+            ].join('\n'),
         );
     });
 
@@ -996,6 +1194,74 @@ describe('getRunComposerQueries', () => {
         );
         expect(output.result).not.toContain('query-');
     });
+
+    it('shows node columns but no node samples when data access is disabled', async () => {
+        const { tool } = makeTool({
+            autoApproveSql: true,
+            enableDataAccess: false,
+        });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(output.result).toContain(
+            [
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '  Columns: payments_month (date), payments_total_revenue (number)',
+                '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '  Columns: month (string), signups (number)',
+                '- joined: "Revenue vs signups" (duckdb): 1 rows, limit 500.',
+            ].join('\n'),
+        );
+        expect(output.result).not.toContain('Sample');
+        expect(
+            output.structuredContent &&
+                'nodes' in output.structuredContent &&
+                output.structuredContent.nodes.map(({ sample }) => sample),
+        ).toEqual([null, null, null]);
+    });
+
+    it('lists a failed join first with its error, then the saved nodes it reads with columns and samples', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockImplementationOnce(
+            async ({ sampleNodeIds }: { sampleNodeIds: string[] }) => ({
+                status: 'failure',
+                error: 'Composer query failed.',
+                nodeStatuses: withRequestedSamples(
+                    [
+                        readyNode('revenue', 12, revenueColumns),
+                        readyNode('signups', 12, signupsColumns),
+                        unsettledNode(
+                            'joined',
+                            QueryHistoryStatus.ERROR,
+                            'Binder Error: Referenced column "product_code" not found',
+                        ),
+                    ],
+                    sampleNodeIds,
+                ),
+            }),
+        );
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain(
+            [
+                'Nodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:',
+                '- joined: "Revenue vs signups" (duckdb): failed: Binder Error: Referenced column "product_code" not found',
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '  Columns: payments_month (date), payments_total_revenue (number)',
+                '  Sample, 2 of 12 rows:',
+                '  payments_month,payments_total_revenue',
+                '  2026-01-01,100',
+                '  2026-02-01,120',
+                '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '  Columns: month (string), signups (number)',
+                '  Sample, 1 of 12 rows:',
+                '  month,signups',
+                '  2026-01,12',
+            ].join('\n'),
+        );
+    });
 });
 
 const ordersNode: ThreadComposerQueryNode = {
@@ -1138,7 +1404,10 @@ describe('composer artifact with reused nodes', () => {
         );
 
         expect(output.result).toContain(
-            'Not saved: orders (failed: boom; still saved from an earlier call), summary (not run: reads orders).',
+            [
+                '- orders: "Orders by customer" (semanticLayer): failed: boom; still saved from an earlier call',
+                '- summary: "Spend summary" (duckdb): not run: reads orders',
+            ].join('\n'),
         );
     });
 
@@ -1199,9 +1468,9 @@ describe('composer artifact with reused nodes', () => {
             [
                 'Composer query complete. Terminal node "summary" returned 1 rows.',
                 'Nodes in this pipeline:',
-                '- orders: "Orders by customer" (semanticLayer): 1 rows, limit 500.',
-                '- customers: "Customers" (semanticLayer): 1 rows, limit 500.',
-                '- enriched: "Orders with customer names" (duckdb): 1 rows, limit 500.',
+                '- orders: "Orders by customer" (semanticLayer): 1 rows, limit 500. Reused from an earlier call.',
+                '- customers: "Customers" (semanticLayer): 1 rows, limit 500. Reused from an earlier call.',
+                '- enriched: "Orders with customer names" (duckdb): 1 rows, limit 500. Reused from an earlier call.',
                 '- summary: "Spend summary" (duckdb): 1 rows, limit 500.',
                 'Terminal columns: total (number).',
             ].join('\n'),
@@ -1229,14 +1498,73 @@ describe('composer artifact with reused nodes', () => {
         ]);
     });
 
-    it('can present a reused node named as the terminal node', async () => {
-        const { stored } = await runReuse({
+    it('can present a reused node named as the terminal node, shown in full', async () => {
+        const { stored, output } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
             threadNodes: enrichedPipeline,
             terminalNodeId: 'enriched',
         });
 
         expect(stored?.terminalNodeId).toBe('enriched');
+        expect(output.result).toContain(
+            'Terminal node "enriched" returned 1 rows.',
+        );
+        expect(output.result).toContain('Terminal columns: total (number).');
+        expect(output.result).toContain('```csv\ntotal\n3');
+    });
+
+    it('lists a reused node as one line, with its columns when a failed node reads it', async () => {
+        const ordersColumns: ResultColumns = {
+            orders_customer_id: {
+                reference: 'orders_customer_id',
+                type: DimensionType.NUMBER,
+            },
+        };
+        const runWith = async (summary: ComposerNodeStatus) => {
+            const { tool, dependencies } = makeTool({
+                registry: makeNodeRegistry(enrichedPipeline),
+            });
+            const nodeStatuses = [
+                readyNode('orders', 7, ordersColumns),
+                summary,
+            ];
+            dependencies.runComposerQueries.mockResolvedValueOnce(
+                summary.state === QueryHistoryStatus.READY
+                    ? { ...defaultRunResult, nodeStatuses }
+                    : {
+                          status: 'failure',
+                          error: 'Composer query failed.',
+                          nodeStatuses,
+                      },
+            );
+            return executeTool(
+                tool,
+                makeArgs({ queries: [readerNode({ o: 'orders' })] }),
+            );
+        };
+
+        const succeeded = await runWith(readyNode('summary', 1));
+        const failed = await runWith(
+            unsettledNode(
+                'summary',
+                QueryHistoryStatus.ERROR,
+                'Binder Error: Referenced column "customer_id" not found',
+            ),
+        );
+
+        expect(succeeded.result).toContain(
+            [
+                '- orders: "Orders by customer" (semanticLayer): 7 rows, limit 500. Reused from an earlier call.',
+                '- summary: "Spend summary" (duckdb): 1 rows, limit 500.',
+            ].join('\n'),
+        );
+        expect(failed.result).toContain(
+            [
+                '- summary: "Spend summary" (duckdb): failed: Binder Error: Referenced column "customer_id" not found',
+                '- orders: "Orders by customer" (semanticLayer): 7 rows, limit 500. Reused from an earlier call.',
+                '  Columns: orders_customer_id (number)',
+            ].join('\n'),
+        );
     });
 
     it('accepts an unchanged earlier node resubmitted under its node id', async () => {
@@ -1374,33 +1702,33 @@ describe('composer query review', () => {
 describe('python composer nodes', () => {
     it('treats python references as edges when resolving the terminal node', () => {
         expect(
-            resolveTerminalNodeId(
+            resolveResultNodes(
                 asSubmitted([semanticNode, pythonNode]),
                 null,
                 [],
             ),
-        ).toBe('forecast');
+        ).toEqual({ terminalNodeId: 'forecast', otherUnreadNodeIds: [] });
         expect(
-            resolveTerminalNodeId(
+            resolveResultNodes(
                 asSubmitted([
                     semanticNode,
                     pythonNode,
-                    {
-                        ...duckdbNode,
-                        references: { f: 'forecast' },
-                    },
+                    { ...duckdbNode, references: { f: 'forecast' } },
                 ]),
                 null,
                 [],
             ),
-        ).toBe('joined');
-        expect(() =>
-            resolveTerminalNodeId(
+        ).toEqual({ terminalNodeId: 'joined', otherUnreadNodeIds: [] });
+        expect(
+            resolveResultNodes(
                 asSubmitted([semanticNode, { ...pythonNode, references: [] }]),
                 null,
                 [],
             ),
-        ).toThrow('2 sinks');
+        ).toEqual({
+            terminalNodeId: 'forecast',
+            otherUnreadNodeIds: ['revenue'],
+        });
     });
 
     it('offers the python node in the input schema only when enabled', () => {
@@ -1478,7 +1806,9 @@ describe('python composer nodes', () => {
         );
 
         expect(output.metadata?.status).toBe('error');
-        expect(output.result).toContain('forecast (failed: run() raised:');
+        expect(output.result).toContain(
+            '- forecast: "Revenue forecast" (python): failed: run() raised:',
+        );
         expect(output.result).toContain("KeyError: 'amount'");
     });
 });
@@ -1494,68 +1824,16 @@ describe('api composer nodes', () => {
         limit: 500,
     };
 
-    it('offers the api node in the input schema only when enabled', () => {
+    it('never offers the api node, since live data sources are explores', () => {
         const args = makeArgs({ queries: [apiNode, joinNode] });
-        const accepts = (apiConnections: ComposerApiConnection[]) =>
-            (
-                makeTool({ apiConnections }).tool.inputSchema as ZodType
-            ).safeParse(args).success;
-        expect(accepts([])).toBe(false);
-        expect(accepts([postHogConnection])).toBe(true);
-        expect(makeTool().tool.description).not.toContain('"api"');
-        expect(
-            makeTool({ apiConnections: [postHogConnection] }).tool.description,
-        ).toContain('"api"');
-    });
-
-    it('runs an api pipeline without SQL approval', async () => {
-        const { tool, dependencies } = makeTool({
-            apiConnections: [postHogConnection],
-        });
-
-        await executeTool(tool, makeArgs({ queries: [apiNode, joinNode] }));
-
-        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
-        expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
-            expect.objectContaining({
-                terminalNodeId: 'usage_vs_orders',
-                queries: [
-                    expect.objectContaining({
-                        sourceType: QuerySourceType.API,
-                        nodeId: 'weekly_active_users',
-                        connectionUuid: postHogConnection.connectionUuid,
-                        payload: apiNode.payload,
-                    }),
-                    expect.objectContaining({ nodeId: 'usage_vs_orders' }),
-                ],
-            }),
+        const { tool } = makeTool();
+        expect((tool.inputSchema as ZodType).safeParse(args).success).toBe(
+            false,
         );
+        expect(tool.description).not.toContain('"api"');
     });
 
-    it('refuses an api node naming a connection that is not offered', async () => {
-        const { tool, dependencies } = makeTool({
-            apiConnections: [postHogConnection],
-        });
-
-        const output = await executeTool(
-            tool,
-            makeArgs({
-                queries: [
-                    {
-                        ...apiNode,
-                        connectionUuid: '33333333-3333-4333-8333-333333333333',
-                    },
-                    joinNode,
-                ],
-            }),
-        );
-
-        expect(output.metadata?.status).toBe('error');
-        expect(output.result).toContain('weekly_active_users');
-        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
-    });
-
-    it('refuses api nodes when api queries are disabled', async () => {
+    it('refuses an api node replayed from an older thread', async () => {
         const { tool, dependencies } = makeTool();
 
         const output = await executeTool(
@@ -1776,7 +2054,6 @@ describe('semanticLayer node filters', () => {
         it('keeps the diagnosis when no semanticLayer node feeds the empty terminal', async () => {
             const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
             const output = await emptyTool(searchFieldValues, [
-                filteredNode,
                 sqlNode,
                 { ...duckdbNode, references: ['signups'] },
             ]).run('joined');
@@ -1990,5 +2267,570 @@ describe('semanticLayer node parameters', () => {
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
         expect(output.metadata.status).toBe('error');
         expect(output.result).toContain('unknown parameter "nonsense"');
+    });
+});
+
+describe('semanticLayer node custom metrics', () => {
+    const buyersNode = (
+        overrides: Partial<ToolComposerSemanticLayerNode>,
+    ): ComposerNode => ({
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'buyers',
+        title: 'Buyers',
+        description: null,
+        exploreName: mockOrdersExplore.name,
+        dimensions: ['orders_product_category'],
+        metrics: ['orders_total_revenue', 'orders_buyers'],
+        filters: null,
+        sorts: null,
+        limit: 500,
+        customMetrics: [
+            {
+                table: 'orders',
+                name: 'buyers',
+                label: 'Buyers',
+                aggregation: MetricType.COUNT_DISTINCT,
+                dimensionFieldId: 'orders_customer_name',
+            },
+        ],
+        ...overrides,
+    });
+    const run = async (node: ComposerNode) => {
+        const made = makeTool();
+        const output = await executeTool(
+            made.tool,
+            makeArgs({ queries: [node] }),
+        );
+        const call = made.dependencies.runComposerQueries.mock.calls[0];
+        const submitted = call
+            ? (call[0].queries as SourceQuery[])[0]
+            : undefined;
+        return { output, submitted, made };
+    };
+
+    it('compiles a custom metric into the metric query the node runs', async () => {
+        const { output, submitted } = await run(buyersNode({}));
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            metrics: ['orders_total_revenue', 'orders_buyers'],
+            additionalMetrics: [
+                {
+                    table: 'orders',
+                    name: 'buyers',
+                    label: 'Buyers',
+                    type: MetricType.COUNT_DISTINCT,
+                    baseDimensionName: 'customer_name',
+                    sql: '${orders.customer_name}',
+                },
+            ],
+        });
+    });
+
+    const customMetric = (
+        overrides: Partial<ToolComposerCustomMetric>,
+    ): ToolComposerCustomMetric => ({
+        table: 'orders',
+        name: 'buyers',
+        label: 'Buyers',
+        aggregation: MetricType.COUNT_DISTINCT,
+        dimensionFieldId: 'orders_customer_name',
+        ...overrides,
+    });
+
+    it("keeps a custom metric's description on the metric query", async () => {
+        const { submitted } = await run(
+            buyersNode({
+                customMetrics: [
+                    customMetric({ description: 'Distinct paying customers' }),
+                ],
+            }),
+        );
+
+        expect(submitted).toMatchObject({
+            additionalMetrics: [{ description: 'Distinct paying customers' }],
+        });
+    });
+
+    it.each([
+        {
+            name: 'an unknown base dimension, listing the dimensions of its table',
+            node: buyersNode({
+                customMetrics: [
+                    customMetric({ dimensionFieldId: 'orders_customer' }),
+                ],
+            }),
+            messages: [
+                '"orders_customer" is not a dimension of table "orders"',
+                'orders_customer_name',
+            ],
+        },
+        {
+            name: 'a base dimension of another table',
+            node: buyersNode({
+                customMetrics: [customMetric({ table: 'users' })],
+            }),
+            messages: [
+                '"orders_customer_name" is not a dimension of table "users"',
+            ],
+        },
+        {
+            name: 'an aggregation the dimension type does not support',
+            node: buyersNode({
+                customMetrics: [
+                    customMetric({ aggregation: MetricType.AVERAGE }),
+                ],
+            }),
+            messages: ['average cannot aggregate the string dimension'],
+        },
+        {
+            name: 'a percentile aggregation without a percentile',
+            node: buyersNode({
+                customMetrics: [
+                    customMetric({
+                        aggregation: MetricType.PERCENTILE,
+                        dimensionFieldId: 'orders_amount',
+                    }),
+                ],
+            }),
+            messages: ['set "percentile" (0–100)'],
+        },
+        {
+            name: 'a percentile on another aggregation',
+            node: buyersNode({
+                customMetrics: [customMetric({ percentile: 90 })],
+            }),
+            messages: [
+                '"percentile" applies only to the percentile aggregation',
+            ],
+        },
+        {
+            name: 'a custom metric named like an explore metric',
+            node: buyersNode({
+                metrics: ['orders_total_revenue'],
+                customMetrics: [customMetric({ name: 'total_revenue' })],
+            }),
+            messages: [
+                '"orders_total_revenue" is already the explore\'s metric',
+                'select it instead',
+            ],
+        },
+        {
+            name: 'a filter combined with OR',
+            node: buyersNode({
+                customMetrics: [
+                    customMetric({
+                        filter: 'orders_product_category equals=a OR orders_product_category equals=b',
+                    }),
+                ],
+            }),
+            messages: [
+                'filter on "orders_buyers" combines rules with AND only',
+            ],
+        },
+    ])('rejects $name before anything runs', async ({ node, messages }) => {
+        const { output, made } = await run(node);
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Invalid customMetrics on semanticLayer node "buyers"',
+        );
+        messages.forEach((message) => expect(output.result).toContain(message));
+        expect(made.dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('compiles a percentile and a filtered custom metric', async () => {
+        const { submitted } = await run(
+            buyersNode({
+                metrics: ['orders_p90_amount', 'orders_completed'],
+                customMetrics: [
+                    customMetric({
+                        name: 'p90_amount',
+                        label: 'P90 amount',
+                        aggregation: MetricType.PERCENTILE,
+                        dimensionFieldId: 'orders_amount',
+                        percentile: 90,
+                    }),
+                    customMetric({
+                        name: 'completed',
+                        label: 'Active orders',
+                        aggregation: MetricType.COUNT,
+                        dimensionFieldId: 'orders_order_id',
+                        filter: 'orders_is_active equals=true AND orders_amount greaterThan=10',
+                    }),
+                ],
+            }),
+        );
+
+        expect(submitted).toMatchObject({
+            additionalMetrics: [
+                { name: 'p90_amount', percentile: 90 },
+                {
+                    name: 'completed',
+                    filters: [
+                        {
+                            target: { fieldRef: 'orders.is_active' },
+                            operator: FilterOperator.EQUALS,
+                            values: [true],
+                        },
+                        {
+                            target: { fieldRef: 'orders.amount' },
+                            operator: FilterOperator.GREATER_THAN,
+                            values: [10],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
+    it('filters and sorts the node by a custom metric', async () => {
+        const { output, submitted } = await run(
+            buyersNode({
+                filters: {
+                    dimensions: null,
+                    metrics: 'orders_buyers greaterThan=5',
+                },
+                sorts: [{ fieldId: 'orders_buyers', descending: true }],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            filters: {
+                metrics: {
+                    and: [
+                        {
+                            target: { fieldId: 'orders_buyers' },
+                            operator: FilterOperator.GREATER_THAN,
+                            values: [5],
+                        },
+                    ],
+                },
+            },
+            sorts: [{ fieldId: 'orders_buyers', descending: true }],
+        });
+    });
+
+    it('accepts an unchanged node with a filtered custom metric resubmitted in a later call', async () => {
+        const node = buyersNode({
+            customMetrics: [
+                customMetric({ filter: 'orders_is_active equals=true' }),
+            ],
+        });
+        const registry = makeNodeRegistry();
+        const first = makeTool({ registry });
+        expect(
+            (await executeTool(first.tool, makeArgs({ queries: [node] })))
+                .metadata.status,
+        ).toBe('success');
+
+        const second = makeTool({ registry });
+        const output = await executeTool(
+            second.tool,
+            makeArgs({ queries: [node] }),
+            'tool-call-2',
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(registry.nodes('thread-uuid')).toHaveLength(1);
+    });
+});
+
+describe('semanticLayer node period comparisons', () => {
+    const { orders } = mockOrdersExplore.tables;
+    const exploreWithMonth: Explore = {
+        ...mockOrdersExplore,
+        tables: {
+            ...mockOrdersExplore.tables,
+            orders: {
+                ...orders,
+                dimensions: {
+                    ...orders.dimensions,
+                    order_date_month: {
+                        ...orders.dimensions.order_date,
+                        name: 'order_date_month',
+                        timeInterval: TimeFrames.MONTH,
+                        timeIntervalBaseDimensionName: 'order_date',
+                    },
+                },
+            },
+        },
+    };
+    const monthlyNode = (
+        overrides: Partial<ToolComposerSemanticLayerNode>,
+    ): ComposerNode => ({
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'monthly',
+        title: 'Monthly revenue',
+        description: null,
+        exploreName: mockOrdersExplore.name,
+        dimensions: ['orders_order_date_month'],
+        metrics: ['orders_total_revenue'],
+        filters: null,
+        sorts: null,
+        limit: 500,
+        periodComparisons: [
+            {
+                metricFieldId: 'orders_total_revenue',
+                timeDimensionFieldId: 'orders_order_date_month',
+                periodOffset: 12,
+            },
+        ],
+        ...overrides,
+    });
+    const run = async (node: ComposerNode) => {
+        const made = makeTool({
+            agentContext: new AgentContext([exploreWithMonth]),
+        });
+        const output = await executeTool(
+            made.tool,
+            makeArgs({ queries: [node] }),
+        );
+        const call = made.dependencies.runComposerQueries.mock.calls[0];
+        const submitted = call
+            ? (call[0].queries as SourceQuery[])[0]
+            : undefined;
+        return { output, submitted, made };
+    };
+
+    it('selects a custom metric that metrics does not list, with its comparison', async () => {
+        const { output, submitted } = await run(
+            monthlyNode({
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'buyers',
+                        label: 'Buyers',
+                        aggregation: MetricType.COUNT_DISTINCT,
+                        dimensionFieldId: 'orders_customer_name',
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_buyers',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            metrics: [
+                'orders_total_revenue',
+                'orders_buyers',
+                expect.stringMatching(/^orders_buyers__pop__month_1__/),
+            ],
+        });
+    });
+
+    it('appends the shifted metric next to its base metric, at the time dimension grain', async () => {
+        const { output, submitted } = await run(
+            monthlyNode({
+                metrics: ['orders_total_revenue', 'orders_order_count'],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            metrics: [
+                'orders_total_revenue',
+                expect.stringMatching(/^orders_total_revenue__pop__month_12__/),
+                'orders_order_count',
+            ],
+            additionalMetrics: [
+                {
+                    generationType: 'periodOverPeriod',
+                    baseMetricId: 'orders_total_revenue',
+                    timeDimensionId: 'orders_order_date_month',
+                    granularity: TimeFrames.MONTH,
+                    periodOffset: 12,
+                },
+            ],
+        });
+    });
+
+    it('compares a custom metric', async () => {
+        const { output, submitted } = await run(
+            monthlyNode({
+                metrics: ['orders_buyers'],
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'buyers',
+                        label: 'Buyers',
+                        aggregation: MetricType.COUNT_DISTINCT,
+                        dimensionFieldId: 'orders_customer_name',
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_buyers',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            metrics: [
+                'orders_buyers',
+                expect.stringMatching(/^orders_buyers__pop__month_1__/),
+            ],
+            additionalMetrics: [
+                { name: 'buyers' },
+                {
+                    generationType: 'periodOverPeriod',
+                    baseMetricId: 'orders_buyers',
+                    sql: '${orders.customer_name}',
+                },
+            ],
+        });
+    });
+
+    it('keeps the percentile of a compared percentile custom metric', async () => {
+        const { submitted } = await run(
+            monthlyNode({
+                metrics: ['orders_p90_amount'],
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'p90_amount',
+                        label: 'P90 amount',
+                        aggregation: MetricType.PERCENTILE,
+                        dimensionFieldId: 'orders_amount',
+                        percentile: 90,
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_p90_amount',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(submitted).toMatchObject({
+            additionalMetrics: [
+                { name: 'p90_amount' },
+                {
+                    generationType: 'periodOverPeriod',
+                    type: MetricType.PERCENTILE,
+                    percentile: 90,
+                },
+            ],
+        });
+    });
+
+    it('reports custom metric, period comparison and filter errors together', async () => {
+        const { output, made } = await run(
+            monthlyNode({
+                metrics: ['orders_total_revenue', 'orders_buyers'],
+                filters: {
+                    dimensions: 'orders_customer_nam equals=Alice',
+                    metrics: null,
+                },
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'buyers',
+                        label: 'Buyers',
+                        aggregation: MetricType.AVERAGE,
+                        dimensionFieldId: 'orders_customer_name',
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_buyers',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                    {
+                        metricFieldId: 'orders_order_count',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('average cannot aggregate');
+        expect(output.result).toContain(
+            '"orders_order_count" must be in metrics',
+        );
+        expect(output.result).not.toContain('"orders_buyers" must be');
+        expect(output.result).toContain(
+            'Invalid filters on semanticLayer node "monthly"',
+        );
+        expect(made.dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            name: 'a time dimension the node does not select',
+            node: monthlyNode({ dimensions: ['orders_customer_name'] }),
+            message: '"orders_order_date_month" must be in dimensions',
+        },
+        {
+            name: 'a dimension without a time grain',
+            node: monthlyNode({
+                dimensions: ['orders_order_date'],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_total_revenue',
+                        timeDimensionFieldId: 'orders_order_date',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+            message:
+                '"orders_order_date" has no day, week, month, quarter or year grain',
+        },
+        {
+            name: 'a metric the node does not select',
+            node: monthlyNode({ metrics: ['orders_order_count'] }),
+            message: '"orders_total_revenue" must be in metrics',
+        },
+        {
+            name: 'a filtered custom metric',
+            node: monthlyNode({
+                metrics: ['orders_active'],
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'active',
+                        label: 'Active',
+                        aggregation: MetricType.COUNT,
+                        dimensionFieldId: 'orders_order_id',
+                        filter: 'orders_is_active equals=true',
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_active',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+            message:
+                'cannot compare the filtered custom metric "orders_active"',
+        },
+    ])('rejects $name before anything runs', async ({ node, message }) => {
+        const { output, made } = await run(node);
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Invalid periodComparisons on semanticLayer node "monthly"',
+        );
+        expect(output.result).toContain(message);
+        expect(made.dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
 });

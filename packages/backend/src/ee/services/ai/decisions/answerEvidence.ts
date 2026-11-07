@@ -6,6 +6,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import Logger from '../../../../logging/logger';
+import { shareComposerPreview } from '../tools/composerQueryPipeline';
 import type { AiAgentDependencies } from '../types/aiAgent';
 import { exactNumber, type ExactNumber } from '../utils/exactNumbers';
 
@@ -180,7 +181,7 @@ export const withAnswerEvidence = (
                 ...result,
                 fields: {},
                 maxContextRows: 50,
-                limit: args.limit,
+                limit: result.limit,
                 scope: args,
             });
             return result;
@@ -199,8 +200,15 @@ export const withAnswerEvidence = (
         runComposerQueries: async (args) => {
             const result = await dependencies.runComposerQueries(args);
             if (result.status === 'failure') return result;
+            // Only the rows the tool shows the agent.
+            const { nodeStatuses, terminalRowLimit } = shareComposerPreview(
+                result.nodeStatuses,
+                args.otherUnreadNodeIds,
+                result.terminal.rowCount,
+            );
             evidence.record({
                 ...result.terminal,
+                rows: result.terminal.rows.slice(0, terminalRowLimit),
                 fields: {},
                 maxContextRows: 50,
                 limit: null,
@@ -208,6 +216,25 @@ export const withAnswerEvidence = (
                     terminalNodeId: args.terminalNodeId,
                     queries: args.queries,
                 },
+            });
+            nodeStatuses.forEach(({ nodeId, sample, rowCount }) => {
+                if (
+                    !args.otherUnreadNodeIds.includes(nodeId) ||
+                    sample === null
+                )
+                    return;
+                evidence.record({
+                    queryUuid:
+                        result.submissions.find(
+                            (submission) => submission.nodeId === nodeId,
+                        )?.queryUuid ?? null,
+                    rows: sample,
+                    rowCount: rowCount ?? sample.length,
+                    fields: {},
+                    maxContextRows: 50,
+                    limit: null,
+                    scope: { terminalNodeId: nodeId, queries: args.queries },
+                });
             });
             return result;
         },

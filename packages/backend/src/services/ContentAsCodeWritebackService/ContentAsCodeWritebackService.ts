@@ -15,6 +15,7 @@ import {
     joinContentAsCodePath,
     loadLightdashProjectConfig,
     normalizeContentAsCodePath,
+    normalizeContentAsCodeSourcePath,
     NotFoundError,
     overlayKeysForAsCodeField,
     ParameterError,
@@ -23,6 +24,9 @@ import {
     type ChartAsCode,
     type ContentAsCodeFileClassification,
     type ContentAsCodePullSummary,
+    type ContentAsCodeReleasableType,
+    type ContentAsCodeSnapshotPrune,
+    type ContentAsCodeSnapshotPruneResult,
     type ContentAsCodeUploadAdvisory,
     type ContentDraftFieldResolution,
     type ContentDraftStaleness,
@@ -408,6 +412,80 @@ export class ContentAsCodeWritebackService extends BaseService {
             },
         });
         return row;
+    }
+
+    // A full upload of a directory is the source of truth for what the repo
+    // still manages there: snapshots for files that are gone are released so
+    // UI edits publish again, and their pending drafts are dismissed.
+    async pruneSnapshots(
+        user: SessionUser,
+        projectUuid: string,
+        body: ContentAsCodeSnapshotPrune,
+    ): Promise<ContentAsCodeSnapshotPruneResult> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
+        const dirPath = normalizeContentAsCodeSourcePath(body.path);
+        const prune = (
+            contentType:
+                | ContentAsCodeType.CHART
+                | ContentAsCodeType.SQL_CHART
+                | ContentAsCodeType.DASHBOARD,
+            keepSlugs: string[],
+        ) =>
+            this.contentAsCodeSnapshotModel.pruneMissingFromDirectory(
+                projectUuid,
+                contentType,
+                dirPath,
+                keepSlugs,
+            );
+        const [charts, sqlCharts, dashboards] = await Promise.all([
+            prune(ContentAsCodeType.CHART, body.charts),
+            prune(ContentAsCodeType.SQL_CHART, body.sqlCharts),
+            prune(ContentAsCodeType.DASHBOARD, body.dashboards),
+        ]);
+        await Promise.all([
+            this.contentDraftModel.dismissOpenBySlugs(
+                projectUuid,
+                'chart',
+                charts,
+            ),
+            this.contentDraftModel.dismissOpenBySlugs(
+                projectUuid,
+                'dashboard',
+                dashboards,
+            ),
+        ]);
+        const released = charts.length + sqlCharts.length + dashboards.length;
+        if (released > 0) {
+            this.logger.info(
+                `Released ${released} content-as-code snapshot(s) no longer under "${dirPath}" in project ${projectUuid}`,
+            );
+        }
+        return { charts, sqlCharts, dashboards };
+    }
+
+    // Dismiss open drafts so authors reach the existing dismissed-draft path.
+    async releaseSnapshot(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: ContentAsCodeReleasableType,
+        slug: string,
+    ): Promise<void> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
+        await this.contentAsCodeSnapshotModel.delete(
+            projectUuid,
+            contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD,
+            slug,
+        );
+        await this.contentDraftModel.dismissOpenBySlugs(
+            projectUuid,
+            contentType,
+            [slug],
+        );
+        this.logger.info(
+            `Released content-as-code snapshot for ${contentType} "${slug}" in project ${projectUuid}`,
+        );
     }
 
     // Write-back visibility is a dev/admin surface (the sync panel), never
@@ -907,6 +985,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             };
         }
         const { published, draftDoc } = await this.renderDraftDocuments(
+            user,
             projectUuid,
             draft,
         );
@@ -948,6 +1027,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             );
         }
         const { published, draftDoc } = await this.renderDraftDocuments(
+            user,
             projectUuid,
             draft,
         );
@@ -982,6 +1062,7 @@ export class ContentAsCodeWritebackService extends BaseService {
     }
 
     private async renderDraftDocuments(
+        user: SessionUser,
         projectUuid: string,
         draft: ContentDraft,
     ): Promise<{
@@ -1003,8 +1084,12 @@ export class ContentAsCodeWritebackService extends BaseService {
             return { published, draftDoc };
         }
         const [published, draftDoc] = await Promise.all([
-            this.coderService.getCurrentDashboardAsCode(draft.contentUuid),
+            this.coderService.getCurrentDashboardAsCode(
+                user,
+                draft.contentUuid,
+            ),
             this.coderService.getDashboardAsCodeWithOverlay(
+                user,
                 draft.contentUuid,
                 draft.draft,
             ),
@@ -1096,6 +1181,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             draft.slug,
         );
         const { draftDoc } = await this.renderDraftDocuments(
+            user,
             projectUuid,
             draft,
         );
@@ -1545,6 +1631,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             const dashboardAsCode =
                 (target.documentOverride as DashboardAsCode | undefined) ??
                 (await this.coderService.getCurrentDashboardAsCode(
+                    user,
                     contentUuid,
                 ));
             files.push({
