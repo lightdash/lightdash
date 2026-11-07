@@ -2726,42 +2726,6 @@ describe('scheduler migration quiesce', () => {
     });
 });
 
-describe('GROUPS_ENABLED (deprecated)', () => {
-    const groupsWarnings = (warning: { mock: { calls: unknown[][] } }) =>
-        warning.mock.calls.filter(([message]) =>
-            String(message).includes('GROUPS_ENABLED'),
-        );
-
-    it('does not warn when unset', () => {
-        const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        try {
-            parseConfig();
-            expect(groupsWarnings(warning)).toEqual([]);
-        } finally {
-            warning.mockRestore();
-        }
-    });
-
-    it.each(['true', 'false'])(
-        'is ignored and warns once when set to %s',
-        (value) => {
-            process.env.GROUPS_ENABLED = value;
-            const warning = vi
-                .spyOn(console, 'warn')
-                .mockImplementation(() => {});
-            try {
-                const config = parseConfig();
-                expect(config).not.toHaveProperty('groups');
-                expect(groupsWarnings(warning)).toEqual([
-                    [expect.stringContaining('deprecated and ignored')],
-                ]);
-            } finally {
-                warning.mockRestore();
-            }
-        },
-    );
-});
-
 describe('LD_SETUP_START_OF_WEEK', () => {
     beforeEach(() => {
         process.env.LD_SETUP_ADMIN_EMAIL = 'admin@example.com';
