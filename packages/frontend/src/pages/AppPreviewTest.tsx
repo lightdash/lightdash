@@ -359,6 +359,7 @@ export default function AppPreviewTest() {
             )}
             {!isFullscreen && (
                 <AppHeader
+                    versionBadge={null}
                     projectUuid={projectUuid}
                     app={{
                         uuid: appUuid,
@@ -378,6 +379,8 @@ export default function AppPreviewTest() {
                     }}
                     rightSection={
                         <AppHeaderActions
+                            previewTools={null}
+                            openUrl={null}
                             capturedQueryCount={inspector.readyQueryCount}
                             fullscreenToggle={
                                 isFullscreenFeatureEnabled &&
@@ -418,7 +421,7 @@ export default function AppPreviewTest() {
                                 latestReadyVersion ? 'ready' : null
                             }
                             onRefresh={handleRefresh}
-                            refreshDisabled={version === undefined}
+                            refreshAvailable={version !== undefined}
                             captureThumbnail={null}
                             capturePreviewScreenshot={
                                 screenshotAvailable
@@ -426,7 +429,13 @@ export default function AppPreviewTest() {
                                     : null
                             }
                             previewVersion={version ?? null}
-                            onViewNetwork={inspector.show}
+                            network={{
+                                open: !inspector.hidden,
+                                queryCount: inspector.readyQueryCount,
+                                onToggle: inspector.hidden
+                                    ? inspector.show
+                                    : inspector.hide,
+                            }}
                             onDeleted={() => {
                                 void navigate(`/projects/${projectUuid}/home`);
                             }}

@@ -118,14 +118,16 @@ const baseProps = {
     latestVersionNumber: 1,
     latestVersionStatus: 'ready' as const,
     onRefresh: vi.fn(),
-    refreshDisabled: false,
-    onViewNetwork: vi.fn(),
+    refreshAvailable: true,
+    network: { open: false, queryCount: 0, onToggle: vi.fn() },
     onDeleted: vi.fn(),
     onEdit: null,
     shareUrl: null,
     navItem: null,
     askAiItem: null,
     fullscreenToggle: null,
+    openUrl: null,
+    previewTools: null,
     captureThumbnail: null,
     capturePreviewScreenshot: null,
     previewVersion: null,
@@ -206,12 +208,41 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
         });
 
         await openMenu();
-        await screen.findByText('View network');
+        await screen.findByRole('menu');
 
         expect(screen.queryByText('Schedule delivery')).not.toBeInTheDocument();
         expect(
             screen.queryByText('Google Sheets Sync'),
         ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Share' }),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('AppHeaderActions — Share', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockedCanEdit.mockReturnValue(true);
+        defaultAbility.update([]);
+    });
+
+    it('keeps the link in the share menu and deliveries in the overflow', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <AppHeaderActions
+                {...baseProps}
+                shareUrl="https://example.com/app"
+            />,
+            {
+                health: withGoogleDriveNotConfigured(),
+                user: withScheduledDeliveryPermission(),
+            },
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Share' }));
+        expect(await screen.findByText('Copy link')).toBeInTheDocument();
+        expect(screen.queryByText('Schedule delivery')).not.toBeInTheDocument();
     });
 });
 
@@ -277,9 +308,7 @@ describe('AppHeaderActions — Remove thumbnail', () => {
 
         await openMenu();
 
-        expect(
-            (await screen.findByText('Remove thumbnail')).closest('button'),
-        ).toBeDisabled();
+        expect(screen.queryByText('Remove thumbnail')).not.toBeInTheDocument();
     });
 
     it("removes the latest ready version's thumbnail when no version is on screen", async () => {

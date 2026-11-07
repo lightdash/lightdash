@@ -12,11 +12,14 @@ import {
     Badge,
     Indicator,
     Menu,
+    Text,
     Tooltip,
     type ActionIconProps,
 } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import {
     IconArrowsUpDown,
+    IconCheck,
     IconCamera,
     IconCircleCheck,
     IconCircleCheckFilled,
@@ -27,9 +30,11 @@ import {
     IconEdit,
     IconFolderPlus,
     IconFolderSymlink,
+    IconLink,
     IconPhotoX,
     IconRefresh,
     IconSend,
+    IconShare2,
     IconSparkles,
     IconTrash,
     IconUsers,
@@ -122,6 +127,9 @@ export type AppActionsMenuProps = {
     /** Count of ready queries captured by the live preview, forwarded to the
      *  scheduler modal so it can gate/caption csv/xlsx delivery formats. */
     capturedQueryCount?: number;
+    /** Renders sharing as its own header "Share" menu instead of an overflow
+     *  group; `copyUrl` adds a copy-link item. Null keeps it in the overflow. */
+    shareMenu: { copyUrl: string | null } | null;
     /** Chrome of the ⋯ target. Defaults to the app header's (md/default/
      *  "App actions", no tooltip). */
     target?: {
@@ -131,6 +139,17 @@ export type AppActionsMenuProps = {
         tooltip?: string;
     };
 };
+
+const ItemWithHint: FC<{ label: string; hint: string }> = ({ label, hint }) => (
+    <>
+        <Text size="sm" lh={1.3}>
+            {label}
+        </Text>
+        <Text size="xs" c="dimmed" lh={1.3}>
+            {hint}
+        </Text>
+    </>
+);
 
 /**
  * Walkthrough action for manage:DataApp: duplicating the seeded app makes
@@ -180,8 +199,10 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     previewVersion,
     upgrade,
     capturedQueryCount,
+    shareMenu,
     target,
 }) => {
+    const clipboard = useClipboard({ timeout: 2000 });
     const navigate = useNavigate();
 
     const { user, health } = useApp();
@@ -225,6 +246,10 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     const isPreviewProject = !!project?.upstreamProjectUuid;
 
     const hasReadyVersion = latestVersionStatus === 'ready';
+    // An earlier version stays shareable while a newer one builds.
+    const hasBuiltVersion =
+        hasReadyVersion ||
+        (latestVersionNumber !== null && latestVersionNumber > 1);
 
     const { mutate: duplicateMutate, isLoading: isDuplicating } =
         useDuplicateApp();
@@ -267,6 +292,11 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         ? versionThumbnailQuery
         : appThumbnailQuery;
     const hasThumbnail = !thumbnailQuery.isError && !!thumbnailQuery.data;
+    // Hidden once we know there is nothing to remove; disabled while unknown.
+    const thumbnailMissing =
+        capturesEnabled &&
+        (thumbnailQuery.isError ||
+            (thumbnailQuery.isSuccess && !thumbnailQuery.data));
     const { mutateAsync: deleteThumbnail, isLoading: isDeletingThumbnail } =
         useAppThumbnailDelete();
     const handleRemoveThumbnail = useCallback(async () => {
@@ -338,9 +368,63 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         upgrade !== null &&
         (upgrade.status === 'stale' || upgrade.status === 'legacy');
 
+    const canShareWithPeople =
+        canEditVerified &&
+        directAccessAvailability.isAvailable &&
+        canManageAppAccess;
+    const showShareGroup = canShareWithPeople || canCreateScheduledDeliveries;
+    const showManageGroup =
+        canEditVerified || canDuplicate || userCanManageVerification;
+    const showPreviewGroup =
+        !!viewNetwork || !!onRefresh || (canEditVerified && !!captureThumbnail);
+
+    const showOverflowShare = showShareGroup && shareMenu === null;
+    // With a share button in the header, only deliveries stay in the overflow.
+    const showOverflowDeliver =
+        shareMenu !== null && canCreateScheduledDeliveries;
+    const peopleItem = canShareWithPeople && (
+        <Menu.Item
+            leftSection={<MantineIcon icon={IconUsers} size={14} />}
+            onClick={() => setIsDirectAccessModalOpen(true)}
+        >
+            Share
+        </Menu.Item>
+    );
+    const deliveryItems = (
+        <>
+            {canCreateScheduledDeliveries && (
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconSend} size={14} />}
+                    onClick={() => setSchedulerModalOpen(true)}
+                >
+                    Schedule delivery
+                </Menu.Item>
+            )}
+            {canCreateScheduledDeliveries && hasGoogleDriveEnabled && (
+                <Can
+                    I="manage"
+                    this={subject('GoogleSheets', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid,
+                    })}
+                >
+                    <Menu.Item
+                        leftSection={
+                            <MantineIcon icon={IconCirclesRelation} size={14} />
+                        }
+                        onClick={() => setSyncModalOpen(true)}
+                    >
+                        Google Sheets Sync
+                    </Menu.Item>
+                </Can>
+            )}
+        </>
+    );
+
     const targetIcon = (
         <ActionIcon
             variant={target?.variant ?? 'default'}
+            color="gray"
             size={target?.size ?? 'md'}
             aria-label={target?.ariaLabel ?? 'App actions'}
             // Anchor for scope walkthroughs (data-tour-via)
@@ -353,6 +437,49 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
 
     return (
         <>
+            {/* Nothing to share until a version has been built. */}
+            {shareMenu &&
+                hasBuiltVersion &&
+                (canShareWithPeople || shareMenu.copyUrl) && (
+                    <Menu
+                        position="bottom-end"
+                        withArrow
+                        arrowPosition="center"
+                    >
+                        <Menu.Target>
+                            <Tooltip label="Share" openDelay={200}>
+                                <ActionIcon size="md" aria-label="Share">
+                                    <MantineIcon icon={IconShare2} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            {shareMenu.copyUrl && (
+                                <Menu.Item
+                                    closeMenuOnClick={false}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={
+                                                clipboard.copied
+                                                    ? IconCheck
+                                                    : IconLink
+                                            }
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={() =>
+                                        clipboard.copy(shareMenu.copyUrl)
+                                    }
+                                >
+                                    {clipboard.copied
+                                        ? 'Link copied'
+                                        : 'Copy link'}
+                                </Menu.Item>
+                            )}
+                            {peopleItem}
+                        </Menu.Dropdown>
+                    </Menu>
+                )}
             <Menu
                 position="bottom-end"
                 returnFocus={!isDirectAccessModalOpen}
@@ -379,81 +506,33 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                 <Menu.Dropdown>
                     {navItem}
                     {askAiItem}
-                    {viewNetwork && (
-                        <Menu.Item
-                            data-tour-scope="view:DataApp"
-                            data-tour-step="2"
-                            data-tour-route="/projects/:projectUuid/apps/:appUuid/view"
-                            data-tour-label="Click View network"
-                            data-tour-title="Open and inspect a data app"
-                            data-tour-docs="data-apps.mdx#network-inspector:1-2"
-                            data-tour-interactive="true"
-                            data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-apps"] >> [data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"] >> [data-tour-anchor="app-actions"]'
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconArrowsUpDown}
-                                    size={14}
-                                />
-                            }
-                            onClick={viewNetwork.onClick}
-                        >
-                            {viewNetwork.label}
-                        </Menu.Item>
+                    {(navItem || askAiItem) && showOverflowShare && (
+                        <Menu.Divider />
                     )}
-                    {onRefresh && (
-                        <Menu.Item
-                            leftSection={
-                                <MantineIcon icon={IconRefresh} size={14} />
-                            }
-                            onClick={onRefresh}
-                        >
-                            Refresh
-                        </Menu.Item>
+                    {showOverflowShare && <Menu.Label>Share</Menu.Label>}
+                    {showOverflowShare && peopleItem}
+                    {showOverflowShare && deliveryItems}
+                    {(navItem || askAiItem) && showOverflowDeliver && (
+                        <Menu.Divider />
                     )}
-                    {canCreateScheduledDeliveries && (
-                        <Menu.Item
-                            leftSection={
-                                <MantineIcon icon={IconSend} size={14} />
-                            }
-                            onClick={() => setSchedulerModalOpen(true)}
-                        >
-                            Schedule delivery
-                        </Menu.Item>
-                    )}
-                    {canCreateScheduledDeliveries && hasGoogleDriveEnabled && (
-                        <Can
-                            I="manage"
-                            this={subject('GoogleSheets', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconCirclesRelation}
-                                        size={14}
-                                    />
-                                }
-                                onClick={() => setSyncModalOpen(true)}
-                            >
-                                Google Sheets Sync
-                            </Menu.Item>
-                        </Can>
-                    )}
-                    {(canEditVerified ||
-                        canDuplicate ||
-                        userCanManageVerification) && <Menu.Divider />}
+                    {showOverflowDeliver && <Menu.Label>Deliver</Menu.Label>}
+                    {showOverflowDeliver && deliveryItems}
+                    {showManageGroup && <Menu.Divider />}
+                    {showManageGroup && <Menu.Label>Manage</Menu.Label>}
                     {userCanManageVerification && (
                         <Menu.Item
                             leftSection={
                                 isAppVerified ? (
-                                    <IconCircleCheckFilled
-                                        size={18}
-                                        color="var(--mantine-color-green-6)"
+                                    <MantineIcon
+                                        icon={IconCircleCheckFilled}
+                                        size={14}
+                                        color="green.6"
                                     />
                                 ) : (
-                                    <IconCircleCheck size={18} />
+                                    <MantineIcon
+                                        icon={IconCircleCheck}
+                                        size={14}
+                                    />
                                 )
                             }
                             onClick={() => {
@@ -464,7 +543,18 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                 }
                             }}
                         >
-                            {isAppVerified ? 'Remove verification' : 'Verify'}
+                            <ItemWithHint
+                                label={
+                                    isAppVerified
+                                        ? 'Remove verification'
+                                        : 'Verify'
+                                }
+                                hint={
+                                    isAppVerified
+                                        ? 'Unlocks the app for editing'
+                                        : 'Marks it trusted and locks edits'
+                                }
+                            />
                         </Menu.Item>
                     )}
                     {canEditVerified && upgrade && (
@@ -482,7 +572,10 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             disabled={upgrade.disabled}
                             onClick={() => setIsUpgradeModalOpen(true)}
                         >
-                            Upgrade app
+                            <ItemWithHint
+                                label="Upgrade app"
+                                hint="Adds the newest app features and fixes"
+                            />
                         </Menu.Item>
                     )}
                     {canEditVerified && (
@@ -494,36 +587,6 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                         >
                             Rename
                         </Menu.Item>
-                    )}
-                    {canEditVerified && captureThumbnail && (
-                        <>
-                            {capturesEnabled && (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconCamera}
-                                            size={14}
-                                        />
-                                    }
-                                    disabled={captureThumbnail.disabled}
-                                    onClick={captureThumbnail.onCapture}
-                                >
-                                    Capture thumbnail
-                                </Menu.Item>
-                            )}
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon icon={IconPhotoX} size={14} />
-                                }
-                                disabled={
-                                    (capturesEnabled && !hasThumbnail) ||
-                                    isDeletingThumbnail
-                                }
-                                onClick={() => void handleRemoveThumbnail()}
-                            >
-                                Remove thumbnail
-                            </Menu.Item>
-                        </>
                     )}
                     {canDuplicate && (
                         <Menu.Item
@@ -572,22 +635,78 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                     Promote
                                 </Menu.Item>
                             )}
-                            {directAccessAvailability.isAvailable &&
-                                canManageAppAccess && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconUsers}
-                                                size={14}
-                                            />
-                                        }
-                                        onClick={() =>
-                                            setIsDirectAccessModalOpen(true)
-                                        }
-                                    >
-                                        Share
-                                    </Menu.Item>
-                                )}
+                        </>
+                    )}
+                    {showPreviewGroup && <Menu.Divider />}
+                    {showPreviewGroup && <Menu.Label>Tools</Menu.Label>}
+                    {viewNetwork && (
+                        <Menu.Item
+                            data-tour-scope="view:DataApp"
+                            data-tour-step="2"
+                            data-tour-route="/projects/:projectUuid/apps/:appUuid/view"
+                            data-tour-label="Click View network"
+                            data-tour-title="Open and inspect a data app"
+                            data-tour-docs="data-apps.mdx#network-inspector:1-2"
+                            data-tour-interactive="true"
+                            data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-apps"] >> [data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"] >> [data-tour-anchor="app-actions"]'
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconArrowsUpDown}
+                                    size={14}
+                                />
+                            }
+                            onClick={viewNetwork.onClick}
+                        >
+                            {viewNetwork.label}
+                        </Menu.Item>
+                    )}
+                    {onRefresh && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconRefresh} size={14} />
+                            }
+                            onClick={onRefresh}
+                        >
+                            Refresh
+                        </Menu.Item>
+                    )}
+                    {canEditVerified && captureThumbnail && (
+                        <>
+                            {capturesEnabled && (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconCamera}
+                                            size={14}
+                                        />
+                                    }
+                                    disabled={captureThumbnail.disabled}
+                                    onClick={captureThumbnail.onCapture}
+                                >
+                                    Capture thumbnail
+                                </Menu.Item>
+                            )}
+                            {!thumbnailMissing && (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconPhotoX}
+                                            size={14}
+                                        />
+                                    }
+                                    disabled={
+                                        (capturesEnabled && !hasThumbnail) ||
+                                        isDeletingThumbnail
+                                    }
+                                    onClick={() => void handleRemoveThumbnail()}
+                                >
+                                    Remove thumbnail
+                                </Menu.Item>
+                            )}
+                        </>
+                    )}
+                    {canEditVerified && (
+                        <>
                             <Menu.Divider />
                             <Menu.Item
                                 color="red"
