@@ -4787,6 +4787,20 @@ export class ProjectService
             `Inserted compilation log for project ${projectUuid}: ${compilationReport.totalExploresCount} explores, ${compilationReport.errorExploresCount} errors`,
         );
 
+        // A compile can finish DONE with errored explores. Log a stable,
+        // searchable warning so it can be alerted on. Log only: job status and
+        // the API response are unchanged.
+        if (compilationReport.errorExploresCount > 0) {
+            this.logger.warn('Compile finished with errored explores', {
+                projectUuid,
+                organizationUuid,
+                compilationSource,
+                jobUuid: jobUuid ?? null,
+                errorExploresCount: compilationReport.errorExploresCount,
+                totalExploresCount: compilationReport.totalExploresCount,
+            });
+        }
+
         const indexCatalogJob =
             connectionIndexCatalogJob ??
             (await this.schedulerClient.indexCatalog({
