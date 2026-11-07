@@ -3256,11 +3256,6 @@ export const parseConfig = (): LightdashConfig => {
             'RESULTS_CACHE_ENABLED is deprecated. Unset it and enable results caching per project in project settings.',
         );
     }
-    if (process.env.GROUPS_ENABLED !== undefined) {
-        console.warn(
-            'GROUPS_ENABLED is deprecated and ignored. Groups are always enabled. Use AUTH_ENABLE_GROUP_SYNC to control SSO group sync.',
-        );
-    }
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
