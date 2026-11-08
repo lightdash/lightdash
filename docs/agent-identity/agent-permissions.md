@@ -40,8 +40,9 @@ New restrictions need groups to be available. A saved restriction still applies
 if groups later become unavailable. An admin can always clear it with `null`.
 Personal-access-token and service-account calls keep their existing exemptions.
 The policy API accepts group admission in either mode. A PUT with
-`mode: 'legacy'` preserves the stored role matrix and clears the capability
-list. Omitting `mode` means managed. Reset keeps the group restriction.
+`mode: 'legacy'` clears the capability list. Omitting `mode` means managed.
+Reset keeps the group restriction. The API returns no per-role matrix. For
+one release a PUT can still send `systemRoleMatrix`; the server ignores it.
 GET, PUT and reset omit the old people and project choices. Old browser tabs
 can still save them, but the server ignores them and clears the old columns.
 The Agents page uses the capability-policy API for Same as the person,
@@ -76,7 +77,7 @@ sets MCP agent policy applicability for tools, effects and queued repo-edit jobs
 
 Refusals and settings use the plain name. Never show the key to people.
 
-| Key | Short name (matrix) | Plain name | Allows |
+| Key | Short name | Plain name | Allows |
 | ---------------- | ------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `read_discover` | Read | Read and discover | Find and read projects, data models, content, context and existing query results. |
 | `query` | Query | Query data | Run queries through data models and run saved semantic content. |
@@ -169,25 +170,26 @@ With every capability ticked, limits on still keeps three safeguards that
 unmapped operations, and a verified sender on Slack.
 
 A managed save accepts an empty list but rejects explicit `null`. An omitted
-list keeps the saved list or uses all eleven if no list is stored. Each role
-row is intersected with the saved list and ordered by the capability enum.
-Legacy saves and reset set the list to `null`. Reset keeps the dormant role
-matrix and group restriction. A stale version rejects the entire save.
+list keeps the saved list or uses all eleven if no list is stored.
+Legacy saves and reset set the list to `null`. Reset keeps the group
+restriction. A stale version rejects the entire save. Rows saved by the
+earlier per-role editor stay in the database, but no check reads them.
 
 The Agents page offers three choices. Same as the person stores `legacy`
 with a null capability list. Read and query stores `managed` with Read and
-discover, Query data, Export results and Raw SQL in the list and every role row.
-Custom stores `managed` with the selected list and role rows. It starts with
+discover, Query data, Export results and Raw SQL in the list.
+Custom stores `managed` with the selected list. It starts with
 all eleven capabilities on; an organization that already saved a Custom list
 gets that list back. Capability and group changes require review.
 Raw SQL follows warehouse permissions; this preset is not a read-only SQL guard.
 
 ## How checks combine
 
-Within a person's roles, capabilities add up (union). The system role matrix,
-the person's custom roles and their group roles each add capabilities. A role
-that leaves a capability out does not take it away from another role. The
-organization list then intersects that union. A capability excluded by the
+Within a person's roles, capabilities add up (union). A built-in organization
+or project role gives every capability. The person's custom roles and their
+group roles each add the capabilities in their scopes. A role that leaves a
+capability out does not take it away from another role. The organization list
+then intersects that union. A capability excluded by the
 list points to the organization setting. A missing role grant within the list
 keeps the role remedy, including the custom-role link when available.
 
