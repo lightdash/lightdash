@@ -1,10 +1,4 @@
 import { type AgentCapability } from './agentPermissions';
-import { type OrganizationMemberRole } from './organizationMemberProfile';
-
-export type AgentSystemRoleMatrix = Record<
-    OrganizationMemberRole,
-    AgentCapability[]
->;
 
 export interface AgentCapabilityPolicy {
     mode: 'legacy' | 'managed';
@@ -20,30 +14,6 @@ export interface AgentCapabilityCeiling {
     mode?: 'legacy' | 'managed';
     allowedCapabilities?: AgentCapability[] | null;
     allowedGroupUuids?: string[] | null;
-    /**
-     * Deprecated. Per-role limits are no longer applied. Accepted for compatibility, ignored, and removed in a later release.
-     * @deprecated
-     */
-    systemRoleMatrix?: AgentSystemRoleMatrix;
-}
-export interface AgentCapabilityPolicyResult extends AgentCapabilityPolicy {
-    /**
-     * Deprecated. Per-role limits are no longer applied. Returned for compatibility and removed in a later release.
-     * @deprecated
-     */
-    systemRoleMatrix: AgentSystemRoleMatrix;
-}
-export interface AgentCapabilityPolicyOverviewResult extends AgentCapabilityPolicyOverview {
-    /**
-     * Deprecated. Per-role limits are no longer applied. Returned for compatibility and removed in a later release.
-     * @deprecated
-     */
-    systemRoleMatrix: AgentSystemRoleMatrix;
-    /**
-     * Deprecated. Per-role limits are no longer applied. Returned for compatibility and removed in a later release.
-     * @deprecated
-     */
-    defaults: AgentSystemRoleMatrix;
 }
 export interface AgentCapabilityPolicySave extends Omit<
     AgentCapabilityPolicy,
@@ -62,11 +32,11 @@ export interface AgentPolicyResponseBase {
     status: 'ok';
 }
 export interface AgentPolicyResponse extends AgentPolicyResponseBase {
-    results: AgentCapabilityPolicyResult;
+    results: AgentCapabilityPolicy;
 }
 export interface AgentPolicyOverviewResponse extends Omit<
     AgentPolicyResponse,
     'results'
 > {
-    results: AgentCapabilityPolicyOverviewResult;
+    results: AgentCapabilityPolicyOverview;
 }

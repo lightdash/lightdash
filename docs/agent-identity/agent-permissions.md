@@ -41,11 +41,8 @@ if groups later become unavailable. An admin can always clear it with `null`.
 Personal-access-token and service-account calls keep their existing exemptions.
 The policy API accepts group admission in either mode. A PUT with
 `mode: 'legacy'` clears the capability list. Omitting `mode` means managed.
-Reset keeps the group restriction. GET, PUT and reset still return the
-deprecated `systemRoleMatrix`, and GET the deprecated `defaults`. Both are a
-fixed value that lists every capability for every role; they are not read from
-stored rows. A PUT may still send `systemRoleMatrix`; the server ignores it.
-Both fields are removed in a later release.
+Reset keeps the group restriction. The API returns no per-role matrix. A PUT
+that still sends `systemRoleMatrix` gets no error; the server ignores it.
 GET, PUT and reset omit the old people and project choices. Old browser tabs
 can still save them, but the server ignores them and clears the old columns.
 The Agents page uses the capability-policy API for Same as the person,
