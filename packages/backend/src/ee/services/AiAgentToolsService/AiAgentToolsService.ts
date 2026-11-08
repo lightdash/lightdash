@@ -104,6 +104,7 @@ import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import { assertAgentOperation } from '../../../services/AgentPermissionService/assertAgentOperation';
 import {
     agentExecutionContext,
     buildResultReader,
@@ -876,26 +877,25 @@ export class AiAgentToolsService extends BaseService {
             !mcpAgentPermissionsApply(context.account.authentication.type)
         )
             return;
-        const request = await this.agentPermissionService.loadRequest(
+        await assertAgentOperation(
+            this.agentPermissionService,
             context.organizationUuid,
-        );
-        if (request.enforcementMode === 'off') return;
-        assertRegisteredAccount(context.account);
-        await this.agentPermissionService.assertOperationWithRequest({
-            request,
-            operation: {
-                account: context.account,
-                organizationUuid: context.organizationUuid,
-                projectUuid: context.projectUuid,
-                kind: 'tool_effect',
-                key,
-                surface:
-                    agentExecutionContext.getStore()?.surface ??
-                    (context.source === 'mcp'
-                        ? AgentActorSurface.MCP
-                        : AgentActorSurface.IN_APP_AGENT),
+            () => {
+                assertRegisteredAccount(context.account);
+                return {
+                    account: context.account,
+                    organizationUuid: context.organizationUuid,
+                    projectUuid: context.projectUuid,
+                    kind: 'tool_effect',
+                    key,
+                    surface:
+                        agentExecutionContext.getStore()?.surface ??
+                        (context.source === 'mcp'
+                            ? AgentActorSurface.MCP
+                            : AgentActorSurface.IN_APP_AGENT),
+                };
             },
-        });
+        );
     }
 
     private withAgentRuntimePermissions(
@@ -910,30 +910,24 @@ export class AiAgentToolsService extends BaseService {
                 return [
                     name,
                     async (...args: unknown[]) => {
-                        const request =
-                            await this.agentPermissionService.loadRequest(
-                                context.organizationUuid,
-                            );
-                        if (request.enforcementMode !== 'off') {
-                            assertRegisteredAccount(context.account);
-                            await this.agentPermissionService.assertOperationWithRequest(
-                                {
-                                    request,
-                                    operation: {
-                                        account: context.account,
-                                        organizationUuid:
-                                            context.organizationUuid,
-                                        projectUuid: context.projectUuid,
-                                        kind: 'agent_tool',
-                                        key,
-                                        surface:
-                                            agentExecutionContext.getStore()
-                                                ?.surface ??
-                                            AgentActorSurface.IN_APP_AGENT,
-                                    },
-                                },
-                            );
-                        }
+                        await assertAgentOperation(
+                            this.agentPermissionService,
+                            context.organizationUuid,
+                            () => {
+                                assertRegisteredAccount(context.account);
+                                return {
+                                    account: context.account,
+                                    organizationUuid: context.organizationUuid,
+                                    projectUuid: context.projectUuid,
+                                    kind: 'agent_tool',
+                                    key,
+                                    surface:
+                                        agentExecutionContext.getStore()
+                                            ?.surface ??
+                                        AgentActorSurface.IN_APP_AGENT,
+                                };
+                            },
+                        );
                         return (
                             execute as (...input: unknown[]) => Promise<unknown>
                         )(...args);

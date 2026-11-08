@@ -29,6 +29,7 @@ import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHist
 import { isConnectionProducedQuery } from '../../utils/queryResultProducer';
 import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpiry';
 import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
+import { assertAgentOperation } from '../AgentPermissionService/assertAgentOperation';
 import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
@@ -149,21 +150,21 @@ export class QuerySourceService extends BaseService {
             return;
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
-        const permissionService = this.getAgentPermissionService();
-        const request = await permissionService.loadRequest(organizationUuid);
-        if (request.enforcementMode === 'off') return;
-        assertRegisteredAccount(account);
-        await permissionService.assertOperationWithRequest({
-            request,
-            operation: {
-                account,
-                organizationUuid,
-                projectUuid,
-                kind: 'agent_tool',
-                key: 'runSql',
-                surface: execution?.surface ?? AgentActorSurface.MCP,
+        await assertAgentOperation(
+            this.getAgentPermissionService(),
+            organizationUuid,
+            () => {
+                assertRegisteredAccount(account);
+                return {
+                    account,
+                    organizationUuid,
+                    projectUuid,
+                    kind: 'agent_tool',
+                    key: 'runSql',
+                    surface: execution?.surface ?? AgentActorSurface.MCP,
+                };
             },
-        });
+        );
     }
 
     private async isSourceEnabled(

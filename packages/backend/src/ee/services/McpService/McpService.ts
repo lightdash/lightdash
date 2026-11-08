@@ -180,6 +180,7 @@ import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { buildCspHeader } from '../../../routers/appPreviewRouter';
 import { verifyPreviewToken } from '../../../routers/appPreviewToken';
 import type { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import { isAgentOperationOff } from '../../../services/AgentPermissionService/assertAgentOperation';
 import {
     buildResultReader,
     getContentWriteAgentIdentity,
@@ -6872,7 +6873,7 @@ export class McpService extends BaseService {
             account.authentication.type === 'oauth' &&
             account.authentication.agentConnectionGrant != null;
         const request = await permissions.loadRequest(organizationUuid);
-        if (!bound && request.enforcementMode === 'off') return;
+        if (!bound && isAgentOperationOff(request)) return;
         if (!bound && request.enforcementMode === 'admission') {
             await permissions.assertOperationWithRequest({
                 request,
@@ -6906,7 +6907,7 @@ export class McpService extends BaseService {
             key: toolName,
             projectUuids: projectUuid === null ? [] : [projectUuid],
         });
-        if (request.enforcementMode === 'off') return;
+        if (isAgentOperationOff(request)) return;
         await permissions.assertOperationWithRequest({
             request,
             operation: {
