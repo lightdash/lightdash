@@ -11,20 +11,16 @@ export interface AgentCapabilityPolicy {
     version: number;
     allowedCapabilities: AgentCapability[] | null;
     allowedGroupUuids: string[] | null;
-    systemRoleMatrix: AgentSystemRoleMatrix;
 }
 export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
-    defaults: AgentSystemRoleMatrix;
     groupsAvailable: boolean;
 }
-export interface AgentCapabilityCeiling extends Pick<
-    AgentCapabilityPolicy,
-    'systemRoleMatrix'
-> {
+export interface AgentCapabilityCeiling {
     version?: number;
     mode?: 'legacy' | 'managed';
     allowedCapabilities?: AgentCapability[] | null;
     allowedGroupUuids?: string[] | null;
+    systemRoleMatrix?: AgentSystemRoleMatrix;
 }
 export interface AgentCapabilityPolicySave extends Omit<
     AgentCapabilityPolicy,

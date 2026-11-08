@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    AGENT_CAPABILITY_LIMIT_DEFAULTS,
     AGENT_CAPABILITY_SCOPES,
     AgentCapability,
     AiAccessRefusalReason,
@@ -10,7 +9,6 @@ import {
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
-    OrganizationMemberRole,
     ParameterError,
     type Account,
     type AgentActorSurface,
@@ -18,7 +16,6 @@ import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
     type AgentPermissionCheck,
-    type AgentSystemRoleMatrix,
     type AiAccessRefusal,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -161,26 +158,12 @@ interface Dependencies {
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 }
 
-export const agentSystemRoleMatrix = (
-    capabilities: readonly AgentCapability[],
-): AgentSystemRoleMatrix => ({
-    member: [...capabilities],
-    viewer: [...capabilities],
-    interactive_viewer: [...capabilities],
-    editor: [...capabilities],
-    developer: [...capabilities],
-    admin: [...capabilities],
-});
-
 type ImmutableAgentEnforcementPolicy = {
     readonly mode: 'legacy' | 'managed';
     readonly version: number;
     readonly allowedCapabilities: readonly AgentCapability[] | null;
     readonly storedAllowedGroupUuids: readonly string[] | null;
     readonly hasExistingAllowedGroup: boolean | null;
-    readonly systemRoleMatrix: Readonly<
-        Record<OrganizationMemberRole, readonly AgentCapability[]>
-    >;
 };
 
 class AgentPermissionRequestHandle {
@@ -246,16 +229,6 @@ const freezePolicy = (
             policy.storedAllowedGroupUuids === null
                 ? null
                 : Object.freeze([...policy.storedAllowedGroupUuids]),
-        systemRoleMatrix: Object.freeze(
-            Object.fromEntries(
-                Object.entries(policy.systemRoleMatrix).map(
-                    ([role, capabilities]) => [
-                        role,
-                        Object.freeze([...capabilities]),
-                    ],
-                ),
-            ),
-        ) as ImmutableAgentEnforcementPolicy['systemRoleMatrix'],
     });
 
 const projectEnforcementPolicy = (
@@ -273,11 +246,6 @@ const projectEnforcementPolicy = (
                 : [...policy.allowedCapabilities],
         allowedGroupUuids:
             policy.storedAllowedGroupUuids === null ? null : allowedGroupUuids,
-        systemRoleMatrix: Object.fromEntries(
-            Object.entries(policy.systemRoleMatrix).map(
-                ([role, capabilities]) => [role, [...capabilities]],
-            ),
-        ) as AgentSystemRoleMatrix,
     };
 };
 
@@ -809,7 +777,6 @@ export class AgentPermissionService extends BaseService {
             ...(await this.deps.agentCapabilityPolicyModel.get(
                 organizationUuid,
             )),
-            defaults: agentSystemRoleMatrix(AGENT_CAPABILITY_LIMIT_DEFAULTS),
             groupsAvailable:
                 await this.deps.areGroupsAvailable(organizationUuid),
         };
@@ -837,25 +804,6 @@ export class AgentPermissionService extends BaseService {
             throw new ParameterError(
                 'Provide a valid capability list for this mode',
             );
-        const roles = Object.values(OrganizationMemberRole);
-        if (
-            !ceiling.systemRoleMatrix ||
-            Object.keys(ceiling.systemRoleMatrix).length !== roles.length ||
-            roles.some(
-                (role) =>
-                    !Array.isArray(ceiling.systemRoleMatrix[role]) ||
-                    ceiling.systemRoleMatrix[role].some(
-                        (capability) =>
-                            !Object.values(AgentCapability).includes(
-                                capability,
-                            ),
-                    ),
-            )
-        ) {
-            throw new ParameterError(
-                'Provide the capability list for every system role',
-            );
-        }
         if (
             ceiling.allowedGroupUuids !== undefined &&
             ceiling.allowedGroupUuids !== null &&
@@ -868,7 +816,6 @@ export class AgentPermissionService extends BaseService {
             version: ceiling.version,
             allowedCapabilities: ceiling.allowedCapabilities,
             allowedGroupUuids: ceiling.allowedGroupUuids,
-            systemRoleMatrix: ceiling.systemRoleMatrix,
             organizationUuid,
             mode,
             updatedByUserUuid: account.user.id,
@@ -891,10 +838,7 @@ export class AgentPermissionService extends BaseService {
     ): Promise<AgentCapabilityPolicy> {
         const organizationUuid = await this.assertPolicyAdmin(account);
         AgentPermissionService.validateVersion(version);
-        const policy =
-            await this.deps.agentCapabilityPolicyModel.get(organizationUuid);
         return this.deps.agentCapabilityPolicyModel.save({
-            systemRoleMatrix: policy.systemRoleMatrix,
             allowedCapabilities: null,
             allowedGroupUuids: undefined,
             version,
