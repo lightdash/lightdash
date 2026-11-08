@@ -1,4 +1,6 @@
-import { WarehouseTypes, type AiIdentitySource } from '@lightdash/common';
+import { type AiIdentitySource } from '@lightdash/common';
+import { mapValues } from 'es-toolkit/compat';
+import { agentIdentityWarehouses } from './agentIdentityWarehouses';
 
 export const identityLabels: Record<
     AiIdentitySource,
@@ -35,13 +37,7 @@ export const identityChoiceStateLabels = {
     settingUp: 'Setting up',
 };
 
-export const identityWarehouseNames = {
-    [WarehouseTypes.POSTGRES]: 'Postgres',
-    [WarehouseTypes.REDSHIFT]: 'Redshift',
-    [WarehouseTypes.TRINO]: 'Trino',
-    [WarehouseTypes.CLICKHOUSE]: 'ClickHouse',
-    [WarehouseTypes.ATHENA]: 'Athena',
-    [WarehouseTypes.SNOWFLAKE]: 'Snowflake',
-    [WarehouseTypes.BIGQUERY]: 'BigQuery',
-    [WarehouseTypes.DATABRICKS]: 'Databricks',
-};
+export const identityWarehouseNames = mapValues(
+    agentIdentityWarehouses,
+    ({ name }) => name,
+);

@@ -31,6 +31,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getWarehouseIcon } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import classes from './AgentIdentityChip.module.css';
+import { type AiServiceAccountRule } from './agentIdentityWarehouses';
 import {
     identityChoiceStateLabels,
     identityLabels,
@@ -160,15 +161,12 @@ const ChipStatus = ({
     canEdit,
     onWarningHover,
 }: {
-    rule: OrganizationAgentIdentityRule;
+    rule: AiServiceAccountRule;
     canEdit: boolean;
     verificationStatus: 'verified' | 'attention' | null;
     onWarningHover: (hovered: boolean) => void;
 }) => {
-    const warehouseName =
-        identityWarehouseNames[
-            rule.warehouseType as keyof typeof identityWarehouseNames
-        ];
+    const warehouseName = identityWarehouseNames[rule.warehouseType];
     const missing =
         rule.source === 'ai_service_account'
             ? rule.projectsMissingAiServiceAccount
@@ -217,16 +215,13 @@ const ChipContent = ({
     canEdit,
     onWarningHover,
 }: {
-    rule: OrganizationAgentIdentityRule;
+    rule: AiServiceAccountRule;
     canEdit: boolean;
     saving: boolean;
     verificationStatus: 'verified' | 'attention' | null;
     onWarningHover: (hovered: boolean) => void;
 }) => {
-    const warehouseName =
-        identityWarehouseNames[
-            rule.warehouseType as keyof typeof identityWarehouseNames
-        ];
+    const warehouseName = identityWarehouseNames[rule.warehouseType];
     const identity = identityLabels[rule.source];
     return (
         <>
@@ -278,7 +273,7 @@ export const AgentIdentityChip = ({
     onToggleSetup,
     onSelect,
 }: {
-    rule: OrganizationAgentIdentityRule;
+    rule: AiServiceAccountRule;
     configured: boolean;
     canEdit: boolean;
     saving: boolean;
@@ -291,10 +286,7 @@ export const AgentIdentityChip = ({
     const [opened, setOpened] = useState(false);
     const [warningHovered, setWarningHovered] = useState(false);
     const headerId = useId();
-    const warehouseName =
-        identityWarehouseNames[
-            rule.warehouseType as keyof typeof identityWarehouseNames
-        ];
+    const warehouseName = identityWarehouseNames[rule.warehouseType];
     const identity = identityLabels[rule.source];
     const missing =
         rule.source === 'ai_service_account'
