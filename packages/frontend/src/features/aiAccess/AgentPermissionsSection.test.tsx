@@ -443,7 +443,7 @@ describe('reviewed agent permissions', () => {
         expect(modal.queryByText('ALLOWS')).not.toBeInTheDocument();
         expect(
             modal.getByText(
-                'For every role, custom roles included. People can still do these themselves.',
+                'For every role, custom roles included.',
             ),
         ).toBeInTheDocument();
         expect(modal.queryByText('ACTIVITY')).not.toBeInTheDocument();
@@ -653,7 +653,7 @@ describe('reviewed agent permissions', () => {
         expect(modal.queryByText('Delete content')).not.toBeInTheDocument();
         expect(
             modal.getByText(
-                'No one can use Ask AI, the Slack agent, MCP clients or the CLI. People can still work themselves.',
+                'No one can use Ask AI, the Slack agent, MCP clients or the CLI.',
             ),
         ).toBeInTheDocument();
     });

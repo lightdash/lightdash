@@ -49,7 +49,7 @@ export const AgentPermissionsReviewModal = ({
                     <Text fw={500}>Agents are turned off for everyone</Text>
                     <Text size="sm">
                         No one can use Ask AI, the Slack agent, MCP clients or
-                        the CLI. People can still work themselves.
+                        the CLI.
                     </Text>
                 </Stack>
             ) : (
@@ -65,8 +65,7 @@ export const AgentPermissionsReviewModal = ({
                             for agents
                         </Text>
                         <Text size="sm">
-                            For every role, custom roles included. People can
-                            still do these themselves.
+                            For every role, custom roles included.
                         </Text>
                     </Stack>
                 )
@@ -77,10 +76,6 @@ export const AgentPermissionsReviewModal = ({
                         ALLOWS
                     </Text>
                     <Text fw={500}>{names(changes.allows)}</Text>
-                    <Text size="sm">
-                        These limits are removed. A person’s own permissions
-                        still apply.
-                    </Text>
                 </Stack>
             )}
             {changes.groups && (
