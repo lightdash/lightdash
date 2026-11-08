@@ -1,10 +1,8 @@
 import {
     AgentCapability,
-    OrganizationMemberRole,
     assertUnreachable,
     type AgentCapabilityPolicy,
     type AgentCapabilityCeiling,
-    type AgentSystemRoleMatrix,
 } from '@lightdash/common';
 
 export type AgentPermissionChoice = 'person' | 'read' | 'custom';
@@ -15,7 +13,6 @@ export interface AgentPermissionDraft extends Omit<
     allowedCapabilities: AgentCapability[];
 }
 const allCapabilities = Object.values(AgentCapability);
-const roles = Object.values(OrganizationMemberRole);
 export const readAndQueryCapabilities = [
     AgentCapability.ReadDiscover,
     AgentCapability.Query,
@@ -30,11 +27,6 @@ const sameSet = <T>(a: T[] | null, b: T[] | null) => {
         left.size === right.size && [...left].every((value) => right.has(value))
     );
 };
-const matrixWith = (capabilities: AgentCapability[]): AgentSystemRoleMatrix =>
-    Object.fromEntries(
-        roles.map((role) => [role, [...capabilities]]),
-    ) as AgentSystemRoleMatrix;
-
 export const policyToDraft = (
     policy: AgentCapabilityPolicy,
 ): AgentPermissionDraft => ({
@@ -49,9 +41,6 @@ export const policyToDraft = (
         policy.allowedGroupUuids === null
             ? null
             : [...policy.allowedGroupUuids],
-    systemRoleMatrix: Object.fromEntries(
-        roles.map((role) => [role, [...policy.systemRoleMatrix[role]]]),
-    ) as AgentSystemRoleMatrix,
 });
 export const sameAgentPermissionDraft = (
     a: AgentPermissionDraft,
@@ -59,18 +48,12 @@ export const sameAgentPermissionDraft = (
 ): boolean =>
     a.mode === b.mode &&
     sameSet(a.allowedCapabilities, b.allowedCapabilities) &&
-    sameSet(a.allowedGroupUuids, b.allowedGroupUuids) &&
-    roles.every((role) =>
-        sameSet(a.systemRoleMatrix[role], b.systemRoleMatrix[role]),
-    );
+    sameSet(a.allowedGroupUuids, b.allowedGroupUuids);
 export const getAgentPermissionChoice = (
     draft: AgentPermissionDraft,
 ): AgentPermissionChoice => {
     if (draft.mode === 'legacy') return 'person';
-    return sameSet(draft.allowedCapabilities, readAndQueryCapabilities) &&
-        roles.every((role) =>
-            sameSet(draft.systemRoleMatrix[role], readAndQueryCapabilities),
-        )
+    return sameSet(draft.allowedCapabilities, readAndQueryCapabilities)
         ? 'read'
         : 'custom';
 };
@@ -91,7 +74,6 @@ export const chooseAgentPermission = (
                 ...draft,
                 mode: 'managed',
                 allowedCapabilities: [...readAndQueryCapabilities],
-                systemRoleMatrix: matrixWith(readAndQueryCapabilities),
             };
         case 'custom':
             return getAgentPermissionChoice(draft) === 'custom'
@@ -104,59 +86,22 @@ export const chooseAgentPermission = (
                               ? baseline.allowedCapabilities
                               : allCapabilities),
                       ],
-                      systemRoleMatrix:
-                          getAgentPermissionChoice(baseline) === 'custom'
-                              ? baseline.systemRoleMatrix
-                              : matrixWith(allCapabilities),
                   };
         default:
             return assertUnreachable(choice, 'Unknown agent permission choice');
     }
 };
-export const normaliseAgentPermissionDraft = (
-    draft: AgentPermissionDraft,
-): AgentPermissionDraft => {
-    const allowed = new Set(draft.allowedCapabilities);
-    return {
-        ...draft,
-        systemRoleMatrix: Object.fromEntries(
-            roles.map((role) => [
-                role,
-                draft.systemRoleMatrix[role].filter((cap) => allowed.has(cap)),
-            ]),
-        ) as AgentSystemRoleMatrix,
-    };
-};
 export const toggleAgentCapability = (
     draft: AgentPermissionDraft,
     capability: AgentCapability,
-    baseline: AgentPermissionDraft,
 ): AgentPermissionDraft => {
     const allowed = new Set(draft.allowedCapabilities);
     const enabled = !allowed.has(capability);
-    const savedRows =
-        baseline.mode === 'managed' &&
-        baseline.allowedCapabilities.includes(capability);
     return {
         ...draft,
         allowedCapabilities: allCapabilities.filter((cap) =>
             cap === capability ? enabled : allowed.has(cap),
         ),
-        systemRoleMatrix: Object.fromEntries(
-            roles.map((role) => {
-                const row = new Set(draft.systemRoleMatrix[role]);
-                const restored =
-                    enabled &&
-                    (!savedRows ||
-                        baseline.systemRoleMatrix[role].includes(capability));
-                return [
-                    role,
-                    allCapabilities.filter((cap) =>
-                        cap === capability ? restored : row.has(cap),
-                    ),
-                ];
-            }),
-        ) as AgentSystemRoleMatrix,
     };
 };
 export const draftToPolicyRequest = (
@@ -167,7 +112,6 @@ export const draftToPolicyRequest = (
     mode: draft.mode,
     allowedCapabilities:
         draft.mode === 'legacy' ? null : draft.allowedCapabilities,
-    systemRoleMatrix: normaliseAgentPermissionDraft(draft).systemRoleMatrix,
     ...(!sameSet(baseline.allowedGroupUuids, draft.allowedGroupUuids)
         ? { allowedGroupUuids: draft.allowedGroupUuids }
         : {}),
@@ -175,11 +119,6 @@ export const draftToPolicyRequest = (
 export interface AgentPermissionChanges {
     stops: AgentCapability[];
     allows: AgentCapability[];
-    roles: {
-        role: OrganizationMemberRole;
-        stops: AgentCapability[];
-        allows: AgentCapability[];
-    }[];
     groups: { allowedGroupUuids: string[] | null } | null;
     mode: AgentCapabilityPolicy['mode'] | null;
     turnedOff: boolean;
@@ -202,36 +141,9 @@ export const getAgentPermissionChanges = (
     const allows = allCapabilities.filter(
         (cap) => !before.has(cap) && after.has(cap),
     );
-    const unchanged = allCapabilities.filter(
-        (cap) => before.has(cap) && after.has(cap),
-    );
-    const roleChanges = roles
-        .map((role) => {
-            const oldRow = new Set(
-                baseline.mode === 'legacy'
-                    ? allCapabilities
-                    : baseline.systemRoleMatrix[role],
-            );
-            const newRow = new Set(
-                draft.mode === 'legacy'
-                    ? allCapabilities
-                    : draft.systemRoleMatrix[role],
-            );
-            return {
-                role,
-                stops: unchanged.filter(
-                    (cap) => oldRow.has(cap) && !newRow.has(cap),
-                ),
-                allows: unchanged.filter(
-                    (cap) => !oldRow.has(cap) && newRow.has(cap),
-                ),
-            };
-        })
-        .filter((row) => row.stops.length > 0 || row.allows.length > 0);
     return {
         stops,
         allows,
-        roles: roleChanges,
         groups: sameSet(baseline.allowedGroupUuids, draft.allowedGroupUuids)
             ? null
             : { allowedGroupUuids: draft.allowedGroupUuids },
@@ -250,10 +162,6 @@ export const countAgentPermissionChanges = (
     return (
         changes.stops.length +
         changes.allows.length +
-        changes.roles.reduce(
-            (count, row) => count + row.stops.length + row.allows.length,
-            0,
-        ) +
         Number(changes.mode !== null) +
         Number(changes.groups !== null)
     );

@@ -1,5 +1,4 @@
 import {
-    OrganizationMemberRoleLabels,
     type Group as OrganizationGroup,
     type AgentCapability,
 } from '@lightdash/common';
@@ -84,24 +83,6 @@ export const AgentPermissionsReviewModal = ({
                     </Text>
                 </Stack>
             )}
-            {!changes.turnedOff &&
-                changes.roles.map((row) => (
-                    <Stack gap="xs" key={row.role}>
-                        <Text fw={500}>
-                            {OrganizationMemberRoleLabels[row.role]}
-                        </Text>
-                        {row.stops.length > 0 && (
-                            <Text>STOPS: {names(row.stops)}</Text>
-                        )}
-                        {row.allows.length > 0 && (
-                            <Text>ALLOWS: {names(row.allows)}</Text>
-                        )}
-                        <Text size="sm">
-                            Other roles, including custom roles, can still allow
-                            these actions within the limits for everyone.
-                        </Text>
-                    </Stack>
-                ))}
             {changes.groups && (
                 <Stack gap="xs">
                     <Text size="xs" c="blue" fw={500}>

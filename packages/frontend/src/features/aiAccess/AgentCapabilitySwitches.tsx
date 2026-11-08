@@ -24,13 +24,11 @@ const developer = [
 const CapabilitySwitchGroup = ({
     capabilities,
     draft,
-    baseline,
     onChange,
     disabled,
 }: {
     capabilities: AgentCapability[];
     draft: AgentPermissionDraft;
-    baseline: AgentPermissionDraft;
     onChange: (draft: AgentPermissionDraft) => void;
     disabled: boolean;
 }) => {
@@ -49,9 +47,7 @@ const CapabilitySwitchGroup = ({
                     checked={allowed.has(capability)}
                     disabled={disabled}
                     onChange={() =>
-                        onChange(
-                            toggleAgentCapability(draft, capability, baseline),
-                        )
+                        onChange(toggleAgentCapability(draft, capability))
                     }
                 />
             ))}
@@ -60,12 +56,10 @@ const CapabilitySwitchGroup = ({
 };
 export const AgentCapabilitySwitches = ({
     draft,
-    baseline,
     onChange,
     disabled,
 }: {
     draft: AgentPermissionDraft;
-    baseline: AgentPermissionDraft;
     onChange: (draft: AgentPermissionDraft) => void;
     disabled: boolean;
 }) => {
@@ -80,7 +74,6 @@ export const AgentCapabilitySwitches = ({
                 <CapabilitySwitchGroup
                     capabilities={readAndQueryCapabilities}
                     draft={draft}
-                    baseline={baseline}
                     onChange={onChange}
                     disabled={disabled}
                 />
@@ -92,7 +85,6 @@ export const AgentCapabilitySwitches = ({
                 <CapabilitySwitchGroup
                     capabilities={changes}
                     draft={draft}
-                    baseline={baseline}
                     onChange={onChange}
                     disabled={disabled}
                 />
@@ -119,7 +111,6 @@ export const AgentCapabilitySwitches = ({
                         <CapabilitySwitchGroup
                             capabilities={developer}
                             draft={draft}
-                            baseline={baseline}
                             onChange={onChange}
                             disabled={disabled}
                         />
@@ -129,7 +120,7 @@ export const AgentCapabilitySwitches = ({
             <Callout variant="info">
                 <Stack gap="xs">
                     <Text size="sm">
-                        Limits saved for each role keep applying.
+                        These limits apply to every role, custom roles included.
                     </Text>
                     <Text size="sm">
                         Custom roles keep their own agent permissions.{' '}
