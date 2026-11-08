@@ -302,6 +302,10 @@ const restrictGroupToCustomRoles = async (f: BulkFixture) => {
                         .map((project) => project.project_uuid),
                 )
                 .update({
+                    role:
+                        parity === 0
+                            ? ProjectMemberRole.DEVELOPER
+                            : ProjectMemberRole.VIEWER,
                     role_uuid:
                         parity === 0 ? deploy.role_uuid : f.custom.role_uuid,
                 }),
