@@ -59,7 +59,7 @@ export const AgentPermissionsSection = ({
         <>
             <SettingsSection
                 label="Permissions"
-                description="What agents may do for a person. Agents never get more than the person has."
+                description="What agents may do for a person."
             >
                 <SettingsCard>
                     <Stack gap="md">

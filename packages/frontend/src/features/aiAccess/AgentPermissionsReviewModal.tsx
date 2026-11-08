@@ -140,8 +140,7 @@ export const AgentPermissionsReviewModal = ({
                 </Text>
             )}
             <Callout variant="info">
-                Agents never get more access than the person. Personal access
-                tokens are not limited.
+                Personal access tokens are not limited.
             </Callout>
         </Stack>
     </MantineModal>
