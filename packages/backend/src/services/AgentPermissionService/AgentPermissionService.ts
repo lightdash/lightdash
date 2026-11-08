@@ -443,11 +443,10 @@ export class AgentPermissionService extends BaseService {
             organizationUuid,
             projectUuid,
         );
-        const capabilities = new Set<AgentCapability>();
-        assignments.systemRoles.forEach((role) =>
-            policy.systemRoleMatrix[role].forEach((capability) =>
-                capabilities.add(capability),
-            ),
+        const capabilities = new Set<AgentCapability>(
+            assignments.systemRoles.length > 0
+                ? Object.values(AgentCapability)
+                : [],
         );
         assignments.customRoles.forEach(({ scopes }) =>
             Object.values(AgentCapability).forEach((capability) => {
