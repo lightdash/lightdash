@@ -33,8 +33,7 @@ export interface AgentCapabilityPolicyResult extends AgentCapabilityPolicy {
      */
     systemRoleMatrix: AgentSystemRoleMatrix;
 }
-export interface AgentCapabilityPolicyOverviewResult
-    extends AgentCapabilityPolicyOverview {
+export interface AgentCapabilityPolicyOverviewResult extends AgentCapabilityPolicyOverview {
     /**
      * Deprecated. Per-role limits are no longer applied. Returned for compatibility and removed in a later release.
      * @deprecated

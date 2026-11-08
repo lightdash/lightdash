@@ -170,9 +170,9 @@ test('generated PUT accepts old extras, drops their choices and retains a stored
     });
     expect(result.body.results).not.toHaveProperty('allowedUserUuids');
     expect(result.body.results).not.toHaveProperty('allowedProjectUuids');
-    expect(result.body.results.systemRoleMatrix).toEqual(
-        everyCapabilityForEveryRole,
-    );
+    expect(result.body.results).toMatchObject({
+        systemRoleMatrix: everyCapabilityForEveryRole,
+    });
     expect(tracker.history.insert).toHaveLength(1);
     expect(tracker.history.delete).toHaveLength(0);
     expect(h.row).toMatchObject({
@@ -188,19 +188,19 @@ test('generated GET, new PUT and reset return the deprecated constants', async (
     expect(get.status).toBe(200);
     expect(get.body.results).not.toHaveProperty('allowedUserUuids');
     expect(get.body.results).not.toHaveProperty('allowedProjectUuids');
-    expect(get.body.results.systemRoleMatrix).toEqual(
-        everyCapabilityForEveryRole,
-    );
-    expect(get.body.results.defaults).toEqual(everyCapabilityForEveryRole);
+    expect(get.body.results).toMatchObject({
+        systemRoleMatrix: everyCapabilityForEveryRole,
+        defaults: everyCapabilityForEveryRole,
+    });
     const saved = await h.call('PUT', path, {
         mode: 'managed',
         version: 2,
         allowedCapabilities: [],
     });
     expect(saved.status).toBe(200);
-    expect(saved.body.results.systemRoleMatrix).toEqual(
-        everyCapabilityForEveryRole,
-    );
+    expect(saved.body.results).toMatchObject({
+        systemRoleMatrix: everyCapabilityForEveryRole,
+    });
     expect(h.row.allowed_capabilities).toEqual([]);
     const reset = await h.call('POST', `${path}/reset`, { version: 3 });
     expect(reset.status).toBe(200);
