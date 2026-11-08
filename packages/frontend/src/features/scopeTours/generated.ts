@@ -4394,7 +4394,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-scope="create:DataApp"][data-tour-step="2"]',
                 route: '/projects/:projectUuid/apps/generate',
                 title: 'Choose the Dashboard template',
-                body: 'After picking a template, you write your first prompt.',
+                body: 'You can also apply a shared [theme](https://docs.lightdash.com/data-apps/customize-themes) for fonts, styles, and instructions.',
                 interactive: true,
                 advanceOnTargetClick: true,
                 advanceOnTargetInput: false,
@@ -4424,7 +4424,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="create:DataApp"][data-tour-look="3"]',
                 title: 'Send starts the build',
-                body: 'If the prompt is vague, the agent will ask one or more clarifying questions - things like the topic, the audience, or the key metrics you want to highlight - before it starts building. If your prompt is already specific enough, it skips straight to the build.',
+                body: 'Themes are managed under **Settings → Data apps → Themes**.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
