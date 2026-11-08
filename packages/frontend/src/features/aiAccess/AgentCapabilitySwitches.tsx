@@ -1,17 +1,8 @@
 import { AgentCapability } from '@lightdash/common';
-import {
-    Accordion,
-    Anchor,
-    Badge,
-    Group,
-    Stack,
-    Switch,
-    Text,
-} from '@mantine/core';
+import { Accordion, Anchor, Stack, Switch, Text } from '@mantine/core';
 import { Link } from 'react-router';
 import Callout from '../../components/common/Callout';
 import { agentPageCapabilityLabels } from './agentCapabilityLabels';
-import { AgentCapabilityMatrix } from './AgentCapabilityMatrix';
 import {
     readAndQueryCapabilities,
     toggleAgentCapability,
@@ -33,11 +24,13 @@ const developer = [
 const CapabilitySwitchGroup = ({
     capabilities,
     draft,
+    baseline,
     onChange,
     disabled,
 }: {
     capabilities: AgentCapability[];
     draft: AgentPermissionDraft;
+    baseline: AgentPermissionDraft;
     onChange: (draft: AgentPermissionDraft) => void;
     disabled: boolean;
 }) => {
@@ -56,7 +49,9 @@ const CapabilitySwitchGroup = ({
                     checked={allowed.has(capability)}
                     disabled={disabled}
                     onChange={() =>
-                        onChange(toggleAgentCapability(draft, capability))
+                        onChange(
+                            toggleAgentCapability(draft, capability, baseline),
+                        )
                     }
                 />
             ))}
@@ -65,21 +60,16 @@ const CapabilitySwitchGroup = ({
 };
 export const AgentCapabilitySwitches = ({
     draft,
+    baseline,
     onChange,
     disabled,
 }: {
     draft: AgentPermissionDraft;
+    baseline: AgentPermissionDraft;
     onChange: (draft: AgentPermissionDraft) => void;
     disabled: boolean;
 }) => {
-    const rows = Object.values(draft.systemRoleMatrix);
-    const firstRow = new Set(rows[0]);
     const allowed = new Set(draft.allowedCapabilities);
-    const sameRows = rows.every(
-        (row) =>
-            row.length === rows[0].length &&
-            row.every((cap) => firstRow.has(cap)),
-    );
     const developerCount = developer.filter((cap) => allowed.has(cap)).length;
     return (
         <Stack gap="md">
@@ -90,6 +80,7 @@ export const AgentCapabilitySwitches = ({
                 <CapabilitySwitchGroup
                     capabilities={readAndQueryCapabilities}
                     draft={draft}
+                    baseline={baseline}
                     onChange={onChange}
                     disabled={disabled}
                 />
@@ -101,6 +92,7 @@ export const AgentCapabilitySwitches = ({
                 <CapabilitySwitchGroup
                     capabilities={changes}
                     draft={draft}
+                    baseline={baseline}
                     onChange={onChange}
                     disabled={disabled}
                 />
@@ -127,35 +119,9 @@ export const AgentCapabilitySwitches = ({
                         <CapabilitySwitchGroup
                             capabilities={developer}
                             draft={draft}
+                            baseline={baseline}
                             onChange={onChange}
                             disabled={disabled}
-                        />
-                    </Accordion.Panel>
-                </Accordion.Item>
-                <Accordion.Item value="roles">
-                    <Accordion.Control>
-                        <Stack gap={0}>
-                            <Group gap="xs">
-                                <Text size="sm" fw={500}>
-                                    Different limits per role
-                                </Text>
-                                <Badge size="xs">Advanced</Badge>
-                            </Group>
-                            <Text size="xs" c="dimmed">
-                                {sameRows
-                                    ? 'All roles get the same today.'
-                                    : 'Roles have different limits today.'}
-                            </Text>
-                        </Stack>
-                    </Accordion.Control>
-                    <Accordion.Panel>
-                        <AgentCapabilityMatrix
-                            matrix={draft.systemRoleMatrix}
-                            allowedCapabilities={draft.allowedCapabilities}
-                            disabled={disabled}
-                            onChange={(systemRoleMatrix) =>
-                                onChange({ ...draft, systemRoleMatrix })
-                            }
                         />
                     </Accordion.Panel>
                 </Accordion.Item>

@@ -408,19 +408,10 @@ describe('reviewed agent permissions', () => {
                 .getAllByRole('switch')
                 .filter((control) => (control as HTMLInputElement).checked),
         ).toHaveLength(9);
-        fireEvent.click(
-            screen.getByRole('button', { name: /Different limits per role/ }),
-        );
-        expect(
-            await screen.findByRole('checkbox', { name: 'Admin: Query data' }),
-        ).toBeChecked();
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Raw SQL' }),
-        ).not.toBeChecked();
         custom();
         expect(screen.getByText('No changes')).toBeInTheDocument();
     });
-    it('starts Custom on, with collapsed developer and role controls', () => {
+    it('starts Custom on, with collapsed developer controls and no role limits', () => {
         renderSection();
         custom();
         expect(screen.getAllByRole('switch')).toHaveLength(7);
@@ -433,8 +424,9 @@ describe('reviewed agent permissions', () => {
             screen.getByRole('button', { name: /Developer and admin/ }),
         ).toHaveAttribute('aria-expanded', 'false');
         expect(
-            screen.getByRole('button', { name: /Different limits per role/ }),
-        ).toHaveAttribute('aria-expanded', 'false');
+            screen.queryByRole('button', { name: /Different limits per role/ }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Custom roles' }),
@@ -483,49 +475,37 @@ describe('reviewed agent permissions', () => {
             ),
         });
     });
-    it('disables a role cell when its global capability is off', async () => {
-        renderSection();
-        custom();
-        toggle('Delete content');
-        fireEvent.click(
-            screen.getByRole('button', { name: /Different limits per role/ }),
-        );
-        expect(
-            await screen.findByRole('checkbox', {
-                name: 'Admin: Delete content',
-            }),
-        ).toBeDisabled();
-        toggle('Delete content');
-        expect(
-            await screen.findByRole('checkbox', {
-                name: 'Admin: Delete content',
-            }),
-        ).toBeChecked();
-    });
-    it('reviews advanced row edits with the role name', async () => {
+    it('keeps saved role rows through switch edits and sends them unchanged', async () => {
+        const rows = {
+            ...matrix(all),
+            [OrganizationMemberRole.VIEWER]: all.filter(
+                (cap) => cap !== AgentCapability.Delete,
+            ),
+        };
         policy = {
             ...policy,
             mode: 'managed',
             allowedCapabilities: all,
-            systemRoleMatrix: matrix(all),
+            systemRoleMatrix: rows,
         };
         renderSection();
-        fireEvent.click(
-            screen.getByRole('button', { name: /Different limits per role/ }),
-        );
-        fireEvent.click(
-            await screen.findByRole('checkbox', {
-                name: 'Admin: Delete content',
-            }),
-        );
-        expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
+        toggle('Delete content');
+        toggle('Delete content');
+        expect(screen.getByText('No changes')).toBeInTheDocument();
+        toggle('Publish and share');
         review();
-        const modal = within(screen.getByRole('dialog'));
-        const row = within(modal.getByText('Admin').parentElement!);
-        expect(row.getAllByText('STOPS: Delete content')).toHaveLength(1);
-        expect(modal.getAllByText('Admin')).toHaveLength(1);
-        expect(modal.getAllByText(/Delete content/)).toHaveLength(1);
-        expect(row.queryByText(/ALLOWS/)).not.toBeInTheDocument();
+        save();
+        await waitFor(() => expect(api).toHaveBeenCalled());
+        expect(
+            JSON.parse(String(api.mock.calls[0][0].body)).systemRoleMatrix,
+        ).toEqual(
+            Object.fromEntries(
+                Object.entries(rows).map(([role, caps]) => [
+                    role,
+                    caps.filter((cap) => cap !== AgentCapability.Publish),
+                ]),
+            ),
+        );
     });
     it('shows historical managed limits as Custom, all global switches on and saved rows intact', async () => {
         policy = {
@@ -536,14 +516,6 @@ describe('reviewed agent permissions', () => {
         renderSection();
         expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
         expect(screen.getByText('No changes')).toBeInTheDocument();
-        fireEvent.click(
-            screen.getByRole('button', { name: /Different limits per role/ }),
-        );
-        expect(
-            await screen.findByRole('checkbox', {
-                name: 'Admin: Delete content',
-            }),
-        ).not.toBeChecked();
         expect(
             screen.getByRole('switch', { name: 'Delete content' }),
         ).toBeChecked();

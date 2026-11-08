@@ -109,6 +109,7 @@ export const AgentPermissionsSection = ({
                             >
                                 <AgentCapabilitySwitches
                                     draft={form.values}
+                                    baseline={baseline}
                                     onChange={form.setValues}
                                     disabled={disabled}
                                 />

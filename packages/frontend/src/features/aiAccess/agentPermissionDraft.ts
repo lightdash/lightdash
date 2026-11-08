@@ -130,9 +130,13 @@ export const normaliseAgentPermissionDraft = (
 export const toggleAgentCapability = (
     draft: AgentPermissionDraft,
     capability: AgentCapability,
+    baseline: AgentPermissionDraft,
 ): AgentPermissionDraft => {
     const allowed = new Set(draft.allowedCapabilities);
     const enabled = !allowed.has(capability);
+    const savedRows =
+        baseline.mode === 'managed' &&
+        baseline.allowedCapabilities.includes(capability);
     return {
         ...draft,
         allowedCapabilities: allCapabilities.filter((cap) =>
@@ -141,10 +145,14 @@ export const toggleAgentCapability = (
         systemRoleMatrix: Object.fromEntries(
             roles.map((role) => {
                 const row = new Set(draft.systemRoleMatrix[role]);
+                const restored =
+                    enabled &&
+                    (!savedRows ||
+                        baseline.systemRoleMatrix[role].includes(capability));
                 return [
                     role,
                     allCapabilities.filter((cap) =>
-                        cap === capability ? enabled : row.has(cap),
+                        cap === capability ? restored : row.has(cap),
                     ),
                 ];
             }),

@@ -152,8 +152,9 @@ describe('agent permission draft', () => {
             count(
                 base,
                 toggleAgentCapability(
-                    toggleAgentCapability(custom, AgentCapability.Delete),
+                    toggleAgentCapability(custom, AgentCapability.Delete, base),
                     AgentCapability.Publish,
+                    base,
                 ),
             ),
         ).toBe(3);
@@ -225,14 +226,12 @@ describe('agent permission draft', () => {
         });
     });
     it('removes global capabilities from every row, restores them to every row and counts once each', () => {
-        const base = chooseAgentPermission(
-            policyToDraft(policy()),
-            'custom',
-            policyToDraft(policy()),
-        );
+        const saved = policyToDraft(policy());
+        const base = chooseAgentPermission(saved, 'custom', saved);
         const draft = toggleAgentCapability(
-            toggleAgentCapability(base, AgentCapability.Delete),
+            toggleAgentCapability(base, AgentCapability.Delete, saved),
             AgentCapability.Publish,
+            saved,
         );
         expect(draft.systemRoleMatrix.admin).not.toContain(
             AgentCapability.Delete,
@@ -246,18 +245,40 @@ describe('agent permission draft', () => {
         );
         expect(getAgentPermissionChanges(base, draft).roles).toEqual([]);
         expect(
-            toggleAgentCapability(draft, AgentCapability.Delete)
+            toggleAgentCapability(draft, AgentCapability.Delete, saved)
                 .systemRoleMatrix,
         ).toEqual(matrix(all.filter((c) => c !== AgentCapability.Publish)));
         expect(
             count(
                 base,
                 toggleAgentCapability(
-                    toggleAgentCapability(draft, AgentCapability.Delete),
+                    toggleAgentCapability(draft, AgentCapability.Delete, saved),
                     AgentCapability.Publish,
+                    saved,
                 ),
             ),
         ).toBe(0);
+    });
+    it('restores saved role rows when a capability goes off and on again', () => {
+        const saved = policyToDraft(
+            policy({
+                mode: 'managed',
+                allowedCapabilities: all,
+                systemRoleMatrix: {
+                    ...matrix(all),
+                    [OrganizationMemberRole.VIEWER]: all.filter(
+                        (c) => c !== AgentCapability.Delete,
+                    ),
+                },
+            }),
+        );
+        const draft = toggleAgentCapability(
+            toggleAgentCapability(saved, AgentCapability.Delete, saved),
+            AgentCapability.Delete,
+            saved,
+        );
+        expect(draft.systemRoleMatrix).toEqual(saved.systemRoleMatrix);
+        expect(count(saved, draft)).toBe(0);
     });
     it('counts advanced edits separately and cannot restore a globally disabled cell', () => {
         const base = chooseAgentPermission(
