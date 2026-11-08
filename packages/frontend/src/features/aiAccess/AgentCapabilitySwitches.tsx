@@ -129,8 +129,7 @@ export const AgentCapabilitySwitches = ({
             <Callout variant="info">
                 <Stack gap="xs">
                     <Text size="sm">
-                        Limits saved for each role keep applying. A person never
-                        gets more than their own permissions.
+                        Limits saved for each role keep applying.
                     </Text>
                     <Text size="sm">
                         Custom roles keep their own agent permissions.{' '}
