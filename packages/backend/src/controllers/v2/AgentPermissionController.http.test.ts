@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AGENT_CAPABILITY_LIMIT_DEFAULTS,
     AgentCapability,
     OrganizationMemberRole,
     type PossibleAbilities,
@@ -133,6 +134,13 @@ const setup = () => {
 
 const path = '/api/v2/org/agent-permissions';
 
+const everyCapabilityForEveryRole = Object.fromEntries(
+    Object.values(OrganizationMemberRole).map((role) => [
+        role,
+        [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
+    ]),
+);
+
 const legacyMatrix = {
     [OrganizationMemberRole.MEMBER]: [],
     [OrganizationMemberRole.VIEWER]: [AgentCapability.Query],
@@ -162,7 +170,9 @@ test('generated PUT accepts old extras, drops their choices and retains a stored
     });
     expect(result.body.results).not.toHaveProperty('allowedUserUuids');
     expect(result.body.results).not.toHaveProperty('allowedProjectUuids');
-    expect(result.body.results).not.toHaveProperty('systemRoleMatrix');
+    expect(result.body.results.systemRoleMatrix).toEqual(
+        everyCapabilityForEveryRole,
+    );
     expect(tracker.history.insert).toHaveLength(1);
     expect(tracker.history.delete).toHaveLength(0);
     expect(h.row).toMatchObject({
@@ -172,20 +182,25 @@ test('generated PUT accepts old extras, drops their choices and retains a stored
     });
 });
 
-test('generated GET, new PUT and reset return the final shape', async () => {
+test('generated GET, new PUT and reset return the deprecated constants', async () => {
     const h = setup();
     const get = await h.call('GET', path);
     expect(get.status).toBe(200);
     expect(get.body.results).not.toHaveProperty('allowedUserUuids');
     expect(get.body.results).not.toHaveProperty('allowedProjectUuids');
-    expect(get.body.results).not.toHaveProperty('systemRoleMatrix');
-    expect(get.body.results).not.toHaveProperty('defaults');
+    expect(get.body.results.systemRoleMatrix).toEqual(
+        everyCapabilityForEveryRole,
+    );
+    expect(get.body.results.defaults).toEqual(everyCapabilityForEveryRole);
     const saved = await h.call('PUT', path, {
         mode: 'managed',
         version: 2,
         allowedCapabilities: [],
     });
     expect(saved.status).toBe(200);
+    expect(saved.body.results.systemRoleMatrix).toEqual(
+        everyCapabilityForEveryRole,
+    );
     expect(h.row.allowed_capabilities).toEqual([]);
     const reset = await h.call('POST', `${path}/reset`, { version: 3 });
     expect(reset.status).toBe(200);
@@ -193,6 +208,7 @@ test('generated GET, new PUT and reset return the final shape', async () => {
         mode: 'legacy',
         allowedCapabilities: null,
         allowedGroupUuids: ['saved-group'],
+        systemRoleMatrix: everyCapabilityForEveryRole,
     });
     expect((await h.call('POST', `${path}/reset`)).status).toBe(200);
 });

@@ -1,6 +1,9 @@
 import {
+    AGENT_CAPABILITY_LIMIT_DEFAULTS,
     assertRegisteredAccount,
+    OrganizationMemberRole,
     type AgentCapabilityCeiling,
+    type AgentSystemRoleMatrix,
     type AgentPolicyOverviewResponse,
     type AgentPolicyResponse,
     type ApiErrorPayload,
@@ -26,6 +29,14 @@ import {
 } from '../authentication';
 import { BaseController } from '../baseController';
 
+const deprecatedAgentSystemRoleMatrix = (): AgentSystemRoleMatrix =>
+    Object.fromEntries(
+        Object.values(OrganizationMemberRole).map((role) => [
+            role,
+            [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
+        ]),
+    ) as AgentSystemRoleMatrix;
+
 @Route('/api/v2/org/agent-permissions')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Organizations')
@@ -39,9 +50,13 @@ export class AgentPermissionController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.services
-                .getAgentPermissionService()
-                .getPolicy(req.account),
+            results: {
+                ...(await this.services
+                    .getAgentPermissionService()
+                    .getPolicy(req.account)),
+                systemRoleMatrix: deprecatedAgentSystemRoleMatrix(),
+                defaults: deprecatedAgentSystemRoleMatrix(),
+            },
         };
     }
 
@@ -54,9 +69,12 @@ export class AgentPermissionController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.services
-                .getAgentPermissionService()
-                .saveCeiling(req.account, body),
+            results: {
+                ...(await this.services
+                    .getAgentPermissionService()
+                    .saveCeiling(req.account, body)),
+                systemRoleMatrix: deprecatedAgentSystemRoleMatrix(),
+            },
         };
     }
 
@@ -69,9 +87,12 @@ export class AgentPermissionController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.services
-                .getAgentPermissionService()
-                .resetToLegacy(req.account, body?.version),
+            results: {
+                ...(await this.services
+                    .getAgentPermissionService()
+                    .resetToLegacy(req.account, body?.version)),
+                systemRoleMatrix: deprecatedAgentSystemRoleMatrix(),
+            },
         };
     }
 }

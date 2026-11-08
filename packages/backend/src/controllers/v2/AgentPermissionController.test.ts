@@ -1,10 +1,12 @@
 import { Ability } from '@casl/ability';
 import {
+    AGENT_CAPABILITY_LIMIT_DEFAULTS,
     AgentActorSurface,
     AgentCapability,
     ForbiddenError,
     OrganizationMemberRole,
     type AgentCapabilityPolicy,
+    type AgentSystemRoleMatrix,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { type Request } from 'express';
@@ -213,13 +215,39 @@ test('reset clears the capability list and omits groups without a role matrix', 
     expect(deps.agentCapabilityPolicyModel.get).not.toHaveBeenCalled();
 });
 
-test('GET returns the saved policy without a role matrix or defaults', async () => {
+const everyCapabilityForEveryRole = Object.fromEntries(
+    Object.values(OrganizationMemberRole).map((role) => [
+        role,
+        [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
+    ]),
+) as AgentSystemRoleMatrix;
+
+test('GET returns the saved policy with the deprecated role matrix and defaults constants', async () => {
     const { controller, req, deps } = setup();
     const { results } = await controller.getPolicy(req);
     expect(results).toMatchObject({ allowedCapabilities: null });
-    expect(results).not.toHaveProperty('systemRoleMatrix');
-    expect(results).not.toHaveProperty('defaults');
+    expect(results.systemRoleMatrix).toEqual(everyCapabilityForEveryRole);
+    expect(results.defaults).toEqual(everyCapabilityForEveryRole);
     expect(deps.agentCapabilityPolicyModel.save).not.toHaveBeenCalled();
+});
+
+test('PUT and reset return the deprecated role matrix constant without storing a matrix', async () => {
+    const { controller, req, deps } = setup();
+    const saveRequest = {
+        mode: 'managed' as const,
+        allowedCapabilities: [AgentCapability.Query],
+        systemRoleMatrix: {
+            ...everyCapabilityForEveryRole,
+            [OrganizationMemberRole.VIEWER]: [],
+        },
+    };
+    const saved = await controller.saveCeiling(req, saveRequest);
+    expect(saved.results.systemRoleMatrix).toEqual(everyCapabilityForEveryRole);
+    const reset = await controller.resetToLegacy(req, { version: 7 });
+    expect(reset.results.systemRoleMatrix).toEqual(everyCapabilityForEveryRole);
+    deps.agentCapabilityPolicyModel.save.mock.calls.forEach(([stored]) =>
+        expect(stored).not.toHaveProperty('systemRoleMatrix'),
+    );
 });
 
 test('save accepts a legacy role matrix and does not store it', async () => {
