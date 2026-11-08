@@ -442,9 +442,7 @@ describe('reviewed agent permissions', () => {
         ).toHaveLength(1);
         expect(modal.queryByText('ALLOWS')).not.toBeInTheDocument();
         expect(
-            modal.getByText(
-                'For every role, custom roles included.',
-            ),
+            modal.getByText('For every role, custom roles included.'),
         ).toBeInTheDocument();
         expect(modal.queryByText('ACTIVITY')).not.toBeInTheDocument();
         expect(api).not.toHaveBeenCalled();
