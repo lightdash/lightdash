@@ -5,7 +5,6 @@ import {
     ForbiddenError,
     OrganizationMemberRole,
     type AgentCapabilityPolicy,
-    type AgentSystemRoleMatrix,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { type Request } from 'express';
@@ -226,7 +225,7 @@ test('GET returns the saved policy without a role matrix or defaults', async () 
 test('save accepts a legacy role matrix and does not store it', async () => {
     const { service, account, deps, policy } = setup();
     const allowedCapabilities = [AgentCapability.Query, AgentCapability.RawSql];
-    const systemRoleMatrix: AgentSystemRoleMatrix = {
+    const systemRoleMatrix = {
         [OrganizationMemberRole.MEMBER]: [],
         [OrganizationMemberRole.VIEWER]: [AgentCapability.Query],
         [OrganizationMemberRole.INTERACTIVE_VIEWER]: [AgentCapability.Query],
@@ -240,13 +239,14 @@ test('save accepts a legacy role matrix and does not store it', async () => {
         ],
         [OrganizationMemberRole.ADMIN]: Object.values(AgentCapability),
     };
-    await expect(
-        service.saveCeiling(account, {
-            mode: 'managed',
-            allowedCapabilities,
-            systemRoleMatrix,
-        }),
-    ).resolves.toBe(policy);
+    const legacyCeiling = {
+        mode: 'managed' as const,
+        allowedCapabilities,
+        systemRoleMatrix,
+    };
+    await expect(service.saveCeiling(account, legacyCeiling)).resolves.toBe(
+        policy,
+    );
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledOnce();
     const [saved] = deps.agentCapabilityPolicyModel.save.mock.calls[0];
     expect(saved).not.toHaveProperty('systemRoleMatrix');

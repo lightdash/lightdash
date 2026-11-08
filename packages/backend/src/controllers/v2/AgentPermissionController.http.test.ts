@@ -2,7 +2,6 @@ import { Ability } from '@casl/ability';
 import {
     AgentCapability,
     OrganizationMemberRole,
-    type AgentSystemRoleMatrix,
     type PossibleAbilities,
 } from '@lightdash/common';
 import express, {
@@ -134,7 +133,7 @@ const setup = () => {
 
 const path = '/api/v2/org/agent-permissions';
 
-const legacyMatrix: AgentSystemRoleMatrix = {
+const legacyMatrix = {
     [OrganizationMemberRole.MEMBER]: [],
     [OrganizationMemberRole.VIEWER]: [AgentCapability.Query],
     [OrganizationMemberRole.INTERACTIVE_VIEWER]: [AgentCapability.Query],

@@ -41,8 +41,8 @@ if groups later become unavailable. An admin can always clear it with `null`.
 Personal-access-token and service-account calls keep their existing exemptions.
 The policy API accepts group admission in either mode. A PUT with
 `mode: 'legacy'` clears the capability list. Omitting `mode` means managed.
-Reset keeps the group restriction. The API returns no per-role matrix. For
-one release a PUT can still send `systemRoleMatrix`; the server ignores it.
+Reset keeps the group restriction. The API returns no per-role matrix. A PUT
+that still sends `systemRoleMatrix` gets no error; the server ignores it.
 GET, PUT and reset omit the old people and project choices. Old browser tabs
 can still save them, but the server ignores them and clears the old columns.
 The Agents page uses the capability-policy API for Same as the person,
