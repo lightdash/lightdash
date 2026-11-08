@@ -32,10 +32,7 @@ import {
     expectAdmissionSql,
     setupPermissionSql,
 } from '../../services/AgentPermissionService/agentPermissionSqlFixture';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -66,9 +63,8 @@ const setup = (
     const policy: AgentCapabilityPolicy = {
         mode: mode === 'off' ? 'managed' : mode,
         version: 1,
-        allowedCapabilities: null,
+        allowedCapabilities: [AgentCapability.Query],
         allowedGroupUuids: null,
-        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
     const featureFlagModel = {
         get: vi.fn(async ({ featureFlagId }) => ({
@@ -242,7 +238,10 @@ describe.each([AgentActorSurface.MCP, AgentActorSurface.IN_APP_AGENT])(
 
         it('dispatches SQL with its grant and no project confirmation', async () => {
             const { policy, composer, asyncQueryService } = setup();
-            policy.systemRoleMatrix.developer.push(AgentCapability.RawSql);
+            policy.allowedCapabilities = [
+                AgentCapability.Query,
+                AgentCapability.RawSql,
+            ];
             await composer(surface, [semanticQuery, sqlQuery]);
             expect(
                 asyncQueryService.executeAsyncSqlQuery,
@@ -265,7 +264,10 @@ describe.each([AgentActorSurface.MCP, AgentActorSurface.IN_APP_AGENT])(
 describe('OAuth REST source dispatch', () => {
     it('allows SQL execution with both grants and no project confirmation', async () => {
         const { controller, request, policy, asyncQueryService } = setup();
-        policy.systemRoleMatrix.developer.push(AgentCapability.RawSql);
+        policy.allowedCapabilities = [
+            AgentCapability.Query,
+            AgentCapability.RawSql,
+        ];
 
         await controller.executeSourceQueries(
             { queries: [sqlQuery] },
@@ -313,7 +315,10 @@ describe('OAuth REST source dispatch', () => {
 
     it('allows SQL scans with the SQL grant and no project confirmation', async () => {
         const { controller, request, policy, projectService } = setup();
-        policy.systemRoleMatrix.developer.push(AgentCapability.RawSql);
+        policy.allowedCapabilities = [
+            AgentCapability.Query,
+            AgentCapability.RawSql,
+        ];
         await controller.scanQuerySourceSchema(
             projectUuid,
             QuerySourceType.SQL,
@@ -540,10 +545,6 @@ test.each([
     'empty capability list stops %s query source before dispatch',
     async (surface) => {
         const h = setup();
-        h.policy.systemRoleMatrix.developer = [
-            AgentCapability.Query,
-            AgentCapability.RawSql,
-        ];
         h.policy.allowedCapabilities = [];
         await expect(h.composer(surface, [sqlQuery])).rejects.toMatchObject({
             refusal: {

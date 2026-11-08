@@ -1,8 +1,6 @@
 import {
     AgentCapability,
-    OrganizationMemberRole,
     type AgentCapabilityPolicyOverview,
-    type AgentSystemRoleMatrix,
     type GroupWithMembers,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
@@ -41,17 +39,11 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
 const all = Object.values(AgentCapability);
-const matrix = (caps: AgentCapability[]) =>
-    Object.fromEntries(
-        Object.values(OrganizationMemberRole).map((role) => [role, [...caps]]),
-    ) as AgentSystemRoleMatrix;
 const legacy = (): AgentCapabilityPolicyOverview => ({
     mode: 'legacy',
     version: 1,
     allowedCapabilities: null,
     allowedGroupUuids: null,
-    systemRoleMatrix: matrix([]),
-    defaults: matrix(all),
     groupsAvailable: true,
 });
 let policy = legacy();
@@ -195,7 +187,6 @@ describe('reviewed agent permissions', () => {
                 ...policy,
                 mode: capabilities === null ? 'legacy' : 'managed',
                 allowedCapabilities: capabilities,
-                systemRoleMatrix: matrix(capabilities ?? []),
                 allowedGroupUuids: selection,
             };
             renderSection();
@@ -339,7 +330,7 @@ describe('reviewed agent permissions', () => {
         );
         expect(screen.getByText('2 unsaved changes')).toBeInTheDocument();
     });
-    it('reviews seven named allows and saves eleven capabilities in every row from saved Read', async () => {
+    it('reviews seven named allows and saves eleven capabilities from saved Read', async () => {
         const read = [
             AgentCapability.ReadDiscover,
             AgentCapability.Query,
@@ -350,7 +341,6 @@ describe('reviewed agent permissions', () => {
             ...policy,
             mode: 'managed',
             allowedCapabilities: read,
-            systemRoleMatrix: matrix(read),
         };
         renderSection();
         custom();
@@ -373,12 +363,14 @@ describe('reviewed agent permissions', () => {
         expect(modal.queryByText('STOPS')).not.toBeInTheDocument();
         save();
         await waitFor(() => expect(api).toHaveBeenCalled());
-        expect(JSON.parse(String(api.mock.calls[0][0].body))).toMatchObject({
+        const body = JSON.parse(String(api.mock.calls[0][0].body));
+        expect(body).toMatchObject({
+            mode: 'managed',
             allowedCapabilities: all,
-            systemRoleMatrix: matrix(all),
         });
+        expect(body).not.toHaveProperty('systemRoleMatrix');
     });
-    it('restores the nine saved Custom capabilities and narrowed role row after Read', async () => {
+    it('restores the nine saved Custom capabilities after Read', async () => {
         const nine = all.filter(
             (cap) =>
                 cap !== AgentCapability.Delete &&
@@ -388,10 +380,6 @@ describe('reviewed agent permissions', () => {
             ...policy,
             mode: 'managed',
             allowedCapabilities: nine,
-            systemRoleMatrix: {
-                ...matrix(nine),
-                admin: [AgentCapability.Query],
-            },
         };
         renderSection();
         choose('Same as the person');
@@ -427,6 +415,11 @@ describe('reviewed agent permissions', () => {
             screen.queryByRole('button', { name: /Different limits per role/ }),
         ).not.toBeInTheDocument();
         expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+        expect(
+            screen.getByText(
+                'These limits apply to every role, custom roles included.',
+            ),
+        ).toBeInTheDocument();
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Custom roles' }),
@@ -475,18 +468,11 @@ describe('reviewed agent permissions', () => {
             ),
         });
     });
-    it('keeps saved role rows through switch edits and sends them unchanged', async () => {
-        const rows = {
-            ...matrix(all),
-            [OrganizationMemberRole.VIEWER]: all.filter(
-                (cap) => cap !== AgentCapability.Delete,
-            ),
-        };
+    it('returns to no changes after a switch goes off and on, then saves without a role matrix', async () => {
         policy = {
             ...policy,
             mode: 'managed',
             allowedCapabilities: all,
-            systemRoleMatrix: rows,
         };
         renderSection();
         toggle('Delete content');
@@ -496,23 +482,18 @@ describe('reviewed agent permissions', () => {
         review();
         save();
         await waitFor(() => expect(api).toHaveBeenCalled());
-        expect(
-            JSON.parse(String(api.mock.calls[0][0].body)).systemRoleMatrix,
-        ).toEqual(
-            Object.fromEntries(
-                Object.entries(rows).map(([role, caps]) => [
-                    role,
-                    caps.filter((cap) => cap !== AgentCapability.Publish),
-                ]),
-            ),
-        );
-    });
-    it('shows historical managed limits as Custom, all global switches on and saved rows intact', async () => {
-        policy = {
-            ...policy,
+        const body = JSON.parse(String(api.mock.calls[0][0].body));
+        expect(body).not.toHaveProperty('systemRoleMatrix');
+        expect(body).toMatchObject({
+            version: 1,
             mode: 'managed',
-            systemRoleMatrix: matrix([AgentCapability.Query]),
-        };
+            allowedCapabilities: all.filter(
+                (cap) => cap !== AgentCapability.Publish,
+            ),
+        });
+    });
+    it('shows a managed policy without a saved list as Custom with every switch on', async () => {
+        policy = { ...policy, mode: 'managed' };
         renderSection();
         expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
         expect(screen.getByText('No changes')).toBeInTheDocument();
@@ -523,9 +504,14 @@ describe('reviewed agent permissions', () => {
         review();
         save();
         await waitFor(() => expect(api).toHaveBeenCalled());
-        expect(
-            JSON.parse(String(api.mock.calls[0][0].body)).systemRoleMatrix,
-        ).toEqual(matrix([AgentCapability.Query]));
+        const body = JSON.parse(String(api.mock.calls[0][0].body));
+        expect(body).not.toHaveProperty('systemRoleMatrix');
+        expect(body).toMatchObject({
+            mode: 'managed',
+            allowedCapabilities: all.filter(
+                (cap) => cap !== AgentCapability.Delete,
+            ),
+        });
     });
     it('keeps capabilities visible during group editing, shows member counts and reviews names without a people count', async () => {
         renderSection();
@@ -676,7 +662,6 @@ describe('reviewed agent permissions', () => {
             ...policy,
             mode: 'managed',
             allowedCapabilities: [],
-            systemRoleMatrix: matrix([]),
         };
         renderSection();
         toggle('Delete content');
@@ -793,7 +778,6 @@ describe('reviewed agent permissions', () => {
             version: 2,
             mode: 'managed',
             allowedCapabilities: all,
-            systemRoleMatrix: matrix(all),
         };
         view.rerender();
         expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
@@ -848,7 +832,6 @@ describe('reviewed agent permissions', () => {
             ...policy,
             mode: 'managed',
             allowedCapabilities: read,
-            systemRoleMatrix: matrix(read),
         };
         const view = renderSection();
         custom();
@@ -865,7 +848,6 @@ describe('reviewed agent permissions', () => {
         policy = {
             ...policy,
             allowedCapabilities: [...read].reverse(),
-            systemRoleMatrix: matrix([...read].reverse()),
         };
         view.rerender();
         expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();

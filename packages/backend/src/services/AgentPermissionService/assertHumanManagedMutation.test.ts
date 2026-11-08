@@ -35,7 +35,6 @@ describe.each(['managed', 'admission', 'people-only'] as const)(
                     mode === 'admission' ? ['allowed-group'] : null,
                 version: 7,
                 allowedCapabilities: null,
-                systemRoleMatrix: {} as never,
             };
             const getPolicy = vi
                 .spyOn(AgentCapabilityPolicyModel.prototype, 'get')

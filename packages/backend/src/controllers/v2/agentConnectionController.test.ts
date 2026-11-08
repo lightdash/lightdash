@@ -158,7 +158,7 @@ it('runs own status and revoke through real authentication despite lost admissio
     auth.permissions.assertOperationWithRequest.mockRejectedValue(
         new Error('Agent admission removed'),
     );
-    f.policy.systemRoleMatrix.viewer = [];
+    f.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
     auth.req.params = { grantUuid: 'grant' };
     auth.req.route.stack = [
         {

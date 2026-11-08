@@ -1,6 +1,5 @@
 import {
     AgentActorSurface,
-    AgentCapability,
     assertIsAccountWithOrg,
     OrganizationMemberRole,
     type AgentCapabilityPolicy,
@@ -11,10 +10,7 @@ import { type Tracker } from 'knex-mock-client';
 import { buildAccount } from '../../auth/account/account.mock';
 import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import { GroupsModel } from '../../models/GroupsModel';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from './AgentPermissionService';
+import { AgentPermissionService } from './AgentPermissionService';
 
 export const setupPermissionSql = (
     database: Knex,
@@ -27,7 +23,6 @@ export const setupPermissionSql = (
         version: 7,
         allowedCapabilities: null,
         allowedGroupUuids: ['live'],
-        systemRoleMatrix: agentSystemRoleMatrix(Object.values(AgentCapability)),
     };
     const state = {
         policy,
@@ -44,32 +39,22 @@ export const setupPermissionSql = (
         .response(() =>
             state.missing
                 ? []
-                : Object.entries(policy.systemRoleMatrix).flatMap(
-                      ([role, capabilities]) =>
-                          (capabilities.length ? capabilities : [null]).map(
-                              (capability) => ({
-                                  mode: policy.mode,
-                                  allowed_capabilities:
-                                      policy.allowedCapabilities,
-                                  version: policy.version,
-                                  allowed_project_uuids:
-                                      state.allowedProjectUuids,
-                                  allowed_user_uuids: state.allowedUserUuids,
-                                  allowed_group_uuids: policy.allowedGroupUuids,
-                                  has_existing_allowed_group:
-                                      policy.allowedGroupUuids === null
-                                          ? null
-                                          : policy.allowedGroupUuids.some(
-                                                (uuid) =>
-                                                    state.existingGroups.includes(
-                                                        uuid,
-                                                    ),
-                                            ),
-                                  system_role: role,
-                                  capability,
-                              }),
-                          ),
-                  ),
+                : [
+                      {
+                          mode: policy.mode,
+                          allowed_capabilities: policy.allowedCapabilities,
+                          version: policy.version,
+                          allowed_project_uuids: state.allowedProjectUuids,
+                          allowed_user_uuids: state.allowedUserUuids,
+                          allowed_group_uuids: policy.allowedGroupUuids,
+                          has_existing_allowed_group:
+                              policy.allowedGroupUuids === null
+                                  ? null
+                                  : policy.allowedGroupUuids.some((uuid) =>
+                                        state.existingGroups.includes(uuid),
+                                    ),
+                      },
+                  ],
         );
     tracker.on
         .select((query) => query.sql.includes('from "groups"'))

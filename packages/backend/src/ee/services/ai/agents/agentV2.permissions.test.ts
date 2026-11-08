@@ -7,10 +7,7 @@ import {
 } from '@lightdash/common';
 import { type ToolSet } from 'ai';
 import { buildAccount } from '../../../../auth/account/account.mock';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../../../services/AgentPermissionService/AgentPermissionService';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
 import {
@@ -25,9 +22,8 @@ const setup = () => {
     const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
-        allowedCapabilities: null,
+        allowedCapabilities: [AgentCapability.ReadDiscover],
         allowedGroupUuids: null,
-        systemRoleMatrix: agentSystemRoleMatrix([]),
     };
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -178,12 +174,12 @@ test.each(['standard', 'worker'] as const)(
             },
         });
         expect(h.runSqlJob).not.toHaveBeenCalled();
-        h.policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
+        h.policy.allowedCapabilities = [AgentCapability.RawSql];
         await expect(run()).resolves.toMatchObject({
             metadata: { status: 'success' },
         });
         expect(h.runSqlJob).toHaveBeenCalledOnce();
-        h.policy.systemRoleMatrix.viewer = [];
+        h.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
         await expect(run()).resolves.toMatchObject({
             metadata: { status: 'error' },
         });
@@ -208,9 +204,9 @@ test('connected tools require external_tools and recheck revocation', async () =
         },
     });
     expect(h.connectedExecute).not.toHaveBeenCalled();
-    h.policy.systemRoleMatrix.viewer = [AgentCapability.ExternalTools];
+    h.policy.allowedCapabilities = [AgentCapability.ExternalTools];
     await expect(run()).resolves.toEqual({ result: 'connected' });
-    h.policy.systemRoleMatrix.viewer = [];
+    h.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
     await run();
     expect(h.connectedExecute).toHaveBeenCalledOnce();
     expect(h.assertToolOperation).toHaveBeenCalledWith(
@@ -257,7 +253,7 @@ test.each([null, [], ['different_tool']])(
     'connected tools without explicit approval are unmapped: %j',
     async (enabledToolNames) => {
         const h = setup();
-        h.policy.systemRoleMatrix.viewer = [AgentCapability.ExternalTools];
+        h.policy.allowedCapabilities = [AgentCapability.ExternalTools];
         h.connectedTool.enabledToolNames = enabledToolNames;
         await expect(
             executeTool(h.buildTools().connected_search),
@@ -274,7 +270,7 @@ test.each([null, [], ['different_tool']])(
 
 test('a namespace collision cannot inherit another server approval', async () => {
     const h = setup();
-    h.policy.systemRoleMatrix.viewer = [AgentCapability.ExternalTools];
+    h.policy.allowedCapabilities = [AgentCapability.ExternalTools];
     const approved = vi.fn().mockResolvedValue('approved');
     const unlisted = vi.fn();
     const tools = withAgentToolPermissions(
@@ -309,7 +305,7 @@ test('a namespace collision cannot inherit another server approval', async () =>
 test('agent tool execution refuses unlisted users before running SQL', async () => {
     const h = setup();
     h.policy.allowedGroupUuids = [];
-    h.policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
+    h.policy.allowedCapabilities = [AgentCapability.RawSql];
     await expect(
         executeTool(h.buildTools().runSql, { sql: 'SELECT 1', limit: 1 }),
     ).resolves.toMatchObject({

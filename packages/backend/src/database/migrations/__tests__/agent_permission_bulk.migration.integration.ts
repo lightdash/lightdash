@@ -25,10 +25,7 @@ import { GroupsModel } from '../../../models/GroupsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import { AgentConnectionApprovalService } from '../../../services/AgentConnectionApprovalService/AgentConnectionApprovalService';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -187,22 +184,6 @@ const fixture = async (customRolesEnabled = false) => {
         encryptionUtil,
     });
     const policies = new AgentCapabilityPolicyModel({ database });
-    const roleMatrix = {
-        ...agentSystemRoleMatrix([]),
-        admin: Object.values(AgentCapability),
-        developer: [
-            AgentCapability.DeployUpload,
-            AgentCapability.ReadDiscover,
-            AgentCapability.Administration,
-        ],
-        editor: [
-            AgentCapability.ContentWrite,
-            AgentCapability.Publish,
-            AgentCapability.Delete,
-        ],
-        interactive_viewer: [AgentCapability.RawSql],
-        viewer: [AgentCapability.Query],
-    };
     const savePolicy = (
         overrides: Partial<Parameters<typeof policies.save>[0]> = {},
     ) =>
@@ -211,7 +192,6 @@ const fixture = async (customRolesEnabled = false) => {
             mode: 'managed',
             allowedCapabilities: [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
             allowedGroupUuids: null,
-            systemRoleMatrix: roleMatrix,
             updatedByUserUuid: people[0].user_uuid,
             ...overrides,
         });
@@ -255,11 +235,78 @@ const fixture = async (customRolesEnabled = false) => {
         accounts,
         loaders: { userModel: users, projectModel },
         savePolicy,
-        roleMatrix,
         flags,
         users,
         projectModel,
     };
+};
+
+type BulkFixture = Awaited<ReturnType<typeof fixture>>;
+
+const insertCustomRole = async (
+    f: BulkFixture,
+    name: string,
+    level: 'organization' | 'project',
+    scopes: string[],
+) => {
+    const [role] = await f
+        .database('roles')
+        .insert({
+            name,
+            description: null,
+            level,
+            organization_uuid: f.org.organization_uuid,
+            created_by: f.people[0].user_uuid,
+        })
+        .returning('*');
+    await f.database('scoped_roles').insert(
+        scopes.map((scope_name) => ({
+            role_uuid: role.role_uuid,
+            scope_name,
+            granted_by: f.people[0].user_uuid,
+        })),
+    );
+    return role;
+};
+
+const moveToOrganizationCustomRole = async (f: BulkFixture, index: number) => {
+    const role = await insertCustomRole(
+        f,
+        `Organization role ${index}`,
+        'organization',
+        ['view:Project'],
+    );
+    await f
+        .database('organization_memberships')
+        .where({
+            organization_id: f.org.organization_id,
+            user_id: f.people[index].user_id,
+        })
+        .update({ role_uuid: role.role_uuid });
+};
+
+const restrictGroupToCustomRoles = async (f: BulkFixture) => {
+    await moveToOrganizationCustomRole(f, 7);
+    const deploy = await insertCustomRole(f, 'Deploy only', 'project', [
+        AGENT_CAPABILITY_SCOPES[AgentCapability.DeployUpload],
+    ]);
+    await Promise.all(
+        [0, 1].map((parity) =>
+            f
+                .database('project_group_access')
+                .where('group_uuid', f.group.group_uuid)
+                .whereIn(
+                    'project_uuid',
+                    f.projects
+                        .filter((_, index) => index % 2 === parity)
+                        .map((project) => project.project_uuid),
+                )
+                .update({
+                    role_uuid:
+                        parity === 0 ? deploy.role_uuid : f.custom.role_uuid,
+                }),
+        ),
+    );
 };
 
 const capabilities = Object.values(AgentCapability).map((key) => ({
@@ -297,10 +344,8 @@ it('matches both operation paths cell by cell with real roles and policies', asy
     const f = await fixture();
     const scenarios = [
         'normal',
-        'managed-defaults',
         'disabled',
         'capability-limited',
-        'role-limited',
         'group-limited',
         'historical-null',
         'legacy',
@@ -313,13 +358,6 @@ it('matches both operation paths cell by cell with real roles and policies', asy
             id: featureFlagId,
             enabled: scenario !== 'off',
         }));
-        let systemRoleMatrix = f.roleMatrix;
-        if (scenario === 'role-limited')
-            systemRoleMatrix = agentSystemRoleMatrix([]);
-        if (scenario === 'managed-defaults')
-            systemRoleMatrix = agentSystemRoleMatrix(
-                AGENT_CAPABILITY_LIMIT_DEFAULTS,
-            );
         await f.savePolicy({
             mode: scenario.startsWith('legacy') ? 'legacy' : 'managed',
             allowedCapabilities:
@@ -335,7 +373,6 @@ it('matches both operation paths cell by cell with real roles and policies', asy
                 scenario === 'legacy-group-limited'
                     ? [f.group.group_uuid]
                     : null,
-            systemRoleMatrix,
         });
         if (scenario === 'historical-null')
             await f
@@ -410,9 +447,7 @@ it('matches both operation paths cell by cell with real roles and policies', asy
                             });
                         if (
                             scenario === 'normal' ||
-                            scenario === 'historical-null' ||
-                            (scenario === 'role-limited' &&
-                                account.user.id === f.accounts[6].user.id)
+                            scenario === 'historical-null'
                         )
                             expect(actual).toBeNull();
                     }
@@ -428,6 +463,7 @@ it('matches both operation paths cell by cell with real roles and policies', asy
 
 it('keeps role, policy, group and project query counts constant for 3 and 50 differentiated projects', async () => {
     const f = await fixture();
+    await restrictGroupToCustomRoles(f);
     await f.savePolicy({ allowedGroupUuids: [f.group.group_uuid] });
     const count = async (size: number) => {
         const sql: string[] = [];
@@ -551,6 +587,7 @@ it('refuses loaders that are not the models the single check uses', async () => 
 });
 it('reads changed roles again on the next call', async () => {
     const f = await fixture();
+    await moveToOrganizationCustomRole(f, 5);
     const args = {
         account: f.accounts[5],
         organizationUuid: f.org.organization_uuid,
@@ -743,6 +780,7 @@ it('review offered and blocked cells agree with independent capability policy an
 
 it('review answer uses equal SQL round trips for 3 and 50 differentiated projects', async () => {
     const f = await fixture();
+    await restrictGroupToCustomRoles(f);
     await f.savePolicy({ allowedGroupUuids: [f.group.group_uuid] });
     const approval = approvalFixture(f);
     const count = async (size: number) => {
@@ -897,10 +935,6 @@ it.each([
             allowedGroupUuids: scenario.endsWith('group-limited')
                 ? [f.group.group_uuid]
                 : null,
-            systemRoleMatrix: {
-                ...f.roleMatrix,
-                viewer: [AgentCapability.Query, AgentCapability.RawSql],
-            },
         });
         await f.database('scoped_roles').insert(
             [
