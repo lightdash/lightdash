@@ -1,7 +1,7 @@
 import {
-    type ChartAsCode,
     type ContentAsCodeWritebackStatus,
     type DashboardAsCode,
+    type SavedChartAsCode,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -21,8 +21,8 @@ export type ContentDraft = {
     status: string;
     prUrl: string | null;
     writebackStatus: ContentAsCodeWritebackStatus | null;
-    writtenBackPublished: ChartAsCode | DashboardAsCode | null;
-    writtenBackDraft: ChartAsCode | DashboardAsCode | null;
+    writtenBackPublished: SavedChartAsCode | DashboardAsCode | null;
+    writtenBackDraft: SavedChartAsCode | DashboardAsCode | null;
     // The upload snapshot the draft started from, and the slug's current one
     baseSnapshot: object | null;
     baseSnapshotHash: string | null;
@@ -72,10 +72,12 @@ const parseRow = (
     writebackStatus:
         (row.writeback_status as ContentAsCodeWritebackStatus | null) ?? null,
     writtenBackPublished:
-        (row.written_back_published as ChartAsCode | DashboardAsCode | null) ??
-        null,
+        (row.written_back_published as
+            | SavedChartAsCode
+            | DashboardAsCode
+            | null) ?? null,
     writtenBackDraft:
-        (row.written_back_draft as ChartAsCode | DashboardAsCode | null) ??
+        (row.written_back_draft as SavedChartAsCode | DashboardAsCode | null) ??
         null,
     baseSnapshot: row.base_snapshot,
     baseSnapshotHash: row.base_snapshot_hash,
@@ -355,8 +357,8 @@ export class ContentDraftModel {
         update: {
             status?: string;
             prUrl?: string | null;
-            writtenBackPublished?: ChartAsCode | DashboardAsCode | null;
-            writtenBackDraft?: ChartAsCode | DashboardAsCode | null;
+            writtenBackPublished?: SavedChartAsCode | DashboardAsCode | null;
+            writtenBackDraft?: SavedChartAsCode | DashboardAsCode | null;
         },
     ): Promise<void> {
         await this.database(ContentDraftsTableName)

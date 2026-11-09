@@ -1,11 +1,11 @@
 import type { PartialDeep } from 'type-fest';
+import type { SavedComposerPipeline } from '../../composer/savedComposerPipeline';
 import type { ChartAsCodeLanguageMap } from '../../utils/i18n/chartAsCode';
 import type { ContentVerificationInfo } from '../contentVerification';
 import type { SavedMergeDefinition, SavedMergeQuery } from '../mergeQuery';
 import type { MetricQuery } from '../metricQuery';
 import type { PromotionChanges } from '../promotion';
 import type {
-    SkippedChart,
     BigNumberConfig,
     CartesianChartConfig,
     ChartType,
@@ -121,6 +121,43 @@ export type ChartAsCode = Omit<
     access?: ContentAsCodeDirectAccess;
 };
 
+/** A chart drawn over its stored pipeline instead of a metric query; dashboard-owned, no tableName or merge. */
+export type ComposerChartAsCode = Pick<
+    SavedChart,
+    'name' | 'description' | 'pivotConfig' | 'slug'
+> & {
+    /** The pipeline the chart runs, in its stored shape: every node and the node it draws. */
+    pipeline: SavedComposerPipeline;
+    chartConfig: ChartAsCodeConfig;
+    /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
+    updatedAt?: Date;
+    /** Slug of the dashboard that owns this chart; a composer chart always lives in a dashboard */
+    dashboardSlug: string;
+    /** Schema version for this chart configuration */
+    version: number;
+    /** Content type discriminator */
+    contentType?: ContentAsCodeType.CHART;
+    /** Slug of the space containing the owning dashboard */
+    spaceSlug: string;
+    /** Timestamp when this chart was downloaded from Lightdash */
+    downloadedAt?: Date;
+    /**
+     * Declarative verification state.
+     * `true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the
+     * current state untouched. Download sets this to `true` when the chart is verified.
+     */
+    verified?: boolean;
+    /** Detailed verification info (who/when). Read-only; ignored on upload. */
+    verification?: ContentVerificationInfo | null;
+};
+
+/** A saved chart as code, of either query kind; a chart file holds exactly one of `metricQuery` and `pipeline`. */
+export type SavedChartAsCode = ChartAsCode | ComposerChartAsCode;
+
+export const isComposerChartAsCode = (
+    chart: SavedChartAsCode,
+): chart is ComposerChartAsCode => 'pipeline' in chart;
+
 // SQL Charts are stored separately from regular saved charts
 // They have SQL queries instead of metricQuery/tableName
 export type SqlChartAsCode = Pick<
@@ -140,7 +177,7 @@ export type SqlChartAsCode = Pick<
 export type ApiChartAsCodeListResponse = {
     status: 'ok';
     results: {
-        charts: ChartAsCode[];
+        charts: SavedChartAsCode[];
         languageMap:
             | Array<
                   | PartialDeep<
@@ -151,8 +188,6 @@ export type ApiChartAsCodeListResponse = {
               >
             | undefined;
         missingIds: string[];
-        /** Charts the download left out by name, such as composer charts until they have a code shape. */
-        skippedCharts: SkippedChart[];
         spaces: SpaceAsCode[];
         total: number;
         offset: number;

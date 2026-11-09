@@ -1,11 +1,11 @@
 import { type PartialDeep } from 'type-fest';
 import { type z } from 'zod';
-import { type ChartAsCode, type DashboardAsCode } from '../../types/coder';
+import { type DashboardAsCode, type SavedChartAsCode } from '../../types/coder';
 
 type AllowedAsCode =
     | {
           type: 'chart';
-          content: ChartAsCode;
+          content: SavedChartAsCode;
       }
     | {
           type: 'dashboard';

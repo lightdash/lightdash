@@ -66,6 +66,11 @@ describe('generateChartAsCodeSchema', () => {
                             version: { type: 'number' },
                         },
                     },
+                    ComposerChartAsCode: {
+                        type: 'object',
+                        required: ['pipeline'],
+                        properties: { pipeline: { type: 'object' } },
+                    },
                     ChartAsCode: {
                         allOf: [
                             {
@@ -189,6 +194,11 @@ describe('generateChartAsCodeSchema', () => {
                             version: { type: 'number' },
                         },
                     },
+                    ComposerChartAsCode: {
+                        type: 'object',
+                        required: ['pipeline'],
+                        properties: { pipeline: { type: 'object' } },
+                    },
                     ChartAsCode: {
                         allOf: [
                             {
@@ -239,6 +249,11 @@ describe('generateChartAsCodeSchema', () => {
                             version: { type: 'number' },
                         },
                     },
+                    ComposerChartAsCode: {
+                        type: 'object',
+                        required: ['pipeline'],
+                        properties: { pipeline: { type: 'object' } },
+                    },
                     ChartAsCode: {
                         type: 'object',
                         required: ['tableName'],
@@ -254,7 +269,9 @@ describe('generateChartAsCodeSchema', () => {
         const defs = schema.$defs as Record<string, JsonObject>;
 
         expect(schema.then).toEqual({ $ref: '#/$defs/SqlChartAsCode' });
-        expect(schema.else).toEqual({ $ref: '#/$defs/ChartAsCode' });
+        expect(schema.else).toMatchObject({
+            else: { $ref: '#/$defs/ChartAsCode' },
+        });
         expect(schema.properties).toBeUndefined();
         expect(defs.SqlChartAsCode).toMatchObject({
             additionalProperties: false,
@@ -264,6 +281,80 @@ describe('generateChartAsCodeSchema', () => {
         expect(defs.ChartAsCode).toMatchObject({
             additionalProperties: false,
             required: ['tableName'],
+        });
+    });
+
+    test('buildChartAsCodeSchema picks the composer chart shape by its pipeline', () => {
+        const swagger = {
+            components: {
+                schemas: {
+                    SqlChartAsCode: {
+                        type: 'object',
+                        required: ['sql', 'version'],
+                        properties: {
+                            sql: { type: 'string' },
+                            version: { type: 'number' },
+                        },
+                    },
+                    ChartAsCode: {
+                        type: 'object',
+                        required: ['tableName'],
+                        properties: {
+                            tableName: { type: 'string' },
+                            dashboardSlug: { nullable: true, type: 'string' },
+                        },
+                    },
+                    ComposerChartAsCode: {
+                        allOf: [
+                            {
+                                type: 'object',
+                                required: ['pipeline', 'dashboardSlug'],
+                                properties: {
+                                    pipeline: {
+                                        $ref: '#/components/schemas/SavedComposerPipeline',
+                                    },
+                                    dashboardSlug: { type: 'string' },
+                                    version: { type: 'number' },
+                                },
+                            },
+                        ],
+                    },
+                    SavedComposerPipeline: {
+                        type: 'object',
+                        properties: { terminalNodeId: { type: 'string' } },
+                    },
+                },
+            },
+        };
+
+        const schema = buildChartAsCodeSchema(swagger);
+        const defs = schema.$defs as Record<string, JsonObject>;
+
+        expect(schema.else).toEqual({
+            if: { required: ['pipeline'] },
+            // oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
+            then: { $ref: '#/$defs/ComposerChartAsCode' },
+            else: { $ref: '#/$defs/ChartAsCode' },
+        });
+        expect(defs.ComposerChartAsCode).toMatchObject({
+            additionalProperties: false,
+            required: ['pipeline', 'dashboardSlug'],
+            properties: {
+                pipeline: { $ref: '#/$defs/SavedComposerPipeline' },
+                dashboardSlug: { type: 'string', pattern: '^[a-z0-9-]+$' },
+                version: { type: 'number', const: 1 },
+            },
+        });
+        expect(defs.SavedComposerPipeline).toBeDefined();
+        expect(defs.ChartAsCode).toMatchObject({
+            properties: {
+                dashboardSlug: {
+                    oneOf: [
+                        { type: 'string', pattern: '^[a-z0-9-]+$' },
+                        { type: 'null' },
+                    ],
+                },
+            },
         });
     });
 });

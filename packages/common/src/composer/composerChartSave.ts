@@ -66,15 +66,8 @@ const closureOf = (
     );
 };
 
-/** The presented node's closure as a stored pipeline; a result read by query uuid is refused, since those expire. */
-export const toSavedComposerPipeline = ({
-    queries,
-    terminalNodeId,
-}: Pick<
-    AiComposerChartArtifactConfigV2,
-    'queries' | 'terminalNodeId'
->): SavedComposerPipeline => {
-    const nodes = closureOf(queries, terminalNodeId);
+/** Refuses a node that reads a query result by uuid: those results are creator-scoped and expire, so a chart cannot store them. */
+export const assertNoQueryResultReferences = (nodes: SourceQuery[]): void => {
     const nodeIds = new Set(nodes.map((node) => node.nodeId));
     nodes.forEach((node) => {
         Object.values(getSourceQueryResultReferences(node)).forEach(
@@ -87,11 +80,35 @@ export const toSavedComposerPipeline = ({
             },
         );
     });
+};
+
+/** The presented node's closure as a stored pipeline; a result read by query uuid is refused, since those expire. */
+export const toSavedComposerPipeline = ({
+    queries,
+    terminalNodeId,
+}: Pick<
+    AiComposerChartArtifactConfigV2,
+    'queries' | 'terminalNodeId'
+>): SavedComposerPipeline => {
+    const nodes = closureOf(queries, terminalNodeId);
+    assertNoQueryResultReferences(nodes);
     return parseStoredComposerPipeline({
         schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
         nodes,
         terminalNodeId,
     });
+};
+
+const CUSTOM_CHART_TYPE_NOT_STORABLE =
+    'A custom chart type cannot be saved to a dashboard yet; pick a builtin chart type.';
+
+/** Refuses a stored chart config a composer chart cannot hold: a custom chart type. */
+export const assertComposerChartConfigStorable = (chartConfig: {
+    type: ChartType;
+}): void => {
+    if (chartConfig.type === ChartType.DATA_APP_VIZ) {
+        throw new NotSupportedError(CUSTOM_CHART_TYPE_NOT_STORABLE);
+    }
 };
 
 /** Refuses, before any run, a viz config no saved chart can hold: a custom chart type, or a charted column named with "__". */
@@ -101,9 +118,7 @@ export function assertComposerVizConfigStorable(
 ): asserts vizConfig is ComposerBuiltinChartVizConfig | null {
     if (vizConfig === null) return;
     if (vizConfig.type === 'custom') {
-        throw new NotSupportedError(
-            'A custom chart type cannot be saved to a dashboard yet; pick a builtin chart type.',
-        );
+        throw new NotSupportedError(CUSTOM_CHART_TYPE_NOT_STORABLE);
     }
     [
         vizConfig.x,

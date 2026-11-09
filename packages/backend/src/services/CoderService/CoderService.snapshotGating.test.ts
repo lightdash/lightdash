@@ -54,11 +54,18 @@ const buildService = (
     const savedSqlFind = vi.fn(async () => []);
     const service = new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        featureFlagModel: {} as AnyType,
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {} as AnyType,
-        savedChartModel: { get: savedChartGet } as AnyType,
+        savedChartModel: {
+            get: savedChartGet,
+            getVariant: async (...args: unknown[]) => ({
+                queryType: 'semantic',
+                chart: await (savedChartGet as AnyType)(...args),
+            }),
+        } as AnyType,
         savedSqlModel: { find: savedSqlFind } as AnyType,
         appModel: {} as AnyType,
         dashboardModel: {

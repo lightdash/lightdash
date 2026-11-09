@@ -14,6 +14,7 @@ import {
     DimensionType,
     FilterOperator,
     ForbiddenError,
+    isComposerChartAsCode,
     MergeJoinType,
     MetricType,
     OrganizationMemberRole,
@@ -88,6 +89,21 @@ const dashboardAsCode = {
     tabs: [],
 } as unknown as DashboardAsCode;
 
+// getVariant reads through get, so tests that stub get see classic variants
+const buildSavedChartModel = (): AnyType => {
+    const model: AnyType = {
+        find: vi.fn(async () => []),
+        getSlugAliasMappingsForUuids: vi.fn(async () => []),
+        get: vi.fn(),
+        create: vi.fn(),
+    };
+    model.getVariant = vi.fn(async (...args: unknown[]) => ({
+        queryType: 'semantic',
+        chart: await model.get(...args),
+    }));
+    return model;
+};
+
 const buildService = (overrides: AnyType = {}) =>
     new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
@@ -100,12 +116,7 @@ const buildService = (overrides: AnyType = {}) =>
                 organizationUuid: ORG_UUID,
             })),
         } as AnyType,
-        savedChartModel: {
-            find: vi.fn(async () => []),
-            getSlugAliasMappingsForUuids: vi.fn(async () => []),
-            get: vi.fn(),
-            create: vi.fn(),
-        } as AnyType,
+        savedChartModel: buildSavedChartModel(),
         savedSqlModel: {
             find: vi.fn(async () => []),
         } as AnyType,
@@ -3132,6 +3143,9 @@ describe('bound grant upload effects', () => {
             getByContentUuids: vi.fn().mockResolvedValue(new Map()),
         });
         const downloaded = await service.getCurrentChartAsCode('chart-uuid');
+        if (isComposerChartAsCode(downloaded)) {
+            throw new Error('expected a classic chart document');
+        }
         expect(
             downloaded.metricQuery.additionalMetrics?.[0],
         ).not.toHaveProperty('uuid');

@@ -81,6 +81,8 @@ vi.mock('./dbt/apiClient', async (importOriginal) => ({
 
 const {
     assertUniqueSpacePaths,
+    countChangeDelta,
+    downloadAiAgents,
     downloadLinkedVirtualViews,
     downloadSpaces,
     extractChartTableNames,
@@ -91,17 +93,16 @@ const {
     hasContentFilters,
     isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
-    isVirtualViewsUnavailableError,
-    countChangeDelta,
-    downloadAiAgents,
     isFilteredWithNoDashboards,
+    isVirtualViewsUnavailableError,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
     reportOpenDraftsForUpload,
     sanitizeChartForDownload,
-    shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
+    shouldFallBackToEmbeddedSpaces,
+    storeUploadChanges,
     summarizeUploadChanges,
     upsertAiAgents,
     upsertExternalConnections,
@@ -703,6 +704,34 @@ describe('extractChartTableNames', () => {
         expect(
             extractChartTableNames([chart(undefined), chart(''), chart('one')]),
         ).toEqual(['one']);
+    });
+});
+
+describe('storeUploadChanges', () => {
+    it('counts a composer chart upload under charts', () => {
+        expect(
+            storeUploadChanges({}, 'charts', {
+                charts: [],
+                composerCharts: [
+                    { action: PromotionAction.CREATE, data: {} as never },
+                ],
+                spaces: [{ action: PromotionAction.NO_CHANGES } as never],
+                dashboards: [],
+            }),
+        ).toEqual({ 'charts created': 1 });
+    });
+
+    it('counts classic and composer chart uploads together', () => {
+        expect(
+            storeUploadChanges({ 'charts updated': 1 }, 'charts', {
+                charts: [{ action: PromotionAction.UPDATE } as never],
+                composerCharts: [
+                    { action: PromotionAction.NO_CHANGES, data: {} as never },
+                ],
+                spaces: [],
+                dashboards: [],
+            }),
+        ).toEqual({ 'charts updated': 2, 'charts skipped': 1 });
     });
 });
 

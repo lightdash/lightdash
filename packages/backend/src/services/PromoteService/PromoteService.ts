@@ -1147,7 +1147,11 @@ export class PromoteService extends BaseService {
             ...createdCharts,
         ];
         const getChartByOldUuid = (oldUuid: string) => {
-            const chart = allCharts.find((c) => c.oldUuid === oldUuid);
+            const chart =
+                allCharts.find((c) => c.oldUuid === oldUuid) ??
+                promotionChanges.composerCharts?.find(
+                    (c) => c.data.oldUuid === oldUuid,
+                )?.data;
             if (chart === undefined)
                 throw new UnexpectedServerError(
                     `Missing chart with old uuid "${oldUuid}" to promote`,
@@ -2638,6 +2642,12 @@ export class PromoteService extends BaseService {
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
         includeOrphanChartsWithinDashboard?: boolean,
+        // Promotion writes classic chart versions, so it drops composer tiles
+        // and names them; a same-project content-as-code upload keeps them,
+        // since their charts already exist where the dashboard is written.
+        { composerTiles }: { composerTiles: 'drop' | 'keep' } = {
+            composerTiles: 'drop',
+        },
     ): Promise<
         [
             PromotionChanges,
@@ -2698,6 +2708,30 @@ export class PromoteService extends BaseService {
                 includeOrphanChartsWithinDashboard,
             ),
         );
+        // Kept composer charts already live in the dashboard being written
+        const keptComposerCharts: PromotionChanges['composerCharts'] =
+            composerTiles === 'keep'
+                ? await Promise.all(
+                      skippedCharts.map(async ({ uuid }) => {
+                          const variant =
+                              await this.savedChartModel.getVariant(uuid);
+                          if (variant.queryType !== 'composer') {
+                              throw new UnexpectedServerError(
+                                  `Chart "${uuid}" is not a composer chart`,
+                              );
+                          }
+                          return {
+                              action: PromotionAction.NO_CHANGES,
+                              data: {
+                                  ...variant.chart,
+                                  oldUuid: uuid,
+                                  spaceSlug: promotedDashboard.space.slug,
+                                  spacePath: promotedDashboard.space.path,
+                              },
+                          };
+                      }),
+                  )
+                : undefined;
         const sqlChartPromises = savedSqlUuids.map((savedSqlUuid) =>
             this.getPromoteSqlCharts(user, upstreamProjectUuid, savedSqlUuid),
         );
@@ -2771,14 +2805,19 @@ export class PromoteService extends BaseService {
         // The promoted dashboard carries no tile for a skipped composer chart
         const promotableDashboard = {
             ...promotedDashboard.dashboard,
-            tiles: promotedDashboard.dashboard.tiles.filter(
-                (tile) =>
-                    !(
-                        isDashboardChartTileType(tile) &&
-                        tile.properties.savedChartUuid &&
-                        composerChartUuids.has(tile.properties.savedChartUuid)
-                    ),
-            ),
+            tiles:
+                composerTiles === 'keep'
+                    ? promotedDashboard.dashboard.tiles
+                    : promotedDashboard.dashboard.tiles.filter(
+                          (tile) =>
+                              !(
+                                  isDashboardChartTileType(tile) &&
+                                  tile.properties.savedChartUuid &&
+                                  composerChartUuids.has(
+                                      tile.properties.savedChartUuid,
+                                  )
+                              ),
+                      ),
         };
         const dashboardChanges: PromotionChanges['dashboards'] = [
             upstreamDashboard,
@@ -2835,7 +2874,10 @@ export class PromoteService extends BaseService {
                 spaces: spaceChanges,
                 dashboards: dashboardChanges,
                 charts: chartChanges,
-                skippedCharts,
+                ...(keptComposerCharts && {
+                    composerCharts: keptComposerCharts,
+                }),
+                skippedCharts: composerTiles === 'keep' ? [] : skippedCharts,
             },
             charts, // For permission checks
             sqlCharts, // For permission checks

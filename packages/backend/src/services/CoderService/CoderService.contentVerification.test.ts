@@ -4,6 +4,7 @@ import {
     ContentVerificationInfo,
     OrganizationMemberRole,
     PossibleAbilities,
+    type AnyType,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -84,6 +85,7 @@ const agentActionLogModel = { insert: vi.fn().mockResolvedValue(undefined) };
 const buildService = () =>
     new CoderService({
         agentActionLogModel,
+        featureFlagModel: {} as AnyType,
         directAccessService: {} as never,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,

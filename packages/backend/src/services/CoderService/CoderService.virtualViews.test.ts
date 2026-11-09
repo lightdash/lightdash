@@ -7,6 +7,7 @@ import {
     PossibleAbilities,
     PromotionAction,
     TimeFrames,
+    type AnyType,
     type Explore,
     type SessionUser,
     type VirtualViewAsCode,
@@ -129,6 +130,7 @@ const buildService = (
     };
     const service = new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        featureFlagModel: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: projectModel as never,
