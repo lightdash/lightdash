@@ -1,3 +1,10 @@
+## [3.185.2](https://github.com/lightdash/lightdash/compare/3.185.1...3.185.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* keep tile sizes when editing a dashboard with tabs in a narrow window ([#32248](https://github.com/lightdash/lightdash/issues/32248)) ([c9bc5f0](https://github.com/lightdash/lightdash/commit/c9bc5f0cfeeceaab21e33271ae62c6a18d890c6d))
+
 ## [3.185.1](https://github.com/lightdash/lightdash/compare/3.185.0...3.185.1) (2026-11-09)
 
 
