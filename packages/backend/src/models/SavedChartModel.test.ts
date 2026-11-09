@@ -984,9 +984,10 @@ describe('update', () => {
             .select(SavedChartsTableName)
             .responseOnce([{ project_uuid: 'project-uuid' }]);
         tracker.on.update(SavedChartsTableName).responseOnce(0);
-        const getChart = vi
-            .spyOn(model, 'get')
-            .mockResolvedValue(chartSummary as never);
+        const getChart = vi.spyOn(model, 'getVariant').mockResolvedValue({
+            queryType: 'semantic',
+            chart: chartSummary,
+        } as never);
 
         await expect(
             model.update(
@@ -1007,7 +1008,10 @@ describe('update', () => {
             .select(SavedChartsTableName)
             .responseOnce([{ project_uuid: 'project-uuid' }]);
         tracker.on.update(SavedChartsTableName).responseOnce(1);
-        vi.spyOn(model, 'get').mockResolvedValue(chartSummary as never);
+        vi.spyOn(model, 'getVariant').mockResolvedValue({
+            queryType: 'semantic',
+            chart: chartSummary,
+        } as never);
 
         await model.update(
             'chart-uuid',
@@ -1030,7 +1034,10 @@ describe('update', () => {
             .select(SavedChartsTableName)
             .responseOnce([{ project_uuid: 'project-uuid' }]);
         tracker.on.update(SavedChartsTableName).responseOnce(1);
-        vi.spyOn(model, 'get').mockResolvedValue(chartSummary as never);
+        vi.spyOn(model, 'getVariant').mockResolvedValue({
+            queryType: 'semantic',
+            chart: chartSummary,
+        } as never);
 
         await model.update(
             'chart-uuid',
@@ -1056,7 +1063,10 @@ describe('update', () => {
             .select(SavedChartsTableName)
             .responseOnce([{ project_uuid: projectUuid }]);
         tracker.on.update(SavedChartsTableName).responseOnce(1);
-        vi.spyOn(model, 'get').mockResolvedValue(chartSummary as AnyType);
+        vi.spyOn(model, 'getVariant').mockResolvedValue({
+            queryType: 'semantic',
+            chart: chartSummary,
+        } as AnyType);
 
         await model.update(chartUuid, { name: 'Renamed chart' });
 
@@ -1081,7 +1091,7 @@ describe('update', () => {
             .select(SavedChartsTableName)
             .responseOnce([{ project_uuid: projectUuid }]);
         tracker.on.update(SavedChartsTableName).responseOnce(1);
-        const getSpy = vi.spyOn(model, 'get');
+        const getSpy = vi.spyOn(model, 'getVariant');
 
         await model.updateInTransaction(
             chartUuid,
