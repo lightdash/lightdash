@@ -45,10 +45,7 @@ export {
     isIncompletePeriodEligible,
 } from './cartesian/incompletePeriod';
 export { finalizeTimeAxisOptions } from './cartesian/timezoneShift';
-export {
-    calculateKeyColorAssignment,
-    calculateSeriesColorAssignment,
-} from './colors/mappings';
+export { calculateKeyColorAssignment } from './colors/mappings';
 export { createSeriesColorResolver } from './colors/resolver';
 export { type SeriesLike } from './colors/series';
 export {
