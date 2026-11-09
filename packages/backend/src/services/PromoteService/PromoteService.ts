@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     ChartSummary,
     ChartType,
+    ComposerChartNotSupportedError,
     ConflictError,
     DashboardDAO,
     DashboardTileTypes,
@@ -2677,14 +2678,22 @@ export class PromoteService extends BaseService {
             ),
         );
 
-        const chartPromises = chartUuids.map((chartUuid) =>
-            this.getPromoteCharts(
-                user,
-                upstreamProjectUuid,
-                chartUuid,
-                includeOrphanChartsWithinDashboard,
-            ),
+        // Promotion writes classic chart versions, so composer tiles are left out and named until it carries pipelines
+        const composerCharts =
+            await this.savedChartModel.findComposerCharts(chartUuids);
+        const composerChartUuids = new Set(
+            composerCharts.map((composerChart) => composerChart.uuid),
         );
+        const chartPromises = chartUuids
+            .filter((chartUuid) => !composerChartUuids.has(chartUuid))
+            .map((chartUuid) =>
+                this.getPromoteCharts(
+                    user,
+                    upstreamProjectUuid,
+                    chartUuid,
+                    includeOrphanChartsWithinDashboard,
+                ),
+            );
         const sqlChartPromises = savedSqlUuids.map((savedSqlUuid) =>
             this.getPromoteSqlCharts(user, upstreamProjectUuid, savedSqlUuid),
         );
@@ -2810,6 +2819,19 @@ export class PromoteService extends BaseService {
                 spaces: spaceChanges,
                 dashboards: dashboardChanges,
                 charts: chartChanges,
+                ...(composerCharts.length > 0
+                    ? {
+                          skippedCharts: composerCharts.map(
+                              (composerChart) => ({
+                                  ...composerChart,
+                                  reason: new ComposerChartNotSupportedError(
+                                      composerChart.uuid,
+                                      composerChart.name,
+                                  ).message,
+                              }),
+                          ),
+                      }
+                    : {}),
             },
             charts, // For permission checks
             sqlCharts, // For permission checks

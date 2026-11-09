@@ -5,6 +5,7 @@ import type { SavedMergeDefinition, SavedMergeQuery } from '../mergeQuery';
 import type { MetricQuery } from '../metricQuery';
 import type { PromotionChanges } from '../promotion';
 import type {
+    SkippedChart,
     BigNumberConfig,
     CartesianChartConfig,
     ChartType,
@@ -150,6 +151,8 @@ export type ApiChartAsCodeListResponse = {
               >
             | undefined;
         missingIds: string[];
+        /** Charts the download left out by name, such as composer charts until they have a code shape. */
+        skippedCharts: SkippedChart[];
         spaces: SpaceAsCode[];
         total: number;
         offset: number;

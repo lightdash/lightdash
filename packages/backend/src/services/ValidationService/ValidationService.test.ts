@@ -54,13 +54,33 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => {
     };
 });
 
+const chartForSingleValidation = {
+    ...chartForValidation,
+    spaceUuid: 'spaceUuid',
+    organizationUuid: 'orgUuid',
+    projectUuid: 'projectUuid',
+};
+const composerChartForValidation = {
+    ...chartForValidation,
+    uuid: 'composerChartUuid',
+    name: 'Pipeline chart',
+    queryType: 'composer' as const,
+    tableName: null,
+    dimensions: [],
+    metrics: [],
+    sorts: [],
+    filters: {},
+    customMetrics: [],
+    customMetricsBaseDimensions: [],
+    customMetricsFilters: [],
+    tableCalculations: [],
+};
 const savedChartModel = {
     findChartsForValidation: vi.fn(async () => [chartForValidation]),
-    get: vi.fn(async () => ({
-        ...chartForValidation,
-        spaceUuid: 'spaceUuid',
-        organizationUuid: 'orgUuid',
-        projectUuid: 'projectUuid',
+    get: vi.fn(async () => chartForSingleValidation),
+    getVariant: vi.fn(async () => ({
+        queryType: 'semantic',
+        chart: chartForSingleValidation,
     })),
 };
 const projectModel = {
@@ -149,7 +169,7 @@ describe('validation', () => {
             'chartUuid',
         );
 
-        expect(savedChartModel.get).toHaveBeenCalledWith(
+        expect(savedChartModel.getVariant).toHaveBeenCalledWith(
             'chartUuid',
             undefined,
             { projectUuid: 'projectUuid' },
@@ -158,6 +178,59 @@ describe('validation', () => {
             'chartUuid',
             'projectUuid',
         );
+    });
+
+    it('reports a composer chart as unsupported instead of valid', async () => {
+        vi.mocked(
+            savedChartModel.findChartsForValidation,
+        ).mockResolvedValueOnce([composerChartForValidation]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                chartUuid: 'composerChartUuid',
+                errorType: ValidationErrorType.Chart,
+                error: expect.stringContaining('composer chart'),
+                source: ValidationSourceType.Chart,
+            }),
+        ]);
+    });
+
+    it('validating a composer chart alone stores the unsupported report without reading an explore', async () => {
+        vi.mocked(savedChartModel.getVariant).mockResolvedValueOnce({
+            queryType: 'composer',
+            chart: {
+                ...chartForSingleValidation,
+                uuid: 'composerChartUuid',
+                name: 'Pipeline chart',
+            },
+        } as never);
+        vi.mocked(
+            savedChartModel.findChartsForValidation,
+        ).mockResolvedValueOnce([composerChartForValidation]);
+
+        await validationService.validateAndUpdateChart(
+            allAccessUser,
+            'projectUuid',
+            'composerChartUuid',
+        );
+
+        expect(projectModel.getExploreFromCache).not.toHaveBeenCalled();
+        expect(validationModel.create).toHaveBeenCalledWith({
+            projectUuid: 'projectUuid',
+            validations: [
+                expect.objectContaining({
+                    chartUuid: 'composerChartUuid',
+                    errorType: ValidationErrorType.Chart,
+                    error: expect.stringContaining('composer chart'),
+                }),
+            ],
+        });
     });
 
     it('scopes single dashboard validation lookups and cleanup to the requested project', async () => {

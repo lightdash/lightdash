@@ -60,6 +60,7 @@ export const chartForValidation: Awaited<
 >[number] = {
     uuid: 'chartUuid',
     name: 'Test chart',
+    queryType: 'semantic',
     tableName: 'table',
     filters: {
         dimensions: {

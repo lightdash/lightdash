@@ -956,6 +956,14 @@ export type ComposerSavedChartDAO = Omit<
     pipeline: SavedComposerPipeline;
 };
 
+/** A chart a bulk surface left out, named so the caller can act on it. */
+export type SkippedChart = {
+    uuid: string;
+    slug: string;
+    name: string;
+    reason: string;
+};
+
 /** A saved chart tagged by the kind of query it runs, as read from storage. */
 export type SavedChartVariant =
     | { queryType: 'semantic'; chart: SavedChartDAO }

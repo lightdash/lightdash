@@ -970,11 +970,27 @@ export class RenameService extends BaseService {
                 `Rename resources: Found ${chartSummaries.length} chartSummaries to rename`,
             );
 
+            // Composer charts have no classic query to rename, so they are left out by name
+            const composerCharts =
+                await this.savedChartModel.findComposerCharts(
+                    chartSummaries.map((chart) => chart.uuid),
+                );
+            const composerChartUuids = new Set(
+                composerCharts.map((composerChart) => composerChart.uuid),
+            );
+            if (composerCharts.length > 0) {
+                this.logger.info(
+                    `Rename resources: skipping composer charts ${composerCharts
+                        .map((composerChart) => composerChart.name)
+                        .join(', ')}`,
+                );
+            }
+
             // We intentionally do not filter charts on private spaces, since we want to rename all charts
             // And the user will not be able to see the charts in private spaces anyway, so it should not become a vulnerability
-            const chartPromises = chartSummaries.map((chart) =>
-                this.savedChartModel.get(chart.uuid),
-            );
+            const chartPromises = chartSummaries
+                .filter((chart) => !composerChartUuids.has(chart.uuid))
+                .map((chart) => this.savedChartModel.get(chart.uuid));
 
             const charts = await Promise.all(chartPromises);
             const chartsByUuid = new Map(charts.map((c) => [c.uuid, c]));

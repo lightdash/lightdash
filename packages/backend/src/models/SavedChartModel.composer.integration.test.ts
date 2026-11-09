@@ -264,6 +264,71 @@ describe('Composer chart rows on the real schema', () => {
         });
     });
 
+    describe('changing a composer row', () => {
+        test('update retitles it and returns the composer variant', async () => {
+            const chart = await createChart('old title');
+            await database('saved_queries_versions').insert(
+                composerVersion(chart.id),
+            );
+            const updated = await model.update(chart.uuid, {
+                name: 'new title',
+            });
+            expect(updated.queryType).toBe('composer');
+            expect(updated.chart.name).toBe('new title');
+            const reread = await model.getVariant(chart.uuid);
+            expect(reread.chart.name).toBe('new title');
+        });
+    });
+
+    describe('finding composer rows in bulk', () => {
+        test('findComposerCharts names the composer rows among the given charts', async () => {
+            const composer = await createChart('pipeline');
+            await database('saved_queries_versions').insert(
+                composerVersion(composer.id),
+            );
+            const classic = await createChart('classic');
+            await database('saved_queries_versions').insert(
+                semanticVersion(classic.id),
+            );
+            await expect(
+                model.findComposerCharts([composer.uuid, classic.uuid]),
+            ).resolves.toEqual([
+                expect.objectContaining({
+                    uuid: composer.uuid,
+                    name: 'pipeline',
+                }),
+            ]);
+        });
+    });
+
+    describe('bulk reads that used to assume an explore', () => {
+        test('findChartsForValidation tags a composer row instead of inventing a table', async () => {
+            const chart = await createChart('validated');
+            await database('saved_queries_versions').insert(
+                composerVersion(chart.id),
+            );
+            const [row] = await model.findChartsForValidation(
+                fixture.projectUuid,
+                chart.uuid,
+            );
+            expect(row).toMatchObject({
+                uuid: chart.uuid,
+                queryType: 'composer',
+                tableName: null,
+            });
+        });
+
+        test('getInfoForAvailableFilters leaves a composer row out instead of inventing a table', async () => {
+            const chart = await createChart('filtered');
+            await database('saved_queries_versions').insert(
+                composerVersion(chart.id),
+            );
+            await expect(
+                model.getInfoForAvailableFilters([chart.uuid]),
+            ).resolves.toEqual([]);
+        });
+    });
+
     describe('reading a semantic row', () => {
         test('getVariant tags it semantic with the same chart get returns', async () => {
             const chart = await createChart('semantic');

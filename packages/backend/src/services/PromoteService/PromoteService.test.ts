@@ -147,6 +147,9 @@ const savedChartModel = {
     })),
     get: vi.fn(async () => promotedChart.chart),
     find: vi.fn(async () => [existingUpstreamChart.chart]),
+    findComposerCharts: vi.fn(
+        async (): Promise<{ uuid: string; name: string; slug: string }[]> => [],
+    ),
     create: vi.fn(createChart),
     createVersion: vi.fn(createChartVersion),
     updateInTransaction: vi.fn(async () => undefined),
@@ -168,6 +171,7 @@ beforeEach(() => {
     savedChartModel.find
         .mockReset()
         .mockResolvedValue([existingUpstreamChart.chart]);
+    savedChartModel.findComposerCharts.mockReset().mockResolvedValue([]);
     savedChartModel.create.mockReset().mockImplementation(createChart);
     savedChartModel.createVersion
         .mockReset()
@@ -782,6 +786,37 @@ describe('PromoteService dashboard changes', () => {
                 projectUuid: missingUpstreamDashboard.projectUuid,
             },
         ]);
+    });
+
+    test('getPromotionDashboardChanges leaves a composer tile out and names it', async () => {
+        savedChartModel.findComposerCharts.mockResolvedValueOnce([
+            {
+                uuid: promotedChart.chart.uuid,
+                name: promotedChart.chart.name,
+                slug: promotedChart.chart.slug,
+            },
+        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+
+        const [changes] = await service.getPromotionDashboardChanges(
+            user,
+            promotedDashboard,
+            existingUpstreamDashboard,
+        );
+
+        expect(changes.charts).toEqual([]);
+        expect(changes.dashboards[0].action).toBe('update');
+        expect(changes.skippedCharts).toEqual([
+            {
+                uuid: promotedChart.chart.uuid,
+                name: promotedChart.chart.name,
+                slug: promotedChart.chart.slug,
+                reason: expect.stringContaining('composer chart'),
+            },
+        ]);
+        expect(savedChartModel.get).not.toHaveBeenCalled();
     });
 
     test('getPromotionDashboardChanges update dashboard with chart tiles', async () => {
