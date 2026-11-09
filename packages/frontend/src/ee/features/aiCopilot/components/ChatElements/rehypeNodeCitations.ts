@@ -6,11 +6,7 @@ const textOf = (node: ElementContent): string => {
     return node.type === 'element' ? node.children.map(textOf).join('') : '';
 };
 
-/**
- * Numbers node citations by first appearance and drops the ones that don't
- * resolve. With `resolvedNodeIds: null` (streaming or still resolving) every
- * citation is shown inert.
- */
+/** Numbers citations by first appearance and drops unresolved ones; null means shown inert. */
 export const rehypeNodeCitations =
     ({ resolvedNodeIds }: { resolvedNodeIds: readonly string[] | null }) =>
     (tree: Root) => {
@@ -20,7 +16,7 @@ export const rehypeNodeCitations =
         visit(tree, 'element', (node: Element, index, parent) => {
             if (
                 node.tagName !== 'a' ||
-                node.properties?.['data-content-type'] !== 'query-node-citation'
+                node.properties?.['data-content-type'] !== 'node-citation'
             ) {
                 return undefined;
             }

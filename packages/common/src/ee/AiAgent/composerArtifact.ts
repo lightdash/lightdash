@@ -288,11 +288,11 @@ export const buildComposerArtifactPipeline = ({
     return pipeline;
 };
 
-/** A node citation's preview: the cited node, its terminal, and everything it reads. */
+/** A node citation's preview: the cited node, which is terminal, and everything it reads. */
 export type AiAgentNodeCitationPipeline = {
     nodeId: QueryNodeId;
     title: string | null;
-    /** The closure in dependency order, the cited node last. */
+    /** In dependency order, the cited node last. */
     nodes: ComposerPipelineNode[];
 };
 

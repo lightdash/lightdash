@@ -634,7 +634,10 @@ import {
     parseMemoryCitations,
     stripMemoryCitations,
 } from '../ai/utils/memoryCitation';
-import { buildNodeCitationPipeline } from '../ai/utils/nodeCitationPipeline';
+import {
+    buildNodeCitationPipeline,
+    nodeCitationReadsWarehouseSql,
+} from '../ai/utils/nodeCitationPipeline';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -924,7 +927,6 @@ type NodeCitationRef = {
     agentUuid: string;
     threadUuid: string;
     messageUuid: string;
-    /** The cited thread composer query node. */
     nodeId: string;
 };
 
@@ -9347,7 +9349,11 @@ export class AiAgentService extends BaseService {
             args.agentUuid,
         );
         await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
-        return this.getThreadComposerNodeIds(user, { ...args, projectUuid });
+        return this.getThreadComposerNodeIds(user, {
+            ...args,
+            projectUuid,
+            runtimeOptions,
+        });
     }
 
     async getEmbedNodeCitationPipeline(
@@ -11025,13 +11031,30 @@ export class AiAgentService extends BaseService {
 
     async getThreadComposerNodeIds(
         user: SessionUser,
-        args: { projectUuid: string; agentUuid: string; threadUuid: string },
+        {
+            runtimeOptions,
+            ...args
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            runtimeOptions: EmbedAiAgentRuntimeOptions | null;
+        },
     ): Promise<string[]> {
         await this.assertThreadReadable(user, args);
-        const nodes = await this.aiAgentModel.listComposerQueryNodes(
+        const threadNodes = await this.aiAgentModel.listComposerQueryNodes(
             threadComposerQueryScope(args.threadUuid),
         );
-        return nodes.map(({ nodeId }) => nodeId);
+        // A citation an embed viewer can't open must not resolve for them.
+        return threadNodes
+            .map(({ nodeId }) => nodeId)
+            .filter(
+                (nodeId) =>
+                    !runtimeOptions ||
+                    !nodeCitationReadsWarehouseSql(
+                        buildNodeCitationPipeline({ nodeId, threadNodes }),
+                    ),
+            );
     }
 
     async getNodeCitationPipeline(
@@ -11069,12 +11092,7 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError(`Node not found: ${nodeId}`);
         }
         // Embed viewers are scoped by user attributes, which raw SQL bypasses.
-        if (
-            runtimeOptions &&
-            pipeline.nodes.some(
-                (node) => node.sourceType === QuerySourceType.SQL,
-            )
-        ) {
+        if (runtimeOptions && nodeCitationReadsWarehouseSql(pipeline)) {
             throw new ForbiddenError(
                 'Pipelines with warehouse SQL are not available in embedded AI agents',
             );

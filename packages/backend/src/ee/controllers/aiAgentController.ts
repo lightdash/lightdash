@@ -1852,7 +1852,7 @@ export class AiAgentController extends BaseController {
     @OperationId('getAgentThreadComposerNodeIds')
     async getAgentThreadComposerNodeIds(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Path() agentUuid: UUID,
         @Path() threadUuid: UUID,
     ): Promise<ApiAiAgentThreadComposerNodeIdsResponse> {
@@ -1900,7 +1900,7 @@ export class AiAgentController extends BaseController {
     @OperationId('getAgentThreadNodeCitationPipeline')
     async getAgentThreadNodeCitationPipeline(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Path() agentUuid: UUID,
         @Path() threadUuid: UUID,
         @Path() messageUuid: UUID,
@@ -1950,7 +1950,7 @@ export class AiAgentController extends BaseController {
     @OperationId('getAgentThreadNodeCitationVizQuery')
     async getAgentThreadNodeCitationVizQuery(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Path() agentUuid: UUID,
         @Path() threadUuid: UUID,
         @Path() messageUuid: UUID,
@@ -2000,7 +2000,7 @@ export class AiAgentController extends BaseController {
     @OperationId('getAgentThreadNodeCitationQueryResults')
     async getAgentThreadNodeCitationQueryResults(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Path() agentUuid: UUID,
         @Path() threadUuid: UUID,
         @Path() messageUuid: UUID,

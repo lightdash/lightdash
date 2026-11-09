@@ -1,10 +1,11 @@
 import {
     buildComposerArtifactPipeline,
+    QuerySourceType,
     type AiAgentNodeCitationPipeline,
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
 
-/** A cited node's preview pipeline; null when the thread never registered the node. */
+/** The node and everything it reads, the node terminal; null when not in the thread. */
 export const buildNodeCitationPipeline = ({
     nodeId,
     threadNodes,
@@ -23,3 +24,10 @@ export const buildNodeCitationPipeline = ({
         }),
     };
 };
+
+/** Whether a citation's pipeline reads the warehouse with raw SQL. */
+export const nodeCitationReadsWarehouseSql = (
+    pipeline: AiAgentNodeCitationPipeline | null,
+): boolean =>
+    pipeline?.nodes.some((node) => node.sourceType === QuerySourceType.SQL) ??
+    false;

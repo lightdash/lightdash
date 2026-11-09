@@ -11,30 +11,13 @@ import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { useUiString } from '../../../providers/Embed/useUiStrings';
-import { getAiAgentApiBase } from './aiAgentRouting';
+import {
+    getAiAgentApiBase,
+    getAiAgentNodeCitationUrl,
+    type NodeCitationRef,
+} from './aiAgentRouting';
 
-type NodeCitationRef = {
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    messageUuid: string;
-    nodeId: string;
-};
-
-const nodeCitationUrl = ({
-    projectUuid,
-    agentUuid,
-    threadUuid,
-    messageUuid,
-    nodeId,
-}: NodeCitationRef) =>
-    `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/nodes/${nodeId}`;
-
-/**
- * The thread's composer node ids a finished message's citations resolve
- * against: null while unresolved or streaming, empty when the read failed.
- * Scoped per message since the registry grows with each turn.
- */
+/** Node ids a finished message's citations resolve against; null until read, keyed per message. */
 export const useAiAgentThreadComposerNodeIds = ({
     projectUuid,
     agentUuid,
@@ -86,7 +69,7 @@ export const useAiAgentNodeCitationPipeline = (ref: NodeCitationRef) => {
         ],
         queryFn: () =>
             lightdashApi<ApiAiAgentNodeCitationPipelineResponse['results']>({
-                url: nodeCitationUrl(ref),
+                url: getAiAgentNodeCitationUrl(ref),
                 method: 'GET',
                 body: undefined,
             }),
@@ -115,7 +98,7 @@ export const useAiAgentNodeCitationVizQuery = ({
         queryFn: () =>
             lightdashApi<ApiAiAgentComposerArtifactVizQueryResponse['results']>(
                 {
-                    url: `${nodeCitationUrl(ref)}/viz-query`,
+                    url: `${getAiAgentNodeCitationUrl(ref)}/viz-query`,
                     method: 'GET',
                     body: undefined,
                 },

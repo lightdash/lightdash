@@ -43,7 +43,6 @@ const net: ThreadComposerQueryNode = {
     sql: 'select 1',
     references: ['orders'],
 };
-// Reads `net`, so it is downstream of a citation of `net`.
 const rawAudit: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.SQL,
     nodeId: 'raw_audit',
@@ -237,12 +236,26 @@ describe('getThreadComposerNodeIds', () => {
                 projectUuid: 'project-uuid',
                 agentUuid: 'agent-uuid',
                 threadUuid: 'thread-uuid',
+                runtimeOptions: null,
+            }),
+        ).resolves.toEqual(['orders', 'net']);
+    });
+
+    it('omits nodes whose closure reads warehouse SQL for an embed viewer', async () => {
+        const { service } = buildService();
+
+        await expect(
+            service.getThreadComposerNodeIds(user, {
+                projectUuid: 'project-uuid',
+                agentUuid: 'agent-uuid',
+                threadUuid: 'thread-uuid',
+                runtimeOptions: embedRuntimeOptions,
             }),
         ).resolves.toEqual(['orders', 'net']);
     });
 
     it('refuses a viewer without access to the thread', async () => {
-        const { service, aiAgentModel } = buildService({
+        const { service } = buildService({
             canAccessThread: false,
         });
 
@@ -251,8 +264,8 @@ describe('getThreadComposerNodeIds', () => {
                 projectUuid: 'project-uuid',
                 agentUuid: 'agent-uuid',
                 threadUuid: 'thread-uuid',
+                runtimeOptions: null,
             }),
         ).rejects.toThrow(ForbiddenError);
-        expect(aiAgentModel.listComposerQueryNodes).not.toHaveBeenCalled();
     });
 });

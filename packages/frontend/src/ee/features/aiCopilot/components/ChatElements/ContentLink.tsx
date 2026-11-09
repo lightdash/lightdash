@@ -446,7 +446,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
             );
         }
 
-        case 'query-node-citation': {
+        case 'node-citation': {
             const nodeId = props['data-node-id'];
             const citationNumber = props['data-citation-number'];
             if (typeof nodeId !== 'string' || citationNumber === undefined) {
