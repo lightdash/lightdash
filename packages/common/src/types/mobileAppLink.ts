@@ -4,6 +4,8 @@ export type MobileAppLink = {
     linkUuid: string;
     scanUrl: string;
     expiresAt: string;
+    /** Lifetime set by the server, so clients need not trust their own clock. */
+    expiresInSeconds: number;
 };
 
 export type MobileAppLinkStatus = {

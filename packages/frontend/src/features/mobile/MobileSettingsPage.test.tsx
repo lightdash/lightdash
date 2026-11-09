@@ -30,9 +30,10 @@ const mockLink = (overrides: Partial<ReturnType<typeof useMobileAppLink>>) =>
             linkUuid: 'link-1',
             scanUrl: SCAN_URL,
             expiresAt: '2026-11-09T12:30:00.000Z',
+            expiresInSeconds: 1800,
         },
         isScanned: false,
-        mintError: null,
+        hasFailed: false,
         retry: vi.fn(),
         ...overrides,
     });
@@ -83,6 +84,20 @@ describe('MobileSettingsPage with mobile-qr-sign-in off', () => {
         expect(
             screen.queryByRole('heading', { name: 'Sign in on your phone' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('moves focus to the card heading when a scan removes the focused button', async () => {
+        mockLink({});
+        const { rerender } = renderWithProviders(<MobileSettingsPage />);
+        await screen.findByRole('img', { name: QR_NAME });
+        screen.getByRole('button', { name: 'Copy link' }).focus();
+
+        mockLink({ isScanned: true });
+        rerender(<MobileSettingsPage />);
+
+        expect(
+            await screen.findByRole('heading', { name: 'Get the app' }),
+        ).toHaveFocus();
     });
 });
 
@@ -157,15 +172,7 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         mockLink({
             link: null,
             retry,
-            mintError: {
-                status: 'error',
-                error: {
-                    name: 'TooManyRequestsError',
-                    statusCode: 429,
-                    message: 'Too many app links. Try again in an hour.',
-                    data: {},
-                },
-            },
+            hasFailed: true,
         });
         renderWithProviders(<MobileSettingsPage />);
 

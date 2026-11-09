@@ -83,6 +83,7 @@ describe('MobileAppService.createLink', () => {
             linkUuid: LINK_UUID,
             scanUrl: `https://app.example.com/m/app/${SCAN_ID}`,
             expiresAt: '2026-11-09T12:30:00.000Z',
+            expiresInSeconds: 1800,
         });
         expect(analytics.track).toHaveBeenCalledWith({
             userId: USER_UUID,

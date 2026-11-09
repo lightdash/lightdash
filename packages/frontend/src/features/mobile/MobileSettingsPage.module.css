@@ -19,6 +19,7 @@
 }
 
 .stepBadge[data-state='upcoming'] {
+    background: transparent;
     color: var(--mantine-color-dimmed);
 }
 

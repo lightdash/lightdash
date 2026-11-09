@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    type ApiError,
-    type MobileAppLink,
-} from '@lightdash/common';
+import { FeatureFlags, type MobileAppLink } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -100,13 +96,13 @@ const StepCard: FC<
 
 const QrCodePanel: FC<{
     link: MobileAppLink | null;
-    mintError: ApiError | null;
+    hasFailed: boolean;
     onRetry: () => void;
     onHasApp: (() => void) | null;
-}> = ({ link, mintError, onRetry, onHasApp }) => (
+}> = ({ link, hasFailed, onRetry, onHasApp }) => (
     <Group align="flex-start" gap="lg">
         <Box className={classes.qrFrame}>
-            {mintError ? (
+            {hasFailed ? (
                 <MantineIcon icon={IconQrcodeOff} size="xl" color="dimmed" />
             ) : link ? (
                 <Suspense fallback={<Loader size="sm" />}>
@@ -117,13 +113,13 @@ const QrCodePanel: FC<{
             )}
         </Box>
         <Stack gap="md" className={classes.details}>
-            {mintError ? (
+            {hasFailed ? (
                 <Text size="sm">{MOBILE_STRINGS.couldNotCreateCode}</Text>
             ) : (
                 link && <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
             )}
             <Group gap="xs">
-                {mintError ? (
+                {hasFailed ? (
                     <Button size="xs" variant="default" onClick={onRetry}>
                         {MOBILE_STRINGS.tryAgain}
                     </Button>
@@ -189,32 +185,57 @@ type ViewProps = {
     appLink: ReturnType<typeof useMobileAppLink>;
 };
 
-const GetAppView: FC<ViewProps> = ({ host, appLink }) => (
-    <SettingsCard withBorder>
-        <Stack gap="md">
-            <Group justify="space-between" wrap="nowrap">
-                <Group gap="xs" wrap="nowrap">
-                    <MantineIcon icon={IconDeviceMobile} />
-                    <Title order={5}>{MOBILE_STRINGS.getAppTitle}</Title>
+// The scan removes the focused control, so move focus on instead of to body.
+const useFocusAfterScan = (
+    isScanned: boolean,
+    target: RefObject<HTMLElement | null>,
+) => {
+    useEffect(() => {
+        const active = document.activeElement;
+        if (isScanned && (active === null || active === document.body)) {
+            target.current?.focus();
+        }
+    }, [isScanned, target]);
+};
+
+const GetAppView: FC<ViewProps> = ({ host, appLink }) => {
+    const heading = useRef<HTMLHeadingElement>(null);
+    useFocusAfterScan(appLink.isScanned, heading);
+
+    return (
+        <SettingsCard withBorder>
+            <Stack gap="md">
+                <Group justify="space-between" wrap="nowrap">
+                    <Group gap="xs" wrap="nowrap">
+                        <MantineIcon icon={IconDeviceMobile} />
+                        <Title
+                            order={5}
+                            ref={heading}
+                            tabIndex={-1}
+                            className={classes.stepTitle}
+                        >
+                            {MOBILE_STRINGS.getAppTitle}
+                        </Title>
+                    </Group>
+                    {appLink.isScanned && <OpenedOnPhone />}
                 </Group>
-                {appLink.isScanned && <OpenedOnPhone />}
-            </Group>
-            {!appLink.isScanned && (
-                <QrCodePanel
-                    link={appLink.link}
-                    mintError={appLink.mintError}
-                    onRetry={appLink.retry}
-                    onHasApp={null}
-                />
-            )}
-            <StoreBadges />
-            <SignInHost host={host} />
-        </Stack>
-    </SettingsCard>
-);
+                {!appLink.isScanned && (
+                    <QrCodePanel
+                        link={appLink.link}
+                        hasFailed={appLink.hasFailed}
+                        onRetry={appLink.retry}
+                        onHasApp={null}
+                    />
+                )}
+                <StoreBadges />
+                <SignInHost host={host} />
+            </Stack>
+        </SettingsCard>
+    );
+};
 
 const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
-    const { link, isScanned, mintError, retry } = appLink;
+    const { link, isScanned, hasFailed, retry } = appLink;
     const [hasApp, setHasApp] = useState(false);
     const isStepOneDone = isScanned || hasApp;
 
@@ -227,6 +248,7 @@ const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
         pendingFocus.current?.current?.focus();
         pendingFocus.current = null;
     }, [hasApp]);
+    useFocusAfterScan(isScanned, stepTwoHeading);
     const showSignIn = () => {
         pendingFocus.current = stepTwoHeading;
         setHasApp(true);
@@ -263,7 +285,7 @@ const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
                     <>
                         <QrCodePanel
                             link={link}
-                            mintError={mintError}
+                            hasFailed={hasFailed}
                             onRetry={retry}
                             onHasApp={showSignIn}
                         />

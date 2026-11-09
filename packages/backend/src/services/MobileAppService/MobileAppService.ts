@@ -14,6 +14,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import {
     hashMobileAppLinkKey,
+    MOBILE_APP_LINK_TTL_MINUTES,
     MobileAppLinkModel,
 } from '../../models/MobileAppLinkModel';
 import { BaseService } from '../BaseService';
@@ -111,6 +112,7 @@ export class MobileAppService extends BaseService {
             linkUuid,
             scanUrl: `${siteUrl}/m/app/${scanId}`,
             expiresAt: expiresAt.toISOString(),
+            expiresInSeconds: MOBILE_APP_LINK_TTL_MINUTES * 60,
         };
     }
 
