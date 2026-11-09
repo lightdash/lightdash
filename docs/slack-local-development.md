@@ -60,9 +60,11 @@ socat TCP-LISTEN:<tunnel-port>,fork,reuseaddr TCP:127.0.0.1:<frontend-port>
 
 Socket mode delivers an event to only one open connection per app token. If two instances use the same app token at the same time, each event goes to one of them at random. Use one running instance per app, or one app per developer.
 
-## Profiles
+## Starting the instance
 
-`/docker-dev start ee,slack` uses the `slack` profile in `scripts/dev-profiles.json`. It pulls `SLACK_APP` from 1Password and sets `SLACK_SOCKET_MODE=true`. You still do steps 3 and 4 manually.
+`scripts/dev-fast-start.sh --ee` starts the instance. Pull the Slack values with `scripts/dev-op-pull.sh pull SLACK_APP` (step 1) and set `SLACK_SOCKET_MODE=true`. You still do steps 3 and 4 manually.
+
+Slack development is not available on Rainbow today. `rainbow.toml` has no Slack host in its egress allow list and no Slack secret.
 
 ## Troubleshooting
 
