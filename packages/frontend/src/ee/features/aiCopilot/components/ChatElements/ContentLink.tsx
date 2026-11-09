@@ -449,15 +449,16 @@ export const ContentLink: FC<ContentLinkProps> = ({
         case 'node-citation': {
             const nodeId = props['data-node-id'];
             const citationNumber = props['data-citation-number'];
-            if (typeof nodeId !== 'string' || citationNumber === undefined) {
-                return null;
-            }
+            if (typeof nodeId !== 'string') return null;
             return (
                 <NodeCitationMarker
                     nodeId={nodeId}
-                    citationNumber={Number(citationNumber)}
+                    citationNumber={
+                        citationNumber === undefined
+                            ? null
+                            : Number(citationNumber)
+                    }
                     label={title}
-                    isInert={'data-citation-inert' in props}
                     message={message}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}

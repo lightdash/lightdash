@@ -18,9 +18,9 @@ import styles from './MemoryCitation.module.css';
 
 type Props = {
     nodeId: string;
-    citationNumber: number;
+    /** Null while the answer streams or resolves: the marker is inert. */
+    citationNumber: number | null;
     label: string | undefined;
-    isInert: boolean;
     message: AiAgentMessageAssistant;
     projectUuid: string;
     agentUuid: string;
@@ -31,7 +31,6 @@ export const NodeCitationMarker: FC<Props> = ({
     nodeId,
     citationNumber,
     label,
-    isInert,
     message,
     projectUuid,
     agentUuid,
@@ -65,17 +64,17 @@ export const NodeCitationMarker: FC<Props> = ({
         <UnstyledButton
             type="button"
             className={styles.marker}
-            disabled={isInert}
+            disabled={citationNumber === null}
             aria-pressed={isOpen}
             data-active={isOpen}
             aria-label={interpolateUiString(
                 getUiString('aiAgent.nodeCitation.marker'),
-                { label: label || citationNumber },
+                { label: label || citationNumber || '' },
             )}
             title={label}
             onClick={handleClick}
         >
-            {citationNumber}
+            {citationNumber ?? '·'}
         </UnstyledButton>
     );
 };

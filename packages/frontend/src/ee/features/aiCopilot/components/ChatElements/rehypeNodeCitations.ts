@@ -6,7 +6,7 @@ const textOf = (node: ElementContent): string => {
     return node.type === 'element' ? node.children.map(textOf).join('') : '';
 };
 
-/** Numbers citations by first appearance and drops unresolved ones; null means shown inert. */
+/** Numbers citations by first appearance and drops unresolved ones; null shows them inert, unnumbered. */
 export const rehypeNodeCitations =
     ({ resolvedNodeIds }: { resolvedNodeIds: readonly string[] | null }) =>
     (tree: Root) => {
@@ -37,14 +37,14 @@ export const rehypeNodeCitations =
                 return undefined;
             }
 
-            const citationNumber = numbers.get(nodeId) ?? numbers.size + 1;
-            numbers.set(nodeId, citationNumber);
-            node.properties['data-citation-number'] = citationNumber;
             node.properties.title = node.children.map(textOf).join('');
-            if (resolved === null) {
-                node.properties['data-citation-inert'] = 'true';
-            }
             node.children = [];
+            // Streaming renders blocks separately, so numbers wait for the whole message.
+            if (resolved) {
+                const citationNumber = numbers.get(nodeId) ?? numbers.size + 1;
+                numbers.set(nodeId, citationNumber);
+                node.properties['data-citation-number'] = citationNumber;
+            }
             return undefined;
         });
     };

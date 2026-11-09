@@ -103,13 +103,13 @@ describe('node citation markers', () => {
         );
     });
 
-    it('shows numbered, inert markers while the answer is unresolved', () => {
+    it('shows inert, unnumbered markers while the answer is unresolved', () => {
         renderAnswer('A [Unknown](#query-node-unknown).', null);
         const marker = screen.getByRole('button', {
             name: /Open query result/,
         });
         expect(marker).toBeDisabled();
-        expect(marker).toHaveTextContent('1');
+        expect(marker).toHaveTextContent('·');
     });
 
     it('opens the cited node, closes on a second click, retargets on another', () => {
