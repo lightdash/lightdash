@@ -16,7 +16,7 @@ Use a Slack app that belongs to you or the team for development. Never use the p
 - **Interactivity & Shortcuts**: on. Socket mode delivers button clicks too.
 - **App unfurl domains**: add your tunnel host if you test link unfurls.
 
-The shared dev app's values are in the Lightdash 1Password item "Slack ENV for lightdash share local", a secure note with an `export KEY=""value""` block. Copy the five `SLACK_*` values from that note into `.env.development.local`. If you use your own app, copy the same keys from its settings pages.
+The shared dev app's values are in the Lightdash 1Password item "Slack ENV for lightdash share local", a secure note with an `export KEY=""value""` block. `scripts/dev-op-pull.sh pull SLACK_APP` writes them into `.env.development.local`. If you use your own app, copy the same keys from its settings pages.
 
 ## 2. Environment
 
@@ -60,9 +60,9 @@ socat TCP-LISTEN:<tunnel-port>,fork,reuseaddr TCP:127.0.0.1:<frontend-port>
 
 Socket mode delivers an event to only one open connection per app token. If two instances use the same app token at the same time, each event goes to one of them at random. Use one running instance per app, or one app per developer.
 
-## Rainbow
+## Profiles
 
-Slack development is not available on Rainbow today. `rainbow.toml` has no Slack host in its egress allow list and no Slack secret. Use a local instance set up as in [Setup Development Environment without Docker](../.github/CONTRIBUTING.md#setup-development-environment-without-docker).
+`/docker-dev start ee,slack` uses the `slack` profile in `scripts/dev-profiles.json`. It pulls `SLACK_APP` from 1Password and sets `SLACK_SOCKET_MODE=true`. You still do steps 3 and 4 manually.
 
 ## Troubleshooting
 

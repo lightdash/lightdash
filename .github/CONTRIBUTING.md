@@ -171,55 +171,163 @@ Packages overview:
 - `e2e` - End-to-end and integration tests
 - `warehouses` - Classes for connecting to different databases
 
-There are two ways to run Lightdash for development:
+#### using Docker compose
 
-- **Rainbow**: every pull request gets a preview environment. See [Developing on Rainbow](../docs/rainbow-development.md).
-- **Local**: follow [Setup Development Environment without Docker](#setup-development-environment-without-docker).
-
-#### Supporting services in containers
-
-A local instance can run its supporting services in containers. `docker/docker-compose.infra.yml` runs Postgres (`db-dev`), MinIO, Mailpit, an SSH server, a headless browser, Prometheus and NATS. Lightdash itself runs on your machine.
+You can create a developer environment using docker compose:
 
 ```shell
-docker compose -f docker/docker-compose.infra.yml --env-file .env.development.local up --detach
+# Clone the Lightdash repo
+git clone https://github.com/lightdash/lightdash
 ```
 
-To start only some services, add their names to the command, for example `minio mailpit`. Do not start `db-dev` if Postgres already runs on port 5432.
+Copy `.env.development` into a new file called `.env.development.local` and run the following `docker compose up`
+command:
+
+```shell
+# Create docker containers
+# Note: before the next step make sure your docker has 4GB of memory ( Docker -> settings -> resources ) you should be able to manipulate the values here.
+
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
+```
+
+When ready, access the development container and run these commands:
+
+```shell
+# Connect to container
+docker exec -it lightdash-app-lightdash-dev-1 bash
+
+# Skip playwright download
+export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
+
+# Install dependencies & build common package
+./scripts/build.sh
+
+# Setup dbt
+./scripts/seed-jaffle.sh
+
+# Setup the database
+./scripts/migrate.sh
+./scripts/seed-lightdash.sh
+
+# Run Lightdash frontend and backend in dev mode
+pnpm dev # http://localhost:3000
+
+# Log in dev mode
+# When navigating to http://localhost:3000 you will be prompted to the login page, you can use our demo login details:
+
+# Email-Address: demo@lightdash.com
+# Password: demo_password!
+
+# Or run in production mode
+# pnpm build
+# pnpm start # http://localhost:8080
+```
+
+Notes:
+
+- If you change files inside `/packages/common` you should run `pnpm common-build` before `pnpm dev`
+- If you change files inside `/packages/warehouses` you should run `pnpm warehouses-build` before `pnpm dev`
+- If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
+- If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run the `docker compose up` command mentioned above
+- On MacOS, you may need to add an entry to your `/etc/hosts` file, mapping `minio` to `127.0.0.1` to be able to access the container via its name.
+
+When you want to stop:
+
+```shell
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local stop
+```
+
+When you want to start:
+
+```shell
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local start
+```
 
 #### Testing an SSH Tunnel Locally
 
-Rainbow has no SSH server. Test SSH tunnels on a local instance.
+To test an SSH tunnel with Lightdash in your local development environment:
 
-1. Start the [supporting services](#supporting-services-in-containers).
-2. In the Lightdash UI, open the project connection settings.
-3. Expand the advanced settings and set `Use SSH tunnel` to **true**.
-4. Set the SSH remote host to `localhost`, the port to `2222` and the username to `sshuser`.
-5. Generate a new SSH key pair in the UI and copy the public key.
-6. Set `DEV_SSH_PUBLIC_KEY="<public key>"` in `.env.development.local`.
-7. Run the `docker compose ... up --detach` command again to give the key to the SSH server.
+1. **Go to Project Connection Advanced Settings**
+    - In the Lightdash UI, navigate to your project connection settings.
+    - Expand the advanced settings and set `Use SSH tunnel` to **true**.
 
-The warehouse host must be reachable from the SSH server container, for example `db-dev` for the Postgres container.
+2. **Add the SSH Tunnel config**
+    - SSH Remote host: `ssh-server`
+    - SSH Remote port: `2222`
+    - SSH Username: `sshuser`
+
+3. **Generate a Key Pair**
+    - Use the UI to generate a new SSH key pair for the tunnel.
+
+4. **Copy the Public Key**
+    - Copy the generated public key from the UI.
+    - Open your `.env.development.local` file and set:
+        ```
+        DEV_SSH_PUBLIC_KEY="<paste your public key here>"
+        ```
+
+5. **Restart Docker Compose**
+    - Re-run the following command to apply the new SSH key:
+        ```sh
+        docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
+        ```
+
+This will update the SSH server container with your new public key, allowing you to test SSH tunnel connections from your local Lightdash instance.
 
 #### Testing Prometheus Metrics Locally
 
-Rainbow has no Prometheus service. On a local instance, the backend can expose metrics.
+The development environment includes Prometheus for monitoring Lightdash metrics. To use it:
 
-1. Set these variables in `.env.development.local`:
+1. **Start the development environment** with Prometheus enabled:
+
+    ```shell
+    docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
     ```
-    LIGHTDASH_PROMETHEUS_ENABLED=true
-    LIGHTDASH_PROMETHEUS_PORT=9090
-    LIGHTDASH_PROMETHEUS_PATH=/metrics
-    ```
-2. Restart the backend.
-3. Open http://localhost:9090/metrics.
-4. Start the [supporting services](#supporting-services-in-containers). Prometheus runs at http://localhost:9091. It scrapes `host.docker.internal:9090` every 5 seconds (`docker/dev-configs/prometheus.dev.yml`).
-5. Query the metrics in the Prometheus UI. Example queries: `queue_size`, `nodejs_eventloop_utilization`.
+
+2. **Verify Prometheus is running**:
+    - Prometheus UI: http://localhost:9091
+    - Lightdash metrics endpoint: http://localhost:9090/metrics
+
+3. **Configure Prometheus settings** (optional):
+    - Edit `.env.development.local` to customize:
+        ```
+        LIGHTDASH_PROMETHEUS_ENABLED=true
+        LIGHTDASH_PROMETHEUS_PORT=9090
+        LIGHTDASH_PROMETHEUS_PATH=/metrics
+        ```
+
+4. **View metrics in Prometheus**:
+    - Navigate to http://localhost:9091
+    - Use the expression browser to query Lightdash metrics
+    - Example queries: `queue_size`, `nodejs_eventloop_utilization`
+
+The Prometheus configuration automatically scrapes Lightdash metrics every 5 seconds from the backend service.
 
 #### Testing Email Locally with Mailpit
 
-Rainbow runs Mailpit in each environment, and the backend sends its mail there.
+The development environment includes Mailpit for testing email functionality locally without sending real emails. To use it:
 
-On a local instance, the [supporting services](#supporting-services-in-containers) include Mailpit on ports 1025 (SMTP) and 8025 (web UI). Use the settings in step 3 of the next section. To run Mailpit without Docker, follow all of the next section.
+1. **Start the development environment** (Mailpit is included by default):
+
+    ```shell
+    docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
+    ```
+
+2. **Access the Mailpit Web UI**:
+    - Navigate to http://localhost:8025
+    - All emails sent from Lightdash will appear here
+    - You can view full email content, headers, and HTML rendering
+
+3. **Email Configuration** (pre-configured in `.env.development`):
+    - SMTP Host: `mailpit` (Docker hostname)
+    - SMTP Port: `1025`
+    - No authentication required for local development
+
+4. **Test email features**:
+    - Scheduled email deliveries
+    - User invitation emails
+    - Sharing alerts via email
+    - Password reset emails
 
 #### Testing Email Locally with Mailpit (without Docker)
 
@@ -256,28 +364,31 @@ If you're running Lightdash without Docker, you can install and run Mailpit dire
 3. **Configure Lightdash** in your `.env.development.local`:
 
     ```shell
-    EMAIL_SMTP_HOST=localhost
-    EMAIL_SMTP_PORT=1025
-    EMAIL_SMTP_SECURE=false
-    EMAIL_SMTP_USE_AUTH=false
-    EMAIL_SMTP_ALLOW_INVALID_CERT=false
-    EMAIL_SMTP_SENDER_EMAIL=lightdash@localhost.com
-    EMAIL_SMTP_SENDER_NAME=Lightdash
+    SMTP_HOST=localhost
+    SMTP_PORT=1025
+    SMTP_SECURE=false
+    SMTP_ALLOW_INVALID_CERT=false
+    SMTP_SENDER_EMAIL=lightdash@localhost.com
+    SMTP_SENDER_NAME=Lightdash
     ```
 
 4. **Access the Mailpit Web UI**:
     - Navigate to http://localhost:8025
     - All emails sent from Lightdash will appear here
 
-#### Object storage with MinIO
+#### Downloading files stored in local docker container MinIO
 
-The backend needs S3-compatible storage to start. Rainbow runs MinIO in each environment at `http://localhost:9000`, unless the `S3_*` secrets are stored.
+When developing using the docker compose setup there's a MinIO container already setup to serve as the S3 compatible
+storage to save any files that are exported from the app - these can be images, results csv, etc.
 
-On a local instance:
+Because the MinIO internal docker endpoint is not accessible to the host machine - `localhost` - it needs to be added to
+the `/etc/hosts` configuration in your computer otherwise it will fail with a `DNS_PROBE_FINISHED_NXDOMAIN` error.
 
-1. Start MinIO from the [supporting services](#supporting-services-in-containers). It creates the buckets in `MINIO_DEFAULT_BUCKETS`. You can also run MinIO or another S3-compatible store on port 9000 yourself, and create those buckets.
-2. Set `S3_ENDPOINT=http://localhost:9000` in `.env.development.local`.
-3. Set `S3_ACCESS_KEY` and `S3_SECRET_KEY` to your MinIO credentials.
+1. Edit the hosts file using a text editor (e.g. vim, nano, etc.) with administrator privileges:
+   `sudo nano /etc/hosts`
+2. Add the following line at the end of the file:
+   `127.0.0.1    minio`
+3. Save the file
 
 #### Backend debugger
 
@@ -286,9 +397,10 @@ The default inspector port is `9229`; `DEBUG_PORT` selects a different port for
 an isolated instance. A different listen address requires an explicit
 `DEBUG_HOST` value. For PM2, put these settings in `.env.development.local`.
 
-In VS Code, use the **Attach to Backend (Dockerless)** configuration in
-`.vscode/launch.json`. Use an SSH local forward when you connect to a remote
-development host.
+To debug inside the development container, explicitly set `DEBUG_HOST=0.0.0.0`
+for `lightdash-dev` and run the backend `dev` command. Docker continues to publish
+the inspector at `127.0.0.1:9229:9229` on the host. Use an SSH local forward when
+connecting to a remote development host.
 
 #### Setup Development Environment without Docker
 
@@ -464,7 +576,12 @@ Headless browser is used to generate images we use for Slack unfurls or on sched
 you can find more about headless browser
 on [our docs](https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash).
 
-Rainbow has no headless browser service. To debug these features, run the headless browser locally in a container.
+If you want to debug some of these features, you should run headless browser locally on docker.
+
+#### Running Lightdash on docker and headless browser
+
+If you are running both Lightdash and Headless browser using our docker-compose yml set-up you should be ok, and
+everything should work as expected.
 
 #### Running Lightdash without docker and headless browser on Linux
 

@@ -1,6 +1,6 @@
 # Developing on Rainbow
 
-Rainbow Machine runs a preview environment for each pull request. Use it to run, test and demo a branch. `rainbow.toml` at the repo root is the recipe: services, datastores, env vars, secrets and egress. For a local instance, follow [Setup Development Environment without Docker](../.github/CONTRIBUTING.md#setup-development-environment-without-docker).
+Rainbow Machine runs a preview environment for each pull request. Use it to run, test and demo a branch. `rainbow.toml` at the repo root is the recipe: services, datastores, env vars, secrets and egress. For a local instance, follow [Setup Development Environment](../.github/CONTRIBUTING.md#setup-development-environment).
 
 ## Get an environment
 
@@ -44,4 +44,4 @@ Agents use the `rainbow-env` skill (`.agents/skills/rainbow-env/SKILL.md`). It c
 - **Prometheus**: there is no Prometheus service.
 - **Backend debugger**: attach to a local instance instead ([CONTRIBUTING.md](../.github/CONTRIBUTING.md#backend-debugger)).
 
-For the headless browser, NATS, the SSH tunnel and Prometheus, use a local instance with the [supporting services in containers](../.github/CONTRIBUTING.md#supporting-services-in-containers).
+For the headless browser, NATS, the SSH tunnel and Prometheus, use a local instance ([Setup Development Environment](../.github/CONTRIBUTING.md#setup-development-environment)).

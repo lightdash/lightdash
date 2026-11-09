@@ -152,13 +152,14 @@ dashboards include a `space_name` attribute.
 ## Local verification
 
 Start an isolated instance and configure its local MinIO usage-events settings
-as described in [local testing](local-testing.md). Set
-`USAGE_DIMENSIONS_SMOKE_PGPORT` to that instance's Postgres port (`PGPORT` in
-`.env.development.local`). The test uses a disposable schema in that instance's
+as described in [local testing](local-testing.md). Load its assigned environment
+before running the test. The test uses a disposable schema in that instance's
 Postgres and a dedicated MinIO bucket; it cleans up both.
 
 ```bash
-USAGE_DIMENSIONS_SMOKE_PGPORT=<your PGPORT> \
+export INSTANCE_ID=<your-instance>
+eval "$(./scripts/dev-ports.sh env)"
+USAGE_DIMENSIONS_SMOKE_PGPORT="$LD_PG_PORT" \
 USAGE_DIMENSIONS_SMOKE_ROWS=1000000 \
 pnpm exec dotenv -e .env.development.local -e .env.development -- \
   pnpm -F backend test src/analytics/eventStream/UsageDimensions.smoke.test.ts \
