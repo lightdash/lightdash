@@ -2569,7 +2569,7 @@ export class AsyncQueryService extends ProjectService {
         if (
             binding.agentUuid !== messageQuery.agentUuid ||
             binding.promptUuid !== messageQuery.promptUuid ||
-            binding.queryUuid !== messageQuery.queryUuid
+            binding.nodeId !== messageQuery.nodeId
         )
             throw new ForbiddenError('Query results are unavailable');
         return this.getAsyncQueryResults(args);

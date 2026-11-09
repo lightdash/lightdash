@@ -288,18 +288,22 @@ export const buildComposerArtifactPipeline = ({
     return pipeline;
 };
 
-/** A successful `query` call of a turn, presented by its terminal node. */
-export type AiAgentMessageQueryPipeline = {
-    queryUuid: string;
-    title: string;
-    terminalNodeId: QueryNodeId;
-    /** Every node the call ran, reused ones included, in dependency order. */
+/** A node citation's preview: the cited node, its terminal, and everything it reads. */
+export type AiAgentNodeCitationPipeline = {
+    nodeId: QueryNodeId;
+    title: string | null;
+    /** The closure in dependency order, the cited node last. */
     nodes: ComposerPipelineNode[];
 };
 
-export type ApiAiAgentMessageQueryPipelinesResponse = {
+export type ApiAiAgentNodeCitationPipelineResponse = {
     status: 'ok';
-    results: AiAgentMessageQueryPipeline[];
+    results: AiAgentNodeCitationPipeline;
+};
+
+export type ApiAiAgentThreadComposerNodeIdsResponse = {
+    status: 'ok';
+    results: QueryNodeId[];
 };
 
 /** Identity of a pinned composer pipeline node as prompt context. */

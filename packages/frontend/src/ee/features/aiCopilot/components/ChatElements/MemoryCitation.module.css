@@ -28,6 +28,23 @@
     color: var(--mantine-color-indigo-7);
 }
 
+.marker[data-active='true'] {
+    border-color: var(--mantine-color-indigo-4);
+    background: var(--mantine-color-indigo-0);
+    color: var(--mantine-color-indigo-7);
+}
+
+.marker:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.marker:disabled:hover {
+    border-color: var(--mantine-color-gray-3);
+    background: var(--mantine-color-gray-0);
+    color: var(--mantine-color-gray-6);
+}
+
 .marker:focus-visible {
     outline: 2px solid var(--mantine-color-indigo-5);
     outline-offset: 2px;

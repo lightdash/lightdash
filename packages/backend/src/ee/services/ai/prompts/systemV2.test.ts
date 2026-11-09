@@ -486,6 +486,19 @@ describe('getSystemPromptV2 composer queries', () => {
         expect(content).not.toContain('<slack-chart');
     });
 
+    test('teaches node citations in web chat only', () => {
+        const prompt = (slackChannelId: string | null) =>
+            promptText({
+                availableExplores: [],
+                promptSections: composerSections(),
+                slackChannelId,
+                enableDataAccess: true,
+            });
+
+        expect(prompt(null)).toContain('#query-node-<nodeId>');
+        expect(prompt('channel')).not.toContain('#query-node-');
+    });
+
     test.each([
         [true, true],
         [false, false],

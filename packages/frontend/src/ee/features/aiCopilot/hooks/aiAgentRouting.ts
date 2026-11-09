@@ -25,22 +25,22 @@ export const getEmbedAiAgentDashboardPath = (
 export const getThreadUuidFromPathname = (pathname: string): string | null =>
     pathname.match(/\/ai-agents\/[^/]+\/threads\/([^/]+)/)?.[1] ?? null;
 
-export const getAiAgentMessageQueryResultsUrl = ({
+export const getAiAgentNodeCitationResultsUrl = ({
     projectUuid,
     agentUuid,
     threadUuid,
     messageUuid,
-    queryUuid,
+    nodeId,
     resultQueryUuid,
 }: {
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
     messageUuid: string;
-    queryUuid: string;
+    nodeId: string;
     resultQueryUuid: string;
 }) =>
-    `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/queries/${queryUuid}/query-results?${new URLSearchParams({ resultQueryUuid })}`;
+    `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/nodes/${nodeId}/query-results?${new URLSearchParams({ resultQueryUuid })}`;
 
 export const getAiAgentArtifactResultsUrl = ({
     projectUuid,

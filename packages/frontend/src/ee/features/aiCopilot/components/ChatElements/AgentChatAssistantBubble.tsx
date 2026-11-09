@@ -9,6 +9,7 @@ import {
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
+    hasNodeCitations,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -46,7 +47,7 @@ import {
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
-import { type CustomRendererProps } from 'streamdown';
+import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -57,6 +58,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useUiString } from '../../../../providers/Embed/useUiStrings';
+import { useAiAgentThreadComposerNodeIds } from '../../hooks/useAiAgentNodeCitations';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
@@ -109,6 +111,7 @@ import {
 import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
+import { rehypeNodeCitations } from './rehypeNodeCitations';
 import { requiresSnowflakeReauthentication } from './requiresSnowflakeReauthentication';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
@@ -484,6 +487,24 @@ const AssistantBubbleContent: FC<{
             : '';
 
     const messageContent = baseMessageContent + referencedArtifactsMarkdown;
+    const nodeCitationIds = useAiAgentThreadComposerNodeIds({
+        projectUuid,
+        agentUuid,
+        threadUuid: message.threadUuid,
+        messageUuid: message.uuid,
+        enabled: !isStreaming && !isPending && hasNodeCitations(messageContent),
+    });
+    const answerRehypePlugins = useMemo(
+        () =>
+            [
+                rehypeAiAgentContentLinks,
+                rehypeMemoryCitationIndices,
+                [rehypeNodeCitations, { resolvedNodeIds: nodeCitationIds }],
+            ] satisfies NonNullable<StreamdownProps['rehypePlugins']>,
+        [nodeCitationIds],
+    );
+    // Streamdown's memo ignores plugin changes, so remount once citations resolve.
+    const citationResolutionKey = nodeCitationIds?.join(',') ?? 'pending';
 
     // Writeback PR card metadata. The editDbtProject tool result instructs
     // the LLM not to print the PR URL inline (we surface it via a dedicated
@@ -669,10 +690,7 @@ const AssistantBubbleContent: FC<{
                                 styles.answerMarkdown,
                                 isStreaming && styles.streamingNarration,
                             )}
-                            rehypePlugins={[
-                                rehypeAiAgentContentLinks,
-                                rehypeMemoryCitationIndices,
-                            ]}
+                            rehypePlugins={answerRehypePlugins}
                             plugins={markdownPlugins}
                             components={{
                                 ...MEMORY_CITATION_COMPONENTS,
@@ -840,15 +858,13 @@ const AssistantBubbleContent: FC<{
                                 data-tour-docs="agents.mdx#intro:2"
                             >
                                 <AiMarkdown
+                                    key={citationResolutionKey}
                                     className={clsx(
                                         styles.answerMarkdown,
                                         styles.persistedAnswer,
                                     )}
                                     allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
-                                    rehypePlugins={[
-                                        rehypeAiAgentContentLinks,
-                                        rehypeMemoryCitationIndices,
-                                    ]}
+                                    rehypePlugins={answerRehypePlugins}
                                     plugins={markdownPlugins}
                                     components={{
                                         ...MEMORY_CITATION_COMPONENTS,

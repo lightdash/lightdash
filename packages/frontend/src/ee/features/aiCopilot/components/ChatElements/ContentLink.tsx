@@ -22,6 +22,7 @@ import {
 } from '../../store/hooks';
 import styles from './ContentLink.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
+import { NodeCitationMarker } from './NodeCitationMarker';
 import { type ContentType } from './rehypeContentLinks';
 import {
     isPlainLeftClick,
@@ -442,6 +443,25 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 >
                     {children}
                 </Button>
+            );
+        }
+
+        case 'query-node-citation': {
+            const nodeId = props['data-node-id'];
+            const citationNumber = props['data-citation-number'];
+            if (typeof nodeId !== 'string' || citationNumber === undefined) {
+                return null;
+            }
+            return (
+                <NodeCitationMarker
+                    nodeId={nodeId}
+                    citationNumber={Number(citationNumber)}
+                    label={title}
+                    isInert={'data-citation-inert' in props}
+                    message={message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                />
             );
         }
 

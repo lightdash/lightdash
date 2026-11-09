@@ -528,6 +528,11 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.lineage.focusHint':
         'Faded steps are not linked to {node}',
     'aiAgent.composer.lineage.clearFocus': 'Clear',
+    'aiAgent.nodeCitation.marker': 'Open query result {label}',
+    'aiAgent.nodeCitation.loading': 'Loading query…',
+    'aiAgent.nodeCitation.loadError': 'Could not load this query.',
+    'aiAgent.nodeCitation.untitled': 'Query result',
+    'aiAgent.nodeCitation.runFailed': 'Failed to run query',
     'aiAgent.artifactPanel.expand': 'Expand panel',
     'aiAgent.artifactPanel.collapse': 'Show chat',
     'aiAgent.artifactPanel.collapseTooltip': 'Show chat (Esc)',

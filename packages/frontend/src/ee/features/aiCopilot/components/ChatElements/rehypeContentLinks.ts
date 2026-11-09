@@ -1,3 +1,7 @@
+import {
+    getNodeCitationNodeId,
+    NODE_CITATION_FRAGMENT,
+} from '@lightdash/common';
 import { type Element, type Root } from 'hast';
 import { visit } from 'unist-util-visit';
 
@@ -10,6 +14,7 @@ const CONTENT_TYPES = [
     'sql-runner-link',
     'settings-link',
     'scheduled-delivery-link',
+    'query-node-citation',
 ] as const;
 
 export type ContentType = (typeof CONTENT_TYPES)[number];
@@ -75,6 +80,15 @@ const LINK_PROCESSORS: LinkProcessor[] = [
         contentType: 'sql-runner-link',
         cleanUrl: () => '#',
         extractData: () => ({}),
+    },
+    {
+        fragment: NODE_CITATION_FRAGMENT,
+        contentType: 'query-node-citation',
+        cleanUrl: () => '#',
+        extractData: (href) => {
+            const nodeId = getNodeCitationNodeId(href);
+            return nodeId ? { 'data-node-id': nodeId } : {};
+        },
     },
 ];
 

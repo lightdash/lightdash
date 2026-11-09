@@ -196,8 +196,8 @@ import {
     type AgentToolName,
     type AgentWorkMarker,
     type AiAgentEditDbtProjectPipelineJobPayload,
-    type AiAgentMessageQueryPipeline,
     type AiAgentModelConfig,
+    type AiAgentNodeCitationPipeline,
     type AiAgentSkill,
     type AiArtifact,
     type AiChartRuntimeOverrides,
@@ -623,6 +623,7 @@ import {
     getThinkingBlocks,
     selectSlackAiAccessRefusal,
     splitMarkdownIntoMessages,
+    stripCitationsForSlack,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
@@ -633,7 +634,7 @@ import {
     parseMemoryCitations,
     stripMemoryCitations,
 } from '../ai/utils/memoryCitation';
-import { buildMessageQueryPipelines } from '../ai/utils/messageQueryPipelines';
+import { buildNodeCitationPipeline } from '../ai/utils/nodeCitationPipeline';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -919,12 +920,12 @@ export const assertDeepResearchPromptExecution = ({
 // Set where a user action starts; null where the run continues one that was already checked.
 export type AiCreditCheck = { isEmbedViewer: boolean };
 
-type MessageQueryPipelineRef = {
+type NodeCitationRef = {
     agentUuid: string;
     threadUuid: string;
     messageUuid: string;
-    /** The pipeline's terminal queryUuid from its `query` call. */
-    queryUuid: string;
+    /** The cited thread composer query node. */
+    nodeId: string;
 };
 
 type EmbedAiAgentRuntimeOptions = {
@@ -9335,24 +9336,42 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    async getEmbedMessageQueryPipelines(
+    async getEmbedThreadComposerNodeIds(
         account: AnonymousAccount,
         projectUuid: string,
-        args: { agentUuid: string; threadUuid: string; messageUuid: string },
-    ): Promise<AiAgentMessageQueryPipeline[]> {
+        args: { agentUuid: string; threadUuid: string },
+    ): Promise<string[]> {
         const { user, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             args.agentUuid,
         );
         await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
-        return this.getMessageQueryPipelines(user, { ...args, projectUuid });
+        return this.getThreadComposerNodeIds(user, { ...args, projectUuid });
     }
 
-    async getEmbedMessageQueryPipelineVizQuery(
+    async getEmbedNodeCitationPipeline(
         account: AnonymousAccount,
         projectUuid: string,
-        args: MessageQueryPipelineRef,
+        args: NodeCitationRef,
+    ): Promise<AiAgentNodeCitationPipeline> {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            args.agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
+        return this.getNodeCitationPipeline(user, {
+            ...args,
+            projectUuid,
+            runtimeOptions,
+        });
+    }
+
+    async getEmbedNodeCitationVizQuery(
+        account: AnonymousAccount,
+        projectUuid: string,
+        args: NodeCitationRef,
     ): Promise<ApiAiAgentComposerArtifactVizQuery> {
         const { user, runtimeOptions } = await this.getEmbedAgent(
             account,
@@ -9360,7 +9379,7 @@ export class AiAgentService extends BaseService {
             args.agentUuid,
         );
         await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
-        return this.getMessageQueryPipelineVizQuery(user, {
+        return this.getNodeCitationVizQuery(user, {
             ...args,
             projectUuid,
             runtimeOptions,
@@ -10958,20 +10977,14 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    async getMessageQueryPipelines(
+    private async assertThreadReadable(
         user: SessionUser,
         {
             projectUuid,
             agentUuid,
             threadUuid,
-            messageUuid,
-        }: {
-            projectUuid: string;
-            agentUuid: string;
-            threadUuid: string;
-            messageUuid: string;
-        },
-    ): Promise<AiAgentMessageQueryPipeline[]> {
+        }: { projectUuid: string; agentUuid: string; threadUuid: string },
+    ): Promise<{ organizationUuid: string }> {
         const { organizationUuid } = user;
         if (!organizationUuid)
             throw new ForbiddenError(`Organization not found`);
@@ -11007,53 +11020,54 @@ export class AiAgentService extends BaseService {
                 'Insufficient permissions to view this thread',
             );
         }
+        return { organizationUuid };
+    }
 
+    async getThreadComposerNodeIds(
+        user: SessionUser,
+        args: { projectUuid: string; agentUuid: string; threadUuid: string },
+    ): Promise<string[]> {
+        await this.assertThreadReadable(user, args);
+        const nodes = await this.aiAgentModel.listComposerQueryNodes(
+            threadComposerQueryScope(args.threadUuid),
+        );
+        return nodes.map(({ nodeId }) => nodeId);
+    }
+
+    async getNodeCitationPipeline(
+        user: SessionUser,
+        {
+            projectUuid,
+            runtimeOptions,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            nodeId,
+        }: NodeCitationRef & {
+            projectUuid: string;
+            runtimeOptions: EmbedAiAgentRuntimeOptions | null;
+        },
+    ): Promise<AiAgentNodeCitationPipeline> {
+        const { organizationUuid } = await this.assertThreadReadable(user, {
+            projectUuid,
+            agentUuid,
+            threadUuid,
+        });
         // Throws unless the message belongs to this thread
         await this.aiAgentModel.findThreadMessage('assistant', {
             organizationUuid,
             threadUuid,
             messageUuid,
         });
-
-        const [toolCalls, threadNodes] = await Promise.all([
-            this.aiAgentModel.getToolCallsAndResultsForPrompt(messageUuid),
-            this.aiAgentModel.listComposerQueryNodes(
+        const pipeline = buildNodeCitationPipeline({
+            nodeId,
+            threadNodes: await this.aiAgentModel.listComposerQueryNodes(
                 threadComposerQueryScope(threadUuid),
             ),
-        ]);
-        return buildMessageQueryPipelines({ toolCalls, threadNodes });
-    }
-
-    private async getMessageQueryPipeline(
-        user: SessionUser,
-        args: MessageQueryPipelineRef & { projectUuid: string },
-    ): Promise<AiAgentMessageQueryPipeline> {
-        const pipelines = await this.getMessageQueryPipelines(user, args);
-        const pipeline = pipelines.find(
-            ({ queryUuid }) => queryUuid === args.queryUuid,
-        );
-        if (!pipeline) {
-            throw new NotFoundError(`Query not found: ${args.queryUuid}`);
-        }
-        return pipeline;
-    }
-
-    /** Runs a message's `query` pipeline for the preview panel, like an artifact's viz query. */
-    async getMessageQueryPipelineVizQuery(
-        user: SessionUser,
-        {
-            projectUuid,
-            runtimeOptions,
-            ...args
-        }: MessageQueryPipelineRef & {
-            projectUuid: string;
-            runtimeOptions: EmbedAiAgentRuntimeOptions | null;
-        },
-    ): Promise<ApiAiAgentComposerArtifactVizQuery> {
-        const pipeline = await this.getMessageQueryPipeline(user, {
-            ...args,
-            projectUuid,
         });
+        if (!pipeline) {
+            throw new NotFoundError(`Node not found: ${nodeId}`);
+        }
         // Embed viewers are scoped by user attributes, which raw SQL bypasses.
         if (
             runtimeOptions &&
@@ -11065,6 +11079,26 @@ export class AiAgentService extends BaseService {
                 'Pipelines with warehouse SQL are not available in embedded AI agents',
             );
         }
+        return pipeline;
+    }
+
+    /** Runs a cited node and what it reads for the preview panel, like an artifact's viz query. */
+    async getNodeCitationVizQuery(
+        user: SessionUser,
+        {
+            projectUuid,
+            runtimeOptions,
+            ...args
+        }: NodeCitationRef & {
+            projectUuid: string;
+            runtimeOptions: EmbedAiAgentRuntimeOptions | null;
+        },
+    ): Promise<ApiAiAgentComposerArtifactVizQuery> {
+        const pipeline = await this.getNodeCitationPipeline(user, {
+            ...args,
+            projectUuid,
+            runtimeOptions,
+        });
         const execute =
             async (): Promise<ApiAiAgentComposerArtifactVizQuery> => {
                 const { queries } = await this.querySourceService.submitQueries(
@@ -11087,7 +11121,7 @@ export class AiAgentService extends BaseService {
                 );
                 return {
                     source: 'composer',
-                    terminalNodeId: pipeline.terminalNodeId,
+                    terminalNodeId: pipeline.nodeId,
                     nodeQueryUuids: Object.fromEntries(
                         queries.map(({ nodeId, queryUuid }) => [
                             nodeId,
@@ -11124,13 +11158,13 @@ export class AiAgentService extends BaseService {
                     {
                         agentUuid: args.agentUuid,
                         promptUuid: args.messageUuid,
-                        queryUuid: args.queryUuid,
+                        nodeId: args.nodeId,
                     },
                 ),
         );
     }
 
-    async getMessageQueryPipelineQueryResults(
+    async getNodeCitationQueryResults(
         user: SessionUser,
         {
             projectUuid,
@@ -11138,7 +11172,7 @@ export class AiAgentService extends BaseService {
             page,
             pageSize,
             ...args
-        }: MessageQueryPipelineRef & {
+        }: NodeCitationRef & {
             projectUuid: string;
             resultQueryUuid: string;
             page: number | null;
@@ -11146,7 +11180,11 @@ export class AiAgentService extends BaseService {
         },
         account: RegisteredAccount = fromSession(user),
     ): Promise<ApiGetAsyncQueryResults> {
-        await this.getMessageQueryPipeline(user, { ...args, projectUuid });
+        await this.getNodeCitationPipeline(user, {
+            ...args,
+            projectUuid,
+            runtimeOptions: null,
+        });
         const { enabled } = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.AgentIdentity,
@@ -11175,7 +11213,7 @@ export class AiAgentService extends BaseService {
             {
                 agentUuid: args.agentUuid,
                 promptUuid: args.messageUuid,
-                queryUuid: args.queryUuid,
+                nodeId: args.nodeId,
             },
         );
     }
@@ -19830,7 +19868,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             });
             const blocksFinishedAt = Date.now();
             const visibleResponse = stripSlackVisualizationSelection(response);
-            const slackResponse = stripMemoryCitations(visibleResponse);
+            const slackResponse = stripCitationsForSlack(visibleResponse);
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
                 '\n',
