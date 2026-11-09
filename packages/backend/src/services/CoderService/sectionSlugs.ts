@@ -128,7 +128,9 @@ export const getDashboardWithSectionIds = (
 ): DashboardWithSectionIds => {
     const sections = dashboard.config?.controlSections ?? [];
     const existingSections = existing?.controlSections ?? [];
-    const stableIds = getStableIds(sections, existingSections, sectionBase);
+    const stableIds = controlsEnabled
+        ? getStableIds(sections, existingSections, sectionBase)
+        : [];
     // Flag off keeps the legacy match on stored slugs and persists the slug
     const existingSlugs = sectionSlugs(existingSections);
     const existingBySlug = new Map(
