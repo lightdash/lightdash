@@ -67287,6 +67287,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 warehouseTimeOnMissesMs: { dataType: 'double', required: true },
+                bytesBilledSaved: { dataType: 'double', required: true },
                 warehouseTimeSavedMs: { dataType: 'double', required: true },
                 hitRate: {
                     dataType: 'union',
@@ -67454,6 +67455,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                bytesBilledSaved: { dataType: 'double', required: true },
                 warehouseTimeSavedMs: { dataType: 'double', required: true },
                 additionalHits: { dataType: 'double', required: true },
                 hitRate: {
@@ -67490,6 +67492,10 @@ const models: TsoaRoute.Models = {
                         baseline: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                bytesBilledSaved: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
                                 warehouseTimeSavedMs: {
                                     dataType: 'double',
                                     required: true,

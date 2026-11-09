@@ -1,3 +1,10 @@
+# [3.180.0](https://github.com/lightdash/lightdash/compare/3.179.5...3.180.0) (2026-11-09)
+
+
+### Features
+
+* show estimated cost savings for results caching ([#32222](https://github.com/lightdash/lightdash/issues/32222)) ([9945d8f](https://github.com/lightdash/lightdash/commit/9945d8f2868f0ba614bbdb54784b0efa5958807d))
+
 ## [3.179.5](https://github.com/lightdash/lightdash/compare/3.179.4...3.179.5) (2026-11-09)
 
 
