@@ -16,6 +16,7 @@ import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import styles from './AddLiveSourceModal.module.css';
+import { CustomLiveSourceRequestCard } from './CustomLiveSourceRequestCard';
 import { isGoogleConnector } from './googleConnection';
 import { LiveSourceBetaTitle } from './LiveSourceBetaBadge';
 import {
@@ -23,6 +24,8 @@ import {
     LIVE_SOURCE_CATALOG,
     type LiveSourceCatalogEntry,
 } from './liveSourceCatalog';
+
+const CUSTOM_LIVE_SOURCE_ID = 'custom';
 
 type Props = {
     opened: boolean;
@@ -64,16 +67,28 @@ export const AddLiveSourceModal: FC<Props> = ({
             !isGoogleConnector(entry.connector),
     );
 
+    const requestProperties = {
+        organizationId: user.data?.organizationUuid ?? null,
+        projectId: projectUuid,
+    };
+
     const request = (entry: LiveSourceCatalogEntry) => {
         track({
             name: EventName.LIVE_DATA_SOURCE_REQUESTED,
-            properties: {
-                organizationId: user.data?.organizationUuid ?? null,
-                projectId: projectUuid,
-                integration: entry.id,
-            },
+            properties: { ...requestProperties, integration: entry.id },
         });
         setRequested((current) => new Set(current).add(entry.id));
+    };
+
+    const requestCustom = (customIntegrationName: string) => {
+        track({
+            name: EventName.LIVE_DATA_SOURCE_REQUESTED,
+            properties: {
+                ...requestProperties,
+                integration: CUSTOM_LIVE_SOURCE_ID,
+                customIntegrationName,
+            },
+        });
     };
 
     return (
@@ -89,59 +104,62 @@ export const AddLiveSourceModal: FC<Props> = ({
             size="xl"
             cancelLabel={false}
         >
-            <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="sm">
-                {entries.map((entry) =>
-                    isAvailableLiveSource(entry) ? (
-                        <UnstyledButton
-                            key={entry.id}
-                            className={styles.card}
-                            onClick={() => onPick(entry.connector)}
-                        >
-                            <CardHead entry={entry} />
-                        </UnstyledButton>
-                    ) : (
-                        <Stack
-                            key={entry.id}
-                            className={styles.card}
-                            data-requestable
-                            justify="space-between"
-                            gap="sm"
-                        >
-                            <CardHead entry={entry} />
-                            <Group justify="space-between" wrap="nowrap">
-                                <Badge
-                                    variant="light"
-                                    color="gray"
-                                    size="sm"
-                                    radius="sm"
-                                >
-                                    Coming soon
-                                </Badge>
-                                {requested.has(entry.id) ? (
-                                    <Group gap={4} wrap="nowrap">
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size={14}
-                                            color="green"
-                                        />
-                                        <Text fz="xs" c="dimmed">
-                                            Requested
-                                        </Text>
-                                    </Group>
-                                ) : (
-                                    <Button
-                                        size="compact-xs"
-                                        variant="default"
-                                        onClick={() => request(entry)}
+            <Stack gap="sm">
+                <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="sm">
+                    {entries.map((entry) =>
+                        isAvailableLiveSource(entry) ? (
+                            <UnstyledButton
+                                key={entry.id}
+                                className={styles.card}
+                                onClick={() => onPick(entry.connector)}
+                            >
+                                <CardHead entry={entry} />
+                            </UnstyledButton>
+                        ) : (
+                            <Stack
+                                key={entry.id}
+                                className={styles.card}
+                                data-requestable
+                                justify="space-between"
+                                gap="sm"
+                            >
+                                <CardHead entry={entry} />
+                                <Group justify="space-between" wrap="nowrap">
+                                    <Badge
+                                        variant="light"
+                                        color="gray"
+                                        size="sm"
+                                        radius="sm"
                                     >
-                                        Request
-                                    </Button>
-                                )}
-                            </Group>
-                        </Stack>
-                    ),
-                )}
-            </SimpleGrid>
+                                        Coming soon
+                                    </Badge>
+                                    {requested.has(entry.id) ? (
+                                        <Group gap={4} wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size={14}
+                                                color="green"
+                                            />
+                                            <Text fz="xs" c="dimmed">
+                                                Requested
+                                            </Text>
+                                        </Group>
+                                    ) : (
+                                        <Button
+                                            size="compact-xs"
+                                            variant="default"
+                                            onClick={() => request(entry)}
+                                        >
+                                            Request
+                                        </Button>
+                                    )}
+                                </Group>
+                            </Stack>
+                        ),
+                    )}
+                </SimpleGrid>
+                <CustomLiveSourceRequestCard onRequest={requestCustom} />
+            </Stack>
         </MantineModal>
     );
 };
