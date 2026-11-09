@@ -76,6 +76,7 @@ const createService = ({
         lightdashConfig: {
             siteUrl: 'https://app.example.test',
             smtp: smtp ? ({} as never) : undefined,
+            trustProxy: true,
         },
         mobileSignInCodeModel,
         mobileAppLinkModel: { incrementRateCounter },
@@ -125,6 +126,21 @@ describe('maskDisplayName', () => {
         expect(maskDisplayName('Jo', undefined)).toBe('Jo•••');
         expect(maskDisplayName('', '')).toBe('•••');
         expect(maskDisplayName('Émile', 'zola')).toBe('Ém••• Z.');
+    });
+});
+
+describe('MobileSignInService.getClientAddress', () => {
+    it('reads the client behind a trusted proxy hop', () => {
+        const { service } = createService();
+        expect(
+            service.getClientAddress({
+                socket: { remoteAddress: '10.0.0.5' },
+                get: (name: string) =>
+                    name === 'x-forwarded-for'
+                        ? '198.51.100.9, 203.0.113.7'
+                        : undefined,
+            } as never),
+        ).toBe('203.0.113.7');
     });
 });
 

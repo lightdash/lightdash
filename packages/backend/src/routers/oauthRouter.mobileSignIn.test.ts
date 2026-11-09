@@ -1,9 +1,10 @@
-import express from 'express';
+import express, { type Request } from 'express';
 import { once } from 'node:events';
 import { request } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { MobileSignInOAuthError } from '../services/MobileSignInService/MobileSignInOAuthError';
 import { MobileSignInGrantError } from '../services/OAuthService/managedSignIn/microsoftTokenExchangeGrantType';
+import { getClientAddress } from '../utils/clientAddress';
 import oauthRouter from './oauthRouter';
 
 type HttpResponse = {
@@ -44,7 +45,6 @@ const fetch = (
 
 const startApp = async (services: Record<string, unknown>) => {
     const app = express();
-    app.set('trust proxy', true);
     app.use(express.json());
     app.use(express.urlencoded({ extended: false }));
     app.use((req, _res, next) => {
@@ -67,7 +67,10 @@ describe('POST /api/v1/oauth/mobile-sign-in/claim', () => {
             interval: 2,
         }));
         const { base, close } = await startApp({
-            getMobileSignInService: () => ({ claim }),
+            getMobileSignInService: () => ({
+                getClientAddress: (req: Request) => getClientAddress(req, true),
+                claim,
+            }),
         });
         try {
             const response = await fetch(`${base}/mobile-sign-in/claim`, {
@@ -83,6 +86,32 @@ describe('POST /api/v1/oauth/mobile-sign-in/claim', () => {
             expect(await response.json()).toMatchObject({ interval: 2 });
             expect(claim).toHaveBeenCalledWith(
                 { code: 'c' },
+                expect.objectContaining({ ip: '203.0.113.7' }),
+            );
+        } finally {
+            close();
+        }
+    });
+
+    it('keys the claim on the rightmost client address, not a prepended one', async () => {
+        const claim = vi.fn(async () => ({}));
+        const { base, close } = await startApp({
+            getMobileSignInService: () => ({
+                getClientAddress: (req: Request) => getClientAddress(req, true),
+                claim,
+            }),
+        });
+        try {
+            await fetch(`${base}/mobile-sign-in/claim`, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    'x-forwarded-for': '198.51.100.9, 203.0.113.7',
+                },
+                body: '{}',
+            });
+            expect(claim).toHaveBeenCalledWith(
+                {},
                 expect.objectContaining({ ip: '203.0.113.7' }),
             );
         } finally {
@@ -111,6 +140,7 @@ describe('POST /api/v1/oauth/mobile-sign-in/claim', () => {
     ])('maps %s', async (error, status, json) => {
         const { base, close } = await startApp({
             getMobileSignInService: () => ({
+                getClientAddress: (req: Request) => getClientAddress(req, true),
                 claim: async () => {
                     throw error;
                 },
@@ -132,6 +162,7 @@ describe('POST /api/v1/oauth/mobile-sign-in/claim', () => {
     it('sends Retry-After with a 429', async () => {
         const { base, close } = await startApp({
             getMobileSignInService: () => ({
+                getClientAddress: (req: Request) => getClientAddress(req, true),
                 claim: async () => {
                     throw new MobileSignInOAuthError('rate_limited', {
                         statusCode: 429,

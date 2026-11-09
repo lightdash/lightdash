@@ -5,6 +5,7 @@ import {
     generateOAuthRedirectPage,
     getErrorMessage,
     isManagedSignInError,
+    MOBILE_SIGN_IN_CODE_TOKEN_TYPE,
     OAuthIntrospectResponse,
     ParameterError,
     parseScopeString,
@@ -433,7 +434,12 @@ oauthRouter.post('/token', async (req, res, next) => {
     const oauthService = getOAuthService(req);
 
     const oauthReq = new OAuth2Server.Request(req);
-    if (req.ip) setTokenRequestClientIp(oauthReq, req.ip);
+    if (req.body?.subject_token_type === MOBILE_SIGN_IN_CODE_TOKEN_TYPE) {
+        setTokenRequestClientIp(
+            oauthReq,
+            req.services.getMobileSignInService().getClientAddress(req),
+        );
+    }
     const oauthRes = new OAuth2Server.Response(res);
 
     try {
@@ -498,12 +504,11 @@ oauthRouter.post('/token', async (req, res, next) => {
 oauthRouter.post('/mobile-sign-in/claim', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
-        const claim = await req.services
-            .getMobileSignInService()
-            .claim(req.body ?? {}, {
-                ip: req.ip,
-                userAgent: req.get('user-agent') ?? undefined,
-            });
+        const mobileSignInService = req.services.getMobileSignInService();
+        const claim = await mobileSignInService.claim(req.body ?? {}, {
+            ip: mobileSignInService.getClientAddress(req),
+            userAgent: req.get('user-agent') ?? undefined,
+        });
         res.json(claim);
     } catch (error) {
         if (error instanceof MobileSignInOAuthError) {

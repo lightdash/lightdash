@@ -17,6 +17,7 @@ import {
     type MobileSignInPlatform,
     type SessionUser,
 } from '@lightdash/common';
+import { type Request } from 'express';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -38,6 +39,7 @@ import {
 } from '../../models/MobileSignInCodeModel';
 import { isMobileOAuthClient, OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
+import { getClientAddress } from '../../utils/clientAddress';
 import { BaseService } from '../BaseService';
 import type { UserService } from '../UserService';
 import { MobileSignInOAuthError } from './MobileSignInOAuthError';
@@ -101,7 +103,7 @@ export type MobileSignInRedemption = {
 };
 
 type MobileSignInServiceArguments = {
-    lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'smtp'>;
+    lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'smtp' | 'trustProxy'>;
     mobileSignInCodeModel: MobileSignInCodeModel;
     mobileAppLinkModel: Pick<MobileAppLinkModel, 'incrementRateCounter'>;
     now?: () => Date;
@@ -209,6 +211,10 @@ export class MobileSignInService extends BaseService {
                 action,
             });
         }
+    }
+
+    getClientAddress(req: Pick<Request, 'socket' | 'get'>): string {
+        return getClientAddress(req, this.lightdashConfig.trustProxy);
     }
 
     private async isEnabled(organizationUuid: string): Promise<boolean> {
