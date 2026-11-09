@@ -37,6 +37,17 @@ const SOURCES = [
         fields: { dimension: 'country', other: 'device', metric: 'clicks' },
     },
     {
+        apiSource: {
+            connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+            channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa',
+        },
+        fields: {
+            dimension: 'country',
+            other: 'video_id',
+            metric: 'views',
+        },
+    },
+    {
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
         fields: {
             dimension: 'event',

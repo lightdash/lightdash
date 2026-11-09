@@ -59,6 +59,14 @@ const SOURCES: {
         scan: {},
     },
     {
+        name: 'YouTube Analytics',
+        apiSource: {
+            connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+            channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa',
+        },
+        scan: {},
+    },
+    {
         name: 'PostHog',
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
         scan: {

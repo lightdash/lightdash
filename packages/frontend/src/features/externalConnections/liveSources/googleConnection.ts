@@ -7,7 +7,8 @@ import {
 export type GoogleConnector =
     | ApiConnectorType.SEARCH_CONSOLE
     | ApiConnectorType.GA4
-    | ApiConnectorType.GOOGLE_ADS;
+    | ApiConnectorType.GOOGLE_ADS
+    | ApiConnectorType.YOUTUBE_ANALYTICS;
 
 const GOOGLE_SOURCES: {
     connector: GoogleConnector;
@@ -35,6 +36,13 @@ const GOOGLE_SOURCES: {
         defaultName: 'Google Ads',
         description:
             'AI agents read cost, clicks, impressions and conversions for one Google Ads account.',
+    },
+    {
+        connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+        label: 'YouTube Analytics',
+        defaultName: 'YouTube Analytics',
+        description:
+            'AI agents read views, watch time and subscribers for one YouTube channel.',
     },
 ];
 

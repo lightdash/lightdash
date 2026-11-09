@@ -7,6 +7,7 @@ import { type ApiSourceIntegration } from './ApiSourceIntegration';
 import { ga4Integration } from './google/ga4Integration';
 import { googleAdsIntegration } from './google/googleAdsIntegration';
 import { searchConsoleIntegration } from './google/searchConsoleIntegration';
+import { youtubeAnalyticsIntegration } from './google/youtubeAnalyticsIntegration';
 import { metaAdsIntegration } from './meta/metaAdsIntegration';
 import { postHogIntegration } from './posthog/postHogIntegration';
 
@@ -19,6 +20,7 @@ const API_SOURCE_INTEGRATIONS: {
     [ApiConnectorType.POSTHOG]: postHogIntegration,
     [ApiConnectorType.META_ADS]: metaAdsIntegration,
     [ApiConnectorType.GOOGLE_ADS]: googleAdsIntegration,
+    [ApiConnectorType.YOUTUBE_ANALYTICS]: youtubeAnalyticsIntegration,
 };
 
 export const getApiSourceIntegration = (
