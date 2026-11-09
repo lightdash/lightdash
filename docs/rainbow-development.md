@@ -42,6 +42,6 @@ Agents use the `rainbow-env` skill (`.agents/skills/rainbow-env/SKILL.md`). It c
 - **NATS**: there is no NATS service.
 - **SSH tunnel**: there is no SSH server to test warehouse SSH tunnels against.
 - **Prometheus**: there is no Prometheus service.
+- **Backend debugger**: attach to a local instance instead ([CONTRIBUTING.md](../.github/CONTRIBUTING.md#backend-debugger)).
 
 For the headless browser, NATS, the SSH tunnel and Prometheus, use a local instance with the [supporting services in containers](../.github/CONTRIBUTING.md#supporting-services-in-containers).
-- **Backend debugger**: attach to a local instance instead ([CONTRIBUTING.md](../.github/CONTRIBUTING.md#backend-debugger)).
