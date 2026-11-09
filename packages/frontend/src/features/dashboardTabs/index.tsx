@@ -1095,6 +1095,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                 : getDateZoomSummaryLabel(
                                                       dateZoomGranularity,
                                                       getUiString,
+                                                      isDashboardControlsEnabled,
                                                   )
                                         }
                                         onExpand={() =>

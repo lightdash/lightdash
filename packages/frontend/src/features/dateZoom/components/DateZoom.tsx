@@ -142,12 +142,15 @@ type Props = {
     dropdownClassName?: string;
     /** Replaces the named zoom pills (default the shipped ones). */
     controlPills?: ReactNode;
+    /** The Default pill always names its grain, or None: the saved default in edit mode (default false: only a view's pick). */
+    isDefaultValueShown?: boolean;
 };
 
 export const DateZoom: FC<Props> = ({
     isEditMode,
     dropdownClassName,
     controlPills,
+    isDefaultValueShown = false,
 }) => {
     const getUiString = useUiStrings();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
@@ -301,6 +304,25 @@ export const DateZoom: FC<Props> = ({
         [track, setDateZoomGranularity],
     );
 
+    const shownGranularity = isEditMode
+        ? defaultDateZoomGranularity
+        : dateZoomGranularity;
+    const defaultValueLabel = isDefaultValueShown
+        ? shownGranularity
+            ? getGranularityLabel(
+                  shownGranularity,
+                  availableCustomGranularities,
+                  getUiString,
+              )
+            : getUiString('dateZoom.none')
+        : !isEditMode && dateZoomGranularity
+          ? getGranularityLabel(
+                dateZoomGranularity,
+                availableCustomGranularities,
+                getUiString,
+            )
+          : null;
+
     if (isDateZoomDisabled && !isEditMode) {
         return null;
     }
@@ -381,7 +403,7 @@ export const DateZoom: FC<Props> = ({
                                                 'dateZoom.defaultZoom',
                                             )}
                                         </Text>
-                                        {!isEditMode && dateZoomGranularity ? (
+                                        {defaultValueLabel !== null ? (
                                             <Text
                                                 span
                                                 fw={500}
@@ -391,11 +413,7 @@ export const DateZoom: FC<Props> = ({
                                                         : undefined
                                                 }
                                             >
-                                                {` · ${getGranularityLabel(
-                                                    dateZoomGranularity,
-                                                    availableCustomGranularities,
-                                                    getUiString,
-                                                )}`}
+                                                {` · ${defaultValueLabel}`}
                                             </Text>
                                         ) : null}
                                     </Text>

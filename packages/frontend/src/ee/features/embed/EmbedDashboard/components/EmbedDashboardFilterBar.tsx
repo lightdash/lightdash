@@ -157,6 +157,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                         ? getDateZoomSummaryLabel(
                               dateZoomGranularity,
                               getUiString,
+                              isControlsEnabled,
                           )
                         : null
                 }
@@ -238,6 +239,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                     >
                         <DateZoom
                             isEditMode={false}
+                            isDefaultValueShown={isControlsEnabled}
                             dropdownClassName={embedContractClass(
                                 'ld-dashboard-date-zoom-dropdown',
                             )}

@@ -31,13 +31,18 @@ export const getGranularityLabel = (
 
 /**
  * Label for the collapsed filter-bar summary: translated standard granularity,
- * raw custom granularity, or the "Default" label when no zoom is active.
+ * raw custom granularity, or the "Default" label when no zoom is active
+ * ("None" with `isNoneShown`, as the Default pill reads with controls on).
  */
 export const getDateZoomSummaryLabel = (
     granularity: DateGranularity | string | undefined,
     getUiString: UiStringResolver,
+    isNoneShown = false,
 ): string => {
-    if (!granularity) return getUiString('filters.summary.default');
+    if (!granularity)
+        return getUiString(
+            isNoneShown ? 'dateZoom.none' : 'filters.summary.default',
+        );
     return isStandardDateGranularity(granularity)
         ? getUiString(`dateZoom.granularities.${granularity}`)
         : granularity;

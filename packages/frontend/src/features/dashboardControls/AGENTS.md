@@ -54,7 +54,8 @@ Gated on the flag:
 - `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
   `isEmbedFilterRailEnabled` (flag on, and not an embed editor in edit mode)
   turns on `isControlsEnabled` for the header and filter bar, and
-  renders `TileOverlays`, `TabCounts` and `FieldTilesBar` (all three act only in mapping). A dashboard with
+  renders `TileOverlays`, `TabCounts` and `FieldTilesBar` (all three act only in mapping), and
+  passes it to `DateZoom` `isDefaultValueShown` and the summary's `isNoneShown`. A dashboard with
   no tiles has no grid, so its header gets `isControlsEnabled={false}`.
 - `pages/Dashboard.tsx` Save: `getDimensionFiltersToSave` keeps a required
   filter's value as its default with the flag on; off, it strips it as before.
@@ -70,7 +71,12 @@ Openings (optional props, defaults are today's behaviour):
   `filtersAlign`, `isParametersColumn`, `dateZoom` (`ControlsBar` passes
   `DateZoom` with its openings).
 - `dateZoom/components/DateZoom`: `controlPills` (an editor's
-  `DateZoomEditorPills` in place of `DateZoomControlPills`).
+  `DateZoomEditorPills` in place of `DateZoomControlPills`),
+  `isDefaultValueShown` (the Default pill reads "Default zoom · {grain}",
+  else "· None": the saved default in edit mode, the pick in view mode).
+- `dateZoom/utils` `getDateZoomSummaryLabel`: `isNoneShown` (the collapsed
+  bar's summary reads "None" rather than "Default"; `dashboardTabs` and the
+  embed's filter bar pass it with the flag on).
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).

@@ -53,6 +53,7 @@ export const ControlsBar: FC<Props> = (props) => {
             dateZoom={
                 <DateZoom
                     isEditMode={props.isEditMode}
+                    isDefaultValueShown
                     controlPills={
                         props.isEditMode ? <DateZoomEditorPills /> : undefined
                     }
