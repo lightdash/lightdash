@@ -543,6 +543,43 @@ describe('explore AI hints', () => {
             null,
             'PostHog project 303731, EU region',
         ],
+        [
+            {
+                connector: ApiConnectorType.GOOGLE_ADS,
+                customerId: '123',
+                loginCustomerId: null,
+            } as const,
+            'https://googleads.googleapis.com',
+            'Brand account',
+            'Google Ads account "Brand account" (ID 123)',
+        ],
+        [
+            {
+                connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+                channelId: 'UC123',
+            } as const,
+            'https://youtubeanalytics.googleapis.com',
+            null,
+            'YouTube channel UC123',
+        ],
+        [
+            {
+                connector: ApiConnectorType.LINKEDIN_ADS,
+                adAccountId: '456',
+            } as const,
+            'https://api.linkedin.com',
+            null,
+            'LinkedIn Ads account 456',
+        ],
+        [
+            {
+                connector: ApiConnectorType.META_ADS,
+                adAccountId: '789',
+            } as const,
+            'https://graph.facebook.com',
+            null,
+            'Meta Ads account 789',
+        ],
     ])('describes the target of %j', (apiSource, origin, label, expected) => {
         expect(describeApiSourceTarget(apiSource, origin, label)).toBe(
             expected,
