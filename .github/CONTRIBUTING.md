@@ -176,15 +176,29 @@ There are two ways to run Lightdash for development:
 - **Rainbow**: every pull request gets a preview environment. See [Developing on Rainbow](../docs/rainbow-development.md).
 - **Local**: follow [Setup Development Environment without Docker](#setup-development-environment-without-docker).
 
+#### Supporting services in containers
+
+A local instance can run its supporting services in containers. `docker/docker-compose.infra.yml` runs Postgres (`db-dev`), MinIO, Mailpit, an SSH server, a headless browser, Prometheus and NATS. Lightdash itself runs on your machine.
+
+```shell
+docker compose -f docker/docker-compose.infra.yml --env-file .env.development.local up --detach
+```
+
+To start only some services, add their names to the command, for example `minio mailpit`. Do not start `db-dev` if Postgres already runs on port 5432.
+
 #### Testing an SSH Tunnel Locally
 
-Rainbow has no SSH server. Test SSH tunnels on a local instance against an SSH server that you control.
+Rainbow has no SSH server. Test SSH tunnels on a local instance.
 
-1. In the Lightdash UI, open the project connection settings.
-2. Expand the advanced settings and set `Use SSH tunnel` to **true**.
-3. Enter the host, port and username of your SSH server.
-4. Generate a new SSH key pair in the UI.
-5. Add the public key to `~/.ssh/authorized_keys` for that user on your SSH server.
+1. Start the [supporting services](#supporting-services-in-containers).
+2. In the Lightdash UI, open the project connection settings.
+3. Expand the advanced settings and set `Use SSH tunnel` to **true**.
+4. Set the SSH remote host to `localhost`, the port to `2222` and the username to `sshuser`.
+5. Generate a new SSH key pair in the UI and copy the public key.
+6. Set `DEV_SSH_PUBLIC_KEY="<public key>"` in `.env.development.local`.
+7. Run the `docker compose ... up --detach` command again to give the key to the SSH server.
+
+The warehouse host must be reachable from the SSH server container, for example `db-dev` for the Postgres container.
 
 #### Testing Prometheus Metrics Locally
 
@@ -198,11 +212,14 @@ Rainbow has no Prometheus service. On a local instance, the backend can expose m
     ```
 2. Restart the backend.
 3. Open http://localhost:9090/metrics.
-4. To query the metrics, point a Prometheus server that you run at that endpoint. Example queries: `queue_size`, `nodejs_eventloop_utilization`.
+4. Start the [supporting services](#supporting-services-in-containers). Prometheus runs at http://localhost:9091. It scrapes `host.docker.internal:9090` every 5 seconds (`docker/dev-configs/prometheus.dev.yml`).
+5. Query the metrics in the Prometheus UI. Example queries: `queue_size`, `nodejs_eventloop_utilization`.
 
 #### Testing Email Locally with Mailpit
 
-Rainbow runs Mailpit in each environment, and the backend sends its mail there. On a local instance, follow the next section.
+Rainbow runs Mailpit in each environment, and the backend sends its mail there.
+
+On a local instance, the [supporting services](#supporting-services-in-containers) include Mailpit on ports 1025 (SMTP) and 8025 (web UI). Use the settings in step 3 of the next section. To run Mailpit without Docker, follow all of the next section.
 
 #### Testing Email Locally with Mailpit (without Docker)
 
@@ -256,12 +273,11 @@ If you're running Lightdash without Docker, you can install and run Mailpit dire
 
 The backend needs S3-compatible storage to start. Rainbow runs MinIO in each environment at `http://localhost:9000`, unless the `S3_*` secrets are stored.
 
-On a local instance, run MinIO or another S3-compatible store yourself:
+On a local instance:
 
-1. Start MinIO on port 9000.
-2. Create the buckets in `MINIO_DEFAULT_BUCKETS` from `.env.development`.
-3. Set `S3_ENDPOINT=http://localhost:9000` in `.env.development.local`.
-4. Set `S3_ACCESS_KEY` and `S3_SECRET_KEY` to your MinIO credentials.
+1. Start MinIO from the [supporting services](#supporting-services-in-containers). It creates the buckets in `MINIO_DEFAULT_BUCKETS`. You can also run MinIO or another S3-compatible store on port 9000 yourself, and create those buckets.
+2. Set `S3_ENDPOINT=http://localhost:9000` in `.env.development.local`.
+3. Set `S3_ACCESS_KEY` and `S3_SECRET_KEY` to your MinIO credentials.
 
 #### Backend debugger
 

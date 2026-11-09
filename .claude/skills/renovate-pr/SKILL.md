@@ -174,7 +174,7 @@ sfw pnpm install
 
 ### 5c. Start the dev stack
 
-The running app is what we're testing against, not just the diff. Start a local instance: Postgres and MinIO as in "Setup Development Environment without Docker" in `.github/CONTRIBUTING.md`, then:
+The running app is what we're testing against, not just the diff. Start a local instance: Postgres, MinIO and Mailpit as in "Setup Development Environment without Docker" or "Supporting services in containers" in `.github/CONTRIBUTING.md`, then:
 
 ```
 pnpm pm2:start

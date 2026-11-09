@@ -53,8 +53,8 @@ The backend, scheduler worker, and headless browser run as separate services tha
 
 The backend uses two S3 endpoint settings:
 
--   `S3_ENDPOINT` — internal endpoint the backend uses for all server-side S3 operations (e.g. `http://minio:9000` inside Docker).
--   `S3_PUBLIC_ENDPOINT` — browser-facing endpoint used when minting presigned URLs that the browser fetches directly (e.g. presigned PUT for app image uploads). In local dev, the Docker hostname `minio` is unreachable from the browser, so this must be set to `http://localhost:9000`. In production with real S3/GCS, omit this — the internal endpoint is already publicly resolvable.
+-   `S3_ENDPOINT` — internal endpoint the backend uses for all server-side S3 operations (e.g. `http://localhost:9000` for a local MinIO).
+-   `S3_PUBLIC_ENDPOINT` — browser-facing endpoint used when minting presigned URLs that the browser fetches directly (e.g. presigned PUT for app image uploads). Set it when the browser cannot reach `S3_ENDPOINT`, for example when `S3_ENDPOINT` is a container hostname. In production with real S3/GCS, omit this — the internal endpoint is already publicly resolvable.
 
 When the backend creates a presigned URL for browser-direct upload, it uses `S3_PUBLIC_ENDPOINT` (falling back to `S3_ENDPOINT`) as the signing endpoint. See `parseBaseS3Config()` in `packages/backend/src/config/parseConfig.ts`.
 
@@ -369,7 +369,7 @@ curl -H "Authorization: ApiKey $LDPAT" "$SITE_URL/api/v2/content?contentTypes=sp
 Lightdash is a pnpm/Turbo monorepo (backend API, Vite frontend, `common`/`visualization`/`warehouses`/`formula` build-dep packages). The backend needs Postgres and S3-compatible storage (MinIO in development).
 
 - To run, test or demo a branch, use its Rainbow preview environment: [docs/rainbow-development.md](docs/rainbow-development.md).
-- To run a local instance, follow "Setup Development Environment without Docker" in [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md#setup-development-environment-without-docker).
+- To run a local instance, follow "Setup Development Environment without Docker" in [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md#setup-development-environment-without-docker). To run Postgres, MinIO and the other supporting services in containers, see "Supporting services in containers" in the same file.
 - Test login: `demo@lightdash.com` / `demo_password!` (seeded "Jaffle shop" project).
 
 ### Non-obvious caveats
