@@ -17,11 +17,9 @@ export type DashboardTileStatusState = {
     oldestCacheTime: Date | undefined;
     invalidateCache: boolean;
     /**
-     * Monotonic counter bumped on every manual/auto refresh (via
-     * `clearCacheAndFetch`). Chart tiles re-fetch through React Query
-     * invalidation, but data-app tiles run their queries inside an iframe that
-     * only re-fires them on reload — they bake this counter into the iframe URL
-     * to force that reload. See `DashboardDataAppTile`.
+     * Bumped on every manual/auto refresh (via `clearCacheAndFetch`). Chart
+     * and SQL chart tiles include it in their query keys so each refresh
+     * refetches; data-app tiles put it in the iframe URL to force a reload.
      */
     refreshCounter: number;
     isAutoRefresh: boolean;
