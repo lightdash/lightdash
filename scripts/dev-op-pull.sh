@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Pull local-dev secrets from 1Password into .env.development.local, driven by
-# scripts/dev-secrets.manifest.json. Run it by hand, or from the hint that scripts/dev-reconcile.sh prints.
+# scripts/dev-secrets.manifest.json. Used by the /docker-dev profile flow.
 #
 # Why this exists: bare `op item get` inside command-substitution is flaky until
 # the biometric session is warm, and batching calls in one subshell intermittently
@@ -107,7 +107,7 @@ case "$MODE" in
 
   discover)
     # Search the engineer's actual vault and rank candidates per secret by matchKeywords.
-    # Output JSON for a caller that asks the user to choose; choices are saved via `save`.
+    # Output JSON the /docker-dev flow uses to ask the user; choices are saved via `save`.
     [ ${#KEYS[@]} -gt 0 ] || { echo "dev-op-pull discover: no secret keys given" >&2; exit 2; }
     ensure_signin || { echo "FAIL: not signed in to $ACCOUNT" >&2; exit 1; }
     ITEMS="$(op item list --account "$ACCOUNT" --format=json 2>/dev/null)"

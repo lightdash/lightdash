@@ -10,7 +10,7 @@
  *   Use scripts/dev-ports.sh to manage port allocation across worktrees.
  *
  * Prerequisites:
- *   - Docker services running (Postgres, MinIO and the other local dependencies)
+ *   - Docker services running: `/docker-dev`
  *   - Dependencies installed: `pnpm install`
  *
  * Process overview:
