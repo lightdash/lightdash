@@ -1,3 +1,10 @@
+## [3.181.2](https://github.com/lightdash/lightdash/compare/3.181.1...3.181.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **frontend:** hide the warehouse badge on live data source explores ([#32188](https://github.com/lightdash/lightdash/issues/32188)) ([0905f95](https://github.com/lightdash/lightdash/commit/0905f957214f59fa0f14d2b6bc424417ab7d5d6c))
+
 ## [3.181.1](https://github.com/lightdash/lightdash/compare/3.181.0...3.181.1) (2026-11-09)
 
 
