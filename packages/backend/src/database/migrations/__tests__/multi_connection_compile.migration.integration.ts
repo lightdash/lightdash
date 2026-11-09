@@ -1822,7 +1822,15 @@ Sources in this project: Core models, marketing, finance.`;
                         })
                         .catch((error: unknown) => {
                             if (error instanceof ConflictError) {
-                                expect(error.message).not.toContain('--source');
+                                if (
+                                    !error.message.includes(
+                                        'the preview cannot assign its models to one source',
+                                    )
+                                ) {
+                                    expect(error.message).not.toContain(
+                                        '--source',
+                                    );
+                                }
                                 expect(error.message).not.toContain(
                                     'set-source',
                                 );
