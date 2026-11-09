@@ -10,6 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { MOBILE_STRINGS } from './mobileStrings';
 import classes from './StoreBadges.module.css';
 
 const StoreBadge: FC<{
@@ -36,18 +37,22 @@ const StoreBadge: FC<{
 export const StoreBadges: FC<{ justify?: 'center' | 'flex-start' }> = ({
     justify = 'flex-start',
 }) => (
-    <Group gap="sm" justify={justify} aria-label="Store links">
+    <Group
+        gap="sm"
+        justify={justify}
+        aria-label={MOBILE_STRINGS.storeLinksLabel}
+    >
         <StoreBadge
             href={MOBILE_APP_STORE_URL}
             icon={IconBrandApple}
-            caption="Download on the"
-            store="App Store"
+            caption={MOBILE_STRINGS.appStoreCaption}
+            store={MOBILE_STRINGS.appStoreName}
         />
         <StoreBadge
             href={MOBILE_GOOGLE_PLAY_URL}
             icon={IconBrandGooglePlay}
-            caption="Get it on"
-            store="Google Play"
+            caption={MOBILE_STRINGS.googlePlayCaption}
+            store={MOBILE_STRINGS.googlePlayName}
         />
     </Group>
 );

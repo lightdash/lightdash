@@ -45,12 +45,10 @@ describe('MobileSettingsPage', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByText(SCAN_URL)).toBeVisible();
-        expect(
-            screen.getByText('Waiting for scan · Expires in 29:41'),
-        ).toBeVisible();
-        expect(
-            screen.queryByText(/Open the app and sign in/),
-        ).not.toBeInTheDocument();
+        expect(screen.getByText('Waiting for scan')).toBeVisible();
+        expect(screen.getByText('Expires in 29:41')).toBeVisible();
+        expect(screen.queryByText(/^Sign in to/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Scan this/)).not.toBeInTheDocument();
     });
 
     it('opens the sign-in step when the user already has the app', async () => {
@@ -61,8 +59,7 @@ describe('MobileSettingsPage', () => {
             screen.getByRole('button', { name: 'I already have the app' }),
         );
 
-        expect(screen.getByText(/Open the app and sign in to/)).toBeVisible();
-        expect(screen.getByText('app.example.com')).toBeVisible();
+        expect(screen.getByText('Sign in to app.example.com.')).toBeVisible();
     });
 
     it('announces a scan and opens the sign-in step', () => {
@@ -70,9 +67,9 @@ describe('MobileSettingsPage', () => {
         renderWithProviders(<MobileSettingsPage />);
 
         expect(screen.getByRole('status')).toHaveTextContent(
-            'Link opened on a phone',
+            'Opened on a phone',
         );
-        expect(screen.getByText(/Open the app and sign in to/)).toBeVisible();
+        expect(screen.getByText('Sign in to app.example.com.')).toBeVisible();
         expect(
             screen.queryByRole('img', {
                 name: 'QR code to install the Lightdash app',

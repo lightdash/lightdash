@@ -24,6 +24,7 @@ import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import useHealth from '../../hooks/health/useHealth';
 import classes from './MobileSettingsPage.module.css';
+import { MOBILE_STRINGS } from './mobileStrings';
 import { useMobileAppLink } from './useMobileAppLink';
 
 const MobileAppQrCode = lazy(() => import('./MobileAppQrCode'));
@@ -58,7 +59,9 @@ const StepCard: FC<
                     <span className={classes.stepNumber} aria-hidden>
                         {step}
                     </span>
-                    <Title order={5}>{title}</Title>
+                    <Title order={5} c={isActive ? undefined : 'dimmed'}>
+                        {title}
+                    </Title>
                 </Group>
                 {aside}
             </Group>
@@ -76,21 +79,18 @@ export const MobileSettingsPage: FC = () => {
     const isSignInOpen = isScanned || hasApp;
 
     return (
-        <SettingsPage
-            title="Mobile"
-            description="Use Lightdash on your phone. Scan the codes with your phone's camera."
-        >
+        <SettingsPage title={MOBILE_STRINGS.pageTitle}>
             <Stack gap="md">
                 <StepCard
                     step={1}
-                    title="Get the app"
+                    title={MOBILE_STRINGS.getAppTitle}
                     isActive={!isSignInOpen}
                     aside={
                         isScanned ? (
                             <Group gap={4} c="green.7" wrap="nowrap">
                                 <MantineIcon icon={IconCircleCheck} />
                                 <Text size="sm" fw={500}>
-                                    Link opened on a phone
+                                    {MOBILE_STRINGS.openedOnPhone}
                                 </Text>
                             </Group>
                         ) : null
@@ -106,16 +106,11 @@ export const MobileSettingsPage: FC = () => {
                                 ) : (
                                     <Loader
                                         size="sm"
-                                        aria-label="Creating the code"
+                                        aria-label={MOBILE_STRINGS.creatingCode}
                                     />
                                 )}
                             </Box>
                             <Stack gap="sm" className={classes.details}>
-                                <Text size="sm">
-                                    Scan this with your phone's camera. It opens
-                                    the App Store on an iPhone or Google Play on
-                                    Android.
-                                </Text>
                                 {link && (
                                     <Group
                                         gap="xs"
@@ -127,7 +122,7 @@ export const MobileSettingsPage: FC = () => {
                                         </Code>
                                         <CopyActionIcon
                                             value={link.scanUrl}
-                                            copyLabel="Copy link"
+                                            copyLabel={MOBILE_STRINGS.copyLink}
                                             variant="default"
                                         />
                                     </Group>
@@ -142,16 +137,24 @@ export const MobileSettingsPage: FC = () => {
                                             variant="default"
                                             onClick={retry}
                                         >
-                                            Try again
+                                            {MOBILE_STRINGS.tryAgain}
                                         </Button>
                                     </Group>
                                 ) : (
                                     link &&
                                     remainingSeconds !== null && (
-                                        <Text size="sm" c="dimmed">
-                                            Waiting for scan · Expires in{' '}
-                                            {formatCountdown(remainingSeconds)}
-                                        </Text>
+                                        <Stack gap={2}>
+                                            <Text size="sm">
+                                                {MOBILE_STRINGS.waitingForScan}
+                                            </Text>
+                                            <Text size="xs" c="dimmed">
+                                                {MOBILE_STRINGS.expiresIn(
+                                                    formatCountdown(
+                                                        remainingSeconds,
+                                                    ),
+                                                )}
+                                            </Text>
+                                        </Stack>
                                     )
                                 )}
                                 {!isMinting && !hasApp && (
@@ -161,7 +164,7 @@ export const MobileSettingsPage: FC = () => {
                                             variant="default"
                                             onClick={() => setHasApp(true)}
                                         >
-                                            I already have the app
+                                            {MOBILE_STRINGS.alreadyHaveApp}
                                         </Button>
                                     </Group>
                                 )}
@@ -172,29 +175,20 @@ export const MobileSettingsPage: FC = () => {
 
                 <StepCard
                     step={2}
-                    title="Sign in on your phone"
+                    title={MOBILE_STRINGS.signInTitle}
                     isActive={isSignInOpen}
                 >
-                    <Text size="sm" c={isSignInOpen ? undefined : 'dimmed'}>
-                        {isSignInOpen ? (
-                            <>
-                                Open the app and sign in to{' '}
-                                <Text span fw={600} inherit>
-                                    {host ?? 'this instance'}
-                                </Text>
-                                .
-                            </>
-                        ) : (
-                            <>
-                                This step opens after you scan the code, or when
-                                you click <b>I already have the app</b>.
-                            </>
-                        )}
-                    </Text>
+                    {isSignInOpen && (
+                        <Text size="sm">
+                            {MOBILE_STRINGS.signInTo(
+                                host ?? MOBILE_STRINGS.thisInstance,
+                            )}
+                        </Text>
+                    )}
                 </StepCard>
 
                 <VisuallyHidden role="status" aria-live="polite">
-                    {isScanned ? 'Link opened on a phone' : ''}
+                    {isScanned ? MOBILE_STRINGS.openedOnPhone : ''}
                 </VisuallyHidden>
             </Stack>
         </SettingsPage>

@@ -17,6 +17,7 @@ import {
     MobileAppLinkModel,
 } from '../../models/MobileAppLinkModel';
 import { BaseService } from '../BaseService';
+import { MOBILE_APP_STRINGS } from './mobileAppStrings';
 
 export const MOBILE_APP_LINK_MINTS_PER_HOUR = 30;
 export const MOBILE_APP_SCANS_PER_MINUTE = 60;
@@ -65,16 +66,14 @@ export class MobileAppService extends BaseService {
 
     private async assertEnabled(user: SessionUser): Promise<string> {
         if (!user.organizationUuid) {
-            throw new ForbiddenError('You must belong to an organization.');
+            throw new ForbiddenError(MOBILE_APP_STRINGS.noOrganization);
         }
         const { enabled } = await this.featureFlagModel.get({
             user,
             featureFlagId: FeatureFlags.MobileSettings,
         });
         if (!enabled) {
-            throw new ForbiddenError(
-                'Mobile settings are not enabled for this organization.',
-            );
+            throw new ForbiddenError(MOBILE_APP_STRINGS.notEnabled);
         }
         return user.organizationUuid;
     }
@@ -87,9 +86,7 @@ export class MobileAppService extends BaseService {
             windowStartedAt: startOfWindow(this.now(), 60 * 60 * 1000),
         });
         if (mints > MOBILE_APP_LINK_MINTS_PER_HOUR) {
-            throw new TooManyRequestsError(
-                'Too many app links. Try again in an hour.',
-            );
+            throw new TooManyRequestsError(MOBILE_APP_STRINGS.tooManyLinks);
         }
         const { linkUuid, scanId, expiresAt } =
             await this.mobileAppLinkModel.create(
@@ -122,7 +119,7 @@ export class MobileAppService extends BaseService {
             ? await this.mobileAppLinkModel.findForUser(linkUuid, user.userUuid)
             : null;
         if (!link) {
-            throw new NotFoundError('App link not found.');
+            throw new NotFoundError(MOBILE_APP_STRINGS.linkNotFound);
         }
         return {
             linkUuid: link.mobile_app_link_uuid,
