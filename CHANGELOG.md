@@ -1,3 +1,10 @@
+# [3.189.0](https://github.com/lightdash/lightdash/compare/3.188.0...3.189.0) (2026-11-09)
+
+
+### Features
+
+* **data-apps:** app state admin panel in the app's manage view ([#32236](https://github.com/lightdash/lightdash/issues/32236)) ([1849ab8](https://github.com/lightdash/lightdash/commit/1849ab873a7b2a85b1ea6322ba565ea968cd2454))
+
 # [3.188.0](https://github.com/lightdash/lightdash/compare/3.187.2...3.188.0) (2026-11-09)
 
 
