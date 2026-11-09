@@ -1,8 +1,6 @@
 import { type DataAppTemplate } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine/core';
-import { IconCircleCheckFilled } from '@tabler/icons-react';
+import { Stack, Text, ThemeIcon } from '@mantine/core';
 import { type FC } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../components/common/PolymorphicPaperButton';
 import classes from './AppTemplatePicker.module.css';
 import { PICKER_TEMPLATES } from './templates';
@@ -41,7 +39,7 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
         data-tour-label="Every app starts from a template"
         data-tour-docs="data-apps.mdx#choosing-a-template:1"
     >
-        {PICKER_TEMPLATES.map((template) => {
+        {PICKER_TEMPLATES.map((template, index) => {
             const Icon = template.icon;
             const isSelected = selected === template.id;
             return (
@@ -51,7 +49,7 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                     type="button"
                     radius="md"
                     className={`${classes.card} ${isSelected ? classes.cardSelected : ''}`}
-                    data-blank={template.id === 'custom' || undefined}
+                    data-pos={index}
                     aria-pressed={isSelected}
                     data-selected={isSelected ? 'true' : undefined}
                     onClick={() =>
@@ -66,31 +64,17 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                         ? createAppTourAction
                         : {})}
                 >
-                    {isSelected && (
-                        <MantineIcon
-                            icon={IconCircleCheckFilled}
-                            size={18}
-                            className={classes.selectedMark}
-                            aria-hidden
-                        />
-                    )}
-                    <Box
-                        className={classes.thumb}
-                        data-layout={template.id}
-                        aria-hidden
-                    >
-                        <Box component="span" />
-                        <Box component="span" />
-                        <Box component="span" />
-                        <Box component="span" />
-                    </Box>
-                    <Stack gap={4} className={classes.cardContent}>
-                        <Group gap={6} wrap="nowrap">
-                            <MantineIcon
-                                icon={Icon}
-                                size={14}
-                                className={classes.cardIcon}
-                            />
+                    <Stack gap="xs" align="flex-start">
+                        <ThemeIcon
+                            size="lg"
+                            radius="md"
+                            variant="light"
+                            color="gray"
+                            className={classes.cardIcon}
+                        >
+                            <Icon size={20} />
+                        </ThemeIcon>
+                        <Stack gap={4} className={classes.cardContent}>
                             <Text
                                 fw={600}
                                 size="sm"
@@ -98,10 +82,10 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                             >
                                 {template.title}
                             </Text>
-                        </Group>
-                        <Text size="xs" className={classes.cardDescription}>
-                            {template.description}
-                        </Text>
+                            <Text size="xs" c="dimmed">
+                                {template.description}
+                            </Text>
+                        </Stack>
                     </Stack>
                 </PolymorphicPaperButton>
             );
