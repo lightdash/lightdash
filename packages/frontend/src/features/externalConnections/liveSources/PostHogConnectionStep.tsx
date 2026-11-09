@@ -8,7 +8,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { ConnectionTestResult } from '../components/ConnectionTestResult';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { LiveSourceHintField } from './LiveSourceHintField';
@@ -27,6 +27,7 @@ type Props = {
     canSignIn: boolean;
     onReconnect: (() => void) | null;
     showIntro: boolean;
+    sourceIdField?: ReactNode;
 };
 
 export const PostHogConnectionStep: FC<Props> = ({
@@ -36,6 +37,7 @@ export const PostHogConnectionStep: FC<Props> = ({
     canSignIn,
     onReconnect,
     showIntro,
+    sourceIdField,
 }) => {
     const isSignIn = form.values.authMethod === 'signIn';
     const testMutation = useTestConnectionConfig();
@@ -85,6 +87,7 @@ export const PostHogConnectionStep: FC<Props> = ({
                 data-autofocus
                 {...form.getInputProps('name')}
             />
+            {sourceIdField}
             <Stack gap={4}>
                 <Text fz="sm" fw={500}>
                     Region

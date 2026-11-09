@@ -3,6 +3,7 @@ import {
     DimensionType,
     ExploreType,
     FilterOperator,
+    getDefaultExplorePrefix,
     getItemMap,
     UnexpectedServerError,
     type Explore,
@@ -15,7 +16,6 @@ import {
     getApiSourceDefinitionHashes,
     getApiSourceExploreNames,
     getLegacyLiveSourceName,
-    getLiveSourceNameBase,
     getLostApiSourceFieldIds,
     toApiSourceResult,
     toPeriodStart,
@@ -94,10 +94,10 @@ describe('live source names', () => {
 
     test('a new name comes from the source name, as a lowercase identifier', () => {
         expect(
-            getLiveSourceNameBase(ApiConnectorType.GA4, 'Google Analytics'),
+            getDefaultExplorePrefix(ApiConnectorType.GA4, 'Google Analytics'),
         ).toBe('google_analytics');
         expect(
-            getLiveSourceNameBase(
+            getDefaultExplorePrefix(
                 ApiConnectorType.POSTHOG,
                 'Product analytics',
             ),
@@ -106,7 +106,7 @@ describe('live source names', () => {
 
     test('a name that is no identifier falls back to the integration', () => {
         expect(
-            getLiveSourceNameBase(ApiConnectorType.POSTHOG, '2024 events'),
+            getDefaultExplorePrefix(ApiConnectorType.POSTHOG, '2024 events'),
         ).toBe('posthog');
     });
 

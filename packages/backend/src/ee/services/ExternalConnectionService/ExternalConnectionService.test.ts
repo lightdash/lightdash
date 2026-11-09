@@ -188,6 +188,7 @@ function buildService(opts: {
         },
         savedChartModel: {
             getChartCountPerField: vi.fn().mockResolvedValue([]),
+            getChartCountForExplores: vi.fn().mockResolvedValue(0),
         },
         allowedPrivateHostCidrs: {},
         externalConnectionModel: model as never,

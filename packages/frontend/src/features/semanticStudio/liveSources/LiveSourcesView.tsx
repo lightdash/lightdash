@@ -22,7 +22,6 @@ import {
     IconReload,
     IconTrash,
 } from '@tabler/icons-react';
-import dayjs from 'dayjs';
 import { type FC, type KeyboardEvent, type MouseEvent } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExternalConnectionApiUsage } from '../../externalConnections/hooks/useExternalConnectionApiUsage';
@@ -31,6 +30,7 @@ import {
     useLiveSourceFields,
     useRefreshLiveSourceFields,
 } from '../../externalConnections/hooks/useLiveSourceFields';
+import { formatChartCount } from '../../externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceActions } from './liveSourceActions';
 import {
@@ -221,6 +221,11 @@ export const LiveSourcesTable: FC<{
                         title={target}
                     >
                         {connection.name}
+                        {connection.liveSourceName && (
+                            <Text span fz={12} c="dimmed" ml={6}>
+                                {connection.liveSourceName}
+                            </Text>
+                        )}
                     </Text>
                     <span role="cell" className={classes.number}>
                         {used.dataRead}
@@ -274,11 +279,10 @@ export const LiveSourceSummary: FC<{
     });
     const row = toLiveSourceRow(connection, usage);
     const inUse = fields?.fields.filter((field) => field.inUse).length;
-    const scannedAt = fields?.scannedAt ? dayjs(fields.scannedAt) : null;
     return (
         <Box className={classes.summary} aria-label="Live data source">
             <Stat label="Integration" value={row.integration} />
-            <Stat label="Reads" value={row.target} />
+            <Stat label="Explore" value={fields?.exploreName ?? '—'} />
             <Stat
                 label="Access"
                 value={
@@ -288,11 +292,8 @@ export const LiveSourceSummary: FC<{
                 }
             />
             <Stat
-                label="Fields refreshed"
-                value={scannedAt ? scannedAt.fromNow() : 'Never'}
-                title={
-                    scannedAt ? scannedAt.format('YYYY-MM-DD HH:mm') : undefined
-                }
+                label="Used by"
+                value={fields ? formatChartCount(fields.usedByChartCount) : '—'}
             />
             <Stat label="Data read" value={row.usage.dataRead} />
             <Stat label="API calls" value={row.usage.apiCalls} />

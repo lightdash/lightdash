@@ -25,7 +25,21 @@ const updateExternalConnection = async (
         body: JSON.stringify(data),
     });
 
-export const useUpdateExternalConnection = () => {
+type UpdateMessages = { updated: string; failed: string };
+
+const CONNECTION_MESSAGES: UpdateMessages = {
+    updated: 'Connection updated',
+    failed: 'Failed to update connection',
+};
+
+export const LIVE_SOURCE_UPDATE_MESSAGES: UpdateMessages = {
+    updated: 'Live data source updated',
+    failed: 'Failed to update live data source',
+};
+
+export const useUpdateExternalConnection = (
+    messages: UpdateMessages = CONNECTION_MESSAGES,
+) => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -38,11 +52,11 @@ export const useUpdateExternalConnection = () => {
                 variables.projectUuid,
                 connection,
             );
-            showToastSuccess({ title: 'Connection updated' });
+            showToastSuccess({ title: messages.updated });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update connection',
+                title: messages.failed,
                 apiError: error,
             });
         },

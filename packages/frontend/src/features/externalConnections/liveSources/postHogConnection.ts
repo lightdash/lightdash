@@ -97,12 +97,14 @@ export const getPostHogSignInUrl = (
     values: Pick<PostHogConnectionValues, 'name' | 'region'>,
     connectionUuid: string | null,
     returnTo: LiveSourceReturnTo,
+    explorePrefix?: string,
 ) => {
     const params = new URLSearchParams({
         region: values.region,
         name: values.name.trim(),
     });
     if (connectionUuid) params.set('connectionUuid', connectionUuid);
+    if (explorePrefix) params.set('explorePrefix', explorePrefix);
     setLiveSourceReturnTo(params, returnTo);
     return `/api/v1/ee/projects/${projectUuid}/live-sources/posthog/oauth/start?${params.toString()}`;
 };
@@ -110,8 +112,10 @@ export const getPostHogSignInUrl = (
 /** The server pins the access rules for API source connections; these match them. */
 export const toPostHogCreatePayload = (
     values: PostHogConnectionValues,
+    explorePrefix?: string,
 ): CreateExternalConnection => ({
     name: values.name.trim(),
+    ...(explorePrefix ? { explorePrefix } : {}),
     type: 'bearer_token',
     origin: POSTHOG_REGION_ORIGINS[values.region],
     secret: values.apiKey.trim(),

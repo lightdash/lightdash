@@ -24,7 +24,21 @@ const createExternalConnection = async (
         body: JSON.stringify(data),
     });
 
-export const useCreateExternalConnection = () => {
+type CreateMessages = { created: string; failed: string };
+
+const CONNECTION_MESSAGES: CreateMessages = {
+    created: 'Connection created',
+    failed: 'Failed to create connection',
+};
+
+export const LIVE_SOURCE_CREATE_MESSAGES: CreateMessages = {
+    created: 'Live data source added',
+    failed: 'Failed to add live data source',
+};
+
+export const useCreateExternalConnection = (
+    messages: CreateMessages = CONNECTION_MESSAGES,
+) => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -37,11 +51,11 @@ export const useCreateExternalConnection = () => {
                 variables.projectUuid,
                 connection,
             );
-            showToastSuccess({ title: 'Connection created' });
+            showToastSuccess({ title: messages.created });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create connection',
+                title: messages.failed,
                 apiError: error,
             });
         },

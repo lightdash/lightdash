@@ -1131,6 +1131,7 @@ export const FieldDetailModal: FC<{
         field.table !== explore.name
             ? { term: 'Table', value: field.tableLabel }
             : null,
+        isLive ? { term: 'Field ID', value: field.id } : null,
         field.group && !(isLive && canEdit)
             ? { term: 'Group', value: field.group }
             : null,

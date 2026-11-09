@@ -139,9 +139,11 @@ const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
         ),
     );
 
-/** A deleted live source, kept so a new one for the same target can reuse its name. */
+/** A deleted live source, kept so a new one can reattach to its name. */
 export type DeletedLiveSource = {
     externalConnectionUuid: string;
+    name: string;
+    deletedAt: Date;
     origin: string;
     apiSource: ExternalConnectionApiSource;
     sourceName: string | null;
@@ -967,10 +969,11 @@ export class ExternalConnectionModel {
     }
 
     /**
-     * Gives a live source the first candidate no other active source of the
-     * project holds, once; a name already set is kept. The project lock makes
-     * two sources named at the same time pick different names. Null when
-     * every candidate is held.
+     * Gives a live source the first candidate no other source of the project
+     * holds, once; a name already set is kept. Deleted sources keep holding
+     * theirs, so charts on them can't start reading another target. The
+     * project lock makes two sources named at the same time pick different
+     * names. Null when every candidate is held.
      */
     async claimLiveSourceName(
         projectUuid: string,
@@ -984,7 +987,6 @@ export class ExternalConnectionModel {
             const rows = await trx(ExternalConnectionsTableName)
                 .select('external_connection_uuid', 'api_source')
                 .where('project_uuid', projectUuid)
-                .whereNull('deleted_at')
                 .whereNotNull('api_source');
             const current = rows.find(
                 (row) => row.external_connection_uuid === uuid,
@@ -1012,6 +1014,70 @@ export class ExternalConnectionModel {
                     });
             }
             return sourceName;
+        });
+    }
+
+    /** Every explore prefix held in the project, by active or deleted sources. */
+    async listHeldLiveSourceNames(
+        projectUuid: string,
+        exceptUuid: string | null,
+    ): Promise<Set<string>> {
+        const rows = await this.database(ExternalConnectionsTableName)
+            .select('external_connection_uuid', 'api_source')
+            .where('project_uuid', projectUuid)
+            .whereNotNull('api_source');
+        return new Set(
+            rows.flatMap((row) => {
+                const name = readSourceName(row.api_source);
+                return name && row.external_connection_uuid !== exceptUuid
+                    ? [name]
+                    : [];
+            }),
+        );
+    }
+
+    /**
+     * Moves a deleted source's name, and its field edits when it has any, to
+     * a new source. False when another active source holds the name.
+     */
+    async reattachLiveSourceName(
+        projectUuid: string,
+        uuid: string,
+        sourceName: string,
+        fieldEdits: LiveSourceFieldEdits | null,
+    ): Promise<boolean> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `live_source_name:${projectUuid}`,
+            ]);
+            const rows = await trx(ExternalConnectionsTableName)
+                .select('external_connection_uuid', 'api_source')
+                .where('project_uuid', projectUuid)
+                .whereNull('deleted_at')
+                .whereNotNull('api_source');
+            const isHeld = rows.some(
+                (row) =>
+                    row.external_connection_uuid !== uuid &&
+                    readSourceName(row.api_source) === sourceName,
+            );
+            if (isHeld) {
+                return false;
+            }
+            const withName = trx.raw(
+                `jsonb_set(api_source, '{sourceName}', to_jsonb(?::text))`,
+                [sourceName],
+            );
+            await trx(ExternalConnectionsTableName)
+                .where('external_connection_uuid', uuid)
+                .update({
+                    api_source: (fieldEdits
+                        ? trx.raw(`jsonb_set(?, '{fields}', ?::jsonb)`, [
+                              withName,
+                              JSON.stringify(fieldEdits),
+                          ])
+                        : withName) as unknown as string,
+                });
+            return true;
         });
     }
 
@@ -1169,7 +1235,13 @@ export class ExternalConnectionModel {
         projectUuid: string,
     ): Promise<DeletedLiveSource[]> {
         const rows = await this.database(ExternalConnectionsTableName)
-            .select('external_connection_uuid', 'origin', 'api_source')
+            .select(
+                'external_connection_uuid',
+                'name',
+                'deleted_at',
+                'origin',
+                'api_source',
+            )
             .where('project_uuid', projectUuid)
             .whereNotNull('deleted_at')
             .whereNotNull('api_source')
@@ -1180,6 +1252,8 @@ export class ExternalConnectionModel {
                 ? [
                       {
                           externalConnectionUuid: row.external_connection_uuid,
+                          name: row.name,
+                          deletedAt: row.deleted_at as Date,
                           origin: row.origin,
                           apiSource,
                           sourceName: readSourceName(row.api_source),
