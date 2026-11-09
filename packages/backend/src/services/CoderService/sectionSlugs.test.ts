@@ -169,6 +169,39 @@ describe('dashboard section slugs', () => {
         expect(new Set(ids).size).toBe(2);
     });
 
+    it('mints new ids when the upload duplicates a section name that is unique in the saved sections', () => {
+        const uploaded = dashboard();
+        uploaded.config!.controlSections = [
+            { id: 'x', name: 'Currency' },
+            { id: 'y', name: 'Currency' },
+        ];
+        const ids = getDashboardWithSectionIds(
+            getDashboardWithSectionSlugs(uploaded),
+            {
+                isDateZoomDisabled: false,
+                controlSections: [{ id: 'a', name: 'Currency' }],
+            },
+        ).config!.controlSections!.map(({ id }) => id);
+        expect(ids).not.toContain('a');
+        expect(new Set(ids).size).toBe(2);
+    });
+
+    it('mints a new id when the saved sections duplicate a name that is unique in the upload', () => {
+        const uploaded = dashboard();
+        uploaded.config!.controlSections = [{ id: 'x', name: 'Currency' }];
+        const [section] = getDashboardWithSectionIds(
+            getDashboardWithSectionSlugs(uploaded),
+            {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'a', name: 'Currency' },
+                    { id: 'b', name: 'Currency' },
+                ],
+            },
+        ).config!.controlSections!;
+        expect(section.id).not.toMatch(/^[ab]$/);
+    });
+
     it('round-trips legacy uploads and keeps the legacy id when a legacy client renames a section', () => {
         const original = dashboard();
         const saved = getDashboardWithSectionIds(
