@@ -143,22 +143,10 @@ program
         '--non-interactive',
         'Disable all interactive prompts. Commands fail with helpful error if required input is missing.',
     )
-    .hook('preAction', (thisCommand, actionCommand) => {
+    .hook('preAction', (thisCommand) => {
         const opts = thisCommand.opts();
         if (opts.nonInteractive) {
             GlobalState.setNonInteractive(true);
-        }
-        if (
-            ['deploy', 'preview', 'start-preview'].includes(
-                actionCommand.name(),
-            ) &&
-            actionCommand.getOptionValueSource('source') === 'cli'
-        ) {
-            console.error(
-                styles.warning(
-                    "--source is deprecated and will be ignored in a future release. Lightdash now works out which dbt source a deploy belongs to from your dbt project. You only need it if the deploy is rejected because the source can't be inferred.",
-                ),
-            );
         }
     })
     .showHelpAfterError(
@@ -647,7 +635,7 @@ program
     .description('Creates a new preview project - waits for a keypress to stop')
     .option(
         '--source <name>',
-        '(deprecated) The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Lightdash works out the source from your dbt project, so you only need this when the deploy is rejected because it cannot tell which source the explores belong to, or, for a preview, when several sources provide the same dbt project. Overrides `lightdash config set-source`',
     )
     .option(
         '--name <preview name>',
@@ -794,7 +782,7 @@ program
     .description('Creates a new preview project')
     .option(
         '--source <name>',
-        '(deprecated) The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Lightdash works out the source from your dbt project, so you only need this when the deploy is rejected because it cannot tell which source the explores belong to, or, for a preview, when several sources provide the same dbt project. Overrides `lightdash config set-source`',
     )
     .option(
         '--name [preview name]',
@@ -1520,7 +1508,7 @@ program
     .description('Compiles and deploys a Lightdash project')
     .option(
         '--source <name>',
-        '(deprecated) The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Lightdash works out the source from your dbt project, so you only need this when the deploy is rejected because it cannot tell which source the explores belong to, or, for a preview, when several sources provide the same dbt project. Overrides `lightdash config set-source`',
     )
     .option(
         '--project <project uuid or slug>',
