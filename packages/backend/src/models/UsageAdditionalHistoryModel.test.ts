@@ -175,6 +175,31 @@ describe('additional retained Analytics history', () => {
         );
     });
 
+    it('keeps MCP project ownership indexable while preserving legacy source comparisons', async () => {
+        tracker.on.select(() => true).response([]);
+        await activities();
+        for (const { sql } of tracker.history.select) {
+            if (sql.includes('from "mcp_tool_call" as "s"')) {
+                expect(sql).toContain(
+                    'left join "projects" as "p" on p.project_uuid = ',
+                );
+                expect(sql).not.toContain('p.project_uuid::text');
+            } else {
+                expect(sql).toContain('p.project_uuid::text');
+            }
+        }
+        const { sql: raw, bindings } = tracker.history.select.find(({ sql }) =>
+            sql.includes('from "mcp_tool_call" as "s"'),
+        )!;
+        const sql = normalizeSql(raw);
+        expect(sql).toContain('p.project_uuid = s.project_uuid');
+        expect(sql).toContain('s.organization_uuid = ?');
+        expect(sql).toContain(
+            '(s.project_uuid is null or "o"."organization_uuid" = ?)',
+        );
+        expect(bindings.filter((binding) => binding === org)).toHaveLength(2);
+    });
+
     it('requires child facts to join an owned prompt/thread or research run', async () => {
         tracker.on.select(() => true).response([]);
         await activities();
