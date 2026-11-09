@@ -1447,6 +1447,24 @@ describe('DashboardService', () => {
                 projectUuid,
             );
         });
+        test('rejects an order with an unknown kind', async () => {
+            featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
+            await expect(
+                service.create(user, projectUuid, {
+                    ...createDashboard,
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlOrder: [
+                            {
+                                kind: 'button' as DashboardControlRefKind,
+                                id: 'x',
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(dashboardModel.create).not.toHaveBeenCalled();
+        });
     });
     describe('default owner on create', () => {
         test('should make the creator the owner when no owner is given', async () => {
@@ -1808,6 +1826,50 @@ describe('DashboardService', () => {
                     }),
                 ).rejects.toThrow(ParameterError);
                 expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+            });
+
+            test('rejects an order with an unknown kind', async () => {
+                featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
+                await expect(
+                    service.update(user, dashboardUuid, {
+                        ...updateDashboardTiles,
+                        config: {
+                            isDateZoomDisabled: true,
+                            controlOrder: [
+                                {
+                                    kind: 'button' as DashboardControlRefKind,
+                                    id: 'x',
+                                },
+                            ],
+                        },
+                    }),
+                ).rejects.toThrow(ParameterError);
+                expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+            });
+
+            test('accepts a resent copy of a saved order with an unknown kind', async () => {
+                const newerOrder = [
+                    { kind: 'button' as DashboardControlRefKind, id: 'x' },
+                ];
+                (dashboardModel.getByIdOrSlug as import('vitest').Mock)
+                    .mockReset()
+                    .mockResolvedValueOnce({
+                        ...dashboard,
+                        config: { ...savedConfig, controlOrder: newerOrder },
+                        parameters: savedParameters,
+                    });
+                featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
+                await service.update(user, dashboardUuid, {
+                    ...updateDashboardTiles,
+                    config: {
+                        isDateZoomDisabled: true,
+                        controlOrder: structuredClone(newerOrder),
+                    },
+                });
+                savedWith({
+                    isDateZoomDisabled: true,
+                    controlOrder: newerOrder,
+                });
             });
         });
 
