@@ -2349,6 +2349,7 @@ export class PromoteService extends BaseService {
         );
 
         return {
+            ...promotionChanges,
             spaces: allSpaces,
             dashboards: updateDashboardWithSpace,
             charts: updateChartsWithSpace,
@@ -2764,19 +2765,31 @@ export class PromoteService extends BaseService {
             spaceChanges.push(spaceChange);
         }
 
+        // The promoted dashboard carries no tile for a skipped composer chart
+        const promotableDashboard = {
+            ...promotedDashboard.dashboard,
+            tiles: promotedDashboard.dashboard.tiles.filter(
+                (tile) =>
+                    !(
+                        isDashboardChartTileType(tile) &&
+                        tile.properties.savedChartUuid &&
+                        composerChartUuids.has(tile.properties.savedChartUuid)
+                    ),
+            ),
+        };
         const dashboardChanges: PromotionChanges['dashboards'] = [
             upstreamDashboard,
         ].map(() => {
             if (upstreamDashboard.dashboard !== undefined) {
                 return {
                     action: PromoteService.isDashboardUpdated(
-                        promotedDashboard.dashboard,
+                        promotableDashboard,
                         upstreamDashboard.dashboard,
                     )
                         ? PromotionAction.UPDATE
                         : PromotionAction.NO_CHANGES,
                     data: {
-                        ...promotedDashboard.dashboard,
+                        ...promotableDashboard,
                         uuid: upstreamDashboard.dashboard.uuid,
                         spaceUuid: upstreamDashboard.dashboard.spaceUuid,
                         spaceSlug: promotedDashboard.space?.slug,
@@ -2788,7 +2801,7 @@ export class PromoteService extends BaseService {
             return {
                 action: PromotionAction.CREATE,
                 data: {
-                    ...promotedDashboard.dashboard,
+                    ...promotableDashboard,
                     spaceUuid:
                         upstreamDashboard.space?.uuid ||
                         promotedDashboard.dashboard.spaceUuid, // Or set the new space uuid after creation
@@ -2819,19 +2832,13 @@ export class PromoteService extends BaseService {
                 spaces: spaceChanges,
                 dashboards: dashboardChanges,
                 charts: chartChanges,
-                ...(composerCharts.length > 0
-                    ? {
-                          skippedCharts: composerCharts.map(
-                              (composerChart) => ({
-                                  ...composerChart,
-                                  reason: new ComposerChartNotSupportedError(
-                                      composerChart.uuid,
-                                      composerChart.name,
-                                  ).message,
-                              }),
-                          ),
-                      }
-                    : {}),
+                skippedCharts: composerCharts.map((composerChart) => ({
+                    ...composerChart,
+                    reason: new ComposerChartNotSupportedError(
+                        composerChart.uuid,
+                        composerChart.name,
+                    ).message,
+                })),
             },
             charts, // For permission checks
             sqlCharts, // For permission checks

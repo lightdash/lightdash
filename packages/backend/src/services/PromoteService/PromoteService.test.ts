@@ -808,6 +808,7 @@ describe('PromoteService dashboard changes', () => {
 
         expect(changes.charts).toEqual([]);
         expect(changes.dashboards[0].action).toBe('update');
+        expect(changes.dashboards[0].data.tiles).toEqual([]);
         expect(changes.skippedCharts).toEqual([
             {
                 uuid: promotedChart.chart.uuid,

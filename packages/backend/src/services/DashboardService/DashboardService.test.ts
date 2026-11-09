@@ -1820,6 +1820,40 @@ describe('DashboardService', () => {
             );
         });
 
+        test('refuses a duplicated composer tile before renaming the dashboard', async () => {
+            savedChartModel.findComposerCharts.mockResolvedValueOnce([
+                {
+                    uuid: 'scoped-chart-uuid',
+                    name: 'Pipeline',
+                    slug: 'pipeline',
+                },
+            ]);
+            const composerTile = {
+                uuid: 'tile-1',
+                type: DashboardTileTypes.SAVED_CHART as const,
+                x: 0,
+                y: 0,
+                h: 5,
+                w: 5,
+                tabUuid: undefined,
+                properties: {
+                    title: 'Pipeline',
+                    savedChartUuid: 'scoped-chart-uuid',
+                    belongsToDashboard: true,
+                },
+            };
+
+            await expect(
+                service.update(user, dashboardUuid, {
+                    ...updateDashboardTiles,
+                    name: 'Renamed',
+                    tiles: [composerTile, { ...composerTile, uuid: 'tile-2' }],
+                }),
+            ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
+            expect(dashboardModel.update).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+        });
+
         describe('control order', () => {
             const savedOrder = [
                 { kind: DashboardControlRefKind.FILTER, id: 'filter-1' },

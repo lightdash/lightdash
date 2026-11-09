@@ -66,7 +66,10 @@ const editor = {
 
 const spaceContext = { inheritsFromOrgOrProject: true, access: [] };
 
-const buildService = (softDeleteEnabled = false) => {
+const buildService = ({
+    softDeleteEnabled = false,
+    draftsEnabled = false,
+}: { softDeleteEnabled?: boolean; draftsEnabled?: boolean } = {}) => {
     const savedChartModel = {
         get: vi.fn(async () => {
             throw new ComposerChartNotSupportedError(
@@ -83,7 +86,11 @@ const buildService = (softDeleteEnabled = false) => {
                 slug: composerChart.slug,
             },
         ]),
-        update: vi.fn(async () => composerVariant),
+        update: vi.fn(async (_uuid: string, data: { name?: string }) => ({
+            ...composerVariant,
+            chart: { ...composerChart, name: data.name ?? composerChart.name },
+        })),
+        updateMultiple: vi.fn(),
         softDelete: vi.fn(async () => composerVariant),
         permanentDelete: vi.fn(async () => composerVariant),
         restore: vi.fn(async () => undefined),
@@ -121,38 +128,69 @@ const buildService = (softDeleteEnabled = false) => {
         },
         organizationModel: {},
         contentAsCodeProjectSettingsModel: {
-            get: vi.fn().mockResolvedValue({ syncEnabled: false }),
+            get: vi.fn().mockResolvedValue({ syncEnabled: draftsEnabled }),
         },
-        contentAsCodeSnapshotModel: { get: vi.fn() },
+        contentAsCodeSnapshotModel: {
+            get: vi
+                .fn()
+                .mockResolvedValue(
+                    draftsEnabled
+                        ? { snapshot: {}, snapshotHash: 'snapshot-hash' }
+                        : undefined,
+                ),
+        },
         contentDraftModel: { findOpenDraft: vi.fn(), upsertOpenDraft },
     } as AnyType);
     return { service, savedChartModel, schedulerService, upsertOpenDraft };
 };
 
 describe('SavedChartService with a composer chart', () => {
-    it('refuses to update it by name before writing anything', async () => {
+    it('retitles it and returns the composer chart with the caller access', async () => {
         const { service, savedChartModel } = buildService();
 
-        await expect(
-            service.update(editor, composerChart.uuid, { name: 'Renamed' }),
-        ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
-        expect(savedChartModel.update).not.toHaveBeenCalled();
+        const updated = await service.update(editor, composerChart.uuid, {
+            name: 'Renamed',
+        });
+
+        expect(savedChartModel.update).toHaveBeenCalledWith(
+            composerChart.uuid,
+            { name: 'Renamed' },
+            expect.objectContaining({ projectUuid: composerChart.projectUuid }),
+        );
+        expect(updated).toMatchObject({
+            name: 'Renamed',
+            pipeline: composerChart.pipeline,
+            ...spaceContext,
+        });
+        expect(updated).not.toHaveProperty('metricQuery');
     });
 
     it('refuses to draft it by name before storing anything', async () => {
-        const { service, upsertOpenDraft } = buildService();
+        const { service, savedChartModel, upsertOpenDraft } = buildService({
+            draftsEnabled: true,
+        });
 
         await expect(
-            service['storeDraft'](
-                editor,
-                composerChart as AnyType,
-                { name: 'Drafted' },
-                null,
-                spaceContext,
-                { kind: 'published', versionUuid: 'version-uuid' } as AnyType,
-            ),
+            service.update(editor, composerChart.uuid, { name: 'Drafted' }),
         ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
         expect(upsertOpenDraft).not.toHaveBeenCalled();
+        expect(savedChartModel.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a bulk update by name before writing anything', async () => {
+        const { service, savedChartModel } = buildService();
+
+        await expect(
+            service.updateMultiple(editor, composerChart.projectUuid, [
+                {
+                    uuid: composerChart.uuid,
+                    name: 'Renamed',
+                    description: undefined,
+                    spaceUuid: composerChart.spaceUuid,
+                },
+            ]),
+        ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
+        expect(savedChartModel.updateMultiple).not.toHaveBeenCalled();
     });
 
     it('deletes it like any other chart', async () => {
@@ -166,7 +204,9 @@ describe('SavedChartService with a composer chart', () => {
     });
 
     it('soft-deletes and restores it like any other chart', async () => {
-        const { service, savedChartModel } = buildService(true);
+        const { service, savedChartModel } = buildService({
+            softDeleteEnabled: true,
+        });
 
         await service.delete(editor, composerChart.uuid);
         await service.restore(editor, composerChart.uuid);

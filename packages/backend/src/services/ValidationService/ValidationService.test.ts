@@ -18,7 +18,10 @@ import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
+import {
+    SavedChartModel,
+    type ChartForValidation,
+} from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -76,7 +79,9 @@ const composerChartForValidation = {
     tableCalculations: [],
 };
 const savedChartModel = {
-    findChartsForValidation: vi.fn(async () => [chartForValidation]),
+    findChartsForValidation: vi.fn(
+        async (): Promise<ChartForValidation[]> => [chartForValidation],
+    ),
     get: vi.fn(async () => chartForSingleValidation),
     getVariant: vi.fn(async () => ({
         queryType: 'semantic',

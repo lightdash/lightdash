@@ -818,6 +818,29 @@ type VersionSummaryRow = {
     last_name: string | null;
 };
 
+/** A chart row as validation reads it; a composer row has no explore to validate against. */
+export type ChartForValidation = {
+    uuid: string;
+    name: string;
+    filters: Filters;
+    dimensions: string[];
+    metrics: string[];
+    tableCalculations: string[];
+    customMetrics: string[];
+    customMetricsBaseDimensions: string[];
+    customBinDimensions: string[];
+    customSqlDimensions: string[];
+    sorts: string[];
+    customMetricsFilters: MetricFilterRule[];
+    dashboardUuid: string | undefined;
+    chartType: ChartConfig['type'];
+    chartConfig: ChartConfig['config'] | undefined;
+    pivotDimensions: string[];
+} & (
+    | { queryType: 'semantic'; tableName: string }
+    | { queryType: 'composer'; tableName: null }
+);
+
 export class SavedChartModel {
     private database: Knex;
 
@@ -2989,28 +3012,7 @@ export class SavedChartModel {
     async findChartsForValidation(
         projectUuid: string,
         chartUuid?: string,
-    ): Promise<
-        Array<{
-            uuid: string;
-            name: string;
-            queryType: SavedChartVariant['queryType'];
-            tableName: string | null;
-            filters: Filters;
-            dimensions: string[];
-            metrics: string[];
-            tableCalculations: string[];
-            customMetrics: string[];
-            customMetricsBaseDimensions: string[];
-            customBinDimensions: string[];
-            customSqlDimensions: string[];
-            sorts: string[];
-            customMetricsFilters: MetricFilterRule[];
-            dashboardUuid: string | undefined;
-            chartType: ChartConfig['type'];
-            chartConfig: ChartConfig['config'] | undefined;
-            pivotDimensions: string[];
-        }>
-    > {
+    ): Promise<ChartForValidation[]> {
         // Optimized: Use scalar subqueries instead of multiple LEFT JOINs to avoid cartesian product.
         // Previously, joining 6 child tables caused row explosion (e.g., 5 fields × 2 calcs × 3 metrics = 30+ rows per chart)
         const cteName = 'chart_last_version_cte';

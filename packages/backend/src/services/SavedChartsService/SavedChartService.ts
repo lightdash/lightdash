@@ -70,6 +70,7 @@ import {
     UpdateMultipleSavedChart,
     UpdateSavedChart,
     type ChartFieldUpdates,
+    type ComposerSavedChart,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
     type DashboardDAO,
@@ -576,7 +577,12 @@ export class SavedChartService
         };
     }
 
-    static getChartConfigEventProperties(savedChart: SavedChartDAO) {
+    static getChartConfigEventProperties(
+        savedChart: Pick<SavedChartDAO, 'chartConfig'> & {
+            metricQuery: MetricQuery | null;
+        },
+    ) {
+        const { metricQuery } = savedChart;
         const tableConfig =
             savedChart.chartConfig.type === ChartType.TABLE
                 ? savedChart.chartConfig.config
@@ -598,21 +604,23 @@ export class SavedChartService
             ).filter((column) => column.width !== undefined).length,
             tableCalculationFunctions: TABLE_CALCULATION_FUNCTIONS.filter(
                 ({ pattern }) =>
-                    savedChart.metricQuery.tableCalculations.some(
+                    metricQuery?.tableCalculations.some(
                         (tableCalculation) =>
                             (isSqlTableCalculation(tableCalculation) &&
                                 pattern.test(tableCalculation.sql)) ||
                             (isFormulaTableCalculation(tableCalculation) &&
                                 pattern.test(tableCalculation.formula)),
-                    ),
+                    ) ?? false,
             ).map(({ name }) => name),
             hasAverageDistinctAdditionalMetric:
-                savedChart.metricQuery.additionalMetrics?.some(
+                metricQuery?.additionalMetrics?.some(
                     (metric) => metric.type === MetricType.AVERAGE_DISTINCT,
                 ) ?? false,
             numCustomGroupBinCustomDimensions:
-                countCustomDimensionsInMetricQuery(savedChart.metricQuery)
-                    .numCustomGroupBinCustomDimensions,
+                metricQuery === null
+                    ? 0
+                    : countCustomDimensionsInMetricQuery(metricQuery)
+                          .numCustomGroupBinCustomDimensions,
         };
     }
 
@@ -784,13 +792,12 @@ export class SavedChartService
         );
     }
 
-    /** Composer charts are dashboard-owned and have no classic version; surfaces that would write one refuse by name first. */
-    private async assertNotComposerChart(
-        savedChartUuid: string,
+    /** Surfaces that would write a classic chart version refuse a composer chart by name before any write. */
+    private async assertNoComposerCharts(
+        savedChartUuids: string[],
     ): Promise<void> {
-        const [composerChart] = await this.savedChartModel.findComposerCharts([
-            savedChartUuid,
-        ]);
+        const [composerChart] =
+            await this.savedChartModel.findComposerCharts(savedChartUuids);
         if (composerChart) {
             throw new ComposerChartNotSupportedError(
                 composerChart.uuid,
@@ -1362,7 +1369,7 @@ export class SavedChartService
         user: SessionUser,
         savedChartUuid: string,
         data: UpdateSavedChart,
-    ): Promise<SavedChart> {
+    ): Promise<SavedChart | ComposerSavedChart> {
         const { preserveVerification, ...chartUpdate } = data;
         const existingChart =
             await this.savedChartModel.getSummary(savedChartUuid);
@@ -1436,8 +1443,6 @@ export class SavedChartService
             projectUuid,
             organizationUuid,
         });
-        await this.assertNotComposerChart(savedChartUuid);
-
         if (chartUpdate.colorPaletteUuid) {
             const palette = await this.organizationModel.findColorPalette(
                 organizationUuid,
@@ -1486,12 +1491,6 @@ export class SavedChartService
             chartUpdate,
             { projectUuid, dashboardUuid: dashboardUuid ?? null, spaceUuid },
         );
-        if (updated.queryType === 'composer') {
-            throw new ComposerChartNotSupportedError(
-                updated.chart.uuid,
-                updated.chart.name,
-            );
-        }
         const savedChart = updated.chart;
 
         if (!verificationAfterUpdate) {
@@ -1501,10 +1500,13 @@ export class SavedChartService
             );
         }
 
-        const cachedExplore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            savedChart.tableName,
-        );
+        const cachedExplore =
+            updated.queryType === 'semantic'
+                ? await this.projectModel.getExploreFromCache(
+                      projectUuid,
+                      updated.chart.tableName,
+                  )
+                : null;
         this.analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
@@ -1516,7 +1518,13 @@ export class SavedChartService
                     cachedExplore?.type === ExploreType.VIRTUAL
                         ? cachedExplore.name
                         : undefined,
-                ...SavedChartService.getChartConfigEventProperties(savedChart),
+                ...SavedChartService.getChartConfigEventProperties({
+                    chartConfig: savedChart.chartConfig,
+                    metricQuery:
+                        updated.queryType === 'semantic'
+                            ? updated.chart.metricQuery
+                            : null,
+                }),
                 viaDashboardGrant:
                     SavedChartService.hasDashboardGrantRow(access),
                 grantOnly: directOnly,
@@ -1727,15 +1735,7 @@ export class SavedChartService
             }),
         );
 
-        const [composerChart] = await this.savedChartModel.findComposerCharts(
-            data.map((chart) => chart.uuid),
-        );
-        if (composerChart) {
-            throw new ComposerChartNotSupportedError(
-                composerChart.uuid,
-                composerChart.name,
-            );
-        }
+        await this.assertNoComposerCharts(data.map((chart) => chart.uuid));
 
         const draftBases = await Promise.all(
             chartSpaceContexts.map(({ existingChart }) =>

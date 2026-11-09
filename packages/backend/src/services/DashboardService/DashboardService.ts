@@ -820,6 +820,31 @@ export class DashboardService
     }
 
     /** Copying a chart writes a classic version, which a composer chart has none of; refuse before anything is created. */
+    /** Dashboard-owned charts referenced by more than one tile, as happens when a tab is duplicated. */
+    private static getChartUuidsToDuplicate(
+        tiles: DashboardVersionedFields['tiles'],
+    ): Set<string> {
+        const chartUuidOccurrences = new Map<string, number>();
+        tiles.forEach((tile) => {
+            if (
+                tile.type === DashboardTileTypes.SAVED_CHART &&
+                tile.properties.belongsToDashboard &&
+                tile.properties.savedChartUuid
+            ) {
+                const chartUuid = tile.properties.savedChartUuid;
+                chartUuidOccurrences.set(
+                    chartUuid,
+                    (chartUuidOccurrences.get(chartUuid) ?? 0) + 1,
+                );
+            }
+        });
+        return new Set(
+            [...chartUuidOccurrences.entries()]
+                .filter(([, count]) => count > 1)
+                .map(([uuid]) => uuid),
+        );
+    }
+
     private async assertNoComposerChartsToCopy(
         chartUuids: string[],
     ): Promise<void> {
@@ -3102,6 +3127,15 @@ export class DashboardService
                 preserveVerification,
             });
 
+        // Duplicated tiles are copied below, so a composer chart among them is refused before any write
+        if (isDashboardVersionedFields(dashboardFields)) {
+            await this.assertNoComposerChartsToCopy([
+                ...DashboardService.getChartUuidsToDuplicate(
+                    dashboardFields.tiles,
+                ),
+            ]);
+        }
+
         if (isDashboardUnversionedFields(dashboardFields)) {
             if (dashboardFields.spaceUuid) {
                 const newSpace =
@@ -3217,35 +3251,13 @@ export class DashboardService
                 new Set(dashboardFields.tiles.map((t) => t.type)),
             );
 
-            // Handle chart duplication for dashboard charts that appear multiple times
-            // This happens when duplicating a dashboard tab with charts saved directly to the dashboard
-            // We detect duplicates by finding chart UUIDs that appear more than once
-            // Step 1: Count occurrences of each chart UUID for dashboard charts
-            const chartUuidOccurrences = new Map<string, number>();
-            dashboardFields.tiles.forEach((tile) => {
-                if (
-                    tile.type === DashboardTileTypes.SAVED_CHART &&
-                    tile.properties.belongsToDashboard &&
-                    tile.properties.savedChartUuid
-                ) {
-                    const chartUuid = tile.properties.savedChartUuid;
-                    chartUuidOccurrences.set(
-                        chartUuid,
-                        (chartUuidOccurrences.get(chartUuid) ?? 0) + 1,
-                    );
-                }
-            });
+            // Duplicating a tab repeats its dashboard-owned chart tiles; each repeat gets its own chart copy
+            const chartUuidsToDuplicate =
+                DashboardService.getChartUuidsToDuplicate(
+                    dashboardFields.tiles,
+                );
 
-            // Step 2: Find chart UUIDs that need duplication (appear more than once)
-            const chartUuidsToDuplicate = new Set(
-                [...chartUuidOccurrences.entries()]
-                    .filter(([, count]) => count > 1)
-                    .map(([uuid]) => uuid),
-            );
-
-            await this.assertNoComposerChartsToCopy([...chartUuidsToDuplicate]);
-
-            // Step 3: Create duplicated charts for all tiles that need them (except the first occurrence)
+            // Create duplicated charts for all tiles that need them (except the first occurrence)
             const seenChartUuids = new Set<string>();
             const chartDuplicationPromises: Promise<{
                 tileIndex: number;

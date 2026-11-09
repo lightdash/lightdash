@@ -453,7 +453,7 @@ export class ValidationService extends BaseService {
                     chartConfig,
                     pivotDimensions,
                 }) => {
-                    if (queryType === 'composer' || tableName === null) {
+                    if (queryType === 'composer') {
                         return [
                             {
                                 chartUuid: uuid,
