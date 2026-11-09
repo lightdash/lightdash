@@ -3,6 +3,7 @@ import { type Request, type Response } from 'express';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { type MobileAppService } from '../services/MobileAppService/MobileAppService';
+import { getClientAddress } from '../utils/clientAddress';
 
 export const MOBILE_APP_LANDING_PATH = '/m/app';
 
@@ -19,6 +20,7 @@ export const createMobileAppRedirectHandler =
     (
         mobileAppService: Pick<MobileAppService, 'recordScan'>,
         stores: LightdashConfig['mobileAppStores'],
+        trustProxy: LightdashConfig['trustProxy'],
     ) =>
     async (req: Request, res: Response): Promise<void> => {
         const platform = detectMobileAppPlatform(req.get('user-agent'));
@@ -27,7 +29,7 @@ export const createMobileAppRedirectHandler =
                 await mobileAppService.recordScan({
                     scanId: req.params.scanId,
                     platform,
-                    clientIp: req.ip ?? 'unknown',
+                    clientAddress: getClientAddress(req, trustProxy),
                 });
             } catch (error) {
                 Logger.warn('Failed to record a mobile app link scan', {

@@ -980,6 +980,7 @@ export default class App {
             createMobileAppRedirectHandler(
                 this.serviceRepository.getMobileAppService(),
                 this.lightdashConfig.mobileAppStores,
+                this.lightdashConfig.trustProxy,
             ),
         );
 

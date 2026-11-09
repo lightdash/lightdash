@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import {
     MOBILE_APP_LINK_MINTS_PER_HOUR,
-    MOBILE_APP_SCANS_PER_MINUTE,
+    MOBILE_APP_SCANS_PER_CLIENT_LINK_PER_MINUTE,
     MobileAppService,
 } from './MobileAppService';
 
@@ -49,7 +49,14 @@ const setup = ({
             createdAt: new Date('2026-11-09T11:59:00.000Z'),
             isFirstScan: true,
         })),
-        incrementRateCounter: vi.fn(async () => counter),
+        hasActiveLink: vi.fn(async (_scanId: string) => true),
+        incrementRateCounter: vi.fn(
+            async (_args: {
+                keyHash: string;
+                operation: string;
+                windowStartedAt: Date;
+            }) => counter,
+        ),
     };
     const featureFlagModel = {
         get: vi.fn(async () => ({
@@ -173,7 +180,7 @@ describe('MobileAppService.recordScan', () => {
         await service.recordScan({
             scanId: SCAN_ID,
             platform: 'ios',
-            clientIp: '203.0.113.7',
+            clientAddress: '203.0.113.7',
         });
 
         expect(analytics.track).toHaveBeenCalledWith({
@@ -190,15 +197,63 @@ describe('MobileAppService.recordScan', () => {
         });
     });
 
-    it('skips recording when one IP scans too often', async () => {
+    it('limits one client per link without sharing the limit between clients', async () => {
+        const { service, mobileAppLinkModel } = setup();
+        const counts = new Map<string, number>();
+        mobileAppLinkModel.incrementRateCounter.mockImplementation(
+            async ({ keyHash }) => {
+                const next = (counts.get(keyHash) ?? 0) + 1;
+                counts.set(keyHash, next);
+                return next;
+            },
+        );
+        const scanFrom = (clientAddress: string) =>
+            service.recordScan({
+                scanId: SCAN_ID,
+                platform: 'ios',
+                clientAddress,
+            });
+
+        await Promise.all(
+            Array.from(
+                { length: MOBILE_APP_SCANS_PER_CLIENT_LINK_PER_MINUTE + 1 },
+                () => scanFrom('203.0.113.7'),
+            ),
+        );
+        expect(mobileAppLinkModel.recordScan).toHaveBeenCalledTimes(
+            MOBILE_APP_SCANS_PER_CLIENT_LINK_PER_MINUTE,
+        );
+
+        await scanFrom('198.51.100.20');
+        expect(mobileAppLinkModel.recordScan).toHaveBeenCalledTimes(
+            MOBILE_APP_SCANS_PER_CLIENT_LINK_PER_MINUTE + 1,
+        );
+    });
+
+    it('creates no rate counter for an unknown or expired scan id', async () => {
+        const { service, mobileAppLinkModel, analytics } = setup();
+        mobileAppLinkModel.hasActiveLink.mockResolvedValueOnce(false);
+
+        await service.recordScan({
+            scanId: SCAN_ID,
+            platform: 'ios',
+            clientAddress: '203.0.113.7',
+        });
+
+        expect(mobileAppLinkModel.incrementRateCounter).not.toHaveBeenCalled();
+        expect(mobileAppLinkModel.recordScan).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+
+    it('skips recording when one client scans a link too often', async () => {
         const { service, mobileAppLinkModel, analytics } = setup({
-            counter: MOBILE_APP_SCANS_PER_MINUTE + 1,
+            counter: MOBILE_APP_SCANS_PER_CLIENT_LINK_PER_MINUTE + 1,
         });
 
         await service.recordScan({
             scanId: SCAN_ID,
             platform: 'android',
-            clientIp: '203.0.113.7',
+            clientAddress: '203.0.113.7',
         });
 
         expect(mobileAppLinkModel.recordScan).not.toHaveBeenCalled();
@@ -212,7 +267,7 @@ describe('MobileAppService.recordScan', () => {
         await service.recordScan({
             scanId: SCAN_ID,
             platform: 'ios',
-            clientIp: '203.0.113.7',
+            clientAddress: '203.0.113.7',
         });
 
         expect(analytics.track).not.toHaveBeenCalled();

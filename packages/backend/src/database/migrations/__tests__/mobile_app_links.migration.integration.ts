@@ -104,6 +104,27 @@ describe('MobileAppLinkModel', () => {
         await expect(model.recordScan('short', 'ios')).resolves.toBeNull();
     });
 
+    it('reports an active link only for a live, well-formed scan id', async () => {
+        const { linkUuid, scanId } = await model.create(
+            userUuid,
+            organizationUuid,
+        );
+
+        await expect(model.hasActiveLink(scanId)).resolves.toBe(true);
+        await expect(model.hasActiveLink('d'.repeat(43))).resolves.toBe(false);
+        await expect(model.hasActiveLink('short')).resolves.toBe(false);
+
+        await migrated
+            .database(table)
+            .where('mobile_app_link_uuid', linkUuid)
+            .update({
+                expires_at: migrated.database.raw(
+                    "NOW() - INTERVAL '1 second'",
+                ),
+            } as never);
+        await expect(model.hasActiveLink(scanId)).resolves.toBe(false);
+    });
+
     it('finds a link only for the user who created it', async () => {
         const { linkUuid } = await model.create(userUuid, organizationUuid);
 

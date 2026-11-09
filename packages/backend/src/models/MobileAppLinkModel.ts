@@ -64,6 +64,16 @@ export class MobileAppLinkModel {
         return row ?? null;
     }
 
+    async hasActiveLink(scanId: string): Promise<boolean> {
+        if (!isWellFormedScanId(scanId)) return false;
+        const row = await this.database(MobileAppLinksTableName)
+            .select('mobile_app_link_uuid')
+            .where('scan_id_hash', hashMobileAppLinkKey(scanId))
+            .where('expires_at', '>', this.database.fn.now())
+            .first();
+        return row !== undefined;
+    }
+
     async recordScan(
         scanId: string,
         platform: MobileAppPlatform,

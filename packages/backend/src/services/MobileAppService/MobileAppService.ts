@@ -20,11 +20,15 @@ import { BaseService } from '../BaseService';
 import { MOBILE_APP_STRINGS } from './mobileAppStrings';
 
 export const MOBILE_APP_LINK_MINTS_PER_HOUR = 30;
-export const MOBILE_APP_SCANS_PER_MINUTE = 60;
+export const MOBILE_APP_SCANS_PER_CLIENT_LINK_PER_MINUTE = 10;
 
 type MobileAppLinkModelMethods = Pick<
     MobileAppLinkModel,
-    'create' | 'findForUser' | 'recordScan' | 'incrementRateCounter'
+    | 'create'
+    | 'findForUser'
+    | 'hasActiveLink'
+    | 'recordScan'
+    | 'incrementRateCounter'
 >;
 
 type MobileAppServiceArguments = {
@@ -132,14 +136,17 @@ export class MobileAppService extends BaseService {
     async recordScan(args: {
         scanId: string;
         platform: MobileAppPlatform;
-        clientIp: string;
+        clientAddress: string;
     }): Promise<void> {
+        if (!(await this.mobileAppLinkModel.hasActiveLink(args.scanId))) return;
         const scans = await this.mobileAppLinkModel.incrementRateCounter({
-            keyHash: hashMobileAppLinkKey(`ip:${args.clientIp}`),
+            keyHash: hashMobileAppLinkKey(
+                `scan:${args.clientAddress}:${args.scanId}`,
+            ),
             operation: 'scan',
             windowStartedAt: startOfWindow(this.now(), 60 * 1000),
         });
-        if (scans > MOBILE_APP_SCANS_PER_MINUTE) return;
+        if (scans > MOBILE_APP_SCANS_PER_CLIENT_LINK_PER_MINUTE) return;
         const scan = await this.mobileAppLinkModel.recordScan(
             args.scanId,
             args.platform,

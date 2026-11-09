@@ -23,10 +23,12 @@ const invoke = async ({
     userAgent,
     method = 'GET',
     recordScan = vi.fn<MobileAppService['recordScan']>(async () => undefined),
+    forwardedFor = '203.0.113.7',
 }: {
     userAgent: string | undefined;
     method?: string;
     recordScan?: Mock<MobileAppService['recordScan']>;
+    forwardedFor?: string;
 }) => {
     const response = {
         set: vi.fn(() => response),
@@ -34,15 +36,19 @@ const invoke = async ({
     };
     const request = {
         method,
-        ip: '203.0.113.7',
+        socket: { remoteAddress: '10.0.0.5' },
         params: { scanId: SCAN_ID },
-        get: (header: string) =>
-            header.toLowerCase() === 'user-agent' ? userAgent : undefined,
+        get: (header: string) => {
+            if (header.toLowerCase() === 'user-agent') return userAgent;
+            if (header.toLowerCase() === 'x-forwarded-for') return forwardedFor;
+            return undefined;
+        },
     };
-    await createMobileAppRedirectHandler({ recordScan }, stores)(
-        request as unknown as Request,
-        response as unknown as Response,
-    );
+    await createMobileAppRedirectHandler(
+        { recordScan },
+        stores,
+        true,
+    )(request as unknown as Request, response as unknown as Response);
     return { response, recordScan };
 };
 
@@ -68,7 +74,7 @@ describe('createMobileAppRedirectHandler', () => {
         expect(recordScan).toHaveBeenCalledWith({
             scanId: SCAN_ID,
             platform: 'ios',
-            clientIp: '203.0.113.7',
+            clientAddress: '203.0.113.7',
         });
         expect(response.redirect).toHaveBeenCalledWith(302, stores.appStoreUrl);
     });
@@ -83,6 +89,23 @@ describe('createMobileAppRedirectHandler', () => {
         expect(response.redirect).toHaveBeenCalledWith(
             302,
             stores.googlePlayUrl,
+        );
+    });
+
+    it('keys scans on the client behind the proxy, not the proxy', async () => {
+        const first = await invoke({
+            userAgent: IPHONE_UA,
+            forwardedFor: '203.0.113.7',
+        });
+        const second = await invoke({
+            userAgent: IPHONE_UA,
+            forwardedFor: '198.51.100.20',
+        });
+        expect(first.recordScan).toHaveBeenCalledWith(
+            expect.objectContaining({ clientAddress: '203.0.113.7' }),
+        );
+        expect(second.recordScan).toHaveBeenCalledWith(
+            expect.objectContaining({ clientAddress: '198.51.100.20' }),
         );
     });
 
