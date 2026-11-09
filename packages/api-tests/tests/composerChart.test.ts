@@ -420,6 +420,7 @@ describe('Composer chart run as a dashboard viewer', () => {
 
     describe('query history shows node SQL only with SQL runner access', () => {
         let historyFlagWasEnabled: boolean;
+        let classicQueryUuid: string;
         const historyUrl = `/api/v2/projects/${projectUuid}/query/history?pageSize=100`;
         type HistoryBody = Body<{ data: QueryHistoryListItem[] }>;
 
@@ -521,13 +522,57 @@ describe('Composer chart run as a dashboard viewer', () => {
                 context: QueryExecutionContext.CHART,
             });
             expect(started.status).toBe(200);
-            await pollQueryResults(viewer, started.body.results.queryUuid);
-            const [row] = await historyRows(viewer, [
-                started.body.results.queryUuid,
-            ]);
+            classicQueryUuid = started.body.results.queryUuid;
+            await pollQueryResults(viewer, classicQueryUuid);
+            const [row] = await historyRows(viewer, [classicQueryUuid]);
             expect(row.compiledSql).toMatch(/select/i);
             expect(row.chartName).toBe(CLASSIC_CHART_NAME);
         }, 60_000);
+
+        it('a totals query over a semantic node row is hidden from the viewer too', async () => {
+            const started = await runTile(viewer, revenueShareTile);
+            await pollQueryResults(viewer, started.body.results.queryUuid);
+            const ordersNode = started.body.results.nodes.find(
+                ({ nodeId }) => nodeId === 'orders',
+            )!;
+            const totals = await viewer.post<
+                Body<ApiExecuteAsyncMetricQueryResults>
+            >(
+                `/api/v2/projects/${projectUuid}/query/${ordersNode.queryUuid}/calculate-total`,
+                { kind: 'grandTotal' },
+            );
+            expect(totals.status).toBe(200);
+            await pollQueryResults(viewer, totals.body.results.queryUuid);
+            const [row] = await historyRows(viewer, [
+                totals.body.results.queryUuid,
+            ]);
+            expect(row.compiledSql).toBe('');
+        }, 60_000);
+
+        it('history search cannot probe node SQL without SQL runner access', async () => {
+            const searchUuids = async (client: ApiClient, term: string) => {
+                const resp = await client.get<HistoryBody>(
+                    `${historyUrl}&search=${encodeURIComponent(term)}`,
+                );
+                expect(resp.status).toBe(200);
+                return resp.body.results.data.map(({ queryUuid }) => queryUuid);
+            };
+            // Only the DuckDB node's SQL names revenue_share
+            const [asViewer, asAdmin] = await Promise.all([
+                runTileAndListNodeRows(viewer),
+                runTileAndListNodeRows(admin),
+            ]);
+            expect(await searchUuids(viewer, 'revenue_share')).not.toContain(
+                asViewer.duckdbRow.queryUuid,
+            );
+            expect(await searchUuids(admin, 'revenue_share')).toContain(
+                asAdmin.duckdbRow.queryUuid,
+            );
+            // The viewer's classic chart row stays searchable by its SQL
+            expect(
+                await searchUuids(viewer, 'payments_payment_method'),
+            ).toContain(classicQueryUuid);
+        }, 90_000);
     });
 
     it.each([

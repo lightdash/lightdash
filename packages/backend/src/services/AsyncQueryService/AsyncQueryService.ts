@@ -268,6 +268,7 @@ import {
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
     type CachedResultsContent,
+    type UserHistoryReader,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
@@ -1847,6 +1848,13 @@ export class AsyncQueryService extends ProjectService {
         const connection = grant
             ? { grantUuid: grant.grantUuid, revision: grant.revision }
             : null;
+        // Composer node rows carry chart-author SQL; only SQL runner access may
+        // read or search it
+        const canViewNodeSql = auditedAbility.can(
+            'manage',
+            subject('SqlRunner', { organizationUuid, projectUuid }),
+        );
+        const reader: UserHistoryReader = { connection, canViewNodeSql };
         const userUuid = account.user.id;
         const [{ data: rows, pagination }, counts] = await Promise.all([
             this.queryHistoryModel.findUserHistory(
@@ -1854,23 +1862,18 @@ export class AsyncQueryService extends ProjectService {
                 userUuid,
                 filters,
                 paginateArgs,
-                connection,
+                reader,
             ),
             this.queryHistoryModel.getUserHistoryCounts(
                 projectUuid,
                 userUuid,
                 filters,
-                connection,
+                reader,
             ),
         ]);
 
         if (grant) await validateConnection();
 
-        // Composer node rows carry chart-author SQL; only SQL runner access may read it
-        const canViewNodeSql = auditedAbility.can(
-            'manage',
-            subject('SqlRunner', { organizationUuid, projectUuid }),
-        );
         return {
             data: rows.map((row) =>
                 mapQueryHistoryRowToListItem(row, { canViewNodeSql }),
@@ -7949,6 +7952,14 @@ export class AsyncQueryService extends ProjectService {
                 sourceQueryHistory.requestParameters?.documentSource)
                 ? { source: sourceQueryHistory.queryUuid }
                 : sourceParameters.references;
+        // A rerun over a composer node row (totals) inherits the node's provenance
+        const composerChartSource = composerChartQueryContext
+            ? composerChartQueryContext.assertMetricQuery(
+                  account,
+                  projectUuid,
+                  inputMetricQuery,
+              )
+            : sourceQueryHistory?.requestParameters?.composerChartSource;
         const requestParameters: ExecuteAsyncQueryRequestParams = {
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
@@ -7956,16 +7967,9 @@ export class AsyncQueryService extends ProjectService {
             // Result reads re-check chart access through chartUuid, as for saved
             // charts; history hides the node's SQL through composerChartSource
             ...(composerChartQueryContext
-                ? {
-                      chartUuid: composerChartQueryContext.chartUuid,
-                      composerChartSource:
-                          composerChartQueryContext.assertMetricQuery(
-                              account,
-                              projectUuid,
-                              inputMetricQuery,
-                          ),
-                  }
+                ? { chartUuid: composerChartQueryContext.chartUuid }
                 : {}),
+            ...(composerChartSource ? { composerChartSource } : {}),
             ...(references ? { references } : {}),
             context,
             query: effectiveMetricQuery,

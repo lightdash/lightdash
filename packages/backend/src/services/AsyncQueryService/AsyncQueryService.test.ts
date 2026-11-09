@@ -29943,13 +29943,19 @@ describe('fresh execution producer to result reader', () => {
                 auth.user.userUuid,
                 {},
                 args.paginateArgs,
-                { grantUuid: 'grant', revision: 1 },
+                {
+                    connection: { grantUuid: 'grant', revision: 1 },
+                    canViewNodeSql: expect.any(Boolean),
+                },
             );
             expect(getUserHistoryCounts).toHaveBeenLastCalledWith(
                 projectUuid,
                 auth.user.userUuid,
                 {},
-                { grantUuid: 'grant', revision: 1 },
+                {
+                    connection: { grantUuid: 'grant', revision: 1 },
+                    canViewNodeSql: expect.any(Boolean),
+                },
             );
             const person = fromOauth(auth.user, {
                 accessToken: 'ordinary',
@@ -29963,13 +29969,13 @@ describe('fresh execution producer to result reader', () => {
                 auth.user.userUuid,
                 {},
                 args.paginateArgs,
-                null,
+                { connection: null, canViewNodeSql: expect.any(Boolean) },
             );
             expect(getUserHistoryCounts).toHaveBeenLastCalledWith(
                 projectUuid,
                 auth.user.userUuid,
                 {},
-                null,
+                { connection: null, canViewNodeSql: expect.any(Boolean) },
             );
             findUserHistory.mockImplementationOnce(async () => {
                 Object.assign(auth.grant, { revokedAt: new Date() });
@@ -31278,6 +31284,61 @@ describe('composer chart node queries', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(execute).not.toHaveBeenCalled();
+    });
+
+    test('a totals rerun over a node row inherits the node provenance', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => ({
+                    queryType: 'composer' as const,
+                    chart: {
+                        ...chart,
+                        name: 'Composer chart',
+                        organizationUuid: projectSummary.organizationUuid,
+                        spaceUuid: 'space',
+                        dashboardUuid: 'dashboard',
+                    },
+                })),
+            } as unknown as SavedChartModel,
+        } as never);
+        const execute = stubExecution(service);
+        const account = projectViewer();
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+        ]);
+        const composerChartSource = { chartUuid: chart.uuid, nodeId: 'orders' };
+        (
+            service.queryHistoryModel.get as import('vitest').Mock
+        ).mockResolvedValue({
+            queryUuid: 'node-query',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: account.user.id,
+            metricQuery: metricQueryOfSemanticNode(node),
+            pivotConfiguration: null,
+            requestParameters: {
+                context: QueryExecutionContext.DASHBOARD,
+                chartUuid: chart.uuid,
+                composerChartSource,
+                query: metricQueryOfSemanticNode(node),
+            },
+        } as unknown as QueryHistory);
+
+        await service.executeAsyncCalculateTotalFromQueryHistory({
+            account,
+            projectUuid,
+            queryUuid: 'node-query',
+            kind: 'grandTotal',
+        });
+
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({ account }),
+            expect.objectContaining({
+                composerChartSource,
+                references: { source: 'node-query' },
+            }),
+        );
     });
 });
 

@@ -1117,11 +1117,10 @@ export class QueryHistoryModel {
         projectUuid: string,
         userUuid: string,
         filters: QueryHistoryListFilters,
-        options: {
+        options: UserHistoryReader & {
             skipTrigger?: boolean;
             skipWindow?: boolean;
-            connection?: AgentConnectionGrantRef | null;
-        } = {},
+        },
     ) {
         const oldestWindowMinutes =
             QUERY_HISTORY_WINDOW_MINUTES[QueryHistoryWindow.LAST_30_DAYS];
@@ -1202,16 +1201,27 @@ export class QueryHistoryModel {
             const searchPattern = `%${escapedSearch}%`;
             void query.andWhere((builder) => {
                 void builder
-                    .whereILike(
-                        `${QueryHistoryTableName}.compiled_sql`,
-                        searchPattern,
-                    )
+                    .where((sqlMatch) => {
+                        // SQL hidden from this caller is not searchable either
+                        if (!options.canViewNodeSql) {
+                            void sqlMatch.whereRaw(
+                                `${QueryHistoryTableName}.request_parameters->'composerChartSource' is null`,
+                            );
+                        }
+                        void sqlMatch.andWhere((text) => {
+                            void text
+                                .whereILike(
+                                    `${QueryHistoryTableName}.compiled_sql`,
+                                    searchPattern,
+                                )
+                                .orWhereRaw(
+                                    `${QueryHistoryTableName}.fields::text ilike ?`,
+                                    [searchPattern],
+                                );
+                        });
+                    })
                     .orWhereRaw(
                         `${QueryHistoryTableName}.metric_query->>'exploreName' ilike ?`,
-                        [searchPattern],
-                    )
-                    .orWhereRaw(
-                        `${QueryHistoryTableName}.fields::text ilike ?`,
                         [searchPattern],
                     )
                     .orWhereILike(`${SavedChartsTableName}.name`, searchPattern)
@@ -1249,13 +1259,13 @@ export class QueryHistoryModel {
         userUuid: string,
         filters: QueryHistoryListFilters,
         paginateArgs: KnexPaginateArgs,
-        connection: AgentConnectionGrantRef | null = null,
+        reader: UserHistoryReader,
     ): Promise<KnexPaginatedData<DbQueryHistoryListRow[]>> {
         const query = this.buildUserHistoryQuery(
             projectUuid,
             userUuid,
             filters,
-            { connection },
+            reader,
         ).select<DbQueryHistoryListRow[]>(
             `${QueryHistoryTableName}.*`,
             `${SavedChartsTableName}.name as chart_name`,
@@ -1278,7 +1288,7 @@ export class QueryHistoryModel {
         projectUuid: string,
         userUuid: string,
         filters: QueryHistoryListFilters,
-        connection: AgentConnectionGrantRef | null = null,
+        reader: UserHistoryReader,
     ): Promise<{
         triggers: Record<QueryTrigger, number>;
         windows: Record<QueryHistoryWindow, number>;
@@ -1290,7 +1300,7 @@ export class QueryHistoryModel {
             projectUuid,
             userUuid,
             filters,
-            { skipTrigger: true, skipWindow: true, connection },
+            { ...reader, skipTrigger: true, skipWindow: true },
         )
             .select(`${QueryHistoryTableName}.context`)
             .count(`${QueryHistoryTableName}.query_uuid as count`)
@@ -1319,7 +1329,7 @@ export class QueryHistoryModel {
             projectUuid,
             userUuid,
             filters,
-            { skipWindow: true, connection },
+            { ...reader, skipWindow: true },
         ).select(
             this.database.raw(
                 `${windowSelects}, coalesce(sum(${QueryHistoryTableName}.warehouse_execution_time_ms) filter (where ${QueryHistoryTableName}.created_at > now() - (${sevenDayMinutes} * interval '1 minute')), 0) as "warehouseTimeMsLast7Days"`,
@@ -1625,6 +1635,12 @@ export class QueryHistoryModel {
         };
     }
 }
+
+/** Who reads a user's history: the agent connection it is bound to, and whether composer node SQL is visible or searchable. */
+export type UserHistoryReader = {
+    connection: AgentConnectionGrantRef | null;
+    canViewNodeSql: boolean;
+};
 
 export type DbQueryHistoryListRow = DbQueryHistory & {
     chart_name: string | null;

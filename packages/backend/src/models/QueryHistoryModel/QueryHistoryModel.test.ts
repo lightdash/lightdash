@@ -820,7 +820,10 @@ describe('connection history filtering', () => {
                 'project',
                 'user',
                 {},
-                { grantUuid: 'grant-a', revision: 7 },
+                {
+                    connection: { grantUuid: 'grant-a', revision: 7 },
+                    canViewNodeSql: true,
+                },
             );
             expect(tracker.history.select).toHaveLength(2);
             for (const query of tracker.history.select) {
@@ -853,7 +856,7 @@ test.each([null, { grantUuid: 'grant-a', revision: 7 }])(
                 'user',
                 {},
                 { page: 2, pageSize: 10 },
-                connection,
+                { connection, canViewNodeSql: true },
             );
             const queries = tracker.history.all;
             expect(result.pagination?.totalResults).toBe(0);
@@ -1110,5 +1113,56 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
         expect(item.compiledSql).toBe(nodeSql);
         expect(item.requestParameters).toMatchObject({ sql: nodeSql });
         expect(item.subline).toBe(nodeSql);
+    });
+});
+
+describe('history search and composer node SQL', () => {
+    const search = async (canViewNodeSql: boolean) => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on
+            .any(({ sql }) => sql.includes('WITH count_cte AS'))
+            .response({ rows: [{ count: '0' }] });
+        tracker.on.select('query_history').response([]);
+        try {
+            const model = new QueryHistoryModel({ database });
+            await model.findUserHistory(
+                'project',
+                'user',
+                { search: 'secret' },
+                { page: 1, pageSize: 10 },
+                { connection: null, canViewNodeSql },
+            );
+            await model.getUserHistoryCounts(
+                'project',
+                'user',
+                { search: 'secret' },
+                { connection: null, canViewNodeSql },
+            );
+            return tracker.history.all.map(({ sql }) => sql);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    };
+
+    test('a caller without SQL runner access cannot probe composer node SQL or fields through search', async () => {
+        const queries = await search(false);
+        expect(queries).toHaveLength(4);
+        for (const sql of queries) {
+            expect(sql).toMatch(
+                /'composerChartSource' is null and \("query_history"\."compiled_sql" ilike/,
+            );
+        }
+    });
+
+    test('a caller with SQL runner access searches compiled SQL on every row', async () => {
+        const queries = await search(true);
+        expect(queries).toHaveLength(4);
+        for (const sql of queries) {
+            expect(sql).toContain('"query_history"."compiled_sql" ilike');
+            expect(sql).not.toContain('composerChartSource');
+        }
     });
 });
