@@ -16,7 +16,7 @@ const control = (
 });
 
 describe('portable parameter controls', () => {
-    it('downloads readable unique slugs and restores saved ids on upload', () => {
+    it('downloads readable unique slugs and keeps only ids with a unique label', () => {
         const existing = [
             control('a', 'Region'),
             control('b', 'Region'),
@@ -29,11 +29,13 @@ describe('portable parameter controls', () => {
             'region-1',
         ]);
         expect(portable.every((item) => item.id === undefined)).toBe(true);
-        expect(
-            getParameterControlsWithIds(portable, existing).map(
-                (item) => item.id,
-            ),
-        ).toEqual(['a', 'b', 'c']);
+        const ids = getParameterControlsWithIds(portable, existing).map(
+            (item) => item.id,
+        );
+        expect(ids[2]).toBe('c');
+        expect(ids[0]).not.toMatch(/^[abc]$/);
+        expect(ids[1]).not.toMatch(/^[abc]$/);
+        expect(ids[0]).not.toBe(ids[1]);
     });
 
     it('accepts legacy ids and mints an id for a new control', () => {
@@ -56,47 +58,42 @@ describe('portable parameter controls', () => {
         ).toBe('orders-region');
     });
 
-    it('preserves a portable slug and id through successive label edits', () => {
+    it('mints a new id for a relabelled control, whatever slug the file keeps', () => {
         const existing = [control('saved-id', 'Initial')];
-        const upload = {
-            ...control('ignored', 'First edit'),
-            id: undefined,
-            slug: 'initial',
-        };
-        const first = getParameterControlsWithIds([upload], existing);
-        const second = getParameterControlsWithIds(
-            [{ ...upload, label: 'Second edit' }],
-            first,
+        const [relabelled] = getParameterControlsWithIds(
+            [
+                {
+                    ...control('ignored', 'First edit'),
+                    id: undefined,
+                    slug: 'initial',
+                },
+            ],
+            existing,
         );
-        expect(second[0]).toMatchObject({
-            id: 'saved-id',
-            slug: 'initial',
-            label: 'Second edit',
-        });
-        expect(getParameterControlsWithSlugs(second)[0].slug).toBe('initial');
+        expect(relabelled.id).not.toBe('saved-id');
+        expect(relabelled).not.toHaveProperty('slug');
     });
 
-    it('allows labels to be swapped without changing control identity', () => {
+    it('keeps ids by label when the file swaps slugs', () => {
         const existing = [control('a', 'Alpha'), control('b', 'Beta')];
         const portable = getParameterControlsWithSlugs(existing);
         const swapped = [
-            { ...portable[0], label: 'Beta' },
-            { ...portable[1], label: 'Alpha' },
+            { ...portable[0], slug: 'beta' },
+            { ...portable[1], slug: 'alpha' },
         ];
-        expect(getParameterControlsWithIds(swapped, existing)).toMatchObject([
-            { id: 'a', slug: 'alpha', label: 'Beta' },
-            { id: 'b', slug: 'beta', label: 'Alpha' },
-        ]);
+        expect(
+            getParameterControlsWithIds(swapped, existing).map(({ id }) => id),
+        ).toEqual(['a', 'b']);
     });
 
-    it('reserves stored slugs before deriving names for controls', () => {
+    it('ignores a stored slug on download', () => {
         const items = [
             { ...control('a', 'West'), slug: 'region' },
             control('b', 'Region'),
         ];
         expect(
             getParameterControlsWithSlugs(items).map((item) => item.slug),
-        ).toEqual(['region', 'region-1']);
+        ).toEqual(['west', 'region']);
     });
 
     it('rejects duplicate slugs and duplicate ids', () => {
@@ -109,19 +106,17 @@ describe('portable parameter controls', () => {
         ).toThrow('id "a" is duplicated');
     });
 
-    it('retains a renamed control on repeated upload', () => {
-        const edited = {
-            ...control('unused', 'New label'),
-            id: undefined,
-            slug: 'old-label',
-        };
+    it('keeps the id of an unchanged control on repeated upload', () => {
         const first = getParameterControlsWithIds(
-            [edited],
+            getParameterControlsWithSlugs([control('old-id', 'Old label')]),
             [control('old-id', 'Old label')],
         );
         expect(first[0].id).toBe('old-id');
-        expect(getParameterControlsWithIds([edited], first)[0].id).toBe(
-            'old-id',
-        );
+        expect(
+            getParameterControlsWithIds(
+                getParameterControlsWithSlugs(first),
+                first,
+            )[0].id,
+        ).toBe('old-id');
     });
 });

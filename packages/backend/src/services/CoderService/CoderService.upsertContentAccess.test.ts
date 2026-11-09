@@ -4226,6 +4226,30 @@ describe('CoderService dashboard control order as code', () => {
         ).toBe(message);
     });
 
+    it('looks up the flag for filter slugs alone and ignores them when it is off', async () => {
+        const saved = withoutOrder();
+        const { parameterControls: _controls, ...config } = saved.config!;
+        const plain = { ...saved, config } as DashboardDAO;
+        const file = download(savedDashboard(), true);
+        const { controlOrder: _order, ...fileConfig } = file.config!;
+        const { parameterControls: _fileControls, ...withoutControls } =
+            fileConfig;
+        const [first, second] = file.filters!.dimensions!;
+        const result = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [first, { ...second, slug: first.slug }],
+                },
+                config: withoutControls,
+            },
+            { enabled: false, saved: plain },
+        );
+        expect(result.config).not.toHaveProperty('controlOrder');
+        expect(JSON.stringify(result.filters)).not.toContain('"slug"');
+    });
+
     it('ignores duplicated filter slugs with the flag off', async () => {
         const file = download(savedDashboard(), true);
         const [first, second] = file.filters!.dimensions!;
