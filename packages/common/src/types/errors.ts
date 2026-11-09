@@ -461,9 +461,11 @@ export class NotSupportedError extends LightdashError {
 
 /** Thrown by a surface that reads a saved chart as a classic chart when the row is a composer chart. */
 export class ComposerChartNotSupportedError extends LightdashError {
-    constructor(chartUuid: string, chartName: string) {
+    // No chart name in the error: some callers raise it before authorization.
+    constructor(chartUuid: string, _chartName: string) {
         super({
-            message: `Chart "${chartName}" is a composer chart, which this feature does not support yet.`,
+            message:
+                'This chart is a composer chart, which this feature does not support yet.',
             name: 'ComposerChartNotSupportedError',
             statusCode: 400,
             data: { chartUuid },
@@ -473,9 +475,10 @@ export class ComposerChartNotSupportedError extends LightdashError {
 
 /** Thrown by an embed path that reaches a composer chart; embeds show a not-available state for them. */
 export class ComposerChartNotAvailableInEmbedError extends LightdashError {
-    constructor(chartUuid: string, chartName: string) {
+    constructor(chartUuid: string, _chartName: string) {
         super({
-            message: `Chart "${chartName}" is a composer chart, which is not available in embedded content.`,
+            message:
+                'This chart is a composer chart, which is not available in embedded content.',
             name: 'ComposerChartNotAvailableInEmbedError',
             statusCode: 400,
             data: { chartUuid },
