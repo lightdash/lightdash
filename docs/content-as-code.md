@@ -760,7 +760,9 @@ rejected.
 With the flag off, downloads retain section IDs and their legacy references,
 including previously saved sections, and omit parameter controls. Uploads
 resolve section slugs with either flag state, without enabling parameter
-controls or replacing their saved values while the flag is off.
+controls or replacing their saved values while the flag is off. With the flag
+off, uploads match saved sections by their saved slug (or the slug of their
+name) and save each section's slug, as earlier releases did.
 
 ### Dashboard parameter controls
 
