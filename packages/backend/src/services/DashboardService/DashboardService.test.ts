@@ -1447,6 +1447,24 @@ describe('DashboardService', () => {
                 projectUuid,
             );
         });
+        test('rejects an order with an unknown kind', async () => {
+            featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
+            await expect(
+                service.create(user, projectUuid, {
+                    ...createDashboard,
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlOrder: [
+                            {
+                                kind: 'button' as DashboardControlRefKind,
+                                id: 'x',
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(dashboardModel.create).not.toHaveBeenCalled();
+        });
     });
     describe('default owner on create', () => {
         test('should make the creator the owner when no owner is given', async () => {
