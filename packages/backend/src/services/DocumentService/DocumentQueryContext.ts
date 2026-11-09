@@ -16,7 +16,7 @@ import { isEqual } from 'es-toolkit/compat';
 import { normalizeFilterIds } from '../CoderService/filterIds';
 import type { DocumentService } from './DocumentService';
 
-const comparable = (value: unknown): unknown =>
+export const comparable = (value: unknown): unknown =>
     JSON.parse(JSON.stringify(value));
 
 /** Server-only proof that execution is bound to an authorized persisted chart. */

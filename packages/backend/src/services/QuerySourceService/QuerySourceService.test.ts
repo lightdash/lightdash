@@ -1,9 +1,11 @@
+import { Ability } from '@casl/ability';
 import {
     AgentActorSurface,
     AgentCapability,
     DimensionType,
     FeatureFlags,
     ForbiddenError,
+    NotSupportedError,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -12,7 +14,9 @@ import {
     UnexpectedServerError,
     VizAggregationOptions,
     VizIndexType,
+    type ComposerChartNodeRole,
     type PivotConfiguration,
+    type PossibleAbilities,
     type SourceQuery,
 } from '@lightdash/common';
 import type { Mock } from 'vitest';
@@ -28,7 +32,10 @@ import {
 } from '../../auth/agentConnectionGrants/grant.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    HIDDEN_COMPOSER_NODE_ERROR,
+    type QueryHistoryModel,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import {
     agentExecutionContext,
@@ -768,6 +775,139 @@ describe('QuerySourceService', () => {
             revoked = true;
             resolveSlow(row('slow'));
             await expect(result).rejects.toThrow('revoked');
+        });
+
+        it.each([
+            ['a viewer', false, HIDDEN_COMPOSER_NODE_ERROR],
+            [
+                'SQL runner access',
+                true,
+                'Binder Error: LINE 1: SELECT SUM(missing_amount) OVER () FROM orders',
+            ],
+        ])(
+            'shows %s the error of a failed composer node it may read',
+            async (_who, sqlRunner, expectedError) => {
+                const { service, mocks } = createService(
+                    createRegistryWithFakes().registry,
+                );
+                const reader = buildAccount();
+                reader.user.ability = new Ability<PossibleAbilities>(
+                    sqlRunner
+                        ? [{ subject: 'SqlRunner', action: 'manage' }]
+                        : [{ subject: 'Project', action: 'view' }],
+                );
+                mocks.queryHistoryModel.get.mockResolvedValue({
+                    queryUuid: 'node',
+                    organizationUuid,
+                    projectUuid,
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'Binder Error: LINE 1: SELECT SUM(missing_amount) OVER () FROM orders',
+                    agentIdentity: null,
+                    requestParameters: {
+                        sql: 'SELECT SUM(missing_amount) OVER () FROM orders',
+                        composerChartSource: {
+                            chartUuid: 'chart',
+                            nodeId: 'revenue_share',
+                            role: 'terminal',
+                        },
+                    },
+                });
+                const result = await service.getSourceQueryStatuses(
+                    reader,
+                    projectUuid,
+                    ['node'],
+                );
+                expect(result.statuses[0].error).toBe(expectedError);
+            },
+        );
+
+        describe('the status of a composer node carries its inferred columns', () => {
+            const secretColumn = 'sum((secret_amount * 0.73))';
+            const nodeRow = (role: ComposerChartNodeRole) => ({
+                queryUuid: 'node',
+                organizationUuid,
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                totalRowCount: 3,
+                warehouseExecutionTimeMs: 12,
+                agentIdentity: null,
+                columns: {
+                    [secretColumn]: {
+                        reference: secretColumn,
+                        type: DimensionType.NUMBER,
+                    },
+                },
+                requestParameters: {
+                    sql: `SELECT ${secretColumn} FROM orders`,
+                    composerChartSource: {
+                        chartUuid: 'chart',
+                        nodeId: 'in',
+                        role,
+                    },
+                },
+            });
+            const readerWith = (
+                rules: { subject: string; action: string }[],
+            ) => {
+                const reader = buildAccount();
+                reader.user.ability = new Ability<PossibleAbilities>(
+                    rules as ConstructorParameters<
+                        typeof Ability<PossibleAbilities>
+                    >[0],
+                );
+                return reader;
+            };
+            const viewer = () =>
+                readerWith([{ subject: 'Project', action: 'view' }]);
+
+            it('a viewer asking for an input node is refused by name', async () => {
+                const { service, mocks } = createService(
+                    createRegistryWithFakes().registry,
+                );
+                mocks.queryHistoryModel.get.mockResolvedValue(nodeRow('input'));
+                const error = await service
+                    .getSourceQueryStatuses(viewer(), projectUuid, ['node'])
+                    .then(
+                        () => null,
+                        (caught: unknown) => caught,
+                    );
+                expect(error).toBeInstanceOf(NotSupportedError);
+                expect((error as Error).message).not.toContain('secret_amount');
+            });
+
+            it.each([['terminal'], ['chartStage']] as const)(
+                'a viewer reads the columns of the %s node',
+                async (role) => {
+                    const { service, mocks } = createService(
+                        createRegistryWithFakes().registry,
+                    );
+                    mocks.queryHistoryModel.get.mockResolvedValue(
+                        nodeRow(role),
+                    );
+                    const result = await service.getSourceQueryStatuses(
+                        viewer(),
+                        projectUuid,
+                        ['node'],
+                    );
+                    expect(result.statuses[0].columns).toHaveProperty(
+                        secretColumn,
+                    );
+                },
+            );
+
+            it('SQL runner access reads an input node', async () => {
+                const { service, mocks } = createService(
+                    createRegistryWithFakes().registry,
+                );
+                mocks.queryHistoryModel.get.mockResolvedValue(nodeRow('input'));
+                const result = await service.getSourceQueryStatuses(
+                    readerWith([{ subject: 'SqlRunner', action: 'manage' }]),
+                    projectUuid,
+                    ['node'],
+                );
+                expect(result.statuses[0].columns).toHaveProperty(secretColumn);
+            });
         });
 
         it('returns the standard status, row count and result columns per query uuid', async () => {

@@ -25,12 +25,18 @@ import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operation
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    assertCanReadComposerNodeResults,
+    canViewComposerNodeSql,
+    getVisibleQueryError,
+    type QueryHistoryModel,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { isConnectionProducedQuery } from '../../utils/queryResultProducer';
 import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpiry';
 import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
 import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
+import type { ComposerChartQueryContext } from '../AsyncQueryService/ComposerChartQueryContext';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
@@ -475,9 +481,11 @@ export class QuerySourceService extends BaseService {
         invalidateCache,
         plans,
         documentQueryContext,
+        composerChartQueryContext,
         aiAttribution,
     }: SourceQueryExecutionContext & {
         documentQueryContext?: DocumentQueryContext;
+        composerChartQueryContext?: ComposerChartQueryContext;
         account: Account;
         projectUuid: string;
         queries: SourceQuery[];
@@ -515,6 +523,9 @@ export class QuerySourceService extends BaseService {
             // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
             const { queryUuid, cacheHit } = await entry.source.submitQuery({
                 ...(documentQueryContext ? { documentQueryContext } : {}),
+                ...(composerChartQueryContext
+                    ? { composerChartQueryContext }
+                    : {}),
                 account,
                 projectUuid,
                 context,
@@ -624,6 +635,18 @@ export class QuerySourceService extends BaseService {
                     projectUuid,
                     account,
                 );
+                const canViewNodeSql = canViewComposerNodeSql(
+                    account.user.ability,
+                    {
+                        organizationUuid: queryHistory.organizationUuid,
+                        projectUuid,
+                    },
+                );
+                // READY columns name the author's expressions
+                assertCanReadComposerNodeResults(
+                    queryHistory.requestParameters?.composerChartSource,
+                    canViewNodeSql,
+                );
                 const connection =
                     connectionReader || isConnectionProducedQuery(queryHistory);
                 const check = connection ? this.getAsyncQueryService?.() : null;
@@ -645,12 +668,16 @@ export class QuerySourceService extends BaseService {
                 const status = {
                     queryUuid: queryHistory.queryUuid,
                     status: queryHistory.status,
-                    error: await personaliseStoredSharedSignInError({
-                        account,
-                        projectUuid,
-                        error: queryHistory.error,
-                        projectModel: this.projectModel,
-                    }),
+                    error: getVisibleQueryError(
+                        await personaliseStoredSharedSignInError({
+                            account,
+                            projectUuid,
+                            error: queryHistory.error,
+                            projectModel: this.projectModel,
+                        }),
+                        queryHistory.requestParameters?.composerChartSource,
+                        canViewNodeSql,
+                    ),
                     totalRowCount: queryHistory.totalRowCount,
                     warehouseExecutionTimeMs:
                         queryHistory.warehouseExecutionTimeMs,

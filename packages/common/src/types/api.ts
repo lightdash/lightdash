@@ -410,6 +410,8 @@ import {
     type ApiGetSourceQueryStatusResults,
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
+    type QueryNodeId,
+    type QuerySourceType,
 } from './querySources';
 import { type ReleaseHighlightsResult } from './releaseHighlights';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
@@ -1197,6 +1199,45 @@ export type ApiExecuteAsyncDashboardChartQueryResults =
         dateZoomApplied: boolean;
     };
 
+/** How a composer chart is drawn: its stored chart config over the terminal node's columns. */
+export type ComposerChartVisualization = Pick<
+    SavedChart,
+    'chartConfig' | 'pivotConfig'
+>;
+
+/** One node of a composer chart run. Nodes other than the terminal one are there for lineage. */
+export type ComposerChartNodeSubmission = {
+    nodeId: QueryNodeId;
+    sourceType: QuerySourceType;
+    queryUuid: string;
+    cacheHit: boolean;
+};
+
+/** A composer chart run from either saved-chart endpoint; `queryUuid` is the terminal node's, columns are discovered when it runs. */
+export type ApiExecuteAsyncComposerChartQueryResults =
+    ApiExecuteAsyncQueryResultsCommon & {
+        queryType: 'composer';
+        terminalNodeId: QueryNodeId;
+        nodes: ComposerChartNodeSubmission[];
+        chartVisualization: ComposerChartVisualization;
+    };
+
+export type ApiExecuteAsyncSavedChartQueryResultsVariant =
+    | ApiExecuteAsyncSavedChartQueryResults
+    | ApiExecuteAsyncComposerChartQueryResults;
+
+export type ApiExecuteAsyncDashboardChartQueryResultsVariant =
+    | ApiExecuteAsyncDashboardChartQueryResults
+    | ApiExecuteAsyncComposerChartQueryResults;
+
+/** The classic variants carry no tag; only a composer run says what it is. */
+export const isComposerChartQueryResults = (
+    results:
+        | ApiExecuteAsyncSavedChartQueryResultsVariant
+        | ApiExecuteAsyncDashboardChartQueryResultsVariant,
+): results is ApiExecuteAsyncComposerChartQueryResults =>
+    'queryType' in results && results.queryType === 'composer';
+
 export type ApiExecuteAsyncSqlQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         // leaving empty for now
@@ -1699,6 +1740,7 @@ type ApiResults =
     | ApiExecuteAsyncSavedChartQueryResults
     | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
+    | ApiExecuteAsyncComposerChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']
     | ApiUserSchedulersSummaryResponse['results']

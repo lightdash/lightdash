@@ -5,10 +5,43 @@ import {
     BigqueryTokenError,
     FEATURE_NOT_ENABLED_CODE,
     FeatureNotEnabledError,
+    getCanonicalWarehouseSignInExpiredMessage,
     isBigqueryTokenErrorMessage,
     isPreviewWarehouseSignInExpiredMessage,
     PreviewWarehouseSignInExpiredError,
 } from './errors';
+
+describe('getCanonicalWarehouseSignInExpiredMessage', () => {
+    it.each([
+        `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER}: invalid_grant for user@example.com`,
+        "This preview's warehouse sign-in expired. Reconnect the warehouse on Production.",
+        'Redshift IAM credentials expired at 2026-01-01 for cluster prod-1',
+        "This project's connection uses Ada's sign-in, which has expired. Ask Ada or an admin to reconnect.",
+    ])(
+        'replaces %s with a server-written message of the same kind',
+        (message) => {
+            const canonical =
+                getCanonicalWarehouseSignInExpiredMessage(message);
+            expect(canonical).not.toBeNull();
+            expect(canonical).not.toBe(message);
+            expect(canonical).not.toMatch(
+                /user@example.com|Production|prod-1|Ada/,
+            );
+            // The replacement still reads as the same kind of error
+            expect(getCanonicalWarehouseSignInExpiredMessage(canonical!)).toBe(
+                canonical,
+            );
+        },
+    );
+
+    it('has nothing to say about a warehouse diagnostic', () => {
+        expect(
+            getCanonicalWarehouseSignInExpiredMessage(
+                'Binder Error: column "expired_at" not found',
+            ),
+        ).toBeNull();
+    });
+});
 
 describe('FeatureNotEnabledError', () => {
     it('exposes the shared refusal code for API consumers', () => {

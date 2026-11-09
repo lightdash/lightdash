@@ -199,6 +199,7 @@ import {
     normalizeIndexColumns,
     normalizeWarehouseCredentials,
     NotFoundError,
+    NotSupportedError,
     omitDisallowedParameterValues,
     OpenIdIdentityIssuerType,
     ParameterError,
@@ -10209,8 +10210,12 @@ export class ProjectService
                             explore: null,
                         };
                     } catch (e) {
-                        // Access denial surfaces as the same 403 that fetching the results would
-                        if (e instanceof ForbiddenError) throw e;
+                        // Access denial surfaces as fetching the results would: a 403, or the named refusal
+                        if (
+                            e instanceof ForbiddenError ||
+                            e instanceof NotSupportedError
+                        )
+                            throw e;
                         resolutionErrors.push({
                             kind: MergeQueryErrorKind.RESULT_SOURCE_UNAVAILABLE,
                             sourceId: source.id,
@@ -11251,10 +11256,17 @@ export class ProjectService
     }): Promise<ApiQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(
+        const savedChartVariant = await this.savedChartModel.getVariant(
             chartUuid,
             versionUuid,
         );
+        if (savedChartVariant.queryType === 'composer') {
+            throw new ComposerChartNotSupportedError(
+                savedChartVariant.chart.uuid,
+                savedChartVariant.chart.name,
+            );
+        }
+        const savedChart = savedChartVariant.chart;
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([
@@ -11356,7 +11368,15 @@ export class ProjectService
     }): Promise<ApiChartAndResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(chartUuid);
+        const savedChartVariant =
+            await this.savedChartModel.getVariant(chartUuid);
+        if (savedChartVariant.queryType === 'composer') {
+            throw new ComposerChartNotSupportedError(
+                savedChartVariant.chart.uuid,
+                savedChartVariant.chart.name,
+            );
+        }
+        const savedChart = savedChartVariant.chart;
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([

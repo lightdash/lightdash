@@ -1,5 +1,6 @@
 import {
     AgentActorSurface,
+    BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     buildAgentIdentityClaim,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -10,7 +11,12 @@ import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../auth/account/account.mock';
-import { QueryHistoryModel } from './QueryHistoryModel';
+import {
+    HIDDEN_COMPOSER_NODE_ERROR,
+    mapQueryHistoryRowToListItem,
+    QueryHistoryModel,
+    type DbQueryHistoryListRow,
+} from './QueryHistoryModel';
 
 describe('QueryHistoryModel connection attribution', () => {
     test.each(['connection', null])(
@@ -520,6 +526,57 @@ describe('QueryHistoryModel', () => {
     });
 });
 
+describe('QueryHistoryModel polling a failed query', () => {
+    const diagnostic =
+        'Binder Error: column "missing_amount" not found\nLINE 1: SELECT SUM(missing_amount) OVER () FROM orders';
+    const failed = (
+        requestParameters: QueryHistory['requestParameters'],
+    ): QueryHistory =>
+        ({
+            status: QueryHistoryStatus.ERROR,
+            error: diagnostic,
+            requestParameters,
+        }) as QueryHistory;
+
+    // The thrown message lands in derived rows and job logs whoever reads them
+    it('never relays a composer node diagnostic, with or without a reader', async () => {
+        const model = new QueryHistoryModel({ database: {} as Knex });
+        vi.spyOn(model, 'getByQueryUuid').mockResolvedValue(
+            failed({
+                sql: 'SELECT SUM(missing_amount) OVER () FROM orders',
+                composerChartSource: {
+                    chartUuid: 'chart',
+                    nodeId: 'node',
+                    role: 'input',
+                },
+            } as QueryHistory['requestParameters']),
+        );
+        await expect(
+            model.pollForQueryCompletion({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                account: null,
+            }),
+        ).rejects.toThrow(HIDDEN_COMPOSER_NODE_ERROR);
+    });
+
+    it('relays the diagnostic of a row without composer provenance', async () => {
+        const model = new QueryHistoryModel({ database: {} as Knex });
+        vi.spyOn(model, 'getByQueryUuid').mockResolvedValue(
+            failed({
+                sql: 'SELECT SUM(missing_amount) OVER () FROM orders',
+            } as QueryHistory['requestParameters']),
+        );
+        await expect(
+            model.pollForQueryCompletion({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                account: null,
+            }),
+        ).rejects.toThrow(diagnostic);
+    });
+});
+
 describe('QueryHistoryModel polling cancellation', () => {
     it('interrupts the polling delay without reading again', async () => {
         const model = new QueryHistoryModel({ database: {} as Knex });
@@ -816,7 +873,10 @@ describe('connection history filtering', () => {
                 'project',
                 'user',
                 {},
-                { grantUuid: 'grant-a', revision: 7 },
+                {
+                    connection: { grantUuid: 'grant-a', revision: 7 },
+                    canViewNodeSql: true,
+                },
             );
             expect(tracker.history.select).toHaveLength(2);
             for (const query of tracker.history.select) {
@@ -849,7 +909,7 @@ test.each([null, { grantUuid: 'grant-a', revision: 7 }])(
                 'user',
                 {},
                 { page: 2, pageSize: 10 },
-                connection,
+                { connection, canViewNodeSql: true },
             );
             const queries = tracker.history.all;
             expect(result.pagination?.totalResults).toBe(0);
@@ -1032,6 +1092,358 @@ describe('cancelRunningQueriesReadOnlyBy', () => {
         } finally {
             tracker.reset();
             await database.destroy();
+        }
+    });
+});
+
+describe('mapQueryHistoryRowToListItem composer node SQL', () => {
+    const authoredSql = {
+        additionalMetric: '${TABLE}.amount * 2',
+        compiledAdditionalMetric: 'SUM("orders".amount * 2)',
+        customDimension: "CASE WHEN ${TABLE}.status = 'placed' THEN 1 END",
+        tableCalculation: '${orders.total_order_amount} / 2',
+        compiledSemantic:
+            'SELECT "orders".status, SUM("orders".amount * 2) FROM jaffle.orders GROUP BY 1',
+        duckdbNode:
+            'SELECT orders_status, orders_amount_x2 / SUM(orders_amount_x2) OVER () AS revenue_share FROM orders',
+        compiledDuckdb:
+            'WITH "orders" AS (SELECT * FROM read_json(\'s3://bucket/orders.jsonl\')) SELECT orders_status FROM orders',
+    };
+    const nodeMetricQuery = {
+        exploreName: 'orders',
+        dimensions: ['orders_status', 'orders_is_placed'],
+        metrics: ['orders_amount_x2'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [
+            {
+                name: 'half',
+                displayName: 'Half',
+                sql: authoredSql.tableCalculation,
+            },
+        ],
+        additionalMetrics: [
+            {
+                name: 'amount_x2',
+                label: 'Amount x2',
+                table: 'orders',
+                type: 'sum',
+                sql: authoredSql.additionalMetric,
+            },
+        ],
+        compiledAdditionalMetrics: [
+            {
+                name: 'amount_x2',
+                label: 'Amount x2',
+                table: 'orders',
+                type: 'sum',
+                sql: authoredSql.additionalMetric,
+                compiledSql: authoredSql.compiledAdditionalMetric,
+            },
+        ],
+        customDimensions: [
+            {
+                id: 'orders_is_placed',
+                name: 'Is placed',
+                table: 'orders',
+                type: 'sql',
+                sql: authoredSql.customDimension,
+                dimensionType: 'number',
+            },
+        ],
+    };
+    const nodeFields = {
+        orders_status: {
+            fieldType: 'dimension',
+            type: 'string',
+            name: 'status',
+            label: 'Status',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: '${TABLE}.status',
+            hidden: false,
+        },
+        orders_amount_x2: {
+            fieldType: 'metric',
+            type: 'sum',
+            name: 'amount_x2',
+            label: 'Amount x2',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: authoredSql.additionalMetric,
+            compiledSql: authoredSql.compiledAdditionalMetric,
+            hidden: false,
+        },
+    };
+    const composerChartSource = {
+        chartUuid: 'chart',
+        nodeId: 'orders',
+        role: 'input' as const,
+    };
+    const row = (
+        overrides: Partial<DbQueryHistoryListRow>,
+    ): DbQueryHistoryListRow =>
+        ({
+            query_uuid: 'query',
+            created_at: new Date('2026-01-01T00:00:00Z'),
+            project_uuid: 'project',
+            context: QueryExecutionContext.DASHBOARD,
+            status: QueryHistoryStatus.READY,
+            error: null,
+            metric_query: null,
+            fields: {},
+            compiled_sql: '',
+            total_row_count: 3,
+            warehouse_execution_time_ms: 10,
+            results_created_at: null,
+            results_expires_at: null,
+            processing_started_at: null,
+            results_updated_at: null,
+            errored_at: null,
+            chart_name: null,
+            sql_chart_name: null,
+            dashboard_name: null,
+            ...overrides,
+        }) as unknown as DbQueryHistoryListRow;
+    const semanticNodeRow = row({
+        metric_query: nodeMetricQuery,
+        fields: nodeFields,
+        compiled_sql: authoredSql.compiledSemantic,
+        request_parameters: {
+            context: QueryExecutionContext.DASHBOARD,
+            chartUuid: 'chart',
+            dashboardUuid: 'dashboard',
+            query: nodeMetricQuery,
+            parameters: {},
+            composerChartSource,
+        },
+        chart_name: 'Revenue share',
+        dashboard_name: 'Board',
+    } as unknown as Partial<DbQueryHistoryListRow>);
+    const duckdbNodeRow = row({
+        compiled_sql: authoredSql.compiledDuckdb,
+        request_parameters: {
+            context: QueryExecutionContext.DASHBOARD,
+            sql: authoredSql.duckdbNode,
+            references: { orders: { source: 'query' } },
+            composerChartSource: {
+                chartUuid: 'chart',
+                nodeId: 'revenue_share',
+                role: 'terminal',
+            },
+        },
+    } as unknown as Partial<DbQueryHistoryListRow>);
+    const totalsRerunRow = row({
+        context: QueryExecutionContext.CALCULATE_TOTAL,
+        metric_query: { ...nodeMetricQuery, dimensions: [] },
+        fields: nodeFields,
+        compiled_sql: authoredSql.compiledSemantic,
+        request_parameters: {
+            context: QueryExecutionContext.CALCULATE_TOTAL,
+            chartUuid: 'chart',
+            query: { ...nodeMetricQuery, dimensions: [] },
+            parameters: {},
+            composerChartSource,
+        },
+    } as unknown as Partial<DbQueryHistoryListRow>);
+    const classicRow = row({
+        metric_query: nodeMetricQuery,
+        fields: nodeFields,
+        compiled_sql: authoredSql.compiledSemantic,
+        request_parameters: {
+            context: QueryExecutionContext.EXPLORE,
+            query: nodeMetricQuery,
+        },
+    } as unknown as Partial<DbQueryHistoryListRow>);
+
+    const sqlOf = (nodeRow: DbQueryHistoryListRow): string[] => {
+        const text = JSON.stringify(nodeRow);
+        return Object.values(authoredSql).filter((sql) =>
+            text.includes(JSON.stringify(sql).slice(1, -1)),
+        );
+    };
+
+    describe.each([
+        ['semantic node', semanticNodeRow],
+        ['DuckDB node', duckdbNodeRow],
+        ['totals rerun over a node', totalsRerunRow],
+    ])('%s row', (_name, nodeRow) => {
+        test('row under test carries authored SQL', () => {
+            expect(sqlOf(nodeRow).length).toBeGreaterThan(0);
+        });
+
+        test('carries no authored or compiled SQL anywhere for a caller without SQL runner access', () => {
+            const item = mapQueryHistoryRowToListItem(nodeRow, {
+                canViewNodeSql: false,
+            });
+            const text = JSON.stringify(item);
+            for (const sql of sqlOf(nodeRow)) {
+                expect(text).not.toContain(JSON.stringify(sql).slice(1, -1));
+            }
+            expect(item.metricQuery).toBeNull();
+            expect(item.compiledSql).toBe('');
+        });
+
+        test('carries every authored SQL string for a caller with SQL runner access', () => {
+            const item = mapQueryHistoryRowToListItem(nodeRow, {
+                canViewNodeSql: true,
+            });
+            const text = JSON.stringify(item);
+            for (const sql of sqlOf(nodeRow)) {
+                expect(text).toContain(JSON.stringify(sql).slice(1, -1));
+            }
+        });
+    });
+
+    test('a redacted row keeps provenance and identity only', () => {
+        const item = mapQueryHistoryRowToListItem(semanticNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(item.requestParameters).toEqual({
+            redacted: true,
+            context: QueryExecutionContext.DASHBOARD,
+            chartUuid: 'chart',
+            dashboardUuid: 'dashboard',
+            composerChartSource,
+        });
+        expect(item.exploreName).toBe('orders');
+        expect(item.title).toBe('orders');
+        // Labels from the stored fields, friendly names otherwise; never SQL
+        expect(item.subline).toBe(
+            'Amount x2 · by Status, Orders is placed — “Revenue share” on Board',
+        );
+        expect(item.chartUuid).toBe('chart');
+        expect(item.dashboardUuid).toBe('dashboard');
+    });
+
+    test('a redacted DuckDB node row has a generic title and no SQL subline', () => {
+        const item = mapQueryHistoryRowToListItem(duckdbNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(item.title).toBe('SQL query');
+        expect(item.subline).toBe('');
+        expect(item.requestParameters).toEqual({
+            redacted: true,
+            context: QueryExecutionContext.DASHBOARD,
+            chartUuid: null,
+            dashboardUuid: null,
+            composerChartSource: {
+                chartUuid: 'chart',
+                nodeId: 'revenue_share',
+                role: 'terminal',
+            },
+        });
+    });
+
+    test('a failed node row shows a generic error instead of the diagnostic quoting the SQL', () => {
+        // DuckDB and Postgres diagnostics quote the statement that failed
+        const diagnostic = `Binder Error: Referenced column "missing_amount" not found\nLINE 1: ${authoredSql.duckdbNode}`;
+        const failedNodeRow = row({
+            ...duckdbNodeRow,
+            status: QueryHistoryStatus.ERROR,
+            error: diagnostic,
+        });
+        const hidden = mapQueryHistoryRowToListItem(failedNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(hidden.error).toBe(HIDDEN_COMPOSER_NODE_ERROR);
+        expect(hidden.subline).toBe(HIDDEN_COMPOSER_NODE_ERROR);
+        expect(JSON.stringify(hidden)).not.toContain('missing_amount');
+        const shown = mapQueryHistoryRowToListItem(failedNodeRow, {
+            canViewNodeSql: true,
+        });
+        expect(shown.error).toBe(diagnostic);
+        expect(shown.subline).toBe(diagnostic);
+    });
+
+    test('a failed node row shows the canonical sign-in expiry message, so the client still offers a reconnect', () => {
+        const signInExpired = `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER}: invalid_grant for user@example.com`;
+        const failedNodeRow = row({
+            ...duckdbNodeRow,
+            status: QueryHistoryStatus.ERROR,
+            error: signInExpired,
+        });
+        const hidden = mapQueryHistoryRowToListItem(failedNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(hidden.error).toContain(BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER);
+        expect(hidden.error).not.toBe(signInExpired);
+        expect(hidden.error).not.toContain('user@example.com');
+        expect(hidden.subline).toBe(hidden.error);
+    });
+
+    test('a diagnostic that quotes SQL mentioning an expired sign-in is still never shown', () => {
+        const crafted = `Binder Error: column "missing_amount" not found\nLINE 1: SELECT 'sign-in has expired', SUM(missing_amount) OVER () FROM orders`;
+        const failedNodeRow = row({
+            ...duckdbNodeRow,
+            status: QueryHistoryStatus.ERROR,
+            error: crafted,
+        });
+        const hidden = mapQueryHistoryRowToListItem(failedNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(JSON.stringify(hidden)).not.toContain('missing_amount');
+        expect(hidden.error).not.toBe(crafted);
+    });
+
+    test('leaves a row without composer provenance alone whatever the access', () => {
+        const item = mapQueryHistoryRowToListItem(classicRow, {
+            canViewNodeSql: false,
+        });
+        expect(item.compiledSql).toBe(authoredSql.compiledSemantic);
+        expect(item.requestParameters).toEqual(classicRow.request_parameters);
+        expect(item.metricQuery).toEqual(nodeMetricQuery);
+    });
+});
+
+describe('history search and composer node SQL', () => {
+    const search = async (canViewNodeSql: boolean) => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on
+            .any(({ sql }) => sql.includes('WITH count_cte AS'))
+            .response({ rows: [{ count: '0' }] });
+        tracker.on.select('query_history').response([]);
+        try {
+            const model = new QueryHistoryModel({ database });
+            await model.findUserHistory(
+                'project',
+                'user',
+                { search: 'secret' },
+                { page: 1, pageSize: 10 },
+                { connection: null, canViewNodeSql },
+            );
+            await model.getUserHistoryCounts(
+                'project',
+                'user',
+                { search: 'secret' },
+                { connection: null, canViewNodeSql },
+            );
+            return tracker.history.all.map(({ sql }) => sql);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    };
+
+    test('a caller without SQL runner access cannot probe composer node SQL or fields through search', async () => {
+        const queries = await search(false);
+        expect(queries).toHaveLength(4);
+        for (const sql of queries) {
+            expect(sql).toMatch(
+                /'composerChartSource' is null and \("query_history"\."compiled_sql" ilike/,
+            );
+        }
+    });
+
+    test('a caller with SQL runner access searches compiled SQL on every row', async () => {
+        const queries = await search(true);
+        expect(queries).toHaveLength(4);
+        for (const sql of queries) {
+            expect(sql).toContain('"query_history"."compiled_sql" ilike');
+            expect(sql).not.toContain('composerChartSource');
         }
     });
 });

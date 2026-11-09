@@ -1,7 +1,6 @@
 import {
     AnyType,
     ApiErrorPayload,
-    ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiExecuteAsyncFieldValueSearchResults,
     ApiExecuteAsyncSqlQueryResults,
@@ -14,6 +13,7 @@ import {
     EstimateAsyncSqlQueryRequestParams,
     ExecuteAsyncSqlQueryRequestParams,
     ForbiddenError,
+    isComposerChartQueryResults,
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
     isJwtUser,
@@ -31,10 +31,11 @@ import {
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncComposeMergeQueryRequest,
+    type ApiExecuteAsyncDashboardChartQueryResultsVariant,
     type ApiExecuteAsyncMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
-    type ApiExecuteAsyncSavedChartQueryResults,
+    type ApiExecuteAsyncSavedChartQueryResultsVariant,
     type ApiJobScheduledResponse,
     type ApiQueryCostEstimateResponse,
     type ApiQueryHistoryListResponse,
@@ -523,7 +524,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncSavedChartRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiExecuteAsyncSavedChartQueryResults>> {
+    ): Promise<ApiSuccess<ApiExecuteAsyncSavedChartQueryResultsVariant>> {
         this.setStatus(200);
 
         const context = body.context ?? getContextFromHeader(req);
@@ -557,9 +558,15 @@ export class QueryController extends BaseController {
 
         return {
             status: 'ok',
-            results: this.services
-                .getAsyncQueryService()
-                .redactFieldsSqlForResponse(req.account!, projectUuid, results),
+            results: isComposerChartQueryResults(results)
+                ? results
+                : this.services
+                      .getAsyncQueryService()
+                      .redactFieldsSqlForResponse(
+                          req.account!,
+                          projectUuid,
+                          results,
+                      ),
         };
     }
 
@@ -582,7 +589,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncDashboardChartRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiExecuteAsyncDashboardChartQueryResults>> {
+    ): Promise<ApiSuccess<ApiExecuteAsyncDashboardChartQueryResultsVariant>> {
         this.setStatus(200);
 
         const context = body.context ?? getContextFromHeader(req);
@@ -609,9 +616,15 @@ export class QueryController extends BaseController {
 
         return {
             status: 'ok',
-            results: this.services
-                .getAsyncQueryService()
-                .redactFieldsSqlForResponse(req.account!, projectUuid, results),
+            results: isComposerChartQueryResults(results)
+                ? results
+                : this.services
+                      .getAsyncQueryService()
+                      .redactFieldsSqlForResponse(
+                          req.account!,
+                          projectUuid,
+                          results,
+                      ),
         };
     }
 

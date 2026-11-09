@@ -711,6 +711,20 @@ export const SEED_GROUP_2 = {
     name: 'Org 1 Editor Group',
 };
 
+// Dashboard-owned composer charts seeded for the viewer-run API tests
+export const SEED_COMPOSER_CHART_DASHBOARD = {
+    name: 'Dashboard with a composer chart',
+    slug: 'dashboard-with-a-composer-chart',
+};
+export const SEED_COMPOSER_CHART = {
+    /** A hand-authored custom metric, reshaped by a DuckDB node */
+    revenueShare: '[Composer] Revenue share by order status',
+    /** Reads a dimension gated by the is_admin user attribute */
+    customersByAge: '[Composer] Customers by age',
+    /** A permitted node ahead of the is_admin-gated one, joined by a DuckDB node */
+    revenueAndCustomers: '[Composer] Revenue and customers',
+};
+
 export type ArgumentsOf<F extends Function> = F extends (
     ...args: infer A
 ) => AnyType

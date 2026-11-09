@@ -16,6 +16,16 @@ export type SavedComposerPipelineNode = (
     | DuckdbSourceQuery
 ) & { nodeId: QueryNodeId };
 
+/** What a node's results are to the chart's viewer: only the terminal node and the appended chart stage are theirs to read. */
+export type ComposerChartNodeRole = 'input' | 'terminal' | 'chartStage';
+
+/** Recorded on a query-history row the server ran as a node of a composer chart; history hides such a row's SQL from callers without SQL runner access. */
+export type ComposerChartQuerySource = {
+    chartUuid: string;
+    nodeId: QueryNodeId;
+    role: ComposerChartNodeRole;
+};
+
 /** The pipeline a composer chart version stores: the presented node's closed snapshot and the node it shows. */
 export type SavedComposerPipeline = {
     schemaVersion: typeof SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION;
