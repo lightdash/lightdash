@@ -6087,11 +6087,36 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardControlRefKind: {
+        dataType: 'refEnum',
+        enums: ['filter', 'parameter', 'dateZoom', 'section'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardControlRefAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                newLine: { dataType: 'boolean' },
+                slug: { dataType: 'string', required: true },
+                kind: { ref: 'DashboardControlRefKind', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardConfigAsCode: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                controlOrder: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardControlRefAsCode',
+                    },
+                },
                 parameterControls: {
                     dataType: 'array',
                     array: {
@@ -6704,6 +6729,13 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     target: { ref: 'DashboardFieldTarget', required: true },
+                    slug: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     label: {
                         dataType: 'union',
                         subSchemas: [
@@ -6868,7 +6900,10 @@ const models: TsoaRoute.Models = {
                 { ref: 'DashboardFilterRule' },
                 {
                     dataType: 'nestedObjectLiteral',
-                    nestedProperties: { sectionSlug: { dataType: 'string' } },
+                    nestedProperties: {
+                        slug: { dataType: 'string' },
+                        sectionSlug: { dataType: 'string' },
+                    },
                 },
             ],
             validators: {},
@@ -9500,11 +9535,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardControlRefKind: {
-        dataType: 'refEnum',
-        enums: ['filter', 'parameter', 'dateZoom', 'section'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardControlRef: {

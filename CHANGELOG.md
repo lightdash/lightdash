@@ -1,3 +1,11 @@
+# [3.186.0](https://github.com/lightdash/lightdash/compare/3.185.2...3.186.0) (2026-11-09)
+
+
+### Features
+
+* **ai-agents:** read and edit the dashboard control order ([#32230](https://github.com/lightdash/lightdash/issues/32230)) ([8f36082](https://github.com/lightdash/lightdash/commit/8f360828fceebab4e467387baead9f9dcbc718ee))
+* **dashboards-as-code:** order dashboard controls in dashboard files ([#32229](https://github.com/lightdash/lightdash/issues/32229)) ([9691c67](https://github.com/lightdash/lightdash/commit/9691c67edc9676aff0a98cd7b09214a4f3f299c3))
+
 ## [3.185.2](https://github.com/lightdash/lightdash/compare/3.185.1...3.185.2) (2026-11-09)
 
 
