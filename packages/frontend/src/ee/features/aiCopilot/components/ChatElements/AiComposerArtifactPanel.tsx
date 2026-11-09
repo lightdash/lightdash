@@ -344,6 +344,9 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             terminalNodeId={config.terminalNodeId}
             displayableNodeIds={displayableNodeIds}
             nodeStatuses={nodeStatuses}
+            initialFocusNodeId={
+                initialView === 'lineage' ? config.terminalNodeId : null
+            }
             renderNodeResult={(nodeId) => {
                 const nodeQueryUuid = nodeQueryUuids?.[nodeId];
                 return nodeQueryUuid ? (
