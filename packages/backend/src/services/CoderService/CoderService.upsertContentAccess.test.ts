@@ -4181,7 +4181,7 @@ describe('CoderService dashboard control order as code', () => {
         expect(result.config?.controlOrder).toEqual(orderWithLines);
     });
 
-    it('moves a stored order ref to a section renamed in a flag-off upload', async () => {
+    it('matches a section renamed in a flag-off upload by its slug and keeps the stored order', async () => {
         const file = download(savedDashboard(), true);
         const result = await upload(
             {
@@ -4195,16 +4195,14 @@ describe('CoderService dashboard control order as code', () => {
             },
             { enabled: false },
         );
-        const sectionId = result.config!.controlSections![0].id;
-        expect(sectionId).not.toBe('section-id');
-        expect(result.config?.controlOrder).toEqual(
-            savedOrder.map((ref) =>
-                ref.id === 'section-id' ? { ...ref, id: sectionId } : ref,
-            ),
-        );
+        expect(result.config!.controlSections).toEqual([
+            { id: 'section-id', name: 'Dates', slug: 'calendar' },
+        ]);
+        expect(result.filters.dimensions[1].sectionId).toBe('section-id');
+        expect(result.config?.controlOrder).toBe(savedOrder);
     });
 
-    it('moves stored order refs to re-minted same-field filters in a flag-off upload', async () => {
+    it('keeps the stored order verbatim when a flag-off upload re-mints same-field filters', async () => {
         const base = savedDashboard();
         const [first, second] = base.filters.dimensions;
         const saved = {
@@ -4220,13 +4218,7 @@ describe('CoderService dashboard control order as code', () => {
         });
         const ids = result.filters.dimensions.map(({ id }) => id);
         expect(ids).not.toContain('first-id');
-        expect(result.config?.controlOrder).toEqual(
-            savedOrder.map((ref) => {
-                if (ref.id === 'first-id') return { ...ref, id: ids[0] };
-                if (ref.id === 'second-id') return { ...ref, id: ids[1] };
-                return ref;
-            }),
-        );
+        expect(result.config?.controlOrder).toBe(savedOrder);
     });
 
     it('never swaps the ids of two filters on one field after a UI reorder', async () => {
@@ -4884,7 +4876,7 @@ describe('CoderService dashboard control order as code', () => {
         ).toBe(message);
     });
 
-    it('looks up the flag for filter slugs alone and ignores them when it is off', async () => {
+    it('looks up the flag for filter slugs alone and drops them when it is off', async () => {
         const saved = withoutOrder();
         const { parameterControls: _controls, ...config } = saved.config!;
         const plain = { ...saved, config } as DashboardDAO;
@@ -5005,6 +4997,21 @@ describe('CoderService dashboard control order as code', () => {
             'second-id',
         ]);
         expect(result.filters.dimensions[0]).not.toHaveProperty('slug');
+    });
+
+    it('stores a hand-written metric filter without an id with the flag off', async () => {
+        const file = withOrder([{ kind: 'filter', slug: 'orders-total' }]);
+        const [{ id: _id, ...metric }] = file.filters!.metrics!;
+        const { slug: _slug, ...stored } = metric;
+        const result = await upload(
+            {
+                ...file,
+                filters: { ...file.filters, metrics: [metric as AnyType] },
+            },
+            { enabled: false },
+        );
+        expect(result.filters.metrics).toStrictEqual([stored]);
+        expect(result.config?.controlOrder).toBe(savedOrder);
     });
 
     it('keeps no ids from the source when uploading into another project', async () => {

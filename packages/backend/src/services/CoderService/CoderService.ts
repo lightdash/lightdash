@@ -36,7 +36,6 @@ import {
     DashboardAsCodeInternalization,
     DashboardAsCodeUpsertResult,
     DashboardChartTileAsCode,
-    DashboardControlRefKind,
     DashboardDAO,
     DashboardDataAppTileAsCode,
     DashboardFilterRule,
@@ -198,7 +197,6 @@ import {
     getFilterSlugsAsCode,
     getUploadedControlSlugs,
     rendersDefaultControlOrder,
-    withReplacedIds,
 } from './controlOrder';
 import {
     getConfigWithDateZoomTileSlugs,
@@ -5836,9 +5834,12 @@ export class CoderService extends BaseService {
             hasParameterControls ||
             dashboardWithDefaults.config?.controlOrder !== undefined ||
             existingDashboard?.config?.controlOrder !== undefined ||
+            dashboardWithDefaults.config?.controlSections !== undefined ||
+            existingDashboard?.config?.controlSections !== undefined ||
             [
                 ...dashboardWithDefaults.filters.dimensions,
                 ...dashboardWithDefaults.filters.metrics,
+                ...dashboardWithDefaults.filters.tableCalculations,
             ].some((filter) => filter.slug !== undefined)
         ) {
             const enabled =
@@ -5868,6 +5869,7 @@ export class CoderService extends BaseService {
         const dashboardWithResolvedSections = getDashboardWithSectionIds(
             dashboardWithDefaults,
             existingDashboard?.config,
+            controlsEnabled,
         );
         const { tabs: tabsWithUuids, tabUuidsBySlug } =
             CoderService.convertTabsWithSlugsToUuids(
@@ -5904,6 +5906,7 @@ export class CoderService extends BaseService {
             dashboardWithResolvedTabs,
             tilesWithUuids,
             existingDashboard?.filters.dimensions ?? [],
+            controlsEnabled,
         );
         let dashboardConfig: DashboardConfig | undefined;
         if (dashboardWithResolvedTabs.config) {
@@ -5934,27 +5937,7 @@ export class CoderService extends BaseService {
         }
         // Flag on, the file's order is declarative: absent resets to the default order
         const fileOrder = dashboardWithResolvedTabs.config?.controlOrder;
-        let controlOrder = withReplacedIds(
-            existingDashboard?.config?.controlOrder,
-            {
-                [DashboardControlRefKind.FILTER]: [
-                    ...(existingDashboard?.filters.dimensions ?? []),
-                    ...(existingDashboard?.filters.metrics ?? []),
-                ].map(({ id }) => id),
-                [DashboardControlRefKind.SECTION]: (
-                    existingDashboard?.config?.controlSections ?? []
-                ).map(({ id }) => id),
-            },
-            {
-                [DashboardControlRefKind.FILTER]: [
-                    ...dashboardFilters.dimensions,
-                    ...dashboardFilters.metrics,
-                ].map(({ id }) => id),
-                [DashboardControlRefKind.SECTION]: (
-                    dashboardConfig?.controlSections ?? []
-                ).map(({ id }) => id),
-            },
-        );
+        let controlOrder = existingDashboard?.config?.controlOrder;
         if (controlsEnabled) {
             const sources = {
                 filters: dashboardFilters,
