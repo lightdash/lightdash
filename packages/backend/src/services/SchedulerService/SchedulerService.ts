@@ -1127,6 +1127,7 @@ export class SchedulerService extends BaseService {
                 includeLinks: scheduler.includeLinks !== false,
                 plainTextEmail: scheduler.plainTextEmail === true,
                 isThresholdAlert: (scheduler.thresholds?.length ?? 0) > 0,
+                useCachedResults: scheduler.useCachedResults === true,
             },
         };
         this.analytics.track(updateSchedulerEventData);

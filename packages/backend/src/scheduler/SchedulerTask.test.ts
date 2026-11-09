@@ -4541,6 +4541,52 @@ describe('handleScheduledDelivery — app delivery capture', () => {
             'capturedQueryCount',
         );
     });
+
+    const trackedEvent = (track: Mock, name: string) =>
+        track.mock.calls
+            .map(([event]) => event)
+            .find((event: { event: string }) => event.event === name);
+
+    it.each([true, false])(
+        'tags started and completed events with useCachedResults %s',
+        async (useCachedResults) => {
+            const { task, track } = setup();
+
+            await run(
+                task,
+                appScheduler({
+                    useCachedResults,
+                    targets: [{ recipient: 'a@b.com' }],
+                }),
+            );
+
+            expect(
+                trackedEvent(track, 'scheduler_job.started').properties,
+            ).toMatchObject({ useCachedResults });
+            expect(completedEvent(track).properties).toMatchObject({
+                useCachedResults,
+            });
+        },
+    );
+
+    it('tags the failed event with useCachedResults', async () => {
+        const { task, track, getNotificationPageData } = setup();
+        getNotificationPageData.mockRejectedValue(new Error('render failed'));
+
+        await expect(
+            run(
+                task,
+                appScheduler({
+                    useCachedResults: true,
+                    targets: [{ recipient: 'a@b.com' }],
+                }),
+            ),
+        ).rejects.toThrow('render failed');
+
+        expect(
+            trackedEvent(track, 'scheduler_job.failed').properties,
+        ).toMatchObject({ useCachedResults: true });
+    });
 });
 
 describe('app delivery target senders', () => {
