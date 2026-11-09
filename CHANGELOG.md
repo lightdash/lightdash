@@ -1,3 +1,15 @@
+# [3.181.0](https://github.com/lightdash/lightdash/compare/3.180.1...3.181.0) (2026-11-09)
+
+
+### Bug Fixes
+
+* **agents:** remove per-role agent permission limits ([#32211](https://github.com/lightdash/lightdash/issues/32211)) ([23348e0](https://github.com/lightdash/lightdash/commit/23348e0d0967a9c4d52582e1bc604ff1b87707e7))
+
+
+### Features
+
+* **embed:** report rendered dashboard height to iframe hosts ([#32223](https://github.com/lightdash/lightdash/issues/32223)) ([b6555e0](https://github.com/lightdash/lightdash/commit/b6555e0fa63e40ded7a8db94717f624349cce5cd))
+
 ## [3.180.1](https://github.com/lightdash/lightdash/compare/3.180.0...3.180.1) (2026-11-09)
 
 

@@ -76124,59 +76124,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Record_OrganizationMemberRole.AgentCapability-Array_": {
-                "properties": {
-                    "member": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "viewer": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "interactive_viewer": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "editor": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "developer": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "admin": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "member",
-                    "viewer",
-                    "interactive_viewer",
-                    "editor",
-                    "developer",
-                    "admin"
-                ],
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "AgentSystemRoleMatrix": {
-                "$ref": "#/components/schemas/Record_OrganizationMemberRole.AgentCapability-Array_"
-            },
             "AgentCapabilityPolicyOverview": {
                 "properties": {
                     "mode": {
@@ -76201,12 +76148,6 @@
                         "type": "array",
                         "nullable": true
                     },
-                    "systemRoleMatrix": {
-                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
-                    },
-                    "defaults": {
-                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
-                    },
                     "groupsAvailable": {
                         "type": "boolean"
                     }
@@ -76216,8 +76157,6 @@
                     "version",
                     "allowedCapabilities",
                     "allowedGroupUuids",
-                    "systemRoleMatrix",
-                    "defaults",
                     "groupsAvailable"
                 ],
                 "type": "object",
@@ -76273,17 +76212,13 @@
                         },
                         "type": "array",
                         "nullable": true
-                    },
-                    "systemRoleMatrix": {
-                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
                     }
                 },
                 "required": [
                     "mode",
                     "version",
                     "allowedCapabilities",
-                    "allowedGroupUuids",
-                    "systemRoleMatrix"
+                    "allowedGroupUuids"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -76305,9 +76240,6 @@
             },
             "AgentCapabilityCeiling": {
                 "properties": {
-                    "systemRoleMatrix": {
-                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -76331,7 +76263,6 @@
                         "nullable": true
                     }
                 },
-                "required": ["systemRoleMatrix"],
                 "type": "object",
                 "additionalProperties": true
             },
@@ -76362,7 +76293,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.180.1",
+        "version": "3.181.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

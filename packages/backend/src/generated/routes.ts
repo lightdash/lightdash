@@ -81281,54 +81281,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_OrganizationMemberRole.AgentCapability-Array_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                member: {
-                    dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'AgentCapability' },
-                    required: true,
-                },
-                viewer: {
-                    dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'AgentCapability' },
-                    required: true,
-                },
-                interactive_viewer: {
-                    dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'AgentCapability' },
-                    required: true,
-                },
-                editor: {
-                    dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'AgentCapability' },
-                    required: true,
-                },
-                developer: {
-                    dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'AgentCapability' },
-                    required: true,
-                },
-                admin: {
-                    dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'AgentCapability' },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AgentSystemRoleMatrix: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Record_OrganizationMemberRole.AgentCapability-Array_',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AgentCapabilityPolicyOverview: {
         dataType: 'refObject',
         properties: {
@@ -81360,8 +81312,6 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
-            systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
-            defaults: { ref: 'AgentSystemRoleMatrix', required: true },
             groupsAvailable: { dataType: 'boolean', required: true },
         },
         additionalProperties: true,
@@ -81418,7 +81368,6 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
-            systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
         },
         additionalProperties: true,
     },
@@ -81435,7 +81384,6 @@ const models: TsoaRoute.Models = {
     AgentCapabilityCeiling: {
         dataType: 'refObject',
         properties: {
-            systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
             version: { dataType: 'double' },
             mode: {
                 dataType: 'union',
