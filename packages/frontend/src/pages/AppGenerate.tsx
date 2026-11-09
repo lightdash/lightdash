@@ -207,6 +207,22 @@ const AppResourceImage: FC<{
 
 const NO_THEME_LABEL = 'No theme';
 
+/** Your own prompts stay unsigned, with the time on hover; others stay named. */
+const UserMessageMeta: FC<{
+    message: ChatMessage;
+    currentUserUuid: string | null;
+}> = ({ message, currentUserUuid }) => {
+    const senderName =
+        message.userUuid === currentUserUuid ? null : message.userName;
+    return (
+        <ChatBubbleMeta
+            timestamp={message.timestamp}
+            userName={senderName}
+            className={senderName ? undefined : classes.userMetaOnHover}
+        />
+    );
+};
+
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);
     return (
@@ -975,10 +991,6 @@ const AppGenerate: FC = () => {
                     role: 'user',
                     content: prompt,
                     timestamp: new Date(),
-                    userName:
-                        [user.data?.firstName, user.data?.lastName]
-                            .filter((s): s is string => !!s && s.length > 0)
-                            .join(' ') || null,
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
@@ -1031,8 +1043,6 @@ const AppGenerate: FC = () => {
             invalidateAppData,
             resetIterate,
             modelRequest,
-            user.data?.firstName,
-            user.data?.lastName,
         ],
     );
 
@@ -1951,10 +1961,6 @@ const AppGenerate: FC = () => {
                     externalConnections: sentConnections,
                     dashboardName: sentDashboardName,
                     timestamp: new Date(),
-                    userName:
-                        [user.data?.firstName, user.data?.lastName]
-                            .filter((s): s is string => !!s && s.length > 0)
-                            .join(' ') || null,
                     // Snapshot the highest server version known at submit time.
                     // Once history catches up past this number the optimistic
                     // bubble is dropped by `mergeChatMessages` — even if the
@@ -2034,10 +2040,6 @@ const AppGenerate: FC = () => {
                     role: 'user',
                     content: text,
                     timestamp: new Date(),
-                    userName:
-                        [user.data?.firstName, user.data?.lastName]
-                            .filter((s): s is string => !!s && s.length > 0)
-                            .join(' ') || null,
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
@@ -2259,19 +2261,19 @@ const AppGenerate: FC = () => {
                                                         classes.userMessage
                                                     }
                                                 >
+                                                    <UserMessageMeta
+                                                        message={msg}
+                                                        currentUserUuid={
+                                                            user.data
+                                                                ?.userUuid ??
+                                                            null
+                                                        }
+                                                    />
                                                     <Box
                                                         className={
                                                             classes.userBubble
                                                         }
                                                     >
-                                                        <ChatBubbleMeta
-                                                            timestamp={
-                                                                msg.timestamp
-                                                            }
-                                                            userName={
-                                                                msg.userName
-                                                            }
-                                                        />
                                                         {msg.content === '' ? (
                                                             // Uploaded-from-source
                                                             // versions have no
@@ -2639,17 +2641,13 @@ const AppGenerate: FC = () => {
                                                             )
                                                         ) : msg.status !==
                                                           'error' ? (
-                                                            <Box
+                                                            <AiMarkdown
                                                                 className={
                                                                     classes.completionNote
                                                                 }
                                                             >
-                                                                <AiMarkdown>
-                                                                    {
-                                                                        msg.content
-                                                                    }
-                                                                </AiMarkdown>
-                                                            </Box>
+                                                                {msg.content}
+                                                            </AiMarkdown>
                                                         ) : (
                                                             renderFailedCard(
                                                                 msg.content,

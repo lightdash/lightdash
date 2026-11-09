@@ -204,9 +204,21 @@
     align-items: flex-end;
 }
 
-/* Each user prompt opens a new turn; give turns room to read as groups. */
-.userMessage:not(:first-child) {
-    margin-top: var(--mantine-spacing-md);
+/* Opacity, so the time's row stays reserved and also spaces out turns. */
+.userMetaOnHover {
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+
+.userMessage:hover .userMetaOnHover,
+.userMessage:focus-within .userMetaOnHover {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .userMetaOnHover {
+        opacity: 1;
+    }
 }
 
 .userBubble {
@@ -503,8 +515,52 @@
     color: var(--mantine-color-ldGray-5);
 }
 
-/* Assistant reply: inset to line up with the build rows above it. */
-.completionNote {
-    padding-inline: 12px;
-    --ai-markdown-padding-left: 0;
+/* Assistant reply: inset to line up with the build rows above it. Scoped under
+   the bubble to outrank the markdown component's own rules. */
+.assistantBubble .completionNote {
+    --ai-markdown-font-size: var(--mantine-font-size-sm);
+    --ai-markdown-padding-left: 12px;
+    padding-right: 12px;
+    line-height: 1.65;
+
+    & > div > * + * {
+        margin-top: 0.9em;
+    }
+
+    & > div > :is(p, ul, ol, blockquote, h1, h2, h3, h4, h5, h6) {
+        max-width: 70ch;
+    }
+
+    & > div :is(ul, ol) {
+        padding-left: 1.4em;
+    }
+
+    & > div :is(ul, ol) > li + li {
+        margin-top: 0.4em;
+    }
+
+    & > div > :is(h1, h2, h3, h4, h5, h6) {
+        margin-bottom: 0;
+        line-height: 1.35;
+    }
+
+    & > div > * + :is(h1, h2, h3, h4, h5, h6) {
+        margin-top: 1.5em;
+    }
+
+    & > div > :is(h1, h2, h3, h4, h5, h6) + * {
+        margin-top: 0.5em;
+    }
+
+    & > div > h1 {
+        font-size: var(--mantine-font-size-lg);
+    }
+
+    & > div > h2 {
+        font-size: var(--mantine-font-size-md);
+    }
+
+    & > div > :is(h3, h4, h5, h6) {
+        font-size: var(--mantine-font-size-sm);
+    }
 }
