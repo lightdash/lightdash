@@ -53,6 +53,7 @@ describe('buildAppleAppSiteAssociation', () => {
             { '/': '/projects/*/dashboards/*/view' },
             { '/': '/projects/*/spaces/*' },
             { '/': '/projects/*/ai-agents/*/threads/*' },
+            { '/': '/m/sign-in' },
         ]);
     });
 });
