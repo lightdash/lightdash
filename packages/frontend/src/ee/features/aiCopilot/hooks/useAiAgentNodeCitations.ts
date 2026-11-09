@@ -55,8 +55,8 @@ export const useAiAgentThreadComposerNodes = ({
         enabled,
         refetchOnWindowFocus: false,
     });
-    // A failed refetch keeps the last read; until a read succeeds citations stay plain text.
-    return query.data ?? NO_NODES;
+    // A failed refetch keeps the last read; a retried message streams as plain text.
+    return enabled ? (query.data ?? NO_NODES) : NO_NODES;
 };
 
 export const useAiAgentNodeCitationPipeline = (ref: NodeCitationRef) => {
