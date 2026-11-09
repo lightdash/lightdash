@@ -17,16 +17,20 @@ import { v4 as uuidv4 } from 'uuid';
 import { useStableCallback } from '../../hooks/useStableCallback';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    getSavedDateZoomSettings,
     useDashboardDateZoomConfig,
     useDashboardDateZoomGranularities,
     useDashboardStore,
+    useDefaultDateZoomGranularity,
 } from '../dashboard/store';
+import { selectDateZoomConfig } from '../dashboard/store/dashboardEditSelectors';
 import {
     DATE_ZOOM_ADD_SELECTOR,
     DATE_ZOOM_PILL_ATTRIBUTE,
     DATE_ZOOM_PILL_SELECTOR,
     DEFAULT_DATE_ZOOM_NAME,
     getDateZoomControl,
+    getZoomTileUuids,
     setZoomTiles,
     withDateZoomControl,
 } from './dateZoomControls';
@@ -93,6 +97,15 @@ export const DateZoomEditorProvider: FC<{
     const store = useDashboardStore();
     const config = useDashboardDateZoomConfig();
     const granularities = useDashboardDateZoomGranularities();
+    const defaultGranularity = useDefaultDateZoomGranularity();
+    const dashboardConfig = useDashboardContext((c) => c.dashboard?.config);
+    const savedConfig = useMemo(
+        () => getSavedDateZoomSettings(dashboardConfig).dateZoomConfig,
+        [dashboardConfig],
+    );
+    // At call time: an Apply earlier in the same event (a switch) counts
+    const readConfig = () =>
+        selectDateZoomConfig(store.getState(), savedConfig);
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
     const setControlGranularity = useDashboardContext(
         (c) => c.setControlGranularity,
@@ -108,6 +121,12 @@ export const DateZoomEditorProvider: FC<{
     const [pending, setPending] = useState<{ proceed: () => void } | null>(
         null,
     );
+    // A zoom removed from outside: its stale draft is dropped, so a later
+    // mode change has nothing to apply. Adjusted in render, not an effect
+    if (state !== null && edit === null && !isViewer) {
+        setState(null);
+        setPending(null);
+    }
     const isAsking = edit !== null && pending !== null;
     const latest = useRef(edit);
     latest.current = edit;
@@ -143,8 +162,8 @@ export const DateZoomEditorProvider: FC<{
         const current = latest.current;
         if (current === null) return;
         // A zoom left with no tile is dropped, as the shipped Save does
-        if (current.isNew || isDirty(current))
-            setDateZoomConfig(pruneDateZoomConfig(current.draft));
+        const next = pruneDateZoomConfig(current.draft);
+        if (!isEqual(next, readConfig())) setDateZoomConfig(next);
         end(current.uuid);
     });
 
@@ -155,14 +174,16 @@ export const DateZoomEditorProvider: FC<{
             else cancel();
             return;
         }
-        const proceed = () =>
+        const proceed = () => {
+            const latestConfig = readConfig();
             start({
                 uuid,
                 isNew: false,
-                snapshot: config,
-                draft: config,
+                snapshot: latestConfig,
+                draft: latestConfig,
                 mapping: null,
             });
+        };
         // Another zoom: a clean edit switches, else the popover asks
         if (current !== null && isDirty(current)) {
             setPending({ proceed });
@@ -174,10 +195,12 @@ export const DateZoomEditorProvider: FC<{
 
     const add = useStableCallback(() => {
         const uuid = uuidv4();
-        const draft = withDateZoomControl(config, {
+        // As the shipped "Add date zoom"
+        const draft = withDateZoomControl(readConfig(), {
             uuid,
             name: DEFAULT_DATE_ZOOM_NAME,
-            granularity: granularities[0] ?? DateGranularity.MONTH,
+            granularity:
+                defaultGranularity ?? granularities[0] ?? DateGranularity.MONTH,
         });
         start({ uuid, isNew: true, snapshot: draft, draft, mapping: null });
     });
@@ -196,15 +219,17 @@ export const DateZoomEditorProvider: FC<{
     const remove = useStableCallback(() => {
         const current = latest.current;
         if (current === null) return;
-        if (!current.isNew)
+        if (!current.isNew) {
+            const saved = readConfig();
             setDateZoomConfig(
                 pruneDateZoomConfig({
-                    ...config,
-                    controls: config.controls.filter(
+                    ...saved,
+                    controls: saved.controls.filter(
                         ({ uuid }) => uuid !== current.uuid,
                     ),
                 }),
             );
+        }
         // Its pill is gone: focus goes to "Add date zoom"
         end(current.uuid);
     });
@@ -384,9 +409,12 @@ export const DateZoomEditorProvider: FC<{
         lastIsViewer.current = isViewer;
         const previous = unsettled.current;
         if (previous === null) return;
-        latest.current = previous;
-        latestPending.current = null;
-        apply();
+        // A zoom with no tile is dropped as Cancel does: never applied
+        if (getZoomTileUuids(previous.draft, previous.uuid).length > 0) {
+            latest.current = previous;
+            latestPending.current = null;
+            apply();
+        }
         end(null);
     }, [isViewer, apply]);
 

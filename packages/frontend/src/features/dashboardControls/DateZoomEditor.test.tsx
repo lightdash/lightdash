@@ -85,7 +85,11 @@ const config: DateZoomConfig = {
 
 const setup = ({
     controlGranularities,
-}: { controlGranularities?: Record<string, string> } = {}) => {
+    defaultDateZoomGranularity,
+}: {
+    controlGranularities?: Record<string, string>;
+    defaultDateZoomGranularity?: DateGranularity;
+} = {}) => {
     const store = createDashboardTestStore({
         isEditMode: true,
         chartZoomableFieldsByTileUuid: {
@@ -104,19 +108,24 @@ const setup = ({
             DateGranularity.WEEK,
             DateGranularity.MONTH,
         ],
+        defaultDateZoomGranularity,
     });
     const user = userEvent.setup();
-    renderWithProviders(
+    const ui = (isViewer: boolean) => (
         <DashboardStoreTestProvider store={store}>
-            <DateZoomEditorProvider isViewer={false}>
+            <DateZoomEditorProvider isViewer={isViewer}>
                 <button data-controls-pill="filter-1">Country filter</button>
                 <DateZoomEditorPills />
             </DateZoomEditorProvider>
-        </DashboardStoreTestProvider>,
+        </DashboardStoreTestProvider>
     );
+    const { rerender } = renderWithProviders(ui(false));
+    // Browser Back, without a remount
+    const leaveEditMode = () => rerender(ui(true));
     const saved = () =>
         selectDateZoomConfig(store.getState(), EMPTY_DATE_ZOOM_CONFIG);
-    return { store, user, saved };
+    const isChanged = () => store.getState().edit.dateZoomConfig?.changed;
+    return { store, user, saved, isChanged, leaveEditMode };
 };
 
 const pill = (uuid: string) =>
@@ -283,5 +292,71 @@ describe('editing a date zoom in the controls editor', () => {
         );
         expect(saved().controls[0].granularity).toBe('Week');
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it("Apply on the switch question keeps that zoom's change in the next one's draft", async () => {
+        const { user, saved } = setup();
+        await user.click(pill('revenue'));
+        await pickGranularity(user, 'Day');
+        await user.click(pill('orders'));
+        await user.click(
+            within(screen.getByRole('status').parentElement!).getByRole(
+                'button',
+                { name: 'Apply' },
+            ),
+        );
+        expect(
+            screen.getByRole('dialog', { name: 'Orders zoom' }),
+        ).toBeInTheDocument();
+        await pickGranularity(user, 'Month');
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+        expect(
+            saved().controls.map(({ uuid, granularity }) => [
+                uuid,
+                granularity,
+            ]),
+        ).toEqual([
+            ['revenue', 'Day'],
+            ['orders', 'Month'],
+        ]);
+    });
+
+    it("a new zoom starts on the dashboard's default grain, as shipped", async () => {
+        const { user } = setup({
+            defaultDateZoomGranularity: DateGranularity.WEEK,
+        });
+        await user.click(screen.getByRole('button', { name: 'Add date zoom' }));
+        await user.keyboard('{Enter}');
+        expect(
+            screen.getByRole('combobox', { name: 'Granularity' }),
+        ).toHaveValue('Week');
+    });
+
+    describe('leaving edit mode while a zoom is open', () => {
+        it('applies an edit with tiles', async () => {
+            const { user, saved, leaveEditMode } = setup();
+            await user.click(pill('revenue'));
+            await pickGranularity(user, 'Day');
+            leaveEditMode();
+            expect(saved().controls[0].granularity).toBe('Day');
+        });
+
+        it('drops a new zoom with no tile', async () => {
+            const { user, saved, isChanged, leaveEditMode } = setup();
+            await user.click(
+                screen.getByRole('button', { name: 'Add date zoom' }),
+            );
+            leaveEditMode();
+            expect(saved()).toEqual(config);
+            expect(isChanged()).toBe(false);
+        });
+
+        it('writes nothing for an unchanged edit', async () => {
+            const { user, saved, isChanged, leaveEditMode } = setup();
+            await user.click(pill('revenue'));
+            leaveEditMode();
+            expect(saved()).toEqual(config);
+            expect(isChanged()).toBe(false);
+        });
     });
 });

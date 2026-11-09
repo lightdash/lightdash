@@ -198,9 +198,15 @@ switch selectors, and each other control's pill is in this one's).
 - Opening clears that zoom's runtime grain (`setControlGranularity(uuid,
   undefined)`), so after Apply the tiles show the edited grain, not a pick
   from view mode. Nothing reaches the tiles before Apply.
-- "Add date zoom" opens a new zoom ("Date zoom", the first enabled grain)
+- "Add date zoom" opens a new zoom ("Date zoom", the dashboard's default
+  grain, else the first enabled one, as shipped)
   with its name input focused; it joins the bar on Apply, Cancel leaves
   nothing. It is inert while any control is edited, as "Add filter".
 - In edit mode a named pill has no grain menu and no eye segment; a hidden
   one shows `IconEyeOff` muted, as a hidden parameter. View mode and embed
   editors keep the shipped `DateZoomControlPills`.
+- Switching and Remove read the config from the store at call time, so a
+  zoom applied on the switch question is in the next zoom's draft. Apply
+  writes only when the pruned draft differs from the store. Leaving edit
+  mode applies the edit, unless the zoom has no tile: then it is dropped as
+  Cancel does.
