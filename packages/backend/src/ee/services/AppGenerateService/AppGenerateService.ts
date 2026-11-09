@@ -14474,14 +14474,18 @@ export class AppGenerateService extends BaseService {
                         'Custom app dependencies are not enabled for your organization. An organization administrator can turn them on in Settings under Data apps > General.',
                     );
                 }
-                // Minimum-release-age guard over the whole resolved tree
-                // (LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS; 0 disables).
+                // Minimum-release-age guard (no-op unless the instance opts in
+                // via LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS): reject
+                // custom packages whose resolved version is too freshly
+                // published to trust.
                 const lockfilePackages = extractLockfilePackages(
                     code.dependencies.lockfile,
                 );
                 try {
                     await assertDependenciesMeetMinReleaseAge({
-                        packages: lockfilePackages,
+                        packages: lockfilePackages.filter(
+                            (p) => customDeps[p.name] !== undefined,
+                        ),
                         minReleaseAgeDays:
                             this.lightdashConfig.appRuntime
                                 .dependencyMinReleaseAgeDays,

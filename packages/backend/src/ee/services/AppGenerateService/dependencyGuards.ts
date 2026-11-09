@@ -34,15 +34,15 @@ export const registryPackumentUrl = (host: string, name: string): string => {
 };
 
 /**
- * Rejects the upload if any given package version was published more recently
- * than `minReleaseAgeDays`, per npm registry metadata. Callers pass every
- * resolved package (direct and transitive). Guards against installing
- * freshly-published (potentially compromised) versions before advisory feeds
- * catch up.
+ * Rejects the upload if any declared custom dependency's resolved version was
+ * published more recently than `minReleaseAgeDays`, per npm registry metadata.
+ * Guards against installing freshly-published (potentially compromised)
+ * versions before advisory feeds catch up.
  *
- * A non-positive `minReleaseAgeDays` makes this a no-op. Otherwise it fails
- * CLOSED: if a version's publish date can't be verified (registry error,
- * truncation, unknown version) the upload is rejected.
+ * Opt-in: a non-positive `minReleaseAgeDays` (the default) makes this a no-op,
+ * so instances that don't enable it pay no registry round-trips. When enabled
+ * it fails CLOSED — if a version's publish date can't be verified (registry
+ * error, truncation, unknown version) the upload is rejected.
  */
 export async function assertDependenciesMeetMinReleaseAge(args: {
     packages: LockfilePackage[];
@@ -89,7 +89,7 @@ export async function assertDependenciesMeetMinReleaseAge(args: {
             const published = timeMap[version];
             if (!published) {
                 throw new ParameterError(
-                    `Could not find a publish date for "${name}@${version}" in the registry, so its release age cannot be verified. This instance enforces a minimum dependency age (LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS).`,
+                    `Could not find a publish date for "${name}@${version}" in the registry, so its release age cannot be verified.`,
                 );
             }
             const ageMs = now - new Date(published).getTime();
