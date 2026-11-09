@@ -124,10 +124,19 @@ export const getDashboardWithSectionSlugs = (
 export const getDashboardWithSectionIds = (
     dashboard: DashboardAsCode,
     existing: DashboardConfig | undefined,
+    controlsEnabled: boolean,
 ): DashboardWithSectionIds => {
     const sections = dashboard.config?.controlSections ?? [];
     const existingSections = existing?.controlSections ?? [];
     const stableIds = getStableIds(sections, existingSections, sectionBase);
+    // Flag off keeps the legacy match on stored slugs and persists the slug
+    const existingSlugs = sectionSlugs(existingSections);
+    const existingBySlug = new Map(
+        existingSections.map((section, index) => [
+            existingSlugs[index],
+            section.id,
+        ]),
+    );
     const legacyIds = new Set(sections.flatMap(({ id }) => id ?? []));
     const ids = new Set<string>();
     const idBySlug = new Map<string, string>();
@@ -142,20 +151,37 @@ export const getDashboardWithSectionIds = (
                     `Dashboard section slug "${slug}" is duplicated`,
                 );
         }
+        const matchedId =
+            controlsEnabled || slug === undefined
+                ? undefined
+                : existingBySlug.get(slug);
+        if (id !== undefined && matchedId !== undefined && id !== matchedId)
+            throw new ParameterError(
+                `Dashboard section slug "${slug}" conflicts with id "${id}"`,
+            );
         if (id === '' || (slug === undefined && id === undefined))
             throw new ParameterError(
                 'A dashboard section needs a slug or legacy id',
             );
-        const resolvedId =
-            id ??
-            (legacyIds.has(stableIds[index]) ? uuidv4() : stableIds[index]);
+        const resolvedId = controlsEnabled
+            ? (id ??
+              (legacyIds.has(stableIds[index]) ? uuidv4() : stableIds[index]))
+            : (matchedId ?? id ?? uuidv4());
         if (ids.has(resolvedId))
             throw new ParameterError(
                 `Dashboard section id "${resolvedId}" is duplicated`,
             );
         ids.add(resolvedId);
         if (slug !== undefined) idBySlug.set(slug, resolvedId);
-        return { ...section, id: resolvedId };
+        if (controlsEnabled) return { ...section, id: resolvedId };
+        const savedSlug =
+            slug ??
+            existingSections.find((item) => item.id === resolvedId)?.slug;
+        return {
+            ...section,
+            id: resolvedId,
+            ...(savedSlug !== undefined && { slug: savedSlug }),
+        };
     });
     const resolveSlug = (slug: string): string => {
         const id = idBySlug.get(slug);

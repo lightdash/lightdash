@@ -609,6 +609,7 @@ describe('CoderService', () => {
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
                 [],
+                true,
             );
 
             expect(result.dimensions[0].tileTargets).toEqual({
@@ -663,6 +664,7 @@ describe('CoderService', () => {
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
                 [],
+                true,
             );
 
             // We show an error for chart-slug-2
@@ -700,6 +702,7 @@ describe('CoderService', () => {
                 { filters: asCode } as AnyType,
                 [],
                 [],
+                true,
             );
             expect(result.metrics[0]).toEqual(rule);
             expect(result.tableCalculations[0]).toEqual(rule);
@@ -729,7 +732,7 @@ describe('CoderService', () => {
             );
         });
 
-        it('uploads without adding tile targets, mints a missing metric id and drops table calculation slugs', () => {
+        it('uploads without adding tile targets, mints a missing metric id for an order and drops table calculation slugs', () => {
             const { id: _id, ...withoutId } = metric;
             const result = CoderService.getFiltersWithTileUuids(
                 {
@@ -737,13 +740,33 @@ describe('CoderService', () => {
                         metrics: [withoutId],
                         tableCalculations: [{ ...metric, slug: 'calc' }],
                     },
+                    config: { controlOrder: [] },
                 } as AnyType,
                 [],
                 [],
+                true,
             );
             expect(result.metrics[0]).not.toHaveProperty('tileTargets');
             expect(result.metrics[0].id).toMatch(/^[0-9a-f-]{36}$/);
             expect(result.tableCalculations[0]).toStrictEqual(metric);
+        });
+
+        it('stores filters as written with the flag off', () => {
+            const { id: _id, ...withoutId } = metric;
+            const filters = {
+                metrics: [{ ...withoutId, slug: 'total' }],
+                tableCalculations: [{ ...metric, slug: 'calc' }],
+            };
+            const result = CoderService.getFiltersWithTileUuids(
+                { filters, config: { controlOrder: [] } } as AnyType,
+                [],
+                [],
+                false,
+            );
+            expect(result.metrics).toStrictEqual(filters.metrics);
+            expect(result.tableCalculations).toStrictEqual(
+                filters.tableCalculations,
+            );
         });
     });
 
@@ -766,6 +789,7 @@ describe('CoderService', () => {
                 } as AnyType,
                 [],
                 savedFilters,
+                true,
             ).dimensions.map(({ id }) => id);
 
         it('keeps every id for an unchanged file', () => {
@@ -869,6 +893,7 @@ describe('CoderService', () => {
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
                 [],
+                true,
             );
 
             expect(restoredFilters.dimensions[0].tileTargets).toEqual({
@@ -933,6 +958,7 @@ describe('CoderService', () => {
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
                 [],
+                true,
             );
 
             // The target aimed at tile 2 resolves to tile 2's new uuid,
@@ -2161,6 +2187,7 @@ describe('CoderService', () => {
             const restoredSections = getDashboardWithSectionIds(
                 exported,
                 dashboard.config as unknown as DashboardDAO['config'],
+                true,
             );
             const importedTiles = exported.tiles.map(
                 (tile: AnyType, index: number) => ({

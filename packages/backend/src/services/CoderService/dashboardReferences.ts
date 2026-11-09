@@ -149,22 +149,32 @@ export const getFiltersWithTileUuids = (
     dashboard: DashboardAsCode,
     tiles: DashboardTileWithSlug[],
     savedDimensionFilters: DashboardFilterRule[],
+    controlsEnabled: boolean,
 ): DashboardDAO['filters'] => {
     const dimensions = dashboard.filters?.dimensions ?? [];
     const ids = getStableDimensionFilterIds(dimensions, savedDimensionFilters);
-    // A file's slugs only resolve refs inside it
+    // Flag on, a file's slugs only resolve refs inside it; flag off stores the filter as written
+    const withoutSlug = <T extends { slug?: string }>(
+        filter: T,
+    ): Omit<T, 'slug'> => {
+        if (!controlsEnabled) return filter;
+        const { slug: _slug, ...rest } = filter;
+        return rest;
+    };
+    const metrics = (dashboard.filters?.metrics ?? []).map(withoutSlug);
     return {
         // Hand-written metric filters can omit the id an order ref needs
-        metrics: (dashboard.filters?.metrics ?? []).map(
-            ({ slug: _slug, ...filter }) => ({
-                ...filter,
-                id: filter.id || uuidv4(),
-            }),
-        ),
+        metrics:
+            controlsEnabled && dashboard.config?.controlOrder !== undefined
+                ? metrics.map((filter) => ({
+                      ...filter,
+                      id: filter.id || uuidv4(),
+                  }))
+                : metrics,
         tableCalculations: (dashboard.filters?.tableCalculations ?? []).map(
-            ({ slug: _slug, ...filter }) => filter,
+            withoutSlug,
         ),
-        dimensions: dimensions.map(({ slug: _slug, ...filter }, index) => ({
+        dimensions: dimensions.map(withoutSlug).map((filter, index) => ({
             ...filter,
             id: ids[index],
             tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<

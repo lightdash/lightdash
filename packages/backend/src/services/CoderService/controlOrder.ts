@@ -142,33 +142,6 @@ export const getControlOrderAsCode = (
     );
 };
 
-type ControlIds = Record<
-    DashboardControlRefKind.FILTER | DashboardControlRefKind.SECTION,
-    string[]
->;
-
-/** With the flag off the stored order is kept; a control an upload re-minted takes the ref of the one that held its place in its list */
-export const withReplacedIds = (
-    order: DashboardControlRef[] | undefined,
-    before: ControlIds,
-    after: ControlIds,
-): DashboardControlRef[] | undefined => {
-    if (!Array.isArray(order)) return order;
-    const replacements = new Map<string, string>();
-    (Object.keys(before) as (keyof ControlIds)[]).forEach((kind) => {
-        const gone = before[kind].filter((id) => !after[kind].includes(id));
-        const added = after[kind].filter((id) => !before[kind].includes(id));
-        gone.forEach((id, index) => {
-            if (index < added.length)
-                replacements.set(`${kind}:${id}`, added[index]);
-        });
-    });
-    return order.map((ref) => {
-        const id = replacements.get(`${ref.kind}:${ref.id}`);
-        return id === undefined ? ref : { ...ref, id };
-    });
-};
-
 const isOrderableKind = (kind: unknown): kind is OrderableKind =>
     ORDERABLE_KINDS.includes(kind as OrderableKind);
 
