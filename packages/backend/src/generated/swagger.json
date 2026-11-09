@@ -9831,8 +9831,37 @@
                 "required": ["parameters", "valueType", "value", "label", "id"],
                 "type": "object"
             },
+            "DashboardControlRefKind": {
+                "description": "Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds\nmay be added, so consumers must ignore a kind they don't know. Request\nvalidation rejects unknown values, so a new kind ships in a release before\nanything writes it.",
+                "enum": ["filter", "parameter", "dateZoom", "section"],
+                "type": "string"
+            },
+            "DashboardControlRef": {
+                "properties": {
+                    "newLine": {
+                        "type": "boolean",
+                        "description": "Starts a new bar line; absent, it shares the line of the control before it. On a section member it passes to the next loose entry in the list"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "The control's id: filter rule id, parameter control id, date zoom control uuid or section id"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/DashboardControlRefKind"
+                    }
+                },
+                "required": ["id", "kind"],
+                "type": "object"
+            },
             "DashboardConfig": {
                 "properties": {
+                    "controlOrder": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardControlRef"
+                        },
+                        "type": "array",
+                        "description": "How controls of every kind interleave on the bar. A hint: readers reconcile\nit with the controls' arrays and sections. Absent: the default order."
+                    },
                     "parameterControls": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardParameterControl"
@@ -76318,7 +76347,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.183.0",
+        "version": "3.184.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

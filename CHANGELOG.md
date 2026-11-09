@@ -1,3 +1,10 @@
+# [3.184.0](https://github.com/lightdash/lightdash/compare/3.183.0...3.184.0) (2026-11-09)
+
+
+### Features
+
+* **dashboard-controls:** keep a stored control order on every save ([#32193](https://github.com/lightdash/lightdash/issues/32193)) ([557e54c](https://github.com/lightdash/lightdash/commit/557e54cf46d1dd243e13c92fad3fd11004e4727f))
+
 # [3.183.0](https://github.com/lightdash/lightdash/compare/3.182.1...3.183.0) (2026-11-09)
 
 

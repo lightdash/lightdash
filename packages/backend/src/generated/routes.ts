@@ -9502,11 +9502,33 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardControlRefKind: {
+        dataType: 'refEnum',
+        enums: ['filter', 'parameter', 'dateZoom', 'section'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardControlRef: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                newLine: { dataType: 'boolean' },
+                id: { dataType: 'string', required: true },
+                kind: { ref: 'DashboardControlRefKind', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                controlOrder: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DashboardControlRef' },
+                },
                 parameterControls: {
                     dataType: 'array',
                     array: {
