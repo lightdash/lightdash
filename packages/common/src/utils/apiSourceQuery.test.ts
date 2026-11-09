@@ -482,6 +482,15 @@ describe('getApiSourceQueryIssues with declared capabilities', () => {
         ]);
     });
 
+    test.each(['project_timezone', 'user_timezone'])(
+        'lets a saved chart keep its %s setting where the source reports in its own',
+        (timezone) => {
+            expect(
+                getApiSourceQueryIssues(declared, query({ timezone })),
+            ).toEqual([]);
+        },
+    );
+
     test('refuses a time zone override where the source reports in its own', () => {
         const issues = getApiSourceQueryIssues(
             declared,
