@@ -15521,7 +15521,15 @@
             },
             "ApiConnectorType": {
                 "description": "The external APIs an api query source can call live.",
-                "enum": ["posthog", "search_console", "ga4"],
+                "enum": [
+                    "posthog",
+                    "search_console",
+                    "ga4",
+                    "meta_ads",
+                    "google_ads",
+                    "youtube_analytics",
+                    "linkedin_ads"
+                ],
                 "type": "string"
             },
             "GoogleLiveSourceChoice": {
@@ -15617,6 +15625,79 @@
                 "required": ["propertyId", "connector"],
                 "type": "object"
             },
+            "ApiConnectorType.META_ADS": {
+                "enum": ["meta_ads"],
+                "type": "string"
+            },
+            "MetaAdsApiSource": {
+                "properties": {
+                    "adAccountId": {
+                        "type": "string",
+                        "description": "The numeric ad account id, without the act_ prefix."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.META_ADS"
+                    }
+                },
+                "required": ["adAccountId", "connector"],
+                "type": "object"
+            },
+            "ApiConnectorType.GOOGLE_ADS": {
+                "enum": ["google_ads"],
+                "type": "string"
+            },
+            "GoogleAdsApiSource": {
+                "properties": {
+                    "loginCustomerId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The manager account the sign-in reaches the customer through, if any."
+                    },
+                    "customerId": {
+                        "type": "string",
+                        "description": "The 10-digit Google Ads customer id, without dashes."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.GOOGLE_ADS"
+                    }
+                },
+                "required": ["loginCustomerId", "customerId", "connector"],
+                "type": "object"
+            },
+            "ApiConnectorType.YOUTUBE_ANALYTICS": {
+                "enum": ["youtube_analytics"],
+                "type": "string"
+            },
+            "YoutubeAnalyticsApiSource": {
+                "properties": {
+                    "channelId": {
+                        "type": "string",
+                        "description": "The YouTube channel id, starting with UC."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.YOUTUBE_ANALYTICS"
+                    }
+                },
+                "required": ["channelId", "connector"],
+                "type": "object"
+            },
+            "ApiConnectorType.LINKEDIN_ADS": {
+                "enum": ["linkedin_ads"],
+                "type": "string"
+            },
+            "LinkedInAdsApiSource": {
+                "properties": {
+                    "adAccountId": {
+                        "type": "string",
+                        "description": "The numeric LinkedIn ad account id, as shown in Campaign Manager."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.LINKEDIN_ADS"
+                    }
+                },
+                "required": ["adAccountId", "connector"],
+                "type": "object"
+            },
             "ExternalConnectionApiSource": {
                 "anyOf": [
                     {
@@ -15627,6 +15708,18 @@
                     },
                     {
                         "$ref": "#/components/schemas/Ga4ApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MetaAdsApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/GoogleAdsApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/YoutubeAnalyticsApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/LinkedInAdsApiSource"
                     }
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
@@ -76457,7 +76550,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.189.0",
+        "version": "3.190.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

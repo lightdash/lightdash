@@ -1,3 +1,18 @@
+# [3.190.0](https://github.com/lightdash/lightdash/compare/3.189.0...3.190.0) (2026-11-09)
+
+
+### Bug Fixes
+
+* **live-sources:** keep saved charts running on fixed-timezone sources ([#32264](https://github.com/lightdash/lightdash/issues/32264)) ([e8c3cc0](https://github.com/lightdash/lightdash/commit/e8c3cc08773cafcef81007706088cf8f6a7249ed))
+
+
+### Features
+
+* **live-sources:** add Google Ads live data source ([#32253](https://github.com/lightdash/lightdash/issues/32253)) ([6f3ace7](https://github.com/lightdash/lightdash/commit/6f3ace79fad1397a188a8f708293f87279147ca6))
+* **live-sources:** add LinkedIn Ads live data source ([#32267](https://github.com/lightdash/lightdash/issues/32267)) ([7c73f39](https://github.com/lightdash/lightdash/commit/7c73f3918b3b1699427fdf5e586bf5569d432f1f))
+* **live-sources:** add Meta Ads live data source ([#32255](https://github.com/lightdash/lightdash/issues/32255)) ([d61ca3c](https://github.com/lightdash/lightdash/commit/d61ca3c292150d61cc7fc5049da652c7afcf0b2b))
+* **live-sources:** add YouTube Analytics live data source ([#32266](https://github.com/lightdash/lightdash/issues/32266)) ([d34d909](https://github.com/lightdash/lightdash/commit/d34d90956f2791352f2f41b0d04c01a5391a114a))
+
 # [3.189.0](https://github.com/lightdash/lightdash/compare/3.188.0...3.189.0) (2026-11-09)
 
 
