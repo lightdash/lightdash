@@ -499,8 +499,27 @@ describe('Composer chart run as a dashboard viewer', () => {
             return rows;
         };
 
-        const nodeSql = (row: QueryHistoryListItem): string | null =>
-            'sql' in row.requestParameters ? row.requestParameters.sql : null;
+        // The authored SQL the fixture stores: the semantic node's custom
+        // metric and the DuckDB node's window expression
+        const authoredSqlFragments = [
+            `${fieldReference('TABLE')}.amount * 2`,
+            'SUM(orders_total_order_amount) OVER ()',
+        ];
+        const sqlFragmentsIn = (rows: QueryHistoryListItem[]): string[] => {
+            const text = JSON.stringify(rows);
+            return authoredSqlFragments.filter((fragment) =>
+                text.includes(JSON.stringify(fragment).slice(1, -1)),
+            );
+        };
+        const expectNoSql = (rows: QueryHistoryListItem[]) => {
+            expect(sqlFragmentsIn(rows)).toEqual([]);
+            expect(JSON.stringify(rows)).not.toMatch(/\bselect\b/i);
+            for (const row of rows) {
+                expect(row.compiledSql).toBe('');
+                expect(row.metricQuery).toBeNull();
+                expect(row.requestParameters).toMatchObject({ redacted: true });
+            }
+        };
 
         const runTileAndListNodeRows = async (client: ApiClient) => {
             const started = await runTile(client, revenueShareTile);
@@ -523,24 +542,37 @@ describe('Composer chart run as a dashboard viewer', () => {
             return { duckdbRow, semanticRow };
         };
 
-        it('a viewer sees the node rows without compiled SQL, node SQL or an SQL subline', async () => {
+        it('a viewer sees node rows with no authored or compiled SQL anywhere in them', async () => {
             const { duckdbRow, semanticRow } =
                 await runTileAndListNodeRows(viewer);
-            expect(duckdbRow.compiledSql).toBe('');
-            expect(nodeSql(duckdbRow)).toBe('');
+            expectNoSql([duckdbRow, semanticRow]);
             expect(duckdbRow.title).toBe('SQL query');
-            expect(duckdbRow.subline).not.toMatch(/select/i);
-            expect(semanticRow.compiledSql).toBe('');
-            expect(nodeSql(semanticRow)).toBeNull();
+            expect(duckdbRow.subline).toBe('');
             expect(semanticRow.exploreName).toBe('orders');
+            expect(semanticRow.requestParameters).toEqual({
+                redacted: true,
+                context: QueryExecutionContext.DASHBOARD,
+                chartUuid: revenueShareTile.chartUuid,
+                // Node rows record the chart, not the dashboard they ran on
+                dashboardUuid: null,
+                composerChartSource: {
+                    chartUuid: revenueShareTile.chartUuid,
+                    nodeId: 'orders',
+                },
+            });
         }, 60_000);
 
-        it('a user with SQL runner access sees the node SQL', async () => {
+        it('a user with SQL runner access sees every authored SQL string', async () => {
             const { duckdbRow, semanticRow } =
                 await runTileAndListNodeRows(admin);
+            expect(sqlFragmentsIn([duckdbRow, semanticRow])).toEqual(
+                authoredSqlFragments,
+            );
             expect(duckdbRow.compiledSql).toMatch(/select/i);
-            expect(nodeSql(duckdbRow)).toMatch(/revenue_share/);
             expect(semanticRow.compiledSql).toMatch(/select/i);
+            expect(semanticRow.metricQuery).toMatchObject({
+                exploreName: 'orders',
+            });
         }, 60_000);
 
         it('a classic chart run keeps its compiled SQL for the viewer', async () => {
@@ -583,7 +615,7 @@ describe('Composer chart run as a dashboard viewer', () => {
             const [row] = await historyRows(viewer, [
                 totals.body.results.queryUuid,
             ]);
-            expect(row.compiledSql).toBe('');
+            expectNoSql([row]);
         }, 60_000);
 
         it('history search cannot probe node SQL without SQL runner access', async () => {

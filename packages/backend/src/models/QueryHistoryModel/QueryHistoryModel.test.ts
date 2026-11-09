@@ -1044,9 +1044,88 @@ describe('cancelRunningQueriesReadOnlyBy', () => {
 });
 
 describe('mapQueryHistoryRowToListItem composer node SQL', () => {
-    const nodeSql = 'SELECT orders_status FROM orders';
+    const authoredSql = {
+        additionalMetric: '${TABLE}.amount * 2',
+        compiledAdditionalMetric: 'SUM("orders".amount * 2)',
+        customDimension: "CASE WHEN ${TABLE}.status = 'placed' THEN 1 END",
+        tableCalculation: '${orders.total_order_amount} / 2',
+        compiledSemantic:
+            'SELECT "orders".status, SUM("orders".amount * 2) FROM jaffle.orders GROUP BY 1',
+        duckdbNode:
+            'SELECT orders_status, orders_amount_x2 / SUM(orders_amount_x2) OVER () AS revenue_share FROM orders',
+        compiledDuckdb:
+            'WITH "orders" AS (SELECT * FROM read_json(\'s3://bucket/orders.jsonl\')) SELECT orders_status FROM orders',
+    };
+    const nodeMetricQuery = {
+        exploreName: 'orders',
+        dimensions: ['orders_status', 'orders_is_placed'],
+        metrics: ['orders_amount_x2'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [
+            {
+                name: 'half',
+                displayName: 'Half',
+                sql: authoredSql.tableCalculation,
+            },
+        ],
+        additionalMetrics: [
+            {
+                name: 'amount_x2',
+                label: 'Amount x2',
+                table: 'orders',
+                type: 'sum',
+                sql: authoredSql.additionalMetric,
+            },
+        ],
+        compiledAdditionalMetrics: [
+            {
+                name: 'amount_x2',
+                label: 'Amount x2',
+                table: 'orders',
+                type: 'sum',
+                sql: authoredSql.additionalMetric,
+                compiledSql: authoredSql.compiledAdditionalMetric,
+            },
+        ],
+        customDimensions: [
+            {
+                id: 'orders_is_placed',
+                name: 'Is placed',
+                table: 'orders',
+                type: 'sql',
+                sql: authoredSql.customDimension,
+                dimensionType: 'number',
+            },
+        ],
+    };
+    const nodeFields = {
+        orders_status: {
+            fieldType: 'dimension',
+            type: 'string',
+            name: 'status',
+            label: 'Status',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: '${TABLE}.status',
+            hidden: false,
+        },
+        orders_amount_x2: {
+            fieldType: 'metric',
+            type: 'sum',
+            name: 'amount_x2',
+            label: 'Amount x2',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: authoredSql.additionalMetric,
+            compiledSql: authoredSql.compiledAdditionalMetric,
+            hidden: false,
+        },
+    };
+    const composerChartSource = { chartUuid: 'chart', nodeId: 'orders' };
     const row = (
-        request_parameters: DbQueryHistoryListRow['request_parameters'],
+        overrides: Partial<DbQueryHistoryListRow>,
     ): DbQueryHistoryListRow =>
         ({
             query_uuid: 'query',
@@ -1057,8 +1136,7 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
             error: null,
             metric_query: null,
             fields: {},
-            request_parameters,
-            compiled_sql: nodeSql,
+            compiled_sql: '',
             total_row_count: 3,
             warehouse_execution_time_ms: 10,
             results_created_at: null,
@@ -1069,50 +1147,143 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
             chart_name: null,
             sql_chart_name: null,
             dashboard_name: null,
+            ...overrides,
         }) as unknown as DbQueryHistoryListRow;
-    const composerNodeRow = row({
-        sql: nodeSql,
-        context: QueryExecutionContext.DASHBOARD,
-        composerChartSource: { chartUuid: 'chart', nodeId: 'revenue_share' },
-    });
-    const classicSqlRow = row({
-        sql: nodeSql,
-        context: QueryExecutionContext.SQL_RUNNER,
+    const semanticNodeRow = row({
+        metric_query: nodeMetricQuery,
+        fields: nodeFields,
+        compiled_sql: authoredSql.compiledSemantic,
+        request_parameters: {
+            context: QueryExecutionContext.DASHBOARD,
+            chartUuid: 'chart',
+            dashboardUuid: 'dashboard',
+            query: nodeMetricQuery,
+            parameters: {},
+            composerChartSource,
+        },
+        chart_name: 'Revenue share',
+        dashboard_name: 'Board',
+    } as unknown as Partial<DbQueryHistoryListRow>);
+    const duckdbNodeRow = row({
+        compiled_sql: authoredSql.compiledDuckdb,
+        request_parameters: {
+            context: QueryExecutionContext.DASHBOARD,
+            sql: authoredSql.duckdbNode,
+            references: { orders: { source: 'query' } },
+            composerChartSource: {
+                chartUuid: 'chart',
+                nodeId: 'revenue_share',
+            },
+        },
+    } as unknown as Partial<DbQueryHistoryListRow>);
+    const totalsRerunRow = row({
+        context: QueryExecutionContext.CALCULATE_TOTAL,
+        metric_query: { ...nodeMetricQuery, dimensions: [] },
+        fields: nodeFields,
+        compiled_sql: authoredSql.compiledSemantic,
+        request_parameters: {
+            context: QueryExecutionContext.CALCULATE_TOTAL,
+            chartUuid: 'chart',
+            query: { ...nodeMetricQuery, dimensions: [] },
+            parameters: {},
+            composerChartSource,
+        },
+    } as unknown as Partial<DbQueryHistoryListRow>);
+    const classicRow = row({
+        metric_query: nodeMetricQuery,
+        fields: nodeFields,
+        compiled_sql: authoredSql.compiledSemantic,
+        request_parameters: {
+            context: QueryExecutionContext.EXPLORE,
+            query: nodeMetricQuery,
+        },
+    } as unknown as Partial<DbQueryHistoryListRow>);
+
+    const sqlOf = (nodeRow: DbQueryHistoryListRow): string[] => {
+        const text = JSON.stringify(nodeRow);
+        return Object.values(authoredSql).filter((sql) =>
+            text.includes(JSON.stringify(sql).slice(1, -1)),
+        );
+    };
+
+    describe.each([
+        ['semantic node', semanticNodeRow],
+        ['DuckDB node', duckdbNodeRow],
+        ['totals rerun over a node', totalsRerunRow],
+    ])('%s row', (_name, nodeRow) => {
+        test('row under test carries authored SQL', () => {
+            expect(sqlOf(nodeRow).length).toBeGreaterThan(0);
+        });
+
+        test('carries no authored or compiled SQL anywhere for a caller without SQL runner access', () => {
+            const item = mapQueryHistoryRowToListItem(nodeRow, {
+                canViewNodeSql: false,
+            });
+            const text = JSON.stringify(item);
+            for (const sql of sqlOf(nodeRow)) {
+                expect(text).not.toContain(JSON.stringify(sql).slice(1, -1));
+            }
+            expect(item.metricQuery).toBeNull();
+            expect(item.compiledSql).toBe('');
+        });
+
+        test('carries every authored SQL string for a caller with SQL runner access', () => {
+            const item = mapQueryHistoryRowToListItem(nodeRow, {
+                canViewNodeSql: true,
+            });
+            const text = JSON.stringify(item);
+            for (const sql of sqlOf(nodeRow)) {
+                expect(text).toContain(JSON.stringify(sql).slice(1, -1));
+            }
+        });
     });
 
-    test('hides compiled SQL, node SQL and the SQL subline from a caller without SQL runner access', () => {
-        const item = mapQueryHistoryRowToListItem(composerNodeRow, {
+    test('a redacted row keeps provenance and identity only', () => {
+        const item = mapQueryHistoryRowToListItem(semanticNodeRow, {
             canViewNodeSql: false,
         });
-        expect(item.compiledSql).toBe('');
         expect(item.requestParameters).toEqual({
-            sql: '',
+            redacted: true,
             context: QueryExecutionContext.DASHBOARD,
+            chartUuid: 'chart',
+            dashboardUuid: 'dashboard',
+            composerChartSource,
+        });
+        expect(item.exploreName).toBe('orders');
+        expect(item.title).toBe('orders');
+        // Labels from the stored fields, friendly names otherwise; never SQL
+        expect(item.subline).toBe(
+            'Amount x2 · by Status, Orders is placed — “Revenue share” on Board',
+        );
+        expect(item.chartUuid).toBe('chart');
+        expect(item.dashboardUuid).toBe('dashboard');
+    });
+
+    test('a redacted DuckDB node row has a generic title and no SQL subline', () => {
+        const item = mapQueryHistoryRowToListItem(duckdbNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(item.title).toBe('SQL query');
+        expect(item.subline).toBe('');
+        expect(item.requestParameters).toEqual({
+            redacted: true,
+            context: QueryExecutionContext.DASHBOARD,
+            chartUuid: null,
+            dashboardUuid: null,
             composerChartSource: {
                 chartUuid: 'chart',
                 nodeId: 'revenue_share',
             },
         });
-        expect(item.title).toBe('SQL query');
-        expect(item.subline).toBe('');
-    });
-
-    test('shows the node SQL to a caller with SQL runner access', () => {
-        const item = mapQueryHistoryRowToListItem(composerNodeRow, {
-            canViewNodeSql: true,
-        });
-        expect(item.compiledSql).toBe(nodeSql);
-        expect(item.requestParameters).toMatchObject({ sql: nodeSql });
-        expect(item.subline).toBe(nodeSql);
     });
 
     test('leaves a row without composer provenance alone whatever the access', () => {
-        const item = mapQueryHistoryRowToListItem(classicSqlRow, {
+        const item = mapQueryHistoryRowToListItem(classicRow, {
             canViewNodeSql: false,
         });
-        expect(item.compiledSql).toBe(nodeSql);
-        expect(item.requestParameters).toMatchObject({ sql: nodeSql });
-        expect(item.subline).toBe(nodeSql);
+        expect(item.compiledSql).toBe(authoredSql.compiledSemantic);
+        expect(item.requestParameters).toEqual(classicRow.request_parameters);
+        expect(item.metricQuery).toEqual(nodeMetricQuery);
     });
 });
 

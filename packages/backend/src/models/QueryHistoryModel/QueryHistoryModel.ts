@@ -31,6 +31,7 @@ import {
     sleep,
     SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
     type AgentConnectionGrantRef,
+    type QueryHistoryListItemRequestParameters,
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
@@ -1678,14 +1679,34 @@ export function mapQueryHistoryRowToListItem(
     const language = getQueryLanguage(row.request_parameters);
     const exploreName = row.metric_query?.exploreName ?? null;
     const chartName = row.chart_name ?? row.sql_chart_name;
-    // A composer node's SQL is the chart author's, not the viewer's
-    const hideSql =
-        !canViewNodeSql && Boolean(row.request_parameters?.composerChartSource);
-    const compiledSql = hideSql ? '' : row.compiled_sql;
-    const requestParameters =
-        hideSql && 'sql' in row.request_parameters
-            ? { ...row.request_parameters, sql: '' }
+    const chartUuid =
+        row.request_parameters && 'chartUuid' in row.request_parameters
+            ? row.request_parameters.chartUuid
+            : null;
+    const dashboardUuid =
+        row.request_parameters && 'dashboardUuid' in row.request_parameters
+            ? row.request_parameters.dashboardUuid
+            : null;
+    // A composer node's query is the chart author's, not the viewer's: the
+    // whole request and metric query are withheld, not individual SQL fields
+    const hiddenSource = canViewNodeSql
+        ? null
+        : (row.request_parameters?.composerChartSource ?? null);
+    const compiledSql = hiddenSource ? '' : row.compiled_sql;
+    const requestParameters: QueryHistoryListItemRequestParameters =
+        hiddenSource
+            ? {
+                  redacted: true,
+                  context: row.request_parameters.context ?? null,
+                  chartUuid,
+                  dashboardUuid,
+                  composerChartSource: hiddenSource,
+              }
             : row.request_parameters;
+    const metricQuery =
+        language === QueryLanguage.SEMANTIC && !hiddenSource
+            ? row.metric_query
+            : null;
 
     let title: string;
     let subline: string;
@@ -1725,23 +1746,16 @@ export function mapQueryHistoryRowToListItem(
         subline,
         error: row.error,
         exploreName,
-        metricQuery:
-            language === QueryLanguage.SEMANTIC ? row.metric_query : null,
+        metricQuery,
         requestParameters,
         chartName: row.chart_name,
-        chartUuid:
-            row.request_parameters && 'chartUuid' in row.request_parameters
-                ? row.request_parameters.chartUuid
-                : null,
+        chartUuid,
         savedSqlUuid:
             row.request_parameters && 'savedSqlUuid' in row.request_parameters
                 ? row.request_parameters.savedSqlUuid
                 : null,
         dashboardName: row.dashboard_name,
-        dashboardUuid:
-            row.request_parameters && 'dashboardUuid' in row.request_parameters
-                ? row.request_parameters.dashboardUuid
-                : null,
+        dashboardUuid,
         compiledSql,
         totalRowCount: row.total_row_count,
         warehouseExecutionTimeMs: row.warehouse_execution_time_ms,

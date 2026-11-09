@@ -5,8 +5,9 @@ import {
     type ApiExecuteAsyncFieldValueSearchResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiExecuteAsyncSqlQueryResults,
-    type ExecuteAsyncQueryRequestParams,
+    isRedactedComposerNodeRequestParameters,
     type QueryHistoryListItem,
+    type QueryHistoryListItemRequestParameters,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
@@ -16,8 +17,10 @@ import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi
  * produced it, discriminating on the keys each request shape carries.
  */
 const getExecuteEndpoint = (
-    params: ExecuteAsyncQueryRequestParams,
+    params: QueryHistoryListItemRequestParameters,
 ): string | null => {
+    // A redacted composer node carries no request to replay
+    if (isRedactedComposerNodeRequestParameters(params)) return null;
     if ('underlyingDataSourceQueryUuid' in params) return 'underlying-data';
     if ('fieldId' in params) return 'field-values';
     if ('sql' in params) return 'sql';
