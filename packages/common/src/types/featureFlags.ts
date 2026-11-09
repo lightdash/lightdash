@@ -264,6 +264,11 @@ export enum FeatureFlags {
      */
     MobileSettings = 'mobile-settings',
     /**
+     * Organization-scoped: the sign-in step on the Mobile page and its
+     * endpoints. Off by default until an app release supports QR sign-in.
+     */
+    MobileQrSignIn = 'mobile-qr-sign-in',
+    /**
      * Organization-scoped, off by default: BigQuery workload identity federation.
      * Only enable on instances whose pods run as their own Google service account.
      */

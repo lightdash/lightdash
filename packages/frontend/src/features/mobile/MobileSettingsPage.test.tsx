@@ -14,6 +14,12 @@ vi.mock('../../hooks/health/useHealth', () => ({
     default: () => ({ data: { siteUrl: 'https://app.example.com' } }),
 }));
 vi.mock('./useMobileAppLink', () => ({ useMobileAppLink: vi.fn() }));
+const qrSignIn = vi.hoisted(() => ({ enabled: false }));
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { id: 'mobile-qr-sign-in', enabled: qrSignIn.enabled },
+    }),
+}));
 
 const SCAN_URL = 'https://app.example.com/m/app/scan-id';
 const QR_NAME = 'QR code to install the Lightdash app';
@@ -31,9 +37,60 @@ const mockLink = (overrides: Partial<ReturnType<typeof useMobileAppLink>>) =>
         ...overrides,
     });
 
-beforeEach(() => vi.mocked(useMobileAppLink).mockReset());
+beforeEach(() => {
+    vi.mocked(useMobileAppLink).mockReset();
+    qrSignIn.enabled = false;
+});
 
-describe('MobileSettingsPage', () => {
+describe('MobileSettingsPage with mobile-qr-sign-in off', () => {
+    it('shows QR 1, the store links and the host, with no sign-in step', async () => {
+        mockLink({});
+        renderWithProviders(<MobileSettingsPage />);
+
+        expect(
+            await screen.findByRole('img', { name: QR_NAME }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Download on the App Store' }),
+        ).toHaveAttribute('href', MOBILE_APP_STORE_URL);
+        expect(
+            screen.getByRole('link', { name: 'Get it on Google Play' }),
+        ).toHaveAttribute('href', MOBILE_GOOGLE_PLAY_URL);
+        expect(screen.getByText('Sign in to')).toBeVisible();
+        expect(screen.getByText('app.example.com')).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: 'Copy host' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: 'Sign in on your phone' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'I already have the app' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Show code' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows Opened on a phone after a scan, still with no sign-in step', () => {
+        mockLink({ isScanned: true });
+        renderWithProviders(<MobileSettingsPage />);
+
+        expect(screen.getByRole('status')).toHaveTextContent(
+            'Opened on a phone',
+        );
+        expect(screen.getByText('app.example.com')).toBeVisible();
+        expect(
+            screen.queryByRole('heading', { name: 'Sign in on your phone' }),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
+    beforeEach(() => {
+        qrSignIn.enabled = true;
+    });
+
     it('shows the QR code with short labels while waiting', async () => {
         mockLink({});
         renderWithProviders(<MobileSettingsPage />);

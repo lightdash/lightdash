@@ -1,4 +1,8 @@
-import { type ApiError, type MobileAppLink } from '@lightdash/common';
+import {
+    FeatureFlags,
+    type ApiError,
+    type MobileAppLink,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -15,6 +19,7 @@ import {
     IconCheck,
     IconCircleCheck,
     IconCopy,
+    IconDeviceMobile,
     IconQrcodeOff,
 } from '@tabler/icons-react';
 import {
@@ -33,8 +38,10 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import useHealth from '../../hooks/health/useHealth';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import classes from './MobileSettingsPage.module.css';
 import { MOBILE_STRINGS } from './mobileStrings';
+import { StoreBadges } from './StoreBadges';
 import { useMobileAppLink } from './useMobileAppLink';
 
 const MobileAppQrCode = lazy(() => import('./MobileAppQrCode'));
@@ -95,7 +102,7 @@ const QrCodePanel: FC<{
     link: MobileAppLink | null;
     mintError: ApiError | null;
     onRetry: () => void;
-    onHasApp: () => void;
+    onHasApp: (() => void) | null;
 }> = ({ link, mintError, onRetry, onHasApp }) => (
     <Group align="flex-start" gap="lg">
         <Box className={classes.qrFrame}>
@@ -142,18 +149,72 @@ const QrCodePanel: FC<{
                         </CopyButton>
                     )
                 )}
-                <Button size="xs" variant="default" onClick={onHasApp}>
-                    {MOBILE_STRINGS.alreadyHaveApp}
-                </Button>
+                {onHasApp && (
+                    <Button size="xs" variant="default" onClick={onHasApp}>
+                        {MOBILE_STRINGS.alreadyHaveApp}
+                    </Button>
+                )}
             </Group>
         </Stack>
     </Group>
 );
 
-export const MobileSettingsPage: FC = () => {
-    const { data: health } = useHealth();
-    const host = getHost(health?.siteUrl);
-    const { link, isScanned, mintError, retry } = useMobileAppLink();
+const OpenedOnPhone: FC = () => (
+    <Group gap={6} wrap="nowrap">
+        <MantineIcon icon={IconCircleCheck} color="green.7" />
+        <Text size="sm" c="dimmed">
+            {MOBILE_STRINGS.openedOnPhone}
+        </Text>
+    </Group>
+);
+
+const SignInHost: FC<{ host: string }> = ({ host }) => (
+    <Group gap="xs" wrap="nowrap">
+        <Text size="sm">{MOBILE_STRINGS.signInTo}</Text>
+        <Code fz="sm" className={classes.host}>
+            {host}
+        </Code>
+        <CopyActionIcon
+            value={host}
+            copyLabel={MOBILE_STRINGS.copyHost}
+            copiedLabel={MOBILE_STRINGS.copied}
+            variant="subtle"
+            size="sm"
+        />
+    </Group>
+);
+
+type ViewProps = {
+    host: string;
+    appLink: ReturnType<typeof useMobileAppLink>;
+};
+
+const GetAppView: FC<ViewProps> = ({ host, appLink }) => (
+    <SettingsCard withBorder>
+        <Stack gap="md">
+            <Group justify="space-between" wrap="nowrap">
+                <Group gap="xs" wrap="nowrap">
+                    <MantineIcon icon={IconDeviceMobile} />
+                    <Title order={5}>{MOBILE_STRINGS.getAppTitle}</Title>
+                </Group>
+                {appLink.isScanned && <OpenedOnPhone />}
+            </Group>
+            {!appLink.isScanned && (
+                <QrCodePanel
+                    link={appLink.link}
+                    mintError={appLink.mintError}
+                    onRetry={appLink.retry}
+                    onHasApp={null}
+                />
+            )}
+            <StoreBadges />
+            <SignInHost host={host} />
+        </Stack>
+    </SettingsCard>
+);
+
+const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
+    const { link, isScanned, mintError, retry } = appLink;
     const [hasApp, setHasApp] = useState(false);
     const isStepOneDone = isScanned || hasApp;
 
@@ -176,74 +237,71 @@ export const MobileSettingsPage: FC = () => {
     };
 
     return (
-        <SettingsPage title={MOBILE_STRINGS.pageTitle}>
-            <Stack gap="md">
-                <StepCard
-                    step={1}
-                    title={MOBILE_STRINGS.getAppTitle}
-                    state={isStepOneDone ? 'done' : 'current'}
-                    headingRef={stepOneHeading}
-                    aside={
-                        isScanned ? (
-                            <Group gap={6} wrap="nowrap">
-                                <MantineIcon
-                                    icon={IconCircleCheck}
-                                    color="green.7"
-                                />
-                                <Text size="sm" c="dimmed">
-                                    {MOBILE_STRINGS.openedOnPhone}
-                                </Text>
-                            </Group>
-                        ) : (
-                            hasApp && (
-                                <Button
-                                    size="xs"
-                                    variant="subtle"
-                                    onClick={showCode}
-                                >
-                                    {MOBILE_STRINGS.showCode}
-                                </Button>
-                            )
+        <Stack gap="md">
+            <StepCard
+                step={1}
+                title={MOBILE_STRINGS.getAppTitle}
+                state={isStepOneDone ? 'done' : 'current'}
+                headingRef={stepOneHeading}
+                aside={
+                    isScanned ? (
+                        <OpenedOnPhone />
+                    ) : (
+                        hasApp && (
+                            <Button
+                                size="xs"
+                                variant="subtle"
+                                onClick={showCode}
+                            >
+                                {MOBILE_STRINGS.showCode}
+                            </Button>
                         )
-                    }
-                >
-                    {!isStepOneDone && (
+                    )
+                }
+            >
+                {!isStepOneDone && (
+                    <>
                         <QrCodePanel
                             link={link}
                             mintError={mintError}
                             onRetry={retry}
                             onHasApp={showSignIn}
                         />
-                    )}
-                </StepCard>
+                        <StoreBadges />
+                    </>
+                )}
+            </StepCard>
 
-                <StepCard
-                    step={2}
-                    title={MOBILE_STRINGS.signInTitle}
-                    state={isStepOneDone ? 'current' : 'upcoming'}
-                    headingRef={stepTwoHeading}
-                >
-                    {isStepOneDone && (
-                        <Group gap="xs" wrap="nowrap">
-                            <Text size="sm">{MOBILE_STRINGS.signInTo}</Text>
-                            <Code fz="sm" className={classes.host}>
-                                {host}
-                            </Code>
-                            <CopyActionIcon
-                                value={host}
-                                copyLabel={MOBILE_STRINGS.copyHost}
-                                copiedLabel={MOBILE_STRINGS.copied}
-                                variant="subtle"
-                                size="sm"
-                            />
-                        </Group>
-                    )}
-                </StepCard>
+            <StepCard
+                step={2}
+                title={MOBILE_STRINGS.signInTitle}
+                state={isStepOneDone ? 'current' : 'upcoming'}
+                headingRef={stepTwoHeading}
+            >
+                {isStepOneDone && <SignInHost host={host} />}
+            </StepCard>
+        </Stack>
+    );
+};
 
-                <VisuallyHidden role="status" aria-live="polite">
-                    {isScanned ? MOBILE_STRINGS.openedOnPhone : ''}
-                </VisuallyHidden>
-            </Stack>
+export const MobileSettingsPage: FC = () => {
+    const { data: health } = useHealth();
+    const host = getHost(health?.siteUrl);
+    const appLink = useMobileAppLink();
+    const { data: qrSignInFlag } = useServerFeatureFlag(
+        FeatureFlags.MobileQrSignIn,
+    );
+
+    return (
+        <SettingsPage title={MOBILE_STRINGS.pageTitle}>
+            {qrSignInFlag?.enabled ? (
+                <SignInStepsView host={host} appLink={appLink} />
+            ) : (
+                <GetAppView host={host} appLink={appLink} />
+            )}
+            <VisuallyHidden role="status" aria-live="polite">
+                {appLink.isScanned ? MOBILE_STRINGS.openedOnPhone : ''}
+            </VisuallyHidden>
         </SettingsPage>
     );
 };
