@@ -9,9 +9,12 @@ import {
     MergeJoinType,
     NotFoundError,
     ParameterError,
+    QuerySourceType,
     type Account,
+    type ComposerSavedChartDAO,
     type Explore,
     type SavedChartDAO,
+    type SavedChartVariant,
     type SavedMergeDefinition,
 } from '@lightdash/common';
 import { fromSession } from '../../auth/account/account';
@@ -93,6 +96,29 @@ const savedChart = (overrides: Partial<SavedChartDAO>): SavedChartDAO => ({
     ...chart,
     ...overrides,
 });
+const {
+    tableName: _t,
+    metricQuery: _m,
+    tableConfig: _c,
+    ...chartWithoutQuery
+} = chart;
+const composerChart: ComposerSavedChartDAO = {
+    ...chartWithoutQuery,
+    uuid: 'composer',
+    pipeline: {
+        schemaVersion: 1,
+        nodes: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'orders',
+                exploreName: chart.tableName,
+                dimensions: [],
+                metrics: [],
+            },
+        ],
+        terminalNodeId: 'orders',
+    },
+};
 const charts: Record<string, SavedChartDAO> = {
     plain: savedChart({ uuid: 'plain' }),
     sameExplore: savedChart({ uuid: 'sameExplore' }),
@@ -140,6 +166,13 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
         get: vi.fn(async (uuid: string) => {
             if (!charts[uuid]) throw new NotFoundError('Saved chart not found');
             return charts[uuid];
+        }),
+        getVariant: vi.fn(async (uuid: string): Promise<SavedChartVariant> => {
+            if (uuid === composerChart.uuid) {
+                return { queryType: 'composer', chart: composerChart };
+            }
+            if (!charts[uuid]) throw new NotFoundError('Saved chart not found');
+            return { queryType: 'semantic', chart: charts[uuid] };
         }),
     };
     const savedSqlModel = {
@@ -330,6 +363,33 @@ describe('DashboardService.getTileParameterReferences', () => {
         });
     });
 
+    it('reports no parameter references for a composer tile instead of failing it', async () => {
+        const { service, projectService } = setup();
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'plain'),
+                chartTile('tile-2', composerChart.uuid),
+            ]),
+        ).resolves.toEqual([
+            {
+                tileUuid: 'tile-1',
+                parameterReferences: ['orders.region'],
+                error: null,
+                parameterDefinitions: {},
+            },
+            {
+                tileUuid: 'tile-2',
+                parameterReferences: [],
+                error: null,
+                parameterDefinitions: {},
+            },
+        ]);
+        expect(projectService.findExplores).toHaveBeenCalledWith(
+            expect.objectContaining({ exploreNames: [chart.tableName] }),
+        );
+    });
+
     it('loads each explore and chart once across tiles', async () => {
         const { service, savedChartModel, projectService } = setup();
 
@@ -348,7 +408,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             'tile-2',
             'tile-3',
         ]);
-        expect(savedChartModel.get).toHaveBeenCalledTimes(2);
+        expect(savedChartModel.getVariant).toHaveBeenCalledTimes(2);
         expect(projectService.findExplores).toHaveBeenCalledTimes(1);
         expect(projectService.findExplores).toHaveBeenCalledWith(
             expect.objectContaining({ exploreNames: [chart.tableName] }),
@@ -365,14 +425,14 @@ describe('DashboardService.getTileParameterReferences', () => {
         });
         let running = 0;
         let maxRunning = 0;
-        savedChartModel.get.mockImplementation(async (uuid: string) => {
+        savedChartModel.getVariant.mockImplementation(async (uuid: string) => {
             running += 1;
             maxRunning = Math.max(maxRunning, running);
             await new Promise((resolve) => {
                 setTimeout(resolve, 5);
             });
             running -= 1;
-            return charts[uuid];
+            return { queryType: 'semantic', chart: charts[uuid] };
         });
 
         await service.getTileParameterReferences(
@@ -383,7 +443,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             ),
         );
 
-        expect(savedChartModel.get).toHaveBeenCalledTimes(12);
+        expect(savedChartModel.getVariant).toHaveBeenCalledTimes(12);
         expect(maxRunning).toBe(5);
     });
 
@@ -403,7 +463,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 'A request can list the parameters of at most 200 tiles',
             ),
         );
-        expect(savedChartModel.get).not.toHaveBeenCalled();
+        expect(savedChartModel.getVariant).not.toHaveBeenCalled();
     });
 
     it('refuses the request with the dashboard-controls flag off', async () => {
@@ -423,7 +483,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             },
             featureFlagId: FeatureFlags.DashboardControls,
         });
-        expect(savedChartModel.get).not.toHaveBeenCalled();
+        expect(savedChartModel.getVariant).not.toHaveBeenCalled();
     });
 
     it('reports a restricted explore on its own tiles only', async () => {
@@ -792,7 +852,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                     parameterDefinitions: {},
                 },
             ]);
-            expect(savedChartModel.get).not.toHaveBeenCalledWith(
+            expect(savedChartModel.getVariant).not.toHaveBeenCalledWith(
                 'merged',
                 undefined,
                 expect.anything(),
@@ -824,7 +884,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 ),
             ).rejects.toThrow(ForbiddenError);
             expect(dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
-            expect(savedChartModel.get).not.toHaveBeenCalled();
+            expect(savedChartModel.getVariant).not.toHaveBeenCalled();
         });
 
         it('allows any dashboard when the embed allows all', async () => {
@@ -870,7 +930,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                     error: 'Tile is not on the embedded dashboard',
                 },
             ]);
-            expect(savedChartModel.get).not.toHaveBeenCalled();
+            expect(savedChartModel.getVariant).not.toHaveBeenCalled();
         });
 
         it('refuses a token that does not embed a dashboard', async () => {

@@ -1,3 +1,10 @@
+# [3.185.0](https://github.com/lightdash/lightdash/compare/3.184.0...3.185.0) (2026-11-09)
+
+
+### Features
+
+* **live-sources:** let customers request an unlisted source ([#32243](https://github.com/lightdash/lightdash/issues/32243)) ([efaa171](https://github.com/lightdash/lightdash/commit/efaa171d0163e7676edea153680fe19ab8d46430))
+
 # [3.184.0](https://github.com/lightdash/lightdash/compare/3.183.0...3.184.0) (2026-11-09)
 
 

@@ -1008,6 +1008,7 @@ type LiveDataSourceRequestedEvent = {
         organizationId: string | null;
         projectId: string;
         integration: string;
+        customIntegrationName?: string;
     };
 };
 

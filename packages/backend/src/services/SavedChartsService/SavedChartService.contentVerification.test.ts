@@ -118,8 +118,12 @@ const savedChartModel = {
     getSummary: vi.fn(async () => chartSummary),
     get: vi.fn(async () => savedChartData),
     createVersion: vi.fn(async () => savedChartData),
-    update: vi.fn(async () => savedChartData),
+    update: vi.fn(async () => ({
+        queryType: 'semantic',
+        chart: savedChartData,
+    })),
     create: vi.fn(async () => savedChartData),
+    findComposerCharts: vi.fn(async () => []),
 };
 
 const contentVerificationModel = {

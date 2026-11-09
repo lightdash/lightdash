@@ -26,6 +26,7 @@ import {
     ChartScheduledDeliveryAsCode,
     ChartSummary,
     ChartType,
+    ComposerChartNotSupportedError,
     ContentAsCodeType,
     ContentSlugRenameRequest,
     ContentType,
@@ -2940,6 +2941,7 @@ export class CoderService extends BaseService {
                 charts: [],
                 languageMap: undefined,
                 missingIds: chartIds || [],
+                skippedCharts: [],
                 spaces: [],
                 total: 0,
                 offset: 0,
@@ -2971,9 +2973,16 @@ export class CoderService extends BaseService {
             pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
         });
 
-        const chartPromises = limitedChartSummaries.map((chart) =>
-            this.savedChartModel.get(chart.uuid),
+        // Composer charts have no code shape yet, so the download names them instead of failing
+        const composerCharts = await this.savedChartModel.findComposerCharts(
+            limitedChartSummaries.map((chart) => chart.uuid),
         );
+        const composerChartUuids = new Set(
+            composerCharts.map((composerChart) => composerChart.uuid),
+        );
+        const chartPromises = limitedChartSummaries
+            .filter((chart) => !composerChartUuids.has(chart.uuid))
+            .map((chart) => this.savedChartModel.get(chart.uuid));
         const charts = await Promise.all(chartPromises);
 
         // get all spaces to map  dashboardSlug
@@ -3047,12 +3056,19 @@ export class CoderService extends BaseService {
 
         const missingIds = CoderService.getMissingIds(
             chartIds,
-            charts,
+            [...charts, ...composerCharts],
             chartAliases,
         );
 
         return {
             charts: chartsWithPolicies,
+            skippedCharts: composerCharts.map((composerChart) => ({
+                ...composerChart,
+                reason: new ComposerChartNotSupportedError(
+                    composerChart.uuid,
+                    composerChart.name,
+                ).message,
+            })),
             languageMap: languageMap
                 ? chartsWithPolicies.map((chart) => {
                       try {

@@ -4,6 +4,7 @@ import {
     buildDataAppExploreIndexFromExplores,
     checkDataAppDataReferences,
     CompiledField,
+    ComposerChartNotSupportedError,
     convertFieldRefToFieldId,
     CreateChartValidation,
     CreateDashboardValidation,
@@ -417,10 +418,12 @@ export class ValidationService extends BaseService {
             chartUuid,
         );
 
-        // Only validate charts that are using selected explores
+        // Only validate charts that are using selected explores.
+        // A composer chart has no explore, so it is always reported rather than silently passed.
         const results = charts
             .filter((c) => {
                 if (selectedExplores === undefined) return true;
+                if (c.queryType === 'composer') return true;
                 return selectedExplores.some((explore) => {
                     if (isExploreError(explore)) return false;
                     // Match by baseTable or explore name (for additional explores)
@@ -434,6 +437,7 @@ export class ValidationService extends BaseService {
                 ({
                     uuid,
                     name,
+                    queryType,
                     tableName,
                     sorts,
                     filters,
@@ -449,6 +453,22 @@ export class ValidationService extends BaseService {
                     chartConfig,
                     pivotDimensions,
                 }) => {
+                    if (queryType === 'composer') {
+                        return [
+                            {
+                                chartUuid: uuid,
+                                name,
+                                projectUuid,
+                                source: ValidationSourceType.Chart,
+                                chartName: name,
+                                errorType: ValidationErrorType.Chart,
+                                error: new ComposerChartNotSupportedError(
+                                    uuid,
+                                    name,
+                                ).message,
+                            },
+                        ];
+                    }
                     const splitCandidates = getExploreSplitCandidates(
                         tableName,
                         allExplores,
@@ -2004,9 +2024,12 @@ export class ValidationService extends BaseService {
         }
 
         // Get the chart to find which explore it uses
-        const chart = await this.savedChartModel.get(chartUuid, undefined, {
-            projectUuid,
-        });
+        const variant = await this.savedChartModel.getVariant(
+            chartUuid,
+            undefined,
+            { projectUuid },
+        );
+        const { chart } = variant;
 
         // Check user permissions
         const { inheritsFromOrgOrProject, access } =
@@ -2035,11 +2058,14 @@ export class ValidationService extends BaseService {
             );
         }
 
-        // Only fetch the specific explore this chart uses
-        const compiledExplore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            chart.tableName,
-        );
+        // Only fetch the specific explore this chart uses; a composer chart has none
+        const compiledExplore =
+            variant.queryType === 'semantic'
+                ? await this.projectModel.getExploreFromCache(
+                      projectUuid,
+                      variant.chart.tableName,
+                  )
+                : undefined;
         const compiledExplores = compiledExplore ? [compiledExplore] : [];
 
         // Build field lookup for validation

@@ -1,7 +1,7 @@
 import type { ApiSuccess } from './api/success';
 import { type DashboardDAO } from './dashboard';
 import type { Document } from './document';
-import { type SavedChartDAO } from './savedCharts';
+import { type SavedChartDAO, type SkippedChart } from './savedCharts';
 import { type SpaceSummaryBase } from './space';
 
 export enum PromotionAction {
@@ -72,6 +72,8 @@ export type PromotionChanges = {
         action: PromotionAction;
         data: PromotedDocument;
     }[];
+    /** Charts the promotion left out by name, such as composer charts until promotion carries pipelines. */
+    skippedCharts?: SkippedChart[];
 };
 
 export type ApiPromoteDocumentResponse = ApiSuccess<Document>;
