@@ -2744,7 +2744,9 @@ export class SavedChartModel {
             ])
             .whereIn(`${SavedChartsTableName}.saved_query_uuid`, uuids)
             .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
-            .whereNull(`${SavedChartsTableName}.deleted_at`);
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            // Composer charts have no metric query to compare
+            .whereNotNull(`${SavedChartVersionsTableName}.explore_name`);
         if (charts.length === 0) return [];
         const versionIds = charts.map(
             (chart) => chart.saved_queries_version_id,
@@ -3554,7 +3556,8 @@ export class SavedChartModel {
                                            limit 1)`),
             )
             .whereNull(`${SavedChartsTableName}.deleted_at`)
-            .whereNull(`${SpaceTableName}.deleted_at`);
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereNotNull(`${SavedChartVersionsTableName}.explore_name`);
     }
 
     async findChartsWithCustomFields(projectUuid: string): Promise<

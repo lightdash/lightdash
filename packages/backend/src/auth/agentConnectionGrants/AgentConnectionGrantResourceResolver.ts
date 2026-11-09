@@ -25,7 +25,7 @@ export class AgentConnectionGrantResourceResolver {
             deploySessionModel: Pick<DeploySessionModel, 'getSession'>;
             projectModel: Pick<ProjectModel, 'getUuidBySlug' | 'getSummary'>;
             savedSqlModel: Pick<SavedSqlModel, 'getByUuid' | 'getBySlug'>;
-            savedChartModel: Pick<SavedChartModel, 'get' | 'getSummary'>;
+            savedChartModel: Pick<SavedChartModel, 'getVariant' | 'getSummary'>;
             dashboardModel: Pick<
                 DashboardModel,
                 'getByIdOrSlug' | 'getSummaryByUuid'
@@ -83,12 +83,12 @@ export class AgentConnectionGrantResourceResolver {
                           )
                       ).projectUuid
                     : (
-                          await this.deps.savedChartModel.get(
+                          await this.deps.savedChartModel.getVariant(
                               resource.uuid,
                               undefined,
                               { projectUuid: resource.projectUuid! },
                           )
-                      ).projectUuid;
+                      ).chart.projectUuid;
             case 'dashboard':
                 return isUuid(resource.uuid)
                     ? (

@@ -22,6 +22,7 @@ import {
     chartTypeIconSchema,
     checkThemeLimits,
     compareSemverVersions,
+    ComposerChartNotSupportedError,
     ConflictError,
     ContentType,
     DATA_APP_CLAUDE_MODELS,
@@ -11339,11 +11340,26 @@ export class AppGenerateService extends BaseService {
 
         // Version history previews an older config, so authorize against the
         // version actually being rendered rather than the latest one.
-        const chart = await this.savedChartModel.get(
+        const variant = await this.savedChartModel.getVariant(
             savedChartUuid,
             chartVersionUuid,
             { projectUuid },
         );
+        switch (variant.queryType) {
+            case 'semantic':
+                break;
+            case 'composer':
+                throw new ComposerChartNotSupportedError(
+                    variant.chart.uuid,
+                    variant.chart.name,
+                );
+            default:
+                return assertUnreachable(
+                    variant,
+                    'Unknown saved chart query type',
+                );
+        }
+        const { chart } = variant;
         if (
             chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
             chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid

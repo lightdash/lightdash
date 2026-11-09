@@ -1,7 +1,9 @@
 import {
     AnyType,
+    assertUnreachable,
     LightdashPage,
     MissingConfigError,
+    SavedChartVariant,
     SessionUser,
 } from '@lightdash/common';
 import { KnownBlock } from '@slack/web-api';
@@ -106,7 +108,8 @@ export class SupportService extends BaseService {
         projectUuid: string,
         chartUuid: string,
     ): Promise<KnownBlock> {
-        const savedChart = await this.savedChartModel.get(chartUuid);
+        const variant = await this.savedChartModel.getVariant(chartUuid);
+        const savedChart = variant.chart;
 
         const chartkBuffer = Buffer.from(
             JSON.stringify(savedChart.chartConfig, null, 2),
@@ -119,17 +122,10 @@ export class SupportService extends BaseService {
             SUPPORT_FILE_EXPIRATION_TIME,
         );
 
-        const query = await this.projectService.compileQuery({
-            account: fromSession(user),
-            body: savedChart.metricQuery,
+        const queryLine = await this.uploadChartQuery(
+            user,
             projectUuid,
-            exploreName: savedChart.tableName,
-        });
-        const queryBuffer = Buffer.from(query.query, 'utf-8');
-        const sqlS3Url = await this.fileStorageClient.uploadTxt(
-            queryBuffer,
-            `support-sql-${nanoid()}`,
-            SUPPORT_FILE_EXPIRATION_TIME,
+            variant,
         );
         return {
             type: 'section',
@@ -138,9 +134,48 @@ export class SupportService extends BaseService {
                 text: `*Chart uuid:* ${chartUuid}
 *Chart name:* ${savedChart.name}
 *Chart config:* <${chartconfigS3Url}|View chart config>
-*SQL:* <${sqlS3Url}|View SQL>`.substring(0, 3000),
+${queryLine}`.substring(0, 3000),
             },
         };
+    }
+
+    private async uploadChartQuery(
+        user: SessionUser,
+        projectUuid: string,
+        variant: SavedChartVariant,
+    ): Promise<string> {
+        switch (variant.queryType) {
+            case 'semantic': {
+                const query = await this.projectService.compileQuery({
+                    account: fromSession(user),
+                    body: variant.chart.metricQuery,
+                    projectUuid,
+                    exploreName: variant.chart.tableName,
+                });
+                const sqlS3Url = await this.fileStorageClient.uploadTxt(
+                    Buffer.from(query.query, 'utf-8'),
+                    `support-sql-${nanoid()}`,
+                    SUPPORT_FILE_EXPIRATION_TIME,
+                );
+                return `*SQL:* <${sqlS3Url}|View SQL>`;
+            }
+            case 'composer': {
+                const pipelineS3Url = await this.fileStorageClient.uploadTxt(
+                    Buffer.from(
+                        JSON.stringify(variant.chart.pipeline, null, 2),
+                        'utf-8',
+                    ),
+                    `support-pipeline-${nanoid()}`,
+                    SUPPORT_FILE_EXPIRATION_TIME,
+                );
+                return `*Pipeline:* <${pipelineS3Url}|View composer pipeline>`;
+            }
+            default:
+                return assertUnreachable(
+                    variant,
+                    'Unknown saved chart query type',
+                );
+        }
     }
 
     private static convertPropertiesToBlocks(

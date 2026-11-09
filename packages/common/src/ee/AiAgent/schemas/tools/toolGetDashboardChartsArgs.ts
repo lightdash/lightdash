@@ -37,8 +37,9 @@ const dashboardChartSchema = z.object({
     viewsCount: z.number(),
     exploreName: z
         .string()
+        .nullable()
         .describe(
-            'Explore the chart queries; a dashboard filter applies to this chart when its target field belongs to this explore.',
+            'Explore the chart queries; a dashboard filter applies to this chart when its target field belongs to this explore. Null for a composer chart.',
         ),
     verification: z
         .object({
