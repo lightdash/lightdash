@@ -134,6 +134,7 @@ import {
 import { dismissOpenContentDrafts } from './ContentDraftModel';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
+import { joinLatestSavedChartVersion } from './latestSavedChartVersion';
 import { type OnContentVersionCreated } from './OnContentVersionCreated';
 
 type DbSavedChartDetails = {
@@ -1414,6 +1415,7 @@ export class SavedChartModel {
                 )
                 .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
                 .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .whereNull(`${DashboardsTableName}.deleted_at`)
                 .select(`${DashboardsTableName}.dashboard_uuid`)
                 .first();
             if (!dashboard) {
@@ -3179,31 +3181,26 @@ export class SavedChartModel {
             .filter((chart) => !chartsNotInTilesUuids.has(chart.uuid));
     }
 
-    /** The composer charts among the given uuids, so bulk surfaces can leave them out by name. */
+    /** The live composer charts among the given uuids, so bulk surfaces can leave them out by name. */
     async findComposerCharts(
         savedChartUuids: string[],
     ): Promise<Pick<ChartSummary, 'uuid' | 'name' | 'slug'>[]> {
         if (savedChartUuids.length === 0) return [];
-        return this.database(SavedChartsTableName)
-            .select({
+        return joinLatestSavedChartVersion(
+            this.database(SavedChartsTableName).select({
                 uuid: `${SavedChartsTableName}.saved_query_uuid`,
                 name: `${SavedChartsTableName}.name`,
                 slug: `${SavedChartsTableName}.slug`,
-            })
-            .joinRaw(
-                `inner join lateral (
-                    select sqv.pipeline
-                    from ?? as sqv
-                    where sqv.saved_query_id = ??.saved_query_id
-                    order by sqv.saved_queries_version_id desc
-                    limit 1
-                ) as latest_version on true`,
-                [SavedChartVersionsTableName, SavedChartsTableName],
-            )
+            }),
+            this.database,
+            ['pipeline'],
+            'latest_version',
+        )
             .whereIn(
                 `${SavedChartsTableName}.saved_query_uuid`,
                 savedChartUuids,
             )
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereNotNull('latest_version.pipeline');
     }
 
@@ -3589,19 +3586,13 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.space_id`,
                 );
             })
-            .joinRaw(
-                `inner join lateral (
-                    select sqv.explore_name, sqv.pipeline
-                    from ?? as sqv
-                    where sqv.saved_query_id = ??.saved_query_id
-                    order by sqv.saved_queries_version_id desc
-                    limit 1
-                ) as ?? on true`,
-                [
+            .modify((query) =>
+                joinLatestSavedChartVersion(
+                    query,
+                    this.database,
+                    ['explore_name', 'pipeline'],
                     SavedChartVersionsTableName,
-                    SavedChartsTableName,
-                    SavedChartVersionsTableName,
-                ],
+                ),
             )
             .whereNull(`${SavedChartVersionsTableName}.pipeline`)
             .leftJoin(

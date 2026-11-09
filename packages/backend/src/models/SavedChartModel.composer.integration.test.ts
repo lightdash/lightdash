@@ -299,6 +299,119 @@ describe('Composer chart rows on the real schema', () => {
                 }),
             ]);
         });
+
+        test('findComposerCharts leaves a soft-deleted composer row out', async () => {
+            const live = await createChart('live-pipeline');
+            await database('saved_queries_versions').insert(
+                composerVersion(live.id),
+            );
+            const deleted = await createChart('deleted-pipeline');
+            await database('saved_queries_versions').insert(
+                composerVersion(deleted.id),
+            );
+            await database('saved_queries')
+                .where('saved_query_uuid', deleted.uuid)
+                .update({
+                    deleted_at: new Date(),
+                    deleted_by_user_uuid: fixture.userUuid,
+                });
+            await expect(
+                model.findComposerCharts([live.uuid, deleted.uuid]),
+            ).resolves.toEqual([expect.objectContaining({ uuid: live.uuid })]);
+        });
+
+        test('findComposerCharts names the row by its newest version, like get', async () => {
+            const chart = await createChart('rolled-back');
+            const setCreatedAt = (
+                rows: { saved_queries_version_id: number }[],
+                createdAt: string,
+            ) =>
+                database('saved_queries_versions')
+                    .where(
+                        'saved_queries_version_id',
+                        rows[0].saved_queries_version_id,
+                    )
+                    .update({ created_at: new Date(createdAt) } as never);
+            await setCreatedAt(
+                await database('saved_queries_versions')
+                    .insert(composerVersion(chart.id))
+                    .returning('saved_queries_version_id'),
+                '2026-01-01T00:00:00Z',
+            );
+            await setCreatedAt(
+                await database('saved_queries_versions')
+                    .insert(semanticVersion(chart.id))
+                    .returning('saved_queries_version_id'),
+                '2026-02-01T00:00:00Z',
+            );
+            await expect(
+                model.findComposerCharts([chart.uuid]),
+            ).resolves.toEqual([]);
+            await expect(model.getVariant(chart.uuid)).resolves.toMatchObject({
+                queryType: 'semantic',
+            });
+        });
+    });
+
+    describe('writing a composer row', () => {
+        const createDashboard = async (deleted: boolean) => {
+            const [{ dashboard_uuid: uuid }] = await database('dashboards')
+                .insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'Revenue',
+                    slug: `revenue-${randomUUID()}`,
+                    space_id: fixture.spaceId,
+                    ...(deleted && {
+                        deleted_at: new Date(),
+                        deleted_by_user_uuid: fixture.userUuid,
+                    }),
+                })
+                .returning('dashboard_uuid');
+            return uuid as string;
+        };
+        const composerChart = (dashboardUuid: string) => ({
+            name: 'Revenue share',
+            description: null,
+            dashboardUuid,
+            pipeline,
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: barChartConfig,
+            } as never,
+            pivotConfig: undefined,
+            slug: 'revenue-share',
+        });
+
+        test('createComposerChart writes a dashboard-owned composer row', async () => {
+            const dashboardUuid = await createDashboard(false);
+            const created = await model.createComposerChart(
+                fixture.projectUuid,
+                fixture.userUuid,
+                composerChart(dashboardUuid),
+            );
+            expect(created).toMatchObject({ dashboardUuid, pipeline });
+            await expect(
+                model.findComposerCharts([created.uuid]),
+            ).resolves.toEqual([
+                expect.objectContaining({ uuid: created.uuid }),
+            ]);
+        });
+
+        test('createComposerChart does not write into a soft-deleted dashboard', async () => {
+            const dashboardUuid = await createDashboard(true);
+            await expect(
+                model.createComposerChart(
+                    fixture.projectUuid,
+                    fixture.userUuid,
+                    composerChart(dashboardUuid),
+                ),
+            ).rejects.toBeInstanceOf(NotFoundError);
+            await expect(
+                database('saved_queries').where({
+                    dashboard_uuid: dashboardUuid,
+                }),
+            ).resolves.toEqual([]);
+        });
     });
 
     describe('bulk reads that used to assume an explore', () => {

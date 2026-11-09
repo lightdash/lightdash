@@ -3,7 +3,6 @@ import {
     AlreadyExistsError,
     ChartSummary,
     ChartType,
-    ComposerChartNotSupportedError,
     ConflictError,
     DashboardDAO,
     DashboardTileTypes,
@@ -49,6 +48,7 @@ import type { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import Logger from '../../logging/logger';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import type { AppModel } from '../../models/AppModel';
+import { partitionComposerCharts } from '../../models/composerChartPartition';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -2685,21 +2685,19 @@ export class PromoteService extends BaseService {
         );
 
         // Promotion writes classic chart versions, so composer tiles are left out and named until it carries pipelines
-        const composerCharts =
-            await this.savedChartModel.findComposerCharts(chartUuids);
+        const { supported: classicChartUuids, skipped: skippedCharts } =
+            await partitionComposerCharts(this.savedChartModel, chartUuids);
         const composerChartUuids = new Set(
-            composerCharts.map((composerChart) => composerChart.uuid),
+            skippedCharts.map((composerChart) => composerChart.uuid),
         );
-        const chartPromises = chartUuids
-            .filter((chartUuid) => !composerChartUuids.has(chartUuid))
-            .map((chartUuid) =>
-                this.getPromoteCharts(
-                    user,
-                    upstreamProjectUuid,
-                    chartUuid,
-                    includeOrphanChartsWithinDashboard,
-                ),
-            );
+        const chartPromises = classicChartUuids.map((chartUuid) =>
+            this.getPromoteCharts(
+                user,
+                upstreamProjectUuid,
+                chartUuid,
+                includeOrphanChartsWithinDashboard,
+            ),
+        );
         const sqlChartPromises = savedSqlUuids.map((savedSqlUuid) =>
             this.getPromoteSqlCharts(user, upstreamProjectUuid, savedSqlUuid),
         );
@@ -2837,13 +2835,7 @@ export class PromoteService extends BaseService {
                 spaces: spaceChanges,
                 dashboards: dashboardChanges,
                 charts: chartChanges,
-                skippedCharts: composerCharts.map((composerChart) => ({
-                    ...composerChart,
-                    reason: new ComposerChartNotSupportedError(
-                        composerChart.uuid,
-                        composerChart.name,
-                    ).message,
-                })),
+                skippedCharts,
             },
             charts, // For permission checks
             sqlCharts, // For permission checks

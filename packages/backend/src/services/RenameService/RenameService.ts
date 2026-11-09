@@ -28,6 +28,7 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { partitionComposerCharts } from '../../models/composerChartPartition';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -971,13 +972,11 @@ export class RenameService extends BaseService {
             );
 
             // Composer charts have no classic query to rename, so they are left out by name
-            const composerCharts =
-                await this.savedChartModel.findComposerCharts(
+            const { supported: classicChartUuids, skipped: composerCharts } =
+                await partitionComposerCharts(
+                    this.savedChartModel,
                     chartSummaries.map((chart) => chart.uuid),
                 );
-            const composerChartUuids = new Set(
-                composerCharts.map((composerChart) => composerChart.uuid),
-            );
             if (composerCharts.length > 0) {
                 this.logger.info(
                     `Rename resources: skipping composer charts ${composerCharts
@@ -988,9 +987,9 @@ export class RenameService extends BaseService {
 
             // We intentionally do not filter charts on private spaces, since we want to rename all charts
             // And the user will not be able to see the charts in private spaces anyway, so it should not become a vulnerability
-            const chartPromises = chartSummaries
-                .filter((chart) => !composerChartUuids.has(chart.uuid))
-                .map((chart) => this.savedChartModel.get(chart.uuid));
+            const chartPromises = classicChartUuids.map((chartUuid) =>
+                this.savedChartModel.get(chartUuid),
+            );
 
             const charts = await Promise.all(chartPromises);
             const chartsByUuid = new Map(charts.map((c) => [c.uuid, c]));

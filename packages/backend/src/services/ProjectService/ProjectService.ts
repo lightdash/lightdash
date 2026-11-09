@@ -391,6 +391,7 @@ import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { partitionComposerCharts } from '../../models/composerChartPartition';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -18330,23 +18331,19 @@ export class ProjectService
             projectUuid,
         });
         // Composer charts keep their custom metrics inside pipeline nodes, which this listing does not read yet
-        const composerChartUuids = new Set(
-            (
-                await this.savedChartModel.findComposerCharts(
-                    chartSummaries.map((summary) => summary.uuid),
-                )
-            ).map((composerChart) => composerChart.uuid),
-        );
-        if (composerChartUuids.size > 0) {
+        const { supported: classicChartUuids, skipped: composerCharts } =
+            await partitionComposerCharts(
+                this.savedChartModel,
+                chartSummaries.map((summary) => summary.uuid),
+            );
+        if (composerCharts.length > 0) {
             this.logger.info(
-                `Custom metrics listing skipped ${composerChartUuids.size} composer charts in project ${projectUuid}`,
+                `Custom metrics listing skipped ${composerCharts.length} composer charts in project ${projectUuid}`,
             );
         }
-        const chartPromises = chartSummaries
-            .filter((summary) => !composerChartUuids.has(summary.uuid))
-            .map((summary) =>
-                this.savedChartModel.get(summary.uuid, undefined),
-            );
+        const chartPromises = classicChartUuids.map((chartUuid) =>
+            this.savedChartModel.get(chartUuid, undefined),
+        );
 
         const charts = await Promise.all(chartPromises);
         return charts.reduce<AnyType[]>((acc, chart) => {

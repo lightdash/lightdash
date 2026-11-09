@@ -103,6 +103,7 @@ import {
     MAX_SLUG_ALIAS_LENGTH,
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
+import { isComposerChartSelect } from '../latestSavedChartVersion';
 import { type OnContentVersionCreated } from '../OnContentVersionCreated';
 import Transaction = Knex.Transaction;
 import { dismissOpenContentDrafts } from '../ContentDraftModel';
@@ -298,14 +299,6 @@ export class DashboardModel {
     constructor(args: DashboardModelArguments) {
         this.database = args.database;
         this.contentVerificationModel = args.contentVerificationModel;
-    }
-
-    /** Whether the tile's chart runs a pipeline, read from its latest version where the chart kind also lives. */
-    private isComposerChartSelect() {
-        return this.database.raw(
-            `(SELECT v.pipeline IS NOT NULL FROM ?? v WHERE v.saved_query_id = ??.saved_query_id ORDER BY v.created_at DESC LIMIT 1) AS is_composer_chart`,
-            [SavedChartVersionsTableName, SavedChartsTableName],
-        );
     }
 
     private static async createVersion(
@@ -1380,7 +1373,7 @@ export class DashboardModel {
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
-                this.isComposerChartSelect(),
+                isComposerChartSelect(this.database),
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
                 database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
@@ -2937,7 +2930,7 @@ export class DashboardModel {
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
-                this.isComposerChartSelect(),
+                isComposerChartSelect(this.database),
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
                 this.database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
