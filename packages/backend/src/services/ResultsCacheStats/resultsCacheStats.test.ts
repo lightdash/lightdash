@@ -20,6 +20,7 @@ const contextRow = (
     hits: 6,
     warehouseTimeOnMissesMs: 4000,
     warehouseTimeSavedMs: 6000,
+    bytesBilledSaved: 0,
     ...overrides,
 });
 

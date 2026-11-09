@@ -18,9 +18,10 @@ import {
     Table,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import {
     useResultsCacheStats,
@@ -31,10 +32,18 @@ import InlineErrorState from '../common/InlineErrorState';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import { SettingsCard } from '../common/Settings/SettingsCard';
+import { WarehouseCostTooltipContent } from './EstimatedWarehouseCost';
 import { formatCacheDuration } from './formatCacheDuration';
 import { formatCompactNumber } from './formatCompactNumber';
 import { formatWarehouseTime } from './formatWarehouseTime';
 import classes from './ResultsCacheStatsCard.module.css';
+import { useWarehouseCostRate } from './useWarehouseCostRate';
+import {
+    formatApproxUsd,
+    getDisplayedCostUsd,
+    type WarehouseCostRate,
+    type WarehouseUsage,
+} from './warehouseCostEstimate';
 
 const formatPercent = (rate: number | null) =>
     rate === null ? 'n/a' : `${Math.round(rate * 100)}%`;
@@ -101,26 +110,69 @@ const DAYS_OPTIONS = [
 
 const STAT_TILE_HEIGHT = 80;
 
-type StatProps = { label: string; value: string };
+type StatProps = {
+    label: string;
+    value: string;
+    tooltip: ReactNode | null;
+};
 
 const ESTIMATE_VALUE_COLOR = 'var(--estimate-ink)';
 
 const Stat: FC<StatProps & { valueColor: string | null }> = ({
     label,
     value,
+    tooltip,
+    valueColor,
+}) => {
+    const tile = (
+        <Box h={STAT_TILE_HEIGHT}>
+            <BigNumberDisplay
+                value={value}
+                label={label}
+                showLabel
+                comparison={undefined}
+                flipColors={false}
+                valueColor={valueColor ?? undefined}
+            />
+        </Box>
+    );
+    if (!tooltip) return tile;
+    return (
+        <Tooltip multiline maw={320} withinPortal label={tooltip}>
+            {tile}
+        </Tooltip>
+    );
+};
+
+const StatsGrid: FC<{ items: StatProps[]; valueColor: string | null }> = ({
+    items,
     valueColor,
 }) => (
-    <Box h={STAT_TILE_HEIGHT}>
-        <BigNumberDisplay
-            value={value}
-            label={label}
-            showLabel
-            comparison={undefined}
-            flipColors={false}
-            valueColor={valueColor ?? undefined}
-        />
-    </Box>
+    <SimpleGrid cols={items.length} spacing="md">
+        {items.map((item) => (
+            <Stat
+                key={item.label}
+                label={item.label}
+                value={item.value}
+                tooltip={item.tooltip}
+                valueColor={valueColor}
+            />
+        ))}
+    </SimpleGrid>
 );
+
+const getCostStat = (
+    rate: WarehouseCostRate | null,
+    usage: WarehouseUsage,
+): StatProps | null => {
+    const usd = rate ? getDisplayedCostUsd(usage, rate) : null;
+    if (!rate || usd === null) return null;
+    return {
+        label: 'Cost saved',
+        value: formatApproxUsd(usd),
+        tooltip: <WarehouseCostTooltipContent usage={usage} rate={rate} />,
+    };
+};
 
 const StatsSkeleton: FC<{ columns: number; withFooter: boolean }> = ({
     columns,
@@ -151,16 +203,6 @@ type RecommendationsProps = {
 
 const Recommendations: FC<RecommendationsProps> = ({ projectUuid, stats }) => {
     const [opened, setOpened] = useState(false);
-
-    if (stats.recommendations.length === 0) {
-        return (
-            <Text c="dimmed" fz="sm">
-                No avoidable misses. Remaining misses are within the normal
-                range.
-            </Text>
-        );
-    }
-
     const toggle = () => setOpened((value) => !value);
 
     return (
@@ -241,34 +283,41 @@ type StatsContentProps = {
 };
 
 const StatsContent: FC<StatsContentProps> = ({ projectUuid, stats }) => {
+    const costStat = getCostStat(useWarehouseCostRate(projectUuid), {
+        warehouseTimeMs: stats.summary.warehouseTimeSavedMs,
+        bytesBilled: stats.summary.bytesBilledSaved,
+    });
     const items: StatProps[] = [
-        { label: 'Hit rate', value: formatPercent(stats.summary.hitRate) },
-        { label: 'Hits', value: formatCompactNumber(stats.summary.hits) },
-        { label: 'Misses', value: formatCompactNumber(stats.summary.misses) },
         {
-            label: 'Warehouse time saved',
+            label: 'Hit rate',
+            value: formatPercent(stats.summary.hitRate),
+            tooltip: null,
+        },
+        {
+            label: 'Hits',
+            value: formatCompactNumber(stats.summary.hits),
+            tooltip: null,
+        },
+        {
+            label: 'Time saved',
             value: formatWarehouseTime(
                 Math.round(stats.summary.warehouseTimeSavedMs),
             ),
+            tooltip: null,
         },
+        ...(costStat ? [costStat] : []),
     ];
 
     return (
         <Stack gap="lg">
-            <SimpleGrid cols={4} spacing="md">
-                {items.map((item) => (
-                    <Stat
-                        key={item.label}
-                        label={item.label}
-                        value={item.value}
-                        valueColor={null}
-                    />
-                ))}
-            </SimpleGrid>
+            <StatsGrid items={items} valueColor={null} />
 
-            <Divider />
-
-            <Recommendations projectUuid={projectUuid} stats={stats} />
+            {stats.recommendations.length > 0 && (
+                <>
+                    <Divider />
+                    <Recommendations projectUuid={projectUuid} stats={stats} />
+                </>
+            )}
         </Stack>
     );
 };
@@ -302,6 +351,7 @@ const ActualUsage: FC<UsageProps> = ({ projectUuid, days }) => {
 };
 
 const EstimatedUsage: FC<UsageProps> = ({ projectUuid, days }) => {
+    const costRate = useWarehouseCostRate(projectUuid);
     const {
         data: estimate,
         isLoading,
@@ -333,33 +383,35 @@ const EstimatedUsage: FC<UsageProps> = ({ projectUuid, days }) => {
 
     const { baseline } = estimate;
     const items: StatProps[] = [
-        { label: 'Estimated hit rate', value: formatPercent(baseline.hitRate) },
         {
-            label: 'Queries served from cache',
-            value: formatCompactNumber(baseline.hits),
+            label: 'Hit rate',
+            value: formatPercent(baseline.hitRate),
+            tooltip: null,
         },
         {
-            label: 'Warehouse time saved',
+            label: 'Hits',
+            value: formatCompactNumber(baseline.hits),
+            tooltip: null,
+        },
+        {
+            label: 'Time saved',
             value: formatWarehouseTime(
                 Math.round(baseline.warehouseTimeSavedMs),
             ),
+            tooltip: null,
         },
     ];
+    const costStat = getCostStat(costRate, {
+        warehouseTimeMs: baseline.warehouseTimeSavedMs,
+        bytesBilled: baseline.bytesBilledSaved,
+    });
+    if (costStat) items.push(costStat);
 
     return (
         <Stack gap="lg">
-            <SimpleGrid cols={3} spacing="md">
-                {items.map((item) => (
-                    <Stat
-                        key={item.label}
-                        label={item.label}
-                        value={item.value}
-                        valueColor={ESTIMATE_VALUE_COLOR}
-                    />
-                ))}
-            </SimpleGrid>
+            <StatsGrid items={items} valueColor={ESTIMATE_VALUE_COLOR} />
             <Text c="dimmed" fz="xs">
-                {`Estimated by replaying the ${formatCompactNumber(baseline.runs)} queries from this period with a ${formatCacheDuration(
+                {`Estimated from the ${formatCompactNumber(baseline.runs)} queries from this period with a ${formatCacheDuration(
                     estimate.currentTtlSeconds,
                 )} cache duration.`}
             </Text>
