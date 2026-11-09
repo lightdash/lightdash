@@ -88,6 +88,7 @@ function buildService() {
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {
             getDefault: vi.fn().mockResolvedValue(null),
             findInOrganization: vi

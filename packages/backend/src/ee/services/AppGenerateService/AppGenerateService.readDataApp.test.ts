@@ -95,6 +95,7 @@ function buildService(appModel: Record<string, unknown>): AppGenerateService {
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {} as never,

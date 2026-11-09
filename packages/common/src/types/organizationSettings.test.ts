@@ -33,7 +33,21 @@ describe('resolveEffectiveOrganizationSettings', () => {
             corsAllowedDomains: [],
             dataAppAutomaticThumbnailsEnabled: true,
             dataAppCapturesEnabled: true,
+            dataAppCustomDependenciesEnabled: false,
         });
+    });
+
+    test('custom data app dependencies are off until an org admin turns them on', () => {
+        expect(
+            resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS)
+                .dataAppCustomDependenciesEnabled,
+        ).toBe(false);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { dataAppCustomDependenciesEnabled: true },
+                INSTANCE_DEFAULTS,
+            ).dataAppCustomDependenciesEnabled,
+        ).toBe(true);
     });
 
     test('automatic data app thumbnails are on until an org turns them off', () => {

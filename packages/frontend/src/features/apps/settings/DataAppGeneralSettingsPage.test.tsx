@@ -1,4 +1,7 @@
-import { type ApiError, type OrganizationSettings } from '@lightdash/common';
+import {
+    type ApiError,
+    type OrganizationSettingsWithInstanceGuards,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
@@ -9,8 +12,11 @@ import { DataAppGeneralSettingsPage } from './DataAppGeneralSettingsPage';
 type SettingsQuery = {
     data:
         | Pick<
-              OrganizationSettings,
-              'dataAppAutomaticThumbnailsEnabled' | 'dataAppCapturesEnabled'
+              OrganizationSettingsWithInstanceGuards,
+              | 'dataAppAutomaticThumbnailsEnabled'
+              | 'dataAppCapturesEnabled'
+              | 'dataAppCustomDependenciesEnabled'
+              | 'dataAppDependencyGuards'
           >
         | undefined;
     isInitialLoading: boolean;
@@ -20,6 +26,18 @@ type SettingsQuery = {
 
 const LABEL = 'Automatically capture thumbnails for data app versions';
 const CAPTURES_LABEL = 'Allow screenshots and attachments in data app builds';
+const CUSTOM_DEPENDENCIES_LABEL = 'Allow custom dependencies in data apps';
+
+const DEFAULT_SETTINGS = {
+    dataAppAutomaticThumbnailsEnabled: true,
+    dataAppCapturesEnabled: true,
+    dataAppCustomDependenciesEnabled: false,
+    dataAppDependencyGuards: {
+        malwareCheckEnabled: true,
+        minReleaseAgeDays: 3,
+        registryHosts: ['registry.npmjs.org'],
+    },
+};
 
 const {
     automaticThumbnailsFlag,
@@ -34,6 +52,12 @@ const {
             data: {
                 dataAppAutomaticThumbnailsEnabled: true,
                 dataAppCapturesEnabled: true,
+                dataAppCustomDependenciesEnabled: false,
+                dataAppDependencyGuards: {
+                    malwareCheckEnabled: true,
+                    minReleaseAgeDays: 3,
+                    registryHosts: ['registry.npmjs.org'],
+                },
             },
             isInitialLoading: false,
             isError: false,
@@ -89,10 +113,7 @@ const renderPage = () =>
 describe('DataAppGeneralSettingsPage', () => {
     beforeEach(() => {
         settingsQuery.current = {
-            data: {
-                dataAppAutomaticThumbnailsEnabled: true,
-                dataAppCapturesEnabled: true,
-            },
+            data: DEFAULT_SETTINGS,
             isInitialLoading: false,
             isError: false,
             error: undefined,
@@ -154,8 +175,8 @@ describe('DataAppGeneralSettingsPage', () => {
     it('turns automatic capture back on when the checkbox is ticked', async () => {
         const user = userEvent.setup();
         settingsQuery.current.data = {
+            ...DEFAULT_SETTINGS,
             dataAppAutomaticThumbnailsEnabled: false,
-            dataAppCapturesEnabled: true,
         };
         renderPage();
 
@@ -213,6 +234,7 @@ describe('DataAppGeneralSettingsPage', () => {
 
         it('locks automatic thumbnails off while captures are off', () => {
             settingsQuery.current.data = {
+                ...DEFAULT_SETTINGS,
                 dataAppCapturesEnabled: false,
                 // The API resolves this to false while captures are off.
                 dataAppAutomaticThumbnailsEnabled: false,
@@ -235,6 +257,7 @@ describe('DataAppGeneralSettingsPage', () => {
         it('cannot be turned on when the instance env has captures off', () => {
             health.capturesEnabledOnInstance = false;
             settingsQuery.current.data = {
+                ...DEFAULT_SETTINGS,
                 dataAppCapturesEnabled: false,
                 dataAppAutomaticThumbnailsEnabled: false,
             };
@@ -247,6 +270,74 @@ describe('DataAppGeneralSettingsPage', () => {
                 screen.getByText(
                     'Screenshots and attachments are disabled on this instance',
                 ),
+            ).toBeInTheDocument();
+        });
+    });
+
+    describe('custom dependencies', () => {
+        it('is off by default and can be turned on', async () => {
+            const user = userEvent.setup();
+            renderPage();
+
+            const toggle = screen.getByRole('switch', {
+                name: CUSTOM_DEPENDENCIES_LABEL,
+            });
+            expect(toggle).not.toBeChecked();
+            expect(
+                screen.getByText('manage:DataAppDependency'),
+            ).toBeInTheDocument();
+            await user.click(toggle);
+
+            expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
+                dataAppCustomDependenciesEnabled: true,
+            });
+        });
+
+        it('turns off when unticked', async () => {
+            const user = userEvent.setup();
+            settingsQuery.current.data = {
+                ...DEFAULT_SETTINGS,
+                dataAppCustomDependenciesEnabled: true,
+            };
+            renderPage();
+
+            await user.click(
+                screen.getByRole('switch', { name: CUSTOM_DEPENDENCIES_LABEL }),
+            );
+
+            expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
+                dataAppCustomDependenciesEnabled: false,
+            });
+        });
+
+        it('shows the instance dependency checks', () => {
+            renderPage();
+
+            expect(screen.getByText('Malware check')).toBeInTheDocument();
+            expect(screen.getByText('On')).toBeInTheDocument();
+            expect(screen.getByText('3 days')).toBeInTheDocument();
+            expect(screen.getByText('Package registry')).toBeInTheDocument();
+            expect(screen.getByText('registry.npmjs.org')).toBeInTheDocument();
+        });
+
+        it('shows checks that are turned off on the instance', () => {
+            settingsQuery.current.data = {
+                ...DEFAULT_SETTINGS,
+                dataAppDependencyGuards: {
+                    malwareCheckEnabled: false,
+                    minReleaseAgeDays: 0,
+                    registryHosts: [
+                        'npm.internal.example.com',
+                        'npm.mirror.example.com',
+                    ],
+                },
+            };
+            renderPage();
+
+            expect(screen.getAllByText('Off')).toHaveLength(2);
+            expect(screen.getByText('Package registries')).toBeInTheDocument();
+            expect(
+                screen.getByText('npm.mirror.example.com'),
             ).toBeInTheDocument();
         });
     });

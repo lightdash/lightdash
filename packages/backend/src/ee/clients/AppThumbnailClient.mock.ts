@@ -51,6 +51,7 @@ const NOTHING_STORED: OrganizationSettings = {
     corsAllowedDomains: null,
     dataAppAutomaticThumbnailsEnabled: null,
     dataAppCapturesEnabled: null,
+    dataAppCustomDependenciesEnabled: false,
 };
 
 /**

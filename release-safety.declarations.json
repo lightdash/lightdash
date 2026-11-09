@@ -245,6 +245,10 @@
                     "mcp": []
                 }
             }
+        },
+        "data-app-custom-dependencies-flag-removed": {
+            "reason": "The EnableDataAppCustomDependencies member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading. Whether an organization may upload custom data app dependencies is now the dataAppCustomDependenciesEnabled organization setting, which a migration seeds from the flag, so self-hosters who listed enable-data-app-custom-dependencies in LIGHTDASH_ENABLE_FEATURE_FLAGS keep access and later changes are made by an org admin in the data apps settings.",
+            "requiredStop": false
         }
     }
 }

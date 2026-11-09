@@ -65,13 +65,6 @@ export enum FeatureFlags {
     AiAccessSkipResultsCache = 'ai-access-skip-results-cache',
 
     /**
-     * Per-organization gate for declaring custom npm dependencies in data
-     * apps. Disabled by default; self-hosted instances can enable it globally
-     * via LIGHTDASH_ENABLE_FEATURE_FLAGS.
-     */
-    EnableDataAppCustomDependencies = 'enable-data-app-custom-dependencies',
-
-    /**
      * Per-organization rollout of AI analysis in data apps (detect anomalies,
      * investigate with an agent). Gates the endpoints and the admin toggle;
      * the org's `dataAppRuntimeAiEnabled` setting is the separate customer

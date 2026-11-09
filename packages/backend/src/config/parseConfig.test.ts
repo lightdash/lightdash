@@ -245,6 +245,19 @@ describe('external connection private hosts', () => {
     );
 });
 
+describe('data app dependency minimum release age', () => {
+    const variable = 'LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS';
+
+    it('defaults to 3 days', () => {
+        expect(parseConfig().appRuntime.dependencyMinReleaseAgeDays).toBe(3);
+    });
+
+    it('can be turned off with 0', () => {
+        process.env[variable] = '0';
+        expect(parseConfig().appRuntime.dependencyMinReleaseAgeDays).toBe(0);
+    });
+});
+
 describe('chart registry host access flags', () => {
     it('defaults to strict: no private hosts, no insecure transport', () => {
         const { chartRegistry } = parseConfig().appRuntime;

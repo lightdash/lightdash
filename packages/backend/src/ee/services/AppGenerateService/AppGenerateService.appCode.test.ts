@@ -41,6 +41,35 @@ vi.mock('ai', async (importOriginal) => ({
     generateText: vi.fn(),
 }));
 
+// Lets a test answer npm registry lookups for the release-age guard.
+const registryLookup = vi.hoisted(() => ({
+    publishedAt: null as Record<string, Record<string, string>> | null,
+    urls: [] as string[],
+}));
+vi.mock('../../../utils/secureFetch/secureFetch', async (importOriginal) => {
+    const actual =
+        await importOriginal<
+            typeof import('../../../utils/secureFetch/secureFetch')
+        >();
+    return {
+        ...actual,
+        secureFetch: async (
+            ...args: Parameters<typeof actual.secureFetch>
+        ): ReturnType<typeof actual.secureFetch> => {
+            const { publishedAt } = registryLookup;
+            if (publishedAt === null) return actual.secureFetch(...args);
+            const [url] = args;
+            registryLookup.urls.push(url);
+            const name = decodeURIComponent(new URL(url).pathname.slice(1));
+            return {
+                status: 200,
+                bodyText: JSON.stringify({ time: publishedAt[name] ?? {} }),
+                truncated: false,
+            } as Awaited<ReturnType<typeof actual.secureFetch>>;
+        },
+    };
+});
+
 const PROJECT_UUID = 'proj-uuid-1';
 const PROJECT_ORG_UUID = 'org-uuid-project'; // org derived from the project
 const USER_ORG_UUID = 'org-uuid-user'; // org from the user session (different)
@@ -157,6 +186,7 @@ function buildService(
     opts: {
         customDependenciesOrgEnabled?: boolean;
         canManageDataAppDependencies?: boolean;
+        minReleaseAgeDays?: number;
         dataAppsEnabled?: boolean;
         chartStudioAvailable?: boolean;
     } = {},
@@ -195,10 +225,15 @@ function buildService(
     };
 
     const featureFlagModel = featureFlagModelWith({
-        [FeatureFlags.EnableDataAppCustomDependencies]:
-            opts.customDependenciesOrgEnabled ?? true,
         [FeatureFlags.EnableDataApps]: opts.dataAppsEnabled ?? true,
     });
+
+    const organizationSettingsModel = {
+        get: vi.fn().mockResolvedValue({
+            dataAppCustomDependenciesEnabled:
+                opts.customDependenciesOrgEnabled ?? true,
+        }),
+    };
 
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({
@@ -224,7 +259,7 @@ function buildService(
         },
         appRuntime: {
             dependencyRegistryHosts: ['registry.npmjs.org'],
-            dependencyMinReleaseAgeDays: 0,
+            dependencyMinReleaseAgeDays: opts.minReleaseAgeDays ?? 0,
             // Off in these gate-focused tests so no upload attempts a real
             // OSV call; the malware guard has its own unit tests.
             dependencyMalwareCheckEnabled: false,
@@ -249,6 +284,7 @@ function buildService(
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: {} as never,
+        organizationSettingsModel: organizationSettingsModel as never,
         pinnedListModel: {} as never,
         projectModel: projectModel as never,
         projectParametersModel: {} as never,
@@ -318,6 +354,7 @@ function buildService(
         appModel,
         schedulerClient,
         analytics,
+        organizationSettingsModel,
         externalConnectionModel,
         coderService,
         spaceModel,
@@ -1567,10 +1604,11 @@ describe('AppGenerateService.importAppCode', () => {
         expect(appModel.updateApp).not.toHaveBeenCalled();
     });
 
-    it('rejects custom deps when the org flag is off', async () => {
-        const { service, appModel, analytics } = buildService({
-            customDependenciesOrgEnabled: false,
-        });
+    it('rejects custom deps when the org setting is off', async () => {
+        const { service, appModel, analytics, organizationSettingsModel } =
+            buildService({
+                customDependenciesOrgEnabled: false,
+            });
 
         appModel.findApp.mockResolvedValue(undefined);
 
@@ -1583,6 +1621,10 @@ describe('AppGenerateService.importAppCode', () => {
             } as ImportAppCodeRequestBody),
         ).rejects.toThrow('not enabled for your organization');
 
+        // Read from the project's organization, not the user session's.
+        expect(organizationSettingsModel.get).toHaveBeenCalledWith(
+            PROJECT_ORG_UUID,
+        );
         expect(analytics.track).toHaveBeenCalledWith({
             event: 'data_app.upload_rejected',
             userId: USER_UUID,
@@ -1636,7 +1678,7 @@ describe('AppGenerateService.importAppCode', () => {
         expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
     });
 
-    it('accepts custom deps when the org flag allows them', async () => {
+    it('accepts custom deps when the org setting allows them', async () => {
         const { service, appModel, schedulerClient, analytics } = buildService({
             customDependenciesOrgEnabled: true,
         });
@@ -1662,6 +1704,108 @@ describe('AppGenerateService.importAppCode', () => {
                 customDependencies: [{ name: 'deck.gl', version: '9.3.5' }],
                 lockfileHash: expect.any(String),
             }),
+        });
+    });
+
+    it('does not read the org setting for a template-only upload', async () => {
+        const { service, appModel, organizationSettingsModel } = buildService({
+            customDependenciesOrgEnabled: false,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: { ...makeCode(), dependencies: makeDeps() },
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(organizationSettingsModel.get).not.toHaveBeenCalled();
+    });
+
+    describe('minimum release age', () => {
+        const DAY_MS = 24 * 60 * 60 * 1000;
+        const daysAgo = (days: number) =>
+            new Date(Date.now() - days * DAY_MS).toISOString();
+        // deck.gl is the declared custom package; @loaders.gl/core is only
+        // pulled in transitively.
+        const lockfile = [
+            "lockfileVersion: '9.0'",
+            'packages:',
+            '  deck.gl@9.3.5:',
+            '    resolution: {integrity: sha512-deck}',
+            "  '@loaders.gl/core@4.0.0':",
+            '    resolution: {integrity: sha512-loaders}',
+            '',
+        ].join('\n');
+
+        afterEach(() => {
+            registryLookup.publishedAt = null;
+            registryLookup.urls = [];
+        });
+
+        it('rejects a transitive package published too recently', async () => {
+            registryLookup.publishedAt = {
+                'deck.gl': { '9.3.5': daysAgo(30) },
+                '@loaders.gl/core': { '4.0.0': daysAgo(1) },
+            };
+            const { service, appModel, analytics } = buildService({
+                minReleaseAgeDays: 3,
+            });
+            appModel.findApp.mockResolvedValue(undefined);
+
+            await expect(
+                service.importAppCode(makeUser(), PROJECT_UUID, {
+                    code: {
+                        ...makeCode(),
+                        dependencies: makeDeps(
+                            { 'deck.gl': '9.3.5' },
+                            { lockfile },
+                        ),
+                    },
+                } as ImportAppCodeRequestBody),
+            ).rejects.toThrow(
+                '"@loaders.gl/core@4.0.0" was published 1 day(s) ago, under the 3-day minimum',
+            );
+            expect(registryLookup.urls).toEqual([
+                'https://registry.npmjs.org/deck.gl',
+                'https://registry.npmjs.org/@loaders.gl%2Fcore',
+            ]);
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'data_app.upload_rejected',
+                    properties: expect.objectContaining({
+                        reason: 'min_release_age',
+                    }),
+                }),
+            );
+        });
+
+        it('accepts when every resolved package is old enough', async () => {
+            registryLookup.publishedAt = {
+                'deck.gl': { '9.3.5': daysAgo(30) },
+                '@loaders.gl/core': { '4.0.0': daysAgo(4) },
+            };
+            const { service, appModel } = buildService({
+                minReleaseAgeDays: 3,
+            });
+            appModel.findApp.mockResolvedValue(undefined);
+
+            const result = await service.importAppCode(
+                makeUser(),
+                PROJECT_UUID,
+                {
+                    code: {
+                        ...makeCode(),
+                        dependencies: makeDeps(
+                            { 'deck.gl': '9.3.5' },
+                            { lockfile },
+                        ),
+                    },
+                } as ImportAppCodeRequestBody,
+            );
+
+            expect(result.action).toBe('create');
+            expect(registryLookup.urls).toHaveLength(2);
         });
     });
 

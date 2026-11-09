@@ -111,6 +111,29 @@ export type OrganizationSettings = {
      * Always resolved to an effective boolean in API responses.
      */
     dataAppCapturesEnabled: boolean | null;
+    /**
+     * Whether data app uploads may declare custom npm dependencies. Off by
+     * default; only org admins can change it. Uploaders also need the
+     * `manage:DataAppDependency` permission.
+     */
+    dataAppCustomDependenciesEnabled: boolean;
+};
+
+/**
+ * Instance-wide guards applied to custom data app dependencies at upload time.
+ * Set by env vars and shown read-only to org admins.
+ */
+export type DataAppDependencyGuards = {
+    /** `LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED` */
+    malwareCheckEnabled: boolean;
+    /** `LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS`; `0` means off. */
+    minReleaseAgeDays: number;
+    /** `LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS` */
+    registryHosts: string[];
+};
+
+export type OrganizationSettingsWithInstanceGuards = OrganizationSettings & {
+    dataAppDependencyGuards: DataAppDependencyGuards;
 };
 
 export const DEFAULT_INVITE_LINK_EXPIRATION_DAYS = 3;
@@ -134,7 +157,7 @@ export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
 
 export type ApiOrganizationSettingsResponse = {
     status: 'ok';
-    results: OrganizationSettings;
+    results: OrganizationSettingsWithInstanceGuards;
 };
 
 export const isCorsRegexPattern = (value: string): boolean =>
@@ -325,6 +348,8 @@ const resolveEffectiveOrganizationSettingsFields = (
     queryLimit: raw.queryLimit ?? instanceDefaults.queryLimit,
     csvCellsLimit: raw.csvCellsLimit ?? instanceDefaults.csvCellsLimit,
     corsAllowedDomains: raw.corsAllowedDomains ?? [],
+    dataAppCustomDependenciesEnabled:
+        raw.dataAppCustomDependenciesEnabled ?? false,
 });
 
 /**

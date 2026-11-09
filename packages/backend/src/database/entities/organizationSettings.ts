@@ -41,6 +41,8 @@ export type DbOrganizationSettings = {
     // Data app captures (screenshots, attachments, thumbnails). NULL/absent
     // inherits the instance env (LIGHTDASH_APP_CAPTURES_ENABLED).
     data_app_captures_enabled: boolean | null;
+    // Whether data app uploads may declare custom npm dependencies.
+    data_app_custom_dependencies_enabled: boolean;
     created_at: Date;
     updated_at: Date;
 };

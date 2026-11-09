@@ -187,6 +187,7 @@ const buildService = ({
         featureFlagModel: {
             get: async () => ({ enabled: true }),
         } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {

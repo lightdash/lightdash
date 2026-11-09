@@ -217,6 +217,7 @@ import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
+import { type OrganizationSettingsModel } from '../../../models/OrganizationSettingsModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
@@ -476,6 +477,7 @@ type AppGenerateServiceDeps = {
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
     organizationDesignModel: OrganizationDesignModel;
+    organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
     projectParametersModel: ProjectParametersModel;
@@ -817,6 +819,11 @@ export class AppGenerateService extends BaseService {
 
     private readonly organizationDesignModel: OrganizationDesignModel;
 
+    private readonly organizationSettingsModel: Pick<
+        OrganizationSettingsModel,
+        'get'
+    >;
+
     private readonly pinnedListModel: PinnedListModel;
 
     private readonly projectModel: ProjectModel;
@@ -885,6 +892,7 @@ export class AppGenerateService extends BaseService {
         appModel,
         featureFlagModel,
         organizationDesignModel,
+        organizationSettingsModel,
         pinnedListModel,
         projectModel,
         projectParametersModel,
@@ -918,6 +926,7 @@ export class AppGenerateService extends BaseService {
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
         this.organizationDesignModel = organizationDesignModel;
+        this.organizationSettingsModel = organizationSettingsModel;
         this.pinnedListModel = pinnedListModel;
         this.projectModel = projectModel;
         this.projectParametersModel = projectParametersModel;
@@ -14452,35 +14461,27 @@ export class AppGenerateService extends BaseService {
                     });
                     throw err;
                 }
-                // The per-org rollout gate applies when uploading a new custom
-                // dependency set. Once approved and stored, background builds,
-                // iterations, and downloads must continue to use that exact set.
-                const { enabled: orgAllowsCustomDeps } =
-                    await this.featureFlagModel.get({
-                        user,
-                        featureFlagId:
-                            FeatureFlags.EnableDataAppCustomDependencies,
-                    });
+                // The org setting gates uploading a new custom dependency set.
+                // Stored sets keep building after it is turned off.
+                const {
+                    dataAppCustomDependenciesEnabled: orgAllowsCustomDeps,
+                } = await this.organizationSettingsModel.get(organizationUuid);
                 if (!orgAllowsCustomDeps) {
                     trackUploadRejected('custom_dependencies_disabled_org', {
                         customDependencies,
                     });
                     throw new ParameterError(
-                        'Custom app dependencies are not enabled for your organization. Contact your admin to request access.',
+                        'Custom app dependencies are not enabled for your organization. An organization administrator can turn them on in Settings under Data apps > General.',
                     );
                 }
-                // Minimum-release-age guard (no-op unless the instance opts in
-                // via LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS): reject
-                // custom packages whose resolved version is too freshly
-                // published to trust.
+                // Minimum-release-age guard over the whole resolved tree
+                // (LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS; 0 disables).
                 const lockfilePackages = extractLockfilePackages(
                     code.dependencies.lockfile,
                 );
                 try {
                     await assertDependenciesMeetMinReleaseAge({
-                        packages: lockfilePackages.filter(
-                            (p) => customDeps[p.name] !== undefined,
-                        ),
+                        packages: lockfilePackages,
                         minReleaseAgeDays:
                             this.lightdashConfig.appRuntime
                                 .dependencyMinReleaseAgeDays,

@@ -64,6 +64,8 @@ export class OrganizationSettingsModel {
             dataAppAutomaticThumbnailsEnabled:
                 row?.data_app_automatic_thumbnails_enabled ?? null,
             dataAppCapturesEnabled: row?.data_app_captures_enabled ?? null,
+            dataAppCustomDependenciesEnabled:
+                row?.data_app_custom_dependencies_enabled ?? false,
         };
     }
 
@@ -106,6 +108,8 @@ export class OrganizationSettingsModel {
             data_app_automatic_thumbnails_enabled:
                 patch.dataAppAutomaticThumbnailsEnabled,
             data_app_captures_enabled: patch.dataAppCapturesEnabled,
+            data_app_custom_dependencies_enabled:
+                patch.dataAppCustomDependenciesEnabled,
         };
         const toWrite = omitBy(
             columns,

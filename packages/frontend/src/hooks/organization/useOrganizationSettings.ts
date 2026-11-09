@@ -1,6 +1,6 @@
 import {
     type ApiError,
-    type OrganizationSettings,
+    type OrganizationSettingsWithInstanceGuards,
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,7 +11,7 @@ import useToaster from '../toaster/useToaster';
 const QUERY_KEY = ['organization_settings'];
 
 const getOrganizationSettings = async (lightdashApi: LightdashApi) =>
-    lightdashApi<OrganizationSettings>({
+    lightdashApi<OrganizationSettingsWithInstanceGuards>({
         url: '/org/settings',
         method: 'GET',
         body: undefined,
@@ -21,7 +21,7 @@ const updateOrganizationSettings = async (
     lightdashApi: LightdashApi,
     data: UpdateOrganizationSettings,
 ) =>
-    lightdashApi<OrganizationSettings>({
+    lightdashApi<OrganizationSettingsWithInstanceGuards>({
         url: '/org/settings',
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -31,7 +31,7 @@ export const useOrganizationSettings = ({
     enabled = true,
 }: { enabled?: boolean } = {}) => {
     const lightdashApi = useLightdashApi();
-    return useQuery<OrganizationSettings, ApiError>({
+    return useQuery<OrganizationSettingsWithInstanceGuards, ApiError>({
         queryKey: QUERY_KEY,
         queryFn: () => getOrganizationSettings(lightdashApi),
         enabled,
@@ -44,7 +44,7 @@ export const useUpdateOrganizationSettings = () => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
-        OrganizationSettings,
+        OrganizationSettingsWithInstanceGuards,
         ApiError,
         UpdateOrganizationSettings
     >(
