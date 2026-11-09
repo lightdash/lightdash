@@ -2,10 +2,11 @@ import { type AiComposerChartArtifactConfigV1 } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import {
-    useAiAgentMessageQueryPipelines,
-    useAiAgentMessageQueryPipelineVizQuery,
-} from '../../hooks/useAiAgentMessageQueryPipelines';
+    useAiAgentNodeCitationPipeline,
+    useAiAgentNodeCitationVizQuery,
+} from '../../hooks/useAiAgentNodeCitations';
 import {
     clearPreview,
     type QueryPipelinePreviewData,
@@ -13,69 +14,68 @@ import {
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiComposerArtifactPanel } from './AiComposerArtifactPanel';
 
-// Message-query pipelines are not saved artifacts, so they can't be pinned.
+// A cited node is not a saved artifact, so it can't be pinned.
 const NO_CHAT_NODES: ReadonlySet<string> = new Set();
 
 type Props = {
     pipelinePreview: QueryPipelinePreviewData;
 };
 
-/** A message's pipeline in the composer panel, as a read-only table. */
+/** A cited node and what it reads in the composer panel, as a read-only table. */
 export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const { projectUuid, agentUuid, threadUuid, messageUuid, queryUuid } =
+    const getUiString = useUiStrings();
+    const { projectUuid, agentUuid, threadUuid, messageUuid, nodeId } =
         pipelinePreview;
-    const pipelines = useAiAgentMessageQueryPipelines({
-        projectUuid,
-        agentUuid,
-        threadUuid,
-        messageUuid,
-        enabled: true,
-    });
-    const pipeline = pipelines.data?.find(
-        (candidate) => candidate.queryUuid === queryUuid,
-    );
-    const run = useAiAgentMessageQueryPipelineVizQuery({
+    const pipeline = useAiAgentNodeCitationPipeline(pipelinePreview);
+    const run = useAiAgentNodeCitationVizQuery({
         ...pipelinePreview,
-        enabled: pipeline !== undefined,
+        enabled: pipeline.data !== undefined,
     });
     const config = useMemo<AiComposerChartArtifactConfigV1 | null>(
         () =>
-            pipeline
+            pipeline.data
                 ? {
                       source: 'composer',
                       schemaVersion: 1,
-                      queries: pipeline.nodes,
-                      terminalNodeId: pipeline.terminalNodeId,
+                      queries: pipeline.data.nodes,
+                      terminalNodeId: pipeline.data.nodeId,
                       vizConfig: null,
                   }
                 : null,
-        [pipeline],
+        [pipeline.data],
     );
 
-    if (pipelines.isInitialLoading) {
-        return <EmptyStateLoader title="Loading query…" />;
+    if (pipeline.isInitialLoading) {
+        return (
+            <EmptyStateLoader
+                title={getUiString('aiAgent.nodeCitation.loading')}
+            />
+        );
     }
-    if (!pipeline || !config) {
+    if (!pipeline.data || !config) {
         return (
             <InlineErrorState
-                message="Could not load this query."
-                onRetry={() => void pipelines.refetch()}
+                message={getUiString('aiAgent.nodeCitation.loadError')}
+                onRetry={() => void pipeline.refetch()}
             />
         );
     }
     return (
         <AiComposerArtifactPanel
-            key={queryUuid}
+            key={`${messageUuid}:${nodeId}`}
             projectUuid={projectUuid}
             agentUuid={agentUuid}
             source={{
-                kind: 'messageQuery',
+                kind: 'nodeCitation',
                 threadUuid,
                 messageUuid,
-                queryUuid,
+                nodeId,
             }}
-            title={pipeline.title}
+            title={
+                pipeline.data.title ??
+                getUiString('aiAgent.nodeCitation.untitled')
+            }
             description={null}
             isRevision={false}
             config={config}
@@ -86,6 +86,7 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
             chatNodeIds={NO_CHAT_NODES}
             onAddToChat={null}
             onClose={() => dispatch(clearPreview())}
+            initialView="lineage"
         />
     );
 };

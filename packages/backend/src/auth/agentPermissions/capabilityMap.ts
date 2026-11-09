@@ -300,13 +300,16 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AiAgentController.getAgentSuggestions': [AgentCapability.ReadDiscover],
     'AiAgentController.getAgentThread': [AgentCapability.ReadDiscover],
-    'AiAgentController.getAgentThreadMessageQueryPipelines': [
+    'AiAgentController.getAgentThreadComposerNodes': [
         AgentCapability.ReadDiscover,
     ],
-    'AiAgentController.getAgentThreadMessageQueryPipelineVizQuery': [
+    'AiAgentController.getAgentThreadNodeCitationPipeline': [
+        AgentCapability.ReadDiscover,
+    ],
+    'AiAgentController.getAgentThreadNodeCitationVizQuery': [
         AgentCapability.Query,
     ],
-    'AiAgentController.getAgentThreadMessageQueryPipelineResults': [
+    'AiAgentController.getAgentThreadNodeCitationQueryResults': [
         AgentCapability.ReadDiscover,
     ],
     'AiAgentController.getAgentThreadLiveStatuses': [

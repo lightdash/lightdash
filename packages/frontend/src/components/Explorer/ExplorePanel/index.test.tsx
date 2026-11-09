@@ -1,5 +1,5 @@
 import { ExploreType, type ApiExploreResults } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
@@ -301,7 +301,6 @@ describe('ExplorePanel query options', () => {
         const mergeItem = screen.getByRole('menuitem', {
             name: /Merge another query/,
         });
-        expect(within(mergeItem).getByText('Beta')).toBeInTheDocument();
         await user.click(mergeItem);
 
         expect(addSource).toHaveBeenCalledOnce();

@@ -2569,7 +2569,7 @@ export class AsyncQueryService extends ProjectService {
         if (
             binding.agentUuid !== messageQuery.agentUuid ||
             binding.promptUuid !== messageQuery.promptUuid ||
-            binding.queryUuid !== messageQuery.queryUuid
+            binding.nodeId !== messageQuery.nodeId
         )
             throw new ForbiddenError('Query results are unavailable');
         return this.getAsyncQueryResults(args);
@@ -17129,7 +17129,7 @@ export class AsyncQueryService extends ProjectService {
     private async assertCanViewResultsCacheStats(
         account: Account,
         projectUuid: string,
-    ): Promise<void> {
+    ): Promise<{ organizationUuid: string }> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -17141,6 +17141,7 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+        return { organizationUuid };
     }
 
     async getResultsCacheStats(
@@ -17148,7 +17149,10 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string,
         days: ResultsCacheStatsDays,
     ): Promise<ResultsCacheStats> {
-        await this.assertCanViewResultsCacheStats(account, projectUuid);
+        const { organizationUuid } = await this.assertCanViewResultsCacheStats(
+            account,
+            projectUuid,
+        );
         const [contextRows, recommendationRows] = await Promise.all([
             this.queryHistoryModel.getResultsCacheContextStats(
                 projectUuid,
@@ -17165,11 +17169,20 @@ export class AsyncQueryService extends ProjectService {
                 },
             ),
         ]);
-        return buildResultsCacheStats({
+        const stats = buildResultsCacheStats({
             days,
             contextRows,
             recommendationRows,
         });
+        this.analytics.trackAccount(account, {
+            event: 'results_cache.stats_viewed',
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                days,
+            },
+        });
+        return stats;
     }
 
     async getResultsCacheTtlProjections(

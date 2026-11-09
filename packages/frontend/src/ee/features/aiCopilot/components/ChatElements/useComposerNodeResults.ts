@@ -7,17 +7,17 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import {
     getAiAgentArtifactResultsUrl,
-    getAiAgentMessageQueryResultsUrl,
+    getAiAgentNodeCitationResultsUrl,
 } from '../../hooks/aiAgentRouting';
 
-/** What the panel shows: a saved artifact version, or a pipeline a message ran. */
+/** What the panel shows: a saved artifact version, or a node a message cites. */
 export type ComposerPanelSource =
     | { kind: 'artifact'; artifactUuid: string; versionUuid: string }
     | {
-          kind: 'messageQuery';
+          kind: 'nodeCitation';
           threadUuid: string;
           messageUuid: string;
-          queryUuid: string;
+          nodeId: string;
       };
 
 const getResultsUrl = ({
@@ -41,13 +41,13 @@ const getResultsUrl = ({
                 queryUuid,
                 cached: false,
             });
-        case 'messageQuery':
-            return getAiAgentMessageQueryResultsUrl({
+        case 'nodeCitation':
+            return getAiAgentNodeCitationResultsUrl({
                 projectUuid,
                 agentUuid,
                 threadUuid: source.threadUuid,
                 messageUuid: source.messageUuid,
-                queryUuid: source.queryUuid,
+                nodeId: source.nodeId,
                 resultQueryUuid: queryUuid,
             });
         default:

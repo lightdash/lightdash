@@ -6,6 +6,7 @@ import {
 import { useDebouncedValue, type SplitterPaneSize } from '@mantine/hooks';
 import { Children, useEffect, useState, type ReactElement } from 'react';
 import { z } from 'zod';
+import { useStableCallback } from '../../../hooks/useStableCallback';
 import classes from './ResizableSplitter.module.css';
 
 const sizeSchema = z.union([
@@ -74,6 +75,17 @@ const ResizableSplitter = ({
             : panes.map((pane) => pane.props.defaultSize);
     const layoutSizes =
         savedSizes?.length === panes.length ? savedSizes : defaultSizes;
+
+    // Mantine keeps each handle's first onSizeChange for pointer drags.
+    const handleSizeChange = useStableCallback(
+        (nextSizes: SplitterPaneSize[]) => {
+            setLayouts((current) => ({
+                ...current,
+                [layoutKey]: nextSizes,
+            }));
+            onSizeChange?.(nextSizes);
+        },
+    );
 
     useEffect(() => {
         if (!storageKey || Object.keys(savedLayouts).length === 0) return;
@@ -147,13 +159,7 @@ const ResizableSplitter = ({
                 },
             }}
             sizes={sizes ?? layoutSizes}
-            onSizeChange={(nextSizes) => {
-                setLayouts((current) => ({
-                    ...current,
-                    [layoutKey]: nextSizes,
-                }));
-                onSizeChange?.(nextSizes);
-            }}
+            onSizeChange={handleSizeChange}
         >
             {children}
         </Splitter>

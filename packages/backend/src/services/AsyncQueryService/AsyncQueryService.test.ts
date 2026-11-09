@@ -31032,6 +31032,37 @@ describe('results cache stats', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
+    test('tracks the stats view with its window', async () => {
+        const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+        trackAccount.mockClear();
+        const account = buildAccount();
+        await build(true).service.getResultsCacheStats(account, 'project', 30);
+        expect(trackAccount).toHaveBeenCalledWith(account, {
+            event: 'results_cache.stats_viewed',
+            properties: {
+                organizationId: account.organization.organizationUuid,
+                projectId: 'project',
+                days: 30,
+            },
+        });
+    });
+
+    test('does not track a stats view the user cannot see', async () => {
+        const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+        trackAccount.mockClear();
+        await expect(
+            build(false).service.getResultsCacheStats(
+                buildAccount(),
+                'project',
+                7,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(trackAccount).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ event: 'results_cache.stats_viewed' }),
+        );
+    });
+
     test('passes scheduled contexts and thresholds to the recommendation query', async () => {
         const { service, getResultsCacheRecommendationRows } = build(true);
         await service.getResultsCacheStats(buildAccount(), 'project', 7);

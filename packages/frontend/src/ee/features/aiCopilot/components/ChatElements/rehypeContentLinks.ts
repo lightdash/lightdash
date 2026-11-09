@@ -1,3 +1,7 @@
+import {
+    getNodeCitationNodeId,
+    NODE_CITATION_FRAGMENT,
+} from '@lightdash/common';
 import { type Element, type Root } from 'hast';
 import { visit } from 'unist-util-visit';
 
@@ -10,6 +14,7 @@ const CONTENT_TYPES = [
     'sql-runner-link',
     'settings-link',
     'scheduled-delivery-link',
+    'node-citation',
 ] as const;
 
 export type ContentType = (typeof CONTENT_TYPES)[number];
@@ -19,6 +24,7 @@ export const isContentType = (value: unknown): value is ContentType =>
 
 interface LinkProcessor {
     fragment: string;
+    matches?: (href: string) => boolean;
     contentType: ContentType;
     cleanUrl: (href: string) => string;
     extractData: (href: string) => Record<string, string | undefined>;
@@ -75,6 +81,16 @@ const LINK_PROCESSORS: LinkProcessor[] = [
         contentType: 'sql-runner-link',
         cleanUrl: () => '#',
         extractData: () => ({}),
+    },
+    {
+        fragment: NODE_CITATION_FRAGMENT,
+        matches: (href) => href.startsWith(NODE_CITATION_FRAGMENT),
+        contentType: 'node-citation',
+        cleanUrl: () => '#',
+        extractData: (href) => {
+            const nodeId = getNodeCitationNodeId(href);
+            return nodeId ? { 'data-node-id': nodeId } : {};
+        },
     },
 ];
 
@@ -136,7 +152,9 @@ const URL_MATCHERS: UrlMatcher[] = [
 ];
 
 const processLink = (node: Element, href: string): void => {
-    const processor = LINK_PROCESSORS.find((p) => href.includes(p.fragment));
+    const processor = LINK_PROCESSORS.find((p) =>
+        p.matches ? p.matches(href) : href.includes(p.fragment),
+    );
     if (!processor) {
         for (const matcher of URL_MATCHERS) {
             const match = href.match(matcher.pattern);

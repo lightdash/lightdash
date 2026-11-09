@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.181.2",
-  "previousVersion": "3.181.1",
-  "releaseDate": "2026-11-09T10:45:48.044Z",
+  "version": "3.183.0",
+  "previousVersion": "3.182.1",
+  "releaseDate": "2026-11-09T12:21:31.903Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,15 +11,19 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
+      "breaking": true,
+      "changes": [
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries — api path removed without deprecation",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/query-results — api path removed without deprecation",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/viz-query — api path removed without deprecation"
+      ],
+      "breakingCount": 3,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -34,13 +38,37 @@
   },
   "config": {
     "checked": true,
-    "breaking": false,
-    "changes": []
+    "breaking": true,
+    "changes": [
+      {
+        "type": "removed",
+        "name": "EMBEDDING_ENABLED",
+        "previousDefault": null
+      }
+    ]
   },
   "upgrade": {
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": []
+  "declaredAdvisories": [
+    {
+      "id": "ai-agent-message-query-routes-replaced-by-node-routes",
+      "reason": "The AI agent message query pipeline REST routes under /messages/{messageUuid}/queries are removed in favour of node-addressed routes. Anything calling them now gets 404. No shipped UI opens these routes: the footer that used them was removed earlier, so an old browser tab or UI pod never requests them during a rolling update, and only the removed routes are affected.",
+      "requiredStop": false,
+      "impact": {
+        "kind": "no-external-callers",
+        "firstPartyOnly": "The web app's AI agent message footer was the only client of these operations and was removed before this change; nothing in the web app, SDK or CLI calls them today, so during a rolling update an old tab behaves exactly as before and never hits the removed routes.",
+        "covers": {
+          "rest": [
+            "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries",
+            "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/viz-query",
+            "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/query-results"
+          ],
+          "mcp": []
+        }
+      }
+    }
+  ]
 }

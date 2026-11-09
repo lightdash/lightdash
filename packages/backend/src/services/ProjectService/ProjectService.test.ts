@@ -2720,6 +2720,86 @@ describe('ProjectService', () => {
                 schedulerTimezone: 'UTC',
             });
         });
+
+        test('tracks a TTL set from the instance default', async () => {
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            await cachingService.updateProjectResultsCacheSettings(
+                user,
+                projectUuid,
+                { cacheTtlSeconds: 1800 },
+            );
+
+            expect(track).toHaveBeenCalledWith({
+                event: 'results_cache.ttl_updated',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: projectSummary.organizationUuid,
+                    projectId: projectUuid,
+                    ttlSeconds: 1800,
+                    previousTtlSeconds: null,
+                },
+            });
+        });
+
+        test('tracks a TTL reset to the instance default', async () => {
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            projectModel.getResultsCacheSettings.mockResolvedValueOnce({
+                ...storedSettings(false),
+                cacheTtlSeconds: 1800,
+            });
+            await cachingService.updateProjectResultsCacheSettings(
+                user,
+                projectUuid,
+                { cacheTtlSeconds: null },
+            );
+
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'results_cache.ttl_updated',
+                    properties: expect.objectContaining({
+                        ttlSeconds: null,
+                        previousTtlSeconds: 1800,
+                    }),
+                }),
+            );
+        });
+
+        test('does not track the TTL when it does not change', async () => {
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            projectModel.getResultsCacheSettings.mockResolvedValueOnce({
+                ...storedSettings(false),
+                cacheTtlSeconds: 1800,
+            });
+            await cachingService.updateProjectResultsCacheSettings(
+                user,
+                projectUuid,
+                { cacheTtlSeconds: 1800 },
+            );
+
+            expect(track).not.toHaveBeenCalledWith(
+                expect.objectContaining({ event: 'results_cache.ttl_updated' }),
+            );
+        });
+
+        test('does not track the TTL when only caching is toggled', async () => {
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            projectModel.getResultsCacheSettings
+                .mockResolvedValueOnce(storedSettings(false))
+                .mockResolvedValueOnce(storedSettings(true));
+            await service.updateProjectResultsCacheSettings(
+                projectAdmin,
+                projectUuid,
+                { cacheEnabled: true },
+            );
+
+            expect(track).not.toHaveBeenCalledWith(
+                expect.objectContaining({ event: 'results_cache.ttl_updated' }),
+            );
+        });
     });
 
     describe('invalidateProjectResultsCache', () => {

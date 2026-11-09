@@ -379,6 +379,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
             return (
                 <AiComposerArtifactPanel
                     key={artifact.versionUuid}
+                    initialView="chart"
                     projectUuid={artifact.projectUuid}
                     agentUuid={artifact.agentUuid}
                     source={{

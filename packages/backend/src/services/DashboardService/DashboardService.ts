@@ -4237,6 +4237,7 @@ export class DashboardService
                 includeLinks: scheduler.includeLinks,
                 plainTextEmail: scheduler.plainTextEmail,
                 isThresholdAlert: (scheduler.thresholds?.length ?? 0) > 0,
+                useCachedResults: scheduler.useCachedResults === true,
             },
         };
         this.analytics.track(createSchedulerData);

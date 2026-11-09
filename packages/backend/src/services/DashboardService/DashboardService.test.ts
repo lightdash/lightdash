@@ -3049,6 +3049,29 @@ describe('DashboardService', () => {
                 );
             },
         );
+
+        test.each([
+            [true, true],
+            [false, false],
+            [undefined, false],
+        ])(
+            'tracks scheduler.created with useCachedResults %s as %s',
+            async (useCachedResults, expected) => {
+                await service.createScheduler(editorUser, dashboard.slug, {
+                    ...newScheduler,
+                    useCachedResults,
+                } as Parameters<typeof service.createScheduler>[2]);
+
+                expect(analyticsMock.track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'scheduler.created',
+                        properties: expect.objectContaining({
+                            useCachedResults: expected,
+                        }),
+                    }),
+                );
+            },
+        );
     });
 
     describe('offboarding dashboard ownership', () => {

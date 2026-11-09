@@ -229,6 +229,22 @@
                     "mcp": []
                 }
             }
+        },
+        "ai-agent-message-query-routes-replaced-by-node-routes": {
+            "reason": "The AI agent message query pipeline REST routes under /messages/{messageUuid}/queries are removed in favour of node-addressed routes. Anything calling them now gets 404. No shipped UI opens these routes: the footer that used them was removed earlier, so an old browser tab or UI pod never requests them during a rolling update, and only the removed routes are affected.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The web app's AI agent message footer was the only client of these operations and was removed before this change; nothing in the web app, SDK or CLI calls them today, so during a rolling update an old tab behaves exactly as before and never hits the removed routes.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries",
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/viz-query",
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/query-results"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

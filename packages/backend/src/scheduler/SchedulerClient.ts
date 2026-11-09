@@ -522,6 +522,9 @@ export class SchedulerClient {
                 projectId: scheduler.projectUuid,
                 schedulerId: schedulerUuid,
                 groupId: id,
+                ...(isCreateScheduler(scheduler) && {
+                    useCachedResults: scheduler.useCachedResults === true,
+                }),
             },
         });
 
