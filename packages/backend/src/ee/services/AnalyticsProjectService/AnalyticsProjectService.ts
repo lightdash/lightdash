@@ -64,7 +64,7 @@ type Dependencies = {
         'getByContentUuids'
     >;
     dashboardModel: Pick<DashboardModel, 'find' | 'getByIdOrSlug'>;
-    savedChartModel: Pick<SavedChartModel, 'get' | 'find'>;
+    savedChartModel: Pick<SavedChartModel, 'getVariant' | 'find'>;
     spaceModel: Pick<SpaceModel, 'get' | 'find'>;
     projectModel: Pick<
         ProjectModel,
@@ -319,10 +319,11 @@ export class AnalyticsProjectService extends BaseService {
                 for (const { dashboard, charts } of analyticsContentAsCode) {
                     for (const chart of charts) {
                         const existing = await this.dependencies.savedChartModel
-                            .get(chart.slug, undefined, {
+                            .getVariant(chart.slug, undefined, {
                                 projectUuid: project.projectUuid,
                                 deleted: 'any',
                             })
+                            .then((variant) => variant.chart)
                             .catch((error: unknown) => {
                                 if (error instanceof NotFoundError) return null;
                                 throw error;

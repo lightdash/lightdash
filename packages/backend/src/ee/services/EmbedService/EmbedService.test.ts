@@ -4,6 +4,7 @@ import {
     applyEmbedScopeAbilities,
     buildAbilityFromScopes,
     buildAgentIdentityClaim,
+    ComposerChartNotAvailableInEmbedError,
     DashboardTileTypes,
     FeatureFlags,
     FilterInteractivityValues,
@@ -35,6 +36,10 @@ import {
     WarehouseCredentialKind,
 } from '../../../services/WarehouseClientFactory/ConnectionContext';
 import type { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
+import {
+    composerSavedChartVariant,
+    semanticSavedChartVariant,
+} from '../../../testing/composerSavedChartFixture';
 import { warehouseClientMock } from '../../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { EmbedService } from './EmbedService';
 import {
@@ -1129,6 +1134,81 @@ describe('EmbedService', () => {
         });
     });
 
+    describe('composer charts', () => {
+        const composer = composerSavedChartVariant({
+            uuid: 'composer-chart-uuid',
+            projectUuid: mockProjectUuid,
+        });
+
+        test('a chart embed token naming a composer chart is refused by name', async () => {
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                savedChartModel: {
+                    getVariant: vi.fn().mockResolvedValue(composer),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+            await expect(
+                scopedService.getChartFromJwt(
+                    {
+                        content: {
+                            type: 'chart',
+                            contentId: 'composer-chart-uuid',
+                        },
+                        exp: Date.now() / 1000 + 3600,
+                    },
+                    mockProjectUuid,
+                ),
+            ).rejects.toThrow(ComposerChartNotAvailableInEmbedError);
+        });
+
+        test('a dashboard tile holding a composer chart is refused by name before any explore lookup', async () => {
+            const getExploreFromCache = vi.fn();
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        tiles: [
+                            {
+                                uuid: 'tile-uuid',
+                                type: DashboardTileTypes.SAVED_CHART,
+                                properties: {
+                                    savedChartUuid: 'composer-chart-uuid',
+                                },
+                            },
+                        ],
+                    }),
+                },
+                savedChartModel: {
+                    getVariant: vi.fn().mockResolvedValue(composer),
+                },
+                projectModel: { getExploreFromCache },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const account = {
+                ...mockAccountWithPermission,
+                embed: { dashboardUuids: ['dashboard-uuid'] },
+                access: { content: { dashboardUuid: 'dashboard-uuid' } },
+            } as unknown as AnonymousAccount;
+
+            await expect(
+                scopedService.executeAsyncDashboardTileQuery({
+                    account,
+                    projectUuid: mockProjectUuid,
+                    tileUuid: 'tile-uuid',
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    invalidateCache: false,
+                }),
+            ).rejects.toThrow(ComposerChartNotAvailableInEmbedError);
+            expect(getExploreFromCache).not.toHaveBeenCalled();
+        });
+    });
+
     describe('getContentUuidFromJwt', () => {
         test('resolves standalone dataApp content carrying the appUuid', async () => {
             const content = await service.getContentUuidFromJwt(
@@ -1342,10 +1422,12 @@ describe('EmbedService', () => {
                     }),
                 },
                 savedChartModel: {
-                    get: vi.fn().mockResolvedValue({
-                        uuid: chartUuid,
-                        spaceUuid: savedChartSpaceUuid,
-                    }),
+                    getVariant: vi.fn().mockResolvedValue(
+                        semanticSavedChartVariant({
+                            uuid: chartUuid,
+                            spaceUuid: savedChartSpaceUuid,
+                        }),
+                    ),
                 },
                 spacePermissionService: {
                     resolveAccessBatch: vi.fn(

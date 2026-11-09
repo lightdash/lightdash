@@ -471,6 +471,18 @@ export class ComposerChartNotSupportedError extends LightdashError {
     }
 }
 
+/** Thrown by an embed path that reaches a composer chart; embeds show a not-available state for them. */
+export class ComposerChartNotAvailableInEmbedError extends LightdashError {
+    constructor(chartUuid: string, chartName: string) {
+        super({
+            message: `Chart "${chartName}" is a composer chart, which is not available in embedded content.`,
+            name: 'ComposerChartNotAvailableInEmbedError',
+            statusCode: 400,
+            data: { chartUuid },
+        });
+    }
+}
+
 export class InvalidUser extends LightdashError {
     constructor(message: string) {
         super({

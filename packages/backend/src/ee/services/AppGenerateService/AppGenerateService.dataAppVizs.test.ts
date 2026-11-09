@@ -1,6 +1,7 @@
 // Stub the e2b/ai SDKs so the tests never reach a real sandbox or model client.
 import {
     ChartType,
+    ComposerChartNotSupportedError,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
     ForbiddenError,
@@ -12,6 +13,10 @@ import {
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
 import { verifyPreviewToken } from '../../../routers/appPreviewToken';
+import {
+    composerSavedChartVariant,
+    semanticSavedChartVariant,
+} from '../../../testing/composerSavedChartFixture';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 import { featureFlagModelWith } from './AppGenerateService.mock';
@@ -615,13 +620,15 @@ describe('AppGenerateService data app vizs', () => {
         ) => ({
             savedChartService: { hasAccess },
             savedChartModel: {
-                get: vi.fn().mockResolvedValue({
-                    uuid: 'chart-1',
-                    chartConfig: {
-                        type: ChartType.DATA_APP_VIZ,
-                        config: { dataAppVizUuid },
-                    },
-                }),
+                getVariant: vi.fn().mockResolvedValue(
+                    semanticSavedChartVariant({
+                        uuid: 'chart-1',
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: { dataAppVizUuid },
+                        },
+                    }),
+                ),
             },
         });
 
@@ -979,16 +986,18 @@ describe('AppGenerateService data app vizs', () => {
             const service = buildService(appModel, {
                 savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
                 savedChartModel: {
-                    get: vi.fn().mockResolvedValue({
-                        uuid: 'chart-1',
-                        chartConfig: {
-                            type: ChartType.DATA_APP_VIZ,
-                            config: {
-                                dataAppVizUuid: 'data-app-viz-1',
-                                dataAppVizVersion: 2,
+                    getVariant: vi.fn().mockResolvedValue(
+                        semanticSavedChartVariant({
+                            uuid: 'chart-1',
+                            chartConfig: {
+                                type: ChartType.DATA_APP_VIZ,
+                                config: {
+                                    dataAppVizUuid: 'data-app-viz-1',
+                                    dataAppVizVersion: 2,
+                                },
                             },
-                        },
-                    }),
+                        }),
+                    ),
                 },
             });
 
@@ -1019,16 +1028,18 @@ describe('AppGenerateService data app vizs', () => {
             const service = buildService(appModel, {
                 savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
                 savedChartModel: {
-                    get: vi.fn().mockResolvedValue({
-                        uuid: 'chart-1',
-                        chartConfig: {
-                            type: ChartType.DATA_APP_VIZ,
-                            config: {
-                                dataAppVizUuid: 'data-app-viz-1',
-                                dataAppVizVersion: 2,
+                    getVariant: vi.fn().mockResolvedValue(
+                        semanticSavedChartVariant({
+                            uuid: 'chart-1',
+                            chartConfig: {
+                                type: ChartType.DATA_APP_VIZ,
+                                config: {
+                                    dataAppVizUuid: 'data-app-viz-1',
+                                    dataAppVizVersion: 2,
+                                },
                             },
-                        },
-                    }),
+                        }),
+                    ),
                 },
             });
 
@@ -1096,6 +1107,35 @@ describe('AppGenerateService data app vizs', () => {
             expect(appModel.getVersion).not.toHaveBeenCalled();
         });
 
+        it('refuses a composer chart by name before reading the viz version', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn(),
+            };
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: {
+                    getVariant: vi
+                        .fn()
+                        .mockResolvedValue(
+                            composerSavedChartVariant({ uuid: 'chart-1' }),
+                        ),
+                },
+            });
+
+            await expect(
+                service.getChartDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                ),
+            ).rejects.toThrow(ComposerChartNotSupportedError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
         it('authorizes against the requested chart version, not the latest', async () => {
             const appModel = {
                 findVisualizationApp: vi
@@ -1105,19 +1145,21 @@ describe('AppGenerateService data app vizs', () => {
                     .fn()
                     .mockResolvedValue(makeVersion({ version: 2 })),
             };
-            const get = vi.fn().mockResolvedValue({
-                uuid: 'chart-1',
-                chartConfig: {
-                    type: ChartType.DATA_APP_VIZ,
-                    config: {
-                        dataAppVizUuid: 'data-app-viz-1',
-                        dataAppVizVersion: 2,
+            const get = vi.fn().mockResolvedValue(
+                semanticSavedChartVariant({
+                    uuid: 'chart-1',
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: 'data-app-viz-1',
+                            dataAppVizVersion: 2,
+                        },
                     },
-                },
-            });
+                }),
+            );
             const service = buildService(appModel, {
                 savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
-                savedChartModel: { get },
+                savedChartModel: { getVariant: get },
             });
 
             await expect(

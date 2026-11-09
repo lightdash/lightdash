@@ -4,6 +4,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AnyType,
+    ComposerChartNotSupportedError,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
@@ -24,6 +25,10 @@ import {
     metricQueryMock,
     validExplore,
 } from '../../../services/ProjectService/ProjectService.mock';
+import {
+    composerSavedChartVariant,
+    semanticSavedChartVariant,
+} from '../../../testing/composerSavedChartFixture';
 import {
     AiDecisionClient,
     resolveAiDecisionClient,
@@ -201,7 +206,7 @@ const buildService = ({
         deleteChartValidations: vi.fn().mockResolvedValue(undefined),
     };
     const savedChartModel = {
-        get: vi.fn(),
+        getVariant: vi.fn(),
         getLatestVersionSummary: vi.fn().mockResolvedValue({
             versionUuid: 'version-uuid',
         }),
@@ -1116,7 +1121,9 @@ describe('ManagedAgentService query check before saving', () => {
     it('does not save a repaired version when the query fails', async () => {
         const { service, savedChartModel, asyncQueryService } = buildService();
         stubGuards(service);
-        savedChartModel.get.mockResolvedValue(existingChart);
+        savedChartModel.getVariant.mockResolvedValue(
+            semanticSavedChartVariant(existingChart),
+        );
         asyncQueryService.executeMetricQueryAndGetResults.mockRejectedValue(
             new Error('column "orders.status" does not exist'),
         );
@@ -1140,10 +1147,42 @@ describe('ManagedAgentService query check before saving', () => {
         expect(savedChartModel.createVersion).not.toHaveBeenCalled();
     });
 
+    it('refuses to fix a composer chart by name without running or saving anything', async () => {
+        const { service, savedChartModel, asyncQueryService } = buildService();
+        stubGuards(service);
+        savedChartModel.getVariant.mockResolvedValue(
+            composerSavedChartVariant({
+                uuid: 'chart-uuid',
+                projectUuid: PROJECT_UUID,
+            }),
+        );
+        await expect(
+            (service as AnyType).handleToolCall(
+                PROJECT_UUID,
+                'session',
+                'run',
+                'fix_broken_chart',
+                {
+                    chart_uuid: 'chart-uuid',
+                    chart_name: 'Revenue by status',
+                    description: 'Renamed the status field',
+                    metric_query: metricQuery,
+                    chart_config: chartConfig,
+                },
+            ),
+        ).rejects.toThrow(ComposerChartNotSupportedError);
+        expect(
+            asyncQueryService.executeMetricQueryAndGetResults,
+        ).not.toHaveBeenCalled();
+        expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+    });
+
     it('runs the repaired query at limit 1 before saving the version', async () => {
         const { service, savedChartModel, asyncQueryService } = buildService();
         stubGuards(service);
-        savedChartModel.get.mockResolvedValue(existingChart);
+        savedChartModel.getVariant.mockResolvedValue(
+            semanticSavedChartVariant(existingChart),
+        );
         const result = await (service as AnyType).handleToolCall(
             PROJECT_UUID,
             'session',
@@ -1254,6 +1293,117 @@ describe('ManagedAgentService query check before saving', () => {
     });
 });
 
+describe('ManagedAgentService composer chart visibility', () => {
+    it('lists a broken composer chart the actor can view', async () => {
+        const {
+            service,
+            validationModel,
+            savedChartModel,
+            spacePermissionService,
+        } = buildService();
+        const actor = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'SavedChart' },
+            ]),
+        };
+        validationModel.get.mockResolvedValue([
+            {
+                validationId: null,
+                validationUuid: 'validation-1',
+                projectUuid: PROJECT_UUID,
+                createdAt: new Date('2026-01-01'),
+                source: ValidationSourceType.Chart,
+                chartUuid: 'composer-chart-uuid',
+                name: 'Revenue by status',
+                tableName: 'orders',
+                error: 'Missing field',
+                errorType: ValidationErrorType.Dimension,
+            },
+        ]);
+        savedChartModel.getVariant.mockResolvedValue(
+            composerSavedChartVariant({
+                uuid: 'composer-chart-uuid',
+                projectUuid: PROJECT_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+            }),
+        );
+        spacePermissionService.resolveAccess.mockResolvedValue({
+            inheritsFromOrgOrProject: true,
+            access: [],
+        });
+        const response = await service['handleGetBrokenContent'](
+            actor,
+            PROJECT_UUID,
+            { table_name: 'orders', limit: 500 },
+        );
+        expect(JSON.parse(response).items).toEqual([
+            expect.objectContaining({ uuid: 'composer-chart-uuid' }),
+        ]);
+    });
+});
+
+describe('ManagedAgentService bulk delete over mixed chart kinds', () => {
+    it('blocks the composer chart and still runs the delete guard for the classic one', async () => {
+        const { service, savedChartModel, validationModel, managedAgentModel } =
+            buildService();
+        managedAgentModel.getSettings.mockResolvedValue({
+            ...settings,
+            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'cleanup' },
+        });
+        Object.assign(managedAgentModel, {
+            countBulkSoftDeletesForRun: vi.fn().mockResolvedValue(0),
+        });
+        validationModel.get.mockResolvedValue(
+            ['composer-chart-uuid', 'classic-chart-uuid'].map((chartUuid) => ({
+                validationId: null,
+                validationUuid: `validation-${chartUuid}`,
+                projectUuid: PROJECT_UUID,
+                createdAt: new Date('2026-01-01'),
+                source: ValidationSourceType.Chart,
+                chartUuid,
+                name: chartUuid,
+                tableName: 'orders',
+                error: "Model 'orders' no longer exists",
+                errorType: ValidationErrorType.Model,
+            })),
+        );
+        savedChartModel.getVariant.mockImplementation(async (uuid: string) =>
+            uuid === 'composer-chart-uuid'
+                ? composerSavedChartVariant({ uuid, projectUuid: PROJECT_UUID })
+                : semanticSavedChartVariant({
+                      uuid,
+                      name: uuid,
+                      projectUuid: PROJECT_UUID,
+                      organizationUuid: ORGANIZATION_UUID,
+                      spaceUuid: 'space',
+                      tableName: 'orders',
+                  }),
+        );
+        const guard = vi
+            .spyOn(service as AnyType, 'guardAndSoftDeleteChart')
+            .mockResolvedValue(null);
+
+        const result = JSON.parse(
+            await service['handleBulkDeleteBrokenContent'](
+                user,
+                PROJECT_UUID,
+                'session',
+                'run',
+                { table_name: 'orders', reason: 'Model removed' },
+            ),
+        );
+
+        expect(guard).toHaveBeenCalledTimes(1);
+        expect(guard.mock.calls[0][0]).toMatchObject({
+            chartUuid: 'classic-chart-uuid',
+        });
+        expect(result.blocked).toEqual([
+            expect.objectContaining({ uuid: 'composer-chart-uuid' }),
+        ]);
+    });
+});
+
 describe('ManagedAgentService broken-content pagination', () => {
     it('reaches every visible item even when earlier pages are repaired', async () => {
         const {
@@ -1287,13 +1437,15 @@ describe('ManagedAgentService broken-content pagination', () => {
             errorType: ValidationErrorType.Dimension,
         }));
         validationModel.get.mockResolvedValue([...validations].reverse());
-        savedChartModel.get.mockImplementation(async (uuid: string) => ({
-            uuid,
-            name: uuid,
-            projectUuid: PROJECT_UUID,
-            organizationUuid: ORGANIZATION_UUID,
-            spaceUuid: 'space',
-        }));
+        savedChartModel.getVariant.mockImplementation(async (uuid: string) =>
+            semanticSavedChartVariant({
+                uuid,
+                name: uuid,
+                projectUuid: PROJECT_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                spaceUuid: 'space',
+            }),
+        );
         spacePermissionService.resolveAccess.mockResolvedValue({
             inheritsFromOrgOrProject: true,
             access: [],

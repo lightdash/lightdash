@@ -749,7 +749,7 @@ export class ContentReviewRequestModel {
                 .whereExists(fieldMatches.clone().select('fields.name'))
                 // Duplicates almost always share the explore; other explores
                 // only fill the slots left over.
-                .orderByRaw('version.explore_name = ? desc', [
+                .orderByRaw('version.explore_name = ? desc nulls last', [
                     chart.metricQuery.exploreName,
                 ])
                 .orderBy('fieldHits', 'desc')
