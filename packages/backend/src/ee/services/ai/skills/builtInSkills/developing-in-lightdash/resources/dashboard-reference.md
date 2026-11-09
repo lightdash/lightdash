@@ -640,7 +640,7 @@ When dashboard controls are enabled, `config.controlOrder` sets the order of con
 }
 ```
 
-- With dashboard controls enabled, reads always include the full list, in the order the bar shows, even for a dashboard that was never reordered. As long as no order was stored before, an edit stores none when its order renders the default bar, before or after the edit: sending the order you read back unchanged stores nothing, and controls you add or a section's `inline` you change take their default place. Once an order is stored, edits store the list as given. CLI uploads follow the same rule.
+- With dashboard controls enabled, reads always include the full list, in the order the bar shows, even for a dashboard that was never reordered. An edit whose order renders the default bar stores no order, as long as none was stored before; once an order is stored, edits store the list as given. CLI uploads follow the same rule.
 - Reorder by moving entries. Unknown or repeated slugs are rejected, and the error lists the valid ones.
 - A section's members come from each control's `sectionSlug`, not from the list. Members follow their entries inside the section.
 - The list wins over each kind's own array: to swap two filters, swap their entries; `filters.dimensions`, `parameterControls` and `controlSections` order doesn't change the bar.

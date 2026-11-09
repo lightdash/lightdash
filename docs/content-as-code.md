@@ -803,10 +803,9 @@ dropped if there is none. Without a saved
 order, lines follow each section's `inline`. Controls left out of
 `controlOrder` go to the end of their container, inline; to place a new
 control, add its entry. With dashboard controls enabled, AI agent reads always include the full
-order and filter slugs. As long as no order was saved before, an upload, from the CLI or an AI agent,
-stores none when its order renders the default bar before or after the upload's
-other changes, so an agent that sends back the order it read without moving
-anything stores nothing. Once an order is saved, uploads store the list as given.
+order and filter slugs. An upload, from the CLI or an AI agent, whose order renders the
+default bar stores no order as long as none was saved before; once an order is
+saved, uploads store the list as given.
 
 Slugs in an uploaded file only resolve `controlOrder` refs inside that file.
 An upload keeps a dimension filter's ID only when it is the only filter on its

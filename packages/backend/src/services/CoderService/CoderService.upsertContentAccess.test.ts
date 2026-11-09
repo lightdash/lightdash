@@ -4616,78 +4616,18 @@ describe('CoderService dashboard control order as code', () => {
             config: result.config,
         }) as DashboardDAO;
 
-    it('stores no order when an agent adds a filter without a ref', async () => {
+    it('stores an order when an agent adds a filter without a ref, the filter trailing the bar', async () => {
         const saved = await upload(
             withCountryFilter(download(withoutOrder(), true, true)),
             { saved: withoutOrder() as DashboardDAO },
         );
-        expect(saved.config).not.toHaveProperty('controlOrder');
-    });
-
-    it('stores no order when an agent adds a section without a ref', async () => {
-        const file = download(withoutOrder(), true, true);
-        const [section] = file.config!.controlSections!;
-        const saved = await upload(
-            {
-                ...file,
-                config: {
-                    ...file.config!,
-                    controlSections: [
-                        section,
-                        { ...section, name: 'Geo', slug: 'geo' },
-                    ],
-                },
-            },
-            { saved: withoutOrder() as DashboardDAO },
-        );
-        expect(saved.config?.controlSections).toHaveLength(2);
-        expect(saved.config).not.toHaveProperty('controlOrder');
-    });
-
-    it('stores no order when an agent makes a section inline', async () => {
-        const dashboard = withoutOrder();
-        const twoSections = {
-            ...dashboard,
-            config: {
-                ...dashboard.config,
-                controlSections: [
-                    ...(dashboard.config.controlSections ?? []),
-                    { id: 'geo-id', name: 'Geo' },
-                ],
-            },
-        } as DashboardDAO;
-        const file = download(twoSections, true, true);
-        const [calendar, geo] = file.config!.controlSections!;
-        const saved = await upload(
-            {
-                ...file,
-                config: {
-                    ...file.config!,
-                    controlSections: [calendar, { ...geo, inline: true }],
-                },
-            },
-            { saved: twoSections },
-        );
-        expect(saved.config?.controlSections?.[1].inline).toBe(true);
-        expect(saved.config).not.toHaveProperty('controlOrder');
-    });
-
-    it('stores the order when an agent moves a ref and adds a filter without one', async () => {
-        const file = withCountryFilter(download(withoutOrder(), true, true));
-        const [first, ...rest] = file.config!.controlOrder!;
-        const saved = await upload(
-            {
-                ...file,
-                config: { ...file.config!, controlOrder: [...rest, first] },
-            },
-            { saved: withoutOrder() as DashboardDAO },
-        );
+        expect(saved.config?.controlOrder).toBeDefined();
         expect(barOf(saved)).toEqual([
+            ['filter', 'orders-status', false],
             ['filter', 'orders-total', false],
             ['parameter', 'region', false],
             ['section', 'calendar', true],
             ['filter', 'orders-city', false],
-            ['filter', 'orders-status', false],
             ['filter', 'orders-country', false],
         ]);
     });
@@ -4709,17 +4649,8 @@ describe('CoderService dashboard control order as code', () => {
             }),
         ],
         [
-            'a moved ref with a filter added without one',
-            () => {
-                const file = withCountryFilter(
-                    download(withoutOrder(), true, true),
-                );
-                const [first, ...rest] = file.config!.controlOrder!;
-                return {
-                    ...file,
-                    config: { ...file.config!, controlOrder: [...rest, first] },
-                };
-            },
+            'a filter added without a ref',
+            () => withCountryFilter(download(withoutOrder(), true, true)),
         ],
     ])(
         'stores the same result when %s is uploaded twice',

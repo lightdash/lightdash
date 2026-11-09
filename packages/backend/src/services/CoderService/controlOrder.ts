@@ -188,41 +188,20 @@ export const getControlOrderWithIds = (
     });
 };
 
-const barOf = (
-    order: DashboardControlRef[] | undefined,
+/** Whether an order renders the same bar as no order: same controls, sections and line starts in the same places */
+export const rendersDefaultControlOrder = (
+    controlOrder: DashboardControlRef[],
     controls: OrderedControls,
-) =>
-    reconcileDashboardControlOrder({ ...controls, controlOrder: order }).map(
-        ({ kind, id, sectionId, newLine }) => ({
+): boolean => {
+    const bar = (order: DashboardControlRef[] | undefined) =>
+        reconcileDashboardControlOrder({
+            ...controls,
+            controlOrder: order,
+        }).map(({ kind, id, sectionId, newLine }) => ({
             kind,
             id,
             sectionId,
             newLine,
-        }),
-    );
-
-const rendersDefaultBar = (
-    order: DashboardControlRef[],
-    controls: OrderedControls,
-) => isEqual(barOf(order, controls), barOf(undefined, controls));
-
-/**
- * Whether an order renders the same bar as no order, after the edit or on the saved dashboard.
- * The saved default counts only when the edit didn't move saved controls in their arrays.
- */
-export const rendersDefaultControlOrder = (
-    controlOrder: DashboardControlRef[],
-    edited: OrderedControls,
-    saved?: OrderedControls,
-): boolean => {
-    if (rendersDefaultBar(controlOrder, edited)) return true;
-    if (saved === undefined || !rendersDefaultBar(controlOrder, saved))
-        return false;
-    const keys = (controls: OrderedControls) =>
-        barOf(undefined, controls).map(({ kind, id }) => `${kind}:${id}`);
-    const [editedKeys, savedKeys] = [keys(edited), keys(saved)];
-    return isEqual(
-        savedKeys.filter((key) => editedKeys.includes(key)),
-        editedKeys.filter((key) => savedKeys.includes(key)),
-    );
+        }));
+    return isEqual(bar(controlOrder), bar(undefined));
 };
