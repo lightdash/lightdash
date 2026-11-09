@@ -13,6 +13,7 @@ class TestableSchedulerWorker extends SchedulerWorker {
 
 const makeWorkerArgs = (
     deleteExpired: import('vitest').Mock,
+    deleteExpiredSignInCodes: import('vitest').Mock = vi.fn(async () => 0),
 ): SchedulerWorkerArguments =>
     ({
         lightdashConfig: {
@@ -41,6 +42,7 @@ const makeWorkerArgs = (
             database: { connectionUri: 'postgres://noop' },
         } as unknown as LightdashConfig,
         mobileAppLinkModel: { deleteExpired },
+        mobileSignInCodeModel: { deleteExpired: deleteExpiredSignInCodes },
     }) as unknown as SchedulerWorkerArguments;
 
 describe('SchedulerWorker — mobile app links cleanup', () => {
@@ -59,5 +61,20 @@ describe('SchedulerWorker — mobile app links cleanup', () => {
 
         await task({} as never, {} as never);
         expect(deleteExpired).toHaveBeenCalledOnce();
+    });
+
+    it('purges expired mobile sign-in codes in the same task', async () => {
+        const deleteExpiredSignInCodes = vi.fn(async () => 3);
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(
+                vi.fn(async () => ({ links: 0, rateCounters: 0 })),
+                deleteExpiredSignInCodes,
+            ),
+        );
+
+        await worker
+            .exposeFullTaskList()
+            [SCHEDULER_TASKS.CLEAN_MOBILE_APP_LINKS]({} as never, {} as never);
+        expect(deleteExpiredSignInCodes).toHaveBeenCalledOnce();
     });
 });

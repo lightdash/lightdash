@@ -2196,10 +2196,13 @@ export class SchedulerWorker extends SchedulerTask {
                 await this.projectService.clearDueResultsCaches();
             },
             [SCHEDULER_TASKS.CLEAN_MOBILE_APP_LINKS]: async () => {
-                const { links, rateCounters } =
-                    await this.mobileAppLinkModel.deleteExpired();
+                const [{ links, rateCounters }, signInCodes] =
+                    await Promise.all([
+                        this.mobileAppLinkModel.deleteExpired(),
+                        this.mobileSignInCodeModel.deleteExpired(),
+                    ]);
                 Logger.info(
-                    `Mobile app links cleanup completed. Deleted links: ${links}, rate counters: ${rateCounters}`,
+                    `Mobile app links cleanup completed. Deleted links: ${links}, rate counters: ${rateCounters}, sign-in codes: ${signInCodes}`,
                 );
             },
             [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {
