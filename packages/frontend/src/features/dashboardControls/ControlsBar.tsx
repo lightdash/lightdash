@@ -10,6 +10,7 @@ import { DateZoom } from '../dateZoom';
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
 import { DateZoomEditorPills } from './DateZoomEditorPills';
+import { DateZoomMappingRow } from './DateZoomMappingRow';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
 import { ParameterMappingRow } from './ParameterMappingRow';
@@ -17,6 +18,7 @@ import { ParameterPills } from './ParameterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SettledFilterFields } from './SettledFilterFields';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useParameterEditorSelector } from './useParameterEditor';
 
 const NO_PARAMETERS = {};
@@ -81,7 +83,9 @@ export const ControlsBar: FC<Props> = (props) => {
 export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
     const isFilterMapping = useControlsSidebarSelector((c) => c.isMapping);
     const isParameterMapping = useParameterEditorSelector((c) => c.isMapping);
-    const isMapping = isFilterMapping || isParameterMapping;
+    const isDateZoomMapping = useDateZoomEditorSelector((c) => c.isMapping);
+    const isMapping =
+        isFilterMapping || isParameterMapping || isDateZoomMapping;
     return (
         <Box className={classes.swap}>
             <Box
@@ -93,6 +97,7 @@ export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
             </Box>
             {isFilterMapping && <MappingRow />}
             {isParameterMapping && <ParameterMappingRow />}
+            {isDateZoomMapping && <DateZoomMappingRow />}
         </Box>
     );
 };

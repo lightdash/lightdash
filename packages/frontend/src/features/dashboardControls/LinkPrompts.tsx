@@ -40,6 +40,7 @@ import classes from './TileOverlay.module.css';
 import { getTileTitle } from './tileProps';
 import { getTileSelector, LOCKED_TILE_CLASS } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import {
     getParameterEntryName,
     useParameterBarControls,
@@ -398,16 +399,21 @@ export const LinkPrompts: FC = () => {
     );
     const { entries } = useParameterBarControls();
     const isParameterMapping = useParameterEditorSelector((c) => c.isMapping);
-    // Never on a tile card: a filter's or a parameter control's
+    const isDateZoomEdited = useDateZoomEditorSelector(
+        (c) => c.editingUuid !== null,
+    );
+    // Never on a tile card: a filter's, a parameter control's or a date zoom's
     const isEnabled =
         mode === 'edit' &&
         !isSidebarOpen &&
         parameterEditingId === null &&
-        !isParameterMapping;
+        !isParameterMapping &&
+        !isDateZoomEdited;
     // Parameter rows never stack on a parameter control's tile overlays
     const isParameterEnabled =
         mode === 'edit' &&
         parameterEditingId === null &&
+        !isDateZoomEdited &&
         controls !== null &&
         isControlListExplicit;
 

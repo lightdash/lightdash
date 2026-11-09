@@ -24,15 +24,13 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { DEFAULT_DATE_ZOOM_NAME } from './dateZoomControls';
+import { DEFAULT_DATE_ZOOM_NAME, NO_TILES_REASON } from './dateZoomControls';
 import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FilterEditor.module.css';
 import { EditorPrompt } from './FilterPopover';
 import { MENU_TRANSITION } from './menuTransition';
 import { useRefocusAfter } from './nameFocus';
 import { NameInput } from './NameInput';
-
-const NO_TILES_REASON = 'This date zoom is not applied to any tiles';
 
 type Props = {
     control: DateZoomControl;

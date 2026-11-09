@@ -181,3 +181,31 @@ re-render, veil or scroll. Only the pill that marked last clears
 Editors choose tiles on a draft of every control. Each parameter key has its own `all`, `only`, or `except` rule. A confirmed move updates both owners in the same draft; Apply writes the changes, Cancel restores the mapping, and Undo restores the previous step. A tile picker can narrow one key without excluding another from the whole control.
 
 A newly linked key follows all tiles when no control holds it; otherwise it starts with explicit tile assignments. Bulk Set and Clear act on the selected key without taking a tile from another control. Clear all excludes every current layout tile from each key, including tiles on unopened tabs; future tiles still follow default rules. A control with no assigned tiles remains on the bar so an editor can assign or remove it.
+
+## Date zooms
+
+"Choose tiles" in a date zoom's popover enters mapping on the provider's
+draft config, as a parameter control's does: `DateZoomMappingRow` in
+`MappingSwap` ("[pill] zooms {n of m tiles}", Back, Cancel, Apply, the
+latter disabled at no tile), a card per tile (`DateZoomTileOverlays`), tab
+counts (`TabCounts`, "zoomed by") and the shared `FieldBar`
+(`DateZoomTilesBar`, shown for the whole of mapping: there are no chips).
+`useDateZoomMapping` computes it from `useEligibleTiles` over the draft.
+
+- A tile with zoomable date fields (`chartZoomableFieldsByTileUuid`): a
+  clearable select of them; a pick puts the tile in the zoom on that field,
+  clearing takes it out.
+- A tile that only reads `${ld.parameters.date_zoom}`: a switch, stored with
+  `fieldId: null`.
+- Any other tile (SQL charts, data apps, markdown, charts without a date):
+  veiled, no card.
+- A pick on a tile in another zoom asks "Move from {zoom}?" on the card, and
+  says when that zoom has no other tile and will be removed: Apply writes
+  the config through `pruneDateZoomConfig`, so an emptied zoom never
+  persists.
+- The bar's "Zoom {count} more" takes only tiles no zoom holds, each on its
+  first date field (or none, for a parameter-only tile); Clear takes this
+  zoom's off the tab in view first, then the others. Every change has an
+  Undo, as a parameter's.
+- Escape in mapping goes back to the popover only while nothing changed; a
+  press outside never leaves mapping.

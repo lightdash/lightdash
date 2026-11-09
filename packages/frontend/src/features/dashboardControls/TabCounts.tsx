@@ -14,6 +14,7 @@ import { getParameterTabCounts } from './parameterPeers';
 import { getTakeableTabCounts, getTilesOnTab } from './peers';
 import classes from './TabCounts.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useDateZoomMapping } from './useDateZoomMapping';
 import { useParameterMapping } from './useParameterMapping';
 import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
@@ -60,6 +61,9 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     );
     const sqlColumnsByTile = useSqlColumnsByTile(rule);
     const parameterMapping = useParameterMapping();
+    const dateZoomMapping = useDateZoomMapping();
+    // A parameter control's or a date zoom's tiles, chosen in edit mode
+    const controlMapping = parameterMapping ?? dateZoomMapping;
 
     const tabUuids = useMemo(
         () => dashboardTabs.map((tab) => tab.uuid),
@@ -75,7 +79,7 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
         isInSlot ? getTabSlotSelector : getTabSelector,
         isEnabled,
         // A filter open: the menu beside each count is inert
-        isInSlot && (rule !== null || parameterMapping !== null),
+        isInSlot && (rule !== null || controlMapping !== null),
     );
 
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -93,9 +97,9 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     // The whole filter, whichever chip is hovered or selected, over the tiles
     // that can take it: the tabs add up to the mapping row's "of m"
     const counts = useMemo(() => {
-        if (parameterMapping !== null) {
-            const takeable = new Set(parameterMapping.takeableTileUuids);
-            const set = new Set(parameterMapping.setTileUuids);
+        if (controlMapping !== null) {
+            const takeable = new Set(controlMapping.takeableTileUuids);
+            const set = new Set(controlMapping.setTileUuids);
             return getParameterTabCounts({
                 tiles: dashboardTiles ?? [],
                 tabs: dashboardTabs,
@@ -117,7 +121,7 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
         dashboardTabs,
         fieldsByTile,
         sqlColumnsByTile,
-        parameterMapping,
+        controlMapping,
     ]);
 
     // Every tile on the tab: no count is wider, so none reflows the tabs
@@ -153,7 +157,7 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                 if (!element) return null;
                 // Counts show only while tiles are chosen: the slot stays, empty
                 const count =
-                    parameterMapping !== null
+                    controlMapping !== null
                         ? counts[tab.uuid]
                         : rule === null || isPlaceholder || !isMapping
                           ? null
@@ -175,14 +179,19 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                                       countValues.total === 1
                                         ? '{applied} of {total} tile on this tab is set by {subject}'
                                         : '{applied} of {total} tiles on this tab are set by {subject}'
-                                    : getUiString(
-                                          countValues.total === 1
-                                              ? 'controls.tabCountTooltip.singular'
-                                              : 'controls.tabCountTooltip.plural',
-                                      ),
+                                    : dateZoomMapping !== null
+                                      ? // and date zooms
+                                        countValues.total === 1
+                                          ? '{applied} of {total} tile on this tab is zoomed by {subject}'
+                                          : '{applied} of {total} tiles on this tab are zoomed by {subject}'
+                                      : getUiString(
+                                            countValues.total === 1
+                                                ? 'controls.tabCountTooltip.singular'
+                                                : 'controls.tabCountTooltip.plural',
+                                        ),
                                 {
                                     ...countValues,
-                                    subject: parameterMapping?.name ?? subject,
+                                    subject: controlMapping?.name ?? subject,
                                 },
                             )
                         }

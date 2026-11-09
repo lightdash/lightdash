@@ -46,6 +46,7 @@ const DateZoomEditorContent: FC = () => {
     const cancel = useDateZoomEditorSelector((c) => c.cancel);
     const remove = useDateZoomEditorSelector((c) => c.remove);
     const resolvePending = useDateZoomEditorSelector((c) => c.resolvePending);
+    const startMapping = useDateZoomEditorSelector((c) => c.startMapping);
     const granularityData = useGranularityData();
     const config = draftConfig ?? EMPTY_DATE_ZOOM_CONFIG;
     const eligibleTiles = useEligibleTiles(config, draft?.uuid ?? '');
@@ -63,7 +64,7 @@ const DateZoomEditorContent: FC = () => {
             onCancel={cancel}
             onApply={apply}
             onRemove={remove}
-            onChooseTiles={null}
+            onChooseTiles={startMapping}
         />
     );
 };
@@ -73,33 +74,38 @@ const DateZoomEditorContent: FC = () => {
 const DateZoomEditorPopover: FC<{ isOpen: boolean; children: ReactNode }> = ({
     isOpen,
     children,
-}) => (
-    <Popover
-        opened={isOpen}
-        // The zooms sit at the bar's right edge
-        position="bottom-end"
-        withArrow
-        offset={1}
-        arrowOffset={14}
-        transitionProps={NO_TRANSITION}
-        trapFocus
-        closeOnEscape={false}
-        closeOnClickOutside={false}
-        withRoles={false}
-    >
-        <Popover.Target>{children}</Popover.Target>
-        {isOpen && (
-            <Popover.Dropdown
-                p={0}
-                tabIndex={-1}
-                data-controls-editor
-                className={editorClasses.dropdown}
-            >
-                <DateZoomEditorContent />
-            </Popover.Dropdown>
-        )}
-    </Popover>
-);
+}) => {
+    // Mapping stands in for the popover
+    const isMapping = useDateZoomEditorSelector((c) => c.isMapping);
+    const isShown = isOpen && !isMapping;
+    return (
+        <Popover
+            opened={isShown}
+            // The zooms sit at the bar's right edge
+            position="bottom-end"
+            withArrow
+            offset={1}
+            arrowOffset={14}
+            transitionProps={NO_TRANSITION}
+            trapFocus
+            closeOnEscape={false}
+            closeOnClickOutside={false}
+            withRoles={false}
+        >
+            <Popover.Target>{children}</Popover.Target>
+            {isShown && (
+                <Popover.Dropdown
+                    p={0}
+                    tabIndex={-1}
+                    data-controls-editor
+                    className={editorClasses.dropdown}
+                >
+                    <DateZoomEditorContent />
+                </Popover.Dropdown>
+            )}
+        </Popover>
+    );
+};
 
 const DateZoomPill: FC<{ control: DateZoomControl }> = ({ control }) => {
     const getUiString = useUiStrings();

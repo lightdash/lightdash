@@ -135,6 +135,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
 | `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | An editor's named date zooms: the draft config, open, switch, Apply, Cancel, remove; pure config helpers |
 | `DateZoomEditorPills.tsx`, `DateZoomControlPopover.tsx` | The named zoom pills and "Add date zoom" in edit mode, and their popover |
+| `useDateZoomMapping.ts`, `DateZoomMappingRow.tsx`, `DateZoomTileOverlay.tsx`, `DateZoomTilesBar.tsx` | Choosing a date zoom's tiles: the mapping model, row, tile cards (with the Move question) and the shared `FieldBar` |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
 | `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the editor popover and portalled lists |
 | `requirements.ts`, `fieldLabels.ts` | Requirement rules, count copy |

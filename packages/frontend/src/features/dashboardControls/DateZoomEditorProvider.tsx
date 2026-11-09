@@ -27,16 +27,19 @@ import {
     DATE_ZOOM_PILL_SELECTOR,
     DEFAULT_DATE_ZOOM_NAME,
     getDateZoomControl,
+    setZoomTiles,
     withDateZoomControl,
 } from './dateZoomControls';
 import {
     PARAMETER_PILL_ACTION_SELECTOR,
     PARAMETER_PILL_SELECTOR,
 } from './parameterControlsBar';
+import { type FieldApply } from './useControlsSidebar';
 import {
     DateZoomEditorContext,
     useDateZoomEditorSelector,
     type DateZoomEditorValue,
+    type DateZoomTileChoice,
 } from './useDateZoomEditor';
 import { useEditorDismiss } from './useEditorDismiss';
 
@@ -52,6 +55,10 @@ type EditState = {
     isNew: boolean;
     snapshot: DateZoomConfig;
     draft: DateZoomConfig;
+    mapping: {
+        start: DateZoomConfig;
+        undo: { config: DateZoomConfig; change: FieldApply } | null;
+    } | null;
 };
 
 const noop = () => {};
@@ -149,7 +156,13 @@ export const DateZoomEditorProvider: FC<{
             return;
         }
         const proceed = () =>
-            start({ uuid, isNew: false, snapshot: config, draft: config });
+            start({
+                uuid,
+                isNew: false,
+                snapshot: config,
+                draft: config,
+                mapping: null,
+            });
         // Another zoom: a clean edit switches, else the popover asks
         if (current !== null && isDirty(current)) {
             setPending({ proceed });
@@ -166,7 +179,7 @@ export const DateZoomEditorProvider: FC<{
             name: DEFAULT_DATE_ZOOM_NAME,
             granularity: granularities[0] ?? DateGranularity.MONTH,
         });
-        start({ uuid, isNew: true, snapshot: draft, draft });
+        start({ uuid, isNew: true, snapshot: draft, draft, mapping: null });
     });
 
     const update = useStableCallback((next: DateZoomControl) => {
@@ -206,8 +219,126 @@ export const DateZoomEditorProvider: FC<{
         next.proceed();
     });
 
-    // Escape: a question is withdrawn, else the edit is cancelled
+    const write = (next: EditState) => {
+        latest.current = next;
+        setState(next);
+    };
+    const startMapping = useStableCallback(() => {
+        const current = latest.current;
+        if (current !== null)
+            write({
+                ...current,
+                mapping: { start: current.draft, undo: null },
+            });
+    });
+    const endMapping = useStableCallback(() => {
+        const current = latest.current;
+        if (current?.mapping) write({ ...current, mapping: null });
+    });
+    const cancelMapping = useStableCallback(() => {
+        const current = latest.current;
+        if (current?.mapping)
+            write({ ...current, draft: current.mapping.start, mapping: null });
+    });
+    const changeMapping = (
+        next: DateZoomConfig,
+        kind: FieldApply['kind'],
+        tileCount: number,
+    ) => {
+        const current = latest.current;
+        if (!current?.mapping || next === current.draft) return;
+        write({
+            ...current,
+            draft: next,
+            mapping: {
+                ...current.mapping,
+                undo: {
+                    config: current.draft,
+                    change: {
+                        kind,
+                        fieldId: current.uuid,
+                        tileCount,
+                        replaced: 0,
+                        acrossTabs: true,
+                    },
+                },
+            },
+        });
+    };
+    // A tile's first zoomable field, else none: it only reads the parameter
+    const getTarget = (tileUuid: string, fieldId: string | null) => {
+        const fields =
+            store.getState().dateZoom.chartZoomableFieldsByTileUuid[tileUuid] ??
+            [];
+        const field =
+            fieldId === null
+                ? fields[0]
+                : fields.find((item) => item.fieldId === fieldId);
+        return {
+            fieldId: field?.fieldId ?? null,
+            tableName: field?.tableName ?? null,
+        };
+    };
+    const setTile = useStableCallback(
+        (tileUuid: string, choice: DateZoomTileChoice | null) => {
+            const current = latest.current;
+            if (!current?.mapping) return;
+            changeMapping(
+                setZoomTiles(current.draft, current.uuid, [
+                    {
+                        tileUuid,
+                        target:
+                            choice === null
+                                ? null
+                                : getTarget(
+                                      tileUuid,
+                                      choice.kind === 'field'
+                                          ? choice.fieldId
+                                          : null,
+                                  ),
+                    },
+                ]),
+                choice === null ? 'clear' : 'pick',
+                1,
+            );
+        },
+    );
+    const setTiles = useStableCallback(
+        (tileUuids: string[], isZoomed: boolean) => {
+            const current = latest.current;
+            if (!current?.mapping) return;
+            changeMapping(
+                setZoomTiles(
+                    current.draft,
+                    current.uuid,
+                    tileUuids.map((tileUuid) => ({
+                        tileUuid,
+                        target: isZoomed ? getTarget(tileUuid, null) : null,
+                    })),
+                ),
+                isZoomed ? 'apply' : 'clear',
+                tileUuids.length,
+            );
+        },
+    );
+    const undoMapping = useStableCallback(() => {
+        const current = latest.current;
+        if (current?.mapping?.undo)
+            write({
+                ...current,
+                draft: current.mapping.undo.config,
+                mapping: { ...current.mapping, undo: null },
+            });
+    });
+
+    // Escape: in mapping, back to the popover while nothing changed; else a
+    // question is withdrawn, else the edit is cancelled
     const dismiss = useStableCallback(() => {
+        const current = latest.current;
+        if (current?.mapping) {
+            if (isEqual(current.mapping.start, current.draft)) endMapping();
+            return;
+        }
         if (latestPending.current === null) {
             cancel();
             return;
@@ -259,6 +390,11 @@ export const DateZoomEditorProvider: FC<{
         end(null);
     }, [isViewer, apply]);
 
+    // A press outside never leaves mapping
+    const dismissOutside = useStableCallback(() => {
+        if (!latest.current?.mapping) cancel();
+    });
+
     useEditorDismiss({
         isOpen: edit !== null,
         isFieldClicked: false,
@@ -266,7 +402,7 @@ export const DateZoomEditorProvider: FC<{
         isPristineNew: false,
         clearField: noop,
         dismiss,
-        dismissOutside: cancel,
+        dismissOutside,
         pillSelector: `${DATE_ZOOM_PILL_SELECTOR}, ${OTHER_CONTROL_SELECTOR}, ${PARAMETER_PILL_ACTION_SELECTOR}`,
     });
 
@@ -287,6 +423,14 @@ export const DateZoomEditorProvider: FC<{
             cancel,
             resolvePending,
             remove,
+            isMapping: edit?.mapping != null,
+            mappingUndo: edit?.mapping?.undo?.change ?? null,
+            startMapping,
+            endMapping,
+            cancelMapping,
+            setTile,
+            setTiles,
+            undoMapping,
         }),
         [
             edit,
@@ -298,6 +442,12 @@ export const DateZoomEditorProvider: FC<{
             cancel,
             resolvePending,
             remove,
+            startMapping,
+            endMapping,
+            cancelMapping,
+            setTile,
+            setTiles,
+            undoMapping,
         ],
     );
 
