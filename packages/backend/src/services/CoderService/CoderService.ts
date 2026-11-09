@@ -17,8 +17,6 @@ import {
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
     applyNewChartDefaults,
-    assertComposerChartConfigStorable,
-    assertNoQueryResultReferences,
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeConfig,
@@ -29,6 +27,7 @@ import {
     ChartSummary,
     ChartType,
     ComposerChartAsCode,
+    composerChartConfigFromAsCode,
     ComposerChartNotSupportedError,
     ComposerSavedChartDAO,
     ContentAsCodeType,
@@ -92,7 +91,6 @@ import {
     NotSupportedError,
     OrganizationMemberRole,
     ParameterError,
-    parseStoredComposerPipeline,
     Project,
     ProjectType,
     PromotedComposerChart,
@@ -114,6 +112,7 @@ import {
     SpaceAsCodeAction,
     SpaceMemberRole,
     SqlChartAsCode,
+    toSavedComposerPipeline,
     UpdatedByUser,
     validateEmail,
     VirtualViewAsCode,
@@ -1961,7 +1960,7 @@ export class CoderService extends BaseService {
         };
     }
 
-    /** The composer chart file: the stored pipeline and drawing, placed by its dashboard; null when that dashboard is gone. */
+    /** The composer chart file: the stored pipeline and drawing, placed by its dashboard; null when its space or dashboard is gone. */
     private static transformComposerChart(
         chart: ComposerSavedChartDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
@@ -1971,13 +1970,10 @@ export class CoderService extends BaseService {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === chart.spaceUuid,
         );
-        if (!contentSpace) {
-            throw new NotFoundError(`Space ${chart.spaceUuid} not found`);
-        }
         const dashboardSlug = chart.dashboardUuid
             ? dashboardSlugs[chart.dashboardUuid]
             : undefined;
-        if (!dashboardSlug) return null;
+        if (!contentSpace || !dashboardSlug) return null;
         return {
             name: chart.name,
             description: chart.description,
@@ -3113,7 +3109,7 @@ export class CoderService extends BaseService {
         const classicBySlug = new Map(
             chartsWithPolicies.map((chart) => [chart.slug, chart]),
         );
-        // A composer chart whose dashboard is gone is left out, not fatal
+        // A composer chart whose space or dashboard is gone is left out, not fatal
         const composerBySlug = new Map(
             composerCharts.flatMap((chart) => {
                 const asCode = CoderService.transformComposerChart(
@@ -3122,7 +3118,11 @@ export class CoderService extends BaseService {
                     dashboards,
                     chartVerificationMap,
                 );
-                return asCode ? [[chart.slug, asCode] as const] : [];
+                if (asCode) return [[chart.slug, asCode] as const];
+                this.logger.warn(
+                    `Composer chart ${chart.uuid} left out of the download: its space or dashboard was not found`,
+                );
+                return [];
             }),
         );
         // Both kinds in the page's order, so paging stays stable
@@ -3702,7 +3702,7 @@ export class CoderService extends BaseService {
                 );
                 if (!asCode) {
                     throw new NotFoundError(
-                        `Dashboard of composer chart ${variant.chart.slug} not found`,
+                        `Space or dashboard of composer chart ${variant.chart.uuid} not found`,
                     );
                 }
                 return asCode;
@@ -4431,85 +4431,49 @@ export class CoderService extends BaseService {
                     slug,
                 });
             }
-            await this.assertContentAccessForMissingSpace({
-                user,
-                auditedAbility,
-                projectUuid,
-                spaceSlug: chartWithDefaults.spaceSlug,
-                subjectType: 'SavedChart',
-                errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
-            });
-
-            const { space, created: spaceCreated } =
-                await this.getOrCreateSpace(
-                    projectUuid,
-                    chartWithDefaults.spaceSlug,
+            const { space, spaceCreated, spaceAccessContexts } =
+                await this.resolveSpaceForNewChart({
                     user,
-                    skipSpaceCreate,
-                    publicSpaceCreate,
-                    spaceNames,
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: chartWithDefaults.spaceSlug,
                     allowSpaceCreate,
-                );
-            // Fetched once, reused by the placeholder-dashboard check below
-            const spaceAccessContexts =
-                await this.spacePermissionService.resolveAccessBatch(
-                    user.userUuid,
-                    [{ type: 'space', spaceUuid: space.uuid }],
-                );
-            await this.assertSpaceContentAccess({
-                userUuid: user.userUuid,
-                auditedAbility,
-                action: 'create',
-                subjectType: 'SavedChart',
-                spaceUuids: [space.uuid],
-                errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
-                accessContexts: spaceAccessContexts,
-            });
+                    options,
+                });
 
             console.info(
                 `Creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
 
-            let createChart: CreateSavedChart & {
+            const dashboardUuid = chartWithDefaults.dashboardSlug
+                ? await this.resolveDashboardForNewChart({
+                      user,
+                      auditedAbility,
+                      projectUuid,
+                      chartSlug: chartWithDefaults.slug,
+                      dashboardSlug: chartWithDefaults.dashboardSlug,
+                      space,
+                      spaceSlug: chartWithDefaults.spaceSlug,
+                      spaceAccessContexts,
+                      shouldUseExactSlug,
+                  })
+                : null;
+
+            const createChart: CreateSavedChart & {
                 updatedByUser: UpdatedByUser;
                 slug: string;
                 forceSlug: boolean;
+            } = {
+                ...chartWithDefaults,
+                chartConfig: applyNewChartDefaults(
+                    chartWithDefaults.chartConfig,
+                ),
+                ...(dashboardUuid
+                    ? { spaceUuid: null, dashboardUuid }
+                    : { spaceUuid: space.uuid, dashboardUuid: null }),
+                updatedByUser: user,
+                forceSlug: shouldUseExactSlug,
             };
-
-            if (chartWithDefaults.dashboardSlug) {
-                const dashboardUuid = await this.resolveDashboardForNewChart({
-                    user,
-                    auditedAbility,
-                    projectUuid,
-                    chartSlug: chartWithDefaults.slug,
-                    dashboardSlug: chartWithDefaults.dashboardSlug,
-                    space,
-                    spaceSlug: chartWithDefaults.spaceSlug,
-                    spaceAccessContexts,
-                    shouldUseExactSlug,
-                });
-                createChart = {
-                    ...chartWithDefaults,
-                    chartConfig: applyNewChartDefaults(
-                        chartWithDefaults.chartConfig,
-                    ),
-                    spaceUuid: null,
-                    dashboardUuid,
-                    updatedByUser: user,
-                    forceSlug: shouldUseExactSlug,
-                };
-            } else {
-                createChart = {
-                    ...chartWithDefaults,
-                    chartConfig: applyNewChartDefaults(
-                        chartWithDefaults.chartConfig,
-                    ),
-                    spaceUuid: space.uuid,
-                    dashboardUuid: null,
-                    updatedByUser: user,
-                    forceSlug: shouldUseExactSlug,
-                };
-            }
 
             const agentIdentity = getContentWriteAgentIdentity({
                 userUuid: user.userUuid,
@@ -4564,6 +4528,7 @@ export class CoderService extends BaseService {
                 `Finished creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
             const promotionChanges: PromotionChanges = {
+                composerCharts: [],
                 charts: [
                     {
                         action: PromotionAction.CREATE,
@@ -4765,6 +4730,67 @@ export class CoderService extends BaseService {
     }
 
     // The file's dashboard, or a placeholder the dashboard upload fills in later
+    // The space a new chart of either kind is checked against, created when
+    // allowed; its access contexts are reused by the dashboard step
+    private async resolveSpaceForNewChart({
+        user,
+        auditedAbility,
+        projectUuid,
+        spaceSlug,
+        allowSpaceCreate,
+        options: { skipSpaceCreate, publicSpaceCreate, spaceNames },
+    }: {
+        user: SessionUser;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        projectUuid: string;
+        spaceSlug: string;
+        allowSpaceCreate: boolean;
+        options: Pick<
+            UpsertContentAsCodeOptions,
+            'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames'
+        >;
+    }): Promise<{
+        space: SpaceSummaryBase;
+        spaceCreated: boolean;
+        spaceAccessContexts: Awaited<
+            ReturnType<SpacePermissionService['resolveAccessBatch']>
+        >;
+    }> {
+        const errorMessage = `You don't have access to create charts in space "${spaceSlug}"`;
+        await this.assertContentAccessForMissingSpace({
+            user,
+            auditedAbility,
+            projectUuid,
+            spaceSlug,
+            subjectType: 'SavedChart',
+            errorMessage,
+        });
+        const { space, created: spaceCreated } = await this.getOrCreateSpace(
+            projectUuid,
+            spaceSlug,
+            user,
+            skipSpaceCreate,
+            publicSpaceCreate,
+            spaceNames,
+            allowSpaceCreate,
+        );
+        const spaceAccessContexts =
+            await this.spacePermissionService.resolveAccessBatch(
+                user.userUuid,
+                [{ type: 'space', spaceUuid: space.uuid }],
+            );
+        await this.assertSpaceContentAccess({
+            userUuid: user.userUuid,
+            auditedAbility,
+            action: 'create',
+            subjectType: 'SavedChart',
+            spaceUuids: [space.uuid],
+            errorMessage,
+            accessContexts: spaceAccessContexts,
+        });
+        return { space, spaceCreated, spaceAccessContexts };
+    }
+
     private async resolveDashboardForNewChart({
         user,
         auditedAbility,
@@ -4897,40 +4923,34 @@ export class CoderService extends BaseService {
     private static withoutEmptyChartConfig(
         chartConfig: ChartConfig,
     ): ChartConfig {
-        return chartConfig.config == null
-            ? ({ type: chartConfig.type } as ChartConfig)
-            : chartConfig;
+        if (chartConfig.config != null) return chartConfig;
+        const { config, ...typeOnly } = chartConfig;
+        return typeOnly;
     }
 
-    // Checked as save checks an artifact; the file already carries the drawing, so no run
+    // Checked as save checks an artifact: pruned to the terminal node's closure; the file already carries the drawing, so no run
     private static parseComposerChartFile(
         chartAsCode: ComposerChartAsCode,
     ): ComposerChartVersionData {
-        // Before the closure check, so a uuid reference gets save's own refusal
-        assertNoQueryResultReferences(chartAsCode.pipeline.nodes);
-        const pipeline = parseStoredComposerPipeline(chartAsCode.pipeline);
-        assertComposerChartConfigStorable(chartAsCode.chartConfig);
         return {
-            pipeline,
+            pipeline: toSavedComposerPipeline({
+                queries: chartAsCode.pipeline.nodes,
+                terminalNodeId: chartAsCode.pipeline.terminalNodeId,
+            }),
             chartConfig: CoderService.withoutEmptyChartConfig(
-                chartAsCode.chartConfig as ChartConfig,
+                composerChartConfigFromAsCode(chartAsCode.chartConfig),
             ),
             pivotConfig: chartAsCode.pivotConfig,
         };
     }
 
-    /**
-     * Authoring, as save checks it: a DuckDB node needs manage:Explore on the
-     * project; each semantic node, access to its explore and its custom SQL.
-     */
+    // Authoring as save checks it: a DuckDB node needs manage:Explore; each semantic node, its explore and custom SQL
     private async assertComposerPipelineAuthoring({
-        user,
         account,
         auditedAbility,
         project,
         pipeline,
     }: {
-        user: SessionUser;
         account: Account;
         auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
         project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
@@ -4967,9 +4987,6 @@ export class CoderService extends BaseService {
                     : Promise.resolve(),
             ),
         );
-        this.logger.debug(
-            `Composer pipeline authoring checked for user ${user.userUuid}`,
-        );
     }
 
     // Checked as save checks, written by save's writer; promotion carries no pipelines
@@ -4980,8 +4997,7 @@ export class CoderService extends BaseService {
         chartAsCode: ComposerChartAsCode,
         options: UpsertContentAsCodeOptions,
     ): Promise<PromotionChanges> {
-        const { skipSpaceCreate, publicSpaceCreate, force, spaceNames } =
-            options;
+        const { force } = options;
         const {
             shouldUpdateExistingContent,
             shouldUseExactSlug,
@@ -5008,7 +5024,6 @@ export class CoderService extends BaseService {
         }
         const versionData = CoderService.parseComposerChartFile(chartAsCode);
         await this.assertComposerPipelineAuthoring({
-            user,
             account: options.account ?? fromSession(user),
             auditedAbility,
             project,
@@ -5039,38 +5054,15 @@ export class CoderService extends BaseService {
         });
 
         if (chart === undefined) {
-            await this.assertContentAccessForMissingSpace({
-                user,
-                auditedAbility,
-                projectUuid,
-                spaceSlug: chartAsCode.spaceSlug,
-                subjectType: 'SavedChart',
-                errorMessage: `You don't have access to create charts in space "${chartAsCode.spaceSlug}"`,
-            });
-            const { space, created: spaceCreated } =
-                await this.getOrCreateSpace(
-                    projectUuid,
-                    chartAsCode.spaceSlug,
+            const { space, spaceCreated, spaceAccessContexts } =
+                await this.resolveSpaceForNewChart({
                     user,
-                    skipSpaceCreate,
-                    publicSpaceCreate,
-                    spaceNames,
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: chartAsCode.spaceSlug,
                     allowSpaceCreate,
-                );
-            const spaceAccessContexts =
-                await this.spacePermissionService.resolveAccessBatch(
-                    user.userUuid,
-                    [{ type: 'space', spaceUuid: space.uuid }],
-                );
-            await this.assertSpaceContentAccess({
-                userUuid: user.userUuid,
-                auditedAbility,
-                action: 'create',
-                subjectType: 'SavedChart',
-                spaceUuids: [space.uuid],
-                errorMessage: `You don't have access to create charts in space "${chartAsCode.spaceSlug}"`,
-                accessContexts: spaceAccessContexts,
-            });
+                    options,
+                });
             const dashboardUuid = await this.resolveDashboardForNewChart({
                 user,
                 auditedAbility,
@@ -5578,6 +5570,7 @@ export class CoderService extends BaseService {
             // Note: We use a minimal object for the promotion changes since SQL charts
             // don't have the same structure as regular charts. The CLI only uses the action.
             const promotionChanges: PromotionChanges = {
+                composerCharts: [],
                 charts: [
                     {
                         action: PromotionAction.CREATE,
@@ -5648,6 +5641,7 @@ export class CoderService extends BaseService {
         await this.stampAppliedSqlChartSnapshot(user, projectUuid, slug, false);
 
         const promotionChanges: PromotionChanges = {
+            composerCharts: [],
             charts: [
                 {
                     action: PromotionAction.UPDATE,
@@ -6572,6 +6566,7 @@ export class CoderService extends BaseService {
                             },
                         },
                     ],
+                    composerCharts: [],
                     charts: [],
                     spaces: spaceCreated
                         ? [{ action: PromotionAction.CREATE, data: space }]
