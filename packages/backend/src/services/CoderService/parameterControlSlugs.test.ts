@@ -38,6 +38,26 @@ describe('portable parameter controls', () => {
         expect(ids[0]).not.toBe(ids[1]);
     });
 
+    it('mints new ids when the upload duplicates a label that is unique in the saved controls', () => {
+        const ids = getParameterControlsWithIds(
+            getParameterControlsWithSlugs([
+                control('x', 'Region'),
+                control('y', 'Region'),
+            ]),
+            [control('a', 'Region')],
+        ).map((item) => item.id);
+        expect(ids).not.toContain('a');
+        expect(new Set(ids).size).toBe(2);
+    });
+
+    it('mints a new id when the saved controls duplicate a label that is unique in the upload', () => {
+        const [uploaded] = getParameterControlsWithIds(
+            getParameterControlsWithSlugs([control('x', 'Region')]),
+            [control('a', 'Region'), control('b', 'Region')],
+        );
+        expect(uploaded.id).not.toMatch(/^[ab]$/);
+    });
+
     it('accepts legacy ids and mints an id for a new control', () => {
         const [legacy, fresh] = getParameterControlsWithIds(
             [
