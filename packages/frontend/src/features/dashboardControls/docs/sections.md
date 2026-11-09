@@ -133,16 +133,19 @@ _group_ (that is `requiredGroupId`).
   the pointer is taken; between lines, or up to 40px below the last, a
   line gap starts a line of its own (`LineGap`). On that line, the visual
   row (a wrapped or, narrow, stacked run) holding the pointer: before each
-  item and after the row's last; between two rows, after the upper row's
-  last. The nearest point wins, so there is always one drop line, and
-  where it shows is where it lands.
-- In a capsule (a pill's drag only): its head and the frame left of and
-  above it put the control before it, outside. With members shown, its
-  trailing actions put it after it, outside, and the rest gives its
-  members' points the same way (wrapped rows too). Folded or empty,
+  item and after the row's last ("Add filter" is the first line's first
+  item, `barStart` after it); between two rows, the upper row's end or the
+  lower's start. The point nearest the pointer wins, so there is always one
+  drop line, by the pointer, and where it shows is where it lands.
+- In a capsule (a pill's drag only): its head, the frame left of and
+  above it and the 4px under it put the control before it, outside. With
+  members shown, its actions' row from the actions rightwards puts it
+  after it, outside, and the rest gives its members' points the same way
+  (wrapped rows too). Folded or empty,
   anything past the head joins it (its line before the "+"); after it is
   the gap outside. A dragged section sees outside points and line gaps
-  only. "New section" takes a drop only right under the pointer.
+  only. "New section" takes a control's drop (never a section's) only
+  right under the pointer, and none while a control is edited.
 - A keyboard drag keeps dnd-kit's targets (`underPointerFor`, nearest
   centre): every saved pill (`BarDroppable`), each capsule (joins it
   last), the first button (a member out of its section, right after it;

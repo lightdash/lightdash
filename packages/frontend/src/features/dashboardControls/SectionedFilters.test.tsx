@@ -1027,30 +1027,46 @@ describe('SectionedFilters', () => {
                     return box(3, 230, 48);
                 if (element.hasAttribute('data-section-end'))
                     return box(360, 396, 48);
+                if (element.hasAttribute('data-new-section'))
+                    return box(0, 120, 188);
                 return box(0, 0, 0);
             };
-            const pointerEvent = (x: number, y: number) =>
+            const pointerEvent = (
+                x: number,
+                y: number,
+                active: { id: string; data: { current: unknown } } = {
+                    id: 'loose',
+                    data: { current: undefined },
+                },
+            ) =>
                 ({
                     active: {
-                        id: 'loose',
-                        data: { current: undefined },
+                        ...active,
                         rect: { current: { translated: null } },
                     },
                     over: null,
                     activatorEvent: { clientX: 0, clientY: 0 },
                     delta: { x, y },
                 }) as unknown as DragEndEvent;
-            const drop = (x: number, y: number) => {
+            const drop = (
+                x: number,
+                y: number,
+                active?: { id: string; data: { current: unknown } },
+            ) => {
                 const rect = vi
                     .spyOn(Element.prototype, 'getBoundingClientRect')
                     .mockImplementation(function (this: Element) {
                         return rectOf(this);
                     });
-                act(() => mockDragMove.handlers.at(-1)!(pointerEvent(x, y)));
+                act(() =>
+                    mockDragMove.handlers.at(-1)!(pointerEvent(x, y, active)),
+                );
                 const lines = [
                     ...document.querySelectorAll('[data-drop-line]'),
                 ].map((line) => line.getAttribute('data-drop-line'));
-                act(() => mockDragEnd.handlers.at(-1)!(pointerEvent(x, y)));
+                act(() =>
+                    mockDragEnd.handlers.at(-1)!(pointerEvent(x, y, active)),
+                );
                 rect.mockRestore();
                 return lines;
             };
@@ -1103,6 +1119,36 @@ describe('SectionedFilters', () => {
                 expect(
                     sectionIdsOf(setDashboardFilters.mock.calls[0][0]),
                 ).toContainEqual(['loose', 'a']);
+            });
+
+            it('names a new section only for a control dropped right on "New section", never a section, nor during an edit', () => {
+                const { store, unmount } = renderBar();
+                drop(60, 200, {
+                    id: 'b',
+                    data: { current: { kind: 'section' } },
+                });
+                expect(
+                    screen.queryByRole('textbox', { name: 'Section name' }),
+                ).toBeNull();
+                // A section there takes the line below the last, as anywhere
+                expect(orderOf(store)?.at(-1)).toBe('/b');
+                unmount();
+
+                mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+                const edited = renderBar();
+                drop(60, 200);
+                expect(
+                    screen.queryByRole('textbox', { name: 'Section name' }),
+                ).toBeNull();
+                expect(orderOf(edited.store)?.at(-1)).toBe('/loose');
+                edited.unmount();
+
+                mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+                renderBar();
+                drop(60, 200);
+                expect(
+                    screen.getByRole('textbox', { name: 'Section name' }),
+                ).toBeInTheDocument();
             });
 
             it('follows the pointer collision detection saw, scroll included, over the drag delta', () => {

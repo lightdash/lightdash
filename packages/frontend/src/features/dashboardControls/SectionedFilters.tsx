@@ -1324,8 +1324,12 @@ export const SectionedFilters: FC<Props> = ({
             filterableFieldsByTileUuid,
         ) ?? null;
     const nameOf = (id: string) => {
+        // As `placementOf` lands it: a member out of its section, else first
         if (id === UNSECTIONED_TARGET_ID)
-            return 'the space outside any section';
+            return draggedId !== null &&
+                (controlOf(draggedId)?.sectionId ?? null) === null
+                ? 'the start of the bar'
+                : 'the space outside any section';
         if (id === NEW_SECTION_TARGET_ID) return 'a new section';
         const parameterEntry = parameterEntries.find(
             ({ control }) => control.id === id,
@@ -1596,7 +1600,13 @@ export const SectionedFilters: FC<Props> = ({
                   y: (activatorEvent as PointerEvent).clientY + delta.y,
               }
             : null);
-    const isOnNewSection = ({ x, y }: { x: number; y: number }) => {
+    // Only a control's drag, and never while the ghost is off (an edit)
+    const isOnNewSection = (
+        { x, y }: { x: number; y: number },
+        active: Active,
+    ) => {
+        if (isEditing || active.data?.current?.kind === SECTION_DRAG)
+            return false;
         const ghost = barRef.current?.querySelector(NEW_SECTION_SELECTOR);
         const rect = ghost?.getBoundingClientRect();
         return (
@@ -1637,7 +1647,7 @@ export const SectionedFilters: FC<Props> = ({
         const placement =
             pointer === null
                 ? placementOf(active, over)
-                : layout === null || isOnNewSection(pointer)
+                : layout === null || isOnNewSection(pointer, active)
                   ? null
                   : chooseInsertionPoint(
                         layout,
@@ -1700,7 +1710,7 @@ export const SectionedFilters: FC<Props> = ({
         if (
             pointer === null
                 ? over !== null && String(over.id) === NEW_SECTION_TARGET_ID
-                : isOnNewSection(pointer)
+                : isOnNewSection(pointer, active)
         ) {
             if (isEditing) return;
             setNaming({
