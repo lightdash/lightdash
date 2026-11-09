@@ -348,7 +348,8 @@ export type BarControl = {
 export type ControlPlacement =
     | { overId: string; side: 'before' | 'after' }
     | { lineStartId: string | null }
-    | { sectionId: string | null };
+    | { sectionId: string | null }
+    | { barStart: true };
 
 const isSection = (control: BarControl) =>
     control.kind === DashboardControlRefKind.SECTION;
@@ -406,6 +407,9 @@ export const placeControl = <T extends BarControl>(
         } else {
             at = blockEnd(rest, overIndex);
         }
+    } else if ('barStart' in placement) {
+        // Right after "Add filter", on its line
+        at = 0;
     } else if ('lineStartId' in placement) {
         newLine = true;
         if (placement.lineStartId === null) {
@@ -585,9 +589,6 @@ export const lineGapPlacementOf = (
 /** The droppable id of the rail's header, which takes a filter out of its section */
 export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
 
-/** The droppable id of the bar's space outside every capsule and pill */
-export const BAR_SPACE_TARGET_ID = 'bar-space-target';
-
 /** The droppable id of the bar's New section capsule */
 export const NEW_SECTION_TARGET_ID = 'new-section-target';
 
@@ -608,33 +609,9 @@ export const getDragAnnouncements = (
         `Dragging ${nameOf(String(active.id))} was cancelled`,
 });
 
-// The target is what is under the pointer; anywhere else a pointer is (the
-// bar's empty space, beside or below the bar) is outside every section. The
-// keyboard sensor has no pointer, so it falls back to the nearest centre
-const underPointer: CollisionDetection = (args) => {
-    const within = pointerWithin(args);
-    const covered = within.filter(({ id }) => id !== BAR_SPACE_TARGET_ID);
-    if (covered.length > 0) return covered;
-    const barSpace = args.droppableContainers.find(
-        ({ id }) => id === BAR_SPACE_TARGET_ID,
-    );
-    if (args.pointerCoordinates !== null && barSpace !== undefined)
-        return [
-            {
-                id: BAR_SPACE_TARGET_ID,
-                data: { droppableContainer: barSpace, value: 0 },
-            },
-        ];
-    return closestCenter({
-        ...args,
-        droppableContainers: args.droppableContainers.filter(
-            ({ id }) => id !== BAR_SPACE_TARGET_ID,
-        ),
-    });
-};
-
-// A dragged capsule lands only on another capsule, a line gap or a control
-// outside every section (`sectionTargetIds`); line gaps take any pointer drag
+// A keyboard drag's target: the nearest centre; a pointer's only what is
+// under it, as its drop comes from `chooseInsertionPoint`; a dragged capsule only meets capsules, line gaps
+// and controls outside every section (`sectionTargetIds`), a pill no line gap
 export const SECTION_DRAG = 'section';
 const NO_IDS: ReadonlySet<string> = new Set();
 export const underPointerFor = (
@@ -646,49 +623,9 @@ export const underPointerFor = (
         isSectionDrag
             ? container.data?.current?.kind === SECTION_DRAG ||
               sectionTargetIds.has(String(container.id))
-            : // A pill's keyboard drag keeps to pills and capsules
-              args.pointerCoordinates !== null ||
-              container.data?.current?.isLineGap !== true,
+            : container.data?.current?.isLineGap !== true,
     );
-    const pointer = args.pointerCoordinates;
-    if (isSectionDrag && pointer !== null) {
-        const within = pointerWithin({ ...args, droppableContainers });
-        if (within.length > 0) return within;
-        // The empty space among the capsules lands beside the nearest one in
-        // the row the pointer is on (capsules top-align, so a row shares its
-        // top); above or below them all is left to the line gaps
-        const capsules = droppableContainers.flatMap((container) => {
-            const rect = args.droppableRects.get(container.id);
-            return rect === undefined || container.data.current?.isLineGap
-                ? []
-                : [{ container, rect }];
-        });
-        const above = capsules.filter(({ rect }) => rect.top <= pointer.y);
-        const rowTop = Math.max(...above.map(({ rect }) => rect.top));
-        const isAmongCapsules =
-            above.length > 0 &&
-            capsules.some(({ rect }) => rect.bottom >= pointer.y);
-        const nearest = above
-            .filter(({ rect }) => rect.top >= rowTop - 1)
-            .map(({ container, rect }) => ({
-                container,
-                distance: Math.max(
-                    rect.left - pointer.x,
-                    pointer.x - rect.right,
-                    0,
-                ),
-            }))
-            .sort((a, b) => a.distance - b.distance)[0];
-        if (isAmongCapsules && nearest !== undefined)
-            return [
-                {
-                    id: nearest.container.id,
-                    data: {
-                        droppableContainer: nearest.container,
-                        value: nearest.distance,
-                    },
-                },
-            ];
-    }
-    return underPointer({ ...args, droppableContainers });
+    return args.pointerCoordinates === null
+        ? closestCenter({ ...args, droppableContainers })
+        : pointerWithin({ ...args, droppableContainers });
 };

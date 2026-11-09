@@ -30,7 +30,7 @@ import {
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { FilterPill, type FilterPillKind } from './FilterPill';
-import { PillDraggable } from './PillDraggable';
+import { BarDroppable, PillDraggable } from './PillDraggable';
 import { isRuleInSection } from './sections';
 import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
@@ -51,8 +51,6 @@ type Props = {
     ruleIds?: string[];
     /** The new filter's pill and the temporary or viewer's own ones (default true). */
     withExtras?: boolean;
-    /** Every control in bar order, for the side a drop line takes (default each kind's list). */
-    barOrder?: string[];
 };
 
 type FilterPillGroup = 'dimensions' | 'metrics';
@@ -65,7 +63,6 @@ export const FilterPills: FC<Props> = ({
     triggerClassName,
     ruleIds,
     withExtras = true,
-    barOrder,
 }) => {
     const editingFilterId = useControlsSidebarSelector(
         (c) => c.editing?.filterId ?? null,
@@ -201,25 +198,31 @@ export const FilterPills: FC<Props> = ({
         );
         if (!pill) return null;
         if (isViewer) return <Fragment key={filter.id}>{pill}</Fragment>;
-        return (
+        const draggable = (
+            <PillDraggable
+                id={filter.id}
+                isInBarContext={sectionId !== undefined}
+                isDisabled={
+                    isSidebarOpen ||
+                    (!areFieldsLoaded && !filter.target.isSqlColumn)
+                }
+            >
+                {pill}
+            </PillDraggable>
+        );
+        // The sectioned bar draws its own drop line; the flat bar keeps the shipped one
+        return sectionId === undefined ? (
             <DroppableArea
                 key={filter.id}
                 id={filter.id}
-                orderedKeys={
-                    barOrder ?? dashboardFilters[group].map((rule) => rule.id)
-                }
+                orderedKeys={dashboardFilters[group].map((rule) => rule.id)}
             >
-                <PillDraggable
-                    id={filter.id}
-                    isInBarContext={sectionId !== undefined}
-                    isDisabled={
-                        isSidebarOpen ||
-                        (!areFieldsLoaded && !filter.target.isSqlColumn)
-                    }
-                >
-                    {pill}
-                </PillDraggable>
+                {draggable}
             </DroppableArea>
+        ) : (
+            <BarDroppable key={filter.id} id={filter.id}>
+                {draggable}
+            </BarDroppable>
         );
     };
 

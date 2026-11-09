@@ -860,16 +860,22 @@ describe('SectionedFilters', () => {
         });
 
         it('marks a capsule only under a pill from elsewhere, folded too, adding nothing to it', () => {
-            mockDroppable.current = { activeId: 'one', overId: 'a' };
+            const over = (activeId: string) =>
+                act(() =>
+                    mockDragMove.handlers.at(-1)!({
+                        active: { id: activeId, data: { current: undefined } },
+                        over: { id: 'a' },
+                    } as unknown as DragMoveEvent),
+                );
             const { unmount } = renderSectioned(
                 [rule('one', 'a'), rule('two', 'b')],
                 'tab-1',
             );
+            over('one');
             expect(capsuleOf('Dates')).not.toHaveAttribute('data-over');
             unmount();
 
-            mockDroppable.current = null;
-            const idle = renderSectioned(
+            renderSectioned(
                 [
                     ...Array.from({ length: 7 }, (_, i) => rule(`a-${i}`, 'a')),
                     rule('two', 'b'),
@@ -879,19 +885,13 @@ describe('SectionedFilters', () => {
             const folded = capsuleOf('Dates');
             expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
             const childrenBefore = folded.children.length;
-            idle.unmount();
-
-            mockDroppable.current = { activeId: 'two', overId: 'a' };
-            renderSectioned(
-                [
-                    ...Array.from({ length: 7 }, (_, i) => rule(`a-${i}`, 'a')),
-                    rule('two', 'b'),
-                ],
-                'tab-1',
-            );
-            // The line is a pseudo-element: the attribute is all jsdom sees
-            expect(capsuleOf('Dates')).toHaveAttribute('data-over');
-            expect(capsuleOf('Dates').children).toHaveLength(childrenBefore);
+            over('two');
+            expect(folded).toHaveAttribute('data-over');
+            // The shared drop line, before its actions, so nothing moves
+            expect(
+                folded.querySelector('[data-section-end] > [data-drop-line]'),
+            ).toHaveAttribute('data-drop-line', 'before');
+            expect(folded.children).toHaveLength(childrenBefore);
         });
 
         it('renders every section, an empty one with its count, and takes a drop on it', () => {
@@ -932,10 +932,10 @@ describe('SectionedFilters', () => {
             expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
         });
 
-        it("takes a pill out of its section on the bar's empty space, after the last unsectioned pill", () => {
+        it('takes a pill out of its section on the first button by keyboard', () => {
             renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
             act(() =>
-                mockDragEnd.handlers[0](dragEvent('one', 'bar-space-target')),
+                mockDragEnd.handlers[0](dragEvent('one', 'unsectioned-target')),
             );
             expect(setDashboardFilters).toHaveBeenCalledTimes(1);
             expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
@@ -943,27 +943,6 @@ describe('SectionedFilters', () => {
                 ['two', 'b'],
             ]);
             expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
-        });
-
-        it('lands a pill dropped on the empty space after the last unsectioned pill of its kind', () => {
-            renderSectioned(
-                [
-                    rule('one', 'a'),
-                    rule('loose', undefined),
-                    rule('two', 'b'),
-                    rule('last', undefined),
-                ],
-                'tab-1',
-            );
-            act(() =>
-                mockDragEnd.handlers[0](dragEvent('one', 'bar-space-target')),
-            );
-            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
-                ['loose', null],
-                ['two', 'b'],
-                ['last', null],
-                ['one', null],
-            ]);
         });
 
         it('starts a line below a bar of loose pills only, with a gap that shows only under a drag', () => {
@@ -993,13 +972,15 @@ describe('SectionedFilters', () => {
             ]);
         });
 
-        it('still moves a pill into a capsule, and writes nothing for an unsectioned pill on the empty space', () => {
+        it('still moves a pill into a capsule, and writes nothing for an unsectioned pill on the first button', () => {
             renderSectioned(
                 [rule('one', 'a'), rule('loose', undefined)],
                 'tab-1',
             );
             act(() =>
-                mockDragEnd.handlers[0](dragEvent('loose', 'bar-space-target')),
+                mockDragEnd.handlers[0](
+                    dragEvent('loose', 'unsectioned-target'),
+                ),
             );
             expect(setDashboardFilters).not.toHaveBeenCalled();
             act(() => mockDragEnd.handlers[0](dragEvent('loose', 'a')));
@@ -1009,39 +990,156 @@ describe('SectionedFilters', () => {
             ]);
         });
 
-        it('marks the empty space only for a member leaving its section, with the line right after that section', () => {
-            mockDroppable.current = {
-                activeId: 'one',
-                overId: 'bar-space-target',
+        describe('by pointer: the insertion point nearest the pointer', () => {
+            const box = (left: number, right: number, top: number) =>
+                ({
+                    left,
+                    right,
+                    top,
+                    bottom: top + 28,
+                    width: right - left,
+                    height: 28,
+                    x: left,
+                    y: top,
+                    toJSON: () => ({}),
+                }) as DOMRect;
+            // Add and "loose" on the first line; Dates (holding "one"),
+            // Regions and Empty on a line each
+            const rectOf = (element: Element): DOMRect => {
+                const attr = (name: string) => element.getAttribute(name);
+                if (element.hasAttribute('data-bar-start'))
+                    return box(0, 60, 0);
+                if (attr('data-controls-pill') === 'loose')
+                    return box(70, 150, 0);
+                if (attr('data-controls-pill') === 'one')
+                    return box(235, 290, 48);
+                const capsule = attr('data-section-capsule');
+                if (capsule !== null)
+                    return box(0, 400, { a: 44, b: 92, c: 140 }[capsule] ?? 0);
+                if (element.hasAttribute('data-section-head'))
+                    return box(3, 230, 48);
+                if (element.hasAttribute('data-section-end'))
+                    return box(360, 396, 48);
+                return box(0, 0, 0);
             };
-            const { unmount } = renderSectioned(
-                [rule('one', 'a'), rule('loose', undefined)],
-                'tab-1',
-            );
-            act(() =>
-                mockDragStart.handlers.at(-1)!({
-                    active: { id: 'one' },
-                } as DragStartEvent),
-            );
-            const flowOf = () =>
-                capsuleOf('Dates').closest('[class*="flow"]') as HTMLElement;
-            expect(flowOf()).toHaveAttribute('data-over');
-            expect(capsuleOf('Dates')).toHaveAttribute(
-                'data-loose-end',
-                'leaving',
-            );
-            expect(capsuleOf('Regions')).not.toHaveAttribute('data-loose-end');
-            unmount();
+            const pointerEvent = (x: number, y: number) =>
+                ({
+                    active: {
+                        id: 'loose',
+                        data: { current: undefined },
+                        rect: { current: { translated: null } },
+                    },
+                    over: null,
+                    activatorEvent: { clientX: 0, clientY: 0 },
+                    delta: { x, y },
+                }) as unknown as DragEndEvent;
+            const drop = (x: number, y: number) => {
+                const rect = vi
+                    .spyOn(Element.prototype, 'getBoundingClientRect')
+                    .mockImplementation(function (this: Element) {
+                        return rectOf(this);
+                    });
+                act(() => mockDragMove.handlers.at(-1)!(pointerEvent(x, y)));
+                const lines = [
+                    ...document.querySelectorAll('[data-drop-line]'),
+                ].map((line) => line.getAttribute('data-drop-line'));
+                act(() => mockDragEnd.handlers.at(-1)!(pointerEvent(x, y)));
+                rect.mockRestore();
+                return lines;
+            };
+            const renderBar = () =>
+                renderSectioned(
+                    [rule('one', 'a'), rule('loose', undefined)],
+                    'tab-1',
+                );
+            const orderOf = (store: ReturnType<typeof renderBar>['store']) =>
+                selectControlOrder(store.getState())?.map(
+                    ({ id, newLine }) => `${newLine ? '/' : ''}${id}`,
+                );
 
-            mockDroppable.current = {
-                activeId: 'loose',
-                overId: 'bar-space-target',
-            };
+            it('lands before a capsule over its head, outside the section, with one line', () => {
+                const { store } = renderBar();
+                expect(drop(150, 60)).toEqual(['before']);
+                expect(orderOf(store)).toEqual([
+                    '/loose',
+                    'a',
+                    'one',
+                    '/b',
+                    '/c',
+                ]);
+                expect(setDashboardFilters).not.toHaveBeenCalled();
+            });
+
+            it('lands after a capsule over its actions', () => {
+                const { store } = renderBar();
+                expect(drop(380, 60)).toEqual(['after']);
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    'loose',
+                    '/b',
+                    '/c',
+                ]);
+            });
+
+            it('lands inside a capsule over its members', () => {
+                const { store } = renderBar();
+                // The pills are mocked here: a pill draws its own line (`BarDroppable`)
+                drop(300, 60);
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    'loose',
+                    '/b',
+                    '/c',
+                ]);
+                expect(
+                    sectionIdsOf(setDashboardFilters.mock.calls[0][0]),
+                ).toContainEqual(['loose', 'a']);
+            });
+
+            it('drops nothing where it already is, and starts a line between lines', () => {
+                const { store } = renderBar();
+                expect(drop(100, 14)).toEqual([]);
+                expect(orderOf(store)).toBeUndefined();
+                drop(300, 86);
+                expect(
+                    document.querySelector('[class*="lineGap"][data-over]'),
+                ).toBeNull();
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    '/loose',
+                    '/b',
+                    '/c',
+                ]);
+            });
+        });
+
+        it('draws the line after the section a member leaves by keyboard, in the shared drop line', () => {
             renderSectioned(
                 [rule('one', 'a'), rule('loose', undefined)],
                 'tab-1',
             );
-            expect(flowOf()).not.toHaveAttribute('data-over');
+            act(() => {
+                mockDragStart.handlers.at(-1)!({
+                    active: { id: 'one' },
+                } as DragStartEvent);
+                mockDragMove.handlers.at(-1)!({
+                    active: { id: 'one', data: { current: undefined } },
+                    over: { id: 'unsectioned-target' },
+                } as unknown as DragMoveEvent);
+            });
+            expect(capsuleOf('Dates')).toHaveAttribute(
+                'data-section-drop',
+                'after',
+            );
+            expect(
+                capsuleOf('Dates').querySelector(':scope > [data-drop-line]'),
+            ).toHaveAttribute('data-drop-line', 'after');
+            expect(document.querySelectorAll('[data-drop-line]')).toHaveLength(
+                1,
+            );
         });
 
         it('writes the order when a pill leaves its section: right after that section', () => {
@@ -1050,7 +1148,7 @@ describe('SectionedFilters', () => {
                 'tab-1',
             );
             act(() =>
-                mockDragEnd.handlers[0](dragEvent('one', 'bar-space-target')),
+                mockDragEnd.handlers[0](dragEvent('one', 'unsectioned-target')),
             );
             expect(
                 selectControlOrder(store.getState())?.map(({ id }) => id),
@@ -1096,7 +1194,7 @@ describe('SectionedFilters', () => {
             };
             renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
             act(() =>
-                mockDragEnd.handlers[0](dragEvent('one', 'bar-space-target')),
+                mockDragEnd.handlers[0](dragEvent('one', 'unsectioned-target')),
             );
             expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
                 ['one', null],
@@ -1552,7 +1650,7 @@ describe('SectionedFilters', () => {
             expect(pickedIds()).toEqual([]);
         });
 
-        it("takes the whole selection out of its sections on the bar's empty space", () => {
+        it('takes the whole selection out of its sections on the first button', () => {
             renderSectioned(rules(), 'tab-1');
             fireEvent.click(pillOf('one'), { metaKey: true });
             fireEvent.click(pillOf('three'), { metaKey: true });
@@ -1560,7 +1658,7 @@ describe('SectionedFilters', () => {
             act(() =>
                 mockDragEnd.handlers.at(-1)!({
                     active: { id: 'three' },
-                    over: { id: 'bar-space-target' },
+                    over: { id: 'unsectioned-target' },
                 } as DragEndEvent),
             );
             expect(setDashboardFilters).toHaveBeenCalledTimes(1);
@@ -3604,6 +3702,35 @@ describe('SectionedFilters', () => {
                         ({ id, newLine }) => `${newLine ? '/' : ''}${id}`,
                     ),
                 ).toEqual(['/first', '/hidden', 'shown']);
+            });
+
+            it('draws one drop line, the same element, beside a pill or in a capsule', () => {
+                renderOrdered(order);
+                const moveOver = (overId: string) =>
+                    act(() =>
+                        mockDragMove.handlers.at(-1)!({
+                            active: {
+                                id: 'loose',
+                                data: { current: undefined },
+                            },
+                            over: { id: overId },
+                        } as unknown as DragMoveEvent),
+                    );
+                const lines = () => [
+                    ...document.querySelectorAll('[data-drop-line]'),
+                ];
+                moveOver('region');
+                expect(lines()).toHaveLength(1);
+                const besidePill = lines()[0];
+                expect(
+                    parameterPill('region')?.closest('[class*="barDroppable"]'),
+                ).toContainElement(besidePill as HTMLElement);
+                moveOver('b');
+                expect(lines()).toHaveLength(1);
+                expect(capsuleOf('Regions')).toContainElement(
+                    lines()[0] as HTMLElement,
+                );
+                expect(lines()[0].className).toBe(besidePill.className);
             });
 
             it('renders an empty order as no order', () => {

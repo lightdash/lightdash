@@ -296,131 +296,65 @@ describe('getDragAnnouncements', () => {
 });
 
 describe('underPointerFor', () => {
-    it('lets a capsule or pill under the pointer win, and anywhere else is outside every section', () => {
-        const rect = (left: number, right: number) =>
-            ({
-                top: 0,
-                bottom: 30,
-                left,
-                right,
-                width: right - left,
-                height: 30,
-            }) as ClientRect;
-        const droppableRects = new Map([
-            ['bar-space-target', rect(0, 600)],
-            ['a', rect(100, 300)],
-            ['one', rect(110, 200)],
-        ]);
-        const collide = (x: number, hasPointer = true) =>
-            underPointerFor({
-                active: { id: 'two', data: { current: undefined } },
-                collisionRect: rect(x, x + 10),
-                droppableRects,
-                droppableContainers: [...droppableRects.keys()].map((id) => ({
-                    id,
-                    data: { current: undefined },
-                })),
-                pointerCoordinates: hasPointer ? { x, y: 15 } : null,
-            } as unknown as Parameters<typeof underPointerFor>[0]).map(
-                ({ id }) => id,
-            );
-        expect(collide(150)).toEqual(['one', 'a']);
-        expect(collide(250)).toEqual(['a']);
-        expect(collide(500)).toEqual(['bar-space-target']);
-        // Off the bar altogether (beside or below it) is outside every section too
-        expect(collide(800)).toEqual(['bar-space-target']);
-        // The keyboard has no pointer: the nearest centre, never the bar's
-        expect(collide(295, false)[0]).toBe('a');
-    });
-
-    it('lands a capsule dragged into a line’s empty space beside that line’s nearest capsule', () => {
-        const rect = (left: number, right: number, top: number, height = 30) =>
-            ({
-                top,
-                bottom: top + height,
-                left,
-                right,
-                width: right - left,
-                height,
-            }) as ClientRect;
-        const section = { current: { kind: 'section' } };
-        const gap = { current: { kind: 'section', isLineGap: true } };
-        const droppableRects = new Map([
-            ['bar-space-target', rect(0, 800, 0)],
-            ['section-line:0', rect(0, 800, -12, 12)],
-            ['date', rect(0, 300, 0)],
-            ['section-line:1', rect(0, 800, 38, 12)],
-            ['lenses', rect(0, 700, 50)],
-            ['section-line:2', rect(0, 800, 94, 12)],
-        ]);
-        const dataOf = (id: string) =>
-            id.startsWith('section-line')
-                ? gap
-                : id === 'bar-space-target'
-                  ? { current: undefined }
-                  : section;
-        const collide = (x: number, y: number) =>
-            underPointerFor({
-                active: { id: 'lenses', data: section },
-                collisionRect: rect(x - 40, x + 40, y - 15),
+    const rect = (left: number, right: number, top = 0) =>
+        ({
+            top,
+            bottom: top + 30,
+            left,
+            right,
+            width: right - left,
+            height: 30,
+        }) as ClientRect;
+    const section = { current: { kind: 'section' } };
+    const gap = { current: { kind: 'section', isLineGap: true } };
+    const droppableRects = new Map([
+        ['a', rect(100, 300)],
+        ['one', rect(110, 200)],
+        ['loose', rect(400, 480)],
+        ['line-gap:', rect(0, 600, 40)],
+    ]);
+    const dataOf = (id: string) =>
+        id === 'a'
+            ? section
+            : id.startsWith('line-gap')
+              ? gap
+              : { current: undefined };
+    const collide = (
+        activeData: { current: unknown },
+        x: number,
+        hasPointer: boolean,
+        sectionTargetIds?: ReadonlySet<string>,
+    ) =>
+        underPointerFor(
+            {
+                active: { id: 'moving', data: activeData },
+                collisionRect: rect(x, x + 10, hasPointer ? 0 : 45),
                 droppableRects,
                 droppableContainers: [...droppableRects.keys()].map((id) => ({
                     id,
                     data: dataOf(id),
                 })),
-                pointerCoordinates: { x, y },
-            } as unknown as Parameters<typeof underPointerFor>[0]).map(
-                ({ id }) => id,
-            )[0];
-        expect(collide(450, 15)).toBe('date');
-        expect(collide(150, 15)).toBe('date');
+                pointerCoordinates: hasPointer ? { x, y: 15 } : null,
+            } as unknown as Parameters<typeof underPointerFor>[0],
+            sectionTargetIds,
+        ).map(({ id }) => id);
+
+    it('gives a pointer what is under it, and the keyboard the nearest centre', () => {
+        expect(collide({ current: undefined }, 150, true)).toEqual(
+            expect.arrayContaining(['one', 'a']),
+        );
+        // A pill's keyboard drag never lands on a line gap
+        expect(collide({ current: undefined }, 300, false)).not.toContain(
+            'line-gap:',
+        );
     });
 
-    it('picks the nearest capsule in the pointer’s row across uneven and wrapped rows', () => {
-        const rect = (left: number, right: number, top: number, height = 30) =>
-            ({
-                top,
-                bottom: top + height,
-                left,
-                right,
-                width: right - left,
-                height,
-            }) as ClientRect;
-        const section = { current: { kind: 'section' } };
-        const gap = { current: { kind: 'section', isLineGap: true } };
-        const collideIn =
-            (rects: [string, ClientRect][]) => (x: number, y: number) => {
-                const droppableRects = new Map(rects);
-                return underPointerFor({
-                    active: { id: 'moving', data: section },
-                    collisionRect: rect(x - 40, x + 40, y - 15),
-                    droppableRects,
-                    droppableContainers: rects.map(([id]) => ({
-                        id,
-                        data: id.startsWith('section-line') ? gap : section,
-                    })),
-                    pointerCoordinates: { x, y },
-                } as unknown as Parameters<typeof underPointerFor>[0])[0]?.id;
-            };
-        // An open capsule beside a collapsed one: below the short one's bottom
-        const uneven = collideIn([
-            ['section-line:0', rect(0, 800, -12, 12)],
-            ['open', rect(0, 300, 0, 200)],
-            ['short', rect(310, 500, 0, 30)],
-            ['section-line:1', rect(0, 800, 202, 12)],
+    it('lets a dragged capsule meet only capsules, line gaps and the controls it may sit beside', () => {
+        expect(collide(section, 150, true)).toEqual(['a']);
+        expect(collide(section, 440, true)).toEqual([]);
+        expect(collide(section, 440, true, new Set(['loose']))).toEqual([
+            'loose',
         ]);
-        expect(uneven(600, 100)).toBe('short');
-        // A wrapped line: the space between its rows is no line gap
-        const wrapped = collideIn([
-            ['section-line:0', rect(0, 400, -12, 12)],
-            ['a', rect(0, 150, 0, 36)],
-            ['b', rect(160, 300, 0, 36)],
-            ['c', rect(0, 150, 52, 36)],
-            ['section-line:1', rect(0, 400, 90, 12)],
-        ]);
-        expect(wrapped(250, 44)).toBe('b');
-        // Below every capsule still reaches the end line gap
-        expect(wrapped(200, 300)).toBe('section-line:1');
     });
 });
 

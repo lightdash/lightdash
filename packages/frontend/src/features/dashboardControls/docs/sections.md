@@ -127,27 +127,34 @@ _group_ (that is `requiredGroupId`).
   announces the move in the provider's status region (edit mode only; a
   counter key re-announces the same text). An end stays focusable
   (`data-disabled`).
-- Each saved pill's `DroppableArea` is its target. On the sectioned bar its
-  2px line takes the side from the bar order (`barOrder`, every control),
-  for a control of any kind; the flat bar keeps the kind's filter order.
-- Targets: every saved pill, each capsule, the first button
-  (`UNSECTIONED_TARGET_ID`), "New section" (`NEW_SECTION_TARGET_ID`), the
-  line gaps and the bar's empty space (`BAR_SPACE_TARGET_ID`), which also
-  catches a pointer on no target. Resolution is `underPointerFor` (pointer
-  first, `closestCenter` for the keyboard, which leaves line gaps to section
-  drags); a section drag meets capsules, line gaps, the first button and
-  controls outside every section.
-- Every drop is a placement (`placementOf`, `placeControl`): beside a
-  control it joins that control's line and section, on the side it moves
-  towards (a section never enters one; over a capsule a section takes the
-  side of its centre the dragged copy's centre is, `data-section-drop`);
-  on a capsule a control joins it last; on the gap above a line, or below
-  the last (`LineGap`, `lineGapTargetId`), it takes a line of its own; on
-  the first button it ends the first line; a member on the bar's empty
-  space lands right after its section (the line on that capsule,
-  `data-loose-end`). A section change writes the membership too.
-  `handleDragMove` keeps the one drop line in `sectionDrop`, and only for a
-  drop that moves something. A no-op drop writes nothing.
+- A pointer drag drops on insertion points (`chooseInsertionPoint`, pure,
+  over `measureBar`'s rects): every gap between two items of a bar line,
+  each line's start (after "Add filter" on the first) and end, and for a
+  pill only, inside each open capsule, before each member and after the
+  last (folded or empty: one point, last in it). The line whose band holds
+  the pointer is taken; between lines, or up to 40px below the last, a
+  line gap starts a line of its own (`LineGap`). On that line the nearest
+  point wins, so the pointer always has one drop line, and where it shows
+  is where it lands. Inside points count only with the pointer in the
+  capsule and off its head (`data-section-head`: before it, outside) and
+  trailing actions or count (`data-section-end`: after it, outside). A
+  dragged section sees outside points and line gaps only. "New section"
+  takes a drop only right under the pointer.
+- A keyboard drag keeps dnd-kit's targets (`underPointerFor`, nearest
+  centre): every saved pill (`BarDroppable`), each capsule (joins it
+  last), the first button (out of its section, right after it), "New
+  section"; a section also meets controls outside every section, and line
+  gaps. `placementOf` maps the target, beside a control on the side it
+  moves towards.
+- Both give a placement (`placeControl`) kept in `drop` while it moves
+  something (a drop where the control already is writes nothing, shows no
+  line). A section change writes the membership too; a selection lands
+  together, in its order.
+- One drop line between controls (`DropLine`, `.dropLine` in
+  `FilterPills.module.css`): 2px, a pill's height (`--controls-pill-height`),
+  centred on the bar line, 4px into the gap; on a capsule outside its border
+  on its first row, last in it before its actions. Line gaps draw the
+  horizontal line.
 - Keyboard (`BarMoveContext`, `moveControlBy`), on a pill or a section's
   name: Alt+ArrowLeft / Alt+ArrowRight go one place along the bar across
   kinds, stepping over a capsule (inside one, among its members);
@@ -155,7 +162,7 @@ _group_ (that is `requiredGroupId`).
   line of its own at the bottom when it shares one (the first line is "Add
   filter"'s). The control keeps focus; the status region says where it is.
   A drag made before a filter opened survives its Cancel and is no edit. Capsule drag is off while a filter is edited.
-- Nothing changes size during a drag; feedback is drop lines, not slots.
+- Nothing changes size during a drag; feedback is one drop line, not slots.
 
 ## Selection
 

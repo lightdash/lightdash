@@ -14,7 +14,6 @@ import {
     type MouseEvent,
     type ReactNode,
 } from 'react';
-import { DroppableArea } from '../../components/common/DndHelpers';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -38,7 +37,7 @@ import {
     PARAMETER_PILL_SELECTOR,
 } from './parameterControlsBar';
 import classes from './ParameterPills.module.css';
-import { PillDraggable } from './PillDraggable';
+import { BarDroppable, PillDraggable } from './PillDraggable';
 import { useRailContractClasses } from './railContractClasses';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useIsControlEdited } from './useIsControlEdited';
@@ -409,8 +408,6 @@ type Props = {
     isInBarContext?: boolean;
     /** Only these pills, in this order (default every one of the pass, in list order). */
     ids?: string[];
-    /** Every control in bar order, for the side a drop line takes (default the parameter list). */
-    barOrder?: string[];
 };
 
 // Parameter controls after the filters of the same pass, in list order
@@ -418,7 +415,6 @@ export const ParameterPills: FC<Props> = ({
     sectionId,
     isInBarContext = false,
     ids,
-    barOrder,
 }) => {
     const bar = useParameterBarControls();
     const isViewer = useParameterEditorSelector((c) => c.isViewer);
@@ -441,8 +437,6 @@ export const ParameterPills: FC<Props> = ({
     const neighbourIds = entries
         .filter(({ isNeedsValue }) => !isNeedsValue)
         .map(({ control }) => control.id);
-    const orderedKeys =
-        barOrder ?? bar.entries.map(({ control }) => control.id);
     return (
         <>
             {entries.map((entry) => {
@@ -456,11 +450,7 @@ export const ParameterPills: FC<Props> = ({
                 if (!isInBarContext || isViewer || entry.isNeedsValue)
                     return <Fragment key={entry.control.id}>{pill}</Fragment>;
                 return (
-                    <DroppableArea
-                        key={entry.control.id}
-                        id={entry.control.id}
-                        orderedKeys={orderedKeys}
-                    >
+                    <BarDroppable key={entry.control.id} id={entry.control.id}>
                         <PillDraggable
                             id={entry.control.id}
                             isInBarContext
@@ -470,7 +460,7 @@ export const ParameterPills: FC<Props> = ({
                         >
                             {pill}
                         </PillDraggable>
-                    </DroppableArea>
+                    </BarDroppable>
                 );
             })}
         </>

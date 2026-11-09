@@ -1,7 +1,8 @@
-import { useDraggable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { Box } from '@mantine/core';
-import { type FC, type PointerEvent, type ReactNode } from 'react';
+import { useContext, type FC, type PointerEvent, type ReactNode } from 'react';
 import dndClasses from '../../components/common/DndHelpers.module.css';
+import { BarDropContext } from './barSelection';
 import classes from './FilterPills.module.css';
 
 // A pill's drag: the pill itself, by pointer only, so Enter or Space on it
@@ -61,6 +62,29 @@ export const PillDraggable: FC<{
             }}
         >
             {children}
+        </Box>
+    );
+};
+
+/** Every drop line between controls: one look, whatever is dragged or its target */
+export const DropLine: FC<{ side: 'before' | 'after' }> = ({ side }) => (
+    <Box className={classes.dropLine} data-drop-line={side} aria-hidden />
+);
+
+// A pill as a keyboard drag's target on the sectioned bar; its line shows
+// wherever the drag would land beside it
+export const BarDroppable: FC<{ id: string; children: ReactNode }> = ({
+    id,
+    children,
+}) => {
+    const { setNodeRef } = useDroppable({ id });
+    const drop = useContext(BarDropContext);
+    return (
+        <Box ref={setNodeRef} className={classes.barDroppable}>
+            {children}
+            {drop !== null && 'overId' in drop && drop.overId === id && (
+                <DropLine side={drop.side} />
+            )}
         </Box>
     );
 };
