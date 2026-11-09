@@ -802,10 +802,9 @@ section member passes to the next entry in the list outside a section; it is
 dropped if there is none. Without a saved
 order, lines follow each section's `inline`. Controls left out of
 `controlOrder` go to the end of their container, inline; to place a new
-control, add its entry. With dashboard controls enabled, AI agent reads always include the full
-order and filter slugs. An upload, from the CLI or an AI agent, whose order renders the
-default bar stores no order as long as none was saved before; once an order is
-saved, uploads store the list as given.
+control, add its entry. With dashboard controls enabled, AI agent reads match
+downloads but always include filter slugs, so an agent can write a list. An
+upload, from the CLI or an AI agent, stores a non-empty list as given.
 
 Slugs in an uploaded file only resolve `controlOrder` refs inside that file.
 An upload keeps a dimension filter's ID only when it is the only filter on its
@@ -814,7 +813,8 @@ get new IDs, never each other's. Unknown, duplicate and `dateZoom`
 refs are rejected with the valid slugs listed, and refs with the wrong shape
 fail validation; parameter refs need
 `config.parameterControls` in the file. When dashboard controls are on, a file
-without `controlOrder` resets the bar to the default order. With the flag off,
+without `controlOrder`, or with an empty one, resets the bar to the default
+order. With the flag off,
 downloads omit filter slugs and `controlOrder`, and uploads ignore them,
 keeping the saved order. Scheduled delivery filters carry no slugs.
 

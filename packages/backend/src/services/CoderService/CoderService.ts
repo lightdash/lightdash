@@ -117,7 +117,7 @@ import {
     type ParameterDefinitions,
     type SpaceSummaryBase,
 } from '@lightdash/common';
-import { isEqual, isPlainObject, omit, omitBy } from 'es-toolkit/compat';
+import { isEqual, isPlainObject, omit } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -196,7 +196,6 @@ import {
     getControlOrderWithIds,
     getFilterSlugsAsCode,
     getUploadedControlSlugs,
-    rendersDefaultControlOrder,
 } from './controlOrder';
 import {
     getConfigWithDateZoomTileSlugs,
@@ -2004,7 +2003,7 @@ export class CoderService extends BaseService {
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         verificationMap: Map<string, ContentVerificationInfo>,
         controlsEnabled = false,
-        fullControlOrder = false,
+        withFilterSlugs = false,
     ): DashboardAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === dashboard.spaceUuid,
@@ -2159,10 +2158,10 @@ export class CoderService extends BaseService {
                 controlTileSlugs,
             ),
         );
-        // A never-reordered dashboard downloads without filter slugs or an order; agents always get the full order
+        // The order appears only once stored; agents also get filter slugs so they can write one
         const orderedControls =
             controlsEnabled &&
-            (fullControlOrder || config?.controlOrder !== undefined)
+            (withFilterSlugs || config?.controlOrder !== undefined)
                 ? {
                       filters: {
                           dimensions: dashboard.filters.dimensions,
@@ -2191,23 +2190,21 @@ export class CoderService extends BaseService {
                 hidden,
             })),
             slug: dashboard.slug,
-            ...((config || orderedControls) && {
+            ...(config && {
                 config: {
-                    ...omit(
-                        config ?? { isDateZoomDisabled: false },
-                        'controlOrder',
-                    ),
+                    ...omit(config, 'controlOrder'),
                     ...(config?.parameterControls !== undefined && {
                         parameterControls: getParameterControlsWithSlugs(
                             config.parameterControls,
                         ),
                     }),
-                    ...(orderedControls && {
-                        controlOrder: getControlOrderAsCode({
-                            ...orderedControls,
-                            controlOrder: config?.controlOrder,
+                    ...(orderedControls &&
+                        config.controlOrder !== undefined && {
+                            controlOrder: getControlOrderAsCode({
+                                ...orderedControls,
+                                controlOrder: config?.controlOrder,
+                            }),
                         }),
-                    }),
                 },
             }),
             ...(dashboard.parameters
@@ -2607,7 +2604,7 @@ export class CoderService extends BaseService {
             slugs,
             undefined,
             undefined,
-            { fullControlOrder: true },
+            { withFilterSlugs: true },
         );
         const chartSlugs = [
             ...new Set(
@@ -2705,8 +2702,8 @@ export class CoderService extends BaseService {
         // is shared with.
         {
             includeAccess = false,
-            fullControlOrder = false,
-        }: { includeAccess?: boolean; fullControlOrder?: boolean } = {},
+            withFilterSlugs = false,
+        }: { includeAccess?: boolean; withFilterSlugs?: boolean } = {},
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -2794,7 +2791,7 @@ export class CoderService extends BaseService {
 
         const controlsEnabled =
             dashboardsWithAccess.length > 0 &&
-            (fullControlOrder ||
+            (withFilterSlugs ||
                 dashboardsWithAccess.some(
                     (dashboard) =>
                         dashboard.config?.parameterControls !== undefined ||
@@ -2813,7 +2810,7 @@ export class CoderService extends BaseService {
                     spaces,
                     dashboardVerificationMap,
                     controlsEnabled,
-                    fullControlOrder,
+                    withFilterSlugs,
                 );
             }
             const { parameterControls: _ignored, ...config } = dashboard.config;
@@ -2822,7 +2819,7 @@ export class CoderService extends BaseService {
                 spaces,
                 dashboardVerificationMap,
                 controlsEnabled,
-                fullControlOrder,
+                withFilterSlugs,
             );
         });
 
@@ -5944,8 +5941,9 @@ export class CoderService extends BaseService {
                 parameterControls: dashboardConfig?.parameterControls ?? [],
                 sections: dashboardConfig?.controlSections ?? [],
             };
+            // An empty list renders like no list, so it isn't stored
             controlOrder =
-                fileOrder === undefined
+                fileOrder === undefined || fileOrder.length === 0
                     ? undefined
                     : getControlOrderWithIds(
                           fileOrder,
@@ -5967,37 +5965,12 @@ export class CoderService extends BaseService {
                               sources,
                           ),
                       );
-            // An order that renders the default bar isn't stored, so agent reads carrying the default order round-trip clean
-            if (
-                controlOrder !== undefined &&
-                existingDashboard?.config?.controlOrder === undefined &&
-                rendersDefaultControlOrder(controlOrder, sources)
-            ) {
-                controlOrder = undefined;
-            }
         }
         if (dashboardConfig || controlOrder !== undefined) {
             dashboardConfig = {
                 ...(dashboardConfig ?? { isDateZoomDisabled: false }),
                 ...(controlOrder !== undefined && { controlOrder }),
             };
-        }
-        // Agent reads give a dashboard without a config the default one to carry the order; don't store it back
-        if (
-            existingDashboard &&
-            !existingDashboard.config &&
-            dashboardConfig &&
-            isEqual(
-                omitBy(dashboardConfig, (value) => value === undefined),
-                { isDateZoomDisabled: false },
-            ) &&
-            // controlsEnabled defaults to true when nothing above needed the flag
-            (await this.dashboardService.areDashboardControlsEnabled(
-                user,
-                project.organizationUuid,
-            ))
-        ) {
-            dashboardConfig = undefined;
         }
         if (controlsEnabled && dashboardConfig?.parameterControls) {
             const tileSlugs = getTileSlugsByUuid(tilesWithUuids);

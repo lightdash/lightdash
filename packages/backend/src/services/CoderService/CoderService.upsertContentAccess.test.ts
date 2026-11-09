@@ -3883,7 +3883,7 @@ describe('CoderService dashboard control order as code', () => {
     const download = (
         dashboard: DashboardDAO,
         controlsEnabled: boolean,
-        fullControlOrder = false,
+        withFilterSlugs = false,
     ) => {
         const { downloadedAt: _downloadedAt, ...file } = (
             CoderService as unknown as {
@@ -3894,7 +3894,7 @@ describe('CoderService dashboard control order as code', () => {
             [{ uuid: SPACE_UUID, name: 'Space', path: 'space' }],
             new Map(),
             controlsEnabled,
-            fullControlOrder,
+            withFilterSlugs,
         );
         return file as DashboardAsCode;
     };
@@ -3974,6 +3974,22 @@ describe('CoderService dashboard control order as code', () => {
     };
     const validSlugs =
         'Valid slugs are filter: orders-status, orders-city, orders-total; parameter: region; section: calendar';
+    // The list for the bar a never-reordered dashboard renders
+    const defaultList = [
+        { kind: DashboardControlRefKind.FILTER, slug: 'orders-status' },
+        { kind: DashboardControlRefKind.FILTER, slug: 'orders-total' },
+        { kind: DashboardControlRefKind.PARAMETER, slug: 'region' },
+        {
+            kind: DashboardControlRefKind.SECTION,
+            slug: 'calendar',
+            newLine: true,
+        },
+        { kind: DashboardControlRefKind.FILTER, slug: 'orders-city' },
+    ];
+    const withList = (
+        file: DashboardAsCode,
+        controlOrder: NonNullable<DashboardAsCode['config']>['controlOrder'],
+    ) => ({ ...file, config: { ...file.config!, controlOrder } });
 
     it('downloads without filter slugs or an order with the flag off, whatever is stored', () => {
         const file = JSON.stringify(download(savedDashboard(), false));
@@ -4286,20 +4302,24 @@ describe('CoderService dashboard control order as code', () => {
         });
     });
 
-    it('gives agent reads the default order and filter slugs when none is stored', () => {
+    it('gives agent reads filter slugs and no order when none is stored', () => {
         const file = download(withoutOrder(), true, true);
         expect(
             [...file.filters!.dimensions!, ...file.filters!.metrics!].map(
                 ({ slug }) => slug,
             ),
         ).toEqual(['orders-status', 'orders-city', 'orders-total']);
-        expect(file.config?.controlOrder).toEqual([
-            { kind: 'filter', slug: 'orders-status' },
-            { kind: 'filter', slug: 'orders-total' },
-            { kind: 'parameter', slug: 'region' },
-            { kind: 'section', slug: 'calendar', newLine: true },
-            { kind: 'filter', slug: 'orders-city' },
-        ]);
+        expect(file.config).not.toHaveProperty('controlOrder');
+    });
+
+    it('gives agent reads the stored order and keeps it when sent back', async () => {
+        const file = download(savedDashboard(), true, true);
+        expect(file.config?.controlOrder).toHaveLength(savedOrder.length);
+        expect(file.config?.controlOrder).toEqual(
+            download(savedDashboard(), true).config?.controlOrder,
+        );
+        const saved = await upload(file);
+        expect(saved.config?.controlOrder).toEqual(savedOrder);
     });
 
     it.each([true, false])(
@@ -4355,14 +4375,9 @@ describe('CoderService dashboard control order as code', () => {
             expect(
                 service.dashboardService.areDashboardControlsEnabled,
             ).toHaveBeenCalledOnce();
-            expect(dashboards[0].config?.controlOrder).toEqual(
-                enabled
-                    ? [
-                          { kind: 'filter', slug: 'orders-status' },
-                          { kind: 'filter', slug: 'orders-city' },
-                          { kind: 'filter', slug: 'orders-total' },
-                      ]
-                    : undefined,
+            expect(dashboards[0].config).not.toHaveProperty('controlOrder');
+            expect(dashboards[0].filters?.dimensions?.[0].slug).toBe(
+                enabled ? 'orders-status' : undefined,
             );
         },
     );
@@ -4373,16 +4388,11 @@ describe('CoderService dashboard control order as code', () => {
         );
     });
 
-    it('gives agent reads an order for a dashboard without a config', () => {
+    it('gives agent reads no config for a dashboard without one', () => {
         const { config: _config, ...dashboard } = withoutOrder();
-        expect(download(dashboard as DashboardDAO, true, true).config).toEqual({
-            isDateZoomDisabled: false,
-            controlOrder: [
-                { kind: 'filter', slug: 'orders-status' },
-                { kind: 'filter', slug: 'orders-city' },
-                { kind: 'filter', slug: 'orders-total' },
-            ],
-        });
+        const file = download(dashboard as DashboardDAO, true, true);
+        expect(file).not.toHaveProperty('config');
+        expect(file.filters?.dimensions?.[0].slug).toBe('orders-status');
     });
 
     it('stores no order when an agent edit leaves the default order untouched', async () => {
@@ -4452,8 +4462,15 @@ describe('CoderService dashboard control order as code', () => {
             {
                 ...file,
                 config: {
-                    ...file.config!,
-                    controlOrder: [...file.config!.controlOrder!].reverse(),
+                    isDateZoomDisabled: false,
+                    controlOrder: [
+                        'orders-total',
+                        'orders-city',
+                        'orders-status',
+                    ].map((slug) => ({
+                        kind: DashboardControlRefKind.FILTER,
+                        slug,
+                    })),
                 },
             },
             { saved: dashboard as DashboardDAO },
@@ -4496,7 +4513,10 @@ describe('CoderService dashboard control order as code', () => {
                 ),
             },
         } as DashboardDAO;
-        const file = download(unsectioned, true, true);
+        const file = withList(download(unsectioned, true, true), [
+            { kind: DashboardControlRefKind.FILTER, slug: 'orders-status' },
+            { kind: DashboardControlRefKind.FILTER, slug: 'orders-city' },
+        ]);
         const saved = await upload(
             {
                 ...file,
@@ -4519,24 +4539,22 @@ describe('CoderService dashboard control order as code', () => {
         );
     });
 
-    it('stores no order when a member ref is listed away from its section', async () => {
-        const file = download(withoutOrder(), true, true);
-        const order = file.config!.controlOrder!;
-        const member = order.find(({ slug }) => slug === 'orders-city')!;
+    it('stores a list with a member ref away from its section as given', async () => {
+        const member = defaultList[4];
         const saved = await upload(
-            {
-                ...file,
-                config: {
-                    ...file.config!,
-                    controlOrder: [
-                        member,
-                        ...order.filter((ref) => ref !== member),
-                    ],
-                },
-            },
+            withList(download(withoutOrder(), true, true), [
+                member,
+                ...defaultList.slice(0, 4),
+            ]),
             { saved: withoutOrder() as DashboardDAO },
         );
-        expect(saved.config).not.toHaveProperty('controlOrder');
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'second-id' },
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
+        ]);
     });
 
     const uploadNeverReordered = (
@@ -4590,20 +4608,16 @@ describe('CoderService dashboard control order as code', () => {
         ]);
     });
 
-    it('stores the read-back default when it drops a line start', async () => {
-        const file = download(withoutOrder(), true, true);
+    it('stores a list that renders the default bar as given', async () => {
         const saved = await uploadNeverReordered(
-            file,
-            file.config!.controlOrder!.map(({ kind, slug }) => ({
-                kind,
-                slug,
-            })),
+            download(withoutOrder(), true, true),
+            defaultList,
         );
         expect(saved.config?.controlOrder).toEqual([
             { kind: 'filter', id: 'first-id' },
             { kind: 'filter', id: 'metric-id' },
             { kind: 'parameter', id: 'region-id' },
-            { kind: 'section', id: 'section-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
             { kind: 'filter', id: 'second-id' },
         ]);
     });
@@ -4618,7 +4632,9 @@ describe('CoderService dashboard control order as code', () => {
 
     it('stores an order when an agent adds a filter without a ref, the filter trailing the bar', async () => {
         const saved = await upload(
-            withCountryFilter(download(withoutOrder(), true, true)),
+            withCountryFilter(
+                withList(download(withoutOrder(), true, true), defaultList),
+            ),
             { saved: withoutOrder() as DashboardDAO },
         );
         expect(saved.config?.controlOrder).toBeDefined();
@@ -4650,7 +4666,10 @@ describe('CoderService dashboard control order as code', () => {
         ],
         [
             'a filter added without a ref',
-            () => withCountryFilter(download(withoutOrder(), true, true)),
+            () =>
+                withCountryFilter(
+                    withList(download(withoutOrder(), true, true), defaultList),
+                ),
         ],
     ])(
         'stores the same result when %s is uploaded twice',
@@ -4676,12 +4695,10 @@ describe('CoderService dashboard control order as code', () => {
         expect(saved.config).not.toHaveProperty('controlOrder');
     });
 
-    it('stores no order when the full default is read back unchanged', async () => {
-        const file = download(withoutOrder(), true, true);
-        const saved = await uploadNeverReordered(
-            file,
-            file.config!.controlOrder,
-        );
+    it('stores no order when an agent read is sent back unchanged', async () => {
+        const saved = await upload(download(withoutOrder(), true, true), {
+            saved: withoutOrder() as DashboardDAO,
+        });
         expect(saved.config).not.toHaveProperty('controlOrder');
     });
 
@@ -4743,38 +4760,11 @@ describe('CoderService dashboard control order as code', () => {
         ]);
     });
 
-    it('stores no order when an agent adds a filter with a ref in its default place', async () => {
-        const file = withCountryFilter(download(withoutOrder(), true, true));
-        const [first, ...rest] = file.config!.controlOrder!;
-        const saved = await upload(
-            {
-                ...file,
-                config: {
-                    ...file.config!,
-                    controlOrder: [
-                        first,
-                        {
-                            kind: DashboardControlRefKind.FILTER,
-                            slug: 'orders-country',
-                        },
-                        ...rest,
-                    ],
-                },
-            },
-            { saved: withoutOrder() as DashboardDAO },
-        );
-        expect(saved.config).not.toHaveProperty('controlOrder');
-    });
-
     it('stores the order when an agent edit moves a ref', async () => {
-        const file = download(withoutOrder(), true, true);
-        const [first, ...rest] = file.config!.controlOrder!;
-        const saved = await upload(
-            {
-                ...file,
-                config: { ...file.config!, controlOrder: [...rest, first] },
-            },
-            { saved: withoutOrder() as DashboardDAO },
+        const [first, ...rest] = defaultList;
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true, true),
+            [...rest, first],
         );
         expect(saved.config?.controlOrder).toEqual([
             { kind: 'filter', id: 'metric-id' },
@@ -4785,8 +4775,10 @@ describe('CoderService dashboard control order as code', () => {
         ]);
     });
 
-    it('keeps storing a default order once an order is stored', async () => {
-        const saved = await upload(download(withoutOrder(), true, true));
+    it('keeps storing a list that renders the default bar once an order is stored', async () => {
+        const saved = await upload(
+            withList(download(savedDashboard(), true, true), defaultList),
+        );
         expect(saved.config?.controlOrder).toEqual([
             { kind: 'filter', id: 'first-id' },
             { kind: 'filter', id: 'metric-id' },

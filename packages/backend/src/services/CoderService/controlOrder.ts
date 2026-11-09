@@ -12,7 +12,6 @@ import {
     type DashboardFilterRuleAsCode,
     type DashboardParameterControlAsCode,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
 import { controlSlugs } from './parameterControlSlugs';
 import { sectionSlugs } from './sectionSlugs';
 
@@ -186,22 +185,4 @@ export const getControlOrderWithIds = (
             ...(newLine === true && { newLine: true }),
         };
     });
-};
-
-/** Whether an order renders the same bar as no order: same controls, sections and line starts in the same places */
-export const rendersDefaultControlOrder = (
-    controlOrder: DashboardControlRef[],
-    controls: OrderedControls,
-): boolean => {
-    const bar = (order: DashboardControlRef[] | undefined) =>
-        reconcileDashboardControlOrder({
-            ...controls,
-            controlOrder: order,
-        }).map(({ kind, id, sectionId, newLine }) => ({
-            kind,
-            id,
-            sectionId,
-            newLine,
-        }));
-    return isEqual(bar(controlOrder), bar(undefined));
 };
