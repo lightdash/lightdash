@@ -24,6 +24,7 @@ import {
     type MetricQuery,
     type PreAggregateMatchMiss,
     type QueryExecutionContext,
+    type SavedChartDAO,
     type TabAuditGroup,
     type TilePreAggregateAuditStatus,
     type WarehouseClient,
@@ -58,7 +59,7 @@ type EePreAggregateStrategyArgs = {
     preAggregateResultsStorageClient: S3ResultsFileStorageClient;
     isEnabled: (organizationUuid: string) => Promise<boolean>;
     dashboardModel: Pick<DashboardModel, 'getByIdOrSlug'>;
-    savedChartModel: Pick<SavedChartModel, 'get'>;
+    savedChartModel: Pick<SavedChartModel, 'getVariant'>;
     projectService: Pick<ProjectService, 'getExplore'>;
 };
 
@@ -75,7 +76,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
 
     private readonly dashboardModel: Pick<DashboardModel, 'getByIdOrSlug'>;
 
-    private readonly savedChartModel: Pick<SavedChartModel, 'get'>;
+    private readonly savedChartModel: Pick<SavedChartModel, 'getVariant'>;
 
     private readonly projectService: Pick<ProjectService, 'getExplore'>;
 
@@ -480,13 +481,32 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     };
                 }
 
-                let savedChart;
+                let savedChart: SavedChartDAO;
                 try {
-                    savedChart = await this.savedChartModel.get(
+                    const variant = await this.savedChartModel.getVariant(
                         savedChartUuid,
                         undefined,
                         { projectUuid },
                     );
+                    switch (variant.queryType) {
+                        case 'semantic':
+                            savedChart = variant.chart;
+                            break;
+                        case 'composer':
+                            return {
+                                status: 'ineligible',
+                                tileUuid: tile.uuid,
+                                tileName,
+                                tileType: DashboardTileTypes.SAVED_CHART,
+                                ineligibleReason:
+                                    TileIneligibleReason.COMPOSER_CHART,
+                            };
+                        default:
+                            return assertUnreachable(
+                                variant,
+                                'Unknown saved chart query type',
+                            );
+                    }
                 } catch (e) {
                     if (e instanceof NotFoundError) {
                         return {

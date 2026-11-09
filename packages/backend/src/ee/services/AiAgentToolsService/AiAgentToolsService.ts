@@ -4109,7 +4109,7 @@ export class AiAgentToolsService extends BaseService {
                 let resourceUuid;
                 switch (args.resourceType) {
                     case 'chart': {
-                        const chart = await this.savedChartModel.get(
+                        const { chart } = await this.savedChartModel.getVariant(
                             args.resourceUuidOrSlug,
                             undefined,
                             { projectUuid: context.projectUuid },

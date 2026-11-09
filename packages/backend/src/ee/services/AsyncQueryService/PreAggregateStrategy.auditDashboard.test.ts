@@ -10,8 +10,12 @@ import {
     type DashboardFilterRule,
     type Explore,
     type MetricQuery,
-    type SavedChart,
+    type SavedChartVariant,
 } from '@lightdash/common';
+import {
+    composerSavedChartVariant,
+    semanticSavedChartVariant,
+} from '../../../testing/composerSavedChartFixture';
 import { PreAggregateStrategy } from './PreAggregateStrategy';
 
 // --- Fixtures ---
@@ -92,13 +96,14 @@ const makeDeps = () => {
             >(),
     };
     const savedChartModel = {
-        get: vi.fn<
-            (
-                uuid: string,
-                opts?: undefined,
-                context?: { projectUuid: string },
-            ) => Promise<SavedChart>
-        >(),
+        getVariant:
+            vi.fn<
+                (
+                    uuid: string,
+                    opts?: undefined,
+                    context?: { projectUuid: string },
+                ) => Promise<SavedChartVariant>
+            >(),
     };
     const projectService = {
         getExplore:
@@ -224,7 +229,9 @@ describe('PreAggregateStrategy.auditDashboard', () => {
         const dashboard = makeDashboard({
             tiles: [makeTile({ uuid: 't-orphan' })],
         });
-        deps.savedChartModel.get.mockRejectedValue(new NotFoundError('gone'));
+        deps.savedChartModel.getVariant.mockRejectedValue(
+            new NotFoundError('gone'),
+        );
         const strategy = makeStrategy(deps);
 
         const [tile] = (
@@ -246,12 +253,14 @@ describe('PreAggregateStrategy.auditDashboard', () => {
         const dashboard = makeDashboard({
             tiles: [makeTile({ uuid: 't-noexp' })],
         });
-        deps.savedChartModel.get.mockResolvedValue({
-            uuid: 'c-1',
-            tableName: 'orders',
-            metricQuery: emptyMetricQuery,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
+        deps.savedChartModel.getVariant.mockResolvedValue(
+            semanticSavedChartVariant({
+                uuid: 'c-1',
+                tableName: 'orders',
+                metricQuery: emptyMetricQuery,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any),
+        );
         deps.projectService.getExplore.mockRejectedValue(
             new NotFoundError('no explore'),
         );
@@ -271,17 +280,44 @@ describe('PreAggregateStrategy.auditDashboard', () => {
         });
     });
 
+    it('marks a composer chart tile ineligible without resolving an explore', async () => {
+        const deps = makeDeps();
+        const dashboard = makeDashboard({
+            tiles: [makeTile({ uuid: 't-composer' })],
+        });
+        deps.savedChartModel.getVariant.mockResolvedValue(
+            composerSavedChartVariant({ uuid: 'c-1' }),
+        );
+        const strategy = makeStrategy(deps);
+
+        const [tile] = (
+            await strategy.auditDashboard({
+                account,
+                projectUuid,
+                dashboard,
+            })
+        ).tabs[0].tiles;
+
+        expect(tile).toMatchObject({
+            status: 'ineligible',
+            ineligibleReason: TileIneligibleReason.COMPOSER_CHART,
+        });
+        expect(deps.projectService.getExplore).not.toHaveBeenCalled();
+    });
+
     it('returns miss:NO_PRE_AGGREGATES_DEFINED when explore has no pre-aggregates', async () => {
         const deps = makeDeps();
         const dashboard = makeDashboard({
             tiles: [makeTile({ uuid: 't-miss' })],
         });
-        deps.savedChartModel.get.mockResolvedValue({
-            uuid: 'c-1',
-            tableName: 'orders',
-            metricQuery: emptyMetricQuery,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
+        deps.savedChartModel.getVariant.mockResolvedValue(
+            semanticSavedChartVariant({
+                uuid: 'c-1',
+                tableName: 'orders',
+                metricQuery: emptyMetricQuery,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any),
+        );
         deps.projectService.getExplore.mockResolvedValue(makeExplore(false));
         const strategy = makeStrategy(deps);
 
@@ -375,12 +411,14 @@ describe('PreAggregateStrategy.auditDashboard', () => {
                     tableCalculations: [],
                 },
             });
-            deps.savedChartModel.get.mockResolvedValue({
-                uuid: 'c-1',
-                tableName: 'orders',
-                metricQuery: emptyMetricQuery,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
+            deps.savedChartModel.getVariant.mockResolvedValue(
+                semanticSavedChartVariant({
+                    uuid: 'c-1',
+                    tableName: 'orders',
+                    metricQuery: emptyMetricQuery,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } as any),
+            );
             deps.projectService.getExplore.mockResolvedValue(
                 makeExplore(false),
             );
@@ -432,12 +470,14 @@ describe('PreAggregateStrategy.auditDashboard', () => {
                 tableCalculations: [],
             },
         });
-        deps.savedChartModel.get.mockResolvedValue({
-            uuid: 'c-1',
-            tableName: 'orders',
-            metricQuery: emptyMetricQuery,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
+        deps.savedChartModel.getVariant.mockResolvedValue(
+            semanticSavedChartVariant({
+                uuid: 'c-1',
+                tableName: 'orders',
+                metricQuery: emptyMetricQuery,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any),
+        );
         deps.projectService.getExplore.mockResolvedValue(makeExplore(false));
         const strategy = makeStrategy(deps);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -11,6 +11,7 @@ import {
     CalculateTotalFromQuery,
     ChartType,
     CommercialFeatureFlags,
+    ComposerChartNotAvailableInEmbedError,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
     DashboardAvailableFilters,
@@ -86,6 +87,7 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SavedChartDAO,
+    type SavedChartVariant,
     type SessionUser,
 } from '@lightdash/common';
 import { isArray } from 'es-toolkit/compat';
@@ -522,7 +524,9 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const chart = await this.savedChartModel.get(contentId);
+        const chart = EmbedService.assertEmbeddableChart(
+            await this.savedChartModel.getVariant(contentId),
+        );
 
         if (chart.projectUuid !== projectUuid) {
             throw new NotFoundError(
@@ -531,6 +535,26 @@ export class EmbedService extends BaseService {
         }
 
         return chart;
+    }
+
+    /** Embeds show a not-available state for composer charts, so every embed read refuses them by name. */
+    private static assertEmbeddableChart(
+        variant: SavedChartVariant,
+    ): SavedChartDAO {
+        switch (variant.queryType) {
+            case 'semantic':
+                return variant.chart;
+            case 'composer':
+                throw new ComposerChartNotAvailableInEmbedError(
+                    variant.chart.uuid,
+                    variant.chart.name,
+                );
+            default:
+                return assertUnreachable(
+                    variant,
+                    'Unknown saved chart query type',
+                );
+        }
     }
 
     /**
@@ -1441,9 +1465,9 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const chart = await this.savedChartModel.get(chartUuid);
-
-        return chart;
+        return EmbedService.assertEmbeddableChart(
+            await this.savedChartModel.getVariant(chartUuid),
+        );
     }
 
     private async _getAppliedDashboardFilters(
@@ -2029,7 +2053,9 @@ export class EmbedService extends BaseService {
                     );
                 }
 
-                const chart = await this.savedChartModel.get(savedChartUuid);
+                const chart = EmbedService.assertEmbeddableChart(
+                    await this.savedChartModel.getVariant(savedChartUuid),
+                );
 
                 if (chart.projectUuid !== projectUuid) {
                     throw new NotFoundError(
@@ -3476,11 +3502,12 @@ export class EmbedService extends BaseService {
             const savedChartUuid =
                 content.type === 'chart' ? content.chartUuids[0] : undefined;
             const savedChart = savedChartUuid
-                ? await this.savedChartModel.get(savedChartUuid)
+                ? await this.savedChartModel.getVariant(savedChartUuid)
                 : undefined;
+            // Composer charts are not available in embeds, so none is updatable
             const savedChartSpaceContext =
-                savedChart !== undefined
-                    ? spaceAccessContexts.get(savedChart.spaceUuid)
+                savedChart?.queryType === 'semantic'
+                    ? spaceAccessContexts.get(savedChart.chart.spaceUuid)
                     : undefined;
             const canUpdateSavedChart =
                 savedChartSpaceContext !== undefined &&

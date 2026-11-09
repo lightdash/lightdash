@@ -6,6 +6,7 @@ export enum TileIneligibleReason {
     SQL_CHART = 'sql_chart',
     ORPHANED_CHART = 'orphaned_chart',
     EXPLORE_RESOLUTION_ERROR = 'explore_resolution_error',
+    COMPOSER_CHART = 'composer_chart',
 }
 
 export type TilePreAggregateAuditHit = {
