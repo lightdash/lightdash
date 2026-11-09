@@ -44,6 +44,7 @@ export type ChatMessage = {
     version: number | null;
     timestamp: Date;
     userName: string | null;
+    userUuid: string | null;
     vizSchema: DataAppVizSchema | null;
     // Thinking snippets accumulated while the version generated; shown as a
     // collapsed Reasoning row on assistant bubbles. Empty for user bubbles
@@ -83,6 +84,7 @@ export const emptyChatMessage = (): Omit<
     clarifications: [],
     version: null,
     userName: null,
+    userUuid: null,
     vizSchema: null,
     reasoning: [],
     activity: [],
