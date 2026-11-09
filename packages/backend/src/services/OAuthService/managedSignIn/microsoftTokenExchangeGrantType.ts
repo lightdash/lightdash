@@ -1,6 +1,7 @@
 import {
     ID_TOKEN_TYPE,
     ManagedSignInError,
+    MOBILE_SIGN_IN_CODE_TOKEN_TYPE,
     type SessionUser,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
@@ -9,6 +10,8 @@ import {
     oauthApiResource,
     resolveGrantedOAuthResource,
 } from '../../../auth/oauthScopes/oauthResources';
+import { MobileSignInOAuthError } from '../../MobileSignInService/MobileSignInOAuthError';
+import type { MobileSignInService } from '../../MobileSignInService/MobileSignInService';
 import { ManagedSignInRejection } from './ManagedSignInRejection';
 import type { ManagedSignInService } from './ManagedSignInService';
 
@@ -17,14 +20,42 @@ const {
     InvalidGrantError,
     InvalidRequestError,
     InvalidScopeError,
+    OAuthError,
 } = OAuth2Server;
+
+export class MobileSignInGrantError extends OAuthError {
+    readonly retryAfterSeconds: number | undefined;
+
+    constructor(error: MobileSignInOAuthError) {
+        super(error.description ?? error.error, {
+            code: error.statusCode,
+            name: error.error,
+        });
+        this.retryAfterSeconds = error.retryAfterSeconds;
+    }
+}
+
+const tokenRequestClientIps = new WeakMap<OAuth2Server.Request, string>();
+
+export const setTokenRequestClientIp = (
+    request: OAuth2Server.Request,
+    ip: string,
+): void => {
+    tokenRequestClientIps.set(request, ip);
+};
+
+type SubjectResolution = {
+    user: SessionUser;
+    onIssued: () => void;
+};
 
 export const createMicrosoftTokenExchangeGrantType = (
     getManagedSignInService: () => ManagedSignInService,
     resolveStrict: (user: OAuth2Server.User) => Promise<boolean>,
     siteUrl: string,
+    getMobileSignInService?: () => MobileSignInService,
 ) =>
-    class MicrosoftTokenExchangeGrantType extends AbstractGrantType {
+    class TokenExchangeGrantType extends AbstractGrantType {
         declare protected readonly model: OAuth2Server.AuthorizationCodeModel;
 
         async handle(
@@ -39,17 +70,45 @@ export const createMicrosoftTokenExchangeGrantType = (
                     'Missing parameter: `subject_token`',
                 );
             }
-            if (subjectTokenType !== ID_TOKEN_TYPE) {
-                throw new InvalidRequestError(
-                    'Invalid parameter: `subject_token_type`',
-                );
-            }
 
             const auditContext = {
                 ip: request.get('x-forwarded-for') ?? undefined,
                 userAgent: request.get('user-agent') ?? undefined,
             };
 
+            let resolution: SubjectResolution;
+            if (subjectTokenType === ID_TOKEN_TYPE) {
+                resolution = await this.resolveManagedSignIn(
+                    subjectToken,
+                    client,
+                    auditContext,
+                );
+            } else if (
+                subjectTokenType === MOBILE_SIGN_IN_CODE_TOKEN_TYPE &&
+                getMobileSignInService
+            ) {
+                resolution = await this.resolveMobileSignInCode(
+                    request,
+                    subjectToken,
+                    client,
+                    auditContext,
+                );
+            } else {
+                throw new InvalidRequestError(
+                    'Invalid parameter: `subject_token_type`',
+                );
+            }
+
+            const saved = await this.issue(request, client, resolution.user);
+            resolution.onIssued();
+            return saved;
+        }
+
+        private async resolveManagedSignIn(
+            subjectToken: string,
+            client: OAuth2Server.Client,
+            auditContext: { ip?: string; userAgent?: string },
+        ): Promise<SubjectResolution> {
             let user: SessionUser;
             try {
                 user = await getManagedSignInService().exchangeIdToken({
@@ -64,7 +123,56 @@ export const createMicrosoftTokenExchangeGrantType = (
                         : ManagedSignInError.TOKEN_INVALID,
                 );
             }
+            return {
+                user,
+                onIssued: () =>
+                    getManagedSignInService().recordSignInAllowed(
+                        user,
+                        auditContext,
+                    ),
+            };
+        }
 
+        private async resolveMobileSignInCode(
+            request: OAuth2Server.Request,
+            subjectToken: string,
+            client: OAuth2Server.Client,
+            auditContext: { ip?: string; userAgent?: string },
+        ): Promise<SubjectResolution> {
+            const service = getMobileSignInService!();
+            try {
+                const redemption = await service.redeem(
+                    {
+                        code: subjectToken,
+                        clientId: client.id,
+                        codeVerifier: request.body.code_verifier,
+                        matchNumber: request.body.match_number,
+                    },
+                    {
+                        ...auditContext,
+                        ip:
+                            tokenRequestClientIps.get(request) ??
+                            auditContext.ip,
+                    },
+                );
+                return {
+                    user: redemption.user,
+                    onIssued: () =>
+                        service.recordRedeemAllowed(redemption, auditContext),
+                };
+            } catch (error) {
+                if (error instanceof MobileSignInOAuthError) {
+                    throw new MobileSignInGrantError(error);
+                }
+                throw error;
+            }
+        }
+
+        private async issue(
+            request: OAuth2Server.Request,
+            client: OAuth2Server.Client,
+            user: SessionUser,
+        ): Promise<OAuth2Server.Token> {
             const requestedScope = this.getScope(request);
             const scope = await this.validateScope(
                 user,
@@ -114,9 +222,6 @@ export const createMicrosoftTokenExchangeGrantType = (
             if (!saved) {
                 throw new InvalidGrantError(ManagedSignInError.TOKEN_INVALID);
             }
-
-            getManagedSignInService().recordSignInAllowed(user, auditContext);
-
             return saved;
         }
     };

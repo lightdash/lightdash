@@ -50,6 +50,7 @@ import { ManagedSignInModel } from './ManagedSignInModel';
 import { McpContextModel } from './McpContextModel';
 import { MigrationModel } from './MigrationModel/MigrationModel';
 import { MobileAppLinkModel } from './MobileAppLinkModel';
+import { MobileSignInCodeModel } from './MobileSignInCodeModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
@@ -203,6 +204,7 @@ export type ModelManifest = {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     mobileAppLinkModel: MobileAppLinkModel;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
+    mobileSignInCodeModel: MobileSignInCodeModel;
     aiUsageLedgerModel: AiUsageLedgerModel;
     warehouseConnectionModel: WarehouseConnectionModel;
     warehouseConnectionSwitchModel: WarehouseConnectionSwitchModel;
@@ -1138,6 +1140,13 @@ export class ModelRepository
         return this.getModel(
             'warehouseConnectCodeModel',
             () => new WarehouseConnectCodeModel({ database: this.database }),
+        );
+    }
+
+    public getMobileSignInCodeModel(): MobileSignInCodeModel {
+        return this.getModel(
+            'mobileSignInCodeModel',
+            () => new MobileSignInCodeModel({ database: this.database }),
         );
     }
 

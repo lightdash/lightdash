@@ -30,6 +30,7 @@ export const isMobileSignInCode = (value: unknown): value is string =>
 
 export type MobileSignInCodeRow = DbMobileSignInCode & {
     effective_status: MobileSignInCodeStatus;
+    client_name: string | null;
 };
 
 export type MintedMobileSignInCode = {
@@ -155,10 +156,21 @@ export class MobileSignInCodeModel {
     }): Promise<MobileSignInCodeRow | null> {
         const [row, now] = await Promise.all([
             this.database(MobileSignInCodesTableName)
+                .leftJoin(
+                    'oauth2_clients',
+                    'oauth2_clients.client_id',
+                    `${MobileSignInCodesTableName}.client_id`,
+                )
                 .where('mobile_sign_in_code_uuid', args.codeUuid)
                 .where('user_uuid', args.userUuid)
                 .where('session_id_hash', sha256(args.sessionId))
-                .first(),
+                .first<
+                    | (DbMobileSignInCode & { client_name: string | null })
+                    | undefined
+                >(
+                    `${MobileSignInCodesTableName}.*`,
+                    'oauth2_clients.client_name',
+                ),
             this.now(),
         ]);
         if (!row) return null;

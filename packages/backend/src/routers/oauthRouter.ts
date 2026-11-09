@@ -25,8 +25,13 @@ import {
 } from '../controllers/authentication';
 import Logger from '../logging/logger';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
+import { MobileSignInOAuthError } from '../services/MobileSignInService/MobileSignInOAuthError';
 import { isClientIdMetadataDocumentUrl } from '../services/OAuthService/clientIdMetadataDocument';
 import { InvalidRedirectUriError } from '../services/OAuthService/InvalidRedirectUriError';
+import {
+    MobileSignInGrantError,
+    setTokenRequestClientIp,
+} from '../services/OAuthService/managedSignIn/microsoftTokenExchangeGrantType';
 import {
     OAuthScope,
     OAuthService,
@@ -428,6 +433,7 @@ oauthRouter.post('/token', async (req, res, next) => {
     const oauthService = getOAuthService(req);
 
     const oauthReq = new OAuth2Server.Request(req);
+    if (req.ip) setTokenRequestClientIp(oauthReq, req.ip);
     const oauthRes = new OAuth2Server.Response(res);
 
     try {
@@ -456,6 +462,18 @@ oauthRouter.post('/token', async (req, res, next) => {
         });
     } catch (error) {
         Logger.error(`Token endpoint error: ${error}`);
+        if (error instanceof MobileSignInGrantError) {
+            if (error.retryAfterSeconds !== undefined) {
+                res.set('Retry-After', String(error.retryAfterSeconds));
+            }
+            res.status(error.code).json({
+                error: error.name,
+                ...(error.message === error.name
+                    ? {}
+                    : { error_description: error.message }),
+            });
+            return;
+        }
         const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
 
@@ -474,6 +492,29 @@ oauthRouter.post('/token', async (req, res, next) => {
                 ? { error: error.name, error_description: errorMessage }
                 : { error: errorMessage },
         );
+    }
+});
+
+oauthRouter.post('/mobile-sign-in/claim', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+        const claim = await req.services
+            .getMobileSignInService()
+            .claim(req.body ?? {}, {
+                ip: req.ip,
+                userAgent: req.get('user-agent') ?? undefined,
+            });
+        res.json(claim);
+    } catch (error) {
+        if (error instanceof MobileSignInOAuthError) {
+            if (error.retryAfterSeconds !== undefined) {
+                res.set('Retry-After', String(error.retryAfterSeconds));
+            }
+            res.status(error.statusCode).json(error.toJSON());
+            return;
+        }
+        Logger.error(`Mobile sign-in claim error: ${error}`);
+        res.status(500).json({ error: 'server_error' });
     }
 });
 
