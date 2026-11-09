@@ -52,7 +52,7 @@ export function hasBigqueryCredentials(): boolean {
  */
 export function postgresWarehouseConfig(): Record<string, unknown> {
     return {
-        host: process.env.PGHOST || 'db-dev',
+        host: process.env.PGHOST || 'localhost',
         user: process.env.PGUSER || 'postgres',
         password: process.env.PGPASSWORD || 'password',
         dbname: process.env.PGDATABASE || 'postgres',

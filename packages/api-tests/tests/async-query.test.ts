@@ -38,7 +38,7 @@ const runQueryBody = {
 
 // Postgres warehouse config
 const postgresConfig = {
-    host: process.env.PGHOST || 'db-dev',
+    host: process.env.PGHOST || 'localhost',
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'password',
     dbname: 'postgres',

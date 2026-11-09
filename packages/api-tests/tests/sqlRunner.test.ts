@@ -56,7 +56,7 @@ async function getAsyncSqlQueryRows(
 
 // Postgres warehouse config using environment variables
 const postgresConfig = {
-    host: process.env.PGHOST || 'db-dev',
+    host: process.env.PGHOST || 'localhost',
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'password',
     dbname: process.env.PGDATABASE || 'postgres',
