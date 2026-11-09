@@ -1,6 +1,6 @@
 .browser {
     display: flex;
-    border: 1px solid var(--mantine-color-gray-3);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     height: 420px;
     overflow: hidden;
@@ -9,27 +9,28 @@
 .keyList {
     width: 220px;
     flex-shrink: 0;
-    border-right: 1px solid var(--mantine-color-gray-3);
+    border-right: 1px solid var(--mantine-color-default-border);
 }
 
 .keyItem {
     display: block;
     width: 100%;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--mantine-color-gray-2);
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
     cursor: pointer;
 }
 
 .keyItem:hover {
-    background: var(--mantine-color-gray-0);
+    background: var(--mantine-color-default-hover);
 }
 
 .keyItemSelected {
-    background: var(--mantine-color-violet-0);
+    background: var(--mantine-color-violet-light);
 }
 
 .keyItemSelected:hover {
-    background: var(--mantine-color-violet-0);
+    background: var(--mantine-color-violet-light);
 }
 
 .detail {
@@ -48,7 +49,8 @@
 .versionList {
     width: 150px;
     flex-shrink: 0;
-    border-right: 1px solid var(--mantine-color-gray-2);
+    border-right: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
 }
 
 .versionItem {
@@ -60,16 +62,16 @@
 }
 
 .versionItem:hover {
-    background: var(--mantine-color-gray-0);
+    background: var(--mantine-color-default-hover);
 }
 
 .versionItemSelected {
-    background: var(--mantine-color-violet-0);
-    border-left-color: var(--mantine-color-violet-5);
+    background: var(--mantine-color-violet-light);
+    border-left-color: var(--mantine-color-violet-filled);
 }
 
 .versionItemSelected:hover {
-    background: var(--mantine-color-violet-0);
+    background: var(--mantine-color-violet-light);
 }
 
 .valuePane {

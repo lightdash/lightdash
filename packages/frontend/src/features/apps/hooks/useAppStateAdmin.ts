@@ -1,9 +1,15 @@
 import {
+    APP_STATE_HISTORY_DEFAULT_LIMIT,
     type ApiError,
     type AppStateAdminOverview,
     type AppStateHistory,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useInfiniteQuery,
+    useMutation,
+    useQuery,
+    useQueryClient,
+} from '@tanstack/react-query';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
@@ -36,23 +42,36 @@ export const useAppStateAdminOverview = (
     });
 };
 
-/** Versions of one shared key, newest first. Fetched when a row expands. */
+/**
+ * Versions of one shared key, newest first, paged backwards with
+ * `beforeVersion`. Fetched when a key is selected.
+ */
 export const useAppSharedStateHistory = (
     projectUuid: string,
     appUuid: string,
     key: string | null,
 ) => {
     const lightdashApi = useLightdashApi();
-    return useQuery<AppStateHistory, ApiError>({
+    return useInfiniteQuery<AppStateHistory, ApiError>({
         queryKey: ['app-state-admin-history', projectUuid, appUuid, key],
-        queryFn: () =>
+        queryFn: ({ pageParam }) =>
             lightdashApi<AppStateHistory>({
                 method: 'GET',
                 url: `/ee/projects/${projectUuid}/apps/${appUuid}/state/shared/${encodeURIComponent(
                     key!,
-                )}/history`,
+                )}/history${
+                    pageParam !== undefined ? `?beforeVersion=${pageParam}` : ''
+                }`,
                 body: undefined,
             }),
+        getNextPageParam: (lastPage) => {
+            const oldest = lastPage.versions[lastPage.versions.length - 1];
+            // A short page means the history is exhausted; v1 is the floor
+            return lastPage.versions.length >=
+                APP_STATE_HISTORY_DEFAULT_LIMIT && (oldest?.version ?? 1) > 1
+                ? oldest.version
+                : undefined;
+        },
         enabled: key !== null,
         retry: false,
     });

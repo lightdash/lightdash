@@ -19,7 +19,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { IconDatabase, IconTrash } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -109,21 +109,20 @@ const KeyDetail: FC<{
     entry: AppStateAdminSharedKey;
     onClear: () => void;
 }> = ({ projectUuid, appUuid, entry, onClear }) => {
-    const { data, isInitialLoading, error } = useAppSharedStateHistory(
-        projectUuid,
-        appUuid,
-        entry.key,
-    );
+    const {
+        data,
+        isInitialLoading,
+        error,
+        hasNextPage,
+        fetchNextPage,
+        isFetchingNextPage,
+    } = useAppSharedStateHistory(projectUuid, appUuid, entry.key);
+    // null = newest; loading older pages must not move the selection
     const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
 
-    // Newest version once history arrives; reset when the key changes
-    useEffect(() => {
-        setSelectedVersion(data?.versions[0]?.version ?? null);
-    }, [entry.key, data]);
-
+    const versions = data?.pages.flatMap((page) => page.versions) ?? [];
     const selected =
-        data?.versions.find((v) => v.version === selectedVersion) ??
-        data?.versions[0];
+        versions.find((v) => v.version === selectedVersion) ?? versions[0];
 
     return (
         <Stack gap={0} className={classes.detail}>
@@ -152,7 +151,7 @@ const KeyDetail: FC<{
             </Group>
             <div className={classes.detailBody}>
                 <ScrollArea className={classes.versionList}>
-                    {data?.versions.map((version) => (
+                    {versions.map((version) => (
                         <UnstyledButton
                             key={version.version}
                             className={
@@ -178,6 +177,19 @@ const KeyDetail: FC<{
                             <TimeAgo date={version.createdAt} />
                         </UnstyledButton>
                     ))}
+                    {hasNextPage && (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            fullWidth
+                            my={4}
+                            loading={isFetchingNextPage}
+                            onClick={() => fetchNextPage()}
+                        >
+                            Load older
+                        </Button>
+                    )}
                 </ScrollArea>
                 <ScrollArea className={classes.valuePane} p="xs">
                     {isInitialLoading && (
