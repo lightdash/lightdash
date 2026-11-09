@@ -52,6 +52,18 @@ const SOURCES = [
             metric: 'spend',
         },
     },
+    {
+        apiSource: {
+            connector: ApiConnectorType.GOOGLE_ADS,
+            customerId: '1234567890',
+            loginCustomerId: null,
+        },
+        fields: {
+            dimension: 'account_name',
+            other: 'account_currency',
+            metric: 'clicks',
+        },
+    },
 ] as const;
 
 const CONNECTORS: ApiConnectorType[] = SOURCES.map(

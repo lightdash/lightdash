@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { type ApiSourceIntegration } from './ApiSourceIntegration';
 import { ga4Integration } from './google/ga4Integration';
+import { googleAdsIntegration } from './google/googleAdsIntegration';
 import { searchConsoleIntegration } from './google/searchConsoleIntegration';
 import { metaAdsIntegration } from './meta/metaAdsIntegration';
 import { postHogIntegration } from './posthog/postHogIntegration';
@@ -17,6 +18,7 @@ const API_SOURCE_INTEGRATIONS: {
     [ApiConnectorType.SEARCH_CONSOLE]: searchConsoleIntegration,
     [ApiConnectorType.POSTHOG]: postHogIntegration,
     [ApiConnectorType.META_ADS]: metaAdsIntegration,
+    [ApiConnectorType.GOOGLE_ADS]: googleAdsIntegration,
 };
 
 export const getApiSourceIntegration = (
