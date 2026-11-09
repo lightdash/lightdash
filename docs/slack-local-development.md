@@ -64,8 +64,6 @@ Socket mode delivers an event to only one open connection per app token. If two 
 
 `scripts/dev-fast-start.sh --ee` starts the instance. Pull the Slack values with `scripts/dev-op-pull.sh pull SLACK_APP` (step 1) and set `SLACK_SOCKET_MODE=true`. You still do steps 3 and 4 manually.
 
-Slack development is not available on Rainbow today. `rainbow.toml` has no Slack host in its egress allow list and no Slack secret.
-
 ## Troubleshooting
 
 | Symptom | Cause |
