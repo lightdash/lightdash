@@ -1,4 +1,5 @@
 import {
+    getPortableSlugs,
     ParameterError,
     type DashboardAsCode,
     type DashboardConfig,
@@ -6,7 +7,6 @@ import {
     type DashboardControlSectionAsCode,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
-import { getPortableSlugs } from './portableSlugs';
 
 type SectionReference = { sectionId?: string; sectionSlug?: string };
 type DashboardWithSectionIds = Omit<DashboardAsCode, 'config'> & {

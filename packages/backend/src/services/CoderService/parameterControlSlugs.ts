@@ -1,11 +1,11 @@
 import {
     getMalformedParameterControlMessages,
+    getPortableSlugs,
     ParameterError,
     type DashboardParameterControl,
     type DashboardParameterControlAsCode,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
-import { getPortableSlugs } from './portableSlugs';
 
 const baseSlug = (
     control: Pick<DashboardParameterControlAsCode, 'label' | 'parameters'>,

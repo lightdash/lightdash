@@ -117,7 +117,7 @@ import {
     type ParameterDefinitions,
     type SpaceSummaryBase,
 } from '@lightdash/common';
-import { isEqual, isPlainObject } from 'es-toolkit/compat';
+import { isEqual, isPlainObject, omit } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -2169,7 +2169,8 @@ export class CoderService extends BaseService {
             slug: dashboard.slug,
             ...(config && {
                 config: {
-                    ...config,
+                    // controlOrder reaches as-code files in a later version
+                    ...omit(config, 'controlOrder'),
                     ...(config.parameterControls !== undefined && {
                         parameterControls: getParameterControlsWithSlugs(
                             config.parameterControls,
@@ -5867,6 +5868,17 @@ export class CoderService extends BaseService {
                       tilesWithUuids,
                   )
                 : { ...config, parameterControls: existingControls };
+        }
+        // Files can't set the control order yet, so the saved one stays
+        const savedOrder = existingDashboard?.config?.controlOrder;
+        if (dashboardConfig || savedOrder !== undefined) {
+            const { controlOrder: _ignored, ...config } = dashboardConfig ?? {
+                isDateZoomDisabled: false,
+            };
+            dashboardConfig = {
+                ...config,
+                ...(savedOrder !== undefined && { controlOrder: savedOrder }),
+            };
         }
         if (controlsEnabled && dashboardConfig?.parameterControls) {
             const tileSlugs = getTileSlugsByUuid(tilesWithUuids);
