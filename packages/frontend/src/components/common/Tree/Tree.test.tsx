@@ -6,11 +6,11 @@ import Tree from './Tree';
 import { type NestableItem } from './types';
 
 const data: NestableItem[] = [
-    { uuid: 'a', name: 'Alpha', path: 'a' },
-    { uuid: 'b', name: 'Beta', path: 'a.b' },
-    { uuid: 'c', name: 'Gamma', path: 'a.b.c' },
-    { uuid: 'd', name: 'Delta', path: 'd' },
-    { uuid: 'e', name: 'Epsilon', path: 'd.e' },
+    { uuid: 'a', name: 'Alpha', path: 'a', parentSpaceUuid: null },
+    { uuid: 'b', name: 'Beta', path: 'a.b', parentSpaceUuid: 'a' },
+    { uuid: 'c', name: 'Gamma', path: 'a.b.c', parentSpaceUuid: 'b' },
+    { uuid: 'd', name: 'Delta', path: 'd', parentSpaceUuid: null },
+    { uuid: 'e', name: 'Epsilon', path: 'd.e', parentSpaceUuid: 'd' },
 ];
 
 const renderTree = (isExpanded: boolean, value: string | null) =>
@@ -129,5 +129,41 @@ describe('Tree', () => {
 
         expect(screen.getByText('Gamma')).toBeInTheDocument();
         expect(screen.queryByText('Epsilon')).not.toBeInTheDocument();
+    });
+
+    it('selects only the clicked space when two spaces share a path', () => {
+        const onChange = vi.fn();
+        renderWithProviders(
+            <Tree
+                topLevelLabel="Spaces"
+                isExpanded
+                data={[
+                    {
+                        uuid: 'product',
+                        name: 'Product',
+                        path: 'product',
+                        parentSpaceUuid: null,
+                    },
+                    {
+                        uuid: 'charts-a',
+                        name: 'Charts A',
+                        path: 'product.charts',
+                        parentSpaceUuid: 'product',
+                    },
+                    {
+                        uuid: 'charts-b',
+                        name: 'Charts B',
+                        path: 'product.charts',
+                        parentSpaceUuid: 'product',
+                    },
+                ]}
+                type="single"
+                value={null}
+                onChange={onChange}
+            />,
+        );
+
+        fireEvent.click(screen.getByText('Charts B'));
+        expect(onChange).toHaveBeenLastCalledWith('charts-b');
     });
 });
