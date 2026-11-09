@@ -1902,20 +1902,18 @@ export class SavedChartService
             });
         }
 
-        // A composer chart has no explore fields to release
         if (variant.queryType === 'semantic') {
-            const { tableName, metricQuery } = variant.chart;
             try {
                 const cachedExplore =
                     await this.projectModel.getExploreFromCache(
                         projectUuid,
-                        tableName,
+                        variant.chart.tableName,
                     );
 
                 await this.updateChartFieldUsage(projectUuid, cachedExplore, {
                     oldChartFields: {
-                        metrics: metricQuery.metrics,
-                        dimensions: metricQuery.dimensions,
+                        metrics: variant.chart.metricQuery.metrics,
+                        dimensions: variant.chart.metricQuery.dimensions,
                     },
                     newChartFields: {
                         metrics: [],
