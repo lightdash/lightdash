@@ -1854,6 +1854,56 @@ describe('DashboardService', () => {
             expect(dashboardModel.addVersion).not.toHaveBeenCalled();
         });
 
+        test('retitles, moves a composer tile and adds a classic tile without copying anything', async () => {
+            const composerTile = {
+                uuid: 'composer-tile',
+                type: DashboardTileTypes.SAVED_CHART as const,
+                x: 0,
+                y: 0,
+                h: 5,
+                w: 5,
+                tabUuid: undefined,
+                properties: {
+                    title: 'Pipeline',
+                    savedChartUuid: 'composer-chart-uuid',
+                    belongsToDashboard: true,
+                    queryType: 'composer' as const,
+                },
+            };
+            const movedComposerTile = { ...composerTile, x: 12, y: 9 };
+            const classicTile = {
+                ...composerTile,
+                uuid: 'classic-tile',
+                properties: {
+                    title: 'Orders',
+                    savedChartUuid: 'classic-chart-uuid',
+                    belongsToDashboard: false,
+                    queryType: 'semantic' as const,
+                },
+            };
+
+            await service.update(user, dashboardUuid, {
+                ...updateDashboardTiles,
+                name: 'Renamed',
+                tiles: [movedComposerTile, classicTile],
+            });
+
+            expect(dashboardModel.update).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({ name: 'Renamed' }),
+            );
+            expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({
+                    tiles: [movedComposerTile, classicTile],
+                }),
+                user,
+                projectUuid,
+            );
+            expect(savedChartModel.create).not.toHaveBeenCalled();
+            expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
+
         describe('control order', () => {
             const savedOrder = [
                 { kind: DashboardControlRefKind.FILTER, id: 'filter-1' },

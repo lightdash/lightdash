@@ -9,6 +9,7 @@ import {
     CatalogType,
     ChartType,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+    ComposerChartNotSupportedError,
     ContentType,
     CustomDimensionType,
     DATA_APP_VIZ_TEMPLATE,
@@ -8699,16 +8700,14 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
             expect(createChartScheduler).toHaveBeenCalled();
         });
 
-        it('schedules a composer chart saved in the bound dashboard', async () => {
+        it('refuses a composer chart saved in the bound dashboard by name before creating anything', async () => {
             const { service, createChartScheduler } = deliveryService();
 
-            await deliver(service, 'chart', 'composer-chart');
+            await expect(
+                deliver(service, 'chart', 'composer-chart'),
+            ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
 
-            expect(createChartScheduler).toHaveBeenCalledWith(
-                expect.anything(),
-                'composer-chart-uuid',
-                expect.anything(),
-            );
+            expect(createChartScheduler).not.toHaveBeenCalled();
         });
 
         it('rejects other dashboards and space charts', async () => {

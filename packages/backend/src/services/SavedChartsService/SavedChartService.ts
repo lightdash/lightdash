@@ -1432,6 +1432,8 @@ export class SavedChartService
                     "You don't have access to move this chart out of its space",
                 );
             }
+            // A composer chart is dashboard-owned only: a space-owned one has no page
+            await this.assertNoComposerCharts([savedChartUuid]);
         }
 
         await this.assertCanMutateVerifiedChart({
@@ -3037,6 +3039,8 @@ export class SavedChartService
 
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
+        // Deliveries run the classic chart query; composer charts are refused until deliveries branch on the pipeline
+        await this.assertNoComposerCharts([chartUuid]);
 
         if (newScheduler.format === SchedulerFormat.GSHEETS) {
             const auditedAbility = this.createAuditedAbility(user);
@@ -3474,6 +3478,8 @@ export class SavedChartService
                 organizationUuid,
             });
         }
+        // A composer chart is dashboard-owned only: a space-owned one has no page
+        await this.assertNoComposerCharts([savedChartUuid]);
 
         await this.savedChartModel.moveToSpace(
             { projectUuid, itemUuid: savedChartUuid, targetSpaceUuid },

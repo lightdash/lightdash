@@ -31507,6 +31507,14 @@ describe('composer chart node queries', () => {
                 status: QueryHistoryStatus.ERROR,
                 error: expectedError,
             });
+            // The stream seam relays the same visible error, not the stored diagnostic
+            await expect(
+                service.getResultsStream({
+                    account,
+                    projectUuid,
+                    queryUuid: 'node-query',
+                }),
+            ).rejects.toThrow(expectedError);
         },
     );
 

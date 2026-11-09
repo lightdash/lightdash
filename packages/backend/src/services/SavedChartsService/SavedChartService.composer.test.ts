@@ -4,6 +4,7 @@ import {
     ComposerChartNotSupportedError,
     PossibleAbilities,
     QuerySourceType,
+    SchedulerFormat,
     type AnyType,
     type ComposerSavedChartDAO,
     type SavedChartVariant,
@@ -56,9 +57,13 @@ const composerVariant: SavedChartVariant = {
 const editor = {
     userUuid: 'editor-uuid',
     organizationUuid: composerChart.organizationUuid,
+    organizationName: 'Org',
+    organizationCreatedAt: new Date(),
+    role: 'editor',
     ability: new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'SavedChart' },
         { action: 'manage', subject: 'DeletedContent' },
+        { action: 'create', subject: 'ScheduledDeliveries' },
         { action: 'view', subject: 'Project' },
     ]),
     abilityRules: [],
@@ -72,10 +77,7 @@ const buildService = ({
 }: { softDeleteEnabled?: boolean; draftsEnabled?: boolean } = {}) => {
     const savedChartModel = {
         get: vi.fn(async () => {
-            throw new ComposerChartNotSupportedError(
-                composerChart.uuid,
-                composerChart.name,
-            );
+            throw new ComposerChartNotSupportedError(composerChart.uuid);
         }),
         getVariant: vi.fn(async () => composerVariant),
         getSummary: vi.fn(async () => composerChart),
@@ -91,6 +93,7 @@ const buildService = ({
             chart: { ...composerChart, name: data.name ?? composerChart.name },
         })),
         updateMultiple: vi.fn(),
+        moveToSpace: vi.fn(),
         softDelete: vi.fn(async () => composerVariant),
         permanentDelete: vi.fn(async () => composerVariant),
         restore: vi.fn(async () => undefined),
@@ -99,6 +102,7 @@ const buildService = ({
         softDeleteByChartUuid: vi.fn(),
         restoreByChartUuid: vi.fn(),
     };
+    const schedulerModel = { createScheduler: vi.fn() };
     const upsertOpenDraft = vi.fn(async (args: AnyType) => ({
         uuid: 'draft-uuid',
         draft: args.draft,
@@ -119,8 +123,15 @@ const buildService = ({
         },
         savedChartModel,
         schedulerService,
+        schedulerModel,
+        dashboardModel: {
+            getByIdOrSlug: vi
+                .fn()
+                .mockResolvedValue({ spaceUuid: composerChart.spaceUuid }),
+        },
         spacePermissionService: {
             resolveAccess: vi.fn().mockResolvedValue(spaceContext),
+            can: vi.fn().mockResolvedValue(true),
         },
         contentVerificationModel: {
             getByContent: vi.fn().mockResolvedValue(null),
@@ -141,7 +152,13 @@ const buildService = ({
         },
         contentDraftModel: { findOpenDraft: vi.fn(), upsertOpenDraft },
     } as AnyType);
-    return { service, savedChartModel, schedulerService, upsertOpenDraft };
+    return {
+        service,
+        savedChartModel,
+        schedulerService,
+        schedulerModel,
+        upsertOpenDraft,
+    };
 };
 
 describe('SavedChartService with a composer chart', () => {
@@ -175,6 +192,41 @@ describe('SavedChartService with a composer chart', () => {
         ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
         expect(upsertOpenDraft).not.toHaveBeenCalled();
         expect(savedChartModel.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses to move it to a space by name before writing anything', async () => {
+        const { service, savedChartModel } = buildService();
+
+        await expect(
+            service.update(editor, composerChart.uuid, {
+                spaceUuid: 'other-space-uuid',
+            }),
+        ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
+        expect(savedChartModel.update).not.toHaveBeenCalled();
+
+        await expect(
+            service.moveToSpace(editor, {
+                projectUuid: composerChart.projectUuid,
+                itemUuid: composerChart.uuid,
+                targetSpaceUuid: 'other-space-uuid',
+            }),
+        ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
+        expect(savedChartModel.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('refuses a scheduled delivery by name before creating anything', async () => {
+        const { service, schedulerModel } = buildService();
+
+        await expect(
+            service.createScheduler(editor, composerChart.uuid, {
+                name: 'Weekly revenue',
+                cron: '0 9 * * 1',
+                timezone: 'UTC',
+                format: SchedulerFormat.CSV,
+                targets: [],
+            } as AnyType),
+        ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
+        expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
     });
 
     it('refuses a bulk update by name before writing anything', async () => {

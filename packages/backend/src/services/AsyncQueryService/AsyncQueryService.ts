@@ -3066,7 +3066,16 @@ export class AsyncQueryService extends ProjectService {
             status === QueryHistoryStatus.ERROR ||
             status === QueryHistoryStatus.EXPIRED
         ) {
-            throw new Error(queryHistory.error ?? 'Warehouse query failed');
+            throw new Error(
+                getVisibleQueryError(
+                    queryHistory.error,
+                    queryHistory.requestParameters?.composerChartSource,
+                    canViewComposerNodeSql(this.createAuditedAbility(account), {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                    }),
+                ) ?? 'Warehouse query failed',
+            );
         }
 
         if (

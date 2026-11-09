@@ -3,6 +3,7 @@ import {
     isDashboardChartTileType,
     MetricType,
     QueryExecutionContext,
+    SchedulerFormat,
     SEED_COMPOSER_CHART,
     SEED_COMPOSER_CHART_DASHBOARD,
     SEED_ORG_1_VIEWER,
@@ -773,4 +774,58 @@ describe('Composer chart run as a dashboard viewer', () => {
             expect(resp.body.error.name).toBe('ComposerChartNotSupportedError');
         },
     );
+
+    describe('surfaces a composer chart does not have yet are refused before any write', () => {
+        it('a scheduled delivery on the chart', async () => {
+            const resp = await admin.post<ApiErrorBody>(
+                `/api/v1/saved/${revenueShareTile.chartUuid}/schedulers`,
+                {
+                    name: 'Weekly revenue share',
+                    cron: '0 9 * * 1',
+                    timezone: 'UTC',
+                    format: SchedulerFormat.CSV,
+                    options: {},
+                    targets: [{ recipient: 'viewer@lightdash.com' }],
+                    appUuid: null,
+                    appName: null,
+                    enabled: true,
+                    includeLinks: true,
+                },
+                { failOnStatusCode: false },
+            );
+            expect(resp.status).toBe(400);
+            expect(resp.body.error.name).toBe('ComposerChartNotSupportedError');
+
+            const schedulers = await admin.get<Body<unknown[]>>(
+                `/api/v1/saved/${revenueShareTile.chartUuid}/schedulers`,
+            );
+            expect(schedulers.body.results).toEqual([]);
+        });
+
+        it('moving the chart out of its dashboard into a space', async () => {
+            const spaces = await admin.get<Body<{ uuid: string }[]>>(
+                `/api/v1/projects/${projectUuid}/spaces`,
+            );
+            const resp = await admin.patch<ApiErrorBody>(
+                `/api/v1/saved/${revenueShareTile.chartUuid}`,
+                { spaceUuid: spaces.body.results[0].uuid },
+                { failOnStatusCode: false },
+            );
+            expect(resp.status).toBe(400);
+            expect(resp.body.error.name).toBe('ComposerChartNotSupportedError');
+
+            const dashboard = await admin.get<Body<Dashboard>>(
+                `/api/v1/dashboards/${dashboardUuid}`,
+            );
+            expect(
+                dashboard.body.results.tiles.some(
+                    (tile) =>
+                        isDashboardChartTileType(tile) &&
+                        tile.properties.savedChartUuid ===
+                            revenueShareTile.chartUuid &&
+                        tile.properties.belongsToDashboard,
+                ),
+            ).toBe(true);
+        });
+    });
 });
