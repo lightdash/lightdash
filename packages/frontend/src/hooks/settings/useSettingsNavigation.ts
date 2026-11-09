@@ -17,6 +17,7 @@ import {
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconDeviceMobile,
     IconEyeCheck,
     IconFileExport,
     IconFolders,
@@ -105,6 +106,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         externalSourcesFlag,
+        isMobileSettingsEnabled,
         isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
@@ -202,6 +204,17 @@ export const useSettingsNavigation = (
                 to: '/generalSettings/personalAccessTokens',
                 icon: IconKey,
                 keywords: ['api', 'pat', 'token'],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (isMobileSettingsEnabled) {
+            yourSettings.push({
+                label: 'Mobile',
+                to: '/generalSettings/mobile',
+                icon: IconDeviceMobile,
+                keywords: ['phone', 'app', 'ios', 'android', 'iphone'],
                 children: [],
                 exact: true,
             });
@@ -1415,6 +1428,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,
+        isMobileSettingsEnabled,
         isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,

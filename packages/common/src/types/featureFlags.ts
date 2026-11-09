@@ -259,6 +259,11 @@ export enum FeatureFlags {
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
     /**
+     * Organization-scoped: the Mobile page under Your settings, with links to
+     * install and sign in to the mobile apps. Off by default.
+     */
+    MobileSettings = 'mobile-settings',
+    /**
      * Organization-scoped, off by default: BigQuery workload identity federation.
      * Only enable on instances whose pods run as their own Google service account.
      */

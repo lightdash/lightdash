@@ -42,6 +42,7 @@ const settingsContext = (
     isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
     externalSourcesFlag: undefined,
+    isMobileSettingsEnabled: false,
     isResultsCacheAvailable: false,
     embeddingEnabled: undefined,
     allowPasswordAuthentication: false,
@@ -159,6 +160,40 @@ describe('Agents settings navigation', () => {
             'Identity',
             'Permissions',
         ]);
+    });
+});
+
+describe('Mobile settings navigation', () => {
+    const yourSettingsLabels = (isMobileSettingsEnabled: boolean) => {
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    user: {
+                        ability: new Ability([
+                            {
+                                action: 'manage',
+                                subject: 'PersonalAccessToken',
+                            },
+                        ]),
+                    } as unknown as SettingsContext['user'],
+                    isMobileSettingsEnabled,
+                }),
+            ),
+        );
+        return result.current
+            .find((section) => section.id === 'your-settings')
+            ?.items.map(({ label }) => label);
+    };
+
+    it('shows Mobile after Personal access tokens when the flag is on', () => {
+        expect(yourSettingsLabels(true)?.slice(-2)).toEqual([
+            'Personal access tokens',
+            'Mobile',
+        ]);
+    });
+
+    it('hides Mobile when the flag is off', () => {
+        expect(yourSettingsLabels(false)).not.toContain('Mobile');
     });
 });
 

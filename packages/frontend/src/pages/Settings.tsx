@@ -108,6 +108,7 @@ import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/setting
 import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
 import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
+import { MobileSettingsPage } from '../features/mobile/MobileSettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
 import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
 import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
@@ -210,6 +211,7 @@ const Settings: FC = () => {
         showMyAgentConnections,
         hasSocialLogin,
         isMyAgentConnectionsLoading,
+        isMobileSettingsEnabled,
         isHealthLoading,
         healthError,
         isUserLoading,
@@ -516,6 +518,13 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/personalAccessTokens',
                 element: <AccessTokensPanel />,
+            });
+        }
+
+        if (isMobileSettingsEnabled) {
+            allowedRoutes.push({
+                path: '/mobile',
+                element: <MobileSettingsPage />,
             });
         }
 
@@ -903,6 +912,7 @@ const Settings: FC = () => {
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
+        isMobileSettingsEnabled,
         projectSettingsAccess,
     ]);
     const routeElements = useRoutes(routes);
