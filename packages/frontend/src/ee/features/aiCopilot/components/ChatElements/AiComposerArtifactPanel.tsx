@@ -38,8 +38,8 @@ import {
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
 import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 import { AiComposerLineage } from './composerPipeline/AiComposerLineage';
 import {

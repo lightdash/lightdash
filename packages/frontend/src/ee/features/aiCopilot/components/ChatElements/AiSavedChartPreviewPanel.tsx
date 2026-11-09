@@ -28,8 +28,8 @@ import {
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
 import { AiSavedChartVisualization } from './AiSavedChartVisualization';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 
 type Props = {
