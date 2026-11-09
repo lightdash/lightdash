@@ -5,13 +5,13 @@ import {
     assertUnreachable,
     DuckdbExecutionSpec,
     ForbiddenError,
+    getCanonicalWarehouseSignInExpiredMessage,
     getContextsForTrigger,
     getQueryLanguage,
     getSemanticQuerySummary,
     getSqlFirstLine,
     getSqlQueryTitle,
     isJwtUser,
-    isWarehouseSignInExpiredMessage,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -134,6 +134,32 @@ export type CachedResultsContent = {
     type: 'chart' | 'dashboard';
     /** Every value the content may be recorded under (uuid and slug) */
     identifiers: string[];
+};
+
+/** Composer node rows carry the chart author's SQL; only SQL runner access may read or search it. */
+export const canViewComposerNodeSql = (
+    ability: Pick<MemberAbility, 'can'>,
+    scope: { organizationUuid: string; projectUuid: string },
+): boolean => ability.can('manage', subject('SqlRunner', scope));
+
+export const HIDDEN_COMPOSER_NODE_ERROR =
+    'The query behind this chart node failed';
+
+/**
+ * Warehouse diagnostics quote the statement that failed, so a hidden node's
+ * stored error is never returned; an expired sign-in is reported in its
+ * canonical server-written form so the client still offers a reconnect.
+ */
+export const getVisibleQueryError = (
+    error: string | null,
+    composerChartSource: ComposerChartQuerySource | undefined,
+    canViewNodeSql: boolean,
+): string | null => {
+    if (error === null || !composerChartSource || canViewNodeSql) return error;
+    return (
+        getCanonicalWarehouseSignInExpiredMessage(error) ??
+        HIDDEN_COMPOSER_NODE_ERROR
+    );
 };
 
 export class QueryHistoryModel {
@@ -1030,8 +1056,16 @@ export class QueryHistoryModel {
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED:
                     if (throwOnError) {
+                        // The message lands in derived rows and job logs read
+                        // by whoever consumes them; a hidden node's diagnostic
+                        // never leaves its row
                         throw new Error(
-                            queryHistory.error ?? 'Warehouse query failed',
+                            getVisibleQueryError(
+                                queryHistory.error,
+                                queryHistory.requestParameters
+                                    ?.composerChartSource,
+                                false,
+                            ) ?? 'Warehouse query failed',
                         );
                     }
                     return queryHistory;
@@ -1640,32 +1674,6 @@ export class QueryHistoryModel {
         };
     }
 }
-
-/** Composer node rows carry the chart author's SQL; only SQL runner access may read or search it. */
-export const canViewComposerNodeSql = (
-    ability: Pick<MemberAbility, 'can'>,
-    scope: { organizationUuid: string; projectUuid: string },
-): boolean => ability.can('manage', subject('SqlRunner', scope));
-
-export const HIDDEN_COMPOSER_NODE_ERROR =
-    'The query behind this chart node failed';
-
-/**
- * Warehouse diagnostics quote the statement that failed, so a hidden node's
- * error is replaced whole; server-written sign-in expiry messages stay, the
- * client offers a reconnect from them.
- */
-export const getVisibleQueryError = (
-    error: string | null,
-    composerChartSource: ComposerChartQuerySource | undefined,
-    canViewNodeSql: boolean,
-): string | null =>
-    error !== null &&
-    composerChartSource &&
-    !canViewNodeSql &&
-    !isWarehouseSignInExpiredMessage(error)
-        ? HIDDEN_COMPOSER_NODE_ERROR
-        : error;
 
 /** Who reads a user's history: the agent connection it is bound to, and whether composer node SQL is visible or searchable. */
 export type UserHistoryReader = {

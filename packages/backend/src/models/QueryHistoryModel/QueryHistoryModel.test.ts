@@ -526,6 +526,53 @@ describe('QueryHistoryModel', () => {
     });
 });
 
+describe('QueryHistoryModel polling a failed query', () => {
+    const diagnostic =
+        'Binder Error: column "missing_amount" not found\nLINE 1: SELECT SUM(missing_amount) OVER () FROM orders';
+    const failed = (
+        requestParameters: QueryHistory['requestParameters'],
+    ): QueryHistory =>
+        ({
+            status: QueryHistoryStatus.ERROR,
+            error: diagnostic,
+            requestParameters,
+        }) as QueryHistory;
+
+    // The thrown message lands in derived rows and job logs whoever reads them
+    it('never relays a composer node diagnostic, with or without a reader', async () => {
+        const model = new QueryHistoryModel({ database: {} as Knex });
+        vi.spyOn(model, 'getByQueryUuid').mockResolvedValue(
+            failed({
+                sql: 'SELECT SUM(missing_amount) OVER () FROM orders',
+                composerChartSource: { chartUuid: 'chart', nodeId: 'node' },
+            } as QueryHistory['requestParameters']),
+        );
+        await expect(
+            model.pollForQueryCompletion({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                account: null,
+            }),
+        ).rejects.toThrow(HIDDEN_COMPOSER_NODE_ERROR);
+    });
+
+    it('relays the diagnostic of a row without composer provenance', async () => {
+        const model = new QueryHistoryModel({ database: {} as Knex });
+        vi.spyOn(model, 'getByQueryUuid').mockResolvedValue(
+            failed({
+                sql: 'SELECT SUM(missing_amount) OVER () FROM orders',
+            } as QueryHistory['requestParameters']),
+        );
+        await expect(
+            model.pollForQueryCompletion({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                account: null,
+            }),
+        ).rejects.toThrow(diagnostic);
+    });
+});
+
 describe('QueryHistoryModel polling cancellation', () => {
     it('interrupts the polling delay without reading again', async () => {
         const model = new QueryHistoryModel({ database: {} as Knex });
@@ -1300,8 +1347,8 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
         expect(shown.subline).toBe(diagnostic);
     });
 
-    test('a failed node row keeps a warehouse sign-in expiry message: the client offers a reconnect from it', () => {
-        const signInExpired = `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER}: refresh token expired`;
+    test('a failed node row shows the canonical sign-in expiry message, so the client still offers a reconnect', () => {
+        const signInExpired = `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER}: invalid_grant for user@example.com`;
         const failedNodeRow = row({
             ...duckdbNodeRow,
             status: QueryHistoryStatus.ERROR,
@@ -1310,8 +1357,24 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
         const hidden = mapQueryHistoryRowToListItem(failedNodeRow, {
             canViewNodeSql: false,
         });
-        expect(hidden.error).toBe(signInExpired);
-        expect(hidden.subline).toBe(signInExpired);
+        expect(hidden.error).toContain(BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER);
+        expect(hidden.error).not.toBe(signInExpired);
+        expect(hidden.error).not.toContain('user@example.com');
+        expect(hidden.subline).toBe(hidden.error);
+    });
+
+    test('a diagnostic that quotes SQL mentioning an expired sign-in is still never shown', () => {
+        const crafted = `Binder Error: column "missing_amount" not found\nLINE 1: SELECT 'sign-in has expired', SUM(missing_amount) OVER () FROM orders`;
+        const failedNodeRow = row({
+            ...duckdbNodeRow,
+            status: QueryHistoryStatus.ERROR,
+            error: crafted,
+        });
+        const hidden = mapQueryHistoryRowToListItem(failedNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(JSON.stringify(hidden)).not.toContain('missing_amount');
+        expect(hidden.error).not.toBe(crafted);
     });
 
     test('leaves a row without composer provenance alone whatever the access', () => {

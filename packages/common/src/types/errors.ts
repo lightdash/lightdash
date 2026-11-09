@@ -9,7 +9,10 @@ import {
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
-import { isExpiredSharedSignInMessage } from './sharedSignIn';
+import {
+    EXPIRED_WAREHOUSE_SIGN_IN_MESSAGE,
+    isExpiredSharedSignInMessage,
+} from './sharedSignIn';
 import type { SharedSignInExpiry } from './sharedSignIn';
 import type { WarehousePhaseTimings, WarehouseQueryPhase } from './warehouse';
 
@@ -1039,14 +1042,28 @@ export const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
 };
 
 /**
- * A stored query error the server wrote itself about an expired warehouse
- * sign-in; the client reads these to offer a reconnect, and they quote no SQL.
+ * For a stored query error a reader may not see: the server-written message of
+ * the same expired-sign-in kind, so the client still offers a reconnect, or
+ * null when the error is not one. Never the stored text, which a warehouse
+ * diagnostic quoting SQL could mimic.
  */
-export const isWarehouseSignInExpiredMessage = (message: string): boolean =>
-    isBigqueryTokenErrorMessage(message) ||
-    isPreviewWarehouseSignInExpiredMessage(message) ||
-    isRedshiftIamTokenErrorMessage(message) ||
-    isExpiredSharedSignInMessage(message);
+export const getCanonicalWarehouseSignInExpiredMessage = (
+    message: string,
+): string | null => {
+    if (isBigqueryTokenErrorMessage(message)) {
+        return `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER}. Ask a project admin to reconnect the warehouse.`;
+    }
+    if (isPreviewWarehouseSignInExpiredMessage(message)) {
+        return `${PREVIEW_WAREHOUSE_SIGN_IN_EXPIRED_MESSAGE_MARKER}. Reconnect the warehouse on the upstream project.`;
+    }
+    if (isRedshiftIamTokenErrorMessage(message)) {
+        return 'The Redshift IAM credentials for this project have expired. Ask a project admin to reconnect the warehouse.';
+    }
+    if (isExpiredSharedSignInMessage(message)) {
+        return EXPIRED_WAREHOUSE_SIGN_IN_MESSAGE;
+    }
+    return null;
+};
 
 export class PreviewWarehouseSignInExpiredError extends LightdashError {
     constructor(upstream: {
