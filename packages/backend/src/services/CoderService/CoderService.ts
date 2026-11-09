@@ -5967,11 +5967,24 @@ export class CoderService extends BaseService {
                               sources,
                           ),
                       );
-            // An order that renders the default bar isn't stored, so agent reads carrying the default order round-trip clean
+            // Agent reads carry the default order; one that still renders the default bar isn't stored
             if (
                 controlOrder !== undefined &&
                 existingDashboard?.config?.controlOrder === undefined &&
-                rendersDefaultControlOrder(controlOrder, sources)
+                rendersDefaultControlOrder(
+                    controlOrder,
+                    sources,
+                    existingDashboard && {
+                        filters: {
+                            ...existingDashboard.filters,
+                            metrics: existingDashboard.filters.metrics ?? [],
+                        },
+                        parameterControls:
+                            existingDashboard.config?.parameterControls ?? [],
+                        sections:
+                            existingDashboard.config?.controlSections ?? [],
+                    },
+                )
             ) {
                 controlOrder = undefined;
             }
