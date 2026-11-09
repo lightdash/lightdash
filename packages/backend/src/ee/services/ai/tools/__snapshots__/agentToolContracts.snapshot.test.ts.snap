@@ -7310,8 +7310,11 @@ All branches of an IF must return the same type.",
                         ],
                       },
                       "exploreName": {
-                        "description": "Explore the chart queries; a dashboard filter applies to this chart when its target field belongs to this explore.",
-                        "type": "string",
+                        "description": "Explore the chart queries; a dashboard filter applies to this chart when its target field belongs to this explore. Null for a composer chart.",
+                        "type": [
+                          "string",
+                          "null",
+                        ],
                       },
                       "name": {
                         "type": "string",

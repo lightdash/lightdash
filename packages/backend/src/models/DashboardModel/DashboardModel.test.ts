@@ -137,6 +137,7 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(DashboardTilesTableName, [
+                    1,
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
             )
@@ -217,6 +218,7 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(DashboardTilesTableName, [
+                    1,
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
             )
@@ -412,6 +414,7 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(DashboardTilesTableName, [
+                    1,
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
             )
@@ -1000,6 +1003,7 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(DashboardTilesTableName, [
+                    1,
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
             )
@@ -1575,6 +1579,7 @@ describe('DashboardModel', () => {
             tracker.on
                 .select(
                     queryMatcher(DashboardTilesTableName, [
+                        1,
                         dashboardWithVersionEntry.dashboard_version_id,
                     ]),
                 )
