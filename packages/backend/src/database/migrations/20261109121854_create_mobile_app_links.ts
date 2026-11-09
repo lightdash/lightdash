@@ -1,5 +1,10 @@
 import { Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates two new empty tables for mobile app links and their rate counters. Existing tables keep their columns and constraints, and the previous release never reads or writes the new tables.',
+};
+
 const MobileAppLinksTableName = 'mobile_app_links';
 const MobileAppLinkRateCountersTableName = 'mobile_app_link_rate_counters';
 
