@@ -260,6 +260,10 @@ import {
     MobileAppLinksTableName,
 } from '../database/entities/mobileAppLinks';
 import {
+    MobileSignInCodesTable,
+    MobileSignInCodesTableName,
+} from '../database/entities/mobileSignInCodes';
+import {
     NotificationsTable,
     NotificationsTableName,
 } from '../database/entities/notifications';
@@ -924,6 +928,7 @@ declare module 'knex/types/tables' {
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
         [HeadlessBrowserLoginGrantsTableName]: HeadlessBrowserLoginGrantTable;
+        [MobileSignInCodesTableName]: MobileSignInCodesTable;
         [SshKeyPairTableName]: SshKeyPairTable;
         [AwsWebIdentityAudiencesTableName]: AwsWebIdentityAudiencesTable;
         [UserAttributesTable]: UserAttributeTable;
