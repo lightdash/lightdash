@@ -69,6 +69,8 @@ export type ApiConnectorRequest = {
     /** Path on the API's origin, e.g. /api/projects/1/query/ */
     path: string;
     query?: Record<string, string>;
+    /** A query string sent exactly as given, for APIs whose syntax must stay unencoded. */
+    rawQuery?: string;
     body: unknown;
 };
 

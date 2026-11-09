@@ -131,6 +131,8 @@ export function buildOutboundUrl(
     origin: string,
     validatedPath: string,
     query: Record<string, string> | undefined,
+    /** Sent as written, for APIs whose syntax URLSearchParams would escape. */
+    rawQuery?: string,
 ): string {
     // Defense-in-depth: reject obviously hostile path shapes before parsing.
     // These can escape the origin host or smuggle credentials during URL
@@ -162,7 +164,9 @@ export function buildOutboundUrl(
         );
     }
 
-    if (query) {
+    if (rawQuery !== undefined) {
+        url.search = rawQuery;
+    } else if (query) {
         const params = new URLSearchParams();
         for (const [key, value] of Object.entries(query)) {
             params.append(key, value);

@@ -1,4 +1,4 @@
-import { type ApiConnectorType } from '@lightdash/common';
+import { ApiConnectorType } from '@lightdash/common';
 import {
     Badge,
     Button,
@@ -32,8 +32,23 @@ type Props = {
     onClose: () => void;
     projectUuid: string;
     canUseGoogle: boolean;
+    canUseLinkedInAds: boolean;
     onPick: (connector: ApiConnectorType) => void;
 };
+
+const toRequestableUnlessConnectable = (
+    entry: LiveSourceCatalogEntry,
+): LiveSourceCatalogEntry =>
+    isAvailableLiveSource(entry) &&
+    entry.connector === ApiConnectorType.LINKEDIN_ADS
+        ? {
+              id: entry.id,
+              status: 'requestable',
+              label: entry.label,
+              description: entry.description,
+              icon: entry.icon,
+          }
+        : entry;
 
 const CardHead: FC<{ entry: LiveSourceCatalogEntry }> = ({ entry }) => (
     <Group gap="sm" wrap="nowrap" align="flex-start">
@@ -54,6 +69,7 @@ export const AddLiveSourceModal: FC<Props> = ({
     onClose,
     projectUuid,
     canUseGoogle,
+    canUseLinkedInAds,
     onPick,
 }) => {
     const { user } = useApp();
@@ -66,6 +82,14 @@ export const AddLiveSourceModal: FC<Props> = ({
             canUseGoogle ||
             !isGoogleConnector(entry.connector),
     );
+    // LinkedIn needs a client most servers won't have, so it stays requestable
+    const shownEntries = canUseLinkedInAds
+        ? entries
+        : entries.map(toRequestableUnlessConnectable);
+    const orderedEntries = [
+        ...shownEntries.filter(isAvailableLiveSource),
+        ...shownEntries.filter((entry) => !isAvailableLiveSource(entry)),
+    ];
 
     const requestProperties = {
         organizationId: user.data?.organizationUuid ?? null,
@@ -106,7 +130,7 @@ export const AddLiveSourceModal: FC<Props> = ({
         >
             <Stack gap="sm">
                 <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="sm">
-                    {entries.map((entry) =>
+                    {orderedEntries.map((entry) =>
                         isAvailableLiveSource(entry) ? (
                             <UnstyledButton
                                 key={entry.id}

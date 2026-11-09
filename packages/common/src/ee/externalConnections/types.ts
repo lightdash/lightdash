@@ -53,6 +53,12 @@ export type YoutubeAnalyticsApiSource = {
     channelId: string;
 };
 
+export type LinkedInAdsApiSource = {
+    connector: ApiConnectorType.LINKEDIN_ADS;
+    /** The numeric LinkedIn ad account id, as shown in Campaign Manager. */
+    adAccountId: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
@@ -60,7 +66,8 @@ export type ExternalConnectionApiSource =
     | Ga4ApiSource
     | MetaAdsApiSource
     | GoogleAdsApiSource
-    | YoutubeAnalyticsApiSource;
+    | YoutubeAnalyticsApiSource
+    | LinkedInAdsApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<

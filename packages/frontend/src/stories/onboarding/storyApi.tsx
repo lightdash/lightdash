@@ -53,6 +53,7 @@ export const storyHealth = (
         hasBrandfetch: true,
         hasGoogleLiveSources: true,
         hasPostHogOAuth: true,
+        hasLinkedInAdsOAuth: false,
         siteUrl: 'https://acme.example.com',
         externalSources: { ...base.externalSources, engineAvailable: true },
         ...overrides,

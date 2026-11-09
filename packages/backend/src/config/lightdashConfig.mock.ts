@@ -396,6 +396,10 @@ export const lightdashConfigMock: LightdashConfig = {
             oauthClientId: undefined,
             oauthClientSecret: undefined,
         },
+        linkedinAds: {
+            oauthClientId: undefined,
+            oauthClientSecret: undefined,
+        },
     },
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',

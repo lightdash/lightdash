@@ -224,6 +224,10 @@ export class HealthService extends BaseService {
             hasPostHogOAuth:
                 this.lightdashConfig.liveSources.posthog.oauthClientId !==
                 undefined,
+            hasLinkedInAdsOAuth:
+                !!this.lightdashConfig.liveSources.linkedinAds.oauthClientId &&
+                !!this.lightdashConfig.liveSources.linkedinAds
+                    .oauthClientSecret,
             hasGoogleLiveSources:
                 !!this.lightdashConfig.auth.google.oauth2ClientId &&
                 !!this.lightdashConfig.auth.google.oauth2ClientSecret,
