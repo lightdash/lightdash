@@ -53,7 +53,10 @@ export const getQueryingComposerSection = ({
         ...(slackChannelId
             ? []
             : [
-                  '- Cite each figure in your answer that comes from a node you did not visualize in this answer by wrapping it as `[figure](#query-node-<nodeId>)`, with the figure exactly as written and a node id from this thread, one citation per node per sentence.',
+                  '- Cite each figure in your answer that comes from a node you did not visualize in this answer by wrapping it as `[figure](#query-node-<nodeId>)`, with the figure exactly as written and a node id from this thread, one citation per node per sentence. For example:',
+                  '  - Figures from separate nodes: `Total revenue is [**$4,149.12**](#query-node-total_revenue) across [151 orders](#query-node-order_count), about [$27.48](#query-node-avg_revenue) per order.`',
+                  '  - Two figures from one node: `Completed orders brought in [$2,310.40](#query-node-revenue_by_status) and returned orders $412.18.`',
+                  '  - After visualizing `monthly_revenue`: `Revenue peaked at $612 in March, and the top store made [$98](#query-node-top_store) of it.`',
               ]),
         '',
         '## Field usage',
