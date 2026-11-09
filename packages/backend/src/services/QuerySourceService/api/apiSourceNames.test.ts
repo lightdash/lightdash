@@ -68,6 +68,11 @@ const SOURCES: {
             },
         },
     },
+    {
+        name: 'Meta Ads',
+        apiSource: { connector: ApiConnectorType.META_ADS, adAccountId: '123' },
+        scan: {},
+    },
 ];
 
 describe('live data source names', () => {

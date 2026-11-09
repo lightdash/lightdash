@@ -49,5 +49,11 @@ describe('getApiSourceTarget', () => {
                 propertyId: '123456',
             }),
         ).toBe('Property 123456');
+        expect(
+            getApiSourceTarget({
+                connector: ApiConnectorType.META_ADS,
+                adAccountId: '123',
+            }),
+        ).toBe('Ad account 123');
     });
 });

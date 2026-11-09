@@ -53,6 +53,55 @@ exports[`live data source names > 'Google Analytics' explore names and field ids
 }
 `;
 
+exports[`live data source names > 'Meta Ads' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "meta_ads_insights_ad_id",
+        "meta_ads_insights_ad_name",
+        "meta_ads_insights_adds_to_cart",
+        "meta_ads_insights_adset_id",
+        "meta_ads_insights_adset_name",
+        "meta_ads_insights_age",
+        "meta_ads_insights_campaign_id",
+        "meta_ads_insights_campaign_name",
+        "meta_ads_insights_checkouts_initiated",
+        "meta_ads_insights_clicks",
+        "meta_ads_insights_country",
+        "meta_ads_insights_cpc",
+        "meta_ads_insights_cpm",
+        "meta_ads_insights_ctr",
+        "meta_ads_insights_date",
+        "meta_ads_insights_date_month",
+        "meta_ads_insights_frequency",
+        "meta_ads_insights_gender",
+        "meta_ads_insights_impressions",
+        "meta_ads_insights_landing_page_views",
+        "meta_ads_insights_leads",
+        "meta_ads_insights_link_clicks",
+        "meta_ads_insights_objective",
+        "meta_ads_insights_platform_position",
+        "meta_ads_insights_publisher_platform",
+        "meta_ads_insights_purchase_roas",
+        "meta_ads_insights_purchase_value",
+        "meta_ads_insights_purchases",
+        "meta_ads_insights_reach",
+        "meta_ads_insights_region",
+        "meta_ads_insights_registrations_completed",
+        "meta_ads_insights_spend",
+      ],
+      "name": "meta_ads_insights",
+    },
+  ],
+  "reservedExploreNames": [
+    "meta_ads_demographics",
+    "meta_ads_placements",
+    "meta_ads_creatives",
+  ],
+}
+`;
+
 exports[`live data source names > 'PostHog' explore names and field ids never change 1`] = `
 {
   "explores": [

@@ -44,6 +44,14 @@ const SOURCES = [
             metric: 'event_count',
         },
     },
+    {
+        apiSource: { connector: ApiConnectorType.META_ADS, adAccountId: '123' },
+        fields: {
+            dimension: 'campaign_name',
+            other: 'adset_name',
+            metric: 'spend',
+        },
+    },
 ] as const;
 
 const CONNECTORS: ApiConnectorType[] = SOURCES.map(
