@@ -23,6 +23,7 @@ import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptu
 import {
     useAppSdkBridge,
     type ElementSelectedEvent,
+    type AppStateEvent,
     type ExternalRequestEvent,
     type QueryEvent,
     type SdkManifest,
@@ -64,6 +65,8 @@ type Props = {
      *  tab. Left undefined by hosts that don't surface the inspector (embed,
      *  dashboard tiles). */
     onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
+    /** Reports app-state reads/writes for the same inspector tab. */
+    onAppStateEvent?: (event: AppStateEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     /** When true, the iframe-side inspector overlay is active and clicks
      *  are intercepted to produce element-selected events. */
@@ -210,6 +213,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             identityKey,
             onQueryEvent,
             onExternalRequestEvent,
+            onAppStateEvent,
             onElementSelected,
             inspectorEnabled,
             onInspectorAvailabilityChange,
@@ -383,6 +387,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageAvailable: handleLineageAnnounce,
             onLineageSelected,
             onExternalRequestEvent,
+            onAppStateEvent,
             dataAppVizContext,
             dataAppVizMode,
             chartContext,

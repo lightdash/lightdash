@@ -1978,6 +1978,7 @@ export class AiAgentController extends BaseController {
             results: await this.getAiAgentService().getNodeCitationVizQuery(
                 toSessionUser(req.account),
                 { ...args, projectUuid, runtimeOptions: null },
+                req.account,
             ),
         };
     }

@@ -6325,8 +6325,38 @@
                 "required": ["parameters", "valueType", "value", "label"],
                 "type": "object"
             },
+            "DashboardControlRefKind": {
+                "description": "Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds\nmay be added, so consumers must ignore a kind they don't know. Request\nvalidation rejects unknown values, so a new kind ships in a release before\nanything writes it.",
+                "enum": ["filter", "parameter", "dateZoom", "section"],
+                "type": "string"
+            },
+            "DashboardControlRefAsCode": {
+                "properties": {
+                    "newLine": {
+                        "type": "boolean",
+                        "description": "Starts a new bar line; absent, it shares the line of the entry before it. On a section member it passes to the next loose entry in the list"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Slug of a filter, parameter control or section in this file"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/DashboardControlRefKind"
+                    }
+                },
+                "required": ["slug", "kind"],
+                "type": "object",
+                "description": "A control in `controlOrder`, by its slug in the same file"
+            },
             "DashboardConfigAsCode": {
                 "properties": {
+                    "controlOrder": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardControlRefAsCode"
+                        },
+                        "type": "array",
+                        "description": "The order of filters, parameter controls and sections on the bar. Absent: the default order."
+                    },
                     "parameterControls": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardParameterControlAsCode"
@@ -6868,6 +6898,10 @@
                         "$ref": "#/components/schemas/DashboardFieldTarget",
                         "description": "Target field for the filter"
                     },
+                    "slug": {
+                        "type": "string",
+                        "description": "Resolves `controlOrder` refs in this file; derived on download, never stored"
+                    },
                     "label": {
                         "type": "string"
                     },
@@ -7021,6 +7055,10 @@
                     },
                     {
                         "properties": {
+                            "slug": {
+                                "type": "string",
+                                "description": "Resolves `controlOrder` refs in this file; derived on download, never stored"
+                            },
                             "sectionSlug": {
                                 "type": "string"
                             }
@@ -9788,7 +9826,7 @@
                     },
                     "slug": {
                         "type": "string",
-                        "description": "Portable identity supplied by content as code."
+                        "description": "Ignored: content as code derives slugs on every download."
                     }
                 },
                 "required": ["name", "id"],
@@ -9822,7 +9860,7 @@
                     },
                     "slug": {
                         "type": "string",
-                        "description": "Portable identity supplied by content as code."
+                        "description": "Ignored: content as code derives slugs on every download."
                     },
                     "id": {
                         "type": "string"
@@ -9830,11 +9868,6 @@
                 },
                 "required": ["parameters", "valueType", "value", "label", "id"],
                 "type": "object"
-            },
-            "DashboardControlRefKind": {
-                "description": "Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds\nmay be added, so consumers must ignore a kind they don't know. Request\nvalidation rejects unknown values, so a new kind ships in a release before\nanything writes it.",
-                "enum": ["filter", "parameter", "dateZoom", "section"],
-                "type": "string"
             },
             "DashboardControlRef": {
                 "properties": {
@@ -9860,7 +9893,7 @@
                             "$ref": "#/components/schemas/DashboardControlRef"
                         },
                         "type": "array",
-                        "description": "How controls of every kind interleave on the bar. A hint: readers reconcile\nit with the controls' arrays and sections. Absent: the default order."
+                        "description": "The order of controls of every kind on the bar. A hint: readers drop refs\nthat match no control and append unlisted ones. Absent: the default order."
                     },
                     "parameterControls": {
                         "items": {
@@ -23417,6 +23450,83 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/AppStateSnapshot"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AppStateAdminSharedKey": {
+                "properties": {
+                    "updatedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AppStateAuthor"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "valueBytes": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Serialized size of the current value."
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "key": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedBy",
+                    "updatedAt",
+                    "valueBytes",
+                    "version",
+                    "key"
+                ],
+                "type": "object",
+                "description": "Admin view of one shared key: metadata only, never the value."
+            },
+            "AppStateAdminOverview": {
+                "properties": {
+                    "user": {
+                        "properties": {
+                            "userCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "keyCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["userCount", "keyCount"],
+                        "type": "object"
+                    },
+                    "shared": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppStateAdminSharedKey"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["user", "shared"],
+                "type": "object",
+                "description": "What the app's manage view shows about its stored state. Per-user values\nare private to each writer, so only their volume is reported."
+            },
+            "ApiAppStateAdminOverviewResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AppStateAdminOverview"
                     },
                     "status": {
                         "type": "string",
@@ -76347,7 +76457,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.185.1",
+        "version": "3.189.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

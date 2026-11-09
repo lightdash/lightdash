@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
+    FeatureFlags,
     getAppDisplayName,
     isApiError,
     type ApiDuplicateAppResponse,
@@ -18,6 +19,7 @@ import {
 import {
     IconArrowsUpDown,
     IconCamera,
+    IconDatabaseCog,
     IconCircleCheck,
     IconCircleCheckFilled,
     IconCirclesRelation,
@@ -46,6 +48,7 @@ import {
     useVerifyDataAppMutation,
 } from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -66,6 +69,7 @@ import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
 import { useDataAppCapturesEnabled } from '../hooks/useDataAppCapturesEnabled';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
 import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
+import { AppStateModal } from './AppStateModal';
 import AppUpgradeModal from './AppUpgradeModal';
 import { MoveAppToSpaceModal } from './MoveAppToSpaceModal';
 import { PromoteAppModal } from './PromoteAppModal';
@@ -307,6 +311,13 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDirectAccessModalOpen, setIsDirectAccessModalOpen] =
         useState(false);
+    const [isAppStateModalOpen, setIsAppStateModalOpen] = useState(false);
+    // Deferred to menu open: the row lists mount this menu per app, and the
+    // flag lookup is one cached query either way.
+    const { data: appStateFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppState,
+        { enabled: menuOpened },
+    );
     const directAccessAvailability = useDirectAccessAvailability();
     const canManageAppAccess = useCanManageDirectAccess({
         projectUuid,
@@ -572,6 +583,19 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                     Promote
                                 </Menu.Item>
                             )}
+                            {appStateFlag?.enabled && (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconDatabaseCog}
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={() => setIsAppStateModalOpen(true)}
+                                >
+                                    App state
+                                </Menu.Item>
+                            )}
                             {directAccessAvailability.isAvailable &&
                                 canManageAppAccess && (
                                     <Menu.Item
@@ -671,6 +695,15 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                     appUuid={appUuid}
                     opened
                     onClose={() => setSyncModalOpen(false)}
+                />
+            )}
+            {isAppStateModalOpen && (
+                <AppStateModal
+                    projectUuid={projectUuid}
+                    appUuid={appUuid}
+                    appName={getAppDisplayName(appName, appUuid)}
+                    opened
+                    onClose={() => setIsAppStateModalOpen(false)}
                 />
             )}
             {isPromoteModalOpen && (

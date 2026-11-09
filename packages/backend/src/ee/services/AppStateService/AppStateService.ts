@@ -17,6 +17,7 @@ import {
     ParameterError,
     TooManyRequestsError,
     type Account,
+    type AppStateAdminOverview,
     type AppStateConflictData,
     type AppStateHistory,
     type AppStateSharedEntry,
@@ -260,6 +261,45 @@ export class AppStateService extends BaseService {
         );
     }
 
+    /** The viewer, required to also hold manage rights on the app. */
+    private async authorizeManager(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+        action: string,
+    ): Promise<Extract<AuthorizedViewer, { kind: 'user' }>> {
+        const viewer = await this.authorizeViewer(
+            account,
+            projectUuid,
+            appUuid,
+        );
+        if (viewer.kind === 'embed') {
+            throw new ForbiddenError(
+                'Saved app state cannot be managed from an embed',
+            );
+        }
+        const ability = this.createAuditedAbility(viewer.user);
+        if (ability.cannot('manage', subject('DataApp', viewer.context))) {
+            throw new ForbiddenError(
+                `Only people who can manage this app can ${action} its saved state`,
+            );
+        }
+        return viewer;
+    }
+
+    /**
+     * What the manage view shows: shared-key metadata without values, and
+     * per-user volume only — per-user values stay private to each writer.
+     */
+    async getAdminOverview(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<AppStateAdminOverview> {
+        await this.authorizeManager(account, projectUuid, appUuid, 'inspect');
+        return this.appStateModel.getAdminOverview(appUuid);
+    }
+
     async getSnapshot(
         account: Account,
         projectUuid: string,
@@ -375,17 +415,13 @@ export class AppStateService extends BaseService {
         key: string,
     ): Promise<void> {
         AppStateService.assertKey(key);
-        const viewer = await this.authorizeWriter(
+        const viewer = await this.authorizeManager(
             account,
             projectUuid,
             appUuid,
+            'delete',
         );
-        const ability = this.createAuditedAbility(viewer.user);
-        if (ability.cannot('manage', subject('DataApp', viewer.context))) {
-            throw new ForbiddenError(
-                'Only people who can manage this app can delete shared state',
-            );
-        }
+        this.assertWriteRate(appUuid, viewer.user.userUuid);
         await this.appStateModel.deleteSharedState(appUuid, key);
     }
 

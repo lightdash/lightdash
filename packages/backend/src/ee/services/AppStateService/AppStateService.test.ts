@@ -106,6 +106,10 @@ function buildService({
         }),
         deleteSharedState: vi.fn().mockResolvedValue(undefined),
         getSharedHistory: vi.fn().mockResolvedValue([]),
+        getAdminOverview: vi.fn().mockResolvedValue({
+            shared: [],
+            user: { keyCount: 0, userCount: 0 },
+        }),
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({
@@ -440,6 +444,24 @@ describe('AppStateService', () => {
             expect(appStateModel.deleteSharedState).toHaveBeenCalledWith(
                 'app-1',
                 'targets',
+            );
+        });
+
+        it('lets only app managers read the admin overview', async () => {
+            const { service, appStateModel } = buildService();
+            await expect(
+                service.getAdminOverview(sessionAccount(), 'proj-1', 'app-1'),
+            ).rejects.toThrow(/manage/);
+            await expect(
+                service.getAdminOverview(embeddedAccount(), 'proj-1', 'app-1'),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            await service.getAdminOverview(
+                sessionAccount(OrganizationMemberRole.ADMIN),
+                'proj-1',
+                'app-1',
+            );
+            expect(appStateModel.getAdminOverview).toHaveBeenCalledWith(
+                'app-1',
             );
         });
 

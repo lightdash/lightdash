@@ -1,5 +1,6 @@
 import {
     APP_STATE_MAX_HISTORY_VERSIONS,
+    type AppStateAdminOverview,
     type AppStateHistoryEntry,
     type AppStateSharedEntry,
     type AppStateSnapshot,
@@ -156,6 +157,78 @@ export class AppStateModel {
                     AppStateModel.toSharedEntry(row),
                 ]),
             ),
+        };
+    }
+
+    /**
+     * What the manage view shows: shared-key metadata with sizes computed in
+     * the database (values never leave it), and per-user volume only.
+     */
+    async getAdminOverview(appUuid: string): Promise<AppStateAdminOverview> {
+        const [sharedRows, userRow] = await Promise.all([
+            this.database(AppSharedStateTableName)
+                .leftJoin(
+                    UserTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${AppSharedStateTableName}.updated_by_user_uuid`,
+                )
+                .select<
+                    (Pick<
+                        DbAppSharedState,
+                        | 'key'
+                        | 'version'
+                        | 'updated_at'
+                        | 'updated_by_user_uuid'
+                    > &
+                        AuthorNameColumns & { value_bytes: string | number })[]
+                >(
+                    `${AppSharedStateTableName}.key`,
+                    `${AppSharedStateTableName}.version`,
+                    `${AppSharedStateTableName}.updated_at`,
+                    `${AppSharedStateTableName}.updated_by_user_uuid`,
+                    this.database.raw(
+                        `octet_length(${AppSharedStateTableName}.value::text) as value_bytes`,
+                    ),
+                    `${UserTableName}.first_name as author_first_name`,
+                    `${UserTableName}.last_name as author_last_name`,
+                )
+                .where(`${AppSharedStateTableName}.app_uuid`, appUuid)
+                .orderBy(`${AppSharedStateTableName}.key`),
+            this.database(AppUserStateTableName)
+                .where({ app_uuid: appUuid })
+                .select<
+                    {
+                        key_count: string | number;
+                        user_count: string | number;
+                    }[]
+                >(
+                    this.database.raw('count(*) as key_count'),
+                    this.database.raw(
+                        'count(distinct user_uuid) as user_count',
+                    ),
+                )
+                .first(),
+        ]);
+        return {
+            shared: sharedRows.map((row) => ({
+                key: row.key,
+                version: row.version,
+                valueBytes: Number(row.value_bytes),
+                updatedAt: row.updated_at.toISOString(),
+                updatedBy: row.updated_by_user_uuid
+                    ? {
+                          userUuid: row.updated_by_user_uuid,
+                          name: formatName(
+                              row.author_first_name,
+                              row.author_last_name,
+                          ),
+                      }
+                    : null,
+            })),
+            user: {
+                keyCount: Number(userRow?.key_count ?? 0),
+                userCount: Number(userRow?.user_count ?? 0),
+            },
         };
     }
 

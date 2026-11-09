@@ -2,9 +2,14 @@ import {
     ForbiddenError,
     NotFoundError,
     QuerySourceType,
+    type QueryResultProducer,
+    type RegisteredAccount,
     type SessionUser,
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
+import { fromApiKey } from '../../../auth/account/account';
+import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
+import { isSameResultReader } from '../../../utils/queryResultProducer';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -82,7 +87,10 @@ const buildService = ({
             ],
         }),
     };
-    const asyncQueryService = { bindQueryToMessageQuery: vi.fn() };
+    const asyncQueryService = {
+        bindQueryToMessageQuery: vi.fn(),
+        getMessageQueryBoundQueryResults: vi.fn(),
+    };
     const aiAgentModel = {
         findSlackPrompt: vi.fn().mockResolvedValue(undefined),
         findWebAppPrompt: vi.fn().mockResolvedValue(undefined),
@@ -183,6 +191,61 @@ describe('getNodeCitationVizQuery', () => {
             'net-run',
             binding,
         );
+    });
+
+    it('produces a citation run its owner can read back with the same PAT', async () => {
+        const { service, querySourceService, asyncQueryService, aiAgentModel } =
+            buildService({ agentIdentity: true });
+        aiAgentModel.getThread.mockResolvedValue({
+            user: { uuid: user.userUuid },
+        });
+        aiAgentModel.findWebAppPrompt.mockResolvedValue({
+            createdByUserUuid: user.userUuid,
+            agentUuid: ref.agentUuid,
+            projectUuid: ref.projectUuid,
+            organizationUuid: user.organizationUuid,
+            threadUuid: ref.threadUuid,
+        });
+        vi.spyOn(
+            service as unknown as { getAgent: () => Promise<unknown> },
+            'getAgent',
+        ).mockResolvedValue({ uuid: ref.agentUuid, enableDataAccess: true });
+        let producer: QueryResultProducer | null = null;
+        querySourceService.submitQueries.mockImplementation(
+            async ({ account: runAccount }: { account: RegisteredAccount }) => {
+                producer = {
+                    version: 1,
+                    warehouseConnectionUuid: null,
+                    credentialOwner: { kind: 'derived' },
+                    authMethod: runAccount.authentication.type,
+                    agentIdentity:
+                        agentExecutionContext.getStore()?.claim ?? null,
+                };
+                return { queries: [{ nodeId: 'net', queryUuid: 'net-run' }] };
+            },
+        );
+        const account = fromApiKey(user, 'test-pat');
+
+        await service.getNodeCitationVizQuery(
+            user,
+            { ...ref, runtimeOptions: null },
+            account,
+        );
+        await service.getNodeCitationQueryResults(
+            user,
+            {
+                ...ref,
+                resultQueryUuid: 'net-run',
+                page: null,
+                pageSize: null,
+            },
+            account,
+        );
+
+        const { reader } =
+            asyncQueryService.getMessageQueryBoundQueryResults.mock.calls[0][0];
+        expect(reader.kind).toBe('agent');
+        expect(isSameResultReader(producer!, reader)).toBe(true);
     });
 
     it('refuses an embedded citation whose closure reads warehouse SQL', async () => {

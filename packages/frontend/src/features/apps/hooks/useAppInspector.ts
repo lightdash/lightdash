@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
+    AppStateEvent,
     ExternalRequestEvent,
     QueryEvent,
     SdkManifest,
@@ -8,12 +9,16 @@ import {
     countReadyQueriesSinceBoundary,
     useTrackedAppQueries,
 } from './useTrackedAppQueries';
-import { useTrackedExternalRequests } from './useTrackedExternalRequests';
+import {
+    useTrackedAppStateEvents,
+    useTrackedExternalRequests,
+} from './useTrackedExternalRequests';
 
 /** Bridge callbacks and lineage state to spread onto `AppIframePreview`. */
 export type AppInspectorIframeProps = {
     onQueryEvent: (event: QueryEvent) => void;
     onExternalRequestEvent: (event: ExternalRequestEvent) => void;
+    onAppStateEvent: (event: AppStateEvent) => void;
     onSdkManifest: (manifest: SdkManifest) => void;
     lineageEnabled: boolean;
     onLineageAvailabilityChange: (available: boolean) => void;
@@ -28,6 +33,8 @@ export type AppInspectorPanelProps = {
     onClearQueries: () => void;
     externalRequests: ExternalRequestEvent[];
     onClearExternalRequests: () => void;
+    appStateEvents: AppStateEvent[];
+    onClearAppStateEvents: () => void;
     persistLogs: boolean;
     onPersistLogsChange: (value: boolean) => void;
     onHoverQuery: (queryUuid: string | null) => void;
@@ -88,6 +95,12 @@ export const useAppInspector = ({
         clearExternalRequests,
         interruptInFlightRequests,
     } = useTrackedExternalRequests();
+    const {
+        appStateEvents,
+        handleAppStateEvent,
+        clearAppStateEvents,
+        interruptInFlightAppStateEvents,
+    } = useTrackedAppStateEvents();
 
     const [hidden, setHidden] = useState(defaultHidden);
     const [lineageEnabled, setLineageEnabled] = useState(false);
@@ -112,6 +125,7 @@ export const useAppInspector = ({
             if (persistLogs) {
                 interruptInFlightQueries();
                 interruptInFlightRequests();
+                interruptInFlightAppStateEvents();
                 if (newBundle) {
                     setReadyQueryBoundary(
                         queriesRef.current.filter((q) => q.status === 'ready')
@@ -124,14 +138,17 @@ export const useAppInspector = ({
             // the still-running parent-owned fetch can't land as a phantom row.
             resetQueries();
             clearExternalRequests();
+            clearAppStateEvents();
             setReadyQueryBoundary(0);
         },
         [
             persistLogs,
             interruptInFlightQueries,
             interruptInFlightRequests,
+            interruptInFlightAppStateEvents,
             resetQueries,
             clearExternalRequests,
+            clearAppStateEvents,
         ],
     );
     const rolloverLogs = useCallback(() => rollover(false), [rollover]);
@@ -180,6 +197,7 @@ export const useAppInspector = ({
         iframeProps: {
             onQueryEvent: handleQueryEvent,
             onExternalRequestEvent: handleExternalRequestEvent,
+            onAppStateEvent: handleAppStateEvent,
             onSdkManifest: setSdkManifest,
             lineageEnabled,
             onLineageAvailabilityChange: setLineageAvailable,
@@ -193,6 +211,8 @@ export const useAppInspector = ({
             onClearQueries: clearQueries,
             externalRequests,
             onClearExternalRequests: clearExternalRequests,
+            appStateEvents,
+            onClearAppStateEvents: clearAppStateEvents,
             persistLogs,
             onPersistLogsChange: setPersistLogs,
             onHoverQuery: setHoveredQueryUuid,
