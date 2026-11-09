@@ -3505,7 +3505,6 @@ export class SavedChartModel {
                 Pick<LightdashUser, 'firstName' | 'lastName'>
         >
     > {
-        // Composer charts have no dbt explore to expose
         return this.database(SavedChartsTableName)
             .select({
                 uuid: `${SavedChartsTableName}.saved_query_uuid`,

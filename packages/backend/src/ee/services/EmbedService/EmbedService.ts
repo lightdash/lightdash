@@ -3496,11 +3496,12 @@ export class EmbedService extends BaseService {
             const savedChartUuid =
                 content.type === 'chart' ? content.chartUuids[0] : undefined;
             const savedChart = savedChartUuid
-                ? (await this.savedChartModel.getVariant(savedChartUuid)).chart
+                ? await this.savedChartModel.getVariant(savedChartUuid)
                 : undefined;
+            // Composer charts are not available in embeds, so none is updatable
             const savedChartSpaceContext =
-                savedChart !== undefined
-                    ? spaceAccessContexts.get(savedChart.spaceUuid)
+                savedChart?.queryType === 'semantic'
+                    ? spaceAccessContexts.get(savedChart.chart.spaceUuid)
                     : undefined;
             const canUpdateSavedChart =
                 savedChartSpaceContext !== undefined &&

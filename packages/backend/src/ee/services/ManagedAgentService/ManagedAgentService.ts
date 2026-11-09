@@ -1693,7 +1693,10 @@ export class ManagedAgentService extends BaseService {
                     previous.chart.name,
                 );
             default:
-                assertUnreachable(previous, 'Unknown saved chart query type');
+                return assertUnreachable(
+                    previous,
+                    'Unknown saved chart query type',
+                );
         }
     }
 
@@ -4188,17 +4191,27 @@ chartConfig:
             const variant = await this.savedChartModel.getVariant(chartUuid);
             // Defense against stale validation rows: the chart must still
             // reference the deleted model
-            if (variant.queryType === 'composer') {
+            const referencesModel = ((): boolean => {
+                switch (variant.queryType) {
+                    case 'semantic':
+                        return variant.chart.tableName === tableName;
+                    case 'composer':
+                        return false;
+                    default:
+                        return assertUnreachable(
+                            variant,
+                            'Unknown saved chart query type',
+                        );
+                }
+            })();
+            if (!referencesModel) {
                 blocked.push({
                     uuid: chartUuid,
                     name: chartName,
-                    reason: 'Chart is a composer chart, which Autopilot does not manage yet',
-                });
-            } else if (variant.chart.tableName !== tableName) {
-                blocked.push({
-                    uuid: chartUuid,
-                    name: chartName,
-                    reason: `Chart no longer references model '${tableName}'`,
+                    reason:
+                        variant.queryType === 'composer'
+                            ? 'Chart is a composer chart and does not reference a single model'
+                            : `Chart no longer references model '${tableName}'`,
                 });
             } else {
                 // eslint-disable-next-line no-await-in-loop

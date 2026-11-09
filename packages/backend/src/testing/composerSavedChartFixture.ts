@@ -60,9 +60,9 @@ export const composerSavedChartVariant = (
     } as ComposerSavedChartDAO,
 });
 
-/** Wraps a classic chart stub the way `getVariant` returns it. */
-export const semanticSavedChartVariant = <T>(
-    chart: T,
+/** Wraps a classic chart stub the way `getVariant` returns it; keys must be real chart fields. */
+export const semanticSavedChartVariant = (
+    chart: Partial<Record<keyof SavedChartDAO, unknown>>,
 ): Extract<SavedChartVariant, { queryType: 'semantic' }> => ({
     queryType: 'semantic',
     chart: chart as SavedChartDAO,
