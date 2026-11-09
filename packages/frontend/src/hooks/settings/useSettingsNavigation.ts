@@ -54,6 +54,7 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { MOBILE_STRINGS } from '../../features/mobile/mobileStrings';
 import {
     getSemanticStudioExternalSourcesUrl,
     getSemanticStudioLiveSourcesUrl,
@@ -211,7 +212,7 @@ export const useSettingsNavigation = (
 
         if (isMobileSettingsEnabled) {
             yourSettings.push({
-                label: 'Mobile',
+                label: MOBILE_STRINGS.navLabel,
                 to: '/generalSettings/mobile',
                 icon: IconDeviceMobile,
                 keywords: ['phone', 'app', 'ios', 'android', 'iphone'],

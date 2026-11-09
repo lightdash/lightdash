@@ -15,6 +15,7 @@ import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import useHealth from '../../hooks/health/useHealth';
 import classes from './MobileSettingsPage.module.css';
+import { MOBILE_STRINGS } from './mobileStrings';
 
 const StoreBadge: FC<{
     href: string;
@@ -51,34 +52,30 @@ export const MobileSettingsPage: FC = () => {
     const host = getHost(health?.siteUrl);
 
     return (
-        <SettingsPage title="Mobile">
+        <SettingsPage title={MOBILE_STRINGS.pageTitle}>
             <SettingsCard withBorder>
                 <Stack gap="sm">
                     <Group gap="xs" wrap="nowrap">
                         <MantineIcon icon={IconDeviceMobile} />
-                        <Title order={5}>Get the app</Title>
+                        <Title order={5}>{MOBILE_STRINGS.getAppTitle}</Title>
                     </Group>
                     {host && (
                         <Text size="sm" c="dimmed">
-                            Sign in to{' '}
-                            <Text span fw={600} c="bright">
-                                {host}
-                            </Text>
-                            .
+                            {MOBILE_STRINGS.signInTo(host)}
                         </Text>
                     )}
-                    <Group gap="sm" aria-label="Store links">
+                    <Group gap="sm" aria-label={MOBILE_STRINGS.storeLinksLabel}>
                         <StoreBadge
                             href={MOBILE_APP_STORE_URL}
                             icon={IconBrandApple}
-                            caption="Download on the"
-                            store="App Store"
+                            caption={MOBILE_STRINGS.appStoreCaption}
+                            store={MOBILE_STRINGS.appStoreName}
                         />
                         <StoreBadge
                             href={MOBILE_GOOGLE_PLAY_URL}
                             icon={IconBrandGooglePlay}
-                            caption="Get it on"
-                            store="Google Play"
+                            caption={MOBILE_STRINGS.googlePlayCaption}
+                            store={MOBILE_STRINGS.googlePlayName}
                         />
                     </Group>
                 </Stack>
