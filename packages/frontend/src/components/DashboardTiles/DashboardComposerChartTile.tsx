@@ -54,6 +54,7 @@ type Props = Pick<
     TileBaseProps<IDashboardChartTile>,
     'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > & {
+    chartUuid: string;
     minimal?: boolean;
     canExportCsv?: boolean;
     canExportImages?: boolean;
@@ -71,6 +72,31 @@ const ComposerChartUnavailableTile: FC<
     Props & { reason: UnavailableReason }
 > = ({ tile, reason, minimal, isEditMode, onEdit, onDelete }) => {
     const getUiString = useUiStrings();
+    const addParameterReferences = useDashboardContext(
+        (c) => c.addParameterReferences,
+    );
+    const markTileLoaded = useDashboardTileStatusContext(
+        (c) => c.markTileLoaded,
+    );
+    const markTileScreenshotErrored = useDashboardTileStatusContext(
+        (c) => c.markTileScreenshotErrored,
+    );
+    const markEmbedTileComplete = useDashboardTileStatusContext(
+        (c) => c.markEmbedTileComplete,
+    );
+    // Nothing runs, so the tile settles at once for parameters, screenshots and embeds.
+    useEffect(() => {
+        addParameterReferences(tile.uuid, null);
+        markTileLoaded(tile.uuid);
+        markTileScreenshotErrored(tile.uuid);
+        markEmbedTileComplete(tile.uuid);
+    }, [
+        tile.uuid,
+        addParameterReferences,
+        markTileLoaded,
+        markTileScreenshotErrored,
+        markEmbedTileComplete,
+    ]);
     return (
         <TileBase
             title={tileTitle(tile)}
@@ -101,7 +127,7 @@ const getErrorMessage = (error: ApiError | Error): string | undefined =>
 
 // The chart draws the stage result when the stored pivot splits series,
 // otherwise the terminal node's rows renamed to the chart's field ids.
-const LiveComposerChartTile: FC<Props & { chartUuid: string }> = ({
+const LiveComposerChartTile: FC<Props> = ({
     tile,
     chartUuid,
     minimal = false,
@@ -265,6 +291,7 @@ const LiveComposerChartTile: FC<Props & { chartUuid: string }> = ({
             return (
                 <ComposerChartUnavailableTile
                     tile={tile}
+                    chartUuid={chartUuid}
                     reason="embed"
                     minimal={minimal}
                     isEditMode={isEditMode}
@@ -450,7 +477,6 @@ const DashboardComposerChartTile: FC<Props> = (props) => {
     const flag = useServerFeatureFlag(FeatureFlags.ComposeSqlRunner, {
         enabled: !isEmbedded,
     });
-    const chartUuid = props.tile.properties.savedChartUuid;
 
     if (isEmbedded) {
         return <ComposerChartUnavailableTile {...props} reason="embed" />;
@@ -469,10 +495,10 @@ const DashboardComposerChartTile: FC<Props> = (props) => {
             />
         );
     }
-    if (!flag.data.enabled || !chartUuid) {
+    if (!flag.data.enabled) {
         return <ComposerChartUnavailableTile {...props} reason="disabled" />;
     }
-    return <LiveComposerChartTile {...props} chartUuid={chartUuid} />;
+    return <LiveComposerChartTile {...props} />;
 };
 
 export default DashboardComposerChartTile;

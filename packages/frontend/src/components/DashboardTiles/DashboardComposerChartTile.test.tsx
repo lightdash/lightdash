@@ -23,6 +23,7 @@ import DashboardChartTile from './DashboardChartTile';
 const mocks = vi.hoisted(() => ({
     flagEnabled: true as boolean | undefined,
     isEmbedded: false,
+    settledTiles: [] as string[],
     resultsByQueryUuid: {} as Record<string, InfiniteQueryResults>,
     requestedResultQueryUuids: [] as (string | undefined)[],
 }));
@@ -87,7 +88,9 @@ vi.mock('../../providers/Dashboard/useDashboardTileStatusContext', () => ({
         selector({
             markTileScreenshotErrored: () => {},
             markTileScreenshotReady: () => {},
-            markEmbedTileComplete: () => {},
+            markEmbedTileComplete: (tileUuid: string) => {
+                mocks.settledTiles.push(tileUuid);
+            },
             markTileLoaded: () => {},
             registerTileQuery: () => {},
             unregisterTileQuery: () => {},
@@ -294,6 +297,7 @@ describe('DashboardChartTile with a composer chart', () => {
     beforeEach(() => {
         mocks.flagEnabled = true;
         mocks.isEmbedded = false;
+        mocks.settledTiles = [];
         mocks.resultsByQueryUuid = { 'terminal-query': terminalResults };
         mocks.requestedResultQueryUuids = [];
         mockedLightdashApi.mockReset();
@@ -326,6 +330,7 @@ describe('DashboardChartTile with a composer chart', () => {
             tileUuid: 'tile-uuid',
         });
         expect(request.body).not.toContain('dateZoom');
+        expect(request.body).not.toContain('parameters');
         // No explore is ever read for a composer tile.
         expect(apiCalls().some((call) => call.url.includes('/explores/'))).toBe(
             false,
@@ -359,6 +364,13 @@ describe('DashboardChartTile with a composer chart', () => {
                 screen.queryByRole('menuitem', { name: hidden }),
             ).not.toBeInTheDocument();
         }
+
+        // Column headers carry no dashboard sort override either.
+        const statusHeader = Array.from(
+            container.querySelectorAll('thead th'),
+        ).find((th) => th.textContent?.includes('Order status'));
+        fireEvent.click(statusHeader!);
+        expect(screen.queryByText(/^Sort/)).not.toBeInTheDocument();
     });
 
     it('draws the series split from the stage result', async () => {
@@ -434,5 +446,28 @@ describe('DashboardChartTile with a composer chart', () => {
             ),
         ).toBeInTheDocument();
         expect(runRequests()).toHaveLength(0);
+        // Embeds and screenshots wait for every chart tile to report in.
+        expect(mocks.settledTiles).toContain('tile-uuid');
+    });
+
+    it('is not available when the server refuses the run for an embed', async () => {
+        answerApi(() =>
+            Promise.reject({
+                status: 'error',
+                error: {
+                    statusCode: 400,
+                    name: 'ComposerChartNotAvailableInEmbedError',
+                    message: 'This chart is a composer chart.',
+                },
+            }),
+        );
+
+        renderTile();
+
+        expect(
+            await screen.findByText(
+                'This chart type is not available in embedded dashboards yet.',
+            ),
+        ).toBeInTheDocument();
     });
 });

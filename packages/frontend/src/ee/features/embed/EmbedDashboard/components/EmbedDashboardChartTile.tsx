@@ -138,10 +138,14 @@ const EmbedSemanticDashboardChartTile: FC<Props> = ({
 // A composer chart has no embed run yet; the tile says so instead of running.
 const EmbedDashboardChartTile: FC<Props> = (props) => {
     const { tile } = props;
-    if (tile.properties.queryType === 'composer') {
+    if (
+        tile.properties.queryType === 'composer' &&
+        tile.properties.savedChartUuid
+    ) {
         return (
             <DashboardComposerChartTile
                 tile={tile}
+                chartUuid={tile.properties.savedChartUuid}
                 isEditMode={props.isEditMode}
                 onEdit={props.onEdit}
                 onDelete={props.onDelete}

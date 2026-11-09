@@ -9114,13 +9114,13 @@ export class AsyncQueryService extends ProjectService {
                 plans,
                 aiAttribution: null,
             });
-        const submissionOf = (nodeId: string, what: string) => {
+        const submissionOf = (nodeId: string, label: string) => {
             const submission = submissions.find(
                 (query) => query.nodeId === nodeId,
             );
             if (!submission) {
                 throw new UnexpectedServerError(
-                    `The composer chart ${what} was not submitted`,
+                    `The composer chart ${label} was not submitted`,
                 );
             }
             return submission;

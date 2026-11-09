@@ -2,6 +2,7 @@ import {
     type ApiError,
     type ChartHistory,
     type ChartVersion,
+    ComposerChartNotSupportedError,
     isComposerSavedChart,
     type ComposerSavedChart,
     type CreateSavedChart,
@@ -128,14 +129,17 @@ export const getSavedQuery = async (
         includeUnpublishedDraft,
     );
     if (isComposerSavedChart(chart)) {
+        const refusal = new ComposerChartNotSupportedError(
+            chart.uuid,
+            chart.name,
+        );
         const error: ApiError = {
             status: 'error',
             error: {
-                statusCode: 400,
-                name: 'ComposerChartNotSupportedError',
-                message:
-                    'This chart is a composer chart, which this feature does not support yet.',
-                data: { chartUuid: chart.uuid },
+                statusCode: refusal.statusCode,
+                name: refusal.name,
+                message: refusal.message,
+                data: refusal.data,
             },
         };
         throw error;

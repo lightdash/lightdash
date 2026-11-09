@@ -12,10 +12,8 @@ import { type LightdashApi } from '../../api';
 import {
     selectInvalidateCache,
     selectIsAutoRefresh,
-    selectParameterValues,
     selectRefreshCounter,
     useDashboardSelector,
-    useTileDashboardParameterInputs,
 } from '../../features/dashboard/store';
 import { useTileQueryQueue } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { waitForQueryToFinish } from '../../features/dashboard/tileQueryQueue/waitForQueryToFinish';
@@ -25,8 +23,8 @@ import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { useQueryRetryConfig } from '../useQueryRetry';
 import useSearchParams from '../useSearchParams';
 
-// Dashboard filters, sorts and date zoom do not reach a composer chart yet,
-// so the request carries none and the key ignores them.
+// Dashboard filters, sorts, date zoom and parameters do not reach a composer
+// chart yet, so the request carries none and the key ignores them.
 const executeComposerChartQuery = async (
     lightdashApi: LightdashApi,
     projectUuid: string,
@@ -62,9 +60,6 @@ export const useDashboardComposerChartReadyQuery = (
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const refreshCounter = useDashboardSelector(selectRefreshCounter);
     const autoRefresh = useDashboardSelector(selectIsAutoRefresh);
-    const appliedParameterValues = useDashboardSelector(selectParameterValues);
-    const { dashboardValues: parameters, excludedParameterKeys } =
-        useTileDashboardParameterInputs(tileUuid, appliedParameterValues);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -83,8 +78,6 @@ export const useDashboardComposerChartReadyQuery = (
             contextOverride || context,
             autoRefresh,
             invalidateCache,
-            parameters,
-            excludedParameterKeys,
             refreshCounter,
         ],
         queryFn: async (queryContext) => {
@@ -113,8 +106,6 @@ export const useDashboardComposerChartReadyQuery = (
                     },
                     dashboardSorts: [],
                     invalidateCache,
-                    parameters,
-                    excludedParameterKeys,
                 },
             ).catch((error: unknown) => {
                 releaseSlot?.();
@@ -134,24 +125,15 @@ export const useDashboardComposerChartReadyQuery = (
         refetchOnMount: false,
     });
 
+    // The tile takes no parameter inputs yet; the dashboard still needs it
+    // to report in so the parameter controls can settle.
+    const settled =
+        queryResult.data !== undefined || queryResult.error !== null;
     useEffect(() => {
-        if (queryResult.data) {
-            addParameterReferences(
-                tileUuid,
-                queryResult.data.executeQueryResponse.parameterReferences,
-            );
-            markTileLoaded(tileUuid);
-        } else if (queryResult.error) {
-            addParameterReferences(tileUuid, null);
-            markTileLoaded(tileUuid);
-        }
-    }, [
-        queryResult.data,
-        queryResult.error,
-        addParameterReferences,
-        markTileLoaded,
-        tileUuid,
-    ]);
+        if (!settled) return;
+        addParameterReferences(tileUuid, null);
+        markTileLoaded(tileUuid);
+    }, [settled, addParameterReferences, markTileLoaded, tileUuid]);
 
     return queryResult;
 };

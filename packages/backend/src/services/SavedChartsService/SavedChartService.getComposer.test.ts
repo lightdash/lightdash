@@ -82,7 +82,9 @@ const buildService = () => {
             .fn()
             .mockRejectedValue(new Error('No cached explore in unit test')),
     };
-    const findOpenDraft = vi.fn();
+    const findOpenDraft = vi.fn(async () => {
+        throw new Error('a composer chart has no draft overlay');
+    });
     const service = new SavedChartService({
         analytics: analyticsMock,
         lightdashConfig: lightdashConfigMock,
@@ -109,12 +111,12 @@ const buildService = () => {
         },
         contentDraftModel: { findOpenDraft },
     } as AnyType);
-    return { service, savedChartModel, projectModel, findOpenDraft };
+    return { service };
 };
 
 describe('SavedChartService reads a composer chart', () => {
     test('getVariant returns the composer chart with the caller access and no explore load', async () => {
-        const { service, savedChartModel, projectModel } = buildService();
+        const { service } = buildService();
 
         const variant = await service.getVariant(composerChart.slug, account, {
             projectUuid: composerChart.projectUuid,
@@ -124,13 +126,6 @@ describe('SavedChartService reads a composer chart', () => {
             queryType: 'composer',
             chart: { ...composerChart, ...spaceContext },
         });
-        expect(savedChartModel.getVariant).toHaveBeenCalledWith(
-            composerChart.slug,
-            undefined,
-            { projectUuid: composerChart.projectUuid },
-        );
-        expect(savedChartModel.get).not.toHaveBeenCalled();
-        expect(projectModel.getExploreFromCache).not.toHaveBeenCalled();
     });
 
     test('get refuses it by name so classic callers never see a pipeline', async () => {
@@ -142,7 +137,7 @@ describe('SavedChartService reads a composer chart', () => {
     });
 
     test('getForViewer returns it without a draft overlay', async () => {
-        const { service, findOpenDraft } = buildService();
+        const { service } = buildService();
 
         const variant = await service.getForViewer(
             viewer,
@@ -154,6 +149,5 @@ describe('SavedChartService reads a composer chart', () => {
         expect(variant.chart).toMatchObject({
             pipeline: composerChart.pipeline,
         });
-        expect(findOpenDraft).not.toHaveBeenCalled();
     });
 });

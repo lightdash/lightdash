@@ -2742,6 +2742,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         return (
             <DashboardComposerChartTile
                 tile={tile}
+                chartUuid={tile.properties.savedChartUuid}
                 isEditMode={props.isEditMode}
                 onEdit={props.onEdit}
                 onDelete={props.onDelete}
