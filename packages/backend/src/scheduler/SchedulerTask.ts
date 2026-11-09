@@ -5458,6 +5458,7 @@ export default class SchedulerTask {
                   createdBy: userUuid,
               }
             : persistedOrInlineScheduler;
+        const useCachedResults = scheduler.useCachedResults === true;
 
         if (!scheduler.enabled) {
             await this.schedulerService.logSchedulerJob({
@@ -5546,6 +5547,7 @@ export default class SchedulerTask {
                 groupId: jobId,
                 sendNow: schedulerUuid === undefined,
                 isThresholdAlert: scheduler.thresholds !== undefined,
+                useCachedResults,
             },
         });
         await this.schedulerService.logSchedulerJob({
@@ -5689,6 +5691,7 @@ export default class SchedulerTask {
                                 groupId: jobId,
                                 isThresholdAlert: true,
                                 thresholdStatus: ThresholdStatus.NOT_MET,
+                                useCachedResults,
                             },
                         });
                         return;
@@ -6000,6 +6003,7 @@ export default class SchedulerTask {
                         hasPartialFailures:
                             partialFailures && partialFailures.length > 0,
                         partialFailuresCount: partialFailures?.length ?? 0,
+                        useCachedResults,
                         ...appDeliveryProperties,
                     },
                 });
@@ -6022,6 +6026,7 @@ export default class SchedulerTask {
                     schedulerId: schedulerUuid,
                     groupId: jobId,
                     error: `${e}`,
+                    useCachedResults,
                 },
             });
             const translatedSlackError = translateSlackError(e);
