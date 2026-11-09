@@ -466,7 +466,7 @@ A key accepts `all`, `except`, or `only`; tile references are tile slugs. At mos
 
 ### Control order
 
-When dashboard controls are enabled, `config.controlOrder` sets the order of controls on the filter bar, mixing kinds. Each entry is `{ kind, slug, newLine? }`, where `kind` is `filter`, `parameter` or `section`, and `slug` is the control's `slug` in the same file: a dimension or metric filter's `slug`, a parameter control's `slug`, or a section's `slug` in `config.controlSections`. Slugs are derived on every download: a filter's from its field id, a parameter control's from its label, a section's from its name; repeated ones are all numbered (`-1`, `-2`). They are never saved: they only link entries to controls in the same file, and renaming a section or parameter control gives it a new slug and ID.
+When dashboard controls are enabled, `config.controlOrder` sets the order of controls on the filter bar: the bar follows it entry by entry, mixing kinds. Each entry is `{ kind, slug, newLine? }`, where `kind` is `filter`, `parameter` or `section`, and `slug` is the control's `slug` in the same file: a dimension or metric filter's `slug`, a parameter control's `slug`, or a section's `slug` in `config.controlSections`. Slugs are derived on every download: a filter's from its field id, a parameter control's from its label, a section's from its name; repeated ones are all numbered (`-1`, `-2`). They are never saved: they only link entries to controls in the same file, and renaming a section or parameter control gives it a new slug and ID.
 
 ```yaml
 config:
@@ -479,9 +479,9 @@ config:
 
 - Downloads include it, with a `slug` on every filter, once the dashboard has been reordered; a never-reordered dashboard downloads without it. An upload whose order renders the default bar stores no order, as long as none was stored before; once an order is stored, uploads store the list as given. AI agent edits follow the same rule.
 - Reorder by moving entries. Unknown or repeated slugs are rejected, and the error lists the valid ones.
-- A section's members come from each control's `sectionSlug`, not from the list. Entries only place sections among loose controls and order members inside a section.
-- Within one kind, that kind's own array wins: two filters keep the order of `filters.dimensions` (dimensions and metrics separately), parameter controls the order of `parameterControls`, sections the order of `controlSections`. The list decides how kinds interleave.
-- `newLine: true` starts a new bar line; without it, an entry shares the line of the entry before it. Section members never start a line: on a section member it passes to the next entry in the list outside a section, and is dropped if there is none. Line starts stay with their position when a kind's array is reordered. Once `controlOrder` is present, line placement comes from `newLine` and `controlSections[].inline` is ignored.
+- A section's members come from each control's `sectionSlug`, not from the list. Members follow their entries inside the section.
+- The list wins over each kind's own array: to swap two filters, swap their entries; `filters.dimensions`, `parameterControls` and `controlSections` order doesn't change the bar.
+- `newLine: true` starts a new bar line; without it, an entry shares the line of the entry before it. Section members never start a line: on a section member it passes to the next entry in the list outside a section, and is dropped if there is none. Once `controlOrder` is present, line placement comes from `newLine` and `controlSections[].inline` is ignored.
 - Controls missing from the list go to the end of their section, or of the bar, inline. To place a new control, add its entry; when you remove a control, remove its entry too.
 - A file without `controlOrder` resets the bar to the default order: filters, then parameter controls, then sections.
 - Date zoom can't be ordered yet.
