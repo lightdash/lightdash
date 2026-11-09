@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared helpers for k8s-dev scripts. Source this; don't execute it.
-# Contract: emit STEP:/OK:/SKIP:/FAIL: markers; idempotent.
+# Contract (mirrors dev-fast-start.sh): emit STEP:/OK:/SKIP:/FAIL: markers; idempotent.
 
 set -euo pipefail
 
