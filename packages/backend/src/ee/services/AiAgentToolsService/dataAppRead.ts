@@ -2,6 +2,7 @@ import type {
     AppVersionStatus,
     DataAppManifest,
     DataAppManifestExternalConnection,
+    DataAppQueryManifest,
     DataAppVizSchema,
     DataReferenceStats,
 } from '@lightdash/common';
@@ -82,4 +83,6 @@ export type DataAppRead = {
     context: DataAppReadContext;
     /** null when no references were recorded for the version. */
     dataReferences: DataAppReadDataReferences | null;
+    /** Static query manifest built into the version; null for older bundles. */
+    queries: DataAppQueryManifest | null;
 };

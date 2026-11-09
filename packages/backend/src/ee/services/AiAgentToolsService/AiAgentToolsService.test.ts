@@ -4845,6 +4845,7 @@ describe('AiAgentToolsService readContent data_app', () => {
             ],
         },
         dataReferences,
+        queries: null,
         ...overrides,
     });
 
@@ -4963,6 +4964,7 @@ describe('AiAgentToolsService readContent data_app', () => {
                     stats: dataReferences.stats,
                     unresolved: ['filters'],
                 },
+                queries: null,
             },
         });
         // One batched lookup covers context charts and linked chart references.

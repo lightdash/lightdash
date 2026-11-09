@@ -25,6 +25,7 @@ import {
     type ApiEmbedProjectAppsResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppCodeResponse,
+    type ApiGetAppQueriesResponse,
     type ApiGetAppResponse,
     type ApiGetDataAppAuthoringContextResponse,
     type ApiGetDataAppVizResponse,
@@ -1190,6 +1191,30 @@ export class AppGenerateController extends BaseController {
             body,
         );
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Returns the static query manifest built into the latest ready version.
+     * @summary Get app queries
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuidOrSlug}/queries')
+    @OperationId('getAppQueries')
+    async getAppQueries(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuidOrSlug: UuidOrSlug,
+    ): Promise<ApiGetAppQueriesResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAppGenerateService().getAppQueryManifest(
+                toSessionUser(req.account),
+                projectUuid,
+                appUuidOrSlug,
+            ),
+        };
     }
 
     /**

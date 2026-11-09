@@ -565,6 +565,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.getAppCode': [AgentCapability.ReadDiscover],
     'AppGenerateController.getAppImageUrl': [AgentCapability.ReadDiscover],
     'AppGenerateController.getAppPromoteDiff': [AgentCapability.ReadDiscover],
+    'AppGenerateController.getAppQueries': [AgentCapability.ReadDiscover],
     'AppGenerateController.getAppSchedulers': [AgentCapability.ReadDiscover],
     'AppGenerateController.getAppThumbnailUrl': [AgentCapability.ReadDiscover],
     'AppGenerateController.getAppVersionThumbnailUrl': [

@@ -3505,6 +3505,7 @@ export class AiAgentToolsService extends BaseService {
                       chartSlugsByUuid,
                   )
                 : null,
+            queries: source.queries,
         };
     }
 

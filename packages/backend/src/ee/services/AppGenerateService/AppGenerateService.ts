@@ -26,6 +26,7 @@ import {
     ContentType,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_CODEX_MODELS,
+    DATA_APP_QUERY_MANIFEST_ASSET,
     DATA_APP_VIZ_TEMPLATE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
     dataAppManifestRegistryProvenanceSchema,
@@ -66,6 +67,7 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    parseDataAppQueryManifest,
     ProjectType,
     QueryExecutionContext,
     resolveDefaultVisibleDataAppClaudeModel,
@@ -124,6 +126,8 @@ import {
     type DataAppGenerationUsage,
     type DataAppManifestExternalConnection,
     type DataAppManifestRegistryProvenance,
+    type DataAppQueryManifest,
+    type DataAppQueryManifestResult,
     type DataAppTemplate,
     type DataAppViewContext,
     type DataAppViz,
@@ -536,6 +540,7 @@ export type DataAppReadSource = {
     } | null;
     resources: AppVersionResources | null;
     dataReferences: PersistedDataAppDataReferences | null;
+    queries: DataAppQueryManifest | null;
 };
 
 /** App identity plus the one version row a build-status poll reports on. */
@@ -13619,6 +13624,7 @@ export class AppGenerateService extends BaseService {
             appLinks,
             appSpace,
             dataReferences,
+            queries,
         ] = await Promise.all([
             this.appModel.getLatestVersion(app.app_id),
             this.appModel.countVersions(app.app_id),
@@ -13628,6 +13634,7 @@ export class AppGenerateService extends BaseService {
                 ? this.spaceModel.getSpaceSummary(app.space_uuid)
                 : null,
             this.getVersionDataReferences(app.app_id, readyVersion.version),
+            this.readVersionQueryManifest(app.app_id, readyVersion.version),
         ]);
 
         return {
@@ -13659,6 +13666,60 @@ export class AppGenerateService extends BaseService {
             createdBy,
             resources: readyVersion.resources,
             dataReferences,
+            queries,
+        };
+    }
+
+    /** The query manifest built into a version's bundle; null when absent or unreadable. */
+    private async readVersionQueryManifest(
+        appUuid: string,
+        version: number,
+    ): Promise<DataAppQueryManifest | null> {
+        const key = `${versionPrefix(appUuid, version)}${DATA_APP_QUERY_MANIFEST_ASSET}`;
+        try {
+            const { client, bucket } = this.getS3Client();
+            const raw = await readS3ObjectAsBuffer(client, bucket, key);
+            return parseDataAppQueryManifest(raw.toString('utf-8'));
+        } catch (error) {
+            const missing =
+                error instanceof S3ServiceException &&
+                (error.name === 'NoSuchKey' || error.name === 'NotFound');
+            if (!missing) {
+                this.logger.warn(
+                    `App ${appUuid}: could not read query manifest ${key}: ${
+                        error instanceof Error ? error.message : String(error)
+                    }`,
+                );
+            }
+            return null;
+        }
+    }
+
+    async getAppQueryManifest(
+        user: SessionUser,
+        projectUuid: string,
+        appUuidOrSlug: string,
+    ): Promise<DataAppQueryManifestResult> {
+        const app = await this.appModel.getAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanViewApp(user, app);
+        const readyVersion = await this.appModel.getLatestReadyVersion(
+            app.app_id,
+        );
+        if (!readyVersion) {
+            throw new NotFoundError(
+                `Data app has no ready version yet: ${appUuidOrSlug}`,
+            );
+        }
+        return {
+            version: readyVersion.version,
+            queries: await this.readVersionQueryManifest(
+                app.app_id,
+                readyVersion.version,
+            ),
         };
     }
 

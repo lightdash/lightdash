@@ -120,6 +120,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AppGenerateController.getAppCode',
     'AppGenerateController.getAppImageUrl',
     'AppGenerateController.getAppPromoteDiff',
+    'AppGenerateController.getAppQueries',
     'AppGenerateController.getAppThumbnailUrl',
     'AppGenerateController.getAppVersionThumbnailUrl',
     'AppGenerateController.getDataAppAuthoringContext',

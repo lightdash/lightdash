@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import { parseSync } from 'oxc-parser';
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
+import { queryManifestVitePlugin } from './queryManifest.js';
 
 /**
  * Build a binary-searchable index of newline offsets so we can map JSX
@@ -219,7 +220,7 @@ export default defineConfig(({ mode }) => {
     ].join('; ');
 
     return {
-        plugins: [jsxSourceLocVitePlugin(), react()],
+        plugins: [queryManifestVitePlugin(), jsxSourceLocVitePlugin(), react()],
         base: './',
         resolve: {
             alias: {

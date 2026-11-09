@@ -14,6 +14,7 @@ COPY template/package.json ./package.json
 COPY template/.npmrc ./.npmrc
 COPY template/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY template/vite.config.js ./vite.config.js
+COPY template/queryManifest.js ./queryManifest.js
 COPY template/tsconfig.json ./tsconfig.json
 COPY template/tailwind.config.js ./tailwind.config.js
 COPY template/postcss.config.js ./postcss.config.js

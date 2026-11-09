@@ -31,6 +31,7 @@ Everything outside `src/` is locked — Claude Code only writes inside `src/`.
 | `src/lib/utils.ts`                | `cn()` helper for Tailwind class merging                                                           |
 | `src/main.jsx`                    | Bootstrap with React + QueryClientProvider                                                         |
 | `vite.config.js`                  | Vite + React plugin + `@/` path alias + CDN base URL support                                       |
+| `queryManifest.js`                | Build-time analyzer: folds every `@lightdash/query-sdk` chain into `dist/assets/queries.json`      |
 | `tailwind.config.js`              | Tailwind with shadcn theme tokens                                                                  |
 
 ## What Claude Code changes

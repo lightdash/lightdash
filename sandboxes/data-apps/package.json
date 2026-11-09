@@ -4,6 +4,7 @@
     "scripts": {
         "build": "tsx build-sandbox.ts",
         "test": "tsx test-generate.ts",
+        "test:manifest": "tsx --test queryManifest.test.ts",
         "bench": "tsx benchmark/run.ts",
         "bench:render": "tsx benchmark/renderGate.ts",
         "bench:gallery": "tsx benchmark/gallery.ts"
@@ -13,6 +14,7 @@
         "tsx": "4.0.0"
     },
     "devDependencies": {
+        "oxc-parser": "0.128.0",
         "playwright": "1.57.0",
         "yaml": "2.8.3"
     }

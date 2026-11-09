@@ -18,6 +18,7 @@ export * from './apps/appState';
 export * from './apps/customChartTypeSerializer';
 export * from './apps/deliveryCapture';
 export * from './apps/elementReference';
+export * from './apps/queryManifest';
 export * from './apps/queryReference';
 export * from './apps/sdkFeatures';
 export * from './apps/dataAppVizSchemaChanges';

@@ -180,6 +180,7 @@ describe('AppGenerateService.readDataApp', () => {
             },
             resources: null,
             dataReferences,
+            queries: null,
         });
     });
 
