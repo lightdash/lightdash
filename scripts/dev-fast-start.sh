@@ -328,7 +328,7 @@ if [ "$EE_MODE" = true ]; then
     if [ -n "$_ee_missing" ]; then
         echo "WARN: EE license present but the AI profile config is incomplete (missing:${_ee_missing})."
         echo "WARN: this bare --ee run brings up license + EE schema only; Copilot, agents (Aurora), and BigQuery Google-SSO stay OFF."
-        echo "WARN: for the full experience run '/docker-dev start ee' (or 'start newux' for the new onboarding UX) — it pulls the secrets and sets the flags. See scripts/dev-profiles.json."
+        echo "WARN: for the full experience pull the missing secrets with './scripts/dev-op-pull.sh pull ANTHROPIC_API_KEY AUTH_GOOGLE_OAUTH2_CLIENT_ID AUTH_GOOGLE_OAUTH2_CLIENT_SECRET' and set the env values of the 'ee' profile in scripts/dev-profiles.json."
     fi
 fi
 
