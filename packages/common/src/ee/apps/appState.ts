@@ -76,6 +76,33 @@ export type AppStateConflictData = {
     current: AppStateSharedEntry | null;
 };
 
+/** Admin view of one shared key: metadata only, never the value. */
+export type AppStateAdminSharedKey = {
+    key: string;
+    version: number;
+    /** Serialized size of the current value. */
+    valueBytes: number;
+    updatedAt: string;
+    updatedBy: AppStateAuthor | null;
+};
+
+/**
+ * What the app's manage view shows about its stored state. Per-user values
+ * are private to each writer, so only their volume is reported.
+ */
+export type AppStateAdminOverview = {
+    shared: AppStateAdminSharedKey[];
+    user: {
+        keyCount: number;
+        userCount: number;
+    };
+};
+
+export type ApiAppStateAdminOverviewResponse = {
+    status: 'ok';
+    results: AppStateAdminOverview;
+};
+
 export type ApiAppStateSnapshotResponse = {
     status: 'ok';
     results: AppStateSnapshot;

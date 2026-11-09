@@ -1,6 +1,7 @@
 import {
     ForbiddenError,
     type ApiAppSharedStateResponse,
+    type ApiAppStateAdminOverviewResponse,
     type ApiAppStateHistoryResponse,
     type ApiAppStateSnapshotResponse,
     type ApiAppUserStateResponse,
@@ -65,6 +66,37 @@ export class AppStateController extends BaseController {
         }
         this.setStatus(200);
         const results = await this.getService().getSnapshot(
+            req.account,
+            projectUuid,
+            appUuid,
+        );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * What the app's manage view shows: shared-key metadata (size, version,
+     * last author) without values, and per-user volume only. Requires manage
+     * access to the app.
+     * @summary Get app state admin overview
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AppStateController.getAdminOverview'),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/admin')
+    @OperationId('getAppStateAdminOverview')
+    async getAdminOverview(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() appUuid: UUID,
+    ): Promise<ApiAppStateAdminOverviewResponse> {
+        if (!req.account) {
+            throw new ForbiddenError('Account is required');
+        }
+        this.setStatus(200);
+        const results = await this.getService().getAdminOverview(
             req.account,
             projectUuid,
             appUuid,
