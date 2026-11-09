@@ -12,11 +12,10 @@ const filter = {
     },
     lockedTabUuids: ['tab-uuid'],
     requiredGroupId: 'group-uuid',
-    slug: 'orders-country',
 };
 
 describe('serializeDashboardFiltersForAiContext', () => {
-    it('removes opaque identifiers and slugs from every filter group', () => {
+    it('removes opaque identifiers from every filter group', () => {
         const filters: DashboardFilters = {
             dimensions: [filter],
             metrics: [filter],

@@ -191,9 +191,11 @@ import {
     type SnapshotAsCodeContent,
 } from './contentAsCodeSnapshot';
 import {
+    assertValidFilterSlugs,
     getControlOrderAsCode,
     getControlOrderWithIds,
     getFilterSlugsAsCode,
+    getUploadedControlSlugs,
 } from './controlOrder';
 import {
     getConfigWithDateZoomTileSlugs,
@@ -5814,11 +5816,7 @@ export class CoderService extends BaseService {
         if (
             hasParameterControls ||
             dashboardWithDefaults.config?.controlOrder !== undefined ||
-            existingDashboard?.config?.controlOrder !== undefined ||
-            [
-                ...dashboardWithDefaults.filters.dimensions,
-                ...dashboardWithDefaults.filters.metrics,
-            ].some((filter) => filter.slug !== undefined)
+            existingDashboard?.config?.controlOrder !== undefined
         ) {
             const enabled =
                 await this.dashboardService.areDashboardControlsEnabled(
@@ -5874,11 +5872,15 @@ export class CoderService extends BaseService {
             tiles: dashboardWithDefaults.tiles,
         });
 
+        if (controlsEnabled)
+            assertValidFilterSlugs([
+                ...dashboardWithDefaults.filters.dimensions,
+                ...dashboardWithDefaults.filters.metrics,
+            ]);
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
             dashboardWithResolvedTabs,
             tilesWithUuids,
-            existingDashboard?.filters ?? { dimensions: [], metrics: [] },
-            controlsEnabled,
+            existingDashboard?.filters.dimensions ?? [],
         );
         let dashboardConfig: DashboardConfig | undefined;
         if (dashboardWithResolvedTabs.config) {
@@ -5914,12 +5916,32 @@ export class CoderService extends BaseService {
             controlOrder =
                 fileOrder === undefined
                     ? undefined
-                    : getControlOrderWithIds(fileOrder, {
-                          filters: dashboardFilters,
-                          parameterControls:
-                              dashboardConfig?.parameterControls ?? [],
-                          sections: dashboardConfig?.controlSections ?? [],
-                      });
+                    : getControlOrderWithIds(
+                          fileOrder,
+                          getUploadedControlSlugs(
+                              {
+                                  filters: [
+                                      ...(dashboardWithResolvedTabs.filters
+                                          ?.dimensions ?? []),
+                                      ...(dashboardWithResolvedTabs.filters
+                                          ?.metrics ?? []),
+                                  ],
+                                  parameterControls:
+                                      dashboardWithResolvedTabs.config
+                                          ?.parameterControls ?? [],
+                                  sections:
+                                      dashboardWithDefaults.config
+                                          ?.controlSections ?? [],
+                              },
+                              {
+                                  filters: dashboardFilters,
+                                  parameterControls:
+                                      dashboardConfig?.parameterControls ?? [],
+                                  sections:
+                                      dashboardConfig?.controlSections ?? [],
+                              },
+                          ),
+                      );
         }
         if (dashboardConfig || controlOrder !== undefined) {
             dashboardConfig = {

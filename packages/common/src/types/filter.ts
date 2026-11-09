@@ -220,8 +220,6 @@ export type DashboardFilterRule<
     lockedTabUuids?: string[];
     /** Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling. */
     sectionId?: string;
-    /** Portable identity supplied by content as code. */
-    slug?: string;
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {

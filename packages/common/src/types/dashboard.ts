@@ -248,7 +248,7 @@ export type DateZoomControl = {
 };
 
 export type DashboardControlSection = {
-    /** Portable identity supplied by content as code. */
+    /** Ignored: content as code derives slugs on every download. */
     slug?: string;
     /** uuid, stable across dashboard versions */
     id: string;
@@ -271,7 +271,7 @@ export type DashboardParameterTarget<TileRef extends string = string> =
 
 export type DashboardParameterControl = {
     id: string;
-    /** Portable identity supplied by content as code. */
+    /** Ignored: content as code derives slugs on every download. */
     slug?: string;
     label: string | null;
     value: ParameterValue | null;

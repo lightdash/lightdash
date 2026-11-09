@@ -21,10 +21,7 @@ import {
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { CoderService } from './CoderService';
-import {
-    getDashboardScheduledDeliveryFiltersWithTileSlugs,
-    getDashboardScheduledDeliveryFiltersWithTileUuids,
-} from './scheduledContent';
+import { getDashboardScheduledDeliveryFiltersWithTileUuids } from './scheduledContent';
 
 const projectUuid = 'project-uuid';
 const organizationUuid = 'organization-uuid';
@@ -616,7 +613,6 @@ describe('dashboard scheduled delivery filter ids', () => {
                 { id: 'status-id', target: status },
                 { id: 'amount-id', target: amount },
             ],
-            metrics: [],
         },
     } as unknown as DashboardDAO;
     const upload = (targets: (typeof status)[]) =>
@@ -649,53 +645,11 @@ describe('dashboard scheduled delivery filter ids', () => {
         expect(ids).not.toContain('amount-id');
     });
 
-    it('ignores and drops slugs, matching by table and field only', () => {
-        const filters = getDashboardScheduledDeliveryFiltersWithTileUuids(
-            {
-                tiles: [],
-                filters: {
-                    dimensions: [
-                        { id: 'status-id', target: status, slug: 'other' },
-                        { id: 'amount-id', target: amount },
-                    ],
-                },
-            } as unknown as DashboardDAO,
-            ['orders-status', 'orders-amount'].map(
-                (slug, index) =>
-                    ({
-                        target: index === 0 ? status : amount,
-                        slug,
-                        operator: FilterOperator.EQUALS,
-                    }) as Omit<DashboardFilterRule, 'id'>,
-            ),
-        );
-        expect(filters?.map(({ id }) => id)).toEqual([
-            'status-id',
-            'amount-id',
-        ]);
-        expect(filters?.every((filter) => !('slug' in filter))).toBe(true);
-    });
-
-    it('downloads delivery filters without slugs', () => {
-        const [filter] = getDashboardScheduledDeliveryFiltersWithTileSlugs(
-            dashboard,
-            [
-                {
-                    id: 'status-id',
-                    slug: 'orders-status',
-                    target: status,
-                    operator: FilterOperator.EQUALS,
-                } as DashboardFilterRule,
-            ],
-        )!;
-        expect(filter).not.toHaveProperty('slug');
-    });
-
     it('carries no ids from a dashboard without that filter', () => {
         const ids = getDashboardScheduledDeliveryFiltersWithTileUuids(
             {
                 tiles: [],
-                filters: { dimensions: [], metrics: [] },
+                filters: { dimensions: [] },
             } as unknown as DashboardDAO,
             [{ target: status, operator: FilterOperator.EQUALS }] as Omit<
                 DashboardFilterRule,

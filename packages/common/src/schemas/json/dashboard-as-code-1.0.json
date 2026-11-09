@@ -664,10 +664,6 @@
                         "singleValue": {
                             "type": "boolean"
                         },
-                        "slug": {
-                            "description": "Portable identity supplied by content as code.",
-                            "type": "string"
-                        },
                         "tileTargets": {
                             "$ref": "#/$defs/DashboardTileTargets"
                         }
@@ -684,6 +680,10 @@
                 {
                     "properties": {
                         "sectionSlug": {
+                            "type": "string"
+                        },
+                        "slug": {
+                            "description": "Resolves `controlOrder` refs in this file; derived on download, never stored",
                             "type": "string"
                         }
                     },
@@ -1545,7 +1545,7 @@
                     "type": "boolean"
                 },
                 "slug": {
-                    "description": "Portable identity supplied by content as code.",
+                    "description": "Resolves `controlOrder` refs in this file; derived on download, never stored",
                     "type": "string"
                 },
                 "target": {
