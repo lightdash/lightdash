@@ -2176,14 +2176,15 @@ const AppGenerate: FC = () => {
                                     >
                                         Build a Data App
                                     </Text>
-                                    <Text
-                                        size="sm"
-                                        className={classes.composeSubtitle}
-                                    >
-                                        Describe the app you want. It runs on
-                                        your project&apos;s models and metrics.
+                                    <Text size="sm" c="dimmed">
+                                        Pick a starting point, then describe
+                                        what you want to build.
                                     </Text>
                                 </Stack>
+                                <AppTemplatePicker
+                                    selected={selectedTemplate}
+                                    onSelectedChange={setSelectedTemplate}
+                                />
                             </Stack>
                         )}
                         <Box
@@ -3340,17 +3341,6 @@ const AppGenerate: FC = () => {
                                     />
                                 </Box>
                             </Box>
-                        )}
-                        {newAppLanding && (
-                            <Stack gap={8} className={classes.composeTemplates}>
-                                <Text size="xs" fw={500} c="dimmed">
-                                    Start from a format (optional)
-                                </Text>
-                                <AppTemplatePicker
-                                    selected={selectedTemplate}
-                                    onSelectedChange={setSelectedTemplate}
-                                />
-                            </Stack>
                         )}
                     </Box>
                     {newAppLanding && (

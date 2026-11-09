@@ -3,10 +3,11 @@ import {
     isAppVersionInProgress,
     type ApiAppSummary,
 } from '@lightdash/common';
-import { Anchor, Box, Loader, Text } from '@mantine/core';
+import { Anchor, Box, Group, Loader } from '@mantine/core';
+import { IconArrowUpRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useRecentApps } from '../hooks/useMyApps';
@@ -23,7 +24,6 @@ const RecentAppSuggestion: FC<{
     const isBuilding =
         app.lastVersionStatus !== null &&
         isAppVersionInProgress(app.lastVersionStatus);
-    const startedAgo = useTimeAgo(app.createdAt);
 
     return (
         <Anchor
@@ -33,36 +33,34 @@ const RecentAppSuggestion: FC<{
             title={`Continue building: ${displayName}`}
             onClick={() => onClick(app, position)}
         >
-            <Box component="span" className={classes.row}>
-                <Box component="span" className={classes.label}>
-                    {displayName}
-                </Box>
+            <Group gap={4} wrap="nowrap">
+                {isBuilding ? (
+                    <Loader size={10} color="blue.6" />
+                ) : (
+                    <MantineIcon
+                        icon={IconArrowUpRight}
+                        size={12}
+                        color="ldGray.5"
+                    />
+                )}
+                <span className={classes.prefix}>Continue building:</span>
+                <span className={classes.label}>{displayName}</span>
                 {isBuilding && (
-                    <Box component="span" className={classes.status}>
-                        Building
+                    <span className={classes.status}>
+                        · Building
                         {app.lastVersionNumber !== null
                             ? ` v${app.lastVersionNumber}`
                             : ''}
-                    </Box>
-                )}
-                {!isBuilding && app.lastVersionStatus !== 'error' && (
-                    <Box component="span" className={classes.status}>
-                        {app.lastVersionNumber !== null
-                            ? `v${app.lastVersionNumber} · `
-                            : ''}
-                        {startedAgo}
-                    </Box>
+                    </span>
                 )}
                 {app.lastVersionStatus === 'error' && (
-                    <Box
-                        component="span"
+                    <span
                         className={`${classes.status} ${classes.errorStatus}`}
                     >
-                        Build failed
-                    </Box>
+                        · Build failed
+                    </span>
                 )}
-                {isBuilding && <Loader size={10} color="ldGray.6" />}
-            </Box>
+            </Group>
         </Anchor>
     );
 };
@@ -79,9 +77,6 @@ const RecentAppSuggestions: FC<{ projectUuid: string }> = ({ projectUuid }) => {
 
     return (
         <Box className={classes.suggestions}>
-            <Text size="xs" fw={500} c="dimmed" className={classes.heading}>
-                Continue building
-            </Text>
             {apps.map((app, position) => (
                 <RecentAppSuggestion
                     key={app.appUuid}

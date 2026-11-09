@@ -128,10 +128,6 @@
     letter-spacing: -0.02em;
 }
 
-.composeSubtitle {
-    color: var(--mantine-color-ldGray-7);
-}
-
 /* Non-interactive "starting point" chip. Sits in a row of borderless icon
    controls, so it reads as a filled tag rather than another button. */
 .startingFromChip {
@@ -160,11 +156,31 @@
        fanout can't both fit. */
     height: auto;
     max-height: min(760px, calc(100dvh - 84px));
+    border-radius: var(--mantine-radius-lg);
+    border: 1px solid;
     overflow: hidden auto;
     /* Reserve room for the window-chrome dots / back button row. */
     padding-top: 4px;
-    /* No card of its own: heading, composer and formats sit on the page. */
-    background-color: transparent;
+    border-color: var(--mantine-color-default-border);
+    box-shadow:
+        0 1px 2px alpha(var(--mantine-color-black), 0.04),
+        0 12px 32px -12px alpha(var(--mantine-color-black), 0.12);
+}
+
+/* Three traffic-light dots, echoing the data-app (window) icon. */
+.chatPanelCompose::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 22px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    z-index: 1;
+    background-color: var(--mantine-color-ldGray-3);
+    box-shadow:
+        14px 0 0 var(--mantine-color-ldGray-3),
+        28px 0 0 var(--mantine-color-ldGray-3);
 }
 
 .chatMessages {
@@ -274,12 +290,6 @@
    The input keeps its toolbar fully visible (no internal max-height clip). */
 .chatPanelCompose .composeHeading {
     flex: 0 0 auto;
-}
-
-.composeTemplates {
-    flex: 0 0 auto;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
-        var(--mantine-spacing-md);
 }
 
 .chatPanelCompose .chatInputArea {
