@@ -22,6 +22,7 @@ import { CoderService } from './CoderService';
 import {
     getConfigWithParameterControlTileSlugs,
     getConfigWithParameterControlTileUuids,
+    getStableDimensionFilterIds,
     withTileWarnings,
 } from './dashboardReferences';
 import { getParameterControlsWithIds } from './parameterControlSlugs';
@@ -571,6 +572,7 @@ describe('CoderService', () => {
                 filters: {
                     dimensions: [
                         {
+                            target: { fieldId: 'f', tableName: 't' },
                             tileTargets: {
                                 'chart-slug-1': {
                                     someTargetProperty: 'value1',
@@ -606,6 +608,7 @@ describe('CoderService', () => {
             const result = CoderService.getFiltersWithTileUuids(
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
+                [],
             );
 
             expect(result.dimensions[0].tileTargets).toEqual({
@@ -623,6 +626,7 @@ describe('CoderService', () => {
                 filters: {
                     dimensions: [
                         {
+                            target: { fieldId: 'f', tableName: 't' },
                             tileTargets: {
                                 'chart-slug-1': {
                                     someTargetProperty: 'value1',
@@ -658,6 +662,7 @@ describe('CoderService', () => {
             const result = CoderService.getFiltersWithTileUuids(
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
+                [],
             );
 
             // We show an error for chart-slug-2
@@ -673,12 +678,93 @@ describe('CoderService', () => {
         });
     });
 
+    describe('stable dimension filter ids on upload', () => {
+        const status = { fieldId: 'orders_status', tableName: 'orders' };
+        const amount = { fieldId: 'orders_amount', tableName: 'orders' };
+        const savedFilters = [
+            { id: 'status-id', target: status },
+            { id: 'amount-id', target: amount },
+        ] as DashboardFilterRule[];
+        const upload = (targets: (typeof status)[]) =>
+            CoderService.getFiltersWithTileUuids(
+                {
+                    filters: {
+                        dimensions: targets.map((target) => ({
+                            target,
+                            tileTargets: {},
+                        })),
+                    },
+                } as AnyType,
+                [],
+                savedFilters,
+            ).dimensions.map(({ id }) => id);
+
+        it('keeps every id for an unchanged file', () => {
+            expect(upload([status, amount])).toEqual([
+                'status-id',
+                'amount-id',
+            ]);
+        });
+
+        it('keeps ids when filters are reordered or one is removed', () => {
+            expect(upload([amount, status])).toEqual([
+                'amount-id',
+                'status-id',
+            ]);
+            expect(upload([amount])).toEqual(['amount-id']);
+        });
+
+        it('mints an id for a new filter and keeps the others', () => {
+            const ids = upload([
+                status,
+                { fieldId: 'orders_date', tableName: 'orders' },
+            ]);
+            expect(ids[0]).toBe('status-id');
+            expect(ids[1]).not.toMatch(/status-id|amount-id/);
+        });
+
+        it('mints fresh ids for two filters on one field', () => {
+            const ids = upload([status, status, amount]);
+            expect(ids[2]).toBe('amount-id');
+            expect(ids[0]).not.toBe('status-id');
+            expect(ids[1]).not.toBe('status-id');
+            expect(ids[0]).not.toBe(ids[1]);
+        });
+
+        it('mints fresh ids when the saved dashboard has two filters on one field', () => {
+            const ids = getStableDimensionFilterIds(
+                [{ target: status }],
+                [
+                    { id: 'status-1', target: status },
+                    { id: 'status-2', target: status },
+                ],
+            );
+            expect(ids[0]).not.toMatch(/status-1|status-2/);
+        });
+
+        it('matches on table as well as field', () => {
+            const ids = upload([{ ...status, tableName: 'customers' }]);
+            expect(ids[0]).not.toBe('status-id');
+        });
+
+        it('carries no ids onto a dashboard without saved filters', () => {
+            const ids = getStableDimensionFilterIds(
+                [{ target: status }, { target: amount }],
+                [],
+            );
+            expect(ids).toHaveLength(2);
+            expect(ids).not.toContain('status-id');
+            expect(ids).not.toContain('amount-id');
+        });
+    });
+
     describe('data app tile filter target round-trip', () => {
         it('should preserve a single data app tile filter target through download then upload', () => {
             const mockDashboard = {
                 filters: {
                     dimensions: [
                         {
+                            target: { fieldId: 'f', tableName: 't' },
                             tileTargets: {
                                 'original-uuid': { fieldId: 'field-1' },
                             },
@@ -713,6 +799,7 @@ describe('CoderService', () => {
             const restoredFilters = CoderService.getFiltersWithTileUuids(
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
+                [],
             );
 
             expect(restoredFilters.dimensions[0].tileTargets).toEqual({
@@ -725,6 +812,7 @@ describe('CoderService', () => {
                 filters: {
                     dimensions: [
                         {
+                            target: { fieldId: 'f', tableName: 't' },
                             tileTargets: {
                                 'tile-1-uuid': { fieldId: 'field-1' },
                                 'tile-2-uuid': { fieldId: 'field-2' },
@@ -775,6 +863,7 @@ describe('CoderService', () => {
             const restoredFilters = CoderService.getFiltersWithTileUuids(
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
+                [],
             );
 
             // The target aimed at tile 2 resolves to tile 2's new uuid,
