@@ -1,12 +1,11 @@
-import { FeatureFlags } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useIsCopilotEnabled } from '../../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
 import { useManagedAgentLatestRun } from '../../ee/features/managedAgent/hooks/useManagedAgentLatestRun';
 import { useManagedAgentSettings } from '../../ee/features/managedAgent/hooks/useManagedAgentSettings';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineBaseProvider from '../../providers/MantineBaseProvider';
 import { AutopilotNavButton } from './AutopilotNavButton';
@@ -20,8 +19,8 @@ vi.mock('../../ee/features/managedAgent/hooks/useManagedAgentSettings', () => ({
     useManagedAgentSettings: vi.fn(),
 }));
 
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: vi.fn(),
+vi.mock('../../ee/features/aiCopilot/hooks/useIsCopilotEnabled', () => ({
+    useIsCopilotEnabled: vi.fn(),
 }));
 
 vi.mock('../../providers/App/useApp', () => ({ default: vi.fn() }));
@@ -44,10 +43,10 @@ describe('AutopilotNavButton', () => {
                 },
             },
         } as unknown as ReturnType<typeof useApp>);
-        vi.mocked(useServerFeatureFlag).mockReturnValue({
-            data: { id: FeatureFlags.AiAutopilot, enabled: true },
+        vi.mocked(useIsCopilotEnabled).mockReturnValue({
+            isCopilotEnabled: true,
             isLoading: false,
-        } as ReturnType<typeof useServerFeatureFlag>);
+        });
         vi.mocked(useManagedAgentSettings).mockReturnValue({
             data: undefined,
         } as ReturnType<typeof useManagedAgentSettings>);

@@ -1683,6 +1683,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
                     asyncQueryService: repository.getAsyncQueryService(),
+                    aiCreditService:
+                        repository.getAiCreditService<AiCreditService>(),
                 }),
             deployService: ({ models, clients, repository, context }) =>
                 new DeployService({
