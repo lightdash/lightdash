@@ -27,6 +27,7 @@ import {
     parseAppSdkSpaceChartsRequest,
     resolveAppSdkSpaceUuid,
     isAppSdkScheduleDownloadRoute,
+    appStateValueByteLength,
     JWT_HEADER_NAME,
     LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
@@ -236,13 +237,10 @@ const appStateOpScope = (op: unknown): AppStateEvent['scope'] => {
     }
 };
 
+// UTF-8 bytes, matching the backend's enforced value-size limit.
 const appStateValueSize = (req: AppStateBridgeRequest): number | null => {
     if (req.op !== 'set-user' && req.op !== 'set-shared') return null;
-    try {
-        return JSON.stringify(req.value)?.length ?? null;
-    } catch {
-        return null;
-    }
+    return appStateValueByteLength(req.value);
 };
 
 // Headers every API call made on the app's behalf carries: embed auth and

@@ -37,7 +37,14 @@ const useTrackedRequests = <
     const interruptedIdsRef = useRef<Set<string>>(new Set());
 
     const clear = useCallback(() => {
-        setRequests([]);
+        setRequests((prev) => {
+            // A cleared pending request's fetch keeps running; drop its late
+            // terminal event instead of letting it repopulate the empty log.
+            for (const r of prev) {
+                if (r.status === 'pending') interruptedIdsRef.current.add(r.id);
+            }
+            return [];
+        });
     }, []);
 
     const interruptInFlight = useCallback(() => {

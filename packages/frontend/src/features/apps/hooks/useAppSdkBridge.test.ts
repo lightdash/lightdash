@@ -3266,6 +3266,21 @@ describe('app-state branch', () => {
             expect(events[1].durationMs).not.toBeNull();
         });
 
+        it('sizes values in UTF-8 bytes, matching the backend limit', async () => {
+            const events = renderBridgeWithAppStateEvents();
+            mockFetchOk({ status: 'ok', results: {} });
+
+            postAppState({
+                op: 'set-user',
+                key: 'note',
+                value: '日本語',
+            });
+
+            await vi.waitFor(() => expect(events).toHaveLength(2));
+            // '"日本語"' is 5 chars but 11 UTF-8 bytes
+            expect(events[0].valueSize).toBe(11);
+        });
+
         it('emits a terminal error carrying the SDK error code', async () => {
             const events = renderBridgeWithAppStateEvents();
             mockFetchNonOk(
