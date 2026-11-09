@@ -294,3 +294,23 @@ test('rejects an unmappable joined package instead of stamping it as the base so
         resolvePackages(models, args),
     );
 });
+
+const twoSourcesProvideAnalytics = () => {
+    const { models, args } = setup();
+    models.dbtSourceRefCatalogModel.getProjectNames.mockResolvedValue([
+        { dbt_source_uuid: 'parent-primary', project_name: 'analytics' },
+        { dbt_source_uuid: 'parent-extra', project_name: 'analytics' },
+    ]);
+    args.explores = [explore('orders', 'analytics')];
+    return { models, args };
+};
+
+test('PROD-12882: an explicit source decides which source owns a package that two sources provide', async () => {
+    const { models, args } = twoSourcesProvideAnalytics();
+    const result = await resolveCliPreviewDeploy(models, {
+        ...args,
+        sourceUuid: 'extra',
+    });
+    expect(result.sourcesByPackage.get('analytics')).toBe('extra');
+    expect(result.sourceUuids).toEqual(['extra']);
+});
