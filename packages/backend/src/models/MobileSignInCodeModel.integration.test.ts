@@ -392,6 +392,16 @@ describe('MobileSignInCodeModel (PostgreSQL)', () => {
         expect(await row(fresh.code)).toBeDefined();
     });
 
+    it('finds the organization of a code without changing it', async () => {
+        const minted = await mint();
+        expect(await model.findOrganizationUuid(minted.code)).toBe(
+            organizationUuid,
+        );
+        expect(await model.findOrganizationUuid('A'.repeat(43))).toBeNull();
+        expect(await model.findOrganizationUuid('short')).toBeNull();
+        expect((await row(minted.code))?.status).toBe('pending');
+    });
+
     it('reads a rate counter without changing it', async () => {
         const counters = new MobileAppLinkModel({ database });
         const counter = {

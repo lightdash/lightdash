@@ -188,6 +188,14 @@ export class MobileSignInCodeModel {
         };
     }
 
+    async findOrganizationUuid(code: string): Promise<string | null> {
+        if (!isMobileSignInCode(code)) return null;
+        const row = await this.database(MobileSignInCodesTableName)
+            .where('code_hash', sha256(code))
+            .first('organization_uuid');
+        return row?.organization_uuid ?? null;
+    }
+
     async claim(args: {
         code: string;
         clientId: string;

@@ -35,6 +35,7 @@ export enum MobileSignInRefusal {
     EMAIL_UNVERIFIED = 'email_unverified',
     ORGANIZATION_REQUIRED = 'organization_required',
     FEATURE_DISABLED = 'feature_disabled',
+    QR_SIGN_IN_DISABLED = 'qr_sign_in_disabled',
     RATE_LIMITED = 'rate_limited',
     APPROVAL_SESSION_MISMATCH = 'approval_session_mismatch',
     INVALID_STATE = 'invalid_state',

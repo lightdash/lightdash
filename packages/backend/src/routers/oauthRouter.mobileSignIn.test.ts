@@ -137,6 +137,17 @@ describe('POST /api/v1/oauth/mobile-sign-in/claim', () => {
             401,
             { error: 'invalid_client' },
         ],
+        [
+            new MobileSignInOAuthError('access_denied', {
+                description: 'qr_sign_in_disabled',
+                statusCode: 403,
+            }),
+            403,
+            {
+                error: 'access_denied',
+                error_description: 'qr_sign_in_disabled',
+            },
+        ],
     ])('maps %s', async (error, status, json) => {
         const { base, close } = await startApp({
             getMobileSignInService: () => ({
@@ -211,6 +222,18 @@ describe('POST /api/v1/oauth/token with a mobile sign-in code', () => {
             new MobileSignInOAuthError('authorization_pending'),
             400,
             { error: 'authorization_pending' },
+            null,
+        ],
+        [
+            new MobileSignInOAuthError('access_denied', {
+                description: 'qr_sign_in_disabled',
+                statusCode: 403,
+            }),
+            403,
+            {
+                error: 'access_denied',
+                error_description: 'qr_sign_in_disabled',
+            },
             null,
         ],
         [

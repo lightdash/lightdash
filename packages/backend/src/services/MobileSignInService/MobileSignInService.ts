@@ -47,6 +47,16 @@ import { MobileSignInOAuthError } from './MobileSignInOAuthError';
 const CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 const MATCH_NUMBER_PATTERN = /^[0-9]{2}$/;
+export const QR_SIGN_IN_DISABLED_MESSAGE =
+    'Sign in with a QR code is turned off for this organization';
+
+const REDEEM_REFUSAL_DESCRIPTIONS: Partial<
+    Record<MobileSignInRefusal, string>
+> = {
+    [MobileSignInRefusal.MANAGED_SIGN_IN_REQUIRED]: 'managed_sign_in_required',
+    [MobileSignInRefusal.QR_SIGN_IN_DISABLED]: 'qr_sign_in_disabled',
+};
+
 const UNCOUNTED_REDEEM_ERRORS: MobileSignInOAuthError['error'][] = [
     'authorization_pending',
     'slow_down',
@@ -232,6 +242,40 @@ export class MobileSignInService extends BaseService {
         return flag.enabled;
     }
 
+    private async isQrSignInEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const flag = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.MobileQrSignIn,
+        });
+        return flag.enabled;
+    }
+
+    private static refusalError(refusal: MobileSignInRefusal): ForbiddenError {
+        return new ForbiddenError(
+            refusal === MobileSignInRefusal.QR_SIGN_IN_DISABLED
+                ? QR_SIGN_IN_DISABLED_MESSAGE
+                : 'Sign-in codes are not available',
+            { reason: refusal },
+        );
+    }
+
+    private async assertQrSignInEnabledForCode(code: unknown): Promise<void> {
+        if (typeof code !== 'string') return;
+        const organizationUuid =
+            await this.mobileSignInCodeModel.findOrganizationUuid(code);
+        if (
+            organizationUuid !== null &&
+            !(await this.isQrSignInEnabled(organizationUuid))
+        ) {
+            throw new MobileSignInOAuthError('access_denied', {
+                description: MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+                statusCode: 403,
+            });
+        }
+    }
+
     private async isManaged(
         email: string | undefined,
         platforms: readonly MobileSignInPlatform[],
@@ -254,6 +298,9 @@ export class MobileSignInService extends BaseService {
         if (!(await this.isEnabled(user.organizationUuid))) {
             return MobileSignInRefusal.FEATURE_DISABLED;
         }
+        if (!(await this.isQrSignInEnabled(user.organizationUuid))) {
+            return MobileSignInRefusal.QR_SIGN_IN_DISABLED;
+        }
         if (!user.isActive) {
             return MobileSignInRefusal.FEATURE_DISABLED;
         }
@@ -272,11 +319,7 @@ export class MobileSignInService extends BaseService {
         reason: MobileSignInMintReason,
     ): Promise<MobileSignInCode> {
         const refusal = await this.refusal(user, MOBILE_PLATFORMS);
-        if (refusal) {
-            throw new ForbiddenError('Sign-in codes are not available', {
-                reason: refusal,
-            });
-        }
+        if (refusal) throw MobileSignInService.refusalError(refusal);
         const rate = await this.consumeRate(
             MOBILE_SIGN_IN_RATE_LIMITS.mintPerUser,
             user.userUuid,
@@ -366,11 +409,14 @@ export class MobileSignInService extends BaseService {
     ): Promise<MobileSignInDecision> {
         if (decision === 'approved') {
             const refusal = await this.refusal(user, MOBILE_PLATFORMS);
-            if (refusal) {
-                throw new ForbiddenError('Sign-in codes are not available', {
-                    reason: refusal,
-                });
-            }
+            if (refusal) throw MobileSignInService.refusalError(refusal);
+        } else if (
+            !user.organizationUuid ||
+            !(await this.isQrSignInEnabled(user.organizationUuid))
+        ) {
+            throw MobileSignInService.refusalError(
+                MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+            );
         }
         const result = await this.mobileSignInCodeModel.decide({
             codeUuid,
@@ -568,6 +614,7 @@ export class MobileSignInService extends BaseService {
             });
         }
         const client = await this.getMobileClient(clientId);
+        await this.assertQrSignInEnabledForCode(code);
 
         const result = await this.mobileSignInCodeModel.claim({
             code,
@@ -658,6 +705,7 @@ export class MobileSignInService extends BaseService {
                 description: 'match_number',
             });
         }
+        await this.assertQrSignInEnabledForCode(args.code);
         const result = await this.mobileSignInCodeModel.redeem({
             code: args.code,
             clientId: args.clientId,
@@ -736,9 +784,11 @@ export class MobileSignInService extends BaseService {
             );
             throw new MobileSignInOAuthError('access_denied', {
                 description:
-                    refusal === MobileSignInRefusal.MANAGED_SIGN_IN_REQUIRED
-                        ? 'managed_sign_in_required'
-                        : 'user_not_allowed',
+                    REDEEM_REFUSAL_DESCRIPTIONS[refusal] ?? 'user_not_allowed',
+                statusCode:
+                    refusal === MobileSignInRefusal.QR_SIGN_IN_DISABLED
+                        ? 403
+                        : 400,
             });
         }
         return { user, metadata: auditMetadata };

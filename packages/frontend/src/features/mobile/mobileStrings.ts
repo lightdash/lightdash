@@ -62,6 +62,8 @@ export const MOBILE_SIGN_IN_STRINGS = {
         [MobileSignInRefusal.FEATURE_DISABLED]:
             'Phone sign-in is not available for your account.',
         [MobileSignInRefusal.RATE_LIMITED]: 'Too many codes. Try again later.',
+        [MobileSignInRefusal.QR_SIGN_IN_DISABLED]:
+            'Sign-in with a QR code is turned off.',
         [MobileSignInRefusal.APPROVAL_SESSION_MISMATCH]:
             'Reload the page and try again.',
         [MobileSignInRefusal.INVALID_STATE]: 'Reload the page and try again.',

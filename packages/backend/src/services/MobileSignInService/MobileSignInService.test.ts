@@ -39,6 +39,7 @@ const codeRow = {
 
 const createService = ({
     flagEnabled = true,
+    qrSignInEnabled = true,
     managed = false,
     smtp = true,
     user = sessionUser,
@@ -52,6 +53,7 @@ const createService = ({
 }: {
     now?: () => Date;
     flagEnabled?: boolean;
+    qrSignInEnabled?: boolean;
     managed?: boolean;
     smtp?: boolean;
     user?: SessionUser;
@@ -60,6 +62,7 @@ const createService = ({
     client?: Record<string, unknown> | false;
 } = {}) => {
     const mobileSignInCodeModel = {
+        findOrganizationUuid: vi.fn(async () => organizationUuid),
         mint: vi.fn(async () => ({
             codeUuid: 'code-0000-test',
             code,
@@ -101,10 +104,15 @@ const createService = ({
         mobileAppLinkModel: { incrementRateCounter, getRateCount },
         now,
         featureFlagModel: {
-            get: vi.fn(async () => ({
-                id: 'mobile-settings',
-                enabled: flagEnabled,
-            })),
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === 'mobile-qr-sign-in'
+                            ? qrSignInEnabled
+                            : flagEnabled,
+                }),
+            ),
         },
         userModel: {
             findSessionUserAndOrgByUuid: vi.fn(async () => user),
@@ -775,5 +783,142 @@ describe('MobileSignInService redeem rate limit', () => {
             { error: 'invalid_request', description: 'match_number' },
         );
         expect(incrementRateCounter).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('MobileSignInService mobile-qr-sign-in flag', () => {
+    const claimBody = {
+        code,
+        client_id: 'client-0000-test',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        platform: 'ios',
+    };
+    const redeemArgs = {
+        code,
+        clientId: 'client-0000-test',
+        codeVerifier: verifier,
+        matchNumber: '07',
+    };
+    const offService = () => {
+        const model = {
+            claim: vi.fn(),
+            redeem: vi.fn(),
+            decide: vi.fn(),
+        };
+        return {
+            ...createService({ qrSignInEnabled: false, model }),
+            model,
+        };
+    };
+
+    it('refuses to create a code when the flag is off', async () => {
+        const { service, mobileSignInCodeModel } = offService();
+        const error = await service
+            .mint(sessionUser, 'session-0000', 'show')
+            .catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(ForbiddenError);
+        expect((error as ForbiddenError).message).toBe(
+            'Sign in with a QR code is turned off for this organization',
+        );
+        expect((error as ForbiddenError).data).toEqual({
+            reason: MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+        });
+        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+
+    it.each(['approved', 'declined'] as const)(
+        'refuses to record %s when the flag is off',
+        async (decision) => {
+            const { service, model } = offService();
+            await expectRefusal(
+                service.decide(
+                    sessionUser,
+                    'session-0000',
+                    'code-0000',
+                    'nonce',
+                    decision,
+                    {},
+                ),
+                MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+            );
+            expect(model.decide).not.toHaveBeenCalled();
+        },
+    );
+
+    it('refuses a claim with 403 before it touches the code', async () => {
+        const { service, model } = offService();
+        await expectOAuthError(service.claim(claimBody, {}), {
+            error: 'access_denied',
+            description: 'qr_sign_in_disabled',
+            statusCode: 403,
+        });
+        expect(model.claim).not.toHaveBeenCalled();
+    });
+
+    it('refuses a redeem with 403 before it touches the code', async () => {
+        const { service, model } = offService();
+        await expectOAuthError(service.redeem(redeemArgs, {}), {
+            error: 'access_denied',
+            description: 'qr_sign_in_disabled',
+            statusCode: 403,
+        });
+        expect(model.redeem).not.toHaveBeenCalled();
+    });
+
+    it('lets all five through when the flag is on', async () => {
+        const model = {
+            claim: vi.fn(async () => ({ outcome: 'claimed', row: codeRow })),
+            redeem: vi.fn(async () => ({ outcome: 'redeemed', row: codeRow })),
+            decide: vi.fn(async () => ({ outcome: 'decided', row: codeRow })),
+        };
+        const { service } = createService({ qrSignInEnabled: true, model });
+        await expect(
+            service.mint(sessionUser, 'session-0000', 'show'),
+        ).resolves.toMatchObject({ codeUuid: 'code-0000-test' });
+        await expect(service.claim(claimBody, {})).resolves.toMatchObject({
+            interval: 2,
+        });
+        await expect(
+            service.decide(
+                sessionUser,
+                'session-0000',
+                'code-0000-test',
+                'nonce',
+                'approved',
+                {},
+            ),
+        ).resolves.toMatchObject({ status: MobileSignInCodeStatus.APPROVED });
+        await expect(
+            service.decide(
+                sessionUser,
+                'session-0000',
+                'code-0000-test',
+                'nonce',
+                'declined',
+                {},
+            ),
+        ).resolves.toMatchObject({ status: MobileSignInCodeStatus.DECLINED });
+        await expect(service.redeem(redeemArgs, {})).resolves.toMatchObject({
+            user: sessionUser,
+        });
+    });
+
+    it('re-checks the flag in the user policy after the redeem', async () => {
+        const { service } = createService({
+            qrSignInEnabled: false,
+            model: {
+                findOrganizationUuid: vi.fn(async () => null),
+                redeem: vi.fn(async () => ({
+                    outcome: 'redeemed',
+                    row: codeRow,
+                })),
+            },
+        });
+        await expectOAuthError(service.redeem(redeemArgs, {}), {
+            error: 'access_denied',
+            description: 'qr_sign_in_disabled',
+            statusCode: 403,
+        });
     });
 });
