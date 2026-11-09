@@ -330,6 +330,36 @@ describe('SchedulerClient per-org delivery queue', () => {
         );
     });
 
+    it.each([true, false])(
+        'tags scheduler_job.created with the scheduler useCachedResults %s',
+        async (useCachedResults) => {
+            const track = vi.fn();
+            const client = new SchedulerClient({
+                lightdashConfig: {
+                    allowMultiOrgs: false,
+                    database: { connectionUri: 'postgres://noop' },
+                } as unknown as LightdashConfig,
+                analytics: { track } as unknown as LightdashAnalytics,
+                schedulerModel: {
+                    logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+                } as unknown as SchedulerModel,
+            });
+
+            await client.addScheduledDeliveryJob(
+                new Date('2026-08-03T10:00:00Z'),
+                { ...scheduler, ...traceProperties, useCachedResults },
+                scheduler.schedulerUuid,
+            );
+
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'scheduler_job.created',
+                    properties: expect.objectContaining({ useCachedResults }),
+                }),
+            );
+        },
+    );
+
     it('routes recurring deliveries into a per-org queue on multi-org instances', async () => {
         const client = makeClient(true);
         const addJob = vi

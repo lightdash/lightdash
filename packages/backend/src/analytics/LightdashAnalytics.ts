@@ -80,6 +80,7 @@ import {
     type PersistentDownloadFileAccessMode,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
+    type ResultsCacheStatsDays,
     type SemanticQueryUsage,
     type SqlApprovalToolName,
     type WarehousePhaseTimings,
@@ -941,6 +942,26 @@ type ResultsCacheToggledEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         enabled: boolean;
+    };
+};
+
+type ResultsCacheTtlUpdatedEvent = BaseTrack & {
+    event: 'results_cache.ttl_updated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        // null means the project uses the instance default TTL
+        ttlSeconds: number | null;
+        previousTtlSeconds: number | null;
+    };
+};
+
+type ResultsCacheStatsViewedEvent = BaseTrack & {
+    event: 'results_cache.stats_viewed';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        days: ResultsCacheStatsDays;
     };
 };
 
@@ -2136,6 +2157,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         includeLinks: boolean;
         plainTextEmail: boolean;
         isThresholdAlert: boolean;
+        useCachedResults: boolean;
     };
 };
 export type SchedulerTimezoneUpdateEvent = BaseTrack & {
@@ -2204,6 +2226,8 @@ export type SchedulerJobEvent = BaseTrack & {
         groupId: string | undefined;
         sendNow?: boolean;
         isThresholdAlert?: boolean;
+        // Absent where the scheduler is not loaded, e.g. scheduler_job.deleted
+        useCachedResults?: boolean;
         error?: string;
         // App csv/xlsx deliveries only: shape of what the capture render
         // produced and how much of it reached recipients.
@@ -4931,6 +4955,8 @@ type TypedEvent =
     | ResultsCacheInvalidatedEvent
     | ResultsCacheClearScheduleUpdatedEvent
     | ResultsCacheToggledEvent
+    | ResultsCacheTtlUpdatedEvent
+    | ResultsCacheStatsViewedEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | SavedChartExploreChangedEvent

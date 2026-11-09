@@ -76,6 +76,8 @@ export type PipelineNotebookProps = {
     onSelectNode: (nodeId: string) => void;
     /** The lineage drawn in the notebook. */
     onLineageChange: (lineage: NodeLineage | null) => void;
+    /** Scrolled to with its results open once the run has its result. */
+    initialFocusNodeId: string | null;
 };
 
 const CellStatus: FC<{
@@ -98,9 +100,15 @@ const CellStatus: FC<{
 
 type CellProps = Omit<
     PipelineNotebookProps,
-    'ref' | 'nodes' | 'chatNodeIds' | 'onSelectNode' | 'onLineageChange'
+    | 'ref'
+    | 'nodes'
+    | 'chatNodeIds'
+    | 'onSelectNode'
+    | 'onLineageChange'
+    | 'initialFocusNodeId'
 > & {
     node: PipelineNode;
+    resultsInitiallyOpen: boolean;
     /** The nodes this one reads. */
     references: PipelineNode[];
     inChat: boolean;
@@ -121,12 +129,13 @@ const NotebookCell: FC<CellProps> = ({
     flashing,
     onJump,
     onLineageHover,
+    resultsInitiallyOpen,
 }) => {
     const getUiString = useUiStrings();
     const rowsLabel = useComposerNodeRowsLabel();
     const canViewSql = useCanViewAiAgentSql();
     const exploreFromHere = useExploreFromHere(projectUuid);
-    const [resultsOpen, setResultsOpen] = useState(false);
+    const [resultsOpen, setResultsOpen] = useState(resultsInitiallyOpen);
     const status = nodeStatuses[node.nodeId];
     const semanticQuery = semanticQueryOf(node.query);
     const hasResult =
@@ -388,6 +397,7 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     chatNodeIds,
     onSelectNode,
     onLineageChange,
+    initialFocusNodeId,
     ...cellProps
 }) => {
     const notebookEl = useRef<HTMLDivElement>(null);
@@ -463,10 +473,28 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     };
     useEffect(() => () => window.clearTimeout(intentTimer.current), []);
 
+    const hasFocusedInitialNode = useRef(false);
+    useEffect(() => {
+        if (
+            hasFocusedInitialNode.current ||
+            initialFocusNodeId === null ||
+            !cellProps.displayableNodeIds.has(initialFocusNodeId)
+        ) {
+            return;
+        }
+        hasFocusedInitialNode.current = true;
+        focusNode(initialFocusNodeId);
+    });
+
     useImperativeHandle(ref, () => ({ focusNode, showLineage, hideLineage }));
 
     return (
-        <Stack gap="lg" className={styles.notebook} ref={notebookEl}>
+        <Stack
+            gap="lg"
+            className={styles.notebook}
+            ref={notebookEl}
+            data-focus-room={initialFocusNodeId !== null}
+        >
             <svg
                 className={styles.lineage}
                 data-lineage
@@ -501,6 +529,9 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
                         })}
                         inChat={chatNodeIds.has(node.nodeId)}
                         flashing={flashNodeId === node.nodeId}
+                        resultsInitiallyOpen={
+                            node.nodeId === initialFocusNodeId
+                        }
                         onJump={focusNode}
                         onLineageHover={(hovering) =>
                             hovering ? showLineage(node.nodeId) : hideLineage()

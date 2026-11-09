@@ -52,7 +52,6 @@ const LightdashAnalyticsPanel = ({
     return (
         <SettingsPage
             title="Lightdash analytics"
-            isBeta
             description="Explore your organization's AI usage and query activity."
         >
             {status.isLoading ? (

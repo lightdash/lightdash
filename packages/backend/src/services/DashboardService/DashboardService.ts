@@ -12,6 +12,7 @@ import {
     CreateSavedChart,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
+    DashboardControlRefKind,
     DashboardDAO,
     DashboardTab,
     DashboardTile,
@@ -90,7 +91,7 @@ import {
     type UuidOrSlug,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
-import { uniq } from 'es-toolkit/compat';
+import { isEqual, uniq } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
 import pLimit from 'p-limit';
 import { v4 as uuidv4 } from 'uuid';
@@ -1027,9 +1028,19 @@ export class DashboardService
     }
 
     private static assertControlOrder(order: unknown) {
-        if (order !== undefined && !isDashboardControlOrder(order))
+        if (
+            order !== undefined &&
+            !(
+                isDashboardControlOrder(order) &&
+                order.every((ref) =>
+                    Object.values(DashboardControlRefKind).includes(ref.kind),
+                )
+            )
+        )
             throw new ParameterError(
-                'controlOrder must be a list of { kind, id, newLine? } objects',
+                `controlOrder must be a list of { kind, id, newLine? } objects with kind one of: ${Object.values(
+                    DashboardControlRefKind,
+                ).join(', ')}`,
             );
     }
 
@@ -2998,7 +3009,8 @@ export class DashboardService
                     },
                 };
             }
-            if (dashboardFields.config?.controlOrder !== savedOrder)
+            // A resent stored order passes, even one written by a newer version
+            if (!isEqual(dashboardFields.config?.controlOrder, savedOrder))
                 DashboardService.assertControlOrder(
                     dashboardFields.config?.controlOrder,
                 );
@@ -4225,6 +4237,7 @@ export class DashboardService
                 includeLinks: scheduler.includeLinks,
                 plainTextEmail: scheduler.plainTextEmail,
                 isThresholdAlert: (scheduler.thresholds?.length ?? 0) > 0,
+                useCachedResults: scheduler.useCachedResults === true,
             },
         };
         this.analytics.track(createSchedulerData);
