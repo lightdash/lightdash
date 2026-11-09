@@ -111,18 +111,18 @@ describe('dashboard section slugs', () => {
         expect(portable.config?.parameterSections).toBeUndefined();
     });
 
-    it('restores existing identity and preserves slugs through renames and reuploads', () => {
+    it('restores the id of a uniquely named section through reuploads and stores no slug', () => {
         const original = dashboard();
         const portable = getDashboardWithSectionSlugs(original);
-        portable.config!.controlSections![0].name = 'Renamed';
         const restored = getDashboardWithSectionIds(
             portable,
             original.config as DashboardConfig,
         );
-        expect(restored.config?.controlSections?.[0]).toMatchObject({
+        expect(restored.config?.controlSections?.[0]).toEqual({
             id: 'old-id',
-            slug: 'currency-comparison',
-            name: 'Renamed',
+            name: 'Currency comparison',
+            collapsed: true,
+            inline: true,
         });
         expect(restored.filters?.dimensions?.[0].sectionId).toBe('old-id');
         expect(restored.config?.parameterControls?.[0].sectionId).toBe(
@@ -137,7 +137,39 @@ describe('dashboard section slugs', () => {
         expect(getDashboardWithSectionSlugs(restored)).toEqual(portable);
     });
 
-    it('round-trips legacy uploads and retains the saved slug when a legacy client renames a section', () => {
+    it('mints a new id for a section renamed in the file, even when it keeps the old slug', () => {
+        const original = dashboard();
+        const portable = getDashboardWithSectionSlugs(original);
+        portable.config!.controlSections![0].name = 'Renamed';
+        const restored = getDashboardWithSectionIds(
+            portable,
+            original.config as DashboardConfig,
+        );
+        const { id } = restored.config!.controlSections![0];
+        expect(id).not.toBe('old-id');
+        expect(restored.filters?.dimensions?.[0].sectionId).toBe(id);
+        expect(
+            getDashboardWithSectionSlugs(restored).config?.controlSections?.[0]
+                .slug,
+        ).toBe('renamed');
+    });
+
+    it('mints new ids for two sections with the same name', () => {
+        const original = dashboard();
+        original.config!.controlSections = [
+            { id: 'a', name: 'Currency' },
+            { id: 'b', name: 'Currency' },
+        ];
+        const ids = getDashboardWithSectionIds(
+            getDashboardWithSectionSlugs(original),
+            original.config as DashboardConfig,
+        ).config!.controlSections!.map(({ id }) => id);
+        expect(ids).not.toContain('a');
+        expect(ids).not.toContain('b');
+        expect(new Set(ids).size).toBe(2);
+    });
+
+    it('round-trips legacy uploads and keeps the legacy id when a legacy client renames a section', () => {
         const original = dashboard();
         const saved = getDashboardWithSectionIds(
             getDashboardWithSectionSlugs(original),
@@ -151,9 +183,9 @@ describe('dashboard section slugs', () => {
         });
         expect(restored.config!.controlSections![0]).toMatchObject({
             id: 'old-id',
-            slug: 'currency-comparison',
             name: 'Legacy rename',
         });
+        expect(restored.config!.controlSections![0]).not.toHaveProperty('slug');
         expect(restored.filters).toEqual(legacy.filters);
         expect(restored.config!.parameterSections).toEqual(
             legacy.config!.parameterSections,
@@ -216,7 +248,7 @@ describe('dashboard section slugs', () => {
         ).toBe('old-id');
     });
 
-    it('allocates unique slugs without taking a saved slug', () => {
+    it('derives unique slugs and ignores a stored slug', () => {
         const input = dashboard();
         input.config!.controlSections = [
             { id: 'a', name: 'Currency' },
@@ -228,7 +260,7 @@ describe('dashboard section slugs', () => {
             getDashboardWithSectionSlugs(input).config?.controlSections?.map(
                 (s) => s.slug,
             ),
-        ).toEqual(['currency-3', 'currency-4', 'currency-1', 'currency-2']);
+        ).toEqual(['currency-2', 'currency-3', 'currency-1', 'other']);
     });
 
     it('uses stable fallback slugs for empty or non-alphanumeric names', () => {
@@ -241,12 +273,14 @@ describe('dashboard section slugs', () => {
         expect(
             portable.config?.controlSections?.map(({ slug }) => slug),
         ).toEqual(['section-1', 'section-2']);
-        expect(
-            getDashboardWithSectionIds(
-                portable,
-                input.config as DashboardConfig,
-            ).config?.controlSections?.map(({ id }) => id),
-        ).toEqual(['empty', 'symbols']);
+        // Both fall back to one base, so neither keeps its id
+        const ids = getDashboardWithSectionIds(
+            portable,
+            input.config as DashboardConfig,
+        ).config!.controlSections!.map(({ id }) => id);
+        expect(ids).not.toContain('empty');
+        expect(ids).not.toContain('symbols');
+        expect(new Set(ids).size).toBe(2);
     });
 
     it('rejects duplicate slugs, duplicate IDs, invalid slugs, and unknown references', () => {

@@ -5833,7 +5833,11 @@ export class CoderService extends BaseService {
         if (
             hasParameterControls ||
             dashboardWithDefaults.config?.controlOrder !== undefined ||
-            existingDashboard?.config?.controlOrder !== undefined
+            existingDashboard?.config?.controlOrder !== undefined ||
+            [
+                ...dashboardWithDefaults.filters.dimensions,
+                ...dashboardWithDefaults.filters.metrics,
+            ].some((filter) => filter.slug !== undefined)
         ) {
             const enabled =
                 await this.dashboardService.areDashboardControlsEnabled(
