@@ -1,5 +1,6 @@
 import {
     generateSlug,
+    isComposerChartAsCode,
     isDashboardChartTileType,
     PromotionAction,
     SEED_COMPOSER_CHART,
@@ -12,7 +13,6 @@ import {
     type ComposerChartAsCode,
     type DashboardAsCode,
     type FeatureFlag,
-    type SavedChartAsCode,
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
@@ -29,9 +29,6 @@ const uploadedSlug = 'api-test-composer-chart-as-code';
 type ApiErrorBody = { error: { name: string; message: string } };
 type ChartListBody = Body<ApiChartAsCodeListResponse['results']>;
 type ChartUpsertBody = Body<ApiChartAsCodeUpsertResponse['results']>;
-
-const isComposerDoc = (chart: SavedChartAsCode): chart is ComposerChartAsCode =>
-    'pipeline' in chart;
 
 describe('Composer charts as code', () => {
     let admin: ApiClient;
@@ -73,7 +70,7 @@ describe('Composer charts as code', () => {
         const { charts } = await downloadChart(seedChartSlug);
         expect(charts).toHaveLength(1);
         const [chart] = charts;
-        if (!isComposerDoc(chart)) {
+        if (!isComposerChartAsCode(chart)) {
             throw new Error(
                 'seed composer chart downloaded as a classic chart',
             );
