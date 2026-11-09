@@ -1,3 +1,10 @@
+# [3.188.0](https://github.com/lightdash/lightdash/compare/3.187.2...3.188.0) (2026-11-09)
+
+
+### Features
+
+* **data-apps:** show app-state reads and writes in the network inspector ([#32232](https://github.com/lightdash/lightdash/issues/32232)) ([9e9cc46](https://github.com/lightdash/lightdash/commit/9e9cc460cc04d7f1107718d43b275d7e836aeb73))
+
 ## [3.187.2](https://github.com/lightdash/lightdash/compare/3.187.1...3.187.2) (2026-11-09)
 
 
