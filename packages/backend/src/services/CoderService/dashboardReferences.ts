@@ -6,6 +6,7 @@ import {
     type DashboardAsCodeUpsertResult,
     type DashboardConfig,
     type DashboardDAO,
+    type DashboardFilterRule,
     type DashboardParameterControl,
     type DashboardTile,
     type DashboardTileAsCode,
@@ -14,6 +15,7 @@ import {
     type DateZoomTileTarget,
     type PromotionChanges,
 } from '@lightdash/common';
+import { countBy } from 'es-toolkit/compat';
 import { v4 as uuidv4 } from 'uuid';
 
 type AnyChartTile = Extract<
@@ -87,29 +89,56 @@ const findTileUuid = (
             tile.tileSlug === tileSlug || getTileContentSlug(tile) === tileSlug,
     )?.uuid;
 
+const getFilterFieldKey = ({
+    target,
+}: Pick<DashboardFilterRule, 'target'>): string =>
+    JSON.stringify([target.tableName, target.fieldId]);
+
+/** Keeps a saved filter's id when exactly one saved and one uploaded filter share its field; otherwise mints one. */
+export const getStableDimensionFilterIds = (
+    uploadedFilters: Pick<DashboardFilterRule, 'target'>[],
+    savedFilters: Pick<DashboardFilterRule, 'id' | 'target'>[],
+): string[] => {
+    const uploadedCounts = countBy(uploadedFilters, getFilterFieldKey);
+    const savedCounts = countBy(savedFilters, getFilterFieldKey);
+    return uploadedFilters.map((filter) => {
+        const key = getFilterFieldKey(filter);
+        const match =
+            uploadedCounts[key] === 1 && savedCounts[key] === 1
+                ? savedFilters.find((saved) => getFilterFieldKey(saved) === key)
+                : undefined;
+        return match?.id ?? uuidv4();
+    });
+};
+
 export const getFiltersWithTileUuids = (
     dashboard: DashboardAsCode,
     tiles: DashboardTileWithSlug[],
-): DashboardDAO['filters'] => ({
-    metrics: dashboard.filters?.metrics ?? [],
-    tableCalculations: dashboard.filters?.tableCalculations ?? [],
-    dimensions: (dashboard.filters?.dimensions ?? []).map((filter) => ({
-        ...filter,
-        id: uuidv4(),
-        tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
-            Record<string, DashboardTileTarget>
-        >((result, [tileSlug, target]) => {
-            const tileUuid = findTileUuid(tiles, tileSlug);
-            if (!tileUuid) {
-                console.error(
-                    `Tile with slug ${tileSlug} not found in tilesWithUuids`,
-                );
-                return result;
-            }
-            return { ...result, [tileUuid]: target };
-        }, {}),
-    })),
-});
+    savedDimensionFilters: DashboardFilterRule[],
+): DashboardDAO['filters'] => {
+    const dimensions = dashboard.filters?.dimensions ?? [];
+    const ids = getStableDimensionFilterIds(dimensions, savedDimensionFilters);
+    return {
+        metrics: dashboard.filters?.metrics ?? [],
+        tableCalculations: dashboard.filters?.tableCalculations ?? [],
+        dimensions: dimensions.map((filter, index) => ({
+            ...filter,
+            id: ids[index],
+            tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
+                Record<string, DashboardTileTarget>
+            >((result, [tileSlug, target]) => {
+                const tileUuid = findTileUuid(tiles, tileSlug);
+                if (!tileUuid) {
+                    console.error(
+                        `Tile with slug ${tileSlug} not found in tilesWithUuids`,
+                    );
+                    return result;
+                }
+                return { ...result, [tileUuid]: target };
+            }, {}),
+        })),
+    };
+};
 
 export const getConfigWithDateZoomTileSlugs = (
     dashboard: DashboardDAO,
