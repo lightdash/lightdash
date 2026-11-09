@@ -120,6 +120,9 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         expect(screen.getByRole('button', { name: 'Copy link' })).toBeVisible();
         expect(screen.queryByText(SCAN_URL)).not.toBeInTheDocument();
         expect(screen.queryByText('Sign in to')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Show sign-in code' }),
+        ).not.toBeInTheDocument();
     });
 
     it('moves to the sign-in step and back when the user already has the app', async () => {
@@ -138,6 +141,9 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         expect(
             screen.getByRole('heading', { name: 'Sign in on your phone' }),
         ).toHaveFocus();
+        expect(
+            screen.getByRole('button', { name: 'Show sign-in code' }),
+        ).toBeVisible();
 
         await userEvent.click(
             screen.getByRole('button', { name: 'Show code' }),
@@ -149,6 +155,9 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         expect(
             screen.getByRole('heading', { name: 'Get the app' }),
         ).toHaveFocus();
+        expect(
+            screen.queryByRole('button', { name: 'Show sign-in code' }),
+        ).not.toBeInTheDocument();
     });
 
     it('announces a scan and opens the sign-in step', () => {
@@ -159,6 +168,9 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
             'Opened on a phone',
         );
         expect(screen.getByText('app.example.com')).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: 'Show sign-in code' }),
+        ).toBeVisible();
         expect(
             screen.queryByRole('img', { name: QR_NAME }),
         ).not.toBeInTheDocument();

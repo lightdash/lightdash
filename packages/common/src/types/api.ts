@@ -334,6 +334,11 @@ import {
     type ApiMobileAppLinkStatusResponse,
 } from './mobileAppLink';
 import {
+    type ApiMobileSignInCodeResponse,
+    type ApiMobileSignInCodeStateResponse,
+    type ApiMobileSignInDecisionResponse,
+} from './mobileSignIn';
+import {
     type CreateOAuthClientResponse,
     type OAuthClientSummary,
 } from './oauth';
@@ -1477,6 +1482,9 @@ type ApiResults =
     | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiMobileAppLinkResponse['results']
     | ApiMobileAppLinkStatusResponse['results']
+    | ApiMobileSignInCodeResponse['results']
+    | ApiMobileSignInCodeStateResponse['results']
+    | ApiMobileSignInDecisionResponse['results']
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults

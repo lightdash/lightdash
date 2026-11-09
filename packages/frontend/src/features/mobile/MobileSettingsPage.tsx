@@ -35,7 +35,9 @@ import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import useHealth from '../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 import classes from './MobileSettingsPage.module.css';
+import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
 import { StoreBadges } from './StoreBadges';
 import { useMobileAppLink } from './useMobileAppLink';
@@ -236,6 +238,7 @@ const GetAppView: FC<ViewProps> = ({ host, appLink }) => {
 
 const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
     const { link, isScanned, hasFailed, retry } = appLink;
+    const { user } = useApp();
     const [hasApp, setHasApp] = useState(false);
     const isStepOneDone = isScanned || hasApp;
 
@@ -301,6 +304,9 @@ const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
                 headingRef={stepTwoHeading}
             >
                 {isStepOneDone && <SignInHost host={host} />}
+                {isStepOneDone && (
+                    <MobileSignInStep host={host} email={user.data?.email} />
+                )}
             </StepCard>
         </Stack>
     );
