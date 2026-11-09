@@ -294,3 +294,48 @@ test('rejects an unmappable joined package instead of stamping it as the base so
         resolvePackages(models, args),
     );
 });
+
+// PROD-12882 repro: two sources of one dbt codebase provide the same dbt
+// project name.
+const twoSourcesProvideAnalytics = () => {
+    const { models, args } = setup();
+    models.dbtSourceRefCatalogModel.getProjectNames.mockResolvedValue([
+        { dbt_source_uuid: 'parent-primary', project_name: 'analytics' },
+        { dbt_source_uuid: 'parent-extra', project_name: 'analytics' },
+    ]);
+    args.explores = [explore('orders', 'analytics')];
+    return { models, args };
+};
+
+test('PROD-12882: an explicit source decides which source owns a package that two sources provide', async () => {
+    const { models, args } = twoSourcesProvideAnalytics();
+    const result = await resolveCliPreviewDeploy(models, {
+        ...args,
+        sourceUuid: 'extra',
+    });
+    expect(result.sourcesByPackage.get('analytics')).toBe('extra');
+    expect(result.sourceUuids).toEqual(['extra']);
+});
+
+test('PROD-12882: a copied source on a different branch is silently dropped from package ownership', async () => {
+    const { models, args } = twoSourcesProvideAnalytics();
+    models.projectDbtSourcesModel.getSourcesWithBindings.mockImplementation(
+        async (project: string) => [
+            {
+                projectDbtSourceUuid:
+                    project === 'preview' ? 'extra' : 'parent-extra',
+                name: 'Replica models',
+                dbtConnection: {
+                    type: DbtProjectType.NONE,
+                    branch: project === 'preview' ? 'feature' : 'main',
+                },
+                warehouseConnectionUuid: null,
+            },
+        ],
+    );
+    // The same upload that is refused above is accepted, and it is assigned
+    // to the other source, because the changed source no longer counts as a
+    // copy of its parent.
+    const result = await resolveCliPreviewDeploy(models, args);
+    expect(result.sourcesByPackage.get('analytics')).toBe('primary');
+});
