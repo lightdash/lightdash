@@ -59,6 +59,7 @@ import {
     ProjectType,
     SavedChart,
     SavedChartDAO,
+    SavedChartWithAccessVariant,
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerRun,
@@ -71,6 +72,7 @@ import {
     UpdateSavedChart,
     type ChartFieldUpdates,
     type ComposerSavedChart,
+    type ComposerSavedChartDAO,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
     type DashboardDAO,
@@ -2055,7 +2057,7 @@ export class SavedChartService
     private async checkPermissions(
         account: Account,
         space: SpaceSummaryBase,
-        savedChart: SavedChartDAO,
+        savedChart: SavedChartDAO | ComposerSavedChartDAO,
     ): Promise<{
         access: SpaceAccess[];
         inheritsFromOrgOrProject: boolean;
@@ -2136,11 +2138,12 @@ export class SavedChartService
         };
     }
 
-    async get(
+    /** Reads a chart of either query type; `get` keeps the classic-only contract for callers that need an explore. */
+    async getVariant(
         savedChartUuidOrSlug: string,
         account: Account,
         options?: { projectUuid?: string },
-    ): Promise<SavedChart> {
+    ): Promise<SavedChartWithAccessVariant> {
         const projectUuid =
             options?.projectUuid && !isValidUuid(options.projectUuid)
                 ? await this.projectModel.getUuidBySlug(
@@ -2148,11 +2151,12 @@ export class SavedChartService
                       options.projectUuid,
                   )
                 : options?.projectUuid;
-        const savedChart = await this.savedChartModel.get(
+        const variant = await this.savedChartModel.getVariant(
             savedChartUuidOrSlug,
             undefined,
             { projectUuid },
         );
+        const savedChart = variant.chart;
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
@@ -2160,14 +2164,16 @@ export class SavedChartService
         const { access, inheritsFromOrgOrProject } =
             await this.checkPermissions(account, space, savedChart);
 
-        try {
-            await this.projectModel.getExploreFromCache(
-                savedChart.projectUuid,
-                savedChart.tableName,
-            );
-        } catch (error) {
-            if (error instanceof ExploreSplitError) throw error;
-            if (!(error instanceof NotFoundError)) throw error;
+        if (variant.queryType === 'semantic') {
+            try {
+                await this.projectModel.getExploreFromCache(
+                    savedChart.projectUuid,
+                    variant.chart.tableName,
+                );
+            } catch (error) {
+                if (error instanceof ExploreSplitError) throw error;
+                if (!(error instanceof NotFoundError)) throw error;
+            }
         }
 
         void this.analyticsModel
@@ -2214,11 +2220,34 @@ export class SavedChartService
             },
         );
 
-        return {
-            ...savedChart,
-            inheritsFromOrgOrProject,
-            access,
-        };
+        return variant.queryType === 'semantic'
+            ? {
+                  queryType: 'semantic',
+                  chart: { ...variant.chart, inheritsFromOrgOrProject, access },
+              }
+            : {
+                  queryType: 'composer',
+                  chart: { ...variant.chart, inheritsFromOrgOrProject, access },
+              };
+    }
+
+    async get(
+        savedChartUuidOrSlug: string,
+        account: Account,
+        options?: { projectUuid?: string },
+    ): Promise<SavedChart> {
+        const variant = await this.getVariant(
+            savedChartUuidOrSlug,
+            account,
+            options,
+        );
+        if (variant.queryType === 'composer') {
+            throw new ComposerChartNotSupportedError(
+                variant.chart.uuid,
+                variant.chart.name,
+            );
+        }
+        return variant.chart;
     }
 
     // Interactive chart pages opt into the caller's unpublished overlay.
@@ -2228,9 +2257,17 @@ export class SavedChartService
         savedChartUuidOrSlug: string,
         account: Account,
         options?: { projectUuid?: string },
-    ): Promise<SavedChart> {
-        const chart = await this.get(savedChartUuidOrSlug, account, options);
-        return this.applyOpenDraftOverlay(user, chart);
+    ): Promise<SavedChartWithAccessVariant> {
+        const variant = await this.getVariant(
+            savedChartUuidOrSlug,
+            account,
+            options,
+        );
+        if (variant.queryType === 'composer') return variant;
+        return {
+            queryType: 'semantic',
+            chart: await this.applyOpenDraftOverlay(user, variant.chart),
+        };
     }
 
     async verifyChart(

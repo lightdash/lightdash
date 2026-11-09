@@ -8,7 +8,7 @@ import {
     type SourceQuery,
 } from '../types/querySources';
 
-export const SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION = 1;
+export const SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION: SavedComposerPipeline['schemaVersion'] = 1;
 
 /** The node kinds a composer chart may store; sql joins once SQL nodes ship, the rest are refused by name. */
 export type SavedComposerPipelineNode = (
@@ -18,7 +18,8 @@ export type SavedComposerPipelineNode = (
 
 /** The pipeline a composer chart version stores: the presented node's closed snapshot and the node it shows. */
 export type SavedComposerPipeline = {
-    schemaVersion: typeof SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION;
+    // A literal, not typeof the constant: the pipeline is part of the API schema.
+    schemaVersion: 1;
     /** Every node has a node id and reads only nodes of this list. */
     nodes: SavedComposerPipelineNode[];
     terminalNodeId: QueryNodeId;

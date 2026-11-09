@@ -130,6 +130,13 @@ export const DEFAULT_UI_STRINGS = {
     'tileMenu.downloadData': 'Download data',
     'tileMenu.exportImage': 'Export image',
     'tileMenu.viewUnderlyingData': 'View underlying data',
+
+    'composerTile.unavailable.title': 'Chart not available',
+    'composerTile.unavailable.embed':
+        'This chart type is not available in embedded dashboards yet.',
+    'composerTile.unavailable.disabled':
+        'This chart type is not enabled for this project.',
+    'composerTile.runError': 'The chart could not be run.',
     'dateZoom.defaultZoom': 'Default zoom',
     'dateZoom.none': 'None',
     'dateZoom.viewModeTooltip':

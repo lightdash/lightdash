@@ -17,6 +17,7 @@ import {
     type ChartKind,
     type ChartVersionSummary,
     type CreateSavedChart,
+    type SavedChartQueryType,
     type SavedChartType,
 } from './savedCharts';
 import type { SchedulerAndTargets } from './scheduler';

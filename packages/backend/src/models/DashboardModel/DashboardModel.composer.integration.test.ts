@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { type CreateDbSavedChartVersion } from '../../database/entities/savedCharts';
 import { composerPipelineFixture } from '../../testing/composerSavedChartFixture';
 import {
     createMigratedDatabase,
@@ -85,7 +86,7 @@ describe('Dashboard tiles over composer charts on the real schema', () => {
     const createChart = async (
         name: string,
         dashboardUuid: string,
-        version: { explore_name: string | null; pipeline: object | null },
+        version: Pick<CreateDbSavedChartVersion, 'explore_name' | 'pipeline'>,
     ): Promise<{ id: number; uuid: string }> => {
         const [{ saved_query_id: id, saved_query_uuid: uuid }] = await database(
             'saved_queries',
@@ -98,7 +99,7 @@ describe('Dashboard tiles over composer charts on the real schema', () => {
                 last_version_updated_by_user_uuid: fixture.userUuid,
                 color_palette_uuid: null,
                 project_uuid: fixture.projectUuid,
-                space_id: fixture.spaceId,
+                space_id: null,
                 dashboard_uuid: dashboardUuid,
             })
             .returning(['saved_query_id', 'saved_query_uuid']);

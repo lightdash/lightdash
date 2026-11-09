@@ -4,6 +4,7 @@ import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';
 import type DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
 import { GenericDashboardChartTile } from '../../../../../components/DashboardTiles/DashboardChartTile';
+import DashboardComposerChartTile from '../../../../../components/DashboardTiles/DashboardComposerChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
 import { useTileQueryQueueVisibility } from '../../../../../features/dashboard/tileQueryQueue/useTileQueryQueue';
@@ -20,7 +21,7 @@ type Props = ComponentProps<typeof DashboardChartTile> & {
     tileIndex: number;
 };
 
-const EmbedDashboardChartTile: FC<Props> = ({
+const EmbedSemanticDashboardChartTile: FC<Props> = ({
     projectUuid,
     dashboardSlug,
     paletteColors,
@@ -132,6 +133,23 @@ const EmbedDashboardChartTile: FC<Props> = ({
             darkColorPaletteOverride={paletteDarkColors}
         />
     );
+};
+
+// A composer chart has no embed run yet; the tile says so instead of running.
+const EmbedDashboardChartTile: FC<Props> = (props) => {
+    const { tile } = props;
+    if (tile.properties.queryType === 'composer') {
+        return (
+            <DashboardComposerChartTile
+                tile={tile}
+                isEditMode={props.isEditMode}
+                onEdit={props.onEdit}
+                onDelete={props.onDelete}
+                minimal={props.minimal}
+            />
+        );
+    }
+    return <EmbedSemanticDashboardChartTile {...props} />;
 };
 
 export default EmbedDashboardChartTile;

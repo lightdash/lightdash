@@ -83,6 +83,7 @@ import {
     type AgentIdentityClaim,
     type AuthType,
     type CaslSubjectNames,
+    type ChartConfig,
     type ComposerSavedChartDAO,
     type CreateBigqueryCredentials,
     type DashboardParameterControl,
@@ -31277,7 +31278,7 @@ describe('composer chart node queries', () => {
 });
 
 describe('composer chart series split stage', () => {
-    const barByStatus = {
+    const barByStatus: ChartConfig = {
         type: ChartType.CARTESIAN,
         config: {
             layout: {
@@ -31286,7 +31287,7 @@ describe('composer chart series split stage', () => {
             },
             eChartsConfig: { series: [] },
         },
-    } as const;
+    };
     const setup = (
         chartOverrides: Partial<ComposerSavedChartDAO>,
         featureEnabled = true,
@@ -31315,8 +31316,6 @@ describe('composer chart series split stage', () => {
             featureFlagModel: {
                 get: vi.fn(async () => ({ enabled: featureEnabled })),
             } as unknown as FeatureFlagModel,
-            getQuerySourceService: () =>
-                ({ submitQueries }) as unknown as QuerySourceService,
             spaceModel: {
                 getSpaceSummary: vi.fn(async () => ({})),
             } as unknown as SpaceModel,
@@ -31327,6 +31326,7 @@ describe('composer chart series split stage', () => {
         (service as AnyType).checkDashboardChartQueryPermissions = vi.fn(
             async () => {},
         );
+        (service as AnyType).getQuerySourceService = () => ({ submitQueries });
         const run = () =>
             service.executeAsyncDashboardChartQuery({
                 account: buildAccount(),
