@@ -10,6 +10,7 @@ export enum LightdashEventType {
     ChartSaved = 'chartSaved',
     DashboardSaved = 'dashboardSaved',
     Notification = 'notification',
+    ContentHeightChanged = 'contentHeightChanged',
 }
 
 /**
@@ -93,6 +94,14 @@ export type NotificationPayload = {
     message: string | null;
 };
 
+/**
+ * Payload for ContentHeightChanged events.
+ * Rendered content height in CSS pixels, so the host can size the iframe.
+ */
+export type ContentHeightChangedPayload = {
+    height: number;
+};
+
 export type LightdashEventPayload =
     | FilterChangedPayload
     | TabChangedPayload
@@ -101,7 +110,8 @@ export type LightdashEventPayload =
     | LocationChangedPayload
     | ChartSavedPayload
     | DashboardSavedPayload
-    | NotificationPayload;
+    | NotificationPayload
+    | ContentHeightChangedPayload;
 
 /**
  * Generic event structure for all Lightdash events
@@ -124,6 +134,7 @@ type LightdashEventPayloads = {
     [LightdashEventType.ChartSaved]: ChartSavedPayload;
     [LightdashEventType.DashboardSaved]: DashboardSavedPayload;
     [LightdashEventType.Notification]: NotificationPayload;
+    [LightdashEventType.ContentHeightChanged]: ContentHeightChangedPayload;
 };
 
 export type LightdashEventPayloadFor<K extends LightdashEventType> =
