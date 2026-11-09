@@ -859,7 +859,6 @@ export type HealthState = {
     hasBrandfetch: boolean;
     isCustomRolesEnabled: boolean;
     embedding: {
-        enabled: boolean;
         events:
             | {
                   enabled: boolean;
