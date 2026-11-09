@@ -9,6 +9,7 @@ import {
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import { isEqual } from 'es-toolkit/compat';
 import { reconcileDashboardParameters } from '../../../providers/Dashboard/dashboardParametersUrl';
+import { dashboardEditActions } from './dashboardEditReducer';
 
 export type DashboardParametersState = {
     isEditMode: boolean;
@@ -583,6 +584,15 @@ export const dashboardParametersReducer = (
         return withControls(state, (controls) =>
             controls.filter(({ id }) => id !== action.payload),
         );
+    }
+    // A reorder lists parameter controls by id: never saved ones keep their
+    // ids until the save, instead of being filled again from the tiles
+    if (dashboardEditActions.arrangeControls.match(action)) {
+        return state.parameterControls === null ||
+            state.areParameterControlsSaved ||
+            state.haveParameterControlsChanged
+            ? state
+            : { ...state, haveParameterControlsChanged: true };
     }
     if (
         dashboardParametersActions.setHaveParameterControlsChanged.match(action)

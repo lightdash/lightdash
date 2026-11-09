@@ -1,4 +1,5 @@
 import {
+    DashboardControlRefKind,
     DEFAULT_UI_STRINGS,
     FilterInteractivityValues,
     FilterOperator,
@@ -231,6 +232,29 @@ describe('EmbedDashboardFilterBar', () => {
         expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
         // A size container, for the bar's narrow layouts
         expect(sectioned.closest('[class*="filterArea"]')).not.toBeNull();
+    });
+
+    it("shows a stored order with no sections as the app's viewer bar", () => {
+        const store = createDashboardTestStore({
+            dashboardFilters: {
+                dimensions: [savedRule],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+        seedDashboardEditState(store, {
+            dashboard: {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlOrder: [
+                        { kind: DashboardControlRefKind.FILTER, id: 'saved' },
+                    ],
+                },
+            },
+        });
+        renderWithProviders(barElement(false, true, store));
+        expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
+        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
     });
 
     it('keeps the shipped filters for a dashboard with sections while the flag is off', () => {

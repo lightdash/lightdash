@@ -12,7 +12,6 @@ export const PillDraggable: FC<{
     id: string;
     isInBarContext: boolean;
     isDisabled: boolean;
-    looseEnd: string | undefined;
     /** What the drag carries (default none: a filter pill). */
     data?: Record<string, unknown>;
     /** The pill button inside (default a filter pill's). */
@@ -22,7 +21,6 @@ export const PillDraggable: FC<{
     id,
     isInBarContext,
     isDisabled,
-    looseEnd,
     data,
     pillSelector = '[data-controls-pill]',
     children,
@@ -50,7 +48,6 @@ export const PillDraggable: FC<{
             data-dragging={
                 (isInBarContext ? isDragging : !!transform) || undefined
             }
-            data-loose-end={looseEnd}
             onPointerDown={isDisabled ? undefined : handlePointerDown}
             style={{
                 '--drag-x':

@@ -44,7 +44,9 @@ _group_ (that is `requiredGroupId`).
   `reconcileDashboardControlOrder` over `getEffectiveControlOrder`, which
   reads `[]` as none and puts never saved parameter controls before the
   first section.
-- Save (`getControlOrderToSave`): only after a reorder, the full reconciled
+- `arrangeControls` also marks never saved parameter controls changed, so
+  a refill from the tiles can't replace the ids the order lists.
+- Save (`getControlsToSave`, `getControlOrderToSave`): only after a reorder, the full reconciled
   list (never `[]`), each kind's list (filters, parameter controls,
   sections) sorted to follow it, and the parameter controls with it, so
   their per-load ids become stable. Otherwise `buildDashboardConfig` carries
@@ -73,7 +75,8 @@ _group_ (that is `requiredGroupId`).
 ## Bar (`SectionedFilters`)
 
 - In edit mode `ControlsBar` always renders `SectionedFilters`; in view mode
-  only once the dashboard has sections. With no stored order: "Add filter",
+  (the embed's bar too) only once the dashboard has sections or a stored
+  order. With no stored order: "Add filter",
   unsectioned pills, one capsule per section, then (edit mode) the "New
   section" entry slot, so creating a section moves nothing before it.
 - With a stored order, one `.orderLine` per bar line: the first holds "Add

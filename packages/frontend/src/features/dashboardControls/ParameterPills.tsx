@@ -465,7 +465,6 @@ export const ParameterPills: FC<Props> = ({
                             id={entry.control.id}
                             isInBarContext
                             isDisabled={editingId !== null}
-                            looseEnd={undefined}
                             data={DRAG_DATA}
                             pillSelector={PARAMETER_PILL_SELECTOR}
                         >

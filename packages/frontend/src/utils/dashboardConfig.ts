@@ -202,3 +202,56 @@ export const getParametersToSave = ({
         parameters: getParameterMirror(controls),
     };
 };
+
+/**
+ * The controls a save writes: filters, sections, parameters and the order.
+ * A reorder writes the full order, each kind's list following it, and the
+ * parameter controls, so never saved ones keep the ids it lists. Without
+ * one, this is the save as it was before the order (the only flag-off case).
+ */
+export const getControlsToSave = ({
+    controlOrder,
+    hasControlOrderChanged,
+    dimensions,
+    metrics,
+    controlSections,
+    haveControlSectionsChanged,
+    parameterInputs,
+}: {
+    controlOrder: DashboardControlRef[] | undefined;
+    hasControlOrderChanged: boolean;
+    dimensions: DashboardFilterRule[];
+    metrics: DashboardFilterRule[];
+    controlSections: DashboardControlSection[];
+    haveControlSectionsChanged: boolean;
+    parameterInputs: Parameters<typeof getParametersToSave>[0];
+}) => {
+    const orderToSave = getControlOrderToSave({
+        controlOrder,
+        hasControlOrderChanged,
+        dimensions,
+        metrics,
+        parameterControls: parameterInputs.parameterControls,
+        controlSections,
+    });
+    const { parameterControlsToSave, parameters } = getParametersToSave({
+        ...parameterInputs,
+        parameterControls:
+            orderToSave?.parameterControls ?? parameterInputs.parameterControls,
+        haveParameterControlsChanged:
+            parameterInputs.haveParameterControlsChanged ||
+            orderToSave !== null,
+    });
+    return {
+        dimensions: orderToSave?.dimensions ?? dimensions,
+        metrics: orderToSave?.metrics ?? metrics,
+        controlSections: orderToSave?.controlSections ?? controlSections,
+        haveControlSectionsChanged:
+            haveControlSectionsChanged ||
+            (orderToSave !== null &&
+                orderToSave.controlSections !== controlSections),
+        parameterControlsToSave,
+        parameters,
+        controlOrderToSave: orderToSave?.controlOrder ?? null,
+    };
+};

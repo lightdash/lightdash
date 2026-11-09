@@ -5,6 +5,7 @@ import {
     getDefaultChartTileSize,
     getItemId,
     getShadowedReservedNames,
+    isDashboardControlOrder,
     mergeDashboardCustomMetrics,
     normalizeDateZoomConfig,
     removeDateZoomTileTargets,
@@ -143,8 +144,7 @@ import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import {
     buildDashboardConfig,
-    getControlOrderToSave,
-    getParametersToSave,
+    getControlsToSave,
 } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
@@ -778,7 +778,9 @@ const Dashboard: FC = () => {
         );
         dashboardDispatch(
             dashboardEditActions.syncControlOrder(
-                dashboard.config?.controlOrder,
+                isDashboardControlOrder(dashboard.config?.controlOrder)
+                    ? dashboard.config.controlOrder
+                    : undefined,
             ),
         );
         setDateZoomGranularities(
@@ -1407,9 +1409,7 @@ const Dashboard: FC = () => {
             isDashboardControlsEnabled,
         );
 
-        // A reorder writes the full order, each kind's list following it,
-        // and the parameter controls, so unsaved ones keep their ids
-        const orderToSave = getControlOrderToSave({
+        const controlsToSave = getControlsToSave({
             controlOrder: selectControlOrder(dashboardState),
             hasControlOrderChanged:
                 selectHasControlOrderChanged(dashboardState),
@@ -1418,34 +1418,27 @@ const Dashboard: FC = () => {
                 ...dashboardFilters.metrics,
                 ...dashboardTemporaryFilters.metrics,
             ],
-            parameterControls: selectParameterControls(dashboardState),
             controlSections,
-        });
-
-        const { parameterControlsToSave, parameters } = getParametersToSave({
-            parameterControls:
-                orderToSave?.parameterControls ??
-                selectParameterControls(dashboardState),
-            areParameterControlsSaved:
-                selectAreParameterControlsSaved(dashboardState),
-            haveParameterControlsChanged:
-                selectHaveParameterControlsChanged(dashboardState) ||
-                orderToSave !== null,
-            existingParameterControls:
-                dashboard.config?.parameterControls ?? null,
-            parameterPicks: selectParameterPicks(dashboardState),
-            appliedParameters: selectDashboardParameters(dashboardState),
-            savedParameters: dashboard.parameters ?? {},
+            haveControlSectionsChanged,
+            parameterInputs: {
+                parameterControls: selectParameterControls(dashboardState),
+                areParameterControlsSaved:
+                    selectAreParameterControlsSaved(dashboardState),
+                haveParameterControlsChanged:
+                    selectHaveParameterControlsChanged(dashboardState),
+                existingParameterControls:
+                    dashboard.config?.parameterControls ?? null,
+                parameterPicks: selectParameterPicks(dashboardState),
+                appliedParameters: selectDashboardParameters(dashboardState),
+                savedParameters: dashboard.parameters ?? {},
+            },
         });
 
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
-                dimensions: orderToSave?.dimensions ?? dimensionFiltersToSave,
-                metrics: orderToSave?.metrics ?? [
-                    ...dashboardFilters.metrics,
-                    ...dashboardTemporaryFilters.metrics,
-                ],
+                dimensions: controlsToSave.dimensions,
+                metrics: controlsToSave.metrics,
                 tableCalculations: [
                     ...dashboardFilters.tableCalculations,
                     ...dashboardTemporaryFilters.tableCalculations,
@@ -1470,16 +1463,13 @@ const Dashboard: FC = () => {
                 stagedCustomMetrics: haveCustomMetricsChanged
                     ? dashboardCustomMetrics
                     : undefined,
-                controlSections:
-                    orderToSave?.controlSections ?? controlSections,
+                controlSections: controlsToSave.controlSections,
                 haveControlSectionsChanged:
-                    haveControlSectionsChanged ||
-                    (orderToSave !== null &&
-                        orderToSave.controlSections !== controlSections),
-                parameterControlsToSave,
-                controlOrderToSave: orderToSave?.controlOrder ?? null,
+                    controlsToSave.haveControlSectionsChanged,
+                parameterControlsToSave: controlsToSave.parameterControlsToSave,
+                controlOrderToSave: controlsToSave.controlOrderToSave,
             }),
-            parameters,
+            parameters: controlsToSave.parameters,
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
                 : {}),

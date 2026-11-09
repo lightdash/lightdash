@@ -47,9 +47,6 @@ type Props = {
     sectionId?: string | null;
     /** An embed's class contract hook on each pill (default none). */
     triggerClassName?: string;
-    /** The sectioned bar's loose pass: rule id to the kinds (space separated)
-     * a pill leaving its section lands after (default none). */
-    looseEnds?: Record<string, string>;
     /** Only these saved rules of the pass, in this order (default every one, by kind). */
     ruleIds?: string[];
     /** The new filter's pill and the temporary or viewer's own ones (default true). */
@@ -66,7 +63,6 @@ export const FilterPills: FC<Props> = ({
     activeTabUuid,
     sectionId,
     triggerClassName,
-    looseEnds,
     ruleIds,
     withExtras = true,
     barOrder,
@@ -220,7 +216,6 @@ export const FilterPills: FC<Props> = ({
                         isSidebarOpen ||
                         (!areFieldsLoaded && !filter.target.isSqlColumn)
                     }
-                    looseEnd={looseEnds?.[filter.id]}
                 >
                     {pill}
                 </PillDraggable>

@@ -12,6 +12,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     selectActiveTabUuid,
     selectControlSections,
+    selectHasStoredControlOrder,
     selectDashboardFilters,
     selectDateZoomGranularity,
     selectParameterControls,
@@ -55,8 +56,11 @@ const ControlsFilterArea: FC<{
     withParameters: boolean;
 }> = ({ canAddFilters, withParameters }) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
-    const hasSections = useDashboardSelector(
-        (state) => selectControlSections(state).length > 0,
+    // Sections or a stored order: the bar the app's viewers get
+    const isSectioned = useDashboardSelector(
+        (state) =>
+            selectControlSections(state).length > 0 ||
+            selectHasStoredControlOrder(state),
     );
     const getUiString = useUiStrings();
     const actions = (
@@ -74,7 +78,7 @@ const ControlsFilterArea: FC<{
     // A tile added or removed keeps the pills, as on the app's bar
     return (
         <SettledFilterFields>
-            {hasSections ? (
+            {isSectioned ? (
                 <SectionedFilters
                     activeTabUuid={activeTabUuid}
                     viewerActions={actions}

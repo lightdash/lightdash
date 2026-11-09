@@ -1181,9 +1181,16 @@ export const SectionedFilters: FC<Props> = ({
     const needsValueIds = parameterBar.entries
         .filter(({ isNeedsValue }) => isNeedsValue)
         .map(({ control }) => control.id);
+    const barLines = getShownBarLines(ordered, () => true);
     const renderOrderLines = (firstItem: ReactNode) =>
         orderLines.map((line, index) => {
-            const lineStartId = index === 0 ? null : line[0].id;
+            // A line's own first control, though it may be hidden on this tab
+            const lineStartId =
+                index === 0
+                    ? null
+                    : (barLines.find((members) =>
+                          members.includes(line[0]),
+                      )?.[0].id ?? line[0].id);
             const isLast = index === orderLines.length - 1;
             return (
                 <Box

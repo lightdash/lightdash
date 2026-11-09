@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildDashboardConfig,
     getControlOrderToSave,
+    getControlsToSave,
     getParametersToSave,
 } from './dashboardConfig';
 
@@ -557,5 +558,83 @@ describe('getControlOrderToSave', () => {
         expect(saved?.dimensions.map(({ id }) => id)).toEqual(['b', 'a']);
         // Saved with the order, so controls never saved keep their ids
         expect(saved?.parameterControls).toEqual([region('EU')]);
+    });
+});
+
+describe('getControlsToSave', () => {
+    const filter = (id: string, sectionId?: string): DashboardFilterRule => ({
+        id,
+        label: undefined,
+        target: { fieldId: `orders_${id}`, tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: [],
+        ...(sectionId !== undefined && { sectionId }),
+    });
+    const controlSections = [{ id: 's', name: 'Section', inline: true }];
+    // Never saved: filled from the tiles, ids made on this load
+    const parameterInputs = {
+        parameterControls: twoKeyList('EU', null),
+        areParameterControlsSaved: false,
+        haveParameterControlsChanged: false,
+        existingParameterControls: null,
+        parameterPicks: {},
+        appliedParameters: {
+            region: { parameterName: 'region', value: 'US' },
+        },
+        savedParameters: {},
+    };
+    const base = {
+        controlOrder: undefined,
+        hasControlOrderChanged: false,
+        dimensions: [filter('b', 's'), filter('a')],
+        metrics: [filter('m')],
+        controlSections,
+        haveControlSectionsChanged: false,
+        parameterInputs,
+    };
+
+    it('saves what it did before the order when nothing was reordered, as a flag-off save', () => {
+        const saved = getControlsToSave(base);
+        expect(saved.dimensions).toBe(base.dimensions);
+        expect(saved.metrics).toBe(base.metrics);
+        expect(saved.controlSections).toBe(controlSections);
+        expect(saved.haveControlSectionsChanged).toBe(false);
+        expect(saved.controlOrderToSave).toBeNull();
+        expect(saved).toMatchObject(getParametersToSave(parameterInputs));
+        // The stored order is then carried forward as loaded
+        const stored = [{ kind: DashboardControlRefKind.FILTER, id: 'a' }];
+        expect(
+            buildDashboardConfig({
+                ...baseArgs,
+                existingConfig: {
+                    isDateZoomDisabled: false,
+                    controlOrder: stored,
+                },
+                controlOrderToSave: saved.controlOrderToSave,
+            }).controlOrder,
+        ).toBe(stored);
+    });
+
+    it('saves never saved parameter controls with the ids a reorder wrote', () => {
+        const controlOrder = [
+            { kind: DashboardControlRefKind.PARAMETER, id: 'other' },
+            { kind: DashboardControlRefKind.FILTER, id: 'a' },
+            { kind: DashboardControlRefKind.PARAMETER, id: 'region-control' },
+            { kind: DashboardControlRefKind.SECTION, id: 's', newLine: true },
+        ];
+        const saved = getControlsToSave({
+            ...base,
+            controlOrder,
+            hasControlOrderChanged: true,
+        });
+        const parameterIds = saved.controlOrderToSave
+            ?.filter(({ kind }) => kind === DashboardControlRefKind.PARAMETER)
+            .map(({ id }) => id);
+        expect(parameterIds).toEqual(['other', 'region-control']);
+        expect(saved.parameterControlsToSave?.map(({ id }) => id)).toEqual(
+            parameterIds,
+        );
+        expect(saved.dimensions.map(({ id }) => id)).toEqual(['a', 'b']);
+        expect(saved.haveControlSectionsChanged).toBe(false);
     });
 });

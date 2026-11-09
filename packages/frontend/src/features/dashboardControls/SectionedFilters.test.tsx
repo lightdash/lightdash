@@ -47,7 +47,6 @@ const mockDashboardContext = vi.hoisted(() => ({
 const pillsProps = vi.hoisted(() => ({
     current: [] as {
         sectionId: string | null | undefined;
-        looseEnds?: Record<string, string>;
         triggerClassName?: string;
     }[],
 }));
@@ -218,18 +217,15 @@ vi.mock('./FilterPills', async () => {
     return {
         FilterPills: ({
             sectionId,
-            looseEnds,
             triggerClassName,
             ruleIds,
         }: {
             sectionId: string | null | undefined;
-            looseEnds?: Record<string, string>;
             triggerClassName?: string;
             ruleIds?: string[];
         }) => {
             pillsProps.current.push({
                 sectionId,
-                looseEnds,
                 triggerClassName,
             });
             const sections = useDashboardSelector(selectControlSections);
@@ -3523,6 +3519,91 @@ describe('SectionedFilters', () => {
                     'Regions',
                     'extra',
                 ]);
+            });
+
+            it("renders a viewer's bar from an order with no sections: kinds mixed, its line starts", () => {
+                mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+                const store = renderWithParameters(
+                    [parameterControl('region')],
+                    [
+                        rule('loose', undefined, onTabOne),
+                        rule('next', undefined, onTabOne),
+                    ],
+                    [],
+                );
+                act(() => {
+                    store.dispatch(
+                        dashboardEditActions.syncControlOrder([
+                            { kind: FILTER, id: 'loose' },
+                            { kind: PARAMETER, id: 'region' },
+                            { kind: FILTER, id: 'next', newLine: true },
+                        ]),
+                    );
+                });
+                const first = lineOf(
+                    screen.getByRole('button', { name: 'Add' }),
+                );
+                expect(first).toContainElement(screen.getByText('pill loose'));
+                expect(first).toContainElement(
+                    parameterPill('region') as HTMLElement,
+                );
+                expect(first).not.toContainElement(
+                    screen.getByText('pill next'),
+                );
+                expect(lineOf(screen.getByText('pill next'))).not.toBeNull();
+            });
+
+            it('names a line gap by its first control, even one hidden on this tab', () => {
+                const store = renderWithParameters(
+                    [],
+                    [
+                        rule('first', undefined, onTabOne),
+                        rule('hidden', undefined, {
+                            tileTargets: {
+                                'tile-1': false,
+                                'tile-2': {
+                                    fieldId: 'orders_region',
+                                    tableName: 'orders',
+                                },
+                            },
+                        }),
+                        rule('shown', undefined, onTabOne),
+                    ],
+                    [],
+                );
+                act(() => {
+                    store.dispatch(
+                        dashboardEditActions.syncControlOrder([
+                            { kind: FILTER, id: 'first' },
+                            { kind: FILTER, id: 'hidden', newLine: true },
+                            { kind: FILTER, id: 'shown' },
+                        ]),
+                    );
+                });
+                expect(screen.queryByText('pill hidden')).toBeNull();
+                act(() =>
+                    mockDragMove.handlers.at(-1)!({
+                        active: { id: 'first', data: { current: undefined } },
+                        over: { id: 'line-gap:hidden' },
+                    } as unknown as DragMoveEvent),
+                );
+                expect(
+                    lineOf(screen.getByText('pill shown'))?.querySelector(
+                        '[class*="lineGap"][data-over]',
+                    ),
+                ).not.toBeNull();
+                act(() =>
+                    mockDragEnd.handlers.at(-1)!({
+                        active: { id: 'first' },
+                        over: { id: 'line-gap:hidden' },
+                    } as DragEndEvent),
+                );
+                // Its own line, before the hidden line start, not between them
+                expect(
+                    selectControlOrder(store.getState())?.map(
+                        ({ id, newLine }) => `${newLine ? '/' : ''}${id}`,
+                    ),
+                ).toEqual(['/first', '/hidden', 'shown']);
             });
 
             it('renders an empty order as no order', () => {
