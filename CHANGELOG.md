@@ -1,3 +1,17 @@
+## [3.187.2](https://github.com/lightdash/lightdash/compare/3.187.1...3.187.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ai-agents:** run PAT node citations under the caller's account ([#32259](https://github.com/lightdash/lightdash/issues/32259)) ([410aa3c](https://github.com/lightdash/lightdash/commit/410aa3c26cb042aa09cf199797d8233c4f5738f2))
+
+## [3.187.1](https://github.com/lightdash/lightdash/compare/3.187.0...3.187.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **cli:** let a named source own a package that several sources provide in a preview ([#32249](https://github.com/lightdash/lightdash/issues/32249)) ([026c39d](https://github.com/lightdash/lightdash/commit/026c39df9812b3cea1b36652b29639eb79a6fbc5))
+
 # [3.187.0](https://github.com/lightdash/lightdash/compare/3.186.0...3.187.0) (2026-11-09)
 
 

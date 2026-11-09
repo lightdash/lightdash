@@ -61,8 +61,8 @@ export const resolveCliPreviewDeploy = async (
             (source) => [source.projectDbtSourceUuid, source.name] as const,
         ),
     ]);
-    const refuse = (reason: string): never => {
-        throw cliDeployConflictError(reason, [...sourceNames.values()]);
+    const refuse = (reason: string, advice?: string): never => {
+        throw cliDeployConflictError(reason, [...sourceNames.values()], advice);
     };
     if (args.sourceUuid !== null && !sourceNames.has(args.sourceUuid)) {
         throw new ParameterError(
@@ -166,10 +166,21 @@ export const resolveCliPreviewDeploy = async (
             refuse(
                 `no source in this project provides the dbt project ${packageName}`,
             );
-        if (owners.length > 1)
+        if (owners.length > 1) {
+            if (args.sourceUuid !== null && owners.includes(args.sourceUuid))
+                return args.sourceUuid;
+            const names = owners
+                .map((owner) => sourceNames.get(owner))
+                .join(', ');
+            const detail =
+                args.sourceUuid === null
+                    ? 'the preview cannot assign its models to one source'
+                    : `the deploy named source ${sourceNames.get(args.sourceUuid)}, which is not one of them`;
             refuse(
-                `several sources (${owners.map((owner) => sourceNames.get(owner)).join(', ')}) provide ${packageName}; the preview cannot assign its models to one source`,
+                `several sources (${names}) provide ${packageName}; ${detail}`,
+                `To fix it, deploy again and name one of these sources with --source: ${names}.`,
             );
+        }
         return owners[0];
     };
     const ownersByExplore = new Map<string, string>();
@@ -201,13 +212,20 @@ export const resolveCliPreviewDeploy = async (
             `the deploy named source ${sourceNames.get(args.sourceUuid)}, but the uploaded explores belong to source ${sourceNames.get([...deployedSources][0])}`,
         );
     }
+    const chosenOwner = (owners: ReadonlySet<string>): string | undefined => {
+        if (owners.size === 1) return [...owners][0];
+        return args.sourceUuid !== null && owners.has(args.sourceUuid)
+            ? args.sourceUuid
+            : undefined;
+    };
     return {
         sourcesByPackage: new Map(
-            [...packages].flatMap(([packageName, owners]) =>
-                owners.size === 1
-                    ? [[packageName, [...owners][0]] as const]
-                    : [],
-            ),
+            [...packages].flatMap(([packageName, owners]) => {
+                const owner = chosenOwner(owners);
+                return owner === undefined
+                    ? []
+                    : [[packageName, owner] as const];
+            }),
         ),
         sourceAliases,
         sourceUuids: [...deployedSources],
