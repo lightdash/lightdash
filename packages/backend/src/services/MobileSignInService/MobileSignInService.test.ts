@@ -70,7 +70,9 @@ const createService = ({
         managed ? ({ provider: 'microsoft' } as never) : undefined,
     );
     const incrementRateCounter = vi.fn(async () => (rateAllowed ? 1 : 1000));
+    const track = vi.fn();
     const service = new MobileSignInService({
+        analytics: { track },
         lightdashConfig: {
             siteUrl: 'https://app.example.test',
             smtp: smtp ? ({} as never) : undefined,
@@ -95,6 +97,7 @@ const createService = ({
         mobileSignInCodeModel,
         incrementRateCounter,
         getManagedSignIn,
+        track,
     };
 };
 
@@ -213,6 +216,111 @@ describe('MobileSignInService.mint', () => {
             windowStartedAt: new Date('2026-11-09T12:00:00.000Z'),
         });
         expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+});
+
+describe('MobileSignInService analytics', () => {
+    it('tracks the funnel with join keys and explicit nulls', async () => {
+        const claim = vi.fn(async () => ({ outcome: 'claimed', row: codeRow }));
+        const decide = vi.fn(async () => ({
+            outcome: 'decided',
+            row: codeRow,
+        }));
+        const { service, track } = createService({ model: { claim, decide } });
+
+        await service.mint(sessionUser, 'session-0000', 'auto_refresh');
+        await service.claim(
+            {
+                code,
+                client_id: 'client-0000-test',
+                code_challenge: challenge,
+                code_challenge_method: 'S256',
+                platform: 'ios',
+            },
+            {},
+        );
+        await service.decide(
+            sessionUser,
+            'session-0000',
+            'code-0000-test',
+            'nonce',
+            'declined',
+            {},
+        );
+        service.recordRedeemAllowed(
+            {
+                user: sessionUser,
+                metadata: {
+                    codeUuid: 'code-0000-test',
+                    clientId: 'client-0000-test',
+                    reportedPlatform: 'ios',
+                },
+            },
+            {},
+        );
+
+        expect(track.mock.calls.map(([event]) => event)).toEqual([
+            {
+                event: 'mobile_sign_in_code.created',
+                userId: userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    codeUuid: 'code-0000-test',
+                    reason: 'auto_refresh',
+                    platform: null,
+                    declinedBy: null,
+                },
+            },
+            expect.objectContaining({
+                event: 'mobile_sign_in_code.claimed',
+                properties: expect.objectContaining({ platform: 'ios' }),
+            }),
+            expect.objectContaining({
+                event: 'mobile_sign_in_code.declined',
+                properties: expect.objectContaining({ declinedBy: 'web' }),
+            }),
+            expect.objectContaining({
+                event: 'mobile_sign_in_code.redeemed',
+                userId: userUuid,
+            }),
+        ]);
+        expect(JSON.stringify(track.mock.calls)).not.toContain(code);
+    });
+
+    it('tracks a decline caused by failed redeems', async () => {
+        const { service, track } = createService({
+            model: {
+                redeem: vi.fn(async () => ({
+                    outcome: 'wrong_number',
+                    declined: {
+                        mobile_sign_in_code_uuid: 'code-0000-test',
+                        user_uuid: userUuid,
+                        organization_uuid: organizationUuid,
+                        reported_platform: 'android',
+                    },
+                })),
+            },
+        });
+        await service
+            .redeem(
+                {
+                    code,
+                    clientId: 'client-0000-test',
+                    codeVerifier: verifier,
+                    matchNumber: '11',
+                },
+                {},
+            )
+            .catch(() => undefined);
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'mobile_sign_in_code.declined',
+                properties: expect.objectContaining({
+                    declinedBy: 'failed_redeems',
+                    platform: 'android',
+                }),
+            }),
+        );
     });
 });
 
@@ -457,15 +565,23 @@ describe('MobileSignInService.redeem', () => {
         ],
         [{ outcome: 'expired' }, { error: 'expired_token' }],
         [
-            { outcome: 'wrong_number', declined: false },
+            { outcome: 'wrong_number', declined: null },
             { error: 'invalid_grant', description: 'wrong_number' },
         ],
         [
-            { outcome: 'code_mismatch', declined: false },
+            { outcome: 'code_mismatch', declined: null },
             { error: 'invalid_grant', description: 'code_mismatch' },
         ],
         [
-            { outcome: 'wrong_number', declined: true },
+            {
+                outcome: 'wrong_number',
+                declined: {
+                    mobile_sign_in_code_uuid: 'code-0000-test',
+                    user_uuid: userUuid,
+                    organization_uuid: organizationUuid,
+                    reported_platform: 'ios',
+                },
+            },
             { error: 'access_denied', description: 'declined' },
         ],
     ])('maps %o to the RFC 8628 error', async (outcome, expected) => {

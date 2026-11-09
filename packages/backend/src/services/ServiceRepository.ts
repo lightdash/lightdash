@@ -806,6 +806,7 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     oauthModel: this.models.getOauthModel(),
                     getUserService: () => this.getUserService(),
+                    analytics: this.context.lightdashAnalytics,
                 }),
         );
     }

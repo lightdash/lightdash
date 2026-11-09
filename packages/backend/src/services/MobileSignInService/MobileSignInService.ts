@@ -17,6 +17,7 @@ import {
     type MobileSignInPlatform,
     type SessionUser,
 } from '@lightdash/common';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
     createAuditLogEvent,
@@ -108,6 +109,14 @@ type MobileSignInServiceArguments = {
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
     oauthModel: Pick<OAuth2Model, 'getClient'>;
     getUserService: () => Pick<UserService, 'getManagedSignIn'>;
+    analytics: Pick<LightdashAnalytics, 'track'>;
+};
+
+type TrackedCode = {
+    codeUuid: string;
+    userUuid: string;
+    organizationUuid: string;
+    platform: string | null;
 };
 
 export class MobileSignInService extends BaseService {
@@ -127,6 +136,8 @@ export class MobileSignInService extends BaseService {
 
     private readonly getUserService: MobileSignInServiceArguments['getUserService'];
 
+    private readonly analytics: MobileSignInServiceArguments['analytics'];
+
     constructor(args: MobileSignInServiceArguments) {
         super({ serviceName: 'MobileSignInService' });
         this.lightdashConfig = args.lightdashConfig;
@@ -137,6 +148,33 @@ export class MobileSignInService extends BaseService {
         this.userModel = args.userModel;
         this.oauthModel = args.oauthModel;
         this.getUserService = args.getUserService;
+        this.analytics = args.analytics;
+    }
+
+    private track(
+        event:
+            | 'mobile_sign_in_code.created'
+            | 'mobile_sign_in_code.claimed'
+            | 'mobile_sign_in_code.approved'
+            | 'mobile_sign_in_code.declined'
+            | 'mobile_sign_in_code.redeemed',
+        code: TrackedCode,
+        extra: {
+            reason?: MobileSignInMintReason;
+            declinedBy?: 'web' | 'failed_redeems';
+        } = {},
+    ): void {
+        this.analytics.track({
+            event,
+            userId: code.userUuid,
+            properties: {
+                organizationId: code.organizationUuid,
+                codeUuid: code.codeUuid,
+                reason: extra.reason ?? null,
+                platform: code.platform,
+                declinedBy: extra.declinedBy ?? null,
+            },
+        });
     }
 
     private static audit(
@@ -245,10 +283,16 @@ export class MobileSignInService extends BaseService {
             0,
             Math.round((minted.expiresAt.getTime() - Date.now()) / 1000),
         );
-        this.logger.debug('Minted mobile sign-in code', {
-            codeUuid: minted.codeUuid,
-            reason,
-        });
+        this.track(
+            'mobile_sign_in_code.created',
+            {
+                codeUuid: minted.codeUuid,
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid!,
+                platform: null,
+            },
+            { reason },
+        );
         const signInUrl = new URL(
             MOBILE_SIGN_IN_PATH,
             this.lightdashConfig.siteUrl,
@@ -324,6 +368,18 @@ export class MobileSignInService extends BaseService {
         });
         switch (result.outcome) {
             case 'decided':
+                this.track(
+                    decision === 'approved'
+                        ? 'mobile_sign_in_code.approved'
+                        : 'mobile_sign_in_code.declined',
+                    {
+                        codeUuid,
+                        userUuid: user.userUuid,
+                        organizationUuid: result.row.organization_uuid,
+                        platform: result.row.reported_platform,
+                    },
+                    decision === 'declined' ? { declinedBy: 'web' } : {},
+                );
                 MobileSignInService.audit(
                     user,
                     decision === 'approved'
@@ -485,6 +541,12 @@ export class MobileSignInService extends BaseService {
                 description: 'code_already_used',
             });
         }
+        this.track('mobile_sign_in_code.claimed', {
+            codeUuid: result.row.mobile_sign_in_code_uuid,
+            userUuid: result.row.user_uuid,
+            organizationUuid: result.row.organization_uuid,
+            platform: result.row.reported_platform,
+        });
         const user = await this.userModel.findSessionUserAndOrgByUuid(
             result.row.user_uuid,
             result.row.organization_uuid,
@@ -552,6 +614,18 @@ export class MobileSignInService extends BaseService {
                 throw new MobileSignInOAuthError('expired_token');
             case 'wrong_number':
             case 'code_mismatch':
+                if (result.declined) {
+                    this.track(
+                        'mobile_sign_in_code.declined',
+                        {
+                            codeUuid: result.declined.mobile_sign_in_code_uuid,
+                            userUuid: result.declined.user_uuid,
+                            organizationUuid: result.declined.organization_uuid,
+                            platform: result.declined.reported_platform,
+                        },
+                        { declinedBy: 'failed_redeems' },
+                    );
+                }
                 throw result.declined
                     ? new MobileSignInOAuthError('access_denied', {
                           description: 'declined',
@@ -609,6 +683,12 @@ export class MobileSignInService extends BaseService {
         redemption: MobileSignInRedemption,
         context: MobileSignInRequestContext,
     ): void {
+        this.track('mobile_sign_in_code.redeemed', {
+            codeUuid: redemption.metadata.codeUuid,
+            userUuid: redemption.user.userUuid,
+            organizationUuid: redemption.user.organizationUuid!,
+            platform: redemption.metadata.reportedPlatform,
+        });
         MobileSignInService.audit(
             redemption.user,
             'mobile_sign_in_redeem',

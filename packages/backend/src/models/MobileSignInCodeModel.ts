@@ -57,8 +57,16 @@ export type RedeemResult =
     | { outcome: 'authorization_pending' }
     | { outcome: 'declined' }
     | { outcome: 'expired' }
-    | { outcome: 'wrong_number'; declined: boolean }
-    | { outcome: 'code_mismatch'; declined: boolean };
+    | { outcome: 'wrong_number'; declined: MobileSignInDeclinedCode | null }
+    | { outcome: 'code_mismatch'; declined: MobileSignInDeclinedCode | null };
+
+export type MobileSignInDeclinedCode = Pick<
+    DbMobileSignInCode,
+    | 'mobile_sign_in_code_uuid'
+    | 'user_uuid'
+    | 'organization_uuid'
+    | 'reported_platform'
+>;
 
 type MobileSignInCodeModelArguments = {
     database: Knex;
@@ -310,7 +318,7 @@ export class MobileSignInCodeModel {
         if (touched.status === 'claimed') {
             return holdsClaim
                 ? { outcome: 'authorization_pending' }
-                : { outcome: 'code_mismatch', declined: false };
+                : { outcome: 'code_mismatch', declined: null };
         }
 
         const [redeemed] = await this.database(MobileSignInCodesTableName)
@@ -343,9 +351,23 @@ export class MobileSignInCodeModel {
                     [MOBILE_SIGN_IN_MAX_FAILED_REDEEMS],
                 ),
             })
-            .returning(['status']);
+            .returning([
+                'status',
+                'mobile_sign_in_code_uuid',
+                'user_uuid',
+                'organization_uuid',
+                'reported_platform',
+            ]);
         if (!failed) return { outcome: 'expired' };
-        const declined = failed.status === 'declined';
+        const declined =
+            failed.status === 'declined'
+                ? {
+                      mobile_sign_in_code_uuid: failed.mobile_sign_in_code_uuid,
+                      user_uuid: failed.user_uuid,
+                      organization_uuid: failed.organization_uuid,
+                      reported_platform: failed.reported_platform,
+                  }
+                : null;
         return holdsClaim
             ? { outcome: 'wrong_number', declined }
             : { outcome: 'code_mismatch', declined };

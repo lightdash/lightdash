@@ -280,15 +280,15 @@ describe('MobileSignInCodeModel (PostgreSQL)', () => {
         const wrong = (matchNumber + 1) % 100;
         expect(await redeem(minted.code, wrong)).toEqual({
             outcome: 'wrong_number',
-            declined: false,
+            declined: null,
         });
         expect(await redeem(minted.code, wrong)).toEqual({
             outcome: 'wrong_number',
-            declined: false,
+            declined: null,
         });
         expect(await redeem(minted.code, wrong)).toEqual({
             outcome: 'wrong_number',
-            declined: true,
+            declined: expect.objectContaining({ user_uuid: userUuid }),
         });
         expect(await redeem(minted.code, matchNumber)).toEqual({
             outcome: 'declined',
@@ -301,12 +301,12 @@ describe('MobileSignInCodeModel (PostgreSQL)', () => {
             await redeem(minted.code, matchNumber, {
                 clientId: otherClientId,
             }),
-        ).toEqual({ outcome: 'code_mismatch', declined: false });
+        ).toEqual({ outcome: 'code_mismatch', declined: null });
         expect(
             await redeem(minted.code, matchNumber, {
                 codeVerifier: 'another-verifier-0000-test-0000-test-0000',
             }),
-        ).toEqual({ outcome: 'code_mismatch', declined: false });
+        ).toEqual({ outcome: 'code_mismatch', declined: null });
         expect((await row(minted.code))?.failed_redeems).toBe(2);
         expect((await redeem(minted.code, matchNumber)).outcome).toBe(
             'redeemed',

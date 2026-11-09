@@ -373,6 +373,23 @@ type WarehouseConnectEvent = BaseTrack & {
     };
 };
 
+type MobileSignInCodeEvent = BaseTrack & {
+    event:
+        | 'mobile_sign_in_code.created'
+        | 'mobile_sign_in_code.claimed'
+        | 'mobile_sign_in_code.approved'
+        | 'mobile_sign_in_code.declined'
+        | 'mobile_sign_in_code.redeemed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        codeUuid: string;
+        reason: 'show' | 'auto_refresh' | null;
+        platform: string | null;
+        declinedBy: 'web' | 'failed_redeems' | null;
+    };
+};
+
 export type ConnectionTestStage = 'warehouse' | 'dbt';
 
 export type ConnectionTestErrorCategory =
@@ -5025,6 +5042,7 @@ type TypedEvent =
     | MobileAppLinkCreatedEvent
     | MobileAppLinkOpenedEvent
     | WarehouseConnectEvent
+    | MobileSignInCodeEvent
     | WarehouseConnectionTestedEvent
     | WarehouseConnectionChangedEvent
     | WarehouseConnectionTestCompletedEvent
