@@ -78,7 +78,7 @@ const stubDiffViewer = () => ({
     },
 });
 
-// Same-shape es-toolkit entries replace lodash copies pulled in by react-ace and react-grid-layout
+// Same-shape es-toolkit entries replace lodash copies pulled in by react-ace
 const lodashShims = {
     'lodash.isequal': 'es-toolkit/compat/isEqual',
     'lodash.get': 'es-toolkit/compat/get',

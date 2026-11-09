@@ -26,7 +26,7 @@ import {
     useState,
     type FC,
 } from 'react';
-import { type Layout } from 'react-grid-layout';
+import { type Layout, type LayoutItem } from 'react-grid-layout';
 import { useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
@@ -76,12 +76,12 @@ type TabGroup = {
     key: string;
     tab: DashboardTab | null;
     tiles: Dashboard['tiles'];
-    layouts: { lg: Layout[]; md: Layout[] };
+    layouts: { lg: Layout; md: Layout };
 };
 
 type MinimalDashboardContentProps = {
     filteredAndSortedDashboardTiles: Dashboard['tiles'];
-    layouts: { lg: Layout[]; md: Layout[] };
+    layouts: { lg: Layout; md: Layout };
     tabGroups: TabGroup[] | null;
     gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
     isTabEmpty: boolean;
@@ -476,10 +476,10 @@ const MinimalDashboard: FC = () => {
 
     const layouts = useMemo(() => {
         return {
-            lg: filteredAndSortedDashboardTiles.map<Layout>((tile) =>
+            lg: filteredAndSortedDashboardTiles.map<LayoutItem>((tile) =>
                 getReactGridLayoutConfig(tile, false, gridProps.cols.lg),
             ),
-            md: filteredAndSortedDashboardTiles.map<Layout>((tile) =>
+            md: filteredAndSortedDashboardTiles.map<LayoutItem>((tile) =>
                 getReactGridLayoutConfig(tile, false, gridProps.cols.md),
             ),
         };

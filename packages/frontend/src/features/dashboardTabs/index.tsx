@@ -109,9 +109,9 @@ type TabGridPanelProps = {
     gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
     dashboardTabs: DashboardTab[];
     onDragStart: () => void;
-    onDragStop: (layout: Layout[]) => void;
+    onDragStop: (layout: Layout) => void;
     onResizeStart: () => void;
-    onResizeStop: (layout: Layout[]) => void;
+    onResizeStop: (layout: Layout) => void;
     onBreakpointChange: (breakpoint: string, cols: number) => void;
     onWidthChange: (width: number) => void;
     onDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
@@ -219,7 +219,7 @@ type DashboardTabsProps = {
     dashboardTiles: DashboardTile[] | undefined;
     activeTab: DashboardTab | undefined;
     handleAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
-    handleUpdateTiles: (layout: Layout[]) => Promise<void>;
+    handleUpdateTiles: (layout: Layout) => Promise<void>;
     handleDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
     handleBatchDeleteTiles: (tile: IDashboard['tiles'][number][]) => void;
     handleEditTile: (tiles: IDashboard['tiles'][number]) => void;
@@ -303,7 +303,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const showGridLines = isEditMode && isInteracting;
 
     const handleUpdateTilesWithScaling = useCallback(
-        async (layout: Layout[]) => {
+        async (layout: Layout) => {
             const unscaledLayout = convertLayoutToBaseCoordinates(
                 layout,
                 currentCols,
@@ -321,7 +321,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         startAutoScroll();
     }, [startAutoScroll]);
     const handleDragStop = useCallback(
-        (layout: Layout[]) => {
+        (layout: Layout) => {
             stopAutoScroll();
             setIsInteracting(false);
             void handleUpdateTilesWithScaling(layout);
@@ -333,7 +333,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         startAutoScroll();
     }, [startAutoScroll]);
     const handleResizeStop = useCallback(
-        (layout: Layout[]) => {
+        (layout: Layout) => {
             stopAutoScroll();
             setIsInteracting(false);
             void handleUpdateTilesWithScaling(layout);
@@ -488,10 +488,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const gridProps = useMemo(
         () =>
             getResponsiveGridLayoutProps({
-                isEditMode,
                 rowHeight: fitToScreenRowHeight ?? DEFAULT_ROW_HEIGHT,
             }),
-        [isEditMode, fitToScreenRowHeight],
+        [fitToScreenRowHeight],
     );
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();

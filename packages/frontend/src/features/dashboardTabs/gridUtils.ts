@@ -3,13 +3,23 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { type Layout } from 'react-grid-layout';
+import {
+    type Compactor,
+    type Layout,
+    type LayoutItem,
+} from 'react-grid-layout';
+import {
+    absoluteStrategy,
+    transformStrategy,
+    type PositionStrategy,
+} from 'react-grid-layout/core';
+import { keepPositionsCompactor } from './gridCompactor';
 
 const DEFAULT_COLS = 36;
 
 export const GRID_BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 0 };
-export const GRID_COLS = { lg: DEFAULT_COLS, md: 30, sm: 18, xs: 1 };
-export type DashboardLayouts = Record<keyof typeof GRID_COLS, Layout[]>;
+export const GRID_COLS = { lg: DEFAULT_COLS, md: 30, sm: 18, xs: 18 };
+export type DashboardLayouts = Record<keyof typeof GRID_COLS, Layout>;
 /**
  * Row height: fontSize * lineHeight + padding + borders
  */
@@ -139,12 +149,12 @@ export const getFitToScreenRowHeight = (
  *
  * @param layout - The layout array from react-grid-layout
  * @param currentCols - The current breakpoint's column count
- * @returns Layout array with positions converted to base coordinates
+ * @returns LayoutItem array with positions converted to base coordinates
  */
 export const convertLayoutToBaseCoordinates = (
-    layout: Layout[],
+    layout: Layout,
     currentCols: number,
-): Layout[] => {
+): Layout => {
     const scaleFactor = currentCols / DEFAULT_COLS;
 
     return layout.map((item) => ({
@@ -155,9 +165,9 @@ export const convertLayoutToBaseCoordinates = (
 };
 
 export type ResponsiveGridLayoutProps = {
-    compactType: null;
-    draggableCancel: string;
-    useCSSTransforms: boolean;
+    compactor: Compactor;
+    dragConfig: { cancel: string };
+    positionStrategy: PositionStrategy;
     measureBeforeMount: boolean;
     breakpoints: typeof GRID_BREAKPOINTS;
     cols: typeof GRID_COLS;
@@ -169,7 +179,7 @@ export const getReactGridLayoutConfig = (
     tile: DashboardTile,
     isEditMode = false,
     cols = 36,
-): Layout => {
+): LayoutItem => {
     // Scale factor based on the number of columns (36 is the default for lg)
     const scaleFactor = cols / DEFAULT_COLS;
 
@@ -186,7 +196,10 @@ export const getReactGridLayoutConfig = (
     };
 };
 
-export const getMobileGridLayout = (tiles: DashboardTile[]): Layout[] => {
+export const getMobileGridLayout = (
+    tiles: DashboardTile[],
+    cols: number,
+): Layout => {
     let y = 0;
     return [...tiles]
         .sort((a, b) => a.y - b.y || a.x - b.x || a.uuid.localeCompare(b.uuid))
@@ -201,11 +214,11 @@ export const getMobileGridLayout = (tiles: DashboardTile[]): Layout[] => {
                           tile.type === DashboardTileTypes.SQL_CHART
                         ? Math.max(5, Math.min(Math.ceil(tile.h * 0.75), 8))
                         : Math.max(5, Math.min(tile.h, 8));
-            const layout: Layout = {
+            const layout: LayoutItem = {
                 i: tile.uuid,
                 x: 0,
                 y,
-                w: 1,
+                w: cols,
                 h,
                 minW: 1,
                 minH: 1,
@@ -230,23 +243,21 @@ export const getDashboardLayouts = (
     ),
     sm:
         cols.sm === 1
-            ? getMobileGridLayout(tiles)
+            ? getMobileGridLayout(tiles, cols.sm)
             : tiles.map((tile) =>
                   getReactGridLayoutConfig(tile, isEditMode, cols.sm),
               ),
     xs: isEditMode
         ? tiles.map((tile) => getReactGridLayoutConfig(tile, true, cols.xs))
-        : getMobileGridLayout(tiles),
+        : getMobileGridLayout(tiles, cols.xs),
 });
 
 export const getResponsiveGridLayoutProps = ({
     enableAnimation = false,
     stackVerticallyOnSmallestBreakpoint = false,
-    isEditMode = false,
     rowHeight = DEFAULT_ROW_HEIGHT,
 }: {
     enableAnimation?: boolean;
-    isEditMode?: boolean;
     rowHeight?: number;
 
     /**
@@ -256,16 +267,14 @@ export const getResponsiveGridLayoutProps = ({
      */
     stackVerticallyOnSmallestBreakpoint?: boolean;
 } = {}): ResponsiveGridLayoutProps => ({
-    compactType: null,
-    draggableCancel: '.non-draggable',
-    useCSSTransforms: enableAnimation,
+    compactor: keepPositionsCompactor,
+    dragConfig: { cancel: '.non-draggable' },
+    positionStrategy: enableAnimation ? transformStrategy : absoluteStrategy,
     measureBeforeMount: !enableAnimation,
     breakpoints: GRID_BREAKPOINTS,
-    cols: {
-        ...GRID_COLS,
-        sm: stackVerticallyOnSmallestBreakpoint ? 1 : GRID_COLS.sm,
-        xs: isEditMode ? GRID_COLS.sm : 1,
-    },
+    cols: stackVerticallyOnSmallestBreakpoint
+        ? { ...GRID_COLS, sm: 1, xs: 1 }
+        : GRID_COLS,
     rowHeight,
     margin: GRID_MARGIN,
 });

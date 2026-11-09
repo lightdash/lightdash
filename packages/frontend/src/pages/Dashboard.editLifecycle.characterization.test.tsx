@@ -150,7 +150,7 @@ vi.mock('../components/common/Dashboard/DashboardHeader', () => ({
 
 type TabsProps = {
     dashboardTiles: DashboardTile[] | undefined;
-    handleUpdateTiles: (layout: Layout[]) => void;
+    handleUpdateTiles: (layout: Layout) => void;
     handleDeleteTile: (tile: DashboardTile) => void;
     handleBatchDeleteTiles: (tiles: DashboardTile[]) => void;
     handleEditTile: (tile: DashboardTile) => void;

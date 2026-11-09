@@ -1544,8 +1544,8 @@ importers:
         specifier: 1.2.2
         version: 1.2.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react-grid-layout:
-        specifier: 1.3.4
-        version: 1.3.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: 2.3.0
+        version: 2.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react-leaflet:
         specifier: 4.2.1
         version: 4.2.1(leaflet@1.9.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -1718,9 +1718,6 @@ importers:
       '@types/react-dom':
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
-      '@types/react-grid-layout':
-        specifier: 1.3.1
-        version: 1.3.1
       '@types/react-syntax-highlighter':
         specifier: 13.5.2
         version: 13.5.2
@@ -7659,9 +7656,6 @@ packages:
     peerDependencies:
       '@types/react': ^19.3.0
 
-  '@types/react-grid-layout@1.3.1':
-    resolution: {integrity: sha512-Y0YluwhEs/MsRWgyY+2DtNPCMaDdL9IkynS+b5EQcCK9ozBlQED7qQe2RCMSfwLoDwZXvcRtx+0Jyzs47geQ9g==}
-
   '@types/react-syntax-highlighter@13.5.2':
     resolution: {integrity: sha512-sRZoKZBGKaE7CzMvTTgz+0x/aVR58ZYUTfB7HN76vC+yQnvo1FWtzNARBt0fGqcLGEVakEzMu/CtPzssmanu8Q==}
 
@@ -8886,10 +8880,6 @@ packages:
   clone@2.1.2:
     resolution: {integrity: sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w==}
     engines: {node: '>=0.8'}
-
-  clsx@1.1.1:
-    resolution: {integrity: sha512-6/bPho624p3S2pMyvP5kKBPXnI3ufHLObBFCfgx+LkeR5lg2XYy2hqZqUf45ypD8COn2bhgGJSUE+l5dhNBieA==}
-    engines: {node: '>=6'}
 
   clsx@2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
@@ -10124,6 +10114,9 @@ packages:
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
+
+  fast-equals@4.0.3:
+    resolution: {integrity: sha512-G3BSX9cfKttjr+2o1O22tYMLq0DPluZnYtq1rXumE1SpL/F/SLIfHx08WYQoWSIpeMYf8sRbJ8++71+v6Pnxfg==}
 
   fast-equals@5.4.1:
     resolution: {integrity: sha512-DjlFSM5Pk9cGcL0q5QXl66eGzx0N6szNgaswwc5ZphlBohjTVJSnGgI+rJVOgOi65qUoQnDZN4nDqi33udtydQ==}
@@ -13740,8 +13733,8 @@ packages:
     peerDependencies:
       react: ^19.3.0
 
-  react-draggable@4.4.4:
-    resolution: {integrity: sha512-6e0WdcNLwpBx/YIDpoyd2Xb04PB0elrDrulKUgdrIlwuYvxh5Ok9M+F8cljm8kPXXs43PmMzek9RrB1b7mLMqA==}
+  react-draggable@4.7.2:
+    resolution: {integrity: sha512-pmqDx72EqhMGoJe/x42ZO2wJ9TIz7qJ5OPnFu6lVWWznEuJumlSjR+J0V4tNyDFhUo6dVvv56FeiTqN+arTgnw==}
     peerDependencies:
       react: '>= 16.3.0'
       react-dom: '>= 16.3.0'
@@ -13752,8 +13745,8 @@ packages:
       react: '>=17.0.0'
       react-dom: '>=17.0.0'
 
-  react-grid-layout@1.3.4:
-    resolution: {integrity: sha512-sB3rNhorW77HUdOjB4JkelZTdJGQKuXLl3gNg+BI8gJkTScspL1myfZzW/EM0dLEn+1eH+xW+wNqk0oIM9o7cw==}
+  react-grid-layout@2.3.0:
+    resolution: {integrity: sha512-4ofzuR/MlYchp+ixDUVBxH6ybaw+JH51M+rpf675ik/++4Dn0Kax/Vf2Gv/7Z++mV1ZC7mY9UV2sRRycjGjKXQ==}
     peerDependencies:
       react: '>= 16.3.0'
       react-dom: '>= 16.3.0'
@@ -13825,10 +13818,11 @@ packages:
       '@types/react':
         optional: true
 
-  react-resizable@3.0.4:
-    resolution: {integrity: sha512-StnwmiESiamNzdRHbSSvA65b0ZQJ7eVQpPusrSmcpyGKzC0gojhtO62xxH6YOBmepk9dQTBi9yxidL3W4s3EBA==}
+  react-resizable@3.2.0:
+    resolution: {integrity: sha512-3NKQ0SLZV7rs3LQHeXlOzDSRQfFrkX6TVet77/Qk03zqiZyee37b7N8/gwDJAA8UUjRz7PdWCCy49hcso45SMQ==}
     peerDependencies:
       react: '>= 16.3'
+      react-dom: '>= 16.3'
 
   react-router@7.15.0:
     resolution: {integrity: sha512-HW9vYwuM8f4yx66Izy8xfrzCM+SBJluoZcCbww9A1TySax11S5Vgw6fi3ZjMONw9J4gQwngL7PzkyIpJJpJ7RQ==}
@@ -22730,10 +22724,6 @@ snapshots:
     dependencies:
       '@types/react': 19.3.0
 
-  '@types/react-grid-layout@1.3.1':
-    dependencies:
-      '@types/react': 19.3.0
-
   '@types/react-syntax-highlighter@13.5.2':
     dependencies:
       '@types/react': 19.3.0
@@ -24312,8 +24302,6 @@ snapshots:
   clone@1.0.4: {}
 
   clone@2.1.2: {}
-
-  clsx@1.1.1: {}
 
   clsx@2.1.1: {}
 
@@ -25909,6 +25897,8 @@ snapshots:
       '@fast-csv/parse': 4.3.6
 
   fast-deep-equal@3.1.3: {}
+
+  fast-equals@4.0.3: {}
 
   fast-equals@5.4.1: {}
 
@@ -30193,9 +30183,9 @@ snapshots:
       react: 19.3.0
       scheduler: 0.28.0
 
-  react-draggable@4.4.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+  react-draggable@4.7.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
-      clsx: 1.1.1
+      clsx: 2.1.1
       prop-types: 15.8.1
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
@@ -30205,15 +30195,16 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  react-grid-layout@1.3.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+  react-grid-layout@2.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
-      clsx: 1.1.1
-      lodash.isequal: 4.5.0
+      clsx: 2.1.1
+      fast-equals: 4.0.3
       prop-types: 15.8.1
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-      react-draggable: 4.4.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      react-resizable: 3.0.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react-draggable: 4.7.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react-resizable: 3.2.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      resize-observer-polyfill: 1.5.1
 
   react-i18next@15.4.1(i18next@24.2.2(@typescript/typescript6@6.0.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
@@ -30283,13 +30274,12 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
-  react-resizable@3.0.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+  react-resizable@3.2.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
       prop-types: 15.8.1
       react: 19.3.0
-      react-draggable: 4.4.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-    transitivePeerDependencies:
-      - react-dom
+      react-dom: 19.3.0(react@19.3.0)
+      react-draggable: 4.7.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
 
   react-router@7.15.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:

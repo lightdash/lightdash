@@ -1,17 +1,23 @@
 import { useElementSize } from '@mantine/hooks';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import {
-    Responsive,
-    type ResponsiveProps,
-    type WidthProviderProps,
+    ResponsiveGridLayout as Responsive,
+    type ResponsiveGridLayoutProps,
 } from 'react-grid-layout';
 import { getBreakpointForWidth } from './gridUtils';
 
-type Props = Omit<ResponsiveProps, 'width' | 'innerRef'> & WidthProviderProps;
+type Props = Omit<
+    ResponsiveGridLayoutProps,
+    'width' | 'innerRef' | 'children'
+> & {
+    children?: ReactNode;
+    measureBeforeMount?: boolean;
+};
 
 /** Track the grid itself so host-container and sidebar resizes also reflow it. */
 export const ResponsiveGridLayout: FC<Props> = ({
     measureBeforeMount = false,
+    children,
     ...props
 }) => {
     const { ref, width: observedWidth } = useElementSize<HTMLDivElement>();
@@ -51,5 +57,9 @@ export const ResponsiveGridLayout: FC<Props> = ({
         );
     }
 
-    return <Responsive {...props} innerRef={ref} width={width ?? 1280} />;
+    return (
+        <Responsive {...props} innerRef={ref} width={width ?? 1280}>
+            {children}
+        </Responsive>
+    );
 };

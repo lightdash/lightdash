@@ -62,7 +62,7 @@ export default defineConfig({
     resolve: {
         dedupe: ['react', 'react-dom'],
         alias: {
-            // Same-shape es-toolkit entries replace lodash copies pulled in by react-ace and react-grid-layout
+            // Same-shape es-toolkit entries replace lodash copies pulled in by react-ace
             'lodash.isequal': 'es-toolkit/compat/isEqual',
             // No lodash.get alias: es-toolkit's CJS get makes rolldown emit a self-calling require_hasOwn in react-ace
             ...(process.env.NODE_ENV === 'development'

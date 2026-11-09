@@ -498,7 +498,7 @@ const Dashboard: FC = () => {
     const handleParameterChange = useDashboardContext((c) => c.setParameter);
 
     const handleUpdateTiles = useCallback(
-        async (layout: Layout[]) => {
+        async (layout: Layout) => {
             setDashboardTiles((currentDashboardTiles) =>
                 currentDashboardTiles?.map((tile) => {
                     const layoutTile = layout.find(({ i }) => i === tile.uuid);

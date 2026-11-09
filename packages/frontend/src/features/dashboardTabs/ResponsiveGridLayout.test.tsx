@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
+import { absoluteStrategy } from 'react-grid-layout/core';
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 
 const stubResizeObserver = () => {
@@ -58,7 +59,7 @@ describe('dashboard container resizing', () => {
                         { i: 'b', x: 0, y: 1, w: 1, h: 1 },
                     ],
                 }}
-                useCSSTransforms={false}
+                positionStrategy={absoluteStrategy}
             >
                 <div key="a" data-testid="first-tile" />
                 <div key="b" data-testid="second-tile" />
@@ -68,7 +69,7 @@ describe('dashboard container resizing', () => {
         expect(screen.queryByTestId('first-tile')).not.toBeInTheDocument();
         resize(700);
         expect(screen.getByTestId('second-tile')).toHaveStyle({
-            left: '50%',
+            left: '350px',
             top: '0px',
         });
         resize(300);

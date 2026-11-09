@@ -170,7 +170,7 @@ const EmbedDashboardGrid: FC<{
     isTabEmpty?: boolean;
     gridProps: ResponsiveGridLayoutProps;
     isEditMode: boolean;
-    onLayoutChange: (layout: Layout[]) => void;
+    onLayoutChange: (layout: Layout) => void;
     onBreakpointChange: (cols: number) => void;
     onDeleteTile: (tile: DashboardTile) => void;
     onEditTile: (tile: DashboardTile) => void;
@@ -685,7 +685,6 @@ const EmbedDashboard: FC<{
 
     const gridProps = getResponsiveGridLayoutProps({
         enableAnimation: false,
-        isEditMode,
     });
     const layouts = useMemo(
         () => getDashboardLayouts(filteredTiles, isEditMode, gridProps.cols),
@@ -766,7 +765,7 @@ const EmbedDashboard: FC<{
         hasAddFilterDisabledChanged;
 
     const handleLayoutChange = useCallback(
-        (layout: Layout[]) => {
+        (layout: Layout) => {
             const unscaledLayout = convertLayoutToBaseCoordinates(
                 layout,
                 currentCols,
