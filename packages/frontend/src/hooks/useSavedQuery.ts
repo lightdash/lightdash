@@ -2,8 +2,6 @@ import {
     type ApiError,
     type ChartHistory,
     type ChartVersion,
-    ComposerChartNotSupportedError,
-    isComposerSavedChart,
     type ComposerSavedChart,
     type CreateSavedChart,
     type CreateSavedChartVersion,
@@ -99,13 +97,15 @@ const updateSavedQuery = async (
     });
 };
 
-const getSavedChartOfAnyKind = async (
+// Classic chart surfaces read a semantic chart; the server refuses a
+// composer chart by name so the 42 classic consumers stay typed.
+export const getSavedQuery = async (
     lightdashApi: LightdashApi,
     id: string,
     projectUuid: string,
     includeUnpublishedDraft = false,
-): Promise<SavedChart | ComposerSavedChart> =>
-    lightdashApi<SavedChart | ComposerSavedChart>({
+): Promise<SavedChart> =>
+    lightdashApi<SavedChart>({
         url: `/projects/${projectUuid}/saved/${id}${
             includeUnpublishedDraft ? '?includeUnpublishedDraft=true' : ''
         }`,
@@ -114,47 +114,17 @@ const getSavedChartOfAnyKind = async (
         body: undefined,
     });
 
-// Classic chart surfaces read a semantic chart; a composer chart fails loudly
-// in the same shape as a server refusal instead of leaking a pipeline.
-export const getSavedQuery = async (
-    lightdashApi: LightdashApi,
-    id: string,
-    projectUuid: string,
-    includeUnpublishedDraft = false,
-): Promise<SavedChart> => {
-    const chart = await getSavedChartOfAnyKind(
-        lightdashApi,
-        id,
-        projectUuid,
-        includeUnpublishedDraft,
-    );
-    if (isComposerSavedChart(chart)) {
-        const refusal = new ComposerChartNotSupportedError(chart.uuid);
-        const error: ApiError = {
-            status: 'error',
-            error: {
-                statusCode: refusal.statusCode,
-                name: refusal.name,
-                message: refusal.message,
-                data: refusal.data,
-            },
-        };
-        throw error;
-    }
-    return chart;
-};
-
 const getSavedComposerChart = async (
     lightdashApi: LightdashApi,
     id: string,
     projectUuid: string,
-): Promise<ComposerSavedChart> => {
-    const chart = await getSavedChartOfAnyKind(lightdashApi, id, projectUuid);
-    if (!isComposerSavedChart(chart)) {
-        throw new Error('This chart is not a composer chart');
-    }
-    return chart;
-};
+): Promise<ComposerSavedChart> =>
+    lightdashApi<ComposerSavedChart>({
+        url: `/projects/${projectUuid}/saved/${id}/composer`,
+        version: 'v2',
+        method: 'GET',
+        body: undefined,
+    });
 
 export const useSavedComposerChart = (
     uuidOrSlug: string | undefined,

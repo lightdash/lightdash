@@ -10,6 +10,7 @@ import {
     SEED_PROJECT,
     type ApiExecuteAsyncComposerChartQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
+    type ComposerSavedChart,
     type Dashboard,
     type FeatureFlag,
     type QueryHistoryListItem,
@@ -774,6 +775,42 @@ describe('Composer chart run as a dashboard viewer', () => {
             expect(resp.body.error.name).toBe('ComposerChartNotSupportedError');
         },
     );
+
+    describe('GET /api/v2/projects/:projectUuid/saved/:chartUuidOrSlug', () => {
+        it('the classic route refuses the chart by name', async () => {
+            const resp = await viewer.get<ApiErrorBody>(
+                `/api/v2/projects/${projectUuid}/saved/${revenueShareTile.chartUuid}`,
+                { failOnStatusCode: false },
+            );
+            expect(resp.status).toBe(400);
+            expect(resp.body.error.name).toBe('ComposerChartNotSupportedError');
+        });
+
+        it('the composer route returns the pipeline', async () => {
+            const resp = await viewer.get<Body<ComposerSavedChart>>(
+                `/api/v2/projects/${projectUuid}/saved/${revenueShareTile.chartUuid}/composer`,
+            );
+            expect(resp.status).toBe(200);
+            expect(resp.body.results.uuid).toBe(revenueShareTile.chartUuid);
+            expect(resp.body.results.pipeline.terminalNodeId).toBeTruthy();
+        });
+
+        it('the composer route refuses a classic chart by name', async () => {
+            const charts = await viewer.get<
+                Body<{ uuid: string; name: string }[]>
+            >(`/api/v1/projects/${projectUuid}/charts`);
+            const classic = charts.body.results.find(
+                ({ name }) => name === CLASSIC_CHART_NAME,
+            );
+            if (!classic) throw new Error(`No chart "${CLASSIC_CHART_NAME}"`);
+            const resp = await viewer.get<ApiErrorBody>(
+                `/api/v2/projects/${projectUuid}/saved/${classic.uuid}/composer`,
+                { failOnStatusCode: false },
+            );
+            expect(resp.status).toBe(400);
+            expect(resp.body.error.name).toBe('NotComposerChartError');
+        });
+    });
 
     describe('surfaces a composer chart does not have yet are refused before any write', () => {
         it('a scheduled delivery on the chart', async () => {

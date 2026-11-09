@@ -259,7 +259,7 @@ const answerApi = (
         if (method === 'POST' && url.endsWith('/dashboard-chart')) {
             return run();
         }
-        if (method === 'GET' && url.endsWith('/saved/chart-uuid')) {
+        if (method === 'GET' && url.endsWith('/saved/chart-uuid/composer')) {
             return Promise.resolve(composerChart);
         }
         return new Promise(() => {});
