@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
@@ -74,13 +75,26 @@ describe('development PM2 harness', () => {
         expectApiReloadContract(loadConfig('ecosystem.config.js'));
     });
 
-    it('generates routes immediately before watching', () => {
+    it('generates routes immediately and cleans up the watcher process', () => {
         const backendPackage = requireFromTest(
             path.join(repoRoot, 'packages/backend/package.json'),
         ) as { scripts: Record<string, string> };
+        const fastStart = fs.readFileSync(
+            path.join(repoRoot, 'scripts/dev-fast-start.sh'),
+            'utf8',
+        );
+        const instanceLib = fs.readFileSync(
+            path.join(repoRoot, 'scripts/dev-instance-lib.sh'),
+            'utf8',
+        );
 
         expect(backendPackage.scripts['generate-api-dev']).toMatch(
             /^pnpm run generate-api:build && chokidar /,
         );
+        expect(instanceLib).toMatch(
+            /for suffix in api api-routes-watch scheduler/,
+        );
+        expect(fastStart).toContain('API_RELOAD_READY');
+        expect(fastStart).toContain('PM2 API predates automatic route reload');
     });
 });
