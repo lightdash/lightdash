@@ -197,7 +197,6 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                     description="Build an interactive app powered by your data."
                                     to={`/projects/${projectUuid}/apps/generate`}
                                     icon={IconAppWindow}
-                                    isBeta
                                 />
                             </Can>
                         )}
