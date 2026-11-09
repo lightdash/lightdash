@@ -4010,6 +4010,47 @@ describe('CoderService dashboard control order as code', () => {
         expect(saved.config?.controlSections?.[0].id).toBe('section-id');
     });
 
+    it('swaps two filters when the file swaps their refs', async () => {
+        const base = savedDashboard();
+        const saved = {
+            ...base,
+            filters: {
+                ...base.filters,
+                dimensions: base.filters.dimensions.map(
+                    ({ sectionId: _sectionId, ...filter }) => filter,
+                ),
+            },
+        } as DashboardDAO;
+        const file = download(saved, true);
+        const swapped = {
+            ...file,
+            config: {
+                ...file.config!,
+                controlOrder: [
+                    { kind: 'filter', slug: 'orders-city' },
+                    { kind: 'filter', slug: 'orders-status' },
+                ],
+            },
+        } as DashboardAsCode;
+        const result = await upload(swapped, { saved });
+        expect(result.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'second-id' },
+            { kind: 'filter', id: 'first-id' },
+        ]);
+        expect(
+            download(
+                {
+                    ...saved,
+                    config: {
+                        ...saved.config!,
+                        controlOrder: result.config!.controlOrder,
+                    },
+                } as DashboardDAO,
+                true,
+            ).config?.controlOrder?.slice(0, 2),
+        ).toEqual(swapped.config?.controlOrder);
+    });
+
     it('round-trips bar line starts', async () => {
         const orderWithLines = savedOrder.map((ref) =>
             ref.id === 'section-id' || ref.id === 'first-id'
@@ -4070,7 +4111,7 @@ describe('CoderService dashboard control order as code', () => {
         expect(saved.config?.controlOrder).toEqual(memberLine);
     });
 
-    it('keeps each line start in its position when the file reorders dimension filters', async () => {
+    it('keeps the list order and line starts when the file reorders the filters array', async () => {
         const orderWithLines = savedOrder.map((ref) =>
             ref.id === 'first-id' ? { ...ref, newLine: true } : ref,
         );
@@ -4175,8 +4216,8 @@ describe('CoderService dashboard control order as code', () => {
         expect(ids).not.toContain('first-id');
         expect(result.config?.controlOrder).toEqual(
             savedOrder.map((ref) => {
-                if (ref.id === 'second-id') return { ...ref, id: ids[0] };
-                if (ref.id === 'first-id') return { ...ref, id: ids[1] };
+                if (ref.id === 'first-id') return { ...ref, id: ids[0] };
+                if (ref.id === 'second-id') return { ...ref, id: ids[1] };
                 return ref;
             }),
         );

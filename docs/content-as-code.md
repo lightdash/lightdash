@@ -782,8 +782,8 @@ from control values.
 
 ### Dashboard control order
 
-`config.controlOrder` lists how filters, parameter controls and sections
-interleave on the bar, as `{ kind, slug }` refs (`kind` is `filter`,
+`config.controlOrder` is the order of filters, parameter controls and sections
+on the bar, as `{ kind, slug }` refs (`kind` is `filter`,
 `parameter` or `section`) to controls in the same file. With
 `dashboard-controls` enabled, a dashboard with a saved order downloads its full
 reconciled order and a `slug` on every dimension and metric filter; a
@@ -791,24 +791,22 @@ never-reordered dashboard downloads without either. Filter slugs come from the
 field id on every download, suffixed `-1`, `-2` when several filters share a
 field, and are never saved.
 
-`controlOrder` only decides how kinds interleave, where sections sit and
-where bar lines start: an entry with `newLine: true` starts a new bar line, and
+The bar follows `controlOrder` entry by entry, whatever the order of
+`filters.dimensions`, `filters.metrics`, `parameterControls` or
+`controlSections`; a section's members follow their entries inside the
+section. An entry with `newLine: true` starts a new bar line, and
 every other entry shares the line of the entry before it. A line start on a
 section member passes to the next entry in the list outside a section; it is
 dropped if there is none. Without a saved
 order, lines follow each section's `inline`. Controls left out of
 `controlOrder` go to the end of their container, inline.
 
-Within a kind, the array order decides which control sits in each of that
-kind's positions, and line starts stay with their position: swapping two
-dimension filters inside `controlOrder` moves only their line starts, so
-reorder `filters.dimensions` to swap the filters themselves.
-
 Slugs in an uploaded file only resolve `controlOrder` refs inside that file.
 An upload keeps a dimension filter's ID only when it is the only filter on its
 table and field on the saved dashboard and in the file; filters sharing a field
-get new IDs, never each other's. Unknown, duplicate, malformed and `dateZoom`
-refs are rejected with the valid slugs listed; parameter refs need
+get new IDs, never each other's. Unknown, duplicate and `dateZoom`
+refs are rejected with the valid slugs listed, and refs with the wrong shape
+fail validation; parameter refs need
 `config.parameterControls` in the file. When dashboard controls are on, a file
 without `controlOrder` resets the bar to the default order. With the flag off,
 downloads omit filter slugs and `controlOrder`, and uploads ignore them,

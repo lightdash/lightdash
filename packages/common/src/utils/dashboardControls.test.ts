@@ -128,18 +128,18 @@ describe('reconcileDashboardControlOrder', () => {
         ]);
     });
 
-    it('orders sections by the sections array, whatever the list says', () => {
+    it('orders sections by the list, whatever the sections array says', () => {
         expect(
             order({
                 ...full,
                 controlOrder: [ref(SECTION, 's2'), ref(SECTION, 's1')],
             }),
         ).toEqual([
+            'section:s2',
+            'parameter:p2',
             'section:s1',
             'filter:d2',
             'filter:m2',
-            'section:s2',
-            'parameter:p2',
             'filter:d1',
             'filter:d3',
             'filter:m1',
@@ -209,7 +209,7 @@ describe('reconcileDashboardControlOrder', () => {
         ]);
     });
 
-    it('refills each kind from its own array when the arrays are reordered', () => {
+    it('follows the list, not the arrays, when the arrays are reordered', () => {
         const list = [
             ref(FILTER, 'd1'),
             ref(PARAMETER, 'p1'),
@@ -242,15 +242,15 @@ describe('reconcileDashboardControlOrder', () => {
                 parameterControls: [parameter('p3'), parameter('p1')],
             }),
         ).toEqual([
-            'filter:d3',
-            'parameter:p3',
             'filter:d1',
-            'filter:m1',
             'parameter:p1',
+            'filter:d3',
+            'filter:m1',
+            'parameter:p3',
         ]);
     });
 
-    it('refills dimension and metric filters separately', () => {
+    it('mixes dimension and metric filters as the list says', () => {
         expect(
             order(
                 sources({
@@ -265,7 +265,7 @@ describe('reconcileDashboardControlOrder', () => {
                     },
                 }),
             ),
-        ).toEqual(['filter:m2', 'filter:d1', 'filter:m1']);
+        ).toEqual(['filter:m1', 'filter:d1', 'filter:m2']);
     });
 
     it('takes membership from sectionId, not from where the list puts it', () => {
@@ -489,7 +489,7 @@ describe('reconcileDashboardControlOrder lines', () => {
         ]);
     });
 
-    it('keeps a line start with its slot when a kind is reordered', () => {
+    it('keeps a line start with its control when the array is reordered', () => {
         expect(
             lines(
                 sources({
@@ -503,7 +503,7 @@ describe('reconcileDashboardControlOrder lines', () => {
                     ],
                 }),
             ),
-        ).toEqual(['filter:a']);
+        ).toEqual(['filter:b']);
     });
 });
 

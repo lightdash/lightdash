@@ -1,4 +1,4 @@
-import { groupBy, uniqBy } from 'es-toolkit/compat';
+import { uniqBy } from 'es-toolkit/compat';
 import {
     DashboardControlRefKind,
     type DashboardControlRef,
@@ -117,20 +117,6 @@ const isKnownKind = (kind: unknown): kind is DashboardControlKind =>
 
 const refKey = (kind: DashboardControlKind, id: string) => `${kind}:${id}`;
 
-// Slots a kind's array refills; dimension and metric filters refill separately
-const slotOf = (control: DashboardControl): string => {
-    switch (control.kind) {
-        case DashboardControlRefKind.FILTER:
-            return `${control.kind}:${control.group}`;
-        case DashboardControlRefKind.PARAMETER:
-        case DashboardControlRefKind.DATE_ZOOM:
-        case DashboardControlRefKind.SECTION:
-            return control.kind;
-        default:
-            return assertUnreachable(control, 'Unknown dashboard control');
-    }
-};
-
 /** Shape check for a stored or incoming order; unknown kinds pass, readers ignore them */
 export const isDashboardControlOrder = (
     value: unknown,
@@ -170,9 +156,8 @@ export const getDashboardControls = (
 
 /**
  * The bar's controls in order: unsectioned controls, with each section
- * followed by its members. `controlOrder` only decides how kinds interleave,
- * where sections sit and where bar lines start; each kind's array orders that
- * kind, and membership comes from `sectionId`. Dangling, duplicate and
+ * followed by its members, in `controlOrder` order with its line starts;
+ * membership comes from `sectionId`. Dangling, duplicate and
  * unknown-kind refs are dropped, unmentioned controls trail their container
  * in the default order (dimension filters, metric filters, parameter
  * controls, then sections) on the line before them. With no list, lines
@@ -224,19 +209,13 @@ export const reconcileDashboardControlOrder = (
         });
     const sequence = [...mentioned, ...unmentioned];
 
-    // Each container's slots, refilled per kind from that kind's array order;
-    // a line start stays with its slot
-    const containerOf = (sectionId: string | null) => {
-        const isIn = (control: DashboardControl) =>
-            control.sectionId === sectionId;
-        const queues = groupBy(controls.filter(isIn), slotOf);
-        return sequence
-            .filter(({ control }) => isIn(control))
+    const containerOf = (sectionId: string | null) =>
+        sequence
+            .filter(({ control }) => control.sectionId === sectionId)
             .map(({ control, newLine }) => ({
-                ...queues[slotOf(control)].shift()!,
+                ...control,
                 newLine: sectionId === null && newLine,
             }));
-    };
 
     return containerOf(null).flatMap((control) =>
         control.kind === DashboardControlRefKind.SECTION

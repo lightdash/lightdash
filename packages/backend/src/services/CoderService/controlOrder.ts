@@ -147,7 +147,7 @@ type ControlIds = Record<
     string[]
 >;
 
-/** With the flag off the stored order is kept; refs to ids an upload re-minted move to the new ids of their kind, since refs are per-kind slots */
+/** With the flag off the stored order is kept; a control an upload re-minted takes the ref of the one that held its place in its list */
 export const withReplacedIds = (
     order: DashboardControlRef[] | undefined,
     before: ControlIds,
@@ -156,13 +156,12 @@ export const withReplacedIds = (
     if (!Array.isArray(order)) return order;
     const replacements = new Map<string, string>();
     (Object.keys(before) as (keyof ControlIds)[]).forEach((kind) => {
+        const gone = before[kind].filter((id) => !after[kind].includes(id));
         const added = after[kind].filter((id) => !before[kind].includes(id));
-        order
-            .filter((ref) => ref.kind === kind && !after[kind].includes(ref.id))
-            .forEach((ref, index) => {
-                if (index < added.length)
-                    replacements.set(`${kind}:${ref.id}`, added[index]);
-            });
+        gone.forEach((id, index) => {
+            if (index < added.length)
+                replacements.set(`${kind}:${id}`, added[index]);
+        });
     });
     return order.map((ref) => {
         const id = replacements.get(`${ref.kind}:${ref.id}`);

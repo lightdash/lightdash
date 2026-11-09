@@ -202,7 +202,7 @@ export type DashboardConfigAsCode = {
     parameterSections?: DashboardConfig['parameterSections'];
     parameterSectionSlugs?: { [parameterName: string]: string };
     parameterControls?: DashboardParameterControlAsCode[];
-    /** How filters, parameter controls and sections interleave on the bar. Absent: the default order. */
+    /** The order of filters, parameter controls and sections on the bar. Absent: the default order. */
     controlOrder?: DashboardControlRefAsCode[];
 };
 
