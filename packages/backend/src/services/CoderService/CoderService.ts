@@ -2003,6 +2003,7 @@ export class CoderService extends BaseService {
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         verificationMap: Map<string, ContentVerificationInfo>,
         controlsEnabled = false,
+        withFilterSlugs = false,
     ): DashboardAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === dashboard.spaceUuid,
@@ -2157,17 +2158,18 @@ export class CoderService extends BaseService {
                 controlTileSlugs,
             ),
         );
-        // A never-reordered dashboard downloads without filter slugs or an order
+        // The order appears only once stored; agents also get filter slugs so they can write one
         const orderedControls =
-            controlsEnabled && config?.controlOrder !== undefined
+            controlsEnabled &&
+            (withFilterSlugs || config?.controlOrder !== undefined)
                 ? {
                       filters: {
                           dimensions: dashboard.filters.dimensions,
                           // Stored filters can predate the metric list
                           metrics: dashboard.filters.metrics ?? [],
                       },
-                      parameterControls: config.parameterControls ?? [],
-                      sections: config.controlSections ?? [],
+                      parameterControls: config?.parameterControls ?? [],
+                      sections: config?.controlSections ?? [],
                   }
                 : undefined;
         const dashboardAsCode: DashboardAsCode = {
@@ -2191,17 +2193,18 @@ export class CoderService extends BaseService {
             ...(config && {
                 config: {
                     ...omit(config, 'controlOrder'),
-                    ...(config.parameterControls !== undefined && {
+                    ...(config?.parameterControls !== undefined && {
                         parameterControls: getParameterControlsWithSlugs(
                             config.parameterControls,
                         ),
                     }),
-                    ...(orderedControls && {
-                        controlOrder: getControlOrderAsCode({
-                            ...orderedControls,
-                            controlOrder: config.controlOrder,
+                    ...(orderedControls &&
+                        config.controlOrder !== undefined && {
+                            controlOrder: getControlOrderAsCode({
+                                ...orderedControls,
+                                controlOrder: config?.controlOrder,
+                            }),
                         }),
-                    }),
                 },
             }),
             ...(dashboard.parameters
@@ -2599,6 +2602,9 @@ export class CoderService extends BaseService {
             user,
             projectUuid,
             slugs,
+            undefined,
+            undefined,
+            { withFilterSlugs: true },
         );
         const chartSlugs = [
             ...new Set(
@@ -2694,7 +2700,10 @@ export class CoderService extends BaseService {
         // Access blocks are export-only: the AI/MCP read path enforces
         // per-item view access, which is not enough to see who a resource
         // is shared with.
-        { includeAccess = false }: { includeAccess?: boolean } = {},
+        {
+            includeAccess = false,
+            withFilterSlugs = false,
+        }: { includeAccess?: boolean; withFilterSlugs?: boolean } = {},
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -2780,17 +2789,20 @@ export class CoderService extends BaseService {
                 dashboardUuidsForVerification,
             );
 
-        const controlsEnabled = dashboardsWithAccess.some(
-            (dashboard) =>
-                dashboard.config?.parameterControls !== undefined ||
-                dashboard.config?.controlSections !== undefined ||
-                dashboard.config?.controlOrder !== undefined,
-        )
-            ? await this.dashboardService.areDashboardControlsEnabled(
-                  user,
-                  project.organizationUuid,
-              )
-            : false;
+        const controlsEnabled =
+            dashboardsWithAccess.length > 0 &&
+            (withFilterSlugs ||
+                dashboardsWithAccess.some(
+                    (dashboard) =>
+                        dashboard.config?.parameterControls !== undefined ||
+                        dashboard.config?.controlSections !== undefined ||
+                        dashboard.config?.controlOrder !== undefined,
+                ))
+                ? await this.dashboardService.areDashboardControlsEnabled(
+                      user,
+                      project.organizationUuid,
+                  )
+                : false;
         const transformedDashboards = dashboardsWithAccess.map((dashboard) => {
             if (controlsEnabled || !dashboard.config) {
                 return CoderService.transformDashboard(
@@ -2798,6 +2810,7 @@ export class CoderService extends BaseService {
                     spaces,
                     dashboardVerificationMap,
                     controlsEnabled,
+                    withFilterSlugs,
                 );
             }
             const { parameterControls: _ignored, ...config } = dashboard.config;
@@ -2806,6 +2819,7 @@ export class CoderService extends BaseService {
                 spaces,
                 dashboardVerificationMap,
                 controlsEnabled,
+                withFilterSlugs,
             );
         });
 
@@ -5922,8 +5936,14 @@ export class CoderService extends BaseService {
         const fileOrder = dashboardWithResolvedTabs.config?.controlOrder;
         let controlOrder = existingDashboard?.config?.controlOrder;
         if (controlsEnabled) {
+            const sources = {
+                filters: dashboardFilters,
+                parameterControls: dashboardConfig?.parameterControls ?? [],
+                sections: dashboardConfig?.controlSections ?? [],
+            };
+            // An empty list renders like no list, so it isn't stored
             controlOrder =
-                fileOrder === undefined
+                fileOrder === undefined || fileOrder.length === 0
                     ? undefined
                     : getControlOrderWithIds(
                           fileOrder,
@@ -5942,13 +5962,7 @@ export class CoderService extends BaseService {
                                       dashboardWithDefaults.config
                                           ?.controlSections ?? [],
                               },
-                              {
-                                  filters: dashboardFilters,
-                                  parameterControls:
-                                      dashboardConfig?.parameterControls ?? [],
-                                  sections:
-                                      dashboardConfig?.controlSections ?? [],
-                              },
+                              sources,
                           ),
                       );
         }

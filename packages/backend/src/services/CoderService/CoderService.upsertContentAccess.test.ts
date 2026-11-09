@@ -41,6 +41,7 @@ import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { type ServiceRepository } from '../ServiceRepository';
 import { CoderService } from './CoderService';
+import { getControlOrderAsCode } from './controlOrder';
 
 const PROJECT_UUID = '11111111-1111-4111-8111-111111111111';
 const ORG_UUID = 'org-uuid';
@@ -3879,7 +3880,11 @@ describe('CoderService dashboard control order as code', () => {
         const { controlOrder: _order, ...config } = dashboard.config!;
         return { ...dashboard, config };
     };
-    const download = (dashboard: DashboardDAO, controlsEnabled: boolean) => {
+    const download = (
+        dashboard: DashboardDAO,
+        controlsEnabled: boolean,
+        withFilterSlugs = false,
+    ) => {
         const { downloadedAt: _downloadedAt, ...file } = (
             CoderService as unknown as {
                 transformDashboard: (...args: AnyType[]) => DashboardAsCode;
@@ -3889,6 +3894,7 @@ describe('CoderService dashboard control order as code', () => {
             [{ uuid: SPACE_UUID, name: 'Space', path: 'space' }],
             new Map(),
             controlsEnabled,
+            withFilterSlugs,
         );
         return file as DashboardAsCode;
     };
@@ -3968,6 +3974,22 @@ describe('CoderService dashboard control order as code', () => {
     };
     const validSlugs =
         'Valid slugs are filter: orders-status, orders-city, orders-total; parameter: region; section: calendar';
+    // The list for the bar a never-reordered dashboard renders
+    const defaultList = [
+        { kind: DashboardControlRefKind.FILTER, slug: 'orders-status' },
+        { kind: DashboardControlRefKind.FILTER, slug: 'orders-total' },
+        { kind: DashboardControlRefKind.PARAMETER, slug: 'region' },
+        {
+            kind: DashboardControlRefKind.SECTION,
+            slug: 'calendar',
+            newLine: true,
+        },
+        { kind: DashboardControlRefKind.FILTER, slug: 'orders-city' },
+    ];
+    const withList = (
+        file: DashboardAsCode,
+        controlOrder: NonNullable<DashboardAsCode['config']>['controlOrder'],
+    ) => ({ ...file, config: { ...file.config!, controlOrder } });
 
     it('downloads without filter slugs or an order with the flag off, whatever is stored', () => {
         const file = JSON.stringify(download(savedDashboard(), false));
@@ -4280,6 +4302,492 @@ describe('CoderService dashboard control order as code', () => {
         });
     });
 
+    it('gives agent reads filter slugs and no order when none is stored', () => {
+        const file = download(withoutOrder(), true, true);
+        expect(
+            [...file.filters!.dimensions!, ...file.filters!.metrics!].map(
+                ({ slug }) => slug,
+            ),
+        ).toEqual(['orders-status', 'orders-city', 'orders-total']);
+        expect(file.config).not.toHaveProperty('controlOrder');
+    });
+
+    it('gives agent reads the stored order and keeps it when sent back', async () => {
+        const file = download(savedDashboard(), true, true);
+        expect(file.config?.controlOrder).toHaveLength(savedOrder.length);
+        expect(file.config?.controlOrder).toEqual(
+            download(savedDashboard(), true).config?.controlOrder,
+        );
+        const saved = await upload(file);
+        expect(saved.config?.controlOrder).toEqual(savedOrder);
+    });
+
+    it.each([true, false])(
+        'resolves the flag for agent reads of dashboards without controls config (enabled=%s)',
+        async (enabled) => {
+            const service = buildService();
+            const dashboard = {
+                ...withoutOrder(),
+                config: { isDateZoomDisabled: false },
+            } as DashboardDAO;
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                dashboard as AnyType,
+            ]);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+                dashboard,
+            );
+            service.dashboardModel.getSlugAliasesForUuids = vi.fn(
+                async () => [],
+            );
+            service.contentVerificationModel.getByContentUuids = vi.fn(
+                async () => new Map(),
+            );
+            (service as AnyType).savedChartModel = {
+                getLatestVersionQueriesBySlugs: vi.fn(async () => ({})),
+            };
+            vi.spyOn(
+                service as AnyType,
+                'filterPrivateContent',
+            ).mockImplementation(
+                async (_user: AnyType, _project: AnyType, content: AnyType) =>
+                    content,
+            );
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(enabled);
+            const user = makeSessionUser([]);
+            const exported = await (service as AnyType).findDashboardsAsCode(
+                user,
+                PROJECT_UUID,
+                undefined,
+            );
+            expect(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).not.toHaveBeenCalled();
+            expect(exported.dashboards[0].config).not.toHaveProperty(
+                'controlOrder',
+            );
+            const { dashboards } = await service.getDashboardsForRead(
+                user,
+                PROJECT_UUID,
+                ['dashboard'],
+            );
+            expect(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).toHaveBeenCalledOnce();
+            expect(dashboards[0].config).not.toHaveProperty('controlOrder');
+            expect(dashboards[0].filters?.dimensions?.[0].slug).toBe(
+                enabled ? 'orders-status' : undefined,
+            );
+        },
+    );
+
+    it('gives agent reads exactly the file download with the flag off', () => {
+        expect(JSON.stringify(download(withoutOrder(), false, true))).toBe(
+            JSON.stringify(download(withoutOrder(), false)),
+        );
+    });
+
+    it('gives agent reads no config for a dashboard without one', () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, true, true);
+        expect(file).not.toHaveProperty('config');
+        expect(file.filters?.dimensions?.[0].slug).toBe('orders-status');
+    });
+
+    it('stores no order when an agent edit leaves the default order untouched', async () => {
+        const dashboard = {
+            ...withoutOrder(),
+            tiles: [
+                {
+                    uuid: 'tile-uuid',
+                    type: DashboardTileTypes.MARKDOWN,
+                    x: 0,
+                    y: 0,
+                    h: 3,
+                    w: 3,
+                    tabUuid: undefined,
+                    properties: { title: 'Notes', content: 'Hello' },
+                },
+            ],
+        } as unknown as DashboardDAO;
+        const file = download(dashboard, true, true);
+        const saved = await upload(
+            {
+                ...file,
+                tiles: file.tiles.map((tile) => ({
+                    ...tile,
+                    properties: { ...tile.properties, title: 'Renamed tile' },
+                })) as DashboardAsCode['tiles'],
+            },
+            { saved: dashboard },
+        );
+        expect(saved.tiles[0].properties.title).toBe('Renamed tile');
+        expect(saved.config).not.toHaveProperty('controlOrder');
+        // The slugs the agent read only resolve refs in the file: ids are kept, slugs never stored
+        expect(
+            [...saved.filters.dimensions, ...saved.filters.metrics].map(
+                (filter) => [filter.id, 'slug' in filter],
+            ),
+        ).toEqual([
+            ['first-id', false],
+            ['second-id', false],
+            ['metric-id', false],
+        ]);
+    });
+
+    it('stores no config when an agent edits a dashboard that had none', async () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, true, true);
+        const saved = await upload(file, {
+            saved: dashboard as DashboardDAO,
+        });
+        expect(saved.config).toBeUndefined();
+    });
+
+    it('stores the default config for a dashboard that had none with the flag off', async () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, false);
+        const saved = await upload(
+            { ...file, config: { isDateZoomDisabled: false } },
+            { saved: dashboard as DashboardDAO, enabled: false },
+        );
+        expect(saved.config).toEqual({ isDateZoomDisabled: false });
+    });
+
+    it('stores a config when an agent reorders a dashboard that had none', async () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, true, true);
+        const saved = await upload(
+            {
+                ...file,
+                config: {
+                    isDateZoomDisabled: false,
+                    controlOrder: [
+                        'orders-total',
+                        'orders-city',
+                        'orders-status',
+                    ].map((slug) => ({
+                        kind: DashboardControlRefKind.FILTER,
+                        slug,
+                    })),
+                },
+            },
+            { saved: dashboard as DashboardDAO },
+        );
+        expect(saved.config).toEqual({
+            isDateZoomDisabled: false,
+            controlOrder: [
+                { kind: 'filter', id: 'metric-id' },
+                { kind: 'filter', id: 'second-id' },
+                { kind: 'filter', id: 'first-id' },
+            ],
+        });
+    });
+
+    const withCountryFilter = (file: DashboardAsCode) => ({
+        ...file,
+        filters: {
+            ...file.filters,
+            dimensions: [
+                ...file.filters!.dimensions!,
+                {
+                    slug: 'orders-country',
+                    label: undefined,
+                    target: { fieldId: 'orders_country', tableName: 'orders' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['Lisbon'],
+                },
+            ],
+        },
+    });
+
+    it('keeps the list when an agent swaps only the filters array', async () => {
+        const dashboard = withoutOrder();
+        const unsectioned = {
+            ...dashboard,
+            filters: {
+                ...dashboard.filters,
+                dimensions: dashboard.filters.dimensions.map(
+                    ({ sectionId: _section, ...filter }) => filter,
+                ),
+            },
+        } as DashboardDAO;
+        const file = withList(download(unsectioned, true, true), [
+            { kind: DashboardControlRefKind.FILTER, slug: 'orders-status' },
+            { kind: DashboardControlRefKind.FILTER, slug: 'orders-city' },
+        ]);
+        const saved = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [...file.filters!.dimensions!].reverse(),
+                },
+            },
+            { saved: unsectioned },
+        );
+        expect(saved.filters.dimensions.map(({ id }) => id)).toEqual([
+            'second-id',
+            'first-id',
+        ]);
+        const filterIds = saved
+            .config!.controlOrder!.filter(({ kind }) => kind === 'filter')
+            .map(({ id }) => id);
+        expect(filterIds.indexOf('first-id')).toBeLessThan(
+            filterIds.indexOf('second-id'),
+        );
+    });
+
+    it('stores a list with a member ref away from its section as given', async () => {
+        const member = defaultList[4];
+        const saved = await upload(
+            withList(download(withoutOrder(), true, true), [
+                member,
+                ...defaultList.slice(0, 4),
+            ]),
+            { saved: withoutOrder() as DashboardDAO },
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'second-id' },
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
+        ]);
+    });
+
+    const uploadNeverReordered = (
+        file: DashboardAsCode,
+        controlOrder: AnyType,
+    ) =>
+        upload(
+            { ...file, config: { ...file.config!, controlOrder } },
+            { saved: withoutOrder() as DashboardDAO },
+        );
+
+    // The bar as a download writes it, with derived slugs
+    const barOf = (saved: AnyType) =>
+        getControlOrderAsCode({
+            controlOrder: saved.config!.controlOrder,
+            filters: saved.filters,
+            parameterControls: saved.config!.parameterControls!,
+            sections: saved.config!.controlSections!,
+        }).map(({ kind, slug, newLine }) => [kind, slug, newLine ?? false]);
+
+    it('stores a partial list that puts a saved control first', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true),
+            [{ kind: DashboardControlRefKind.PARAMETER, slug: 'region' }],
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'parameter', id: 'region-id' },
+        ]);
+        expect(barOf(saved)).toEqual([
+            ['parameter', 'region', false],
+            ['filter', 'orders-status', false],
+            ['filter', 'orders-total', false],
+            ['section', 'calendar', false],
+            ['filter', 'orders-city', false],
+        ]);
+    });
+
+    it('stores a list that only places a section on its own line', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true),
+            [
+                {
+                    kind: DashboardControlRefKind.SECTION,
+                    slug: 'calendar',
+                    newLine: true,
+                },
+            ],
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'section', id: 'section-id', newLine: true },
+        ]);
+    });
+
+    it('stores a list that renders the default bar as given', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true, true),
+            defaultList,
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
+            { kind: 'filter', id: 'second-id' },
+        ]);
+    });
+
+    // The saved dashboard as the first upload left it
+    const afterUpload = (result: AnyType) =>
+        ({
+            ...withoutOrder(),
+            filters: result.filters,
+            config: result.config,
+        }) as DashboardDAO;
+
+    it('stores an order when an agent adds a filter without a ref, the filter trailing the bar', async () => {
+        const saved = await upload(
+            withCountryFilter(
+                withList(download(withoutOrder(), true, true), defaultList),
+            ),
+            { saved: withoutOrder() as DashboardDAO },
+        );
+        expect(saved.config?.controlOrder).toBeDefined();
+        expect(barOf(saved)).toEqual([
+            ['filter', 'orders-status', false],
+            ['filter', 'orders-total', false],
+            ['parameter', 'region', false],
+            ['section', 'calendar', true],
+            ['filter', 'orders-city', false],
+            ['filter', 'orders-country', false],
+        ]);
+    });
+
+    it.each([
+        [
+            'a partial list',
+            () => ({
+                ...download(withoutOrder(), true),
+                config: {
+                    ...download(withoutOrder(), true).config!,
+                    controlOrder: [
+                        {
+                            kind: DashboardControlRefKind.PARAMETER,
+                            slug: 'region',
+                        },
+                    ],
+                },
+            }),
+        ],
+        [
+            'a filter added without a ref',
+            () =>
+                withCountryFilter(
+                    withList(download(withoutOrder(), true, true), defaultList),
+                ),
+        ],
+    ])(
+        'stores the same result when %s is uploaded twice',
+        async (_name, makeFile) => {
+            const first = await upload(makeFile() as DashboardAsCode, {
+                saved: withoutOrder() as DashboardDAO,
+            });
+            const second = await upload(makeFile() as DashboardAsCode, {
+                saved: afterUpload(first),
+            });
+            expect(second.config?.controlOrder).toEqual(
+                first.config?.controlOrder,
+            );
+            expect(barOf(second)).toEqual(barOf(first));
+        },
+    );
+
+    it('stores no order for an empty list', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true),
+            [],
+        );
+        expect(saved.config).not.toHaveProperty('controlOrder');
+    });
+
+    it('stores no order when an agent read is sent back unchanged', async () => {
+        const saved = await upload(download(withoutOrder(), true, true), {
+            saved: withoutOrder() as DashboardDAO,
+        });
+        expect(saved.config).not.toHaveProperty('controlOrder');
+    });
+
+    it('stores a partial list on create', async () => {
+        const service = buildService();
+        service.projectService = {
+            projectParametersModel: {
+                find: vi.fn(async () => [
+                    { name: 'region', config: { label: 'Region' } },
+                ]),
+            },
+        } as AnyType;
+        (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+            async () => ({}),
+        );
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([]);
+        vi.spyOn(
+            service as AnyType,
+            'assertContentAccessForMissingSpace',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID },
+            created: false,
+        } as AnyType);
+        vi.spyOn(
+            service as AnyType,
+            'assertSpaceContentAccess',
+        ).mockResolvedValue(undefined);
+        vi.mocked(service.dashboardModel.create).mockRejectedValue(
+            new Error('stop after config'),
+        );
+        const file = download(withoutOrder(), true);
+        await expect(
+            service.upsertDashboard(
+                makeSessionUser([
+                    { subject: 'ContentAsCode', action: 'manage' },
+                    { subject: 'Dashboard', action: 'create' },
+                ]),
+                PROJECT_UUID,
+                'dashboard',
+                {
+                    ...file,
+                    config: {
+                        ...file.config!,
+                        controlOrder: [
+                            {
+                                kind: DashboardControlRefKind.PARAMETER,
+                                slug: 'region',
+                            },
+                        ],
+                    },
+                },
+            ),
+        ).rejects.toThrow('stop after config');
+        const created = vi.mocked(service.dashboardModel.create).mock
+            .calls[0][1] as AnyType;
+        expect(created.config.controlOrder).toEqual([
+            { kind: 'parameter', id: created.config.parameterControls[0].id },
+        ]);
+    });
+
+    it('stores the order when an agent edit moves a ref', async () => {
+        const [first, ...rest] = defaultList;
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true, true),
+            [...rest, first],
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
+            { kind: 'filter', id: 'second-id' },
+            { kind: 'filter', id: 'first-id' },
+        ]);
+    });
+
+    it('keeps storing a list that renders the default bar once an order is stored', async () => {
+        const saved = await upload(
+            withList(download(savedDashboard(), true, true), defaultList),
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
+            { kind: 'filter', id: 'second-id' },
+        ]);
+    });
+
     it('resets the order when the file has none', async () => {
         const file = download(savedDashboard(), true);
         const { controlOrder: _order, ...config } = file.config!;
@@ -4412,6 +4920,31 @@ describe('CoderService dashboard control order as code', () => {
             expect(result.config?.controlOrder).toEqual(savedOrder);
         },
     );
+
+    it('compares a new order against saved filters that predate the metric list', async () => {
+        const saved = withoutOrder();
+        const { metrics: _metrics, ...filters } = saved.filters;
+        const file = download(saved, true, true);
+        const result = await upload(
+            {
+                ...file,
+                filters: { ...file.filters, metrics: [] },
+                config: {
+                    ...file.config!,
+                    controlOrder: [
+                        {
+                            kind: DashboardControlRefKind.PARAMETER,
+                            slug: 'region',
+                        },
+                    ],
+                },
+            },
+            { saved: { ...saved, filters } as unknown as DashboardDAO },
+        );
+        expect(result.config?.controlOrder).toEqual([
+            { kind: 'parameter', id: 'region-id' },
+        ]);
+    });
 
     it('mints an id for a hand-written metric filter the order points at', async () => {
         const file = download(savedDashboard(), true);
