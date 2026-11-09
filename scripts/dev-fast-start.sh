@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Deterministic fast-path bootstrap for the Lightdash Docker dev environment.
 #
-# Encodes the happy path of `/docker-dev start` so a worktree can be brought up
+# Encodes the happy path of bringing up a dev instance so a worktree can be brought up
 # in a single non-interactive run — no agentic step-by-step. The first agentic
 # run produces a working environment; this script captures that path so every
 # subsequent run (and every new worktree) is fast.
 #
-# Contract relied on by the /docker-dev command for self-repair:
+# Contract relied on by agents (and mirrored by k8s-dev and aks-dev) for self-repair:
 #   - Prints "STEP: <name>"  before each phase.
 #   - Prints "OK: ..." / "SKIP: ..." for done / already-satisfied phases.
 #   - On failure prints "FAIL: <step> -- <reason>" to stderr and exits non-zero.
@@ -15,8 +15,8 @@
 #
 # Usage: scripts/dev-fast-start.sh [--ee] [--sdk-test]
 #
-# When this script fails, /docker-dev reads the FAIL line, fixes the root cause
-# using the documented agentic steps, then patches this script so it won't recur.
+# When this script fails, read the FAIL line, fix the root cause, then patch
+# this script so it won't recur.
 
 set -uo pipefail
 
@@ -316,7 +316,7 @@ fi
 
 # The bare `--ee` fast path only applies the license + EE schema. The full AI/agent
 # experience — Copilot, default-agent (Aurora) auto-provisioning, and BigQuery Google-SSO —
-# comes from the `/docker-dev start ee` PROFILE, which additionally pulls ANTHROPIC_API_KEY
+# comes from the `ee` profile in scripts/dev-profiles.json, which additionally pulls ANTHROPIC_API_KEY
 # and the AUTH_GOOGLE_OAUTH2_* creds and sets AI_COPILOT_ENABLED. Without those a `--ee` run
 # still reports READY, so it silently ships half of EE. Warn (non-fatal) when that config is
 # absent so the gap is visible immediately instead of at feature-hit time. See scripts/dev-profiles.json.
@@ -360,7 +360,7 @@ if command -v lsof >/dev/null 2>&1; then
         esac
     done
     if [ -n "$CONFLICT_PID" ]; then
-        fail "minio-port" "the program '$(basename "$CONFLICT_CMD")' (pid $CONFLICT_PID) is already listening on port 9000, so the backend would send all S3 reads/writes to it instead of the MinIO container started by docker-compose. The container would still start and report healthy, but data-app files and other S3 objects would be written to and read from different places, and app previews would return 404. This program is not part of /docker-dev. Stop it, then re-run this script:  kill $CONFLICT_PID  (it is safe to use 'kill -9 $CONFLICT_PID' if it does not stop)"
+        fail "minio-port" "the program '$(basename "$CONFLICT_CMD")' (pid $CONFLICT_PID) is already listening on port 9000, so the backend would send all S3 reads/writes to it instead of the MinIO container started by docker-compose. The container would still start and report healthy, but data-app files and other S3 objects would be written to and read from different places, and app previews would return 404. This program is not part of the Lightdash dev stack. Stop it, then re-run this script:  kill $CONFLICT_PID  (it is safe to use 'kill -9 $CONFLICT_PID' if it does not stop)"
     fi
     echo "OK: port 9000 is free for the MinIO container"
 else
@@ -575,7 +575,7 @@ fi
 # A shared base snapshot bakes in the *creating* instance's warehouse host/port,
 # so a bootstrapped instance points its local-postgres warehouse at a dead port
 # and every query fails with "Unknown object error". Reconcile it to this
-# instance's PG port BEFORE the snapshot so /docker-dev reset stays correct too.
+# instance's PG port BEFORE the snapshot so a snapshot reset stays correct too.
 # Non-fatal: the dev LIGHTDASH_SECRET is stable across instances, but if a row
 # won't decrypt the reconcile skips it rather than blocking startup.
 step "Reconcile warehouse port"
