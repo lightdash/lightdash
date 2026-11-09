@@ -153,14 +153,11 @@ export const getFiltersWithTileUuids = (
 ): DashboardDAO['filters'] => {
     const dimensions = dashboard.filters?.dimensions ?? [];
     const ids = getStableDimensionFilterIds(dimensions, savedDimensionFilters);
-    // Flag on, a file's slugs only resolve refs inside it; flag off stores the filter as written
-    const withoutSlug = <T extends { slug?: string }>(
-        filter: T,
-    ): Omit<T, 'slug'> => {
-        if (!controlsEnabled) return filter;
-        const { slug: _slug, ...rest } = filter;
-        return rest;
-    };
+    // A file's slugs only resolve refs inside it; main's request validation dropped them
+    const withoutSlug = <T extends { slug?: string }>({
+        slug: _slug,
+        ...filter
+    }: T): Omit<T, 'slug'> => filter;
     const metrics = (dashboard.filters?.metrics ?? []).map(withoutSlug);
     return {
         // Hand-written metric filters can omit the id an order ref needs

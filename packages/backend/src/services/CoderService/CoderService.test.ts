@@ -751,7 +751,7 @@ describe('CoderService', () => {
             expect(result.tableCalculations[0]).toStrictEqual(metric);
         });
 
-        it('stores filters as written with the flag off', () => {
+        it('keeps a metric filter without an id and drops slugs with the flag off', () => {
             const { id: _id, ...withoutId } = metric;
             const filters = {
                 metrics: [{ ...withoutId, slug: 'total' }],
@@ -763,10 +763,8 @@ describe('CoderService', () => {
                 [],
                 false,
             );
-            expect(result.metrics).toStrictEqual(filters.metrics);
-            expect(result.tableCalculations).toStrictEqual(
-                filters.tableCalculations,
-            );
+            expect(result.metrics).toStrictEqual([withoutId]);
+            expect(result.tableCalculations).toStrictEqual([metric]);
         });
     });
 

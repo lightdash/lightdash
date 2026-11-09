@@ -4360,7 +4360,7 @@ describe('CoderService dashboard control order as code', () => {
         ).toBe(message);
     });
 
-    it('looks up the flag for filter slugs alone and stores them as written when it is off', async () => {
+    it('looks up the flag for filter slugs alone and drops them when it is off', async () => {
         const saved = withoutOrder();
         const { parameterControls: _controls, ...config } = saved.config!;
         const plain = { ...saved, config } as DashboardDAO;
@@ -4381,10 +4381,7 @@ describe('CoderService dashboard control order as code', () => {
             { enabled: false, saved: plain },
         );
         expect(result.config).not.toHaveProperty('controlOrder');
-        expect(
-            result.filters.dimensions.map(({ slug }: AnyType) => slug),
-        ).toEqual([first.slug, first.slug]);
-        expect(result.filters.metrics).toStrictEqual(file.filters!.metrics);
+        expect(JSON.stringify(result.filters)).not.toContain('"slug"');
     });
 
     it('ignores duplicated filter slugs with the flag off', async () => {
@@ -4458,12 +4455,13 @@ describe('CoderService dashboard control order as code', () => {
             'first-id',
             'second-id',
         ]);
-        expect(result.filters.dimensions[0]).toHaveProperty('slug', 'renamed');
+        expect(result.filters.dimensions[0]).not.toHaveProperty('slug');
     });
 
     it('stores a hand-written metric filter without an id with the flag off', async () => {
         const file = withOrder([{ kind: 'filter', slug: 'orders-total' }]);
         const [{ id: _id, ...metric }] = file.filters!.metrics!;
+        const { slug: _slug, ...stored } = metric;
         const result = await upload(
             {
                 ...file,
@@ -4471,7 +4469,7 @@ describe('CoderService dashboard control order as code', () => {
             },
             { enabled: false },
         );
-        expect(result.filters.metrics).toStrictEqual([metric]);
+        expect(result.filters.metrics).toStrictEqual([stored]);
         expect(result.config?.controlOrder).toBe(savedOrder);
     });
 
