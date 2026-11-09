@@ -5,10 +5,8 @@ import {
     MetricType,
     type ItemsMap,
 } from '../../types/field';
-import {
-    deriveDataAppVizFieldMetadata,
-    getDataAppVizFieldIds,
-} from './dataAppVizFieldMapping';
+import { getDataAppVizFieldIds } from '../../types/savedCharts';
+import { deriveDataAppVizFieldMetadata } from './dataAppVizFieldMapping';
 
 describe('getDataAppVizFieldIds', () => {
     it('normalizes absent, scalar, and ordered multi-value bindings', () => {

@@ -1,6 +1,9 @@
-import { getDataAppVizFieldIds } from '../ee/apps/dataAppVizFieldMapping';
 import type { DataAppVizField } from '../ee/apps/types';
-import type { DataAppVizFieldMapping, SavedChart } from '../types/savedCharts';
+import {
+    getDataAppVizFieldIds,
+    type DataAppVizFieldMapping,
+    type SavedChart,
+} from '../types/savedCharts';
 
 /**
  * Converts a reusable custom chart's semantic field contract into the

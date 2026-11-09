@@ -1,3 +1,4 @@
+import { type ComposerStoredChartVizConfig } from '../../composer/composerChartVizConfigSchema';
 import { MetricType } from '../../types/field';
 import { FilterOperator, FilterType, UnitOfTime } from '../../types/filter';
 import { type AdditionalMetric } from '../../types/metricQuery';
@@ -9,7 +10,6 @@ import {
 import { TimeFrames } from '../../types/timeFrames';
 import { explore } from '../../utils/fields.mock';
 import { toComposerSemanticArtifactVersion } from './composerSemanticArtifact';
-import { type ComposerStoredChartVizConfig } from './schemas';
 import { parseAiArtifactChartConfig, parseVizConfig } from './utils';
 
 const node: SemanticLayerSourceQuery = {

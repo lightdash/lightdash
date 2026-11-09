@@ -1,14 +1,11 @@
 import { isField, type ItemsMap } from '../../types/field';
-import { type DataAppVizFieldMapping } from '../../types/savedCharts';
+import {
+    getDataAppVizFieldIds,
+    type DataAppVizFieldMapping,
+} from '../../types/savedCharts';
 import { getCustomFormat } from '../../utils/formatting';
 import { getItemLabelWithoutTableName } from '../../utils/item';
 import { type DataAppVizFieldMetadata } from './types';
-
-/** Normalize one binding for consumers that handle either cardinality. */
-export const getDataAppVizFieldIds = (
-    value: string | string[] | undefined,
-): string[] =>
-    typeof value === 'string' ? [value] : [...new Set(value ?? [])];
 
 /** Display metadata for every bound field id the items map can describe. */
 export const deriveDataAppVizFieldMetadata = (

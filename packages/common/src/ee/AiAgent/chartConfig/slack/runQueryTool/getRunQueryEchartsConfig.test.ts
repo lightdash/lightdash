@@ -1,3 +1,4 @@
+import { type ToolRunQueryBuiltinChartConfig } from '../../../../../composer/runQueryChart/chartConfigSchema';
 import {
     DimensionType,
     FieldType,
@@ -5,10 +6,7 @@ import {
     type ItemsMap,
 } from '../../../../../types/field';
 import { VizAggregationOptions } from '../../../../../visualizations/types';
-import {
-    type ToolRunQueryArgsTransformed,
-    type ToolRunQueryBuiltinChartConfig,
-} from '../../../schemas';
+import { type ToolRunQueryArgsTransformed } from '../../../schemas';
 import { getWarehousePivotedResults } from '../getWarehousePivotedResults';
 import { getRunQueryEchartsConfig } from './getRunQueryEchartsConfig';
 

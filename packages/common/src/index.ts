@@ -96,6 +96,7 @@ export * from './dbt/metricFlow';
 export * from './dbt/projectMergedManifest';
 // './dbt/validation' is not re-exported: it eagerly imports ~3.6 MB of dbt JSON
 // schemas. Import it from '@lightdash/common/dbt/validation' instead.
+export * from './composer';
 export * from './ee';
 export * from './preAggregates';
 export * from './pivot/derivePivotConfigFromChart';

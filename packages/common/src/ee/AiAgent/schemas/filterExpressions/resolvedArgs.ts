@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { z } from 'zod';
+import { chartConfigSchema } from '../../../../composer/runQueryChart/chartConfigSchema';
 import type { FilterGroup, Filters } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import {
@@ -15,7 +16,6 @@ import {
 } from '../filters';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import {
-    chartConfigSchema,
     mergeConfigSchema,
     queryConfigBaseSchema,
 } from '../tools/toolRunQueryArgs';

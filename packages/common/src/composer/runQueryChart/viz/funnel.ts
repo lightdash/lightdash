@@ -1,11 +1,11 @@
-import { type MetricQuery } from '../../../../../../types/metricQuery';
+import { type MetricQuery } from '../../../types/metricQuery';
 import {
     ChartType,
     FunnelChartDataInput,
     type FunnelChartConfig,
-} from '../../../../../../types/savedCharts';
-import { isMetricsOnlyFunnel } from '../../../shared/isMetricsOnlyFunnel';
-import { type RunQueryBuiltinChartInput } from '../../types';
+} from '../../../types/savedCharts';
+import { isMetricsOnlyFunnel } from '../shared/isMetricsOnlyFunnel';
+import { type RunQueryBuiltinChartInput } from '../types';
 
 export const getFunnelChartConfig = ({
     queryTool,

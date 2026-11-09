@@ -1,7 +1,7 @@
 import { z } from 'zod';
+import { composerChartVizConfigSchema } from '../../../../composer/composerChartVizConfigSchema';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
-import { composerChartVizConfigSchema } from './composerChartVizConfigSchema';
 
 export const TOOL_VISUALIZE_DESCRIPTION = `Visualize a node's result for the user as a chart or table. Each call adds one card to the thread; a result stays hidden until it is visualized.
 

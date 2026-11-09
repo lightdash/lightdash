@@ -13,6 +13,7 @@ import type {
     ToolName,
     ToolRunQueryArgs,
 } from '../..';
+import { type AiComposerChartArtifactConfig } from '../../composer/composerArtifact';
 import { type UUID } from '../../types/api/uuid';
 import {
     MAX_RETENTION_WINDOW_HOURS,
@@ -24,7 +25,6 @@ import assertUnreachable from '../../utils/assertUnreachable';
 import { type AllVizChartConfig } from '../../visualizations/types';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
-import { type AiComposerChartArtifactConfig } from './composerArtifact';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentBattleProfile,
@@ -53,9 +53,8 @@ export * from './chartConfig/slack';
 export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
-export * from './composerArtifact';
 export * from './nodeCitations';
-export * from './composerChartVizConfig';
+export * from './composerSlackRunQueryChart';
 export * from './composerSemanticArtifact';
 export * from './composerViz';
 export * from './composerVizPanel';

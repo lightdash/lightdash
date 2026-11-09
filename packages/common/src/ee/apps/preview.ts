@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { dataAppVizGradientValueSchema } from '../../composer/runQueryChart/chartConfigSchema';
 import { type DataAppVizOptionValues } from '../../types/savedCharts';
-import { dataAppVizGradientValueSchema, type DataAppVizSchema } from './types';
+import { type DataAppVizSchema } from './types';
 
 export type DataAppVizPreview = {
     rows?: Record<string, string | number | boolean | null>[];

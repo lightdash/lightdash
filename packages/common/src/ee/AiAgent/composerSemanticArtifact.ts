@@ -1,3 +1,11 @@
+import {
+    type ComposerBuiltinChartVizConfig,
+    type ComposerStoredChartVizConfig,
+} from '../../composer/composerChartVizConfigSchema';
+import {
+    type ToolRunQueryBuiltinChartConfig,
+    type ToolRunQueryChartConfig,
+} from '../../composer/runQueryChart/chartConfigSchema';
 import { type Explore } from '../../types/explore';
 import { DimensionType, MetricType } from '../../types/field';
 import {
@@ -21,13 +29,7 @@ import type {
     AiCustomChartTypeChartArtifactConfig,
     AiSemanticChartArtifactConfig,
 } from './index';
-import {
-    toolRunQueryExpressionResolvedArgsSchema,
-    type ComposerBuiltinChartVizConfig,
-    type ComposerStoredChartVizConfig,
-    type ToolRunQueryBuiltinChartConfig,
-    type ToolRunQueryChartConfig,
-} from './schemas';
+import { toolRunQueryExpressionResolvedArgsSchema } from './schemas';
 
 /** A semantic artifact version: the classic runQuery replay payload. */
 export type AiComposerSemanticArtifactVersion = {

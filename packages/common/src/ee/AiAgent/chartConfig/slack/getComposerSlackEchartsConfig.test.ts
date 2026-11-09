@@ -1,13 +1,13 @@
-import { DimensionType } from '../../../../types/field';
-import { type ResultColumn } from '../../../../types/results';
-import { TimeFrames } from '../../../../types/timeFrames';
-import { getComposerRunQueryChart } from '../../composerChartVizConfig';
+import { getComposerRunQueryChart } from '../../../../composer/composerChartVizConfig';
 import {
     composerChartVizConfigSchemaPersisted,
     type ComposerBuiltinChartVizConfig,
     type ComposerStoredChartVizConfig,
-    type ToolRunQueryBuiltinChartConfig,
-} from '../../schemas';
+} from '../../../../composer/composerChartVizConfigSchema';
+import { type ToolRunQueryBuiltinChartConfig } from '../../../../composer/runQueryChart/chartConfigSchema';
+import { DimensionType } from '../../../../types/field';
+import { type ResultColumn } from '../../../../types/results';
+import { TimeFrames } from '../../../../types/timeFrames';
 import { AiResultType } from '../../types';
 import { getComposerSlackEchartsConfig } from './getComposerSlackEchartsConfig';
 import { getSlackAiEchartsConfig } from './getSlackAiEchartsConfig';

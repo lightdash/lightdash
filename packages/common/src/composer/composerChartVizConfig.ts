@@ -6,31 +6,27 @@ import {
     type Dimension,
     type ItemsMap,
     type Metric,
-} from '../../types/field';
-import { type MetricQuery } from '../../types/metricQuery';
+} from '../types/field';
+import { type MetricQuery } from '../types/metricQuery';
 import {
     QuerySourceType,
     type DuckdbSourceQuery,
     type QueryNodeId,
-} from '../../types/querySources';
-import { type ResultColumn } from '../../types/results';
+} from '../types/querySources';
+import { type ResultColumn } from '../types/results';
 import {
     ChartType,
+    getDataAppVizFieldIds,
     type ChartConfig,
     type DataAppVizChart,
     type DataAppVizFieldMapping,
-} from '../../types/savedCharts';
-import { TimeFrames } from '../../types/timeFrames';
-import assertUnreachable from '../../utils/assertUnreachable';
-import { formatItemValue } from '../../utils/formatting';
-import { getItemId } from '../../utils/item';
-import {
-    VizAggregationOptions,
-    VizIndexType,
-} from '../../visualizations/types';
-import { getDataAppVizFieldIds } from '../apps/dataAppVizFieldMapping';
-import { type DataAppVizField } from '../apps/types';
-import { getRunQueryChartConfig } from './chartConfig/web/runQueryTool/getRunQueryChartConfig';
+    type DataAppVizFieldType,
+} from '../types/savedCharts';
+import { TimeFrames } from '../types/timeFrames';
+import assertUnreachable from '../utils/assertUnreachable';
+import { formatItemValue } from '../utils/formatting';
+import { getItemId } from '../utils/item';
+import { VizAggregationOptions, VizIndexType } from '../visualizations/types';
 import { type ComposerNodeColumn } from './composerArtifact';
 import {
     type ComposerBuiltinChartVizConfig,
@@ -38,9 +34,9 @@ import {
     type ComposerCustomChartVizConfig,
     type ComposerStoredChartVizConfig,
     type ComposerStoredCustomChartVizConfig,
-    type ToolRunQueryArgsTransformed,
-    type ToolRunQueryBuiltinChartConfig,
-} from './schemas';
+} from './composerChartVizConfigSchema';
+import { type ToolRunQueryBuiltinChartConfig } from './runQueryChart/chartConfigSchema';
+import { getRunQueryChartConfig } from './runQueryChart/getRunQueryChartConfig';
 
 /** Synthetic explore of a composer node result; its fields are the result columns. */
 export const COMPOSER_RESULT_TABLE_NAME = 'composer_result';
@@ -57,10 +53,10 @@ export type ComposerRunQueryChart = {
 };
 
 /** Slots of a custom chart type; their kinds decide what a custom chart splits and measures. */
-export type ComposerCustomChartTypeSlot = Pick<
-    DataAppVizField,
-    'name' | 'type'
->;
+export type ComposerCustomChartTypeSlot = {
+    name: string;
+    type: DataAppVizFieldType;
+};
 
 // Day-or-coarser truncations are calendar dates, though result columns
 // report the warehouse's timestamp type.
@@ -176,28 +172,18 @@ const toQuery = (
 };
 
 type CartesianVizType = 'bar' | 'line' | 'area' | 'scatter';
-type RunQueryBuilderVizType = CartesianVizType | 'pie' | 'funnel';
-
-/** Builtin types Slack posts as a chart image; tables, big numbers and custom types are not images. */
-export const isComposerSlackImageVizConfig = (
-    vizConfig: ComposerStoredChartVizConfig,
-): vizConfig is ComposerBuiltinChartVizConfig & {
-    type: RunQueryBuilderVizType;
-} =>
-    vizConfig.type === 'bar' ||
-    vizConfig.type === 'line' ||
-    vizConfig.type === 'area' ||
-    vizConfig.type === 'scatter' ||
-    vizConfig.type === 'pie' ||
-    vizConfig.type === 'funnel';
+export type ComposerRunQueryBuilderVizType =
+    | CartesianVizType
+    | 'pie'
+    | 'funnel';
 
 const isCartesianVizType = (
-    type: RunQueryBuilderVizType,
+    type: ComposerRunQueryBuilderVizType,
 ): type is CartesianVizType =>
     type === 'bar' || type === 'line' || type === 'area' || type === 'scatter';
 
 const toRunQueryVizType = (
-    type: RunQueryBuilderVizType,
+    type: ComposerRunQueryBuilderVizType,
     horizontal: boolean | null,
 ): ToolRunQueryBuiltinChartConfig['defaultVizType'] => {
     switch (type) {
@@ -285,7 +271,7 @@ const withUnstackedSecondaryArea = (chartConfig: ChartConfig): ChartConfig => {
 const getRunQueryBuilderInput = (
     columns: ComposerColumns,
     vizConfig: ComposerBuiltinChartVizConfig,
-    type: RunQueryBuilderVizType,
+    type: ComposerRunQueryBuilderVizType,
 ) => {
     const isCartesian = isCartesianVizType(type);
     const groupBy = isCartesian ? (vizConfig.groupBy ?? []) : [];
@@ -323,10 +309,23 @@ const getRunQueryBuilderInput = (
     return { metricQuery, fields, chartConfig };
 };
 
+/** Builder input for a builtin viz config over a run's result columns. */
+export const getComposerRunQueryBuilderInput = (
+    resultColumns: ResultColumn[],
+    vizConfig: ComposerBuiltinChartVizConfig & {
+        type: ComposerRunQueryBuilderVizType;
+    },
+) =>
+    getRunQueryBuilderInput(
+        new ComposerColumns(resultColumns),
+        vizConfig,
+        vizConfig.type,
+    );
+
 const getRunQueryBuilderChart = (
     columns: ComposerColumns,
     vizConfig: ComposerBuiltinChartVizConfig,
-    type: RunQueryBuilderVizType,
+    type: ComposerRunQueryBuilderVizType,
     metadata: { title: string; description: string },
 ): ComposerRunQueryChart => {
     const { metricQuery, fields, chartConfig } = getRunQueryBuilderInput(
@@ -505,53 +504,6 @@ export const getComposerBigNumber = ({
     return {
         value: formatItemValue(metric, value),
         label: label ?? metric.label,
-    };
-};
-
-/**
- * A builtin composer chart as runQuery tool args over the chart's fields only,
- * for the Slack image builders; null for types Slack posts as a link or table.
- */
-export const getComposerSlackRunQueryChart = ({
-    columns: resultColumns,
-    rows,
-    vizConfig,
-    metadata,
-}: {
-    columns: ResultColumn[];
-    rows: Record<string, unknown>[];
-    vizConfig: ComposerStoredChartVizConfig;
-    metadata: { title: string; description: string };
-}): {
-    tool: ToolRunQueryArgsTransformed;
-    rows: Record<string, unknown>[];
-    fields: ItemsMap;
-} | null => {
-    if (!isComposerSlackImageVizConfig(vizConfig)) return null;
-    const { metricQuery, fields, chartConfig } = getRunQueryBuilderInput(
-        new ComposerColumns(resultColumns),
-        vizConfig,
-        vizConfig.type,
-    );
-    return {
-        tool: {
-            ...metadata,
-            queryConfig: {
-                exploreName: COMPOSER_RESULT_TABLE_NAME,
-                dimensions: metricQuery.dimensions,
-                metrics: metricQuery.metrics,
-                sorts: [],
-                limit: null,
-                parameters: null,
-                customMetrics: null,
-                tableCalculations: null,
-                filters: {},
-            },
-            chartConfig,
-            mergeConfig: null,
-        },
-        rows: toComposerResultRows({ metricQuery, fields }, rows),
-        fields,
     };
 };
 
@@ -753,10 +705,10 @@ const getBuiltinReferenceErrors = (
     ];
 };
 
-export type ComposerCustomChartTypeSlotSpec = Pick<
-    DataAppVizField,
-    'name' | 'type' | 'required' | 'multiple'
->;
+export type ComposerCustomChartTypeSlotSpec = ComposerCustomChartTypeSlot & {
+    required: boolean;
+    multiple?: boolean;
+};
 
 const getCustomReferenceErrors = (
     check: ReferenceCheck,

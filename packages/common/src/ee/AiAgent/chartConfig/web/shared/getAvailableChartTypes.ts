@@ -1,6 +1,6 @@
+import { isMetricsOnlyFunnel } from '../../../../../composer/runQueryChart/shared/isMetricsOnlyFunnel';
+import { type AiAgentChartTypeOption } from '../../../../../composer/runQueryChart/types';
 import { type MetricQuery } from '../../../../../types/metricQuery';
-import { isMetricsOnlyFunnel } from '../../shared/isMetricsOnlyFunnel';
-import { type AiAgentChartTypeOption } from '../types';
 
 /**
  * Gets all available chart types for a query

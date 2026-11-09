@@ -1,22 +1,22 @@
-import { ParameterError } from '../../types/errors';
-import { type DimensionType } from '../../types/field';
+import { ParameterError } from '../types/errors';
+import { type DimensionType } from '../types/field';
 import {
     isAndFilterGroup,
     isOrFilterGroup,
     type FilterGroupItem,
     type Filters,
-} from '../../types/filter';
+} from '../types/filter';
 import {
     getSourceQueryResultReferences,
     QuerySourceType,
     type QueryNodeId,
     type SourceQuery,
-} from '../../types/querySources';
-import { type ResultColumns } from '../../types/results';
-import assertUnreachable from '../../utils/assertUnreachable';
-import { stableJson } from '../../utils/stableJson';
-import { type AllVizChartConfig } from '../../visualizations/types';
-import { type ComposerStoredChartVizConfig } from './schemas/tools/composerChartVizConfigSchema';
+} from '../types/querySources';
+import { type ResultColumns } from '../types/results';
+import assertUnreachable from '../utils/assertUnreachable';
+import { stableJson } from '../utils/stableJson';
+import { type AllVizChartConfig } from '../visualizations/types';
+import { type ComposerStoredChartVizConfig } from './composerChartVizConfigSchema';
 
 /**
  * A composer artifact version: a declarative pipeline, its terminal node and

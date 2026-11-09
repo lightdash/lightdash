@@ -1,5 +1,5 @@
-import { friendlyName, isField, type ItemsMap } from '../../../../types/field';
-import { getItemLabelWithoutTableName } from '../../../../utils/item';
+import { friendlyName, isField, type ItemsMap } from '../../../types/field';
+import { getItemLabelWithoutTableName } from '../../../utils/item';
 
 export const formatFieldLabel = (
     fieldId: string,

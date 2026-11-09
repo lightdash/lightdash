@@ -1,15 +1,14 @@
-import { type ItemsMap } from '../../../../../../types/field';
-import { type MetricQuery } from '../../../../../../types/metricQuery';
+import { type ItemsMap } from '../../../types/field';
+import { type MetricQuery } from '../../../types/metricQuery';
 import {
     CartesianSeriesType,
     ChartType,
     type CartesianChartConfig,
-} from '../../../../../../types/savedCharts';
-import { formatFieldLabel } from '../../../shared/formatFieldLabel';
-import { formatPivotValueLabel } from '../../shared/formatPivotValueLabel';
-import { type RunQueryBuiltinChartInput } from '../../types';
+} from '../../../types/savedCharts';
+import { formatFieldLabel } from '../shared/formatFieldLabel';
+import { type RunQueryBuiltinChartInput } from '../types';
 
-export const getScatterChartConfig = ({
+export const getHorizontalBarChartConfig = ({
     queryTool,
     metricQuery,
     fieldsMap,
@@ -32,6 +31,7 @@ export const getScatterChartConfig = ({
             layout: {
                 xField: xDimension,
                 yField: chartConfig?.yAxisMetrics || metricQuery.metrics,
+                flipAxes: true, // This makes it horizontal
             },
             eChartsConfig: {
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
@@ -54,34 +54,18 @@ export const getScatterChartConfig = ({
                             : {}),
                     },
                 ],
-                series: yMetrics.map((metric) => {
-                    const defaultProperties = {
-                        type: CartesianSeriesType.SCATTER,
-                        yAxisIndex: 0,
-                        // Scatter charts should show symbols by default
-                        showSymbol: true,
-                    };
-
-                    if (typeof metric === 'string') {
-                        return {
-                            ...defaultProperties,
-                            name: formatFieldLabel(metric, fieldsMap),
-                            encode: {
-                                xRef: { field: xDimension },
-                                yRef: { field: metric },
-                            },
-                        };
-                    }
-
-                    return {
-                        ...defaultProperties,
-                        name: formatPivotValueLabel(metric, fieldsMap),
-                        encode: {
-                            xRef: { field: xDimension },
-                            yRef: metric,
-                        },
-                    };
-                }),
+                series: yMetrics.map((metric) => ({
+                    type: CartesianSeriesType.BAR,
+                    yAxisIndex: 0,
+                    ...(chartConfig?.stackBars && {
+                        stack: metric,
+                    }),
+                    encode: {
+                        xRef: { field: xDimension },
+                        yRef: { field: metric },
+                    },
+                    name: formatFieldLabel(metric, fieldsMap),
+                })),
             },
         },
     };

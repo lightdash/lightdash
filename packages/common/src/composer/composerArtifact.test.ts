@@ -1,5 +1,5 @@
-import { FilterOperator } from '../../types/filter';
-import { QuerySourceType, type SourceQuery } from '../../types/querySources';
+import { FilterOperator } from '../types/filter';
+import { QuerySourceType, type SourceQuery } from '../types/querySources';
 import {
     buildComposerArtifactPipeline,
     toComposerArtifactVersion,

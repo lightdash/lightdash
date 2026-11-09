@@ -1,7 +1,7 @@
 import {
     type ToolRunQueryBuiltinChartConfig,
     type ToolRunQueryChartConfig,
-} from '../../schemas';
+} from './chartConfigSchema';
 
 export type AiAgentChartTypeOption =
     | 'table'

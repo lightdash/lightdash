@@ -1,8 +1,6 @@
 import { z } from 'zod';
-import {
-    dataAppVizGradientValueSchema,
-    type DataAppVizSchema,
-} from '../../../apps/types';
+import { dataAppVizGradientValueSchema } from '../../../../composer/runQueryChart/chartConfigSchema';
+import { type DataAppVizSchema } from '../../../apps/types';
 
 export const MCP_TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION = `Tool: find_custom_chart_types
 

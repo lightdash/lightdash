@@ -800,6 +800,16 @@ export type CustomVis = {
 /** Maps a viz field name to one query field id or an ordered collection. */
 export type DataAppVizFieldMapping = Record<string, string | string[]>;
 
+// Binds a host query column: dimension (grouping), metric (measure), series
+// (splits/colours), column (any result column — metric or dimension).
+export type DataAppVizFieldType = 'dimension' | 'metric' | 'series' | 'column';
+
+/** Normalize one binding for consumers that handle either cardinality. */
+export const getDataAppVizFieldIds = (
+    value: string | string[] | undefined,
+): string[] =>
+    typeof value === 'string' ? [value] : [...new Set(value ?? [])];
+
 /** Maps a declared config option's name → the value the user chose for it. */
 export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;
 

@@ -2,7 +2,6 @@
  * Derives pivot configuration from a saved chart's configuration and metric query
  * This enables consistent pivoting across all chart types
  */
-import { getDataAppVizFieldIds } from '../ee/apps/dataAppVizFieldMapping';
 import {
     CustomDimensionType,
     DimensionType,
@@ -17,6 +16,7 @@ import type { MetricQuery } from '../types/metricQuery';
 import type { PivotConfig, PivotConfiguration } from '../types/pivot';
 import {
     ChartType,
+    getDataAppVizFieldIds,
     getHiddenTableFields,
     isCartesianChartConfig,
     type DataAppVizFieldMapping,

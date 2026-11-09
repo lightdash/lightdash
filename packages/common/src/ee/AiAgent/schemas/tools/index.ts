@@ -65,5 +65,4 @@ export * from './toolRunSavedChartArgs';
 export * from './toolRunSqlArgs';
 export * from './toolSearchFieldValuesArgs';
 export * from './toolSearchSemanticLayerArgs';
-export * from './composerChartVizConfigSchema';
 export * from './toolVisualizeArgs';

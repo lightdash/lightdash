@@ -1,4 +1,5 @@
 import { expectTypeOf } from 'vitest';
+import { chartConfigSchema } from '../../../../composer/runQueryChart/chartConfigSchema';
 import { DimensionType, MetricType } from '../../../../types/field';
 import { FilterOperator, FilterType } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
@@ -11,7 +12,6 @@ import {
     tableCalcsSchema,
 } from '../tableCalcs/tableCalcs';
 import {
-    chartConfigSchema,
     mergeConfigSchema,
     mergeSourceQueryConfigSchema,
     queryConfigBaseSchema,

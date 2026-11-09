@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+    chartConfigBuiltinOnlySchema,
+    chartConfigSchema,
+} from '../../../../composer/runQueryChart/chartConfigSchema';
 import { FilterType } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import {
@@ -11,8 +15,6 @@ import {
     tableCalcsSchema,
 } from '../tableCalcs/tableCalcs';
 import {
-    chartConfigBuiltinOnlySchema,
-    chartConfigSchema,
     mergeConfigSchema,
     mergeSourceQueryConfigSchema,
     queryConfigBaseSchema,

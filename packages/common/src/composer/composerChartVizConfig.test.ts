@@ -1,13 +1,9 @@
-import { DimensionType } from '../../types/field';
-import { QuerySourceType } from '../../types/querySources';
-import { type ResultColumn } from '../../types/results';
-import { ChartType } from '../../types/savedCharts';
-import { TimeFrames } from '../../types/timeFrames';
-import {
-    VizAggregationOptions,
-    VizIndexType,
-} from '../../visualizations/types';
-import { type DataAppVizFieldType } from '../apps/types';
+import { DimensionType } from '../types/field';
+import { QuerySourceType } from '../types/querySources';
+import { type ResultColumn } from '../types/results';
+import { ChartType, type DataAppVizFieldType } from '../types/savedCharts';
+import { TimeFrames } from '../types/timeFrames';
+import { VizAggregationOptions, VizIndexType } from '../visualizations/types';
 import {
     getComposerBigNumber,
     getComposerChartStage,
@@ -20,7 +16,7 @@ import {
     parseComposerStoredChartVizConfig,
     type ComposerBuiltinChartVizConfig,
     type ComposerStoredChartVizConfig,
-} from './schemas/tools/composerChartVizConfigSchema';
+} from './composerChartVizConfigSchema';
 
 const columns: ResultColumn[] = [
     {

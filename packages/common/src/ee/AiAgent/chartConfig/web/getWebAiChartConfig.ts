@@ -1,8 +1,8 @@
+import { getRunQueryChartConfig } from '../../../../composer/runQueryChart/getRunQueryChartConfig';
 import { type ItemsMap } from '../../../../types/field';
 import { type MetricQuery } from '../../../../types/metricQuery';
 import { type PersistedRunQueryPayload } from '../../schemas';
 import { parseVizConfig } from '../../utils';
-import { getRunQueryChartConfig } from './runQueryTool/getRunQueryChartConfig';
 
 export const getWebAiChartConfig = ({
     vizConfig,
