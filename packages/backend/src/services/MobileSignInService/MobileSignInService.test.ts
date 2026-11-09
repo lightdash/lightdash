@@ -1,5 +1,7 @@
 import {
+    ConflictError,
     ForbiddenError,
+    LightdashMode,
     MobileSignInCodeStatus,
     MobileSignInRefusal,
     NotFoundError,
@@ -40,6 +42,7 @@ const codeRow = {
 const createService = ({
     flagEnabled = true,
     qrSignInEnabled = true,
+    mode = LightdashMode.CLOUD_BETA,
     managed = false,
     smtp = true,
     user = sessionUser,
@@ -54,6 +57,7 @@ const createService = ({
     now?: () => Date;
     flagEnabled?: boolean;
     qrSignInEnabled?: boolean;
+    mode?: LightdashMode;
     managed?: boolean;
     smtp?: boolean;
     user?: SessionUser;
@@ -62,7 +66,11 @@ const createService = ({
     client?: Record<string, unknown> | false;
 } = {}) => {
     const mobileSignInCodeModel = {
-        findOrganizationUuid: vi.fn(async () => organizationUuid),
+        findOwner: vi.fn(async () => ({
+            user_uuid: userUuid,
+            organization_uuid: organizationUuid,
+            reported_platform: 'ios',
+        })),
         mint: vi.fn(async () => ({
             codeUuid: 'code-0000-test',
             code,
@@ -98,6 +106,7 @@ const createService = ({
         lightdashConfig: {
             siteUrl: 'https://app.example.test',
             smtp: smtp ? ({} as never) : undefined,
+            mode,
             trustProxy: true,
         },
         mobileSignInCodeModel,
@@ -351,6 +360,7 @@ describe('MobileSignInService analytics', () => {
                     clientId: 'client-0000-test',
                     codeVerifier: verifier,
                     matchNumber: '11',
+                    isScopeAllowed: async () => true,
                 },
                 {},
             )
@@ -425,7 +435,7 @@ describe('MobileSignInService.decide', () => {
         });
     });
 
-    it('maps a session or nonce mismatch to 403 and a wrong state to 403 with the status', async () => {
+    it('maps a session or nonce mismatch to 403 and a wrong state to 409 with the status', async () => {
         const decide = vi
             .fn()
             .mockResolvedValueOnce({ outcome: 'session_mismatch' })
@@ -448,7 +458,13 @@ describe('MobileSignInService.decide', () => {
             run(),
             MobileSignInRefusal.APPROVAL_SESSION_MISMATCH,
         );
-        await expectRefusal(run(), MobileSignInRefusal.INVALID_STATE);
+        const conflict = await run().catch((caught: unknown) => caught);
+        expect(conflict).toBeInstanceOf(ConflictError);
+        expect((conflict as ConflictError).statusCode).toBe(409);
+        expect((conflict as ConflictError).data).toEqual({
+            reason: MobileSignInRefusal.INVALID_STATE,
+            status: MobileSignInCodeStatus.PENDING,
+        });
         await expect(run()).rejects.toBeInstanceOf(NotFoundError);
     });
 
@@ -563,6 +579,7 @@ describe('MobileSignInService.redeem', () => {
         clientId: 'client-0000-test',
         codeVerifier: verifier,
         matchNumber: '07',
+        isScopeAllowed: async () => true,
     };
 
     it('returns the user and passes the typed number as a number', async () => {
@@ -637,7 +654,7 @@ describe('MobileSignInService.redeem', () => {
         });
     });
 
-    it('re-checks the user at redeem', async () => {
+    it('re-checks the user before it uses up the code', async () => {
         const redeem = vi.fn(async () => ({
             outcome: 'redeemed',
             row: codeRow,
@@ -668,8 +685,10 @@ describe('MobileSignInService.redeem', () => {
         });
         await expectOAuthError(flagOff.redeem(args, {}), {
             error: 'access_denied',
-            description: 'user_not_allowed',
+            description: 'feature_disabled',
+            statusCode: 403,
         });
+        expect(redeem).not.toHaveBeenCalled();
     });
 
     it('refuses when the user left the organization', async () => {
@@ -702,6 +721,7 @@ describe('MobileSignInService redeem rate limit', () => {
         clientId: 'client-0000-test',
         codeVerifier: verifier,
         matchNumber: '07',
+        isScopeAllowed: async () => true,
     });
 
     it('does not count pending polls: four phones on one address poll for a minute', async () => {
@@ -799,6 +819,7 @@ describe('MobileSignInService mobile-qr-sign-in flag', () => {
         clientId: 'client-0000-test',
         codeVerifier: verifier,
         matchNumber: '07',
+        isScopeAllowed: async () => true,
     };
     const offService = () => {
         const model = {
@@ -903,22 +924,167 @@ describe('MobileSignInService mobile-qr-sign-in flag', () => {
             user: sessionUser,
         });
     });
+});
 
-    it('re-checks the flag in the user policy after the redeem', async () => {
-        const { service } = createService({
-            qrSignInEnabled: false,
-            model: {
-                findOrganizationUuid: vi.fn(async () => null),
+describe('MobileSignInService availability on every endpoint', () => {
+    const claimBody = {
+        code,
+        client_id: 'client-0000-test',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        platform: 'ios',
+    };
+    const redeemArgs = {
+        code,
+        clientId: 'client-0000-test',
+        codeVerifier: verifier,
+        matchNumber: '07',
+        isScopeAllowed: async () => true,
+    };
+    const untouchedModel = () => ({
+        mint: vi.fn(),
+        findForSession: vi.fn(),
+        decide: vi.fn(),
+        deleteForSession: vi.fn(),
+        claim: vi.fn(),
+        redeem: vi.fn(),
+    });
+    const webCalls = {
+        mint: (service: MobileSignInService) =>
+            service.mint(sessionUser, 'session-0000', 'show'),
+        status: (service: MobileSignInService) =>
+            service.getState(sessionUser, 'session-0000', 'code-0000'),
+        approve: (service: MobileSignInService) =>
+            service.decide(
+                sessionUser,
+                'session-0000',
+                'code-0000',
+                'nonce',
+                'approved',
+                {},
+            ),
+        decline: (service: MobileSignInService) =>
+            service.decide(
+                sessionUser,
+                'session-0000',
+                'code-0000',
+                'nonce',
+                'declined',
+                {},
+            ),
+        cancel: (service: MobileSignInService) =>
+            service.cancel(sessionUser, 'session-0000', 'code-0000'),
+    };
+    const phoneCalls = {
+        claim: (service: MobileSignInService) => service.claim(claimBody, {}),
+        redeem: (service: MobileSignInService) =>
+            service.redeem(redeemArgs, {}),
+    };
+    const settings = [
+        [
+            'mobile-settings off',
+            { flagEnabled: false },
+            MobileSignInRefusal.FEATURE_DISABLED,
+        ],
+        [
+            'mobile-qr-sign-in off',
+            { qrSignInEnabled: false },
+            MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+        ],
+        [
+            'a self-hosted instance (mode default)',
+            { mode: LightdashMode.DEFAULT },
+            MobileSignInRefusal.FEATURE_DISABLED,
+        ],
+    ] as const;
+
+    describe.each(settings)('with %s', (_label, options, reason) => {
+        it.each(Object.keys(webCalls) as (keyof typeof webCalls)[])(
+            'refuses %s with 403 and leaves the code alone',
+            async (endpoint) => {
+                const model = untouchedModel();
+                const { service } = createService({ ...options, model });
+                const error = await webCalls[endpoint](service).catch(
+                    (caught: unknown) => caught,
+                );
+                expect(error).toBeInstanceOf(ForbiddenError);
+                expect((error as ForbiddenError).data).toEqual({ reason });
+                Object.values(model).forEach((fn) =>
+                    expect(fn).not.toHaveBeenCalled(),
+                );
+            },
+        );
+
+        it.each(Object.keys(phoneCalls) as (keyof typeof phoneCalls)[])(
+            'refuses %s with 403 access_denied before it touches the code',
+            async (endpoint) => {
+                const model = untouchedModel();
+                const { service } = createService({ ...options, model });
+                await expectOAuthError(phoneCalls[endpoint](service), {
+                    error: 'access_denied',
+                    description: reason,
+                    statusCode: 403,
+                });
+                expect(model.claim).not.toHaveBeenCalled();
+                expect(model.redeem).not.toHaveBeenCalled();
+            },
+        );
+    });
+
+    it.each([LightdashMode.CLOUD_BETA, LightdashMode.PR])(
+        'serves the hand-off in %s mode',
+        async (mode) => {
+            const model = {
+                claim: vi.fn(async () => ({
+                    outcome: 'claimed',
+                    row: codeRow,
+                })),
                 redeem: vi.fn(async () => ({
                     outcome: 'redeemed',
                     row: codeRow,
                 })),
-            },
-        });
-        await expectOAuthError(service.redeem(redeemArgs, {}), {
+            };
+            const { service } = createService({ mode, model });
+            await expect(
+                service.mint(sessionUser, 'session-0000', 'show'),
+            ).resolves.toMatchObject({ codeUuid: 'code-0000-test' });
+            await expect(phoneCalls.claim(service)).resolves.toMatchObject({
+                interval: 2,
+            });
+            await expect(phoneCalls.redeem(service)).resolves.toMatchObject({
+                user: sessionUser,
+            });
+        },
+    );
+
+    it('refuses a scope outside the client before it uses up the code', async () => {
+        const redeem = vi.fn();
+        const { service } = createService({ model: { redeem } });
+        await expectOAuthError(
+            service.redeem(
+                { ...redeemArgs, isScopeAllowed: async () => false },
+                {},
+            ),
+            { error: 'invalid_scope' },
+        );
+        expect(redeem).not.toHaveBeenCalled();
+    });
+
+    it('answers user_not_allowed at claim when the user left the organization', async () => {
+        const claim = vi.fn();
+        const { service } = createService({ model: { claim } });
+        vi.spyOn(
+            (
+                service as unknown as {
+                    userModel: { findSessionUserAndOrgByUuid: () => unknown };
+                }
+            ).userModel,
+            'findSessionUserAndOrgByUuid',
+        ).mockRejectedValue(new Error('not a member'));
+        await expectOAuthError(service.claim(claimBody, {}), {
             error: 'access_denied',
-            description: 'qr_sign_in_disabled',
-            statusCode: 403,
+            description: 'user_not_allowed',
         });
+        expect(claim).not.toHaveBeenCalled();
     });
 });

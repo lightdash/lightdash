@@ -392,14 +392,20 @@ describe('MobileSignInCodeModel (PostgreSQL)', () => {
         expect(await row(fresh.code)).toBeDefined();
     });
 
-    it('finds the organization of a code without changing it', async () => {
+    it('finds the owner of a code without changing it', async () => {
         const minted = await mint();
-        expect(await model.findOrganizationUuid(minted.code)).toBe(
-            organizationUuid,
+        expect(await model.findOwner(minted.code)).toEqual({
+            user_uuid: userUuid,
+            organization_uuid: organizationUuid,
+            reported_platform: null,
+        });
+        await claim(minted.code);
+        expect((await model.findOwner(minted.code))?.reported_platform).toBe(
+            'ios',
         );
-        expect(await model.findOrganizationUuid('A'.repeat(43))).toBeNull();
-        expect(await model.findOrganizationUuid('short')).toBeNull();
-        expect((await row(minted.code))?.status).toBe('pending');
+        expect(await model.findOwner('A'.repeat(43))).toBeNull();
+        expect(await model.findOwner('short')).toBeNull();
+        expect((await row(minted.code))?.status).toBe('claimed');
     });
 
     it('reads a rate counter without changing it', async () => {

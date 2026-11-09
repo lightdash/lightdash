@@ -112,9 +112,14 @@ describe('token exchange with a mobile sign-in code', () => {
                 clientId: 'client-0000-test',
                 codeVerifier: body.code_verifier,
                 matchNumber: '42',
+                isScopeAllowed: expect.any(Function),
             },
             { ip: '203.0.113.7', userAgent: undefined },
         );
+        expect(recordRedeemAllowed).toHaveBeenCalledWith(redemption, {
+            ip: '203.0.113.7',
+            userAgent: undefined,
+        });
         expect(order).toEqual(['saveToken', 'audit']);
         expect(exchangeIdToken).not.toHaveBeenCalled();
     });
@@ -165,5 +170,19 @@ describe('token exchange with a mobile sign-in code', () => {
         await expect(
             grant.handle(createRequest(body), client),
         ).rejects.toBeInstanceOf(OAuth2Server.InvalidRequestError);
+    });
+
+    it('hands the redeem a scope check that uses the client scopes', async () => {
+        let isScopeAllowed: ((user: SessionUser) => Promise<boolean>) | null =
+            null;
+        const { grant } = createGrant({
+            redeem: vi.fn(async (args) => {
+                isScopeAllowed = args.isScopeAllowed;
+                return redemption;
+            }) as unknown as MobileSignInService['redeem'],
+        });
+        await grant.handle(createRequest(body), client);
+        expect(isScopeAllowed).not.toBeNull();
+        await expect(isScopeAllowed!(sessionUser)).resolves.toBe(true);
     });
 });

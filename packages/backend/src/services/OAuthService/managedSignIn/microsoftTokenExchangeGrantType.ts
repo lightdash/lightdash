@@ -140,6 +140,11 @@ export const createMicrosoftTokenExchangeGrantType = (
             auditContext: { ip?: string; userAgent?: string },
         ): Promise<SubjectResolution> {
             const service = getMobileSignInService!();
+            const mobileContext = {
+                ...auditContext,
+                ip: tokenRequestClientIps.get(request) ?? auditContext.ip,
+            };
+            const requestedScope = this.getScope(request);
             try {
                 const redemption = await service.redeem(
                     {
@@ -147,18 +152,21 @@ export const createMicrosoftTokenExchangeGrantType = (
                         clientId: client.id,
                         codeVerifier: request.body.code_verifier,
                         matchNumber: request.body.match_number,
+                        isScopeAllowed: async (user) =>
+                            Boolean(
+                                await this.validateScope(
+                                    user,
+                                    client,
+                                    requestedScope,
+                                ),
+                            ),
                     },
-                    {
-                        ...auditContext,
-                        ip:
-                            tokenRequestClientIps.get(request) ??
-                            auditContext.ip,
-                    },
+                    mobileContext,
                 );
                 return {
                     user: redemption.user,
                     onIssued: () =>
-                        service.recordRedeemAllowed(redemption, auditContext),
+                        service.recordRedeemAllowed(redemption, mobileContext),
                 };
             } catch (error) {
                 if (error instanceof MobileSignInOAuthError) {

@@ -5,7 +5,7 @@ import {
     MOBILE_SIGN_IN_REDEEM_INTERVAL_SECONDS,
     MobileSignInCodeStatus,
 } from '@lightdash/common';
-import { createHash, randomBytes, randomUUID } from 'crypto';
+import { createHash, randomBytes, randomInt, randomUUID } from 'crypto';
 import { Knex } from 'knex';
 import {
     DbMobileSignInCode,
@@ -39,6 +39,11 @@ export type MintedMobileSignInCode = {
     approvalNonce: string;
     expiresAt: Date;
 };
+
+export type MobileSignInCodeOwner = Pick<
+    DbMobileSignInCode,
+    'user_uuid' | 'organization_uuid' | 'reported_platform'
+>;
 
 export type ClaimResult =
     | { outcome: 'claimed'; row: DbMobileSignInCode }
@@ -188,12 +193,12 @@ export class MobileSignInCodeModel {
         };
     }
 
-    async findOrganizationUuid(code: string): Promise<string | null> {
+    async findOwner(code: string): Promise<MobileSignInCodeOwner | null> {
         if (!isMobileSignInCode(code)) return null;
         const row = await this.database(MobileSignInCodesTableName)
             .where('code_hash', sha256(code))
-            .first('organization_uuid');
-        return row?.organization_uuid ?? null;
+            .first('user_uuid', 'organization_uuid', 'reported_platform');
+        return row ?? null;
     }
 
     async claim(args: {
@@ -213,7 +218,7 @@ export class MobileSignInCodeModel {
                 client_id: args.clientId,
                 code_challenge: args.codeChallenge,
                 reported_platform: args.platform,
-                match_number: this.database.raw('floor(random() * 100)::int'),
+                match_number: randomInt(0, 100),
                 claimed_at: this.database.fn.now(),
                 expires_at: this.secondsFromNow(
                     MOBILE_SIGN_IN_CLAIM_TTL_SECONDS,

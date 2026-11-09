@@ -6,6 +6,7 @@ export type MobileSignInOAuthErrorName =
     | 'authorization_pending'
     | 'slow_down'
     | 'access_denied'
+    | 'invalid_scope'
     | 'rate_limited';
 
 export class MobileSignInOAuthError extends Error {
