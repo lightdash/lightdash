@@ -51,16 +51,16 @@ export const MobileSettingsPage: FC = () => {
     const host = getHost(health?.siteUrl);
 
     return (
-        <SettingsPage title="Mobile" description="Use Lightdash on your phone.">
+        <SettingsPage title="Mobile">
             <SettingsCard withBorder>
                 <Stack gap="sm">
                     <Group gap="xs" wrap="nowrap">
                         <MantineIcon icon={IconDeviceMobile} />
-                        <Title order={5}>Get the Lightdash app</Title>
+                        <Title order={5}>Get the app</Title>
                     </Group>
                     {host && (
                         <Text size="sm" c="dimmed">
-                            Install the app, then sign in to{' '}
+                            Sign in to{' '}
                             <Text span fw={600} c="bright">
                                 {host}
                             </Text>

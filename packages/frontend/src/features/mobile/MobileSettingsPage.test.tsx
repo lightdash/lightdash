@@ -22,5 +22,6 @@ describe('MobileSettingsPage', () => {
             screen.getByRole('link', { name: 'Get it on Google Play' }),
         ).toHaveAttribute('href', MOBILE_GOOGLE_PLAY_URL);
         expect(screen.getByText('app.example.com')).toBeVisible();
+        expect(screen.getByText(/^Sign in to/)).toBeVisible();
     });
 });
