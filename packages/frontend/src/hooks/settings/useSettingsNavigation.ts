@@ -17,6 +17,7 @@ import {
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconDeviceMobile,
     IconEyeCheck,
     IconFileExport,
     IconFolders,
@@ -53,6 +54,7 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { MOBILE_STRINGS } from '../../features/mobile/mobileStrings';
 import {
     getSemanticStudioExternalSourcesUrl,
     getSemanticStudioLiveSourcesUrl,
@@ -105,6 +107,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         externalSourcesFlag,
+        isMobileSettingsEnabled,
         isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
@@ -202,6 +205,17 @@ export const useSettingsNavigation = (
                 to: '/generalSettings/personalAccessTokens',
                 icon: IconKey,
                 keywords: ['api', 'pat', 'token'],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (isMobileSettingsEnabled) {
+            yourSettings.push({
+                label: MOBILE_STRINGS.navLabel,
+                to: '/generalSettings/mobile',
+                icon: IconDeviceMobile,
+                keywords: ['phone', 'app', 'ios', 'android', 'iphone'],
                 children: [],
                 exact: true,
             });
@@ -1415,6 +1429,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,
+        isMobileSettingsEnabled,
         isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,

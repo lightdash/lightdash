@@ -1,0 +1,35 @@
+.storeBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--mantine-color-gray-6);
+    background: var(--mantine-color-black);
+    color: var(--mantine-color-white);
+    text-decoration: none;
+    line-height: 1.1;
+}
+
+.storeBadge:hover {
+    background: var(--mantine-color-dark-7);
+}
+
+.storeBadge:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+.storeBadgeText {
+    display: flex;
+    flex-direction: column;
+}
+
+.storeBadgeCaption {
+    font-size: 10px;
+}
+
+.storeBadgeName {
+    font-size: 15px;
+    font-weight: 600;
+}
