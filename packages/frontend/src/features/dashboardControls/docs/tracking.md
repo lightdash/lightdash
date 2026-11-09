@@ -31,3 +31,6 @@ Backend `dashboard.created` / `dashboard.updated` /
 `dashboard_version.created` carry section counts from
 `DashboardService.getSectionEventProperties`, and parameter control and filter
 tile target counts from `DashboardService.getParameterControlEventProperties`.
+They also count date zooms (`dateZoomControlsCount`,
+`hiddenDateZoomControlsCount`, `dateZoomTileTargetsCount`); the date zoom
+editor sends no frontend event.

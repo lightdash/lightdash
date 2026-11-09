@@ -686,6 +686,10 @@ export class DashboardService
                 dashboard.config?.defaultDateZoomGranularity ?? null,
             dateZoomControlsCount:
                 dashboard.config?.dateZoomConfig?.controls.length ?? 0,
+            hiddenDateZoomControlsCount:
+                dashboard.config?.dateZoomConfig?.controls.filter(
+                    ({ hidden }) => hidden,
+                ).length ?? 0,
             dateZoomTileTargetsCount: Object.keys(
                 dashboard.config?.dateZoomConfig?.tileTargets ?? {},
             ).length,
