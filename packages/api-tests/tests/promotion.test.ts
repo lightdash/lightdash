@@ -13,7 +13,7 @@ import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 const apiUrl = '/api/v1';
 
 const postgresWarehouseConfig: CreateWarehouseCredentials = {
-    host: process.env.PGHOST || 'localhost',
+    host: process.env.PGHOST || 'db-dev',
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'password',
     dbname: 'postgres',

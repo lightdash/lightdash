@@ -31,7 +31,7 @@ const runqueryBody: MetricQuery = {
 const sqlQueryBody = { sql: 'select 1' };
 
 const postgresCredentials: CreateWarehouseCredentials = {
-    host: process.env.PGHOST || 'localhost',
+    host: process.env.PGHOST || 'db-dev',
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'password',
     dbname: 'postgres',

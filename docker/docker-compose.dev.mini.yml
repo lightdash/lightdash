@@ -1,0 +1,55 @@
+volumes:
+    postgres_data:
+    minio_data:
+
+services:
+    minio:
+        image: coollabsio/minio:latest
+        ports:
+            - '9000:9000'
+            - '9001:9001' # for minio console
+        environment:
+            - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+            - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+            - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS}
+            - MINIO_BROWSER=${MINIO_BROWSER:-off}
+            - MINIO_EXPIRATION_DAYS=${MINIO_EXPIRATION_DAYS:-1}
+        volumes:
+            - minio_data:/data
+            - ./init-minio.sh:/init-minio.sh
+        entrypoint: '/init-minio.sh'
+
+    db-dev:
+        image: pgvector/pgvector:pg18
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: password
+        ports:
+            - '5432:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql
+
+    headless-browser:
+        build:
+            dockerfile: Dockerfile.headless-browser
+        restart: always
+        ports:
+            - '3001:3000'
+
+    mailpit:
+        image: axllent/mailpit:latest
+        restart: unless-stopped
+        ports:
+            - '8025:8025'
+            - '1025:1025'
+        environment:
+            MP_MAX_MESSAGES: 5000
+            MP_SMTP_AUTH_ACCEPT_ANY: 1
+            MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+    nats:
+        image: nats:2.11-alpine
+        command: ['-js']
+        ports:
+            - '4222:4222'
+            - '8222:8222'

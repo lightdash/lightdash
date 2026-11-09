@@ -13,6 +13,6 @@ scrape_configs:
 
   - job_name: 'lightdash'
     static_configs:
-      - targets: ['host.docker.internal:9090']
+      - targets: ['lightdash-dev:9090']
     scrape_interval: 5s
     metrics_path: '/metrics'

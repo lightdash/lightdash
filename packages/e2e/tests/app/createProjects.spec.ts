@@ -28,7 +28,7 @@ const BIGQUERY_KEY_FILE = join(PACKAGE_ROOT, 'fixtures/credentials.json');
 const warehouseConfig = {
     postgresSQL: {
         name: 'Jaffle PostgreSQL test',
-        host: env('PGHOST') || 'localhost',
+        host: env('PGHOST') || 'db-dev',
         user: env('PGUSER') || 'postgres',
         password: env('PGPASSWORD') || 'password',
         database: 'postgres',
@@ -37,7 +37,7 @@ const warehouseConfig = {
     },
     redshift: {
         name: 'Jaffle Redshift test',
-        host: env('PGHOST') || 'localhost',
+        host: env('PGHOST') || 'db-dev',
         user: 'postgres',
         password: env('PGPASSWORD') || 'password',
         database: 'postgres',
