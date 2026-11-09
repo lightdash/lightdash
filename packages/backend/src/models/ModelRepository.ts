@@ -49,6 +49,7 @@ import { LinearAppInstallationsModel } from './LinearAppInstallations/LinearAppI
 import { ManagedSignInModel } from './ManagedSignInModel';
 import { McpContextModel } from './McpContextModel';
 import { MigrationModel } from './MigrationModel/MigrationModel';
+import { MobileAppLinkModel } from './MobileAppLinkModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
@@ -200,6 +201,7 @@ export type ModelManifest = {
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    mobileAppLinkModel: MobileAppLinkModel;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
     aiUsageLedgerModel: AiUsageLedgerModel;
     warehouseConnectionModel: WarehouseConnectionModel;
@@ -1122,6 +1124,13 @@ export class ModelRepository
         return this.getModel(
             'warehouseAvailableTablesModel',
             () => new WarehouseAvailableTablesModel(this.database),
+        );
+    }
+
+    public getMobileAppLinkModel(): MobileAppLinkModel {
+        return this.getModel(
+            'mobileAppLinkModel',
+            () => new MobileAppLinkModel({ database: this.database }),
         );
     }
 

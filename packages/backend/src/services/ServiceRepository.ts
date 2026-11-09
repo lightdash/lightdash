@@ -73,6 +73,7 @@ import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { LinearAppService } from './LinearAppService/LinearAppService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
+import { MobileAppService } from './MobileAppService/MobileAppService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { ManagedSignInService } from './OAuthService/managedSignIn/ManagedSignInService';
 import { OAuthService } from './OAuthService/OAuthService';
@@ -193,6 +194,7 @@ interface ServiceManifest {
     userAttributesService: UserAttributesService;
     userService: UserService;
     validationService: ValidationService;
+    mobileAppService: MobileAppService;
     warehouseConnectService: WarehouseConnectService;
     catalogService: CatalogService;
     metricsExplorerService: MetricsExplorerService;
@@ -1772,6 +1774,19 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     spacePermissionService: this.getSpacePermissionService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                }),
+        );
+    }
+
+    public getMobileAppService(): MobileAppService {
+        return this.getService(
+            'mobileAppService',
+            () =>
+                new MobileAppService({
+                    mobileAppLinkModel: this.models.getMobileAppLinkModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    analytics: this.context.lightdashAnalytics,
+                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }

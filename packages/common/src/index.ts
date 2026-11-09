@@ -191,6 +191,7 @@ export * from './types/managedSignIn';
 export * from './types/mergeQuery';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
+export * from './types/mobileAppLink';
 export * from './types/notifications';
 export * from './types/oauth';
 export * from './types/openIdIdentity';

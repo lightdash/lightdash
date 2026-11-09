@@ -22,6 +22,8 @@ import {
     isSchedulerTaskName,
     isWeekDay,
     LightdashMode,
+    MOBILE_APP_STORE_URL,
+    MOBILE_GOOGLE_PLAY_URL,
     OrganizationMemberRole,
     ParameterError,
     ParseError,
@@ -1703,6 +1705,10 @@ export type LightdashConfig = {
     mobile: HealthState['mobile'];
     mobilePushNotifications: MobilePushNotificationsConfig;
     mobileAppAssociation: MobileAppAssociationConfig;
+    mobileAppStores: {
+        appStoreUrl: string;
+        googlePlayUrl: string;
+    };
     license: {
         licenseKey: string | null;
         licenseCertificate: string | null;
@@ -3349,6 +3355,12 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_MOBILE_MINIMUM_IOS_VERSION',
                 ),
             },
+        },
+        mobileAppStores: {
+            appStoreUrl:
+                process.env.MOBILE_APP_STORE_URL || MOBILE_APP_STORE_URL,
+            googlePlayUrl:
+                process.env.MOBILE_GOOGLE_PLAY_URL || MOBILE_GOOGLE_PLAY_URL,
         },
         mobileAppAssociation: {
             appleTeamId: process.env.MOBILE_APPLE_TEAM_ID ?? 'AF5SF5H727',

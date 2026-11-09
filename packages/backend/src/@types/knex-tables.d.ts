@@ -254,6 +254,12 @@ import {
     ManagedSignInTokenUsesTableName,
 } from '../database/entities/managedSignInTokenUses';
 import {
+    MobileAppLinkRateCountersTable,
+    MobileAppLinkRateCountersTableName,
+    MobileAppLinksTable,
+    MobileAppLinksTableName,
+} from '../database/entities/mobileAppLinks';
+import {
     NotificationsTable,
     NotificationsTableName,
 } from '../database/entities/notifications';
@@ -1003,6 +1009,8 @@ declare module 'knex/types/tables' {
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [WarehouseConnectCodeTableName]: WarehouseConnectCodeTable;
+        [MobileAppLinksTableName]: MobileAppLinksTable;
+        [MobileAppLinkRateCountersTableName]: MobileAppLinkRateCountersTable;
         [AiUsageLedgerTableName]: AiUsageLedgerTable;
         [UsageProcessingStatusTableName]: UsageProcessingStatusTable;
         [AiCreditRateCardTableName]: AiCreditRateCardTable;

@@ -141,3 +141,14 @@ describe('createAndroidAssetLinksHandler', () => {
         ).toEqual([]);
     });
 });
+
+describe('mobile app link scans', () => {
+    it('keeps /m/app out of the app-link paths so scans reach the server', () => {
+        const paths = buildAppleAppSiteAssociation(
+            config,
+        ).applinks.details.flatMap((detail) =>
+            detail.components.map((component) => component['/']),
+        );
+        expect(paths.some((path) => path.startsWith('/m/app'))).toBe(false);
+    });
+});
