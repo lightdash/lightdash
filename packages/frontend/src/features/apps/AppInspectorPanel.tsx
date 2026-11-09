@@ -33,7 +33,11 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './AppInspector.module.css';
 import { ExternalRequestInspectorContent } from './ExternalRequestInspector';
-import type { ExternalRequestEvent, QueryEvent } from './hooks/useAppSdkBridge';
+import type {
+    AppStateEvent,
+    ExternalRequestEvent,
+    QueryEvent,
+} from './hooks/useAppSdkBridge';
 import { QueryInspectorContent } from './QueryInspector';
 
 type InspectorTab = 'queries' | 'external';
@@ -58,6 +62,10 @@ type Props = {
      *  shown (even at zero) so it survives a clear and surfaces the feature. */
     externalRequests: ExternalRequestEvent[];
     onClearExternalRequests: () => void;
+    /** App-state reads/writes, shown in the same "Requests" tab. Optional so
+     *  hosts without app-state wiring keep their existing props. */
+    appStateEvents?: AppStateEvent[];
+    onClearAppStateEvents?: () => void;
     /** Persist preference + handler — when omitted, the "Persist" switch is
      *  hidden. Governs both tabs (see `useTrackedAppQueries`). */
     persistLogs?: boolean;
@@ -113,6 +121,8 @@ const AppInspectorPanel: FC<Props> = ({
     onToggleLineage,
     externalRequests,
     onClearExternalRequests,
+    appStateEvents = [],
+    onClearAppStateEvents,
     persistLogs,
     onPersistLogsChange,
     defaultCollapsed = true,
@@ -128,9 +138,10 @@ const AppInspectorPanel: FC<Props> = ({
         null,
     );
 
+    const requestCount = externalRequests.length + appStateEvents.length;
     const queriesLabel = `Queries (${queries.length})`;
     // Kept short so both tabs fit the collapsed (content-width) title bar.
-    const externalLabel = `Requests (${externalRequests.length})`;
+    const externalLabel = `Requests (${requestCount})`;
 
     const toggle = useCallback(() => setCollapsed((v) => !v), []);
 
@@ -176,10 +187,17 @@ const AppInspectorPanel: FC<Props> = ({
     const handleClear = useCallback(
         (e: React.MouseEvent) => {
             e.stopPropagation();
-            if (activeTab === 'external') onClearExternalRequests();
-            else onClearQueries();
+            if (activeTab === 'external') {
+                onClearExternalRequests();
+                onClearAppStateEvents?.();
+            } else onClearQueries();
         },
-        [activeTab, onClearExternalRequests, onClearQueries],
+        [
+            activeTab,
+            onClearExternalRequests,
+            onClearAppStateEvents,
+            onClearQueries,
+        ],
     );
 
     // Auto-uncollapse and switch to the Queries tab when a matching focused
@@ -201,7 +219,7 @@ const AppInspectorPanel: FC<Props> = ({
     if (
         hideWhenEmpty &&
         queries.length === 0 &&
-        externalRequests.length === 0 &&
+        requestCount === 0 &&
         collapsed
     ) {
         return null;
@@ -239,7 +257,7 @@ const AppInspectorPanel: FC<Props> = ({
                     <Text inherit fw={500}>
                         {interpolateUiString(
                             getUiString('dataApp.inspector.requests'),
-                            { count: externalRequests.length },
+                            { count: requestCount },
                         )}
                     </Text>
                     <MantineIcon
@@ -388,6 +406,7 @@ const AppInspectorPanel: FC<Props> = ({
                     {activeTab === 'external' ? (
                         <ExternalRequestInspectorContent
                             requests={externalRequests}
+                            appStateEvents={appStateEvents}
                         />
                     ) : (
                         <QueryInspectorContent

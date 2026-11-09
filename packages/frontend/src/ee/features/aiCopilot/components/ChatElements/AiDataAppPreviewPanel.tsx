@@ -163,7 +163,8 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     const [inspectorPinned, setInspectorPinned] = useState(false);
     const hasInspectorLogs =
         inspector.panelProps.queries.length > 0 ||
-        inspector.panelProps.externalRequests.length > 0;
+        inspector.panelProps.externalRequests.length > 0 ||
+        inspector.panelProps.appStateEvents.length > 0;
     const isInspectorVisible =
         showInspector &&
         !inspector.hidden &&
