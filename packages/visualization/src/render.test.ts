@@ -1,10 +1,13 @@
 import {
+    CartesianSeriesType,
     ChartType,
     DimensionType,
     FieldType,
     FunnelChartDataInput,
     MetricType,
+    StackType,
     type ChartConfig,
+    type Metric,
 } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
 import { type ChartData } from './chartData';
@@ -88,6 +91,96 @@ describe('renderChart', () => {
         expect(JSON.stringify(option.series)).toContain('"web"');
         expect(JSON.stringify(option.series)).toContain('"store"');
     });
+
+    test.each(
+        [StackType.NORMAL, StackType.PERCENT].flatMap((stack) =>
+            [false, true].flatMap((flipAxes) =>
+                [
+                    {
+                        parameters: { measure: 'revenue' },
+                        expected: '$1,500.50',
+                        expectedRight: '118px',
+                    },
+                    {
+                        parameters: { measure: 'count' },
+                        expected: '1,501',
+                        expectedRight: '90px',
+                    },
+                    {
+                        parameters: undefined,
+                        expected: '1,500.5',
+                        expectedRight: '104px',
+                    },
+                ].map((scenario) => ({ ...scenario, stack, flipAxes })),
+            ),
+        ),
+    )(
+        'formats $stack totals with $parameters and flipAxes=$flipAxes',
+        ({ stack, flipAxes, parameters, expected, expectedRight }) => {
+            const option = echartsOf(
+                render(
+                    {
+                        type: ChartType.CARTESIAN,
+                        config: {
+                            layout: {
+                                xField: 'orders_status',
+                                yField: ['orders_revenue'],
+                                stack,
+                                flipAxes,
+                            },
+                            eChartsConfig: {
+                                series: [
+                                    {
+                                        type: CartesianSeriesType.BAR,
+                                        encode: {
+                                            xRef: { field: 'orders_status' },
+                                            yRef: { field: 'orders_revenue' },
+                                        },
+                                        stackLabel: { show: true },
+                                    },
+                                ],
+                                yAxis:
+                                    stack === StackType.NORMAL
+                                        ? [{ max: '1000' }]
+                                        : undefined,
+                            },
+                        },
+                    },
+                    {
+                        data: {
+                            ...ordersPivotedData,
+                            fields: {
+                                ...ordersItemsMap,
+                                orders_revenue: {
+                                    ...(ordersItemsMap.orders_revenue as Metric),
+                                    format: '${ld.parameters.measure=="revenue"?"$0,0.00":"0,0"}',
+                                },
+                            },
+                        },
+                        pivotColumns: ['orders_channel'],
+                        parameters,
+                    },
+                ),
+            );
+            const series = option.series as {
+                data?: unknown[][];
+                label?: { formatter?: (params: { data: unknown }) => string };
+            }[];
+            const totalSeries = series.filter((s) =>
+                s.data?.some((row) => row[2] === 1500.5),
+            );
+            expect(totalSeries).toHaveLength(
+                stack === StackType.NORMAL ? 2 : 1,
+            );
+            totalSeries.forEach((s) => {
+                const total = s.data?.find((row) => row[2] === 1500.5);
+                expect(s.label?.formatter?.({ data: total })).toBe(expected);
+            });
+            if (stack === StackType.PERCENT && flipAxes) {
+                expect(option.grid).toMatchObject({ right: expectedRight });
+            }
+        },
+    );
 
     test('pie: one slice per status', () => {
         const option = echartsOf(

@@ -3108,6 +3108,7 @@ export const getStackTotalSeries = (
     resolvedTimezone?: string,
     // User-configured max per value axis, used to clamp overflowing totals
     valueAxisMaxes?: (number | undefined)[],
+    parameters?: ParametersValuesMap,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -3135,7 +3136,7 @@ export const getStackTotalSeries = (
                         itemsMap,
                         undefined,
                         undefined,
-                        undefined,
+                        parameters,
                         resolvedTimezone,
                     );
                 }
@@ -4129,6 +4130,7 @@ export const buildCartesianLegendState = (
         pivotDimensions,
         itemsMap,
         resolvedTimezone,
+        parameters,
         series,
         axes,
         dynamicRadius,
@@ -4225,6 +4227,7 @@ export const buildCartesianLegendState = (
                 validCartesianConfig?.layout.connectNulls,
                 resolvedTimezone,
                 valueAxisMaxes,
+                parameters,
             ),
         ];
     })();
@@ -4276,7 +4279,7 @@ export const buildCartesianLegendState = (
                         itemsMap,
                         undefined,
                         undefined,
-                        undefined,
+                        parameters,
                         resolvedTimezone,
                     );
                     maxCharCount = Math.max(maxCharCount, formatted.length);
