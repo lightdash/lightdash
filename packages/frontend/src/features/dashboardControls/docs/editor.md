@@ -174,3 +174,33 @@ even with its list open, unless the press is on that list.
 `DashboardHeaderGuard` is a `display: contents` wrapper with `inert` over the
 shipped header, Save and Cancel included, while an editor's filter is open.
 A viewer's edit never locks it.
+
+## Date zooms
+
+With the flag on, an editor's named date zooms (`DateZoomEditorPills`, in
+`DateZoom`'s `controlPills` opening) open in their own popover
+(`DateZoomControlPopover`), anchored `bottom-end` since the zooms sit at the
+bar's right edge. `DateZoomEditorProvider` keeps a draft of the whole
+`dateZoomConfig`; Apply writes it pruned (`pruneDateZoomConfig`: a zoom with
+no tile never persists) through `setDateZoomConfig`, and the header's Save
+saves it. Switching, Escape, a press outside, focus return and the inert
+header follow the parameter editor: one of the filter, parameter and date
+zoom editors is open at a time (`DATE_ZOOM_PILL_SELECTOR` is in the others'
+switch selectors, and each other control's pill is in this one's).
+
+- Header: the name with Rename (an emptied name is "Date zoom"), "Hidden
+  from viewers" while hidden, and a "..." menu: "Hide for viewers" /
+  "Show for viewers" (in the draft) and "Remove date zoom" (at once).
+- Value: the grain, from the dashboard's enabled granularities
+  (`useGranularityData`, shared with the shipped popover).
+- "Zooms {n of m tiles}", m being `useEligibleTiles`; Apply is disabled at
+  no tile.
+- Opening clears that zoom's runtime grain (`setControlGranularity(uuid,
+  undefined)`), so after Apply the tiles show the edited grain, not a pick
+  from view mode. Nothing reaches the tiles before Apply.
+- "Add date zoom" opens a new zoom ("Date zoom", the first enabled grain)
+  with its name input focused; it joins the bar on Apply, Cancel leaves
+  nothing. It is inert while any control is edited, as "Add filter".
+- In edit mode a named pill has no grain menu and no eye segment; a hidden
+  one shows `IconEyeOff` muted, as a hidden parameter. View mode and embed
+  editors keep the shipped `DateZoomControlPills`.

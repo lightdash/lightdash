@@ -67,7 +67,10 @@ Openings (optional props, defaults are today's behaviour):
 - `dashboardTabs/Tab.tsx`: `hasQuietActions`; the tab `maw` reads
   `--dashboard-tab-max-width` first (also in the embed's tabs).
 - `DashboardFiltersBar`: `filterArea`, `isCompactDrawerSuppressed`,
-  `filtersAlign`, `isParametersColumn`.
+  `filtersAlign`, `isParametersColumn`, `dateZoom` (`ControlsBar` passes
+  `DateZoom` with its openings).
+- `dateZoom/components/DateZoom`: `controlPills` (an editor's
+  `DateZoomEditorPills` in place of `DateZoomControlPills`).
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).
@@ -102,7 +105,9 @@ Pure moves out of shipped files, now shared by both sides:
 `isLockedRequiredMissingValue`, `getFilterRuleFilterType`,
 `getRequiredGroupMemberUpdates`, `getDimensionFiltersToSave`, and
 `getTileFieldOptions`, the Tiles tab's per-tile options),
-`components/common/FieldSelect/fieldSelectLabel.ts` (`getFieldSelectLabel`), the embed's `EmbedResetFiltersButton`, and `Dashboard/DashboardPerformanceWarning`.
+`components/common/FieldSelect/fieldSelectLabel.ts` (`getFieldSelectLabel`), the embed's `EmbedResetFiltersButton`, `Dashboard/DashboardPerformanceWarning`, and
+`dateZoom/components/useDateZoomControlOptions.ts` (`useGranularityData`,
+`useEligibleTiles`, shared with `DateZoomControlConfig`).
 Fix behaviour in the shared piece, once, never in a copy.
 
 ## Map
@@ -128,6 +133,8 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
+| `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | An editor's named date zooms: the draft config, open, switch, Apply, Cancel, remove; pure config helpers |
+| `DateZoomEditorPills.tsx`, `DateZoomControlPopover.tsx` | The named zoom pills and "Add date zoom" in edit mode, and their popover |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
 | `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the editor popover and portalled lists |
 | `requirements.ts`, `fieldLabels.ts` | Requirement rules, count copy |

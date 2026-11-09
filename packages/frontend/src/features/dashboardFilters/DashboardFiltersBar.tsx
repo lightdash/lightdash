@@ -71,6 +71,8 @@ type Props = {
      * spans several lines (default false: inline with the filters).
      */
     isParametersColumn?: boolean;
+    /** Replaces the date zoom (default the shipped one). */
+    dateZoom?: ReactNode;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -95,6 +97,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     isCompactDrawerSuppressed = false,
     filtersAlign = 'flex-start',
     isParametersColumn = false,
+    dateZoom,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -294,7 +297,9 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         </ActionIcon>
                                     </Tooltip>
                                 )}
-                                <DateZoom isEditMode={isEditMode} />
+                                {dateZoom ?? (
+                                    <DateZoom isEditMode={isEditMode} />
+                                )}
                             </>
                         )}
 

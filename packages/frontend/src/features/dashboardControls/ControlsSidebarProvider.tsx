@@ -56,6 +56,8 @@ import {
     getFilterRuleWithDisabledState,
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
+import { DATE_ZOOM_PILL_SELECTOR } from './dateZoomControls';
+import { DateZoomEditorProvider } from './DateZoomEditorProvider';
 import { getLinkKey } from './linkCandidates';
 import {
     PARAMETER_PILL_ACTION_SELECTOR,
@@ -1764,8 +1766,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         clearField: clearHighlightedField,
         dismiss,
         dismissOutside: requestClose,
-        // A parameter control's pill switches as a filter's does
-        pillSelector: `[data-controls-pill], ${PARAMETER_PILL_SELECTOR}, ${PARAMETER_PILL_ACTION_SELECTOR}`,
+        // A parameter control's or a date zoom's pill switches as a filter's does
+        pillSelector: `[data-controls-pill], ${PARAMETER_PILL_SELECTOR}, ${PARAMETER_PILL_ACTION_SELECTOR}, ${DATE_ZOOM_PILL_SELECTOR}`,
     });
 
     // Its own memo so a hover does not hand selectors a new object
@@ -1879,7 +1881,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         <ControlsSidebarContext.Provider value={value}>
             <RailContractClasses.Provider value={contractClasses}>
                 <ParameterEditorProvider isViewer={isViewer}>
-                    {children}
+                    <DateZoomEditorProvider isViewer={isViewer}>
+                        {children}
+                    </DateZoomEditorProvider>
                 </ParameterEditorProvider>
             </RailContractClasses.Provider>
             <FocusReturn target={focusReturn} />

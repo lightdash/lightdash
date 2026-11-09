@@ -21,7 +21,14 @@ import {
     IconPinFilled,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -133,9 +140,15 @@ const ViewModeGranularityItem: FC<ViewModeGranularityItemProps> = ({
 type Props = {
     isEditMode: boolean;
     dropdownClassName?: string;
+    /** Replaces the named zoom pills (default the shipped ones). */
+    controlPills?: ReactNode;
 };
 
-export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
+export const DateZoom: FC<Props> = ({
+    isEditMode,
+    dropdownClassName,
+    controlPills,
+}) => {
     const getUiString = useUiStrings();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
@@ -562,7 +575,9 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                         </Menu.Dropdown>
                     </Menu>
                 )}
-                <DateZoomControlPills isEditMode={isEditMode} />
+                {controlPills ?? (
+                    <DateZoomControlPills isEditMode={isEditMode} />
+                )}
             </Group>
             {isEditMode && <DateZoomCrossTabFieldsLoader />}
         </Group>

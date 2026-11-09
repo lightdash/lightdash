@@ -24,6 +24,7 @@ import {
     useDashboardSelector,
     useDashboardStore,
 } from '../dashboard/store';
+import { DATE_ZOOM_PILL_SELECTOR } from './dateZoomControls';
 import { ParameterBarProvider } from './ParameterBarProvider';
 import {
     addNeedsValueControl,
@@ -51,10 +52,9 @@ import {
 } from './useParameterEditor';
 import { useParameterMappingModel } from './useParameterMapping';
 
-// What switches away from an open control: another control's pill, a
-// filter's pill or "Add filter"
-const FILTER_TARGET_SELECTOR =
-    '[data-controls-pill], [data-filter-actions] > button[data-dashboard-filter-control]';
+// What switches away from an open control: a filter's or a date zoom's
+// pill, or "Add filter"
+const FILTER_TARGET_SELECTOR = `[data-controls-pill], [data-filter-actions] > button[data-dashboard-filter-control], ${DATE_ZOOM_PILL_SELECTOR}`;
 const APPLY_SELECTOR = '[data-controls-editor] [data-controls-apply]';
 const focusApply = () =>
     document.querySelector<HTMLElement>(APPLY_SELECTOR)?.focus();

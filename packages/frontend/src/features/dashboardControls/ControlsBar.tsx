@@ -6,8 +6,10 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
+import { DateZoom } from '../dateZoom';
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
+import { DateZoomEditorPills } from './DateZoomEditorPills';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
 import { ParameterMappingRow } from './ParameterMappingRow';
@@ -45,6 +47,15 @@ export const ControlsBar: FC<Props> = (props) => {
             }
             // The sectioned flow spans several lines: parameters wrap beside it
             isParametersColumn={hasSections || props.isEditMode}
+            // An editor's named zooms open in the controls editor
+            dateZoom={
+                <DateZoom
+                    isEditMode={props.isEditMode}
+                    controlPills={
+                        props.isEditMode ? <DateZoomEditorPills /> : undefined
+                    }
+                />
+            }
             filterArea={
                 <SettledFilterFields>
                     {/* An editor's bar is always sectioned: its selection starts the first section */}

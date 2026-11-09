@@ -1,7 +1,8 @@
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useParameterEditorSelector } from './useParameterEditor';
 
-/** A filter or a parameter control is in its editor; `isEditorOnly` counts only edits made in edit mode. */
+/** A filter, a parameter control or a date zoom is in its editor; `isEditorOnly` counts only edits made in edit mode. */
 export const useIsControlEdited = (isEditorOnly = false): boolean => {
     const isFilterEdited = useControlsSidebarSelector(
         (c) => c.isSidebarOpen && !(isEditorOnly && c.isViewer),
@@ -9,5 +10,9 @@ export const useIsControlEdited = (isEditorOnly = false): boolean => {
     const isParameterEdited = useParameterEditorSelector(
         (c) => c.editingId !== null && !(isEditorOnly && c.isViewer),
     );
-    return isFilterEdited || isParameterEdited;
+    // Only editors edit date zooms
+    const isDateZoomEdited = useDateZoomEditorSelector(
+        (c) => c.editingUuid !== null,
+    );
+    return isFilterEdited || isParameterEdited || isDateZoomEdited;
 };
