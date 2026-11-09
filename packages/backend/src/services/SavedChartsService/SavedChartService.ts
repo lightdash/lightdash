@@ -1771,6 +1771,11 @@ export class SavedChartService
         savedChartUuid: string,
         options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
+        const variant = await this.savedChartModel.getVariant(
+            savedChartUuid,
+            undefined,
+            { projectUuid: options?.projectUuid },
+        );
         const {
             uuid: resolvedUuid,
             organizationUuid,
@@ -1778,11 +1783,7 @@ export class SavedChartService
             spaceUuid,
             dashboardUuid,
             slug,
-            metricQuery: { metrics, dimensions },
-            tableName,
-        } = await this.savedChartModel.get(savedChartUuid, undefined, {
-            projectUuid: options?.projectUuid,
-        });
+        } = variant.chart;
 
         let deleteAuditContext = { viaDashboardGrant: false, grantOnly: false };
         if (options?.bypassPermissions) {
@@ -1846,27 +1847,30 @@ export class SavedChartService
             });
         }
 
-        try {
-            const cachedExplore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                tableName,
-            );
+        if (variant.queryType === 'semantic') {
+            try {
+                const cachedExplore =
+                    await this.projectModel.getExploreFromCache(
+                        projectUuid,
+                        variant.chart.tableName,
+                    );
 
-            await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartFields: {
-                    metrics,
-                    dimensions,
-                },
-                newChartFields: {
-                    metrics: [],
-                    dimensions: [],
-                },
-            });
-        } catch (error) {
-            this.logger.error(
-                `Error updating chart field usage for chart ${savedChartUuid}`,
-                error,
-            );
+                await this.updateChartFieldUsage(projectUuid, cachedExplore, {
+                    oldChartFields: {
+                        metrics: variant.chart.metricQuery.metrics,
+                        dimensions: variant.chart.metricQuery.dimensions,
+                    },
+                    newChartFields: {
+                        metrics: [],
+                        dimensions: [],
+                    },
+                });
+            } catch (error) {
+                this.logger.error(
+                    `Error updating chart field usage for chart ${savedChartUuid}`,
+                    error,
+                );
+            }
         }
 
         this.analytics.track({
@@ -1888,9 +1892,13 @@ export class SavedChartService
     ): Promise<void> {
         const chart =
             !options?.contentAsCodePolicyChecked || !options?.bypassPermissions
-                ? await this.savedChartModel.get(savedChartUuid, undefined, {
-                      projectUuid: options?.projectUuid,
-                  })
+                ? (
+                      await this.savedChartModel.getVariant(
+                          savedChartUuid,
+                          undefined,
+                          { projectUuid: options?.projectUuid },
+                      )
+                  ).chart
                 : undefined;
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
@@ -3485,10 +3493,16 @@ export class SavedChartService
     ): Promise<void> {
         const deletedChart =
             !options?.contentAsCodePolicyChecked || !options?.bypassPermissions
-                ? await this.savedChartModel.get(chartUuid, undefined, {
-                      deleted: true,
-                      projectUuid: options?.projectUuid,
-                  })
+                ? (
+                      await this.savedChartModel.getVariant(
+                          chartUuid,
+                          undefined,
+                          {
+                              deleted: true,
+                              projectUuid: options?.projectUuid,
+                          },
+                      )
+                  ).chart
                 : undefined;
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
