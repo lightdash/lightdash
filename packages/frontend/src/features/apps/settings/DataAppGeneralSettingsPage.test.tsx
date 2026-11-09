@@ -1,7 +1,4 @@
-import {
-    type ApiError,
-    type OrganizationSettingsWithInstanceGuards,
-} from '@lightdash/common';
+import { type ApiError, type OrganizationSettings } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
@@ -12,11 +9,10 @@ import { DataAppGeneralSettingsPage } from './DataAppGeneralSettingsPage';
 type SettingsQuery = {
     data:
         | Pick<
-              OrganizationSettingsWithInstanceGuards,
+              OrganizationSettings,
               | 'dataAppAutomaticThumbnailsEnabled'
               | 'dataAppCapturesEnabled'
               | 'dataAppCustomDependenciesEnabled'
-              | 'dataAppDependencyGuards'
           >
         | undefined;
     isInitialLoading: boolean;
@@ -32,11 +28,6 @@ const DEFAULT_SETTINGS = {
     dataAppAutomaticThumbnailsEnabled: true,
     dataAppCapturesEnabled: true,
     dataAppCustomDependenciesEnabled: false,
-    dataAppDependencyGuards: {
-        malwareCheckEnabled: true,
-        minReleaseAgeDays: 3,
-        registryHosts: ['registry.npmjs.org'],
-    },
 };
 
 const {
@@ -53,11 +44,6 @@ const {
                 dataAppAutomaticThumbnailsEnabled: true,
                 dataAppCapturesEnabled: true,
                 dataAppCustomDependenciesEnabled: false,
-                dataAppDependencyGuards: {
-                    malwareCheckEnabled: true,
-                    minReleaseAgeDays: 3,
-                    registryHosts: ['registry.npmjs.org'],
-                },
             },
             isInitialLoading: false,
             isError: false,
@@ -308,37 +294,6 @@ describe('DataAppGeneralSettingsPage', () => {
             expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
                 dataAppCustomDependenciesEnabled: false,
             });
-        });
-
-        it('shows the instance dependency checks', () => {
-            renderPage();
-
-            expect(screen.getByText('Malware check')).toBeInTheDocument();
-            expect(screen.getByText('On')).toBeInTheDocument();
-            expect(screen.getByText('3 days')).toBeInTheDocument();
-            expect(screen.getByText('Package registry')).toBeInTheDocument();
-            expect(screen.getByText('registry.npmjs.org')).toBeInTheDocument();
-        });
-
-        it('shows checks that are turned off on the instance', () => {
-            settingsQuery.current.data = {
-                ...DEFAULT_SETTINGS,
-                dataAppDependencyGuards: {
-                    malwareCheckEnabled: false,
-                    minReleaseAgeDays: 0,
-                    registryHosts: [
-                        'npm.internal.example.com',
-                        'npm.mirror.example.com',
-                    ],
-                },
-            };
-            renderPage();
-
-            expect(screen.getAllByText('Off')).toHaveLength(2);
-            expect(screen.getByText('Package registries')).toBeInTheDocument();
-            expect(
-                screen.getByText('npm.mirror.example.com'),
-            ).toBeInTheDocument();
         });
     });
 

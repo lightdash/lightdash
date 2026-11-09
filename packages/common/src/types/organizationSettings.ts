@@ -119,23 +119,6 @@ export type OrganizationSettings = {
     dataAppCustomDependenciesEnabled: boolean;
 };
 
-/**
- * Instance-wide guards applied to custom data app dependencies at upload time.
- * Set by env vars and shown read-only to org admins.
- */
-export type DataAppDependencyGuards = {
-    /** `LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED` */
-    malwareCheckEnabled: boolean;
-    /** `LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS`; `0` means off. */
-    minReleaseAgeDays: number;
-    /** `LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS` */
-    registryHosts: string[];
-};
-
-export type OrganizationSettingsWithInstanceGuards = OrganizationSettings & {
-    dataAppDependencyGuards: DataAppDependencyGuards;
-};
-
 export const DEFAULT_INVITE_LINK_EXPIRATION_DAYS = 3;
 export const MAX_INVITE_LINK_EXPIRATION_DAYS = 7;
 
@@ -157,7 +140,7 @@ export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
 
 export type ApiOrganizationSettingsResponse = {
     status: 'ok';
-    results: OrganizationSettingsWithInstanceGuards;
+    results: OrganizationSettings;
 };
 
 export const isCorsRegexPattern = (value: string): boolean =>

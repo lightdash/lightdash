@@ -3,7 +3,6 @@ import {
     ForbiddenError,
     MAX_INVITE_LINK_EXPIRATION_DAYS,
     OrganizationSettings,
-    OrganizationSettingsWithInstanceGuards,
     ParameterError,
     POSTGRES_INTEGER_MAX,
     resolveEffectiveOrganizationSettings,
@@ -148,32 +147,15 @@ export class OrganizationSettingsService extends BaseService {
         }
     }
 
-    private withInstanceGuards(
-        raw: Partial<OrganizationSettings>,
-    ): OrganizationSettingsWithInstanceGuards {
-        const { appRuntime } = this.lightdashConfig;
-        return {
-            ...resolveEffectiveOrganizationSettings(
-                raw,
-                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
-            ),
-            dataAppDependencyGuards: {
-                malwareCheckEnabled: appRuntime.dependencyMalwareCheckEnabled,
-                minReleaseAgeDays: Math.max(
-                    0,
-                    appRuntime.dependencyMinReleaseAgeDays,
-                ),
-                registryHosts: appRuntime.dependencyRegistryHosts,
-            },
-        };
-    }
-
     async getOrganizationSettings(
         account: RegisteredAccount,
-    ): Promise<OrganizationSettingsWithInstanceGuards> {
+    ): Promise<OrganizationSettings> {
         const organizationUuid = this.assertCanManageOrganization(account);
         const raw = await this.organizationSettingsModel.get(organizationUuid);
-        return this.withInstanceGuards(raw);
+        return resolveEffectiveOrganizationSettings(
+            raw,
+            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+        );
     }
 
     /** For the Postgres wire endpoint: any org member may connect once an admin enables it. */
@@ -192,7 +174,7 @@ export class OrganizationSettingsService extends BaseService {
     async updateOrganizationSettings(
         account: RegisteredAccount,
         data: UpdateOrganizationSettings,
-    ): Promise<OrganizationSettingsWithInstanceGuards> {
+    ): Promise<OrganizationSettings> {
         const organizationUuid = this.assertCanManageOrganization(account);
         this.assertValidPatch(data);
         const raw = await this.organizationSettingsModel.update(
@@ -202,6 +184,9 @@ export class OrganizationSettingsService extends BaseService {
         if (data.corsAllowedDomains !== undefined) {
             invalidateCorsPolicyCache();
         }
-        return this.withInstanceGuards(raw);
+        return resolveEffectiveOrganizationSettings(
+            raw,
+            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+        );
     }
 }

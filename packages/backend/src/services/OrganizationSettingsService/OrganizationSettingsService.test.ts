@@ -276,31 +276,18 @@ describe('OrganizationSettingsService — data app captures', () => {
 });
 
 describe('OrganizationSettingsService — custom data app dependencies', () => {
-    it('is off by default and returns the instance dependency guards', async () => {
+    it('is off by default', async () => {
         const organizationSettingsModel = {
             get: vi.fn(async () => ({})),
         } as unknown as OrganizationSettingsModel;
         const service = new OrganizationSettingsService({
-            lightdashConfig: {
-                ...lightdashConfigMock,
-                appRuntime: {
-                    ...lightdashConfigMock.appRuntime,
-                    dependencyMalwareCheckEnabled: true,
-                    dependencyMinReleaseAgeDays: 3,
-                    dependencyRegistryHosts: ['npm.internal.example.com'],
-                },
-            },
+            lightdashConfig: lightdashConfigMock,
             organizationSettingsModel,
         });
 
         const settings = await service.getOrganizationSettings(account);
 
         expect(settings.dataAppCustomDependenciesEnabled).toBe(false);
-        expect(settings.dataAppDependencyGuards).toEqual({
-            malwareCheckEnabled: true,
-            minReleaseAgeDays: 3,
-            registryHosts: ['npm.internal.example.com'],
-        });
     });
 
     it('saves an admin turning it on', async () => {

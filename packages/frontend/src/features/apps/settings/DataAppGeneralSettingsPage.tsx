@@ -1,4 +1,4 @@
-import { FeatureFlags, type DataAppDependencyGuards } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import {
     Button,
     Code,
@@ -24,61 +24,6 @@ import {
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-
-const DependencyGuards: FC<{ guards: DataAppDependencyGuards }> = ({
-    guards,
-}) => (
-    <SettingsCard>
-        <Stack gap="md">
-            <Text c="dimmed" fz="xs">
-                These checks run on every upload that adds custom dependencies.
-                They are set in the instance configuration.
-            </Text>
-            <Divider />
-            <SettingRow
-                title="Malware check"
-                description="Blocks an upload if any package it installs is in the OSV malicious packages feed."
-                control={
-                    <Text fz="sm" fw={500}>
-                        {guards.malwareCheckEnabled ? 'On' : 'Off'}
-                    </Text>
-                }
-            />
-            <Divider />
-            <SettingRow
-                title="Minimum release age"
-                description="Blocks an upload if any package it installs was published more recently than this."
-                control={
-                    <Text fz="sm" fw={500}>
-                        {guards.minReleaseAgeDays > 0
-                            ? `${guards.minReleaseAgeDays} ${
-                                  guards.minReleaseAgeDays === 1
-                                      ? 'day'
-                                      : 'days'
-                              }`
-                            : 'Off'}
-                    </Text>
-                }
-            />
-            <Divider />
-            <SettingRow
-                title={
-                    guards.registryHosts.length === 1
-                        ? 'Package registry'
-                        : 'Package registries'
-                }
-                description="Packages install from these hosts."
-                control={
-                    <Stack gap={0} align="flex-end">
-                        {guards.registryHosts.map((host) => (
-                            <Code key={host}>{host}</Code>
-                        ))}
-                    </Stack>
-                }
-            />
-        </Stack>
-    </SettingsCard>
-);
 
 export const DataAppGeneralSettingsPage: FC = () => {
     const health = useHealth();
@@ -274,12 +219,6 @@ export const DataAppGeneralSettingsPage: FC = () => {
                                 />
                             </Stack>
                         </SettingsCard>
-                        {/* Absent on servers older than this page. */}
-                        {settings.dataAppDependencyGuards && (
-                            <DependencyGuards
-                                guards={settings.dataAppDependencyGuards}
-                            />
-                        )}
                     </SettingsSection>
                 </>
             )}
