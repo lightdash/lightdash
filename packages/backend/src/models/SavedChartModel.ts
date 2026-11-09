@@ -811,6 +811,9 @@ export type ComposerChartVersionData = Pick<
     CreateComposerChart,
     'pipeline' | 'chartConfig' | 'pivotConfig'
 >;
+/** A new version plus the chart's own name and description, as one upload writes them. */
+export type ComposerChartUpdate = ComposerChartVersionData &
+    Pick<CreateComposerChart, 'name' | 'description'>;
 
 type SavedChartModelArguments = {
     database: Knex;
@@ -1522,11 +1525,11 @@ export class SavedChartModel {
         });
     }
 
-    /** Appends a version to an existing composer chart, as a content-as-code upload does. The caller checks the chart is a composer chart. */
+    /** Appends a version and writes the chart's name and description, as a content-as-code upload does. The caller checks the chart is a composer chart. */
     async createComposerChartVersion(
         savedChartUuid: string,
         userUuid: string,
-        data: ComposerChartVersionData,
+        data: ComposerChartUpdate,
         tx?: Knex,
     ): Promise<ComposerSavedChartDAO> {
         const doWork = async (trx: Knex) => {
@@ -1545,6 +1548,8 @@ export class SavedChartModel {
             );
             await trx(SavedChartsTableName)
                 .update({
+                    name: data.name,
+                    description: data.description,
                     last_version_chart_kind:
                         getChartKind(
                             data.chartConfig.type,

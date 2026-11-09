@@ -1983,7 +1983,9 @@ export class CoderService extends BaseService {
             description: chart.description,
             slug: chart.slug,
             pipeline: chart.pipeline,
-            chartConfig: chart.chartConfig,
+            chartConfig: CoderService.withoutEmptyChartConfig(
+                chart.chartConfig,
+            ),
             pivotConfig: chart.pivotConfig,
             updatedAt: chart.updatedAt,
             dashboardSlug,
@@ -4891,6 +4893,15 @@ export class CoderService extends BaseService {
         };
     }
 
+    // A table chart stores no config; the schema has no null, so the file carries none
+    private static withoutEmptyChartConfig(
+        chartConfig: ChartConfig,
+    ): ChartConfig {
+        return chartConfig.config == null
+            ? ({ type: chartConfig.type } as ChartConfig)
+            : chartConfig;
+    }
+
     // Checked as save checks an artifact; the file already carries the drawing, so no run
     private static parseComposerChartFile(
         chartAsCode: ComposerChartAsCode,
@@ -4901,7 +4912,9 @@ export class CoderService extends BaseService {
         assertComposerChartConfigStorable(chartAsCode.chartConfig);
         return {
             pipeline,
-            chartConfig: chartAsCode.chartConfig as ChartConfig,
+            chartConfig: CoderService.withoutEmptyChartConfig(
+                chartAsCode.chartConfig as ChartConfig,
+            ),
             pivotConfig: chartAsCode.pivotConfig,
         };
     }
@@ -5139,13 +5152,18 @@ export class CoderService extends BaseService {
         });
         // The file is the whole definition, so a same-content upload is no change;
         // placement stays with the owning dashboard, as for classic dashboard charts.
-        const description = chartAsCode.description ?? undefined;
+        const description = chartAsCode.description ?? null;
         const unchanged =
             !force &&
             existing.chart.name === chartAsCode.name &&
-            (existing.chart.description ?? undefined) === description &&
+            (existing.chart.description ?? null) === description &&
             isEqual(existing.chart.pipeline, versionData.pipeline) &&
-            isEqual(existing.chart.chartConfig, versionData.chartConfig) &&
+            isEqual(
+                CoderService.withoutEmptyChartConfig(
+                    existing.chart.chartConfig,
+                ),
+                versionData.chartConfig,
+            ) &&
             isEqual(
                 existing.chart.pivotConfig ?? undefined,
                 versionData.pivotConfig ?? undefined,
@@ -5155,19 +5173,11 @@ export class CoderService extends BaseService {
             console.info(
                 `Updating composer chart "${chartAsCode.name}" on project ${projectUuid}`,
             );
-            written = await this.savedChartModel.transaction(async (trx) => {
-                await this.savedChartModel.updateInTransaction(
-                    chart.uuid,
-                    { name: chartAsCode.name, description },
-                    trx,
-                );
-                return this.savedChartModel.createComposerChartVersion(
-                    chart.uuid,
-                    user.userUuid,
-                    versionData,
-                    trx,
-                );
-            });
+            written = await this.savedChartModel.createComposerChartVersion(
+                chart.uuid,
+                user.userUuid,
+                { name: chartAsCode.name, description, ...versionData },
+            );
         }
         await this.syncVerification({
             user,

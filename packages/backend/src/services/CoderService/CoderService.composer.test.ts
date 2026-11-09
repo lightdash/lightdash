@@ -198,6 +198,23 @@ describe('content-as-code chart download with a composer chart', () => {
         expect(results).not.toHaveProperty('skippedCharts');
         expect(results.missingIds).toEqual([]);
     });
+
+    it('drops the empty config a table chart stores, so the file validates', async () => {
+        const { service, savedChartModel } = buildService();
+        savedChartModel.getVariant.mockResolvedValueOnce({
+            queryType: 'composer',
+            chart: {
+                ...composerChart,
+                chartConfig: { type: ChartType.TABLE, config: null } as AnyType,
+            },
+        });
+
+        const chartAsCode = await service.getCurrentChartAsCode(
+            composerChart.uuid,
+        );
+
+        expect(chartAsCode.chartConfig).toEqual({ type: ChartType.TABLE });
+    });
 });
 
 const composerFile: ComposerChartAsCode = {
@@ -245,10 +262,6 @@ const buildUploadService = ({
         }),
         createComposerChart: vi.fn(async () => composerChart),
         createComposerChartVersion: vi.fn(async () => composerChart),
-        updateInTransaction: vi.fn(async () => undefined),
-        transaction: vi.fn(async (work: (trx: unknown) => Promise<unknown>) =>
-            work('trx'),
-        ),
     };
     const projectService = {
         assertMetricQueryAuthoring: vi.fn(async () => undefined),
@@ -566,20 +579,16 @@ describe('content-as-code upload onto an existing chart', () => {
             { syncEnabled: false },
         );
 
-        expect(savedChartModel.updateInTransaction).toHaveBeenCalledWith(
-            composerChart.uuid,
-            { name: renamed.name, description: renamed.description },
-            'trx',
-        );
         expect(savedChartModel.createComposerChartVersion).toHaveBeenCalledWith(
             composerChart.uuid,
             admin.userUuid,
             {
+                name: renamed.name,
+                description: renamed.description,
                 pipeline: renamed.pipeline,
                 chartConfig: renamed.chartConfig,
                 pivotConfig: undefined,
             },
-            'trx',
         );
         expect(changes.composerCharts?.[0].action).toBe(PromotionAction.UPDATE);
         expect(changes.composerCharts?.[0].data.uuid).toBe(composerChart.uuid);
@@ -604,6 +613,61 @@ describe('content-as-code upload onto an existing chart', () => {
         expect(changes.composerCharts?.[0].action).toBe(
             PromotionAction.NO_CHANGES,
         );
+    });
+
+    it('treats a table file without config as matching a stored null config', async () => {
+        const { service, savedChartModel } = buildUploadService({
+            existing: {
+                queryType: 'composer',
+                chart: {
+                    ...composerChart,
+                    chartConfig: {
+                        type: ChartType.TABLE,
+                        config: null,
+                    } as AnyType,
+                },
+            },
+        });
+
+        const changes = await service.upsertChart(
+            admin,
+            projectUuid,
+            composerFile.slug,
+            { ...composerFile, chartConfig: { type: ChartType.TABLE } },
+            { syncEnabled: false },
+        );
+
+        expect(
+            savedChartModel.createComposerChartVersion,
+        ).not.toHaveBeenCalled();
+        expect(changes.composerCharts?.[0].action).toBe(
+            PromotionAction.NO_CHANGES,
+        );
+    });
+
+    it('clears the stored description when the file has none', async () => {
+        const { service, savedChartModel } = buildUploadService({
+            existing: variants[composerChart.uuid],
+        });
+        const { description, ...withoutDescription } = composerFile;
+
+        const changes = await service.upsertChart(
+            admin,
+            projectUuid,
+            composerFile.slug,
+            withoutDescription,
+            { syncEnabled: false },
+        );
+
+        expect(savedChartModel.createComposerChartVersion).toHaveBeenCalledWith(
+            composerChart.uuid,
+            admin.userUuid,
+            expect.objectContaining({
+                name: composerFile.name,
+                description: null,
+            }),
+        );
+        expect(changes.composerCharts?.[0].action).toBe(PromotionAction.UPDATE);
     });
 
     it('writes a version anyway when the upload is forced', async () => {
