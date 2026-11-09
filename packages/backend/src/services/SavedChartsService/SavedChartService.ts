@@ -75,6 +75,7 @@ import {
     type ComposerSavedChartDAO,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
+    type CreateComposerChart,
     type DashboardDAO,
     type Explore,
     type ExploreError,
@@ -2397,6 +2398,65 @@ export class SavedChartService
                         : writeSpaceUuids[0],
             },
         };
+    }
+
+    /** Writes a composer chart into a dashboard; the caller brings a stored pipeline and a converted drawing. */
+    async createComposerChart(
+        account: Account,
+        projectUuid: string,
+        chart: CreateComposerChart,
+    ): Promise<ComposerSavedChart> {
+        const { user, embedWriteActions } = getAccountWriteContext(account);
+        if (embedWriteActions) {
+            throw new ForbiddenError(
+                'Composer charts cannot be saved from an embedded view',
+            );
+        }
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            chart.dashboardUuid,
+            { projectUuid },
+        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { access, inheritsFromOrgOrProject } =
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
+        if (
+            this.createAuditedAbility(user).cannot(
+                'create',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        resolvedSpaceUuid: undefined,
+                        dashboardUuid: dashboard.uuid,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const created = await this.savedChartModel.createComposerChart(
+            projectUuid,
+            user.userUuid,
+            {
+                ...chart,
+                dashboardUuid: dashboard.uuid,
+                slug: generateSlug(chart.name),
+            },
+        );
+        const space = await this.spaceModel.getSpaceSummary(created.spaceUuid);
+        const permissions = await this.checkPermissions(
+            account,
+            space,
+            created,
+        );
+        return { ...created, ...permissions };
     }
 
     async create(

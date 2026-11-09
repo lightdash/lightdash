@@ -376,6 +376,8 @@
         "aiAgent.nodeCitation.runFailed": "No se pudo ejecutar la consulta",
         "aiAgent.composer.actions.quickActions": "Acciones rápidas",
         "aiAgent.composer.actions.downloadResults": "Descargar resultados",
+        "aiAgent.composer.actions.saveToDashboard": "Guardar en un panel",
+        "aiAgent.composer.actions.savedToDashboard": "Guardado en {dashboard}",
         "aiAgent.composer.nodeStatus.pending": "En cola",
         "aiAgent.composer.nodeStatus.awaitingApproval": "Esperando aprobación",
         "aiAgent.composer.nodeStatus.running": "En ejecución",

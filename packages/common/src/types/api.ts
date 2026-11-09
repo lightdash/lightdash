@@ -25,6 +25,7 @@ import type {
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
+    ApiAiAgentSaveComposerArtifactResponse,
     ApiAiAgentSkillResponse,
     ApiAiAgentSkillSummaryListResponse,
     ApiAiAgentSkillValidationResponse,
@@ -1762,6 +1763,7 @@ type ApiResults =
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiAiAgentArtifactVizQueryResponse['results']
+    | ApiAiAgentSaveComposerArtifactResponse['results']
     | ApiAiAgentNodeCitationPipelineResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]

@@ -376,6 +376,8 @@
         "aiAgent.nodeCitation.runFailed": "მოთხოვნის გაშვება ვერ მოხერხდა",
         "aiAgent.composer.actions.quickActions": "სწრაფი მოქმედებები",
         "aiAgent.composer.actions.downloadResults": "შედეგების ჩამოტვირთვა",
+        "aiAgent.composer.actions.saveToDashboard": "დაფაზე შენახვა",
+        "aiAgent.composer.actions.savedToDashboard": "შენახულია დაფაზე {dashboard}",
         "aiAgent.composer.nodeStatus.pending": "რიგშია",
         "aiAgent.composer.nodeStatus.awaitingApproval": "ელოდება დადასტურებას",
         "aiAgent.composer.nodeStatus.running": "მიმდინარეობს",

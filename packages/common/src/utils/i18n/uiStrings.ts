@@ -530,6 +530,8 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.view.lineage': 'Lineage',
     'aiAgent.composer.actions.quickActions': 'Quick actions',
     'aiAgent.composer.actions.downloadResults': 'Download results',
+    'aiAgent.composer.actions.saveToDashboard': 'Save to dashboard',
+    'aiAgent.composer.actions.savedToDashboard': 'Saved to {dashboard}',
     'aiAgent.composer.lineage.focusNode': 'Focus {node}',
     'aiAgent.composer.lineage.resize': 'Resize lineage graph and steps',
     'aiAgent.composer.lineage.focusHint':
