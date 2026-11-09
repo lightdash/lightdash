@@ -39188,6 +39188,36 @@
                 "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
                 "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
             },
+            "AiAgentThreadComposerNode": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
+                    }
+                },
+                "required": ["title", "nodeId"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadComposerNodesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentThreadComposerNode"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "QuerySourceType.SEMANTIC_LAYER": {
                 "enum": ["semanticLayer"],
                 "type": "string"
@@ -39597,36 +39627,31 @@
                 ],
                 "description": "A node of a built pipeline; building guarantees every node a node id."
             },
-            "AiAgentMessageQueryPipeline": {
+            "AiAgentNodeCitationPipeline": {
                 "properties": {
                     "nodes": {
                         "items": {
                             "$ref": "#/components/schemas/ComposerPipelineNode"
                         },
                         "type": "array",
-                        "description": "Every node the call ran, reused ones included, in dependency order."
-                    },
-                    "terminalNodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId"
+                        "description": "In dependency order, the cited node last."
                     },
                     "title": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
-                    "queryUuid": {
-                        "type": "string"
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
                     }
                 },
-                "required": ["nodes", "terminalNodeId", "title", "queryUuid"],
+                "required": ["nodes", "title", "nodeId"],
                 "type": "object",
-                "description": "A successful `query` call of a turn, presented by its terminal node."
+                "description": "A node citation's preview: the cited node, which is terminal, and everything it reads."
             },
-            "ApiAiAgentMessageQueryPipelinesResponse": {
+            "ApiAiAgentNodeCitationPipelineResponse": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentMessageQueryPipeline"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/AiAgentNodeCitationPipeline"
                     },
                     "status": {
                         "type": "string",
@@ -76293,7 +76318,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.182.1",
+        "version": "3.183.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -88455,16 +88480,16 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries": {
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/nodes": {
             "get": {
-                "operationId": "getAgentThreadMessageQueryPipelines",
+                "operationId": "getAgentThreadComposerNodes",
                 "responses": {
                     "200": {
                         "description": "Success",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentMessageQueryPipelinesResponse"
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadComposerNodesResponse"
                                 }
                             }
                         }
@@ -88480,8 +88505,8 @@
                         }
                     }
                 },
-                "description": "List the composer query pipelines an assistant message ran, one per successful query call.",
-                "summary": "Get AI agent message query pipelines",
+                "description": "List the composer query node ids registered in a thread, used to resolve node citations.",
+                "summary": "Get AI agent thread composer node ids",
                 "security": [],
                 "parameters": [
                     {
@@ -88489,7 +88514,63 @@
                         "name": "projectUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/nodes/{nodeId}": {
+            "get": {
+                "operationId": "getAgentThreadNodeCitationPipeline",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentNodeCitationPipelineResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a cited node's pipeline: the node and everything it reads.",
+                "summary": "Get AI agent node citation pipeline",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -88515,13 +88596,21 @@
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }
+                    },
+                    {
+                        "in": "path",
+                        "name": "nodeId",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/QueryNodeId"
+                        }
                     }
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/viz-query": {
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/nodes/{nodeId}/viz-query": {
             "get": {
-                "operationId": "getAgentThreadMessageQueryPipelineVizQuery",
+                "operationId": "getAgentThreadNodeCitationVizQuery",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -88544,8 +88633,8 @@
                         }
                     }
                 },
-                "description": "Run a message's query pipeline for preview; returns each node's queryUuid.",
-                "summary": "Get AI agent message query pipeline viz query",
+                "description": "Run a cited node and what it reads for preview; returns each node's queryUuid.",
+                "summary": "Get AI agent node citation viz query",
                 "security": [],
                 "parameters": [
                     {
@@ -88553,7 +88642,7 @@
                         "name": "projectUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -88582,18 +88671,18 @@
                     },
                     {
                         "in": "path",
-                        "name": "queryUuid",
+                        "name": "nodeId",
                         "required": true,
                         "schema": {
-                            "$ref": "#/components/schemas/UUID"
+                            "$ref": "#/components/schemas/QueryNodeId"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/query-results": {
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/nodes/{nodeId}/query-results": {
             "get": {
-                "operationId": "getAgentThreadMessageQueryPipelineResults",
+                "operationId": "getAgentThreadNodeCitationQueryResults",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -88616,8 +88705,8 @@
                         }
                     }
                 },
-                "description": "Read a node result of a message's query pipeline run.",
-                "summary": "Get AI agent message query pipeline results",
+                "description": "Read a node result of a node citation's run.",
+                "summary": "Get AI agent node citation query results",
                 "security": [],
                 "parameters": [
                     {
@@ -88625,7 +88714,7 @@
                         "name": "projectUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -88654,10 +88743,10 @@
                     },
                     {
                         "in": "path",
-                        "name": "queryUuid",
+                        "name": "nodeId",
                         "required": true,
                         "schema": {
-                            "$ref": "#/components/schemas/UUID"
+                            "$ref": "#/components/schemas/QueryNodeId"
                         }
                     },
                     {

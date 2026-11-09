@@ -44326,6 +44326,44 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentThreadComposerNode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                title: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                nodeId: { ref: 'QueryNodeId', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentThreadComposerNodesResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AiAgentThreadComposerNode',
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'QuerySourceType.SEMANTIC_LAYER': {
         dataType: 'refEnum',
         enums: ['semanticLayer'],
@@ -44604,7 +44642,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiAgentMessageQueryPipeline: {
+    AiAgentNodeCitationPipeline: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -44617,27 +44655,26 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
-                terminalNodeId: { ref: 'QueryNodeId', required: true },
-                title: { dataType: 'string', required: true },
-                queryUuid: { dataType: 'string', required: true },
+                title: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                nodeId: { ref: 'QueryNodeId', required: true },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiAiAgentMessageQueryPipelinesResponse: {
+    ApiAiAgentNodeCitationPipelineResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'AiAgentMessageQueryPipeline',
-                    },
-                    required: true,
-                },
+                results: { ref: 'AiAgentNodeCitationPipeline', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -106994,7 +107031,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsAiAgentController_getAgentThreadMessageQueryPipelines: Record<
+    const argsAiAgentController_getAgentThreadComposerNodes: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -107003,7 +107040,7 @@ export function RegisterRoutes(app: Router) {
             in: 'path',
             name: 'projectUuid',
             required: true,
-            dataType: 'string',
+            ref: 'UUID',
         },
         agentUuid: {
             in: 'path',
@@ -107017,21 +107054,15 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
-        messageUuid: {
-            in: 'path',
-            name: 'messageUuid',
-            required: true,
-            ref: 'UUID',
-        },
     };
     app.get(
-        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/messages/:messageUuid/queries',
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/nodes',
         ...fetchMiddlewares<RequestHandler>(AiAgentController),
         ...fetchMiddlewares<RequestHandler>(
-            AiAgentController.prototype.getAgentThreadMessageQueryPipelines,
+            AiAgentController.prototype.getAgentThreadComposerNodes,
         ),
 
-        async function AiAgentController_getAgentThreadMessageQueryPipelines(
+        async function AiAgentController_getAgentThreadComposerNodes(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -107041,7 +107072,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsAiAgentController_getAgentThreadMessageQueryPipelines,
+                    args: argsAiAgentController_getAgentThreadComposerNodes,
                     request,
                     response,
                 });
@@ -107058,7 +107089,7 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'getAgentThreadMessageQueryPipelines',
+                    methodName: 'getAgentThreadComposerNodes',
                     controller,
                     response,
                     next,
@@ -107071,7 +107102,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsAiAgentController_getAgentThreadMessageQueryPipelineVizQuery: Record<
+    const argsAiAgentController_getAgentThreadNodeCitationPipeline: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -107080,7 +107111,7 @@ export function RegisterRoutes(app: Router) {
             in: 'path',
             name: 'projectUuid',
             required: true,
-            dataType: 'string',
+            ref: 'UUID',
         },
         agentUuid: {
             in: 'path',
@@ -107100,22 +107131,21 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
-        queryUuid: {
+        nodeId: {
             in: 'path',
-            name: 'queryUuid',
+            name: 'nodeId',
             required: true,
-            ref: 'UUID',
+            ref: 'QueryNodeId',
         },
     };
     app.get(
-        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/messages/:messageUuid/queries/:queryUuid/viz-query',
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/messages/:messageUuid/nodes/:nodeId',
         ...fetchMiddlewares<RequestHandler>(AiAgentController),
         ...fetchMiddlewares<RequestHandler>(
-            AiAgentController.prototype
-                .getAgentThreadMessageQueryPipelineVizQuery,
+            AiAgentController.prototype.getAgentThreadNodeCitationPipeline,
         ),
 
-        async function AiAgentController_getAgentThreadMessageQueryPipelineVizQuery(
+        async function AiAgentController_getAgentThreadNodeCitationPipeline(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -107125,7 +107155,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsAiAgentController_getAgentThreadMessageQueryPipelineVizQuery,
+                    args: argsAiAgentController_getAgentThreadNodeCitationPipeline,
                     request,
                     response,
                 });
@@ -107142,7 +107172,7 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'getAgentThreadMessageQueryPipelineVizQuery',
+                    methodName: 'getAgentThreadNodeCitationPipeline',
                     controller,
                     response,
                     next,
@@ -107155,7 +107185,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsAiAgentController_getAgentThreadMessageQueryPipelineResults: Record<
+    const argsAiAgentController_getAgentThreadNodeCitationVizQuery: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -107164,7 +107194,7 @@ export function RegisterRoutes(app: Router) {
             in: 'path',
             name: 'projectUuid',
             required: true,
-            dataType: 'string',
+            ref: 'UUID',
         },
         agentUuid: {
             in: 'path',
@@ -107184,11 +107214,94 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
-        queryUuid: {
+        nodeId: {
             in: 'path',
-            name: 'queryUuid',
+            name: 'nodeId',
+            required: true,
+            ref: 'QueryNodeId',
+        },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/messages/:messageUuid/nodes/:nodeId/viz-query',
+        ...fetchMiddlewares<RequestHandler>(AiAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentController.prototype.getAgentThreadNodeCitationVizQuery,
+        ),
+
+        async function AiAgentController_getAgentThreadNodeCitationVizQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentController_getAgentThreadNodeCitationVizQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getAgentThreadNodeCitationVizQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentController_getAgentThreadNodeCitationQueryResults: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
             required: true,
             ref: 'UUID',
+        },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        threadUuid: {
+            in: 'path',
+            name: 'threadUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        messageUuid: {
+            in: 'path',
+            name: 'messageUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        nodeId: {
+            in: 'path',
+            name: 'nodeId',
+            required: true,
+            ref: 'QueryNodeId',
         },
         resultQueryUuid: {
             in: 'query',
@@ -107200,14 +107313,13 @@ export function RegisterRoutes(app: Router) {
         pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
     };
     app.get(
-        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/messages/:messageUuid/queries/:queryUuid/query-results',
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/messages/:messageUuid/nodes/:nodeId/query-results',
         ...fetchMiddlewares<RequestHandler>(AiAgentController),
         ...fetchMiddlewares<RequestHandler>(
-            AiAgentController.prototype
-                .getAgentThreadMessageQueryPipelineResults,
+            AiAgentController.prototype.getAgentThreadNodeCitationQueryResults,
         ),
 
-        async function AiAgentController_getAgentThreadMessageQueryPipelineResults(
+        async function AiAgentController_getAgentThreadNodeCitationQueryResults(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -107217,7 +107329,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsAiAgentController_getAgentThreadMessageQueryPipelineResults,
+                    args: argsAiAgentController_getAgentThreadNodeCitationQueryResults,
                     request,
                     response,
                 });
@@ -107234,7 +107346,7 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'getAgentThreadMessageQueryPipelineResults',
+                    methodName: 'getAgentThreadNodeCitationQueryResults',
                     controller,
                     response,
                     next,

@@ -1,3 +1,16 @@
+# [3.183.0](https://github.com/lightdash/lightdash/compare/3.182.1...3.183.0) (2026-11-09)
+
+
+### Bug Fixes
+
+* honor parameters in stacked chart total labels ([#32218](https://github.com/lightdash/lightdash/issues/32218)) ([8a11862](https://github.com/lightdash/lightdash/commit/8a1186270b4cf788f5d9bbaa3dc150d5fe9d7b58))
+* make AI agent group access searchable ([#32208](https://github.com/lightdash/lightdash/issues/32208)) ([d6aa726](https://github.com/lightdash/lightdash/commit/d6aa7262d1f8253171c1e441e13392710415426a))
+
+
+### Features
+
+* **ai-agent:** inline node citations in composer answers ([#32220](https://github.com/lightdash/lightdash/issues/32220)) ([2a74fa8](https://github.com/lightdash/lightdash/commit/2a74fa86e9044580fa3b8196f394c40b557775e7))
+
 ## [3.182.1](https://github.com/lightdash/lightdash/compare/3.182.0...3.182.1) (2026-11-09)
 
 
