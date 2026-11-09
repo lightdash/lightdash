@@ -2,7 +2,7 @@ Manage a production-like Lightdash deployment on AWS EKS. Args: (none) = show st
 
 This is the **cloud testbed** for experimenting with running agent/data-app sandboxes in AWS instead of E2B (see `packages/backend/src/ee/services/SandboxRuntime/DESIGN.md` — a Kubernetes `SandboxProvider` is the Phase-3 endgame). `/k8s-dev` only stands up the host cluster + a public, HTTPS, EE-enabled Lightdash; the sandbox provider itself is a later, separate backend change.
 
-It mirrors `/docker-dev`'s philosophy: an idempotent deterministic script (`scripts/k8s-dev/up.sh`) plus agentic **self-repair** when a step fails. Re-running `up` reconciles drift.
+It is an idempotent deterministic script (`scripts/k8s-dev/up.sh`) plus agentic **self-repair** when a step fails. Re-running `up` reconciles drift.
 
 ## Architecture
 
@@ -89,7 +89,7 @@ kubectl -n lightdash exec -it statefulset/lightdash-postgresql -- psql -U lightd
 
 ## Self-repair protocol (when `up.sh` fails)
 
-Same contract as `dev-fast-start.sh`: a `FAIL: <step> -- <reason>` line names the failing phase.
+A `FAIL: <step> -- <reason>` line names the failing phase.
 1. Diagnose the root cause (read the relevant logs — `kubectl get events`, `kubectl describe`, `terraform plan`, cert-manager `kubectl describe certificate -n lightdash`).
 2. Fix it, then **patch the failing script** so the same failure can't recur. Keep the `STEP:/OK:/SKIP:/FAIL:` contract and idempotency.
 3. Re-run `up.sh` — it reconciles and should reach `READY:`.
@@ -123,7 +123,7 @@ Common cases (battle-tested — these all happened on real bring-ups):
 - **data-app generation interrupted by a backend restart**: `scheduler.enabled=false` runs the worker inline in the backend, so a `helm upgrade`/rollout aborts in-flight app/writeback jobs. Consider `scheduler.enabled=true` (dedicated worker) for the testbed.
 - **data-app generation fails (E2B template not found)**: the `E2B_API_KEY` must belong to the E2B team owning `lightdash/lightdash-data-app`; `E2B_TEMPLATE_TAG=latest` avoids a missing per-version template.
 
-## Secrets discipline (matches `/docker-dev`)
+## Secrets discipline
 
 Nothing sensitive is committed. `LIGHTDASH_SECRET`, the postgres password, the EE license, Anthropic/E2B keys, and the GitHub App creds live only in k8s Secrets created at runtime. The EE license comes from the 1Password item **"Development Lightdash EE license key"** — **never** a customer-named item (confidentiality policy). S3 needs no keys at all (IRSA).
 
@@ -160,9 +160,9 @@ Overlay env (set regardless of App): `GITHUB_REDIRECT_DOMAIN` = the **full** `SI
 
 ### Quick alternative — DB-reconcile (test writeback without the OAuth UI)
 
-`/docker-dev` never uses the browser flow; it writes the installation straight into
+This path skips the browser flow and writes the installation straight into
 `github_app_installations` (AES-256-GCM `salt[64]|tag[16]|iv[12]|msg`, pbkdf2 sha512/2000/32,
-keyed by the running `LIGHTDASH_SECRET`). This skill ships a k8s-adapted version — once the App
+keyed by the running `LIGHTDASH_SECRET`). Run it once the App
 is installed (grab `installation_id` from the failed callback URL `?installation_id=...`):
 
 ```bash

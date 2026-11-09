@@ -144,10 +144,9 @@ Status definitions:
 
 ## Prerequisites
 
-Ensure the development environment is running:
+Postgres and MinIO must be running (see "Setup Development Environment without Docker" in `.github/CONTRIBUTING.md`). Then start the app:
 
 ```bash
-/docker-dev              # Start Docker services (postgres, minio, etc.)
 pnpm pm2:start           # Start all PM2 processes including Maple
 pnpm pm2:status          # Verify all processes are online
 ```

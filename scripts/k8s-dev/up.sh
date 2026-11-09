@@ -100,7 +100,7 @@ ensure_secret lightdash-pg \
   --from-literal=postgres-password="$(rand_hex)"
 
 # EE license + AI/E2B keys from 1Password (never echoed). Skipped if the secret exists.
-# Item names default to the same ones /docker-dev confirmed in ~/.lightdash/dev-secrets.local.json.
+# Item names come from config.env (defaults in config.example.env).
 if kubectl -n "$K8S_NAMESPACE" get secret lightdash-app >/dev/null 2>&1; then
   skip "secret/lightdash-app already exists"
 else

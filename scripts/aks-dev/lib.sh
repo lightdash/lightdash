@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared helpers for aks-dev scripts. Source this; don't execute it.
-# Contract (mirrors k8s-dev / dev-fast-start.sh): emit STEP:/OK:/SKIP:/FAIL:; idempotent.
+# Contract (mirrors k8s-dev): emit STEP:/OK:/SKIP:/FAIL:; idempotent.
 set -euo pipefail
 
 AKS_DEV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

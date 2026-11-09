@@ -330,7 +330,7 @@ examples are in [docs/white-label-copy.md](docs/white-label-copy.md).
 
 ## Development Troubleshooting
 
--   If there are issues running dbt, make sure `./venv` has dbt-core and dbt-postgres installed and is built with `python3.11` (dbt-core 1.7 imports `distutils`, removed in Python 3.12); `scripts/dev-fast-start.sh` is the source of truth and rebuilds a venv that cannot import `distutils`.
+-   If there are issues running dbt, make sure `./venv` has dbt-core and dbt-postgres installed and is built with `python3.11` (dbt-core 1.7 imports `distutils`, removed in Python 3.12); rebuild a venv that cannot import `distutils`.
 -   TS6305, `Cannot find module` from a workspace package, or `oxlint: command not found` (fresh worktree, or a rebase that changed `pnpm-lock.yaml`): run `scripts/t3-setup-worktree.sh` to install and build dependency packages. T3 runs it in the background on worktree creation (`t3.json`); while `pgrep -f t3-setup-worktree` finds it, wait for it instead.
 
 ## Checking the local database for debugging
@@ -366,34 +366,11 @@ curl -H "Authorization: ApiKey $LDPAT" "$SITE_URL/api/v2/content?contentTypes=sp
 
 ## Cursor Cloud specific instructions
 
-Lightdash is a pnpm/Turbo monorepo (backend API, Vite frontend, `common`/`visualization`/`warehouses`/`formula` build-dep packages) that runs on Postgres + MinIO + a headless browser, all started via Docker.
+Lightdash is a pnpm/Turbo monorepo (backend API, Vite frontend, `common`/`visualization`/`warehouses`/`formula` build-dep packages). The backend needs Postgres and S3-compatible storage (MinIO in development).
 
-The VM startup update script only refreshes Node deps and the dbt venv. Docker, its daemon, and the app processes are NOT started automatically — bring them up yourself as below.
-
-### Bringing the stack up (do this at the start of a session)
-
-1. Start the Docker daemon (it does not auto-start; there is no systemd here):
-   ```bash
-   sudo dockerd > /tmp/dockerd.log 2>&1 &
-   ```
-   Wait a few seconds, then confirm with `docker info`. `docker` works without `sudo` (the `ubuntu` user is in the `docker` group). Docker is configured with the `fuse-overlayfs` storage driver and `containerd-snapshotter` disabled (`/etc/docker/daemon.json`) — required for Docker 29 in this nested-container VM.
-2. Run the canonical, idempotent bootstrap:
-   ```bash
-   ./scripts/dev-fast-start.sh
-   ```
-   It claims a port slot, starts the shared + instance Docker services (Postgres, MinIO, headless-browser, mailpit, nats), reconciles `.env.development.local`, runs migrations, seeds Lightdash + the jaffle-shop dbt demo, starts PM2, and blocks until `GET /api/v1/health` returns 200. On a snapshotted VM the DB bootstraps from a base volume, so it finishes in a few minutes. It ends with a `READY:` line listing the URLs.
-
-Default instance URLs: frontend http://localhost:3000, API http://localhost:8080. Test login: `demo@lightdash.com` / `demo_password!` (seeded "Jaffle shop" project). Mailpit UI: http://localhost:8025.
-
-### Process management
-
-App processes run under PM2, namespaced by `LD_INSTANCE_ID` (default `workspace`). PM2 is a local devDependency — invoke it as `pnpm exec pm2` (there is no global `pm2`):
-```bash
-pnpm exec pm2 status
-pnpm exec pm2 logs workspace-api --lines 80 --nostream
-pnpm exec pm2 restart workspace-api      # manual recovery if auto-reload fails
-```
-Processes: `<instance>-api`, `-api-routes-watch`, `-scheduler`, `-frontend`, `-common-watch`, `-visualization-watch`, `-formula-watch`, `-warehouses-watch`, `-spotlight`. PM2 watches backend source files and restarts the API, while `api-routes-watch` regenerates TSOA artifacts after controller changes. Backend and generated-route changes reload automatically; the other `*-watch` processes rebuild `common`/`visualization`/`warehouses`/`formula` on change.
+- To run, test or demo a branch, use its Rainbow preview environment: [docs/rainbow-development.md](docs/rainbow-development.md).
+- To run a local instance, follow "Setup Development Environment without Docker" in [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md#setup-development-environment-without-docker).
+- Test login: `demo@lightdash.com` / `demo_password!` (seeded "Jaffle shop" project).
 
 ### Non-obvious caveats
 

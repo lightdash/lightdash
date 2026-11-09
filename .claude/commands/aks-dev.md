@@ -1,6 +1,6 @@
 Manage a production-like Lightdash deployment on **Azure AKS** with the **Azure Container Apps Sandboxes** backend. Args: (none) = status, `up` = idempotently provision + deploy, `deploy` = build this branch → ACR → roll the deployment, `down` = tear everything down to stop spend.
 
-This is the Azure sibling of `/k8s-dev` (AWS EKS). Where `/k8s-dev` exists to host a future Kubernetes sandbox provider, `/aks-dev` exercises the **`azure-sandboxes`** `SandboxProvider` (`packages/backend/src/ee/services/SandboxRuntime/AzureContainerAppsSandboxProvider.ts`): the data-app / AI-writeback agent runs inside an **Azure Container Apps Sandbox** (native suspend/resume) instead of E2B. It mirrors `/docker-dev` / `/k8s-dev` philosophy: an idempotent `up.sh` plus agentic self-repair.
+This is the Azure sibling of `/k8s-dev` (AWS EKS). Where `/k8s-dev` exists to host a future Kubernetes sandbox provider, `/aks-dev` exercises the **`azure-sandboxes`** `SandboxProvider` (`packages/backend/src/ee/services/SandboxRuntime/AzureContainerAppsSandboxProvider.ts`): the data-app / AI-writeback agent runs inside an **Azure Container Apps Sandbox** (native suspend/resume) instead of E2B. It mirrors the `/k8s-dev` philosophy: an idempotent `up.sh` plus agentic self-repair.
 
 ## Architecture
 

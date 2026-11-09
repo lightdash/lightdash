@@ -174,15 +174,18 @@ sfw pnpm install
 
 ### 5c. Start the dev stack
 
-The running app is what we're testing against, not just the diff:
+The running app is what we're testing against, not just the diff. Start a local instance: Postgres and MinIO as in "Setup Development Environment without Docker" in `.github/CONTRIBUTING.md`, then:
 
 ```
-/docker-dev start
+pnpm pm2:start
+pnpm pm2:status
 ```
 
-Wait for the State Detection to report all `OK:` lines and PM2 processes to be `online`. If the build or PM2 startup fails, that's the first signal — the bump may have broken the install or runtime resolution. Report this immediately and stop.
+Wait for all PM2 processes to be `online` and `GET /api/v1/health` to return 200. If the build or PM2 startup fails, that's the first signal — the bump may have broken the install or runtime resolution. Report this immediately and stop.
 
-When using a worktree, `/docker-dev start` claims a fresh port slot for this instance (per the docker-dev port-allocation flow), so it won't conflict with another running Lightdash instance in the main checkout or another worktree.
+When another Lightdash instance runs on this machine, set different ports (`PORT`, `FE_PORT`, `SCHEDULER_PORT`, `DEBUG_PORT`) and an `LD_INSTANCE_ID` in this checkout's `.env.development.local` so the two do not conflict.
+
+If the PR has a Rainbow preview environment, you can also exercise the UI and API there (`docs/rainbow-development.md`).
 
 ## Phase 6: Test the change with /debug-local tooling
 
