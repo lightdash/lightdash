@@ -81,6 +81,8 @@ export type DashboardChartTileProperties = {
         chartName?: string | null;
         lastVersionChartKind?: ChartKind | null;
         chartSlug?: string | null;
+        /** Set by the backend on read from the chart's latest version; a composer tile is drawn from the run's columns. */
+        queryType?: SavedChartQueryType;
     };
 };
 

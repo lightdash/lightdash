@@ -8,4 +8,5 @@ export type {
     RunQueryBuiltinChartInput,
     RunQueryChartInput,
 } from './runQueryChart/types';
+export * from './composerChart';
 export * from './savedComposerPipeline';

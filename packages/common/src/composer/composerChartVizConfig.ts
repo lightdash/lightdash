@@ -171,6 +171,14 @@ const toQuery = (
     };
 };
 
+/** The synthetic query and fields over named result columns, dimensions and metrics given by reference. */
+export const getComposerQueryOverReferences = (
+    columns: ResultColumn[],
+    dimensions: string[],
+    metrics: string[],
+): { metricQuery: MetricQuery; fields: ItemsMap } =>
+    toQuery(new ComposerColumns(columns), dimensions, metrics);
+
 type CartesianVizType = 'bar' | 'line' | 'area' | 'scatter';
 export type ComposerRunQueryBuilderVizType =
     | CartesianVizType
@@ -558,26 +566,27 @@ const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
 
 const CHART_STAGE_SOURCE_NAME = 'node_result';
 
+/** Column references of a series split: the x axis, the split columns and the measured values. */
+export type ComposerSeriesSplitReferences = {
+    index: string[];
+    split: string[];
+    values: string[];
+};
+
 /**
- * The chart stage for a series split: a DuckDB query over the presented
- * node's result renaming the split's columns to field ids, then pivoting.
- * Derived from the viz config's references alone; null without a split.
- * source is the presented node's id or result query uuid.
+ * The DuckDB stage a series split runs over a node result: the split's
+ * columns renamed to field ids, then pivoted. source is the node's id or
+ * result query uuid.
  */
-export const getComposerChartStage = ({
-    vizConfig,
-    customChartTypeSlots,
+export const buildComposerChartStage = ({
+    references: { index, split, values },
     nodeId,
     source,
 }: {
-    vizConfig: ComposerStoredChartVizConfig;
-    customChartTypeSlots: ComposerCustomChartTypeSlot[];
+    references: ComposerSeriesSplitReferences;
     nodeId: QueryNodeId;
     source: string;
-}): DuckdbSourceQuery | null => {
-    const references = getSplitReferences(vizConfig, customChartTypeSlots);
-    if (!references) return null;
-    const { index, split, values } = references;
+}): DuckdbSourceQuery => {
     const fieldId = getComposerResultFieldId;
     return {
         sourceType: QuerySourceType.DUCKDB,
@@ -605,6 +614,26 @@ export const getComposerChartStage = ({
             sortBy: undefined,
         },
     };
+};
+
+/**
+ * The chart stage for a series split of an artifact viz config, derived
+ * from its references alone; null without a split.
+ */
+export const getComposerChartStage = ({
+    vizConfig,
+    customChartTypeSlots,
+    nodeId,
+    source,
+}: {
+    vizConfig: ComposerStoredChartVizConfig;
+    customChartTypeSlots: ComposerCustomChartTypeSlot[];
+    nodeId: QueryNodeId;
+    source: string;
+}): DuckdbSourceQuery | null => {
+    const references = getSplitReferences(vizConfig, customChartTypeSlots);
+    if (!references) return null;
+    return buildComposerChartStage({ references, nodeId, source });
 };
 
 type ReferenceCheck = {

@@ -216,6 +216,7 @@ import {
 } from '../../nats/natsConfig';
 import { NatsWorker } from '../../nats/NatsWorker';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { composerSavedChartVariant } from '../../testing/composerSavedChartFixture';
 import { buildCacheHash as buildIdentityCacheHash } from '../../utils/cacheUtils';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
@@ -31272,5 +31273,154 @@ describe('composer chart node queries', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(execute).not.toHaveBeenCalled();
+    });
+});
+
+describe('composer chart series split stage', () => {
+    const barByStatus = {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'composer_result_orders_status',
+                yField: ['composer_result_revenue'],
+            },
+            eChartsConfig: { series: [] },
+        },
+    } as const;
+    const setup = (
+        chartOverrides: Partial<ComposerSavedChartDAO>,
+        featureEnabled = true,
+    ) => {
+        const variant = composerSavedChartVariant({
+            projectUuid,
+            chartConfig: barByStatus,
+            ...chartOverrides,
+        });
+        const submitQueries = vi.fn(
+            async ({ queries }: { queries: { nodeId: string }[] }) => ({
+                queries: queries.map(({ nodeId, ...query }) => ({
+                    ...query,
+                    nodeId,
+                    sourceType: (query as { sourceType: QuerySourceType })
+                        .sourceType,
+                    queryUuid: `${nodeId}-query`,
+                    cacheHit: false,
+                })),
+            }),
+        );
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => variant),
+            } as unknown as SavedChartModel,
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: featureEnabled })),
+            } as unknown as FeatureFlagModel,
+            getQuerySourceService: () =>
+                ({ submitQueries }) as unknown as QuerySourceService,
+            spaceModel: {
+                getSpaceSummary: vi.fn(async () => ({})),
+            } as unknown as SpaceModel,
+            analyticsModel: {
+                addChartViewEvent: vi.fn(async () => {}),
+            } as unknown as AnalyticsModel,
+        });
+        (service as AnyType).checkDashboardChartQueryPermissions = vi.fn(
+            async () => {},
+        );
+        const run = () =>
+            service.executeAsyncDashboardChartQuery({
+                account: buildAccount(),
+                projectUuid,
+                tileUuid: 'tile-uuid',
+                chartUuid: variant.chart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+            });
+        return { submitQueries, run, variant };
+    };
+
+    test('a stored split appends a pivot stage over the terminal node and the chart draws the stage', async () => {
+        const { submitQueries, run, variant } = setup({
+            pivotConfig: { columns: ['composer_result_orders_status'] },
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'composer_result_revenue',
+                        yField: ['composer_result_order_count'],
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            },
+        });
+        const result = await run();
+        if (!isComposerChartQueryResults(result)) {
+            throw new Error('expected a composer run');
+        }
+
+        const { queries, plans } = submitQueries.mock.calls[0][0] as {
+            queries: { nodeId: string }[];
+            plans: Record<string, { engine: string }>;
+        };
+        expect(queries.map(({ nodeId }) => nodeId)).toEqual([
+            ...variant.chart.pipeline.nodes.map(({ nodeId }) => nodeId),
+            'chart_stage',
+        ]);
+        expect(queries[2]).toMatchObject({
+            sourceType: QuerySourceType.DUCKDB,
+            sql: 'SELECT "revenue" AS "composer_result_revenue", "orders_status" AS "composer_result_orders_status", "order_count" AS "composer_result_order_count" FROM "node_result"',
+            references: { node_result: 'by_status' },
+            pivotConfiguration: {
+                groupByColumns: [
+                    { reference: 'composer_result_orders_status' },
+                ],
+            },
+        });
+        expect(plans.chart_stage).toMatchObject({
+            engine: 'scopedToReferencedResults',
+        });
+
+        expect(result.queryUuid).toBe('by_status-query');
+        expect(result.chartStage).toEqual({
+            queryUuid: 'chart_stage-query',
+            cacheHit: false,
+        });
+        expect(result.nodes.map(({ nodeId }) => nodeId)).toEqual([
+            'orders',
+            'by_status',
+        ]);
+    });
+
+    test('without pivot columns the pipeline runs as stored and there is no stage', async () => {
+        const { submitQueries, run } = setup({});
+        const result = await run();
+        if (!isComposerChartQueryResults(result)) {
+            throw new Error('expected a composer run');
+        }
+        const { queries } = submitQueries.mock.calls[0][0] as {
+            queries: { nodeId: string }[];
+        };
+        expect(queries.map(({ nodeId }) => nodeId)).toEqual([
+            'orders',
+            'by_status',
+        ]);
+        expect(result.chartStage).toBeNull();
+    });
+
+    test('a split the stored config cannot describe fails the run by name', async () => {
+        const { run } = setup({
+            chartConfig: { type: ChartType.PIE, config: {} },
+            pivotConfig: { columns: ['composer_result_orders_status'] },
+        });
+        await expect(run()).rejects.toThrow(
+            'A series split needs a cartesian chart with x and y fields',
+        );
     });
 });

@@ -1,5 +1,6 @@
 import { type ExploreWarningReport } from '../compiler/compilationReport';
 import type { ApiAiAgentNodeCitationPipelineResponse } from '../composer/composerArtifact';
+import type { ComposerChartVisualization } from '../composer/composerChart';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
@@ -1199,16 +1200,16 @@ export type ApiExecuteAsyncDashboardChartQueryResults =
         dateZoomApplied: boolean;
     };
 
-/** How a composer chart is drawn: its stored chart config over the terminal node's columns. */
-export type ComposerChartVisualization = Pick<
-    SavedChart,
-    'chartConfig' | 'pivotConfig'
->;
-
 /** One node of a composer chart run. Nodes other than the terminal one are there for lineage. */
 export type ComposerChartNodeSubmission = {
     nodeId: QueryNodeId;
     sourceType: QuerySourceType;
+    queryUuid: string;
+    cacheHit: boolean;
+};
+
+/** The series-split stage run over the terminal node; the chart draws its pivoted result. */
+export type ComposerChartStageSubmission = {
     queryUuid: string;
     cacheHit: boolean;
 };
@@ -1219,6 +1220,8 @@ export type ApiExecuteAsyncComposerChartQueryResults =
         queryType: 'composer';
         terminalNodeId: QueryNodeId;
         nodes: ComposerChartNodeSubmission[];
+        /** Present when the stored pivot config splits series; null otherwise. */
+        chartStage: ComposerChartStageSubmission | null;
         chartVisualization: ComposerChartVisualization;
     };
 

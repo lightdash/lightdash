@@ -961,6 +961,8 @@ export type SavedChartVariant =
     | { queryType: 'semantic'; chart: SavedChartDAO }
     | { queryType: 'composer'; chart: ComposerSavedChartDAO };
 
+export type SavedChartQueryType = SavedChartVariant['queryType'];
+
 export type SavedChart = {
     createdAt?: Date;
     projectName?: string;
