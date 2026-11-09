@@ -141,7 +141,7 @@ export const BaseResponse: HealthState = {
     isAthenaWarehouseIamRoleAuthEnabled: false,
     isSaveCredentialsFormEnabled: false,
     isCustomRolesEnabled: false,
-    embedding: { enabled: false, events: undefined },
+    embedding: { events: undefined },
     ai: {
         analyticsProjectUuid: undefined,
         analyticsDashboardUuid: undefined,

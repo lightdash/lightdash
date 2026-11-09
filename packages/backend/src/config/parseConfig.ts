@@ -1888,7 +1888,6 @@ export type LightdashConfig = {
         };
     };
     embedding: {
-        enabled: boolean;
         allowAll: {
             dashboards: boolean;
             charts: boolean;
@@ -3013,9 +3012,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // Add per migration; truthy env value enables the flag.
     ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
     ['SHOW_EXECUTION_TIME', 'show-execution-time'],
-    // EMBEDDING_ENABLED is also read by HealthService (exposed via the health
-    // endpoint) and EmbedService (allowAll config). Keep the config field, but
-    // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
     ['SCIM_ENABLED', 'scim-token-management'],
     // Self-hosted switch for data apps; forces the flag on.
@@ -4065,7 +4061,6 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         embedding: {
-            enabled: process.env.EMBEDDING_ENABLED === 'true',
             allowAll: {
                 dashboards:
                     process.env.EMBED_ALLOW_ALL_DASHBOARDS_BY_DEFAULT ===
