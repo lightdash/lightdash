@@ -5,7 +5,7 @@
     right: 0;
     bottom: 0;
     background-color: var(--ld-color-tile);
-    border-radius: var(--mantine-radius-sm);
+    border-radius: inherit;
     padding: var(--mantine-spacing-md);
     pointer-events: none;
     overflow: hidden;

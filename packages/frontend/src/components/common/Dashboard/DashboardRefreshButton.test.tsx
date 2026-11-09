@@ -15,7 +15,6 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 
 const invalidateDashboardRelatedQueries = vi.fn(() => Promise.resolve());
-const invalidateDashboardResultsQueries = vi.fn(() => Promise.resolve());
 const removeDashboardResultsQueries = vi.fn();
 const clearCacheAndFetch = vi.fn();
 const setIsAutoRefresh = vi.fn();
@@ -24,7 +23,6 @@ vi.mock('../../../hooks/dashboard/useDashboardRefresh', () => ({
     useDashboardRefresh: () => ({
         isFetching: 0,
         invalidateDashboardRelatedQueries,
-        invalidateDashboardResultsQueries,
         removeDashboardResultsQueries,
     }),
 }));

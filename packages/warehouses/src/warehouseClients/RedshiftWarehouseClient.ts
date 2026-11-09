@@ -35,6 +35,7 @@ const MAX_STALL_RETRIES = 2;
 // The lookup may itself have to wake a paused workgroup (~15s measured, up
 // to 90s reported), so it needs longer than a warm system-view query.
 const STALL_LOOKUP_TIMEOUT_MS = 60 * 1000;
+const SERVERLESS_HOST_PATTERN = /\.redshift-serverless\.amazonaws\.com$/i;
 
 // The lookup must see its own running query, otherwise an empty result for
 // the stalled session proves nothing and we keep waiting.
@@ -110,6 +111,10 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
 
     private readonly logger: RedshiftLogger | undefined;
 
+    // Only paused Serverless workgroups drop queries; on provisioned clusters
+    // the SYS_QUERY_HISTORY lookup is pure extra load.
+    private readonly isServerlessWorkgroup: boolean;
+
     private cachedIamPoolConfig:
         | { config: PoolConfig; expiresAt: number }
         | undefined;
@@ -152,6 +157,9 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         this.ssl = ssl;
         this.agentJobControls = options?.agentJobControls ?? false;
         this.logger = options?.logger;
+        this.isServerlessWorkgroup =
+            credentials.isServerless === true ||
+            SERVERLESS_HOST_PATTERN.test(credentials.host.trim());
         // Override the sqlBuilder with RedshiftSqlBuilder
         this.sqlBuilder = new RedshiftSqlBuilder(credentials.startOfWeek);
     }
@@ -204,7 +212,7 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         ) {
             this.config = await this.resolveIamPoolConfig();
         }
-        if (!options.recoverStalledQuery) {
+        if (!options.recoverStalledQuery || !this.isServerlessWorkgroup) {
             return super.streamQuery(sql, streamCallback, options);
         }
         return this.streamQueryRecoveringStalls(sql, streamCallback, options);

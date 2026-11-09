@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/cli",
-  "version": "3.176.1",
+  "version": "3.181.2",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {
@@ -27,7 +27,7 @@
     "bundle": "ncc build dist/index.js -o bundle -e @duckdb/node-api -e @duckdb/node-bindings -e @duckdb/node-bindings-darwin-arm64 -e @duckdb/node-bindings-darwin-x64 -e @duckdb/node-bindings-linux-arm64 -e @duckdb/node-bindings-linux-x64 -e @duckdb/node-bindings-win32-x64 && bash ./scripts/copy-bundle-assets.sh",
     "build:binary": "DUCKDB_BINDINGS=node-bindings-darwin-x64,node-bindings-darwin-arm64 pnpm bundle && pnpm exec pkg bundle/index.js --config pkg.config.json --targets node24-macos-x64,node24-macos-arm64 --output bin/lightdash --compress Brotli",
     "typecheck": "tsrs --project tsconfig.json --noEmit",
-    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+    "linter": "OXLINT_TSGOLINT_PATH=node_modules/.bin/tsrs-lint oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
     "fix-lint": "pnpm run linter ./src --fix",
@@ -82,7 +82,7 @@
     "copyfiles": "2.4.1",
     "date-fns": "3.6.0",
     "oxlint": "1.75.0",
-    "oxlint-tsgolint": "7.0.2001",
+    "tsrs": "0.21.0-ts7.1.0-beta",
     "tsx": "4.19.4",
     "typescript": "7.0.2",
     "vitest": "4.1.11"

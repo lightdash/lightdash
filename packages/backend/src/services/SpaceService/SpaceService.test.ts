@@ -20,7 +20,6 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { agentSystemRoleMatrix } from '../AgentPermissionService/AgentPermissionService';
 import { withAgentActionScope } from '../AiAccessService/agentActionTestUtils.mock';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -2133,7 +2132,6 @@ describe('managed space updates', () => {
                 mode: mode === 'legacy' ? 'legacy' : 'managed',
                 version: 1,
                 allowedCapabilities: null,
-                systemRoleMatrix: agentSystemRoleMatrix([]),
             });
             const user = createTestUser({
                 organizationUuid: 'org',
@@ -2223,7 +2221,6 @@ describe('space metadata updates after a human revocation', () => {
                 mode: mode === 'legacy' ? 'legacy' : 'managed',
                 version: 1,
                 allowedCapabilities: null,
-                systemRoleMatrix: agentSystemRoleMatrix([]),
             });
             const user = createTestUser({
                 organizationUuid: 'org',

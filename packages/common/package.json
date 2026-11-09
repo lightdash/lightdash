@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "3.176.1",
+  "version": "3.181.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -57,7 +57,7 @@
     "dev": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.json",
     "build": "tsc --build ./tsconfig.build.json",
     "typecheck": "tsrs --project tsconfig.json --noEmit --composite false",
-    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+    "linter": "OXLINT_TSGOLINT_PATH=node_modules/.bin/tsrs-lint oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
     "fix-lint": "pnpm run linter ./src --fix",
@@ -117,7 +117,7 @@
     "@types/uuid": "10.0.0",
     "js-tiktoken": "1.0.16",
     "oxlint": "1.75.0",
-    "oxlint-tsgolint": "7.0.2001",
+    "tsrs": "0.21.0-ts7.1.0-beta",
     "typescript": "7.0.2",
     "vitest": "4.1.11"
   }

@@ -234,12 +234,3 @@
     min-height: 40px;
     border-radius: var(--mantine-radius-md);
 }
-
-/* Below xl the centred search covers the left slot; below this the right side is full too */
-.setupIndicatorRight {
-    display: none;
-
-    @media (min-width: 66em) and (width < $mantine-breakpoint-xl) {
-        display: block;
-    }
-}

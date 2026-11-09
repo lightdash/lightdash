@@ -18,6 +18,7 @@ const run = (
     isHit: false,
     forcedMiss: false,
     warehouseTimeMs: 1000,
+    bytesBilled: 0,
     ...overrides,
 });
 
@@ -26,6 +27,7 @@ describe('simulateResultsCacheTtl', () => {
         expect(simulateResultsCacheTtl([run(0), run(2)], 3 * 3600)).toEqual({
             hits: 1,
             warehouseTimeSavedMs: 1000,
+            bytesBilledSaved: 0,
         });
     });
 
@@ -33,7 +35,7 @@ describe('simulateResultsCacheTtl', () => {
         // 24h TTL minus a 10 min buffer: runs at 0, 20h and 30h → only 20h hits.
         expect(
             simulateResultsCacheTtl([run(0), run(20), run(30)], 24 * 3600),
-        ).toEqual({ hits: 1, warehouseTimeSavedMs: 1000 });
+        ).toEqual({ hits: 1, warehouseTimeSavedMs: 1000, bytesBilledSaved: 0 });
     });
 
     test('forced misses reset the chain and never hit', () => {
@@ -42,7 +44,7 @@ describe('simulateResultsCacheTtl', () => {
                 [run(0), run(1, { forcedMiss: true }), run(2)],
                 24 * 3600,
             ),
-        ).toEqual({ hits: 1, warehouseTimeSavedMs: 1000 });
+        ).toEqual({ hits: 1, warehouseTimeSavedMs: 1000, bytesBilledSaved: 0 });
     });
 
     test('the buffer is applied', () => {
@@ -59,9 +61,15 @@ describe('simulateResultsCacheTtl', () => {
             warehouseTimeMs: 0,
         });
         // The real hit is priced at the key's average miss.
-        expect(simulateResultsCacheTtl([first, run(2)], 3 * 3600)).toEqual({
+        expect(
+            simulateResultsCacheTtl(
+                [first, run(2, { bytesBilled: 500 })],
+                3 * 3600,
+            ),
+        ).toEqual({
             hits: 2,
             warehouseTimeSavedMs: 2000,
+            bytesBilledSaved: 1000,
         });
     });
 
@@ -101,6 +109,7 @@ describe('buildResultsCacheTtlProjections', () => {
                 hits: 5,
                 hitRate: 0.5,
                 warehouseTimeSavedMs: 0,
+                bytesBilledSaved: 0,
             },
             projections: [],
         });
@@ -108,7 +117,7 @@ describe('buildResultsCacheTtlProjections', () => {
 
     test('estimates hits and time saved for runs made while caching was off', () => {
         // Every real run missed; at 3h the runs at 1h and 2h would have hit.
-        const replayRuns = [0, 1, 2, 4].map((h) => run(h));
+        const replayRuns = [0, 1, 2, 4].map((h) => run(h, { bytesBilled: 10 }));
         expect(
             buildResultsCacheTtlProjections({
                 currentTtlSeconds: 3 * 3600,
@@ -121,6 +130,7 @@ describe('buildResultsCacheTtlProjections', () => {
                 hits: 2,
                 hitRate: 0.5,
                 warehouseTimeSavedMs: 2000,
+                bytesBilledSaved: 20,
             },
         });
     });
@@ -154,6 +164,7 @@ describe('buildResultsCacheTtlProjections', () => {
                 hits: 4,
                 hitRate: 0.5,
                 warehouseTimeSavedMs: 0,
+                bytesBilledSaved: 0,
             },
             projections: [
                 {
@@ -162,6 +173,7 @@ describe('buildResultsCacheTtlProjections', () => {
                     hitRate: 0.75,
                     additionalHits: 2,
                     warehouseTimeSavedMs: 2000,
+                    bytesBilledSaved: 0,
                 },
                 {
                     ttlSeconds: 12 * 3600,
@@ -169,6 +181,7 @@ describe('buildResultsCacheTtlProjections', () => {
                     hitRate: 0.875,
                     additionalHits: 3,
                     warehouseTimeSavedMs: 3000,
+                    bytesBilledSaved: 0,
                 },
             ],
         });

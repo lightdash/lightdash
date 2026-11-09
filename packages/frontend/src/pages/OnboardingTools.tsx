@@ -43,9 +43,7 @@ import {
 } from '../components/common/OnboardingVisuals';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
-import { useWatchActiveAgentOnboardingRun } from '../ee/features/agentOnboarding/hooks/useWatchActiveAgentOnboardingRun';
-import { OnboardingDoneStep } from '../ee/features/agentOnboarding/OnboardingDoneStep';
-import { OnboardingRunActivity } from '../ee/features/agentOnboarding/OnboardingRunActivity';
+import { OnboardingDoneStep } from '../ee/features/onboardingDone/OnboardingDoneStep';
 import { useInstallStarterChartTypes } from '../features/chartTypes/hooks/useInstallStarterChartTypes';
 import { useCreateExternalConnection } from '../features/externalConnections/hooks/useCreateExternalConnection';
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
@@ -364,7 +362,6 @@ const TeamStep: FC<{
             }}
             stackDepth={3}
             aside={<StepVisual step="team" />}
-            activity={<OnboardingRunActivity projectUuid={projectUuid} />}
         >
             <DocumentTitle title={copy.title} />
             <Stack className={classes.column} gap="xl">
@@ -626,7 +623,6 @@ const OnboardingToolsContent: FC<{
                 steps: ONBOARDING_DATA_STEPS,
             }}
             stackDepth={2}
-            activity={<OnboardingRunActivity projectUuid={projectUuid} />}
             aside={
                 <ToolsAside
                     projectUuid={projectUuid}
@@ -775,7 +771,6 @@ const OnboardingToolsContent: FC<{
 const OnboardingTools: FC = () => {
     const guard = useOnboardingPageGuard();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    useWatchActiveAgentOnboardingRun(projectUuid);
 
     if (guard.status === 'blocked') {
         return guard.element;

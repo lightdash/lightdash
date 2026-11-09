@@ -11,7 +11,6 @@ import {
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type AgentConnectionExecution,
-    type AgentSystemRoleMatrix,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { type Knex } from 'knex';
@@ -56,16 +55,6 @@ export const connectionTestConfig = {
 };
 export const encryptionUtil = new EncryptionUtil({
     lightdashConfig: connectionTestConfig,
-});
-export const matrix = (
-    capabilities: AgentCapability[],
-): AgentSystemRoleMatrix => ({
-    member: [],
-    viewer: capabilities,
-    interactive_viewer: [],
-    editor: [],
-    developer: [],
-    admin: [],
 });
 const unusedDependency = async (): Promise<never> => {
     throw new Error('This contract must use an explicit project');
@@ -212,9 +201,8 @@ export const connectionFixture = async (
     const policy = await policies.save({
         organizationUuid,
         mode: 'managed',
-        allowedCapabilities: Object.values(AgentCapability),
+        allowedCapabilities: [capability],
         allowedGroupUuids: null,
-        systemRoleMatrix: matrix([capability]),
         updatedByUserUuid: userUuid,
     });
     await settings.upsert(organizationUuid, { mcpAgentsEnabled: true });

@@ -1,5 +1,9 @@
 import { Ability } from '@casl/ability';
-import { AgentCapability, type PossibleAbilities } from '@lightdash/common';
+import {
+    AgentCapability,
+    OrganizationMemberRole,
+    type PossibleAbilities,
+} from '@lightdash/common';
 import express, {
     type ErrorRequestHandler,
     type RequestHandler,
@@ -11,10 +15,7 @@ import { Socket } from 'node:net';
 import { buildAccount } from '../../auth/account/account.mock';
 import { RegisterRoutes } from '../../generated/routes';
 import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../services/AgentPermissionService/AgentPermissionService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 
 vi.mock('../authentication', async (importOriginal) => {
@@ -78,12 +79,6 @@ const setup = () => {
             row.version += 1;
             return [{ ...row }];
         });
-    tracker.on
-        .delete('organization_agent_system_role_capabilities')
-        .response(1);
-    tracker.on
-        .insert('organization_agent_system_role_capabilities')
-        .response([]);
     const service = new AgentPermissionService({
         agentCapabilityPolicyModel: new AgentCapabilityPolicyModel({
             database,
@@ -138,21 +133,38 @@ const setup = () => {
 
 const path = '/api/v2/org/agent-permissions';
 
+const legacyMatrix = {
+    [OrganizationMemberRole.MEMBER]: [],
+    [OrganizationMemberRole.VIEWER]: [AgentCapability.Query],
+    [OrganizationMemberRole.INTERACTIVE_VIEWER]: [AgentCapability.Query],
+    [OrganizationMemberRole.EDITOR]: [
+        AgentCapability.Query,
+        AgentCapability.ContentWrite,
+    ],
+    [OrganizationMemberRole.DEVELOPER]: [
+        AgentCapability.Query,
+        AgentCapability.RawSql,
+    ],
+    [OrganizationMemberRole.ADMIN]: Object.values(AgentCapability),
+};
+
 test('generated PUT accepts old extras, drops their choices and retains a stored capability list', async () => {
     const h = setup();
     const result = await h.call('PUT', path, {
         version: 2,
         allowedUserUuids: ['old-person'],
         allowedProjectUuids: ['old-project'],
-        systemRoleMatrix: agentSystemRoleMatrix(Object.values(AgentCapability)),
+        systemRoleMatrix: legacyMatrix,
     });
     expect(result.status).toBe(200);
     expect(result.body.results).toMatchObject({
         allowedCapabilities: [AgentCapability.Query],
-        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     });
     expect(result.body.results).not.toHaveProperty('allowedUserUuids');
     expect(result.body.results).not.toHaveProperty('allowedProjectUuids');
+    expect(result.body.results).not.toHaveProperty('systemRoleMatrix');
+    expect(tracker.history.insert).toHaveLength(1);
+    expect(tracker.history.delete).toHaveLength(0);
     expect(h.row).toMatchObject({
         allowed_user_uuids: null,
         allowed_project_uuids: null,
@@ -166,11 +178,12 @@ test('generated GET, new PUT and reset return the final shape', async () => {
     expect(get.status).toBe(200);
     expect(get.body.results).not.toHaveProperty('allowedUserUuids');
     expect(get.body.results).not.toHaveProperty('allowedProjectUuids');
+    expect(get.body.results).not.toHaveProperty('systemRoleMatrix');
+    expect(get.body.results).not.toHaveProperty('defaults');
     const saved = await h.call('PUT', path, {
         mode: 'managed',
         version: 2,
         allowedCapabilities: [],
-        systemRoleMatrix: agentSystemRoleMatrix([]),
     });
     expect(saved.status).toBe(200);
     expect(h.row.allowed_capabilities).toEqual([]);
@@ -190,7 +203,6 @@ test.each([
     { mode: 'invalid' },
     { version: -1 },
     { version: 1.5 },
-    { systemRoleMatrix: {} },
 ])(
     'generated PUT rejects invalid values %j without a write',
     async (invalid) => {
@@ -198,7 +210,6 @@ test.each([
         const result = await h.call('PUT', path, {
             mode: 'managed',
             version: 2,
-            systemRoleMatrix: agentSystemRoleMatrix([]),
             ...invalid,
         });
         expect(result.status).toBeGreaterThanOrEqual(400);
@@ -207,15 +218,14 @@ test.each([
     },
 );
 
-test('a stale HTTP save does not replace matrix rows', async () => {
+test('a stale HTTP save is refused and keeps the stored policy', async () => {
     const h = setup();
     const result = await h.call('PUT', path, {
         mode: 'managed',
         version: 1,
         allowedCapabilities: [],
-        systemRoleMatrix: agentSystemRoleMatrix([]),
     });
     expect(result.status).toBe(400);
-    expect(tracker.history.delete).toHaveLength(0);
+    expect(h.row.allowed_capabilities).toEqual([AgentCapability.Query]);
     expect(h.row.version).toBe(2);
 });

@@ -1,4 +1,8 @@
-import { getMissingRequiredParameters, type FieldId } from '@lightdash/common';
+import {
+    getMissingRequiredParameters,
+    type FieldId,
+    type QueryExecutionContext,
+} from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
@@ -97,9 +101,13 @@ export const useExplorerQueryManager = ({
         params.savedQueryUuid;
     const projectUuid =
         explicitProjectUuid || embed?.projectUuid || routeProjectUuid!;
+    const contextParam =
+        useSearchParams<QueryExecutionContext>('context') || undefined;
     const viewModeQueryArgs = useMemo(() => {
-        return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
-    }, [savedQueryUuid]);
+        return savedQueryUuid
+            ? { chartUuid: savedQueryUuid, context: contextParam }
+            : undefined;
+    }, [savedQueryUuid, contextParam]);
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 

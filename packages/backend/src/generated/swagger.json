@@ -20239,8 +20239,225 @@
                 "type": "object",
                 "description": "Fields the API refuses to return in the same query."
             },
+            "Partial_Record_ApiSourceFilterFieldType.FilterOperator-Array__": {
+                "properties": {
+                    "string": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterOperator"
+                        },
+                        "type": "array"
+                    },
+                    "number": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterOperator"
+                        },
+                        "type": "array"
+                    },
+                    "timestamp": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterOperator"
+                        },
+                        "type": "array"
+                    },
+                    "date": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterOperator"
+                        },
+                        "type": "array"
+                    },
+                    "boolean": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterOperator"
+                        },
+                        "type": "array"
+                    },
+                    "metric": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterOperator"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "ApiSourcePushdown": {
+                "type": "string",
+                "enum": ["native", "refused", "local"],
+                "description": "How a live data source answers a query feature: `native` compiles it into\nthe API call, `refused` rejects the query. `local` (computing it on the\nreturned rows) is reserved for later and no connector uses it yet."
+            },
+            "ApiSourceMetricAggregation": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "aggregation": {
+                                "type": "string",
+                                "enum": ["additive"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["aggregation"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "denominator": {
+                                "type": "string"
+                            },
+                            "numerator": {
+                                "type": "string"
+                            },
+                            "aggregation": {
+                                "type": "string",
+                                "enum": ["ratio"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["denominator", "numerator", "aggregation"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "aggregation": {
+                                "type": "string",
+                                "enum": ["non_additive"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["aggregation"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Whether a metric's values can be summed when rows are re-grouped. A wrong\ntag puts wrong numbers in saved charts, so tags follow the API's docs and\nanything unlisted is `non_additive`."
+            },
+            "Record_string.ApiSourceMetricAggregation_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ApiSourceMetricAggregation"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiSourceCapabilities": {
+                "properties": {
+                    "metrics": {
+                        "$ref": "#/components/schemas/Record_string.ApiSourceMetricAggregation_",
+                        "description": "Keyed by semantic-layer field name (`sessions`), not field id."
+                    },
+                    "pushdown": {
+                        "properties": {
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/ApiSourcePushdown",
+                                "description": "Re-grouping the date at query time, which rewrites its SQL."
+                            },
+                            "periodOverPeriod": {
+                                "$ref": "#/components/schemas/ApiSourcePushdown"
+                            },
+                            "pivots": {
+                                "$ref": "#/components/schemas/ApiSourcePushdown"
+                            },
+                            "customMetrics": {
+                                "$ref": "#/components/schemas/ApiSourcePushdown"
+                            },
+                            "customDimensions": {
+                                "$ref": "#/components/schemas/ApiSourcePushdown"
+                            },
+                            "tableCalculations": {
+                                "$ref": "#/components/schemas/ApiSourcePushdown"
+                            }
+                        },
+                        "required": [
+                            "dateZoom",
+                            "periodOverPeriod",
+                            "pivots",
+                            "customMetrics",
+                            "customDimensions",
+                            "tableCalculations"
+                        ],
+                        "type": "object"
+                    },
+                    "dates": {
+                        "properties": {
+                            "maxLookbackDays": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "timezone": {
+                                "type": "string",
+                                "enum": ["fixed", "configurable"],
+                                "description": "`fixed`: the API reports in its own time zone, whatever the query asks."
+                            },
+                            "grains": {
+                                "items": {
+                                    "$ref": "#/components/schemas/TimeFrames"
+                                },
+                                "type": "array",
+                                "description": "Grains the API groups dates by natively, each a field of the explore."
+                            },
+                            "operators": {
+                                "items": {
+                                    "$ref": "#/components/schemas/FilterOperator"
+                                },
+                                "type": "array"
+                            },
+                            "rangeRequired": {
+                                "type": "boolean",
+                                "description": "The API reads the date filter as one range, ANDed with the other filters."
+                            }
+                        },
+                        "required": [
+                            "timezone",
+                            "grains",
+                            "operators",
+                            "rangeRequired"
+                        ],
+                        "type": "object"
+                    },
+                    "metricFilters": {
+                        "type": "boolean"
+                    },
+                    "filters": {
+                        "properties": {
+                            "nestedGroups": {
+                                "type": "boolean"
+                            },
+                            "or": {
+                                "type": "boolean"
+                            },
+                            "multipleValues": {
+                                "type": "boolean",
+                                "description": "One filter can match any of several values (an IN list)."
+                            },
+                            "operators": {
+                                "$ref": "#/components/schemas/Partial_Record_ApiSourceFilterFieldType.FilterOperator-Array__",
+                                "description": "Operators per field type; a type without an entry can't be filtered."
+                            }
+                        },
+                        "required": [
+                            "nestedGroups",
+                            "or",
+                            "multipleValues",
+                            "operators"
+                        ],
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "metrics",
+                    "pushdown",
+                    "dates",
+                    "metricFilters",
+                    "filters"
+                ],
+                "type": "object",
+                "description": "What a live data source connector can do with a metric query. Each\nconnector declares one; the shared check (`getApiSourceQueryIssues`) and\nthe Explore controls read it. Combination rules (GA4 scopes) and size\nlimits are per explore, not capabilities."
+            },
             "ApiSourceExplore": {
                 "properties": {
+                    "capabilities": {
+                        "$ref": "#/components/schemas/ApiSourceCapabilities",
+                        "description": "Absent on explores built before connectors declared capabilities;\nread it with `getApiSourceCapabilities`, which fills the gap."
+                    },
                     "incompatible": {
                         "items": {
                             "$ref": "#/components/schemas/ApiSourceIncompatibility"
@@ -36415,8 +36632,8 @@
                                                                                 "fieldType": {
                                                                                     "type": "string",
                                                                                     "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
+                                                                                        "metric",
+                                                                                        "dimension"
                                                                                     ]
                                                                                 },
                                                                                 "table": {
@@ -37800,8 +38017,8 @@
                                                                     "type": {
                                                                         "type": "string",
                                                                         "enum": [
-                                                                            "dimension",
                                                                             "metric",
+                                                                            "dimension",
                                                                             null
                                                                         ],
                                                                         "nullable": true
@@ -37889,8 +38106,8 @@
                                                                     "type": {
                                                                         "type": "string",
                                                                         "enum": [
-                                                                            "dimension",
                                                                             "metric",
+                                                                            "dimension",
                                                                             null
                                                                         ],
                                                                         "nullable": true
@@ -42574,278 +42791,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "AgentOnboardingRunStatus": {
-                "type": "string",
-                "enum": [
-                    "queued",
-                    "running",
-                    "failed",
-                    "cancelled",
-                    "completed"
-                ]
-            },
-            "AgentOnboardingStage": {
-                "type": "string",
-                "enum": [
-                    "preparing_project",
-                    "exploring_warehouse",
-                    "deploying_semantic_layer",
-                    "building_dashboard",
-                    "verifying",
-                    "handoff"
-                ]
-            },
-            "AgentOnboardingRunEvent": {
-                "properties": {
-                    "createdAt": {
-                        "type": "string"
-                    },
-                    "stage": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AgentOnboardingStage"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "eventType": {
-                        "type": "string",
-                        "enum": ["stage", "step", "log"]
-                    }
-                },
-                "required": ["createdAt", "stage", "message", "eventType"],
-                "type": "object"
-            },
-            "AgentOnboardingHandoff": {
-                "properties": {
-                    "starterQuestions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "dashboardUrl": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Set only by runs that build the starter dashboard"
-                    },
-                    "summary": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["starterQuestions", "dashboardUrl", "summary"],
-                "type": "object"
-            },
-            "AgentOnboardingUsage": {
-                "properties": {
-                    "numTurns": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "outputTokens": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "inputTokens": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "costUsd": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "numTurns",
-                    "outputTokens",
-                    "inputTokens",
-                    "costUsd"
-                ],
-                "type": "object"
-            },
-            "AgentOnboardingFile": {
-                "properties": {
-                    "updatedAt": {
-                        "type": "string"
-                    },
-                    "sizeBytes": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "path": {
-                        "type": "string"
-                    }
-                },
-                "required": ["updatedAt", "sizeBytes", "path"],
-                "type": "object"
-            },
-            "AgentOnboardingRun": {
-                "properties": {
-                    "completedAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "startedAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "type": "string"
-                    },
-                    "errorMessage": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "files": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentOnboardingFile"
-                        },
-                        "type": "array"
-                    },
-                    "usage": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AgentOnboardingUsage"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "handoff": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AgentOnboardingHandoff"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "events": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentOnboardingRunEvent"
-                        },
-                        "type": "array"
-                    },
-                    "stage": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AgentOnboardingStage"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "$ref": "#/components/schemas/AgentOnboardingRunStatus"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "agentOnboardingRunUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "completedAt",
-                    "startedAt",
-                    "updatedAt",
-                    "createdAt",
-                    "errorMessage",
-                    "files",
-                    "usage",
-                    "handoff",
-                    "events",
-                    "stage",
-                    "status",
-                    "projectUuid",
-                    "agentOnboardingRunUuid"
-                ],
-                "type": "object"
-            },
-            "ApiSuccess_AgentOnboardingRun_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AgentOnboardingRun"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAgentOnboardingRunResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingRun_"
-            },
-            "ApiSuccess_AgentOnboardingRun-or-null_": {
-                "properties": {
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AgentOnboardingRun"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAgentOnboardingActiveRunResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingRun-or-null_"
-            },
-            "AgentOnboardingFileContent": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/AgentOnboardingFile"
-                    },
-                    {
-                        "properties": {
-                            "encoding": {
-                                "type": "string",
-                                "enum": ["utf8", "base64"]
-                            },
-                            "content": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["encoding", "content"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ApiSuccess_AgentOnboardingFileContent_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AgentOnboardingFileContent"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAgentOnboardingFileResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingFileContent_"
             },
             "SkippableHomepageRecommendedActionKey": {
                 "type": "string",
@@ -57991,7 +57936,6 @@
                     "aiDeepResearch",
                     "dataAppInvestigate",
                     "dataAppInstructionInvestigate",
-                    "agentOnboardingRun",
                     "aiAgentEditDbtProjectPipeline",
                     "sweepStaleAppLocks",
                     "sweepStaleAiWritebackRuns",
@@ -62101,6 +62045,10 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "bytesBilledSaved": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "warehouseTimeSavedMs": {
                         "type": "number",
                         "format": "double"
@@ -62125,6 +62073,7 @@
                 },
                 "required": [
                     "warehouseTimeOnMissesMs",
+                    "bytesBilledSaved",
                     "warehouseTimeSavedMs",
                     "hitRate",
                     "misses",
@@ -62301,6 +62250,10 @@
             },
             "ResultsCacheTtlProjection": {
                 "properties": {
+                    "bytesBilledSaved": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "warehouseTimeSavedMs": {
                         "type": "number",
                         "format": "double"
@@ -62324,6 +62277,7 @@
                     }
                 },
                 "required": [
+                    "bytesBilledSaved",
                     "warehouseTimeSavedMs",
                     "additionalHits",
                     "hitRate",
@@ -62344,6 +62298,10 @@
                             },
                             "baseline": {
                                 "properties": {
+                                    "bytesBilledSaved": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "warehouseTimeSavedMs": {
                                         "type": "number",
                                         "format": "double"
@@ -62363,6 +62321,7 @@
                                     }
                                 },
                                 "required": [
+                                    "bytesBilledSaved",
                                     "warehouseTimeSavedMs",
                                     "hitRate",
                                     "hits",
@@ -65642,11 +65601,7 @@
             },
             "PlaygroundProjectTrigger": {
                 "type": "string",
-                "enum": [
-                    "invite_expert",
-                    "agent_onboarding_wait",
-                    "get_started"
-                ]
+                "enum": ["invite_expert", "get_started"]
             },
             "EnsurePlaygroundProjectRequest": {
                 "properties": {
@@ -76169,59 +76124,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Record_OrganizationMemberRole.AgentCapability-Array_": {
-                "properties": {
-                    "member": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "viewer": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "interactive_viewer": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "editor": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "developer": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    },
-                    "admin": {
-                        "items": {
-                            "$ref": "#/components/schemas/AgentCapability"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "member",
-                    "viewer",
-                    "interactive_viewer",
-                    "editor",
-                    "developer",
-                    "admin"
-                ],
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "AgentSystemRoleMatrix": {
-                "$ref": "#/components/schemas/Record_OrganizationMemberRole.AgentCapability-Array_"
-            },
             "AgentCapabilityPolicyOverview": {
                 "properties": {
                     "mode": {
@@ -76246,12 +76148,6 @@
                         "type": "array",
                         "nullable": true
                     },
-                    "systemRoleMatrix": {
-                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
-                    },
-                    "defaults": {
-                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
-                    },
                     "groupsAvailable": {
                         "type": "boolean"
                     }
@@ -76261,8 +76157,6 @@
                     "version",
                     "allowedCapabilities",
                     "allowedGroupUuids",
-                    "systemRoleMatrix",
-                    "defaults",
                     "groupsAvailable"
                 ],
                 "type": "object",
@@ -76318,17 +76212,13 @@
                         },
                         "type": "array",
                         "nullable": true
-                    },
-                    "systemRoleMatrix": {
-                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
                     }
                 },
                 "required": [
                     "mode",
                     "version",
                     "allowedCapabilities",
-                    "allowedGroupUuids",
-                    "systemRoleMatrix"
+                    "allowedGroupUuids"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -76350,9 +76240,6 @@
             },
             "AgentCapabilityCeiling": {
                 "properties": {
-                    "systemRoleMatrix": {
-                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -76376,7 +76263,6 @@
                         "nullable": true
                     }
                 },
-                "required": ["systemRoleMatrix"],
                 "type": "object",
                 "additionalProperties": true
             },
@@ -76407,7 +76293,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.176.1",
+        "version": "3.181.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -91833,276 +91719,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/agent-onboarding": {
-            "post": {
-                "operationId": "createAgentOnboardingRun",
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAgentOnboardingRunResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Start a server-side agent onboarding run for a prepared project.\nReturns the existing run when one is already active for the project.",
-                "summary": "Start agent onboarding run",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            },
-            "get": {
-                "operationId": "getActiveAgentOnboardingRun",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAgentOnboardingActiveRunResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the agent onboarding run that is currently queued or running for a\nproject, if any.",
-                "summary": "Get active agent onboarding run",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/latest": {
-            "get": {
-                "operationId": "getLatestAgentOnboardingRun",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAgentOnboardingActiveRunResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the most recent agent onboarding run for a project, finished or not.",
-                "summary": "Get latest agent onboarding run",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}": {
-            "get": {
-                "operationId": "getAgentOnboardingRun",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAgentOnboardingRunResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the durable state and progress events of an agent onboarding run.",
-                "summary": "Get agent onboarding run",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentOnboardingRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/file": {
-            "get": {
-                "operationId": "getAgentOnboardingFile",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAgentOnboardingFileResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Read the latest persisted contents of a generated onboarding file.",
-                "summary": "Get onboarding run file",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentOnboardingRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/cancel": {
-            "post": {
-                "operationId": "cancelAgentOnboardingRun",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAgentOnboardingRunResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Request cancellation of an agent onboarding run.",
-                "summary": "Cancel agent onboarding run",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentOnboardingRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
             }
         },
         "/api/v1/ee/homepage/recommended-action-skips": {

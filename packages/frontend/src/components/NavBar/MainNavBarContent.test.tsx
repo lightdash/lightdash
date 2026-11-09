@@ -40,12 +40,6 @@ vi.mock('./UserMenu', () => ({
 
 vi.mock('./ExploreMenu', () => ({ default: () => null }));
 vi.mock('./BrowseMenu', () => ({ default: () => null }));
-vi.mock(
-    '../../ee/features/agentOnboarding/AgentOnboardingNavIndicator',
-    () => ({
-        AgentOnboardingNavIndicator: () => null,
-    }),
-);
 vi.mock('./SettingsMenu', () => ({ default: () => null }));
 vi.mock('./HelpMenu', () => ({ default: () => null }));
 vi.mock('./HeadwayMenuItem', () => ({ default: () => null }));

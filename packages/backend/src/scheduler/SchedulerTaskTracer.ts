@@ -392,12 +392,6 @@ const getTagsForTask: {
             : { 'app.uuid': payload.target.appUuid }),
         'agent.uuid': payload.agentUuid,
     }),
-    [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: (payload) => ({
-        'organization.uuid': payload.organizationUuid,
-        'user.uuid': payload.userUuid,
-        'project.uuid': payload.projectUuid,
-        'agent_onboarding.run_uuid': payload.agentOnboardingRunUuid,
-    }),
     [SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

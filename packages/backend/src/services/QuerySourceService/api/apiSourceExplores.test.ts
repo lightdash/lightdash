@@ -15,6 +15,7 @@ import {
     getLegacyLiveSourceName,
     getLiveSourceNameBase,
     toApiSourceResult,
+    toPeriodStart,
     toScannedLiveSourceFields,
     type ApiSourceScan,
 } from './apiSourceExplores';
@@ -244,6 +245,47 @@ describe('compileApiSourceMetricQuery', () => {
         expect(hogql).toMatch(/^SELECT .* AS c0, .* AS c1\nFROM \(/);
     });
 
+    test("starts PostHog's current week on Monday, like its week field", () => {
+        vi.useFakeTimers();
+        // Wednesday 4 November 2026
+        vi.setSystemTime(new Date('2026-11-04T12:00:00Z'));
+        try {
+            const explore = posthog();
+            const { query: hogql } = compileApiSourceMetricQuery({
+                explore,
+                metricQuery: query(
+                    explore,
+                    { dimensions: ['event'], metrics: ['event_count'] },
+                    {
+                        filters: {
+                            dimensions: {
+                                id: 'root',
+                                and: [
+                                    {
+                                        id: 'current-week',
+                                        target: {
+                                            fieldId: `${explore.name}_date`,
+                                        },
+                                        operator: FilterOperator.IN_THE_CURRENT,
+                                        values: [1],
+                                        settings: { unitOfTime: 'weeks' },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                ),
+                timezone: 'UTC',
+                now: new Date(),
+            });
+            expect(hogql).toContain('2026-11-02');
+            expect(hogql).not.toContain('2026-11-01');
+            expect(hogql).not.toContain('INTERVAL 30 DAY');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     test('refuses a field the source scanned but has not put in use', () => {
         const apiSource = {
             connector: ApiConnectorType.POSTHOG,
@@ -368,5 +410,38 @@ describe('toApiSourceResult', () => {
             fields,
         });
         expect(rows).toEqual([{ [channel]: 'Direct', [sessions]: null }]);
+    });
+
+    test('turns compact GA4 periods into the first day of the period', () => {
+        const month = `${explore.name}_date_month`;
+        const { rows, columns } = toApiSourceResult({
+            compiled: {
+                ...compiled,
+                fieldIdsByColumn: { yearMonth: month, sessions },
+                localSorts: [],
+                periodColumns: { yearMonth: 'year_month' },
+            },
+            rows: [{ yearMonth: '202610', sessions: 3 }],
+            fields,
+        });
+        expect(rows).toEqual([{ [month]: '2026-10-01', [sessions]: 3 }]);
+        expect(columns[month]).toEqual({
+            reference: month,
+            type: DimensionType.DATE,
+        });
+    });
+});
+
+describe('toPeriodStart', () => {
+    test.each([
+        ['2026', 'year', '2026-01-01'],
+        ['202610', 'year_month', '2026-10-01'],
+        // ISO week 1 of 2026 starts on Monday 29 December 2025
+        ['202601', 'iso_week', '2025-12-29'],
+        ['202645', 'iso_week', '2026-11-02'],
+        ['202053', 'iso_week', '2020-12-28'],
+        ['(other)', 'iso_week', '(other)'],
+    ] as const)('reads %s as a %s starting %s', (value, format, expected) => {
+        expect(toPeriodStart(value, format)).toBe(expected);
     });
 });

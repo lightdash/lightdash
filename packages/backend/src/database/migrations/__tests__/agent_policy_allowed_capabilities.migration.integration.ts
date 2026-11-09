@@ -6,10 +6,7 @@ import {
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
 import { AgentCapabilityPolicyModel } from '../../../models/AgentCapabilityPolicyModel';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -138,7 +135,6 @@ test('a historical null list preserves custom grants until a save narrows them',
             organizationUuid: org.organization_uuid,
             mode: 'managed',
             version: 1,
-            systemRoleMatrix: agentSystemRoleMatrix([]),
             updatedByUserUuid: null,
         });
         expect(first.allowedCapabilities).toEqual(
@@ -152,16 +148,9 @@ test('a historical null list preserves custom grants until a save narrows them',
             mode: 'managed',
             version: first.version,
             allowedCapabilities: [AgentCapability.Query, AgentCapability.Query],
-            systemRoleMatrix: agentSystemRoleMatrix([
-                AgentCapability.Query,
-                AgentCapability.Delete,
-            ]),
             updatedByUserUuid: null,
         });
         expect(saved.allowedCapabilities).toEqual([AgentCapability.Query]);
-        expect(saved.systemRoleMatrix).toEqual(
-            agentSystemRoleMatrix([AgentCapability.Query]),
-        );
         expect(
             await model.getForEnforcement(org.organization_uuid),
         ).toMatchObject({ allowedCapabilities: [AgentCapability.Query] });
@@ -176,15 +165,9 @@ test('a historical null list preserves custom grants until a save narrows them',
             organizationUuid: org.organization_uuid,
             mode: 'managed',
             version: saved.version,
-            systemRoleMatrix: agentSystemRoleMatrix(
-                Object.values(AgentCapability),
-            ),
             updatedByUserUuid: null,
         });
         expect(oldTab.allowedCapabilities).toEqual([AgentCapability.Query]);
-        expect(oldTab.systemRoleMatrix).toEqual(
-            agentSystemRoleMatrix([AgentCapability.Query]),
-        );
         const row = await trx('organization_agent_capability_policies')
             .where('organization_uuid', org.organization_uuid)
             .first();
@@ -205,8 +188,7 @@ test('obsolete saved people and project lists do not restrict role capabilities 
             organizationUuid: org.organization_uuid,
             mode: 'managed',
             version: 0,
-            allowedCapabilities: Object.values(AgentCapability),
-            systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
+            allowedCapabilities: [AgentCapability.Query],
             updatedByUserUuid: null,
         });
         const excludedUser = '00000000-0000-0000-0000-000000000001';

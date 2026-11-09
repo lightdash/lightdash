@@ -1,18 +1,18 @@
 {
-  "scripts": "bundle/**/*.js",
-  "assets": [
-    "bundle/**/*.node",
-    "bundle/**/*.dylib",
-    "bundle/**/*.so",
-    "bundle/ca-bundle-aws-redshift.crt",
-    "bundle/ca-bundle-aws-rds-global.pem",
-    "bundle/vendor/**/*"
-  ],
-  "targets": [
-    "node24-macos-x64",
-    "node24-macos-arm64",
-    "node24-linux-x64",
-    "node24-win-x64"
-  ],
-  "outputPath": "bin"
+    "scripts": ["bundle/**/*.js", "!bundle/vendor/**"],
+    "assets": [
+        "bundle/**/*.node",
+        "bundle/**/*.dylib",
+        "bundle/**/*.so",
+        "bundle/ca-bundle-aws-redshift.crt",
+        "bundle/ca-bundle-aws-rds-global.pem",
+        "bundle/vendor/**/*"
+    ],
+    "targets": [
+        "node24-macos-x64",
+        "node24-macos-arm64",
+        "node24-linux-x64",
+        "node24-win-x64"
+    ],
+    "outputPath": "bin"
 }

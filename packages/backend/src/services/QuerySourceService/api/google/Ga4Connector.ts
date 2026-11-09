@@ -2,17 +2,25 @@ import {
     ApiConnectorType,
     DimensionType,
     ParameterError,
+    TimeFrames,
     UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    ApiConnector,
-    ApiConnectorColumn,
-    ApiConnectorDescription,
-    ApiConnectorExecuteArgs,
-    ApiConnectorResult,
-    ApiConnectorTransport,
+import {
+    ALL_PUSHDOWN_REFUSED,
+    type ApiConnector,
+    type ApiConnectorCapabilities,
+    type ApiConnectorColumn,
+    type ApiConnectorDescription,
+    type ApiConnectorExecuteArgs,
+    type ApiConnectorResult,
+    type ApiConnectorTransport,
 } from '../ApiConnector';
+import {
+    GA4_DATE_FILTERS,
+    GA4_METRIC_FILTERS,
+    GA4_STRING_FILTERS,
+} from './ga4SemanticLayer';
 import { toGoogleApiError } from './googleApiError';
 
 export const GA4_DATA_ORIGIN = 'https://analyticsdata.googleapis.com';
@@ -29,6 +37,37 @@ const GA4_LIMITS = {
     callsPerMinute: 60,
     callsPerHour: 1_000,
     callsPerQuery: 1,
+};
+
+/**
+ * runReport filters any field with AND, OR and NOT groups, and metrics too.
+ * Dates are one range in the property's time zone, which the API can't
+ * override, grouped by day, ISO week, month or year. Everything SQL-like is refused.
+ */
+export const GA4_CAPABILITIES: ApiConnectorCapabilities = {
+    filters: {
+        operators: {
+            string: GA4_STRING_FILTERS,
+            date: GA4_DATE_FILTERS,
+            metric: GA4_METRIC_FILTERS,
+        },
+        multipleValues: true,
+        or: true,
+        nestedGroups: true,
+    },
+    metricFilters: true,
+    dates: {
+        rangeRequired: true,
+        operators: GA4_DATE_FILTERS,
+        grains: [
+            TimeFrames.DAY,
+            TimeFrames.WEEK,
+            TimeFrames.MONTH,
+            TimeFrames.YEAR,
+        ],
+        timezone: 'fixed',
+    },
+    pushdown: ALL_PUSHDOWN_REFUSED,
 };
 
 const GA4_DATE = /^(\d{4}-\d{2}-\d{2}|today|yesterday|\d+daysAgo)$/;
@@ -159,6 +198,7 @@ export class Ga4Connector implements ApiConnector {
             maxRows: GA4_MAX_ROWS - 1,
             timeoutMs: GA4_TIMEOUT_MS,
             limits: GA4_LIMITS,
+            capabilities: GA4_CAPABILITIES,
         };
     }
 

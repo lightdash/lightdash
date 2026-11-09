@@ -33,9 +33,7 @@ import {
 import { ChartRegistryClient } from './clients/ChartRegistryClient';
 import { GithubReleaseNotesClient } from './clients/GithubReleaseNotes/GithubReleaseNotesClient';
 import LicenseClient from './clients/License/LicenseClient';
-import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
-import { AgentOnboardingRunModel } from './models/AgentOnboardingRunModel';
 import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
 import { AiAgentMemoryModel } from './models/AiAgentMemoryModel';
 import { AiAgentModel } from './models/AiAgentModel';
@@ -128,7 +126,6 @@ import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgent
 import { McpService } from './services/McpService/McpService';
 import { MobilePushNotificationReconciler } from './services/MobilePushNotificationService/MobilePushNotificationReconciler';
 import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
-import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
@@ -513,28 +510,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
-            onboardingAgentService: ({
-                context,
-                models,
-                repository,
-                clients,
-            }) =>
-                new OnboardingAgentService({
-                    lightdashConfig: context.lightdashConfig,
-                    analytics: context.lightdashAnalytics,
-                    agentOnboardingRunModel:
-                        models.getAgentOnboardingRunModel<AgentOnboardingRunModel>(),
-                    sandboxRegistryModel:
-                        models.getSandboxRegistryModel<SandboxRegistryModel>(),
-                    projectModel: models.getProjectModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
-                    personalAccessTokenService:
-                        repository.getPersonalAccessTokenService(),
-                    promptService: repository.getPromptService(),
-                    userService: repository.getUserService(),
-                    schedulerClient:
-                        clients.getSchedulerClient() as CommercialSchedulerClient,
-                }),
             writebackPreviewService: ({ context, models, repository }) =>
                 new WritebackPreviewService({
                     lightdashConfig: context.lightdashConfig,
@@ -713,9 +688,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     projectService: repository.getProjectService(),
                     featureFlagService: repository.getFeatureFlagService(),
-                    openAi: new OpenAi(
-                        context.lightdashConfig.ai.copilot.providers.openai,
-                    ), // TODO This should go in client repository as soon as it is available
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1377,14 +1349,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             projectService,
                             canViewProject,
                             trigger,
-                            hasActiveAgentOnboardingRun: () =>
-                                user.organizationUuid
-                                    ? models
-                                          .getAgentOnboardingRunModel<AgentOnboardingRunModel>()
-                                          .hasActiveRunForOrganization(
-                                              user.organizationUuid,
-                                          )
-                                    : Promise.resolve(false),
                             featureFlagService:
                                 repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),
@@ -1773,8 +1737,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiWritebackRunModel({ database }),
             aiDeepResearchRunModel: ({ database }) =>
                 new AiDeepResearchRunModel({ database }),
-            agentOnboardingRunModel: ({ database }) =>
-                new AgentOnboardingRunModel({ database }),
             sandboxRegistryModel: ({ database }) =>
                 new SandboxRegistryModel({ database }),
             aiAgentReviewClassifierModel: ({ database }) =>
@@ -1902,8 +1864,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getAiWritebackService<AiWritebackService>(),
                 aiDeepResearchService:
                     context.serviceRepository.getAiDeepResearchService<AiDeepResearchService>(),
-                onboardingAgentService:
-                    context.serviceRepository.getOnboardingAgentService<OnboardingAgentService>(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),

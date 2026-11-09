@@ -54,6 +54,8 @@ type SavedSqlChartRegisteredDashboardArgs = SavedSqlChartDashboardCommonArgs & {
     isEmbed?: false;
     /** Skips the results cache, set by the dashboard refresh */
     invalidateCache?: boolean;
+    /** Bumped by every dashboard refresh so each one refetches */
+    refreshCounter?: number;
 };
 
 // Embed callers don't pass dashboardUuid — the JWT carries it server-side.

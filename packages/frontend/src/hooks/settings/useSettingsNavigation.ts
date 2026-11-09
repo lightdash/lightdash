@@ -84,7 +84,6 @@ export const useSettingsNavigation = (
         health,
         allowPasswordAuthentication,
         hasSocialLogin,
-        isGroupManagementEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -283,9 +282,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('update', 'OrganizationMemberProfile')) {
             organizationItems.push({
-                label: isGroupManagementEnabled
-                    ? 'Users & groups'
-                    : 'User management',
+                label: 'Users & groups',
                 to: '/generalSettings/userManagement',
                 icon: IconUserPlus,
                 keywords: ['members', 'invite', 'teams', 'groups'],
@@ -303,9 +300,7 @@ export const useSettingsNavigation = (
             )
         ) {
             organizationItems.push({
-                label: isGroupManagementEnabled
-                    ? 'User & group attributes'
-                    : 'User attributes',
+                label: 'User & group attributes',
                 to: '/generalSettings/userAttributes',
                 icon: IconUserShield,
                 keywords: ['attributes', 'access control'],
@@ -1400,7 +1395,6 @@ export const useSettingsNavigation = (
         health,
         allowPasswordAuthentication,
         hasSocialLogin,
-        isGroupManagementEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,

@@ -540,10 +540,6 @@ import {
     WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
 import {
-    AgentOnboardingRunsTable,
-    AgentOnboardingRunsTableName,
-} from '../ee/database/entities/agentOnboarding';
-import {
     AiAgentToolCallErrorTable,
     AiAgentToolCallErrorTableName,
     AiAgentToolCallTable,
@@ -963,7 +959,6 @@ declare module 'knex/types/tables' {
         [MobilePushInstallationsTableName]: MobilePushInstallationTable;
         [AiAgentLiveActivitiesTableName]: AiAgentLiveActivityTable;
         [AiAgentLiveActivityStartAttemptsTableName]: AiAgentLiveActivityStartAttemptTable;
-        [AgentOnboardingRunsTableName]: AgentOnboardingRunsTable;
         [HomepageRecommendedActionSkipsTableName]: HomepageRecommendedActionSkipsTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;

@@ -3,14 +3,12 @@ import {
     Account,
     ApiGroupAsCodeUpsertResponse,
     assertRegisteredAccount,
-    FeatureFlags,
     ForbiddenError,
     Group,
     GroupAsCode,
     GroupMember,
     GroupMembership,
     GroupWithMembers,
-    isAccount,
     ParameterError,
     ProjectGroupAccess,
     ProjectMemberRole,
@@ -138,9 +136,6 @@ export class GroupsService extends BaseService {
         organizationUuid: string,
     ): Promise<GroupAsCode[]> {
         this.validateGroupsAsCodeAccess(account, organizationUuid);
-        if (!(await this.isGroupServiceEnabled(account))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const { data: groups } = await this.groupsModel.find({
             organizationUuid,
@@ -181,9 +176,6 @@ export class GroupsService extends BaseService {
             featureFlagModel: this.featureFlagService,
         });
         this.validateGroupsAsCodeAccess(account, organizationUuid);
-        if (!(await this.isGroupServiceEnabled(account))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const group = GroupsService.validateGroupAsCode(groupInput);
         const result = await this.groupsModel.upsertGroupAsCode({
@@ -223,22 +215,6 @@ export class GroupsService extends BaseService {
         return { action: result.action };
     }
 
-    private async isGroupServiceEnabled(
-        accountOrUser: RegisteredAccount | SessionUser,
-    ): Promise<boolean> {
-        const user = isAccount(accountOrUser)
-            ? {
-                  userUuid: accountOrUser.user.userUuid,
-                  organizationUuid: accountOrUser.organization.organizationUuid,
-              }
-            : accountOrUser;
-        const featureFlag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.UserGroupsEnabled,
-        });
-        return featureFlag.enabled;
-    }
-
     /** @deprecated Only used by the deprecated add-user-to-group endpoint; use update with the full member set instead. */
     async addGroupMember(
         user: SessionUser,
@@ -251,9 +227,6 @@ export class GroupsService extends BaseService {
             database: this.groupsModel.database,
             featureFlagModel: this.featureFlagService,
         });
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(member.groupUuid);
@@ -316,9 +289,6 @@ export class GroupsService extends BaseService {
             database: this.groupsModel.database,
             featureFlagModel: this.featureFlagService,
         });
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(member.groupUuid);
@@ -376,9 +346,6 @@ export class GroupsService extends BaseService {
             database: this.groupsModel.database,
             featureFlagModel: this.featureFlagService,
         });
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
@@ -418,10 +385,6 @@ export class GroupsService extends BaseService {
         includeMembers?: number,
         offset?: number,
     ): Promise<Group | GroupWithMembers> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
-
         const group =
             includeMembers === undefined
                 ? await this.groupsModel.getGroup(groupUuid)
@@ -461,9 +424,6 @@ export class GroupsService extends BaseService {
             database: this.groupsModel.database,
             featureFlagModel: this.featureFlagService,
         });
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
@@ -517,10 +477,6 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         groupUuid: string,
     ): Promise<GroupMember[]> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
-
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroupWithMembers(groupUuid);
         if (
@@ -552,9 +508,6 @@ export class GroupsService extends BaseService {
             database: this.groupsModel.database,
             featureFlagModel: this.featureFlagService,
         });
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
@@ -618,9 +571,6 @@ export class GroupsService extends BaseService {
             database: this.groupsModel.database,
             featureFlagModel: this.featureFlagService,
         });
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
@@ -680,9 +630,6 @@ export class GroupsService extends BaseService {
             database: this.groupsModel.database,
             featureFlagModel: this.featureFlagService,
         });
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);

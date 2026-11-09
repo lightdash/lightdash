@@ -1,8 +1,11 @@
 import {
     ExploreType,
+    getApiSourceCapabilities,
     getItemLabelWithoutTableName,
-    type ApiConnectorType,
     getItemMap,
+    isApiSourcePushdownSupported,
+    type ApiConnectorType,
+    type ApiSourceCapabilities,
     type ApiSourceExplore,
     type Explore,
 } from '@lightdash/common';
@@ -25,6 +28,23 @@ export const useApiSourceExplore = (
     return explore?.type === ExploreType.API_SOURCE
         ? (explore.apiSource ?? null)
         : null;
+};
+
+/**
+ * Whether the explore is a live data source that can't run `feature`, read
+ * from its connector's capabilities; false for any other explore.
+ */
+export const useIsRefusedOnLiveSource = (
+    exploreName: string | undefined,
+    feature: keyof ApiSourceCapabilities['pushdown'],
+): boolean => {
+    const apiSource = useApiSourceExplore(exploreName);
+    return (
+        apiSource !== null &&
+        !isApiSourcePushdownSupported(
+            getApiSourceCapabilities(apiSource).pushdown[feature],
+        )
+    );
 };
 
 export type LiveSourceExploreSummary = {

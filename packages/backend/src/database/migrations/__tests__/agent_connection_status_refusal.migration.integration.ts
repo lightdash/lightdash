@@ -35,7 +35,6 @@ it('keeps the real grant-bound refusal row and event while status before and aft
                 AgentCapability.DeployUpload,
             ],
             allowedGroupUuids: policy.allowedGroupUuids,
-            systemRoleMatrix: policy.systemRoleMatrix,
             updatedByUserUuid: person.userUuid,
         });
         const auditEvent = vi

@@ -18,10 +18,6 @@ vi.mock('@shopify/react-web-worker', () => ({
     createWorkerFactory: () => () => ({}),
     useWorker: () => ({}),
 }));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => ({
-    ...(await importOriginal<object>()),
-    useServerFeatureFlag: () => ({ data: undefined }),
-}));
 
 type Results = typeof results;
 // An empty sql reads as a non-numeric table calculation

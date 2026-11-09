@@ -54,6 +54,7 @@ Component architecture:
 - `lightdash:filterChanged` - Dashboard filter modifications
 - `lightdash:tabChanged` - Tab navigation
 - `lightdash:allTilesLoaded` - Dashboard fully loaded
+- `lightdash:contentHeightChanged` - Rendered dashboard height changed; the app resizes the iframe to fit when "Fit iframe to content height" is on
 - `lightdash:error` - Error events
 
 **CSS Architecture**: Uses CSS modules with centralized design tokens in `variables.css` for consistent styling across components.

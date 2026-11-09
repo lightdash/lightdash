@@ -50,6 +50,8 @@ PREVIEW_FEATURE_ENV=(
     # gated on the commercial scim-token-management flag (#31474), and the
     # previous release's SCIM tests expect it on, so force that flag here.
     LIGHTDASH_ENABLE_FEATURE_FLAGS=scim-token-management
+    # Releases before groups became always-on read this to enable groups; the
+    # current backend ignores it.
     GROUPS_ENABLED=true
     MCP_ENABLED=true
     CUSTOM_ROLES_ENABLED=true

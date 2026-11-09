@@ -62,6 +62,10 @@ SECURE_COOKIES=true`}</pre>
                             fully loaded
                         </li>
                         <li>
+                            <code>lightdash:contentHeightChanged</code> -
+                            Rendered dashboard height changed
+                        </li>
+                        <li>
                             <code>lightdash:error</code> - Error events
                         </li>
                     </ul>

@@ -4,12 +4,13 @@ import {
     type ComposerRunQueryChart,
     type ComposerStoredChartVizConfig,
 } from '@lightdash/common';
-import { Box, Center, Loader, Paper, Stack, Text } from '@mantine/core';
+import { Box, Paper, Stack, Text } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { AiComposerResultError } from './AiComposerResultError';
 import { AiComposerRunQueryChart } from './AiComposerRunQueryChart';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { useArtifactResultRows } from './useArtifactResultRows';
 
 const TABLE_VIZ_CONFIG: ComposerStoredChartVizConfig = {
@@ -61,15 +62,7 @@ export const AiComposerResultTable: FC<Props> = ({
     );
 
     if (isLoading || (columns.length > 0 && !results.hasFetchedAllRows)) {
-        return (
-            <Center h={300}>
-                <Loader
-                    type="dots"
-                    color="ldGray.6"
-                    delayedMessage={loadingMessage}
-                />
-            </Center>
-        );
+        return <ArtifactLoadingSketch shape="table" label={loadingMessage} />;
     }
 
     if (chart instanceof Error) {

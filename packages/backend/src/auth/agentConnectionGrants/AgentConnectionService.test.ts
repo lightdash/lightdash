@@ -196,7 +196,7 @@ it('shows project-specific approval and current managed policy restrictions', as
         allowed: true,
         reason: null,
     });
-    f.policy.systemRoleMatrix.viewer = [];
+    f.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
     const restricted = await f.service.status(f.account, 'grant');
     expect(restricted.effectiveProjects[0].capabilities).toContainEqual({
         capability: AgentCapability.Query,

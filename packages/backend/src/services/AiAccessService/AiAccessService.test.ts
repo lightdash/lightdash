@@ -1080,7 +1080,6 @@ describe('AiAccessService', () => {
                         mode: mode === 'managed' ? 'managed' : 'legacy',
                         version: 1,
                         allowedCapabilities: null,
-                        systemRoleMatrix: {} as never,
                     });
                 const oauth = fromOauth(toSessionUser(admin), {
                     accessToken: 'token',

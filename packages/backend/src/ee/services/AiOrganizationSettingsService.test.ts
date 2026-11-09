@@ -736,7 +736,6 @@ describe('upsertSettings model validation', () => {
                 mode: 'managed',
                 version: 1,
                 allowedCapabilities: null,
-                systemRoleMatrix: {} as never,
             });
         const account = fromOauth(toSessionUser(user), {
             accessToken: 'token',

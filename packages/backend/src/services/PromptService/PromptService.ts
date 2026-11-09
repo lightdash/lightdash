@@ -36,17 +36,6 @@ export class PromptService extends BaseService {
         }
     }
 
-    async getProjectOnboardingPrompt(
-        writesStarterQuestions: boolean,
-    ): Promise<string> {
-        return this.readPrompt(
-            'project-onboarding',
-            writesStarterQuestions
-                ? 'projectOnboardingStarterQuestions.md'
-                : 'projectOnboarding.md',
-        );
-    }
-
     private async readPrompt(name: string, fileName: string): Promise<string> {
         const prompt = (
             await readFile(path.join(PROMPTS_SOURCE_DIR, fileName), 'utf8')
