@@ -40,6 +40,7 @@ import {
     combineManifestSources,
     CompilationSource,
     CompiledDimension,
+    ComposerChartNotSupportedError,
     ConflictError,
     ContentType,
     convertCustomMetricToDbt,
@@ -11250,10 +11251,17 @@ export class ProjectService
     }): Promise<ApiQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(
+        const savedChartVariant = await this.savedChartModel.getVariant(
             chartUuid,
             versionUuid,
         );
+        if (savedChartVariant.queryType === 'composer') {
+            throw new ComposerChartNotSupportedError(
+                savedChartVariant.chart.uuid,
+                savedChartVariant.chart.name,
+            );
+        }
+        const savedChart = savedChartVariant.chart;
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([
@@ -11355,7 +11363,15 @@ export class ProjectService
     }): Promise<ApiChartAndResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(chartUuid);
+        const savedChartVariant =
+            await this.savedChartModel.getVariant(chartUuid);
+        if (savedChartVariant.queryType === 'composer') {
+            throw new ComposerChartNotSupportedError(
+                savedChartVariant.chart.uuid,
+                savedChartVariant.chart.name,
+            );
+        }
+        const savedChart = savedChartVariant.chart;
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([

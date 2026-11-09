@@ -141,6 +141,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         invalidateCache,
         pivotConfiguration,
         documentQueryContext,
+        composerChartQueryContext,
     }: SubmitSourceQueryArgs): Promise<{
         queryUuid: string;
         cacheHit: boolean;
@@ -151,6 +152,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
 
         const results = await this.asyncQueryService.executeAsyncMetricQuery({
             ...(documentQueryContext ? { documentQueryContext } : {}),
+            ...(composerChartQueryContext ? { composerChartQueryContext } : {}),
             account,
             projectUuid,
             metricQuery,

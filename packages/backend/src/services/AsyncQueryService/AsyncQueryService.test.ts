@@ -41,6 +41,7 @@ import {
     getReferencedDimension,
     getReferencedMetric,
     getUserAttributeRegex,
+    isComposerChartQueryResults,
     isMergeMetricSource,
     lightdashVariablePattern,
     MAX_RESULTS_CACHE_INVALIDATION_EXPLORES,
@@ -313,6 +314,21 @@ import type {
     RunAsyncWarehouseQueryArgs,
     RunDuckdbQueryArgs,
 } from './types';
+
+/** Test models stub `get`; the service reads charts through `getVariant`. */
+const withSemanticVariant = <T extends object>(model: T): SavedChartModel =>
+    ({
+        ...model,
+        async getVariant(
+            this: { get: SavedChartModel['get'] },
+            ...args: Parameters<SavedChartModel['get']>
+        ) {
+            return {
+                queryType: 'semantic' as const,
+                chart: await this.get(...args),
+            };
+        },
+    }) as unknown as SavedChartModel;
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 
@@ -13954,7 +13970,7 @@ describe('AsyncQueryService', () => {
                 (
                     projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
                 ).mockReturnValue(warehouseClient);
-                (service as AnyType).savedChartModel = {
+                (service as AnyType).savedChartModel = withSemanticVariant({
                     get: vi.fn().mockResolvedValue({
                         uuid: 'chart-1',
                         organizationUuid: projectSummary.organizationUuid,
@@ -13967,7 +13983,7 @@ describe('AsyncQueryService', () => {
                             clash: 'saved',
                         },
                     }),
-                };
+                });
                 (service as AnyType).spacePermissionService = {
                     resolveAccess: vi.fn().mockResolvedValue({
                         organizationUuid: projectSummary.organizationUuid,
@@ -14120,7 +14136,7 @@ describe('AsyncQueryService', () => {
 
         it('threads the source dateZoom from request_parameters into the totals query', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn().mockResolvedValue({
                         uuid: 'chart-uuid',
                         projectUuid,
@@ -14128,7 +14144,7 @@ describe('AsyncQueryService', () => {
                         spaceUuid: 'space-uuid',
                         dashboardUuid: 'dashboard-uuid',
                     }),
-                },
+                }),
             } as never);
             const account = buildAccount();
             account.user.ability = new Ability<PossibleAbilities>([
@@ -14641,9 +14657,9 @@ describe('AsyncQueryService', () => {
 
         const buildService = () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => savedChart),
-                } as unknown as SavedChartModel,
+                }),
                 savedSqlModel: {
                     getByUuid: vi.fn(async () => sqlChart),
                 } as unknown as SavedSqlModel,
@@ -14833,12 +14849,12 @@ describe('AsyncQueryService', () => {
                 const internals = service as AnyType;
                 // These cases exercise the real resolver
                 delete internals.resolveDashboardTileParameters;
-                internals.savedChartModel = {
+                internals.savedChartModel = withSemanticVariant({
                     get: vi.fn(async () => ({
                         ...savedChart,
                         parameters: { status: chartStatus },
                     })),
-                };
+                });
                 internals.dashboardModel = {
                     getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
                         parameters:
@@ -15310,9 +15326,9 @@ describe('AsyncQueryService', () => {
                 const service = getMockedAsyncQueryService(
                     lightdashConfigMock,
                     {
-                        savedChartModel: {
+                        savedChartModel: withSemanticVariant({
                             get: vi.fn(async () => stored),
-                        } as unknown as SavedChartModel,
+                        }),
                         analyticsModel: {
                             addChartViewEvent: vi.fn(async () => {}),
                         } as unknown as AnalyticsModel,
@@ -15382,9 +15398,9 @@ describe('AsyncQueryService', () => {
 
         test('uses an explicit pivot configuration instead of the saved chart layout', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => bigNumberChart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -15541,9 +15557,9 @@ describe('AsyncQueryService', () => {
                 throw new ForbiddenError('Chart is not embedded');
             });
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -15752,9 +15768,9 @@ describe('AsyncQueryService', () => {
 
         test('ANDs filterOverrides onto the chart metricQuery filters', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -15857,9 +15873,9 @@ describe('AsyncQueryService', () => {
 
         test('refuses schedulerFilters that replace a saved rule without explore access', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -15886,9 +15902,9 @@ describe('AsyncQueryService', () => {
 
         test('schedulerFilters replace the chart rule they target instead of narrowing it', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -15955,9 +15971,9 @@ describe('AsyncQueryService', () => {
 
         test('merges dashboard filters targeting the explore and silently drops the rest', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -16112,9 +16128,9 @@ describe('AsyncQueryService', () => {
 
         const buildService = () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => mergedChart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -16195,6 +16211,9 @@ describe('AsyncQueryService', () => {
                 ).toEqual(['b_dim1']);
             });
 
+            if (isComposerChartQueryResults(result)) {
+                throw new Error('expected a classic chart result');
+            }
             expect(result.queryUuid).toBe('merge-query-uuid');
             expect(result.dateZoomApplied).toBe(false);
             expect(
@@ -16208,7 +16227,7 @@ describe('AsyncQueryService', () => {
         test('sends the tile parameters above the fallback chain to the merge', async () => {
             const { service, mergeSpy } = buildService();
             const internals = service as AnyType;
-            internals.savedChartModel = {
+            internals.savedChartModel = withSemanticVariant({
                 get: vi.fn(async () => ({
                     ...mergedChart,
                     parameters: {
@@ -16217,7 +16236,7 @@ describe('AsyncQueryService', () => {
                         tier: 'silver',
                     },
                 })),
-            };
+            });
             internals.dashboardModel = {
                 getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
                     parameters: {
@@ -16898,7 +16917,7 @@ describe('saved chart query result access', () => {
             directOnly: false,
         });
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
-            savedChartModel: { get: getChart },
+            savedChartModel: withSemanticVariant({ get: getChart }),
             spacePermissionService: { resolveAccess },
             featureFlagModel: {
                 get: vi.fn(async ({ featureFlagId }) => ({
@@ -20969,11 +20988,11 @@ describe('embedded field value search dashboard scoping', () => {
         }));
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             dashboardModel: { getByIdOrSlug } as unknown as DashboardModel,
-            savedChartModel: {
+            savedChartModel: withSemanticVariant({
                 getInfoForAvailableFilters: vi.fn(async () => [
                     { tableName: validExplore.name },
                 ]),
-            } as unknown as SavedChartModel,
+            }),
         });
         const internals = service as AnyType;
         internals.getWarehouseCredentialsWithConnection = vi
@@ -24062,9 +24081,9 @@ describe('fresh execution producer to result reader', () => {
                         [validExplore.name]: validExplore,
                     })),
                 } as unknown as ProjectModel,
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     ...savedChartModel,
-                } as unknown as SavedChartModel,
+                }),
                 spaceModel: { ...spaceModel } as unknown as SpaceModel,
             },
             {

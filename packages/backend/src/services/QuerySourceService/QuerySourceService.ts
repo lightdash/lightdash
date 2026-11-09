@@ -31,6 +31,7 @@ import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpi
 import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
 import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
+import type { ComposerChartQueryContext } from '../AsyncQueryService/ComposerChartQueryContext';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
@@ -475,9 +476,11 @@ export class QuerySourceService extends BaseService {
         invalidateCache,
         plans,
         documentQueryContext,
+        composerChartQueryContext,
         aiAttribution,
     }: SourceQueryExecutionContext & {
         documentQueryContext?: DocumentQueryContext;
+        composerChartQueryContext?: ComposerChartQueryContext;
         account: Account;
         projectUuid: string;
         queries: SourceQuery[];
@@ -515,6 +518,9 @@ export class QuerySourceService extends BaseService {
             // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
             const { queryUuid, cacheHit } = await entry.source.submitQuery({
                 ...(documentQueryContext ? { documentQueryContext } : {}),
+                ...(composerChartQueryContext
+                    ? { composerChartQueryContext }
+                    : {}),
                 account,
                 projectUuid,
                 context,

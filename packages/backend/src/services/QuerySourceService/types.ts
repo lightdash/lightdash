@@ -10,6 +10,7 @@ import type {
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
+import type { ComposerChartQueryContext } from '../AsyncQueryService/ComposerChartQueryContext';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 
@@ -43,6 +44,8 @@ export type SourceQueryAiAttribution = {
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
     documentQueryContext?: DocumentQueryContext;
+    /** Set when the submission runs a composer chart's stored pipeline as its viewer. */
+    composerChartQueryContext?: ComposerChartQueryContext;
     account: Account;
     projectUuid: string;
     context: QueryExecutionContext;

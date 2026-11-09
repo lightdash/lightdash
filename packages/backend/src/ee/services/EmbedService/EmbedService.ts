@@ -50,6 +50,7 @@ import {
     IntrinsicUserAttributes,
     isAiAgentContent,
     isChartContent,
+    isComposerChartQueryResults,
     isDashboardChartTileType,
     isDashboardContent,
     isDashboardSlugContent,
@@ -1641,6 +1642,11 @@ export class EmbedService extends BaseService {
                     ? (timezone ?? null)
                     : null,
             });
+        if (isComposerChartQueryResults(results)) {
+            throw new ForbiddenError(
+                'Composer charts are not available to embedded viewers',
+            );
+        }
         return this.asyncQueryService.redactFieldsSqlForResponse(
             account,
             projectUuid,
