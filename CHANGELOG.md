@@ -1,3 +1,10 @@
+## [3.181.3](https://github.com/lightdash/lightdash/compare/3.181.2...3.181.3) (2026-11-09)
+
+
+### Bug Fixes
+
+* **dashboards-as-code:** keep dimension filter ids on upload ([#32185](https://github.com/lightdash/lightdash/issues/32185)) ([52e7886](https://github.com/lightdash/lightdash/commit/52e78868f76f429409a49275c582df835dbbe337))
+
 ## [3.181.2](https://github.com/lightdash/lightdash/compare/3.181.1...3.181.2) (2026-11-09)
 
 
