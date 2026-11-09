@@ -215,5 +215,40 @@ exports[`connector capability declarations > the summable tags 1`] = `
       "aggregation": "non_additive",
     },
   },
+  "youtube_analytics": {
+    "average_view_duration": {
+      "aggregation": "non_additive",
+    },
+    "average_view_percentage": {
+      "aggregation": "non_additive",
+    },
+    "comments": {
+      "aggregation": "additive",
+    },
+    "dislikes": {
+      "aggregation": "additive",
+    },
+    "engaged_views": {
+      "aggregation": "additive",
+    },
+    "estimated_minutes_watched": {
+      "aggregation": "additive",
+    },
+    "likes": {
+      "aggregation": "additive",
+    },
+    "shares": {
+      "aggregation": "additive",
+    },
+    "subscribers_gained": {
+      "aggregation": "additive",
+    },
+    "subscribers_lost": {
+      "aggregation": "additive",
+    },
+    "views": {
+      "aggregation": "additive",
+    },
+  },
 }
 `;

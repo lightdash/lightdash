@@ -223,3 +223,39 @@ exports[`live data source names > 'Search Console' explore names and field ids n
   ],
 }
 `;
+
+exports[`live data source names > 'YouTube Analytics' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "youtube_analytics_activity_average_view_duration",
+        "youtube_analytics_activity_average_view_percentage",
+        "youtube_analytics_activity_comments",
+        "youtube_analytics_activity_country",
+        "youtube_analytics_activity_creator_content_type",
+        "youtube_analytics_activity_date",
+        "youtube_analytics_activity_date_month",
+        "youtube_analytics_activity_device_type",
+        "youtube_analytics_activity_dislikes",
+        "youtube_analytics_activity_engaged_views",
+        "youtube_analytics_activity_estimated_minutes_watched",
+        "youtube_analytics_activity_likes",
+        "youtube_analytics_activity_shares",
+        "youtube_analytics_activity_subscribers_gained",
+        "youtube_analytics_activity_subscribers_lost",
+        "youtube_analytics_activity_traffic_source_type",
+        "youtube_analytics_activity_video_id",
+        "youtube_analytics_activity_views",
+      ],
+      "name": "youtube_analytics_activity",
+    },
+  ],
+  "reservedExploreNames": [
+    "youtube_analytics_demographics",
+    "youtube_analytics_playlists",
+    "youtube_analytics_revenue",
+    "youtube_analytics_audience_retention",
+  ],
+}
+`;

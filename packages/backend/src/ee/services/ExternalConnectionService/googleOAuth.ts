@@ -15,6 +15,7 @@ import {
     SEARCH_CONSOLE_ORIGIN,
     SEARCH_CONSOLE_SITES_PATH,
 } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
+import { YOUTUBE_ANALYTICS_ORIGIN } from '../../../services/QuerySourceService/api/google/YoutubeAnalyticsConnector';
 
 export const GOOGLE_AUTHORIZE_URL =
     'https://accounts.google.com/o/oauth2/v2/auth';
@@ -22,11 +23,14 @@ export const GOOGLE_AUTHORIZE_URL =
 export type GoogleConnectorType =
     | ApiConnectorType.SEARCH_CONSOLE
     | ApiConnectorType.GA4
-    | ApiConnectorType.GOOGLE_ADS;
+    | ApiConnectorType.GOOGLE_ADS
+    | ApiConnectorType.YOUTUBE_ANALYTICS;
 
 const GA4_ACCOUNT_SUMMARIES_URL =
     'https://analyticsadmin.googleapis.com/v1beta/accountSummaries';
 const GA4_ACCOUNT_SUMMARY_PAGES = 5;
+const YOUTUBE_CHANNELS_URL =
+    'https://youtube.googleapis.com/youtube/v3/channels?part=snippet&mine=true&maxResults=50';
 
 /** Reads a Google API as the signed-in account; returns the status and parsed JSON body. */
 export type GoogleApiGet = (
@@ -80,6 +84,17 @@ const accountSummariesSchema = z.object({
         )
         .optional(),
     nextPageToken: z.string().optional(),
+});
+
+const channelsSchema = z.object({
+    items: z
+        .array(
+            z.object({
+                id: z.string(),
+                snippet: z.object({ title: z.string().optional() }).optional(),
+            }),
+        )
+        .optional(),
 });
 
 const SITE_PERMISSION_LABELS: Record<string, string> = {
@@ -312,6 +327,32 @@ export const GOOGLE_CONNECTORS: Record<
                 ? `${loginCustomerId}/${customerId}`
                 : customerId;
         },
+    },
+    [ApiConnectorType.YOUTUBE_ANALYTICS]: {
+        label: 'YouTube Analytics',
+        // Reports need youtube.readonly as well, and listing channels uses it
+        scope: 'https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/youtube.readonly',
+        origin: YOUTUBE_ANALYTICS_ORIGIN,
+        listChoices: async ({ get }, accessToken) => {
+            const response = await get(YOUTUBE_CHANNELS_URL, accessToken);
+            assertOk(response, 'YouTube Data');
+            const parsed = channelsSchema.safeParse(response.body);
+            return (parsed.success ? (parsed.data.items ?? []) : [])
+                .map(({ id, snippet }) => ({
+                    value: id,
+                    label: snippet?.title ?? id,
+                    description: `Channel ${id}`,
+                }))
+                .sort((a, b) => a.label.localeCompare(b.label));
+        },
+        toApiSource: (channelId) => ({
+            connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+            channelId,
+        }),
+        choiceOf: (apiSource) =>
+            apiSource.connector === ApiConnectorType.YOUTUBE_ANALYTICS
+                ? apiSource.channelId
+                : null,
     },
 };
 

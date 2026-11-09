@@ -128,13 +128,15 @@ export const LIVE_SOURCE_CATALOG: LiveSourceCatalogEntry[] = [
         description: 'Campaign reach, clicks and leads',
         icon: linkedinAdsIcon,
     },
-    {
+    available({
         id: 'youtube_analytics',
-        status: 'requestable',
+        connector: ApiConnectorType.YOUTUBE_ANALYTICS,
         label: 'YouTube Analytics',
         description: 'Channel views, watch time and subscribers',
         icon: youtubeAnalyticsIcon,
-    },
+        getTarget: ({ channelId }) => `Channel ${channelId}`,
+        setup: { kind: 'google' },
+    }),
     {
         id: 'shopify',
         status: 'requestable',

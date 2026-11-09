@@ -48,6 +48,12 @@ export const LIVE_SOURCE_INTEGRATION_PROFILES: Record<
         agentQueryGuide:
             "one GAQL query, SELECT fields FROM resource (customer for account totals, campaign, ad_group) WHERE segments.date BETWEEN 'YYYY-MM-DD' AND 'YYYY-MM-DD'. GAQL returns one row per resource and segment and never groups, so only select attributes that identify that resource, and a segment in WHERE must also be in SELECT, except dates. Conditions combine only with AND. Columns are the GAQL field names; money metrics come back in the account currency, already converted from micros. Rates and impression shares must not be summed.",
     },
+    [ApiConnectorType.YOUTUBE_ANALYTICS]: {
+        label: 'YouTube Analytics',
+        agentLabel: 'YouTube Analytics',
+        agentQueryGuide:
+            'one channel report as a JSON object with startDate and endDate (YYYY-MM-DD, required), metrics as a comma-separated string (e.g. views,estimatedMinutesWatched,subscribersGained), and optionally dimensions (one of day, month, country, video, deviceType or insightTrafficSourceType; deviceType and insightTrafficSourceType may be paired with day), filters such as country==US or video==abc, sort such as -views, and maxResults. The channel comes from the source, so never set ids. A video report needs a descending sort on views, estimatedMinutesWatched, subscribersGained or subscribersLost and at most 200 rows. averageViewDuration and averageViewPercentage are averages, so never sum them.',
+    },
 };
 
 /** The agent tool's description of its query field, one sentence block per integration. */

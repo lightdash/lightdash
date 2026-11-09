@@ -190,3 +190,52 @@ describe('Google Ads account choices', () => {
         expect(choiceOf(direct)).toBe('2222222222');
     });
 });
+
+describe('YouTube channel choices', () => {
+    const { listChoices, toApiSource, choiceOf, scope } =
+        GOOGLE_CONNECTORS[ApiConnectorType.YOUTUBE_ANALYTICS];
+
+    it('lists the channels of the signed-in account', async () => {
+        const get = vi.fn<GoogleApiGet>().mockResolvedValue({
+            status: 200,
+            body: {
+                items: [
+                    { id: 'UCb', snippet: { title: 'Studio' } },
+                    { id: 'UCa', snippet: { title: 'Brand' } },
+                ],
+            },
+        });
+
+        await expect(
+            listChoices({ get, post: vi.fn() }, 'token'),
+        ).resolves.toEqual([
+            { value: 'UCa', label: 'Brand', description: 'Channel UCa' },
+            { value: 'UCb', label: 'Studio', description: 'Channel UCb' },
+        ]);
+        expect(get.mock.calls[0][0]).toContain('mine=true');
+    });
+
+    it('explains a disabled YouTube Data API', async () => {
+        const get = vi.fn<GoogleApiGet>().mockResolvedValue({
+            status: 403,
+            body: { error: { message: 'API not enabled' } },
+        });
+
+        await expect(
+            listChoices({ get, post: vi.fn() }, 'token'),
+        ).rejects.toThrow('YouTube Data API is enabled');
+    });
+
+    it('asks only for read access and round-trips the channel', () => {
+        expect(scope.split(' ')).toEqual([
+            'https://www.googleapis.com/auth/yt-analytics.readonly',
+            'https://www.googleapis.com/auth/youtube.readonly',
+        ]);
+        const apiSource = toApiSource('UCa');
+        expect(apiSource).toEqual({
+            connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+            channelId: 'UCa',
+        });
+        expect(choiceOf(apiSource)).toBe('UCa');
+    });
+});

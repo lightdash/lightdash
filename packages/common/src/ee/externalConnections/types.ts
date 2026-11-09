@@ -47,13 +47,20 @@ export type GoogleAdsApiSource = {
     loginCustomerId: string | null;
 };
 
+export type YoutubeAnalyticsApiSource = {
+    connector: ApiConnectorType.YOUTUBE_ANALYTICS;
+    /** The YouTube channel id, starting with UC. */
+    channelId: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
     | SearchConsoleApiSource
     | Ga4ApiSource
     | MetaAdsApiSource
-    | GoogleAdsApiSource;
+    | GoogleAdsApiSource
+    | YoutubeAnalyticsApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
