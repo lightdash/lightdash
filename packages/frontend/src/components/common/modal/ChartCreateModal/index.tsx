@@ -1,4 +1,5 @@
 import {
+    type ChartMetadataStyle,
     type CreateSavedChartVersion,
     type EmbedWritableSpace,
     type SavedChart,
@@ -23,6 +24,8 @@ interface ChartCreateModalProps extends Pick<
     defaultSpaceUuid?: string;
     onConfirm: (savedChart: SavedChart) => void;
     chartMetadata?: ChartMetadata;
+    /** Style `chartMetadata` was generated in, when it came from AI. */
+    chartMetadataStyle?: ChartMetadataStyle;
     /**
      * When true, ignore the editing-dashboard context and let the user choose a
      * space or dashboard destination instead of auto-saving to the originating
@@ -56,6 +59,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     defaultSpaceUuid,
     onConfirm,
     chartMetadata,
+    chartMetadataStyle,
     forceSpaceOrDashboardChoice = false,
     isSaveAs = false,
     redirectOnSuccess = true,
@@ -156,6 +160,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     onConfirm={onConfirm}
                     onClose={onClose}
                     defaults={chartMetadata}
+                    defaultsStyle={chartMetadataStyle}
                 />
             )}
 
@@ -179,6 +184,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     }}
                     originatingDashboard={originatingDashboard}
                     chartMetadata={chartMetadata}
+                    chartMetadataStyle={chartMetadataStyle}
                     redirectOnSuccess={redirectOnSuccess}
                     showViewChartAction={showViewChartAction}
                 />

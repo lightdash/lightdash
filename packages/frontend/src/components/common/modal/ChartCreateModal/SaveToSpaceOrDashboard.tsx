@@ -7,6 +7,7 @@ import {
     hasUnusedDimensions,
     type CreateChartInDashboard,
     type CreateDashboardChartTile,
+    type ChartMetadataStyle,
     type CreateSavedChartVersion,
     type DashboardChartTile,
     type DashboardTile,
@@ -22,8 +23,6 @@ import {
     Select,
     Stack,
     Text,
-    Textarea,
-    TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
@@ -32,6 +31,11 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
+import {
+    RegenerableDescriptionInput,
+    RegenerableNameInput,
+    useRegenerateChartMetadata,
+} from '../../../../ee/features/ambientAi';
 import { type ChartSaveDestination } from '../../../../ee/features/embed/EmbedDashboard/types';
 import { useMergeSafe } from '../../../../features/mergeQuery/context/useMerge';
 import { getChartQueryDimensions } from '../../../../features/mergeQuery/utils/getChartQueryDimensions';
@@ -107,6 +111,8 @@ type Props = {
     /** Embedded dashboard offered alongside the restricted spaces. */
     restrictedDashboard?: { uuid: string; name: string };
     chartMetadata?: ChartMetadata;
+    /** Style `chartMetadata` was generated in, when it came from AI. */
+    chartMetadataStyle?: ChartMetadataStyle;
     redirectOnSuccess?: boolean;
     showViewChartAction?: boolean;
     /** Chart-level palette chosen before the first save. */
@@ -125,6 +131,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     restrictedSpaces,
     restrictedDashboard,
     chartMetadata = DEFAULT_CHART_METADATA,
+    chartMetadataStyle,
     redirectOnSuccess = true,
     showViewChartAction = true,
 }) => {
@@ -177,6 +184,15 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     const form = useForm<FormValues>({
         validate: saveToSpaceOrDashboardResolver,
+    });
+
+    // When the name and description came from AI, the first click moves on
+    // to the next style; otherwise it starts the cycle
+    const { getRegenerateProps } = useRegenerateChartMetadata({
+        projectUuid,
+        chart: savedData,
+        currentStyle: chartMetadataStyle,
+        onGenerated: form.setFieldValue,
     });
 
     // Check if the chart has unused dimensions that may cause incorrect
@@ -673,21 +689,23 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             <Stack gap="xs" p="md">
                 {currentStep === ModalStep.InitialInfo && (
                     <>
-                        <TextInput
+                        <RegenerableNameInput
                             label="Chart name"
                             placeholder="eg. How many weekly active users do we have?"
                             required
                             {...form.getInputProps('name')}
                             value={form.values.name ?? ''}
                             data-testid="ChartCreateModal/NameInput"
+                            regenerate={getRegenerateProps('name')}
                         />
-                        <Textarea
+                        <RegenerableDescriptionInput
                             label="Chart description"
                             placeholder="A few words to give your team some context"
                             autosize
                             maxRows={3}
                             {...form.getInputProps('description')}
                             value={form.values.description ?? ''}
+                            regenerate={getRegenerateProps('description')}
                         />
 
                         {restrictedSpaces && restrictedDashboard && (

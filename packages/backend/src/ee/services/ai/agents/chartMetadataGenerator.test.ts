@@ -62,6 +62,60 @@ describe('generateChartMetadata', () => {
         );
     });
 
+    it('uses the question style by default', async () => {
+        const system = await systemPromptFor(context);
+        expect(system).toContain(
+            'Title: Be specific. Represent the title as a data question that it answers.',
+        );
+        expect(await systemPromptFor({ ...context, style: 'question' })).toBe(
+            system,
+        );
+    });
+
+    it('asks for a compact Title Case heading in the compact style', async () => {
+        const system = await systemPromptFor({ ...context, style: 'compact' });
+        expect(system).toContain('compact heading in Title Case');
+        expect(system).not.toContain('data question');
+        expect(system).toContain('Reference filters in the title');
+    });
+
+    it('asks for a 2 to 4 word label without filters in the short style', async () => {
+        const system = await systemPromptFor({ ...context, style: 'short' });
+        expect(system).toContain('very short label of 2 to 4 words');
+        expect(system).toContain('no more than 12 words');
+        expect(system).toContain('Leave filters out of the title');
+        expect(system).not.toContain('Reference filters in the title');
+    });
+
+    it('lets a reference title set the style instead of asking for a question', async () => {
+        const system = await systemPromptFor({
+            ...context,
+            styleReferenceTitle: 'Work orders per month in 2024',
+        });
+        expect(system).not.toContain('data question');
+        expect(system).toContain(
+            'Follow the voice and format of the existing title',
+        );
+    });
+
+    it('prefers an explicit style over a reference title', async () => {
+        const system = await systemPromptFor({
+            ...context,
+            style: 'short',
+            styleReferenceTitle: 'Work orders per month in 2024',
+        });
+        expect(system).toContain('very short label of 2 to 4 words');
+        expect(system).not.toContain('Match the voice');
+    });
+
+    it('quotes the reference title so its own quotes cannot break out', async () => {
+        const system = await systemPromptFor({
+            ...context,
+            styleReferenceTitle: 'Orders "by" region',
+        });
+        expect(system).toContain('now: "Orders \\"by\\" region"');
+    });
+
     it('asks to match an existing title when one is given', async () => {
         expect(
             await systemPromptFor({
