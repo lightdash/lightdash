@@ -172,6 +172,19 @@ describe('Slack AI agent blocks', () => {
         expect(JSON.stringify(blocks)).not.toContain('ld-mem-cite');
     });
 
+    it('strips node citation syntax from Slack markdown and keeps the figure', () => {
+        const blocks = getMarkdownBlocks(
+            'Revenue was [$404](#query-node-rev). See [docs](https://example.com).',
+        );
+
+        expect(blocks).toEqual([
+            {
+                type: 'markdown',
+                text: 'Revenue was $404. See [docs](https://example.com).',
+            },
+        ]);
+    });
+
     it('renders cited memories as native citation elements', () => {
         const blocks = getMemoryCitationBlocks([
             {

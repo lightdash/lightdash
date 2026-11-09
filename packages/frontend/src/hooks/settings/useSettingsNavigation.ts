@@ -547,7 +547,6 @@ export const useSettingsNavigation = (
                 label: 'Lightdash analytics',
                 to: '/generalSettings/lightdashAnalytics',
                 icon: IconReportAnalytics,
-                isBeta: true,
                 keywords: ['usage', 'analytics', 'tokens', 'queries'],
                 children: [],
                 exact: true,

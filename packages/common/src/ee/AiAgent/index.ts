@@ -54,6 +54,7 @@ export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
+export * from './nodeCitations';
 export * from './composerChartVizConfig';
 export * from './composerSemanticArtifact';
 export * from './composerViz';

@@ -55,7 +55,6 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { BetaBadge } from '../../common/BetaBadge';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import { ClearCachedResultsMenuItem } from '../../ProjectResultsCache/ClearCachedResultsMenuItem';
@@ -324,7 +323,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                     icon={IconGitMerge}
                                                 />
                                             }
-                                            rightSection={<BetaBadge />}
                                             onClick={handleAddMergeSource}
                                         >
                                             <Text fz="xs" fw={500}>
@@ -436,12 +434,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 {explore.type === ExploreType.EXTERNAL_SOURCE &&
                     canMergeAnotherQuery &&
                     !isGuidedMerge && (
-                        <Group gap="xs">
-                            <JoinWithWarehouseHint
-                                onClick={handleAddMergeSource}
-                            />
-                            <BetaBadge />
-                        </Group>
+                        <JoinWithWarehouseHint onClick={handleAddMergeSource} />
                     )}
 
                 {isGuidedMerge ? (

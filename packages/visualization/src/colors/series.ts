@@ -8,17 +8,6 @@ import {
 /** There's some variation in what Series object we may be working with. */
 export type SeriesLike = EChartsSeries | Series;
 
-/**
- * There's some variation in what Series object we may be working with.
- */
-
-export const isGroupedSeries = (series: SeriesLike) => {
-    return (
-        (series as EChartsSeries)?.pivotReference?.pivotValues != null ||
-        (series as Series)?.encode.yRef.pivotValues != null
-    );
-};
-
 export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
     const baseField =
         (series as EChartsSeries).pivotReference?.field ??

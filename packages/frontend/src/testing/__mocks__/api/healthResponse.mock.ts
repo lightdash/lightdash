@@ -132,7 +132,6 @@ export default function mockHealthResponse(
         isSaveCredentialsFormEnabled: false,
         isCustomRolesEnabled: false,
         embedding: {
-            enabled: false,
             events: undefined,
         },
         ai: {

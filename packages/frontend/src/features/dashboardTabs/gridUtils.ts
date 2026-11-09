@@ -36,6 +36,17 @@ export const FIT_TO_SCREEN_GRID_BOTTOM_PADDING = GRID_MARGIN[1];
 const FIT_TO_SCREEN_MAX_VIEWPORTS = 2;
 const FIT_TO_SCREEN_BREAKPOINTS = new Set(['lg', 'md']);
 
+/**
+ * Auto fit (the always-on experiment) is gentler than the toggle: rows are
+ * only squashed down to this fraction of the default row height, so big
+ * numbers keep their minimum legible size. Longer grids keep their height.
+ */
+export const AUTO_FIT_MIN_SCALE = 0.75;
+/** Short grids stretch to fill the viewport, up to this many times a row */
+export const AUTO_FIT_MAX_SCALE = 2;
+/** How long the tiles spring to a new snap target, matched by the CSS easing */
+export const FIT_TO_SCREEN_SNAP_DURATION_MS = 700;
+
 export const isFitToScreenBreakpoint = (breakpoint: string): boolean =>
     FIT_TO_SCREEN_BREAKPOINTS.has(breakpoint);
 
@@ -86,6 +97,21 @@ export const canFitGridToScreen = (
     availableHeight > 0 &&
     getGridHeight(totalRows, DEFAULT_ROW_HEIGHT) <=
         availableHeight * FIT_TO_SCREEN_MAX_VIEWPORTS;
+
+/**
+ * Auto fit: the row height that fills the viewport, capped on the stretch
+ * side. Null when filling it would squash rows below the floor, so the grid
+ * keeps its natural height.
+ */
+export const getAutoFitRowHeight = (
+    availableHeight: number,
+    totalRows: number,
+): number | null => {
+    if (totalRows <= 0 || availableHeight <= 0) return null;
+    const rowHeight = getFitToScreenRowHeight(availableHeight, totalRows);
+    if (rowHeight < DEFAULT_ROW_HEIGHT * AUTO_FIT_MIN_SCALE) return null;
+    return Math.min(rowHeight, DEFAULT_ROW_HEIGHT * AUTO_FIT_MAX_SCALE);
+};
 
 /** Row height that makes `totalRows` rows fill `availableHeight` exactly */
 export const getFitToScreenRowHeight = (

@@ -15921,6 +15921,21 @@ export class ProjectService
                 },
             });
         }
+        if (
+            cacheTtlSeconds !== undefined &&
+            cacheTtlSeconds !== current.cacheTtlSeconds
+        ) {
+            this.analytics.track({
+                event: 'results_cache.ttl_updated',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    ttlSeconds: cacheTtlSeconds,
+                    previousTtlSeconds: current.cacheTtlSeconds,
+                },
+            });
+        }
         return this.buildResultsCacheProjectSettings(projectUuid);
     }
 

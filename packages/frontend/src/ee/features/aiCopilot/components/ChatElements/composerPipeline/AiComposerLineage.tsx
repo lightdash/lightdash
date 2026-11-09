@@ -314,6 +314,7 @@ type Props = Pick<
     | 'renderNodeResult'
     | 'chatNodeIds'
     | 'onAddToChat'
+    | 'initialFocusNodeId'
 > & {
     queries: SourceQuery[];
     terminalNodeId: string;
