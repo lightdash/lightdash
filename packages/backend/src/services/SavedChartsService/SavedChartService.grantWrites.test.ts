@@ -144,7 +144,13 @@ const chartGrantContext = {
 const savedChartModel = {
     getSummary: vi.fn(async () => ownedChart),
     get: vi.fn(async () => ownedChart),
-    update: vi.fn(async () => ownedChart),
+    // Follows whatever `get` is set to return in a test
+    getVariant: vi.fn(async (...args: unknown[]) => ({
+        queryType: 'semantic',
+        chart: await savedChartModel.get(...(args as [])),
+    })),
+    update: vi.fn(async () => ({ queryType: 'semantic', chart: ownedChart })),
+    findComposerCharts: vi.fn(async () => []),
     delete: vi.fn(async () => ({
         uuid: ownedChart.uuid,
         projectUuid: ownedChart.projectUuid,

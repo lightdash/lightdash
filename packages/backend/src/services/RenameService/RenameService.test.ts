@@ -417,6 +417,11 @@ describe('bulk model rename discovery', () => {
                 async (uuid: string) =>
                     persistedCharts.find((c) => c.uuid === uuid)!,
             ),
+            findComposerCharts: vi.fn(
+                async (): Promise<
+                    { uuid: string; name: string; slug: string }[]
+                > => [],
+            ),
             createVersion: vi.fn(
                 async (uuid: string, updated: SavedChartDAO) => {
                     persistedCharts = persistedCharts.map((c) =>
@@ -486,6 +491,7 @@ describe('bulk model rename discovery', () => {
             dashboards: [],
             alerts: [],
             dashboardSchedulers: [],
+            skippedCharts: [],
         };
         expect(
             await bulkService.previewRenameResources({
@@ -512,6 +518,32 @@ describe('bulk model rename discovery', () => {
         expect(bulkSchedulerModel.updateScheduler).not.toHaveBeenCalled();
     });
 
+    test('leaves composer charts out of a bulk rename and renames the rest', async () => {
+        const { bulkService, bulkSavedChartModel } = setup([from, to]);
+        bulkSavedChartModel.findComposerCharts.mockResolvedValue([
+            {
+                uuid: 'joined-reference',
+                name: 'joined-reference',
+                slug: 'joined-reference',
+            },
+        ]);
+
+        const result = await bulkService.runScheduledRenameResources({
+            ...payload,
+            dryRun: false,
+        });
+
+        const renamed = result.charts.map((c) => c.uuid);
+        expect(renamed).toContain('base-with-joined-only-fields');
+        expect(renamed).not.toContain('joined-reference');
+        expect(result.skippedCharts).toEqual([
+            { uuid: 'joined-reference', name: 'joined-reference' },
+        ]);
+        expect(bulkSavedChartModel.get).not.toHaveBeenCalledWith(
+            'joined-reference',
+        );
+    });
+
     test('keeps field renames scoped to their explore and cached joins', async () => {
         const { bulkService } = setup([from, to, 'payments']);
         const result = await bulkService.runScheduledRenameResources({
@@ -530,6 +562,7 @@ describe('bulk model rename discovery', () => {
             dashboards: [],
             alerts: [],
             dashboardSchedulers: [],
+            skippedCharts: [],
         });
     });
 
@@ -576,6 +609,7 @@ describe('bulk model rename discovery', () => {
                         name: dashboardScheduler.name,
                     },
                 ],
+                skippedCharts: [],
             };
             const preview = await bulkService.previewRenameResources({
                 ...payload,

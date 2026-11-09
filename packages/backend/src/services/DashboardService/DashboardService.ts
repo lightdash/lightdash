@@ -2,8 +2,10 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     assertRegisteredAccount,
+    assertUnreachable,
     buildMergeQueryFromMergeDefinition,
     BulkActionable,
+    ComposerChartNotSupportedError,
     computeContentDraftStaleness,
     ContentAsCodeType,
     ContentType,
@@ -86,6 +88,7 @@ import {
     type MetricQuery,
     type ParameterDefinitions,
     type SavedChartDAO,
+    type SavedChartVariant,
     type UpdateDashboardCustomMetric,
     type UUID,
     type UuidOrSlug,
@@ -816,6 +819,45 @@ export class DashboardService
         );
     }
 
+    /** Copying a chart writes a classic version, which a composer chart has none of; refuse before anything is created. */
+    /** Dashboard-owned charts referenced by more than one tile, as happens when a tab is duplicated. */
+    private static getChartUuidsToDuplicate(
+        tiles: DashboardVersionedFields['tiles'],
+    ): Set<string> {
+        const chartUuidOccurrences = new Map<string, number>();
+        tiles.forEach((tile) => {
+            if (
+                tile.type === DashboardTileTypes.SAVED_CHART &&
+                tile.properties.belongsToDashboard &&
+                tile.properties.savedChartUuid
+            ) {
+                const chartUuid = tile.properties.savedChartUuid;
+                chartUuidOccurrences.set(
+                    chartUuid,
+                    (chartUuidOccurrences.get(chartUuid) ?? 0) + 1,
+                );
+            }
+        });
+        return new Set(
+            [...chartUuidOccurrences.entries()]
+                .filter(([, count]) => count > 1)
+                .map(([uuid]) => uuid),
+        );
+    }
+
+    private async assertNoComposerChartsToCopy(
+        chartUuids: string[],
+    ): Promise<void> {
+        const [composerChart] =
+            await this.savedChartModel.findComposerCharts(chartUuids);
+        if (composerChart) {
+            throw new ComposerChartNotSupportedError(
+                composerChart.uuid,
+                composerChart.name,
+            );
+        }
+    }
+
     /**
      * Duplicates a chart that belongs to a dashboard.
      * Used when duplicating dashboards or duplicating tabs with dashboard charts.
@@ -1202,10 +1244,10 @@ export class DashboardService
             (uuid) =>
                 // Published version: a tile running a viewer's draft replaces these once it runs
                 this.savedChartModel
-                    .get(uuid, undefined, { projectUuid })
-                    .then((chart) => {
+                    .getVariant(uuid, undefined, { projectUuid })
+                    .then((variant) => {
                         // The model also resolves slugs; results are keyed by uuid
-                        if (chart.uuid === uuid) return chart;
+                        if (variant.chart.uuid === uuid) return variant;
                         results.set(
                             uuid,
                             parameterReferencesFailure(
@@ -1219,18 +1261,35 @@ export class DashboardService
                         return null;
                     }),
         );
-        const charts = loaded.filter(
-            (chart): chart is SavedChartDAO => chart !== null,
+        const variants = loaded.filter(
+            (variant): variant is SavedChartVariant => variant !== null,
         );
-        if (charts.length === 0) return results;
+        if (variants.length === 0) return results;
+        const charts = variants.map(({ chart }) => chart);
 
-        // A stored merge that can't be rebuilt fails its own tile only
+        // A stored merge that can't be rebuilt fails its own tile only.
+        // A composer chart has no explore to read parameters from until pipeline parameters ship.
         const chartQueries = new Map<string, ChartQuery[]>();
-        charts.forEach((chart) => {
-            try {
-                chartQueries.set(chart.uuid, getChartQueries(chart));
-            } catch (e) {
-                results.set(chart.uuid, parameterReferencesFailure(e));
+        variants.forEach((variant) => {
+            switch (variant.queryType) {
+                case 'semantic':
+                    try {
+                        chartQueries.set(
+                            variant.chart.uuid,
+                            getChartQueries(variant.chart),
+                        );
+                    } catch (e) {
+                        results.set(
+                            variant.chart.uuid,
+                            parameterReferencesFailure(e),
+                        );
+                    }
+                    break;
+                case 'composer':
+                    chartQueries.set(variant.chart.uuid, []);
+                    break;
+                default:
+                    assertUnreachable(variant, 'Unknown saved chart kind');
             }
         });
         const [viewableChartUuids, explores] = await Promise.all([
@@ -1334,7 +1393,10 @@ export class DashboardService
 
     private async getViewableChartUuids(
         account: Account,
-        charts: SavedChartDAO[],
+        charts: Pick<
+            SavedChartDAO,
+            'uuid' | 'name' | 'dashboardUuid' | 'spaceUuid'
+        >[],
     ): Promise<Set<string>> {
         const accessResults =
             await this.spacePermissionService.resolveAccessBatch(
@@ -1890,11 +1952,12 @@ export class DashboardService
             [...requested.savedChartUuids]
                 .filter((uuid) => !existing.savedChartUuids.has(uuid))
                 .map(async (savedChartUuid) => {
-                    const savedChart = await this.savedChartModel.get(
-                        savedChartUuid,
-                        undefined,
-                        { projectUuid },
-                    );
+                    const { chart: savedChart } =
+                        await this.savedChartModel.getVariant(
+                            savedChartUuid,
+                            undefined,
+                            { projectUuid },
+                        );
 
                     if (
                         !isAllowedChartSpace(
@@ -2399,6 +2462,15 @@ export class DashboardService
             ownerUserUuid: DashboardService.getDefaultOwnerUserUuid(user),
         };
 
+        await this.assertNoComposerChartsToCopy(
+            dashboard.tiles.flatMap((tile) =>
+                isDashboardChartTileType(tile) &&
+                tile.properties.belongsToDashboard &&
+                tile.properties.savedChartUuid
+                    ? [tile.properties.savedChartUuid]
+                    : [],
+            ),
+        );
         const newDashboard = await this.dashboardModel.create(
             targetSpaceUuid,
             duplicatedDashboard,
@@ -3055,6 +3127,15 @@ export class DashboardService
                 preserveVerification,
             });
 
+        // Duplicated tiles are copied below, so a composer chart among them is refused before any write
+        if (isDashboardVersionedFields(dashboardFields)) {
+            await this.assertNoComposerChartsToCopy([
+                ...DashboardService.getChartUuidsToDuplicate(
+                    dashboardFields.tiles,
+                ),
+            ]);
+        }
+
         if (isDashboardUnversionedFields(dashboardFields)) {
             if (dashboardFields.spaceUuid) {
                 const newSpace =
@@ -3170,33 +3251,13 @@ export class DashboardService
                 new Set(dashboardFields.tiles.map((t) => t.type)),
             );
 
-            // Handle chart duplication for dashboard charts that appear multiple times
-            // This happens when duplicating a dashboard tab with charts saved directly to the dashboard
-            // We detect duplicates by finding chart UUIDs that appear more than once
-            // Step 1: Count occurrences of each chart UUID for dashboard charts
-            const chartUuidOccurrences = new Map<string, number>();
-            dashboardFields.tiles.forEach((tile) => {
-                if (
-                    tile.type === DashboardTileTypes.SAVED_CHART &&
-                    tile.properties.belongsToDashboard &&
-                    tile.properties.savedChartUuid
-                ) {
-                    const chartUuid = tile.properties.savedChartUuid;
-                    chartUuidOccurrences.set(
-                        chartUuid,
-                        (chartUuidOccurrences.get(chartUuid) ?? 0) + 1,
-                    );
-                }
-            });
+            // Duplicating a tab repeats its dashboard-owned chart tiles; each repeat gets its own chart copy
+            const chartUuidsToDuplicate =
+                DashboardService.getChartUuidsToDuplicate(
+                    dashboardFields.tiles,
+                );
 
-            // Step 2: Find chart UUIDs that need duplication (appear more than once)
-            const chartUuidsToDuplicate = new Set(
-                [...chartUuidOccurrences.entries()]
-                    .filter(([, count]) => count > 1)
-                    .map(([uuid]) => uuid),
-            );
-
-            // Step 3: Create duplicated charts for all tiles that need them (except the first occurrence)
+            // Create duplicated charts for all tiles that need them (except the first occurrence)
             const seenChartUuids = new Set<string>();
             const chartDuplicationPromises: Promise<{
                 tileIndex: number;
@@ -3857,10 +3918,13 @@ export class DashboardService
                             return;
                         }
                         try {
-                            const chartInDashboard =
-                                await this.savedChartModel.get(
+                            const variant =
+                                await this.savedChartModel.getVariant(
                                     tile.properties.savedChartUuid,
                                 );
+                            // A composer chart holds no explore fields to release
+                            if (variant.queryType === 'composer') return;
+                            const chartInDashboard = variant.chart;
                             let explore = explores.get(
                                 chartInDashboard.tableName,
                             );
