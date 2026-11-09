@@ -428,6 +428,24 @@ DBT_BUILT="$(db_has "SELECT 1 FROM information_schema.tables WHERE table_schema=
 BOOTSTRAPPED=false
 BOOTSTRAPPED_EE_BASE=false
 
+# A base snapshot outlives image upgrades: cloning a PG16 cluster into a PG18
+# container leaves Postgres restart-looping. Drop any base whose PG_VERSION
+# differs from the running image so the full-setup path rewrites it.
+# PG_VERSION sits at the volume root (pg<=16 layout) or under <major>/docker (pg17+).
+base_volume_pg_major() {
+    docker run --rm -v "$1:/v:ro" alpine sh -c \
+        'for f in /v/PG_VERSION /v/data/PG_VERSION /v/*/docker/PG_VERSION; do [ -f "$f" ] && { cat "$f"; exit; }; done' 2>/dev/null | tr -d '[:space:]'
+}
+IMAGE_PG_MAJOR="$(docker exec "$DB_CONTAINER" printenv PG_MAJOR 2>/dev/null | tr -d '[:space:]')"
+for _base in "$SHARED_BASE_VOLUME" "$EE_BASE_VOLUME"; do
+    docker volume inspect "$_base" >/dev/null 2>&1 || continue
+    _base_major="$(base_volume_pg_major "$_base")"
+    if [ -n "$IMAGE_PG_MAJOR" ] && [ -n "$_base_major" ] && [ "$_base_major" != "$IMAGE_PG_MAJOR" ]; then
+        echo "Dropping stale base $_base: snapshot is PG${_base_major}, image is PG${IMAGE_PG_MAJOR} — rebuilding via full setup"
+        docker volume rm "$_base" >/dev/null || fail "stale-base" "could not remove stale base volume $_base (another container may still mount it)"
+    fi
+done
+
 # Prefer the EE base when in EE mode and it exists — it's already EE-migrated,
 # so the EE migrate pass below becomes a fast no-pending check instead of applying
 # 70+ migrations. Otherwise fall back to the core base.
