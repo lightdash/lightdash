@@ -7,6 +7,13 @@
         var(--mantine-spacing-md) 36px;
 }
 
+/* Lets a focused last cell reach the top before its results load. */
+.notebook[data-focus-room='true']::after {
+    content: '';
+    flex-shrink: 0;
+    height: 100%;
+}
+
 /* Hovered cell's lineage, drawn in the left gutter; scrolls with the cells. */
 .lineage {
     position: absolute;

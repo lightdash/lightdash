@@ -77,6 +77,7 @@ type Props = {
     chatNodeIds: ReadonlySet<string>;
     /** Null when this pipeline can't be pinned to the chat. */
     onAddToChat: ((node: { nodeId: string; title: string }) => void) | null;
+    initialView: ArtifactView;
 };
 
 type ArtifactView = 'chart' | 'lineage';
@@ -98,12 +99,13 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     onClose,
     chatNodeIds,
     onAddToChat,
+    initialView,
 }) => {
     const getUiString = useUiStrings();
     const { user } = useApp();
     const ability = useAbilityContext();
     const isEmbed = useIsEmbedded();
-    const [view, setView] = useState<ArtifactView>('chart');
+    const [view, setView] = useState<ArtifactView>(initialView);
     const [imageExportRef, setImageExportRef] =
         useState<RefObject<EChartsReact | null>>();
     const [
@@ -342,6 +344,9 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             terminalNodeId={config.terminalNodeId}
             displayableNodeIds={displayableNodeIds}
             nodeStatuses={nodeStatuses}
+            initialFocusNodeId={
+                initialView === 'lineage' ? config.terminalNodeId : null
+            }
             renderNodeResult={(nodeId) => {
                 const nodeQueryUuid = nodeQueryUuids?.[nodeId];
                 return nodeQueryUuid ? (

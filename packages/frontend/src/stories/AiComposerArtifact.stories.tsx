@@ -244,6 +244,7 @@ const ComposerArtifact = ({
                                 new Set(queries.map((q) => q.nodeId!))
                             }
                             nodeStatuses={nodeStatuses}
+                            initialFocusNodeId={null}
                             renderNodeResult={() => (
                                 <ResultsTable
                                     result={result}
