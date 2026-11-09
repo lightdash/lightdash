@@ -1,3 +1,10 @@
+# [3.182.0](https://github.com/lightdash/lightdash/compare/3.181.3...3.182.0) (2026-11-09)
+
+
+### Features
+
+* **dashboard:** gentler auto fit to screen with a spring between fitted and natural ([#32224](https://github.com/lightdash/lightdash/issues/32224)) ([e843470](https://github.com/lightdash/lightdash/commit/e84347003acac07f2d4af244cce6b3881a1a0115))
+
 ## [3.181.3](https://github.com/lightdash/lightdash/compare/3.181.2...3.181.3) (2026-11-09)
 
 
