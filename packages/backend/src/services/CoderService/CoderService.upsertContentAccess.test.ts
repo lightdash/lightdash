@@ -1108,10 +1108,12 @@ const registerContentAccessTests = (
             } as AnyType),
         ).rejects.toThrow('stop after filters');
 
-        expect(
-            vi.mocked(service.dashboardModel.create).mock.calls[0][1].filters
-                .dimensions,
-        ).not.toEqual([expect.objectContaining({ id: 'saved-filter-id' })]);
+        const dimensions = vi.mocked(service.dashboardModel.create).mock
+            .calls[0]?.[1]?.filters?.dimensions;
+        expect(dimensions).toHaveLength(1);
+        expect(dimensions).not.toEqual([
+            expect.objectContaining({ id: 'saved-filter-id' }),
+        ]);
     });
     it('rejects moving a dashboard out of a restricted current space before promotion', async () => {
         const service = buildService();
