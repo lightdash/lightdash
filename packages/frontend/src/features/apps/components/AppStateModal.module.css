@@ -1,8 +1,100 @@
-.clickableRow {
+.browser {
+    display: flex;
+    border: 1px solid var(--mantine-color-gray-3);
+    border-radius: var(--mantine-radius-md);
+    height: 420px;
+    overflow: hidden;
+}
+
+.keyList {
+    width: 220px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--mantine-color-gray-3);
+}
+
+.keyItem {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--mantine-color-gray-2);
     cursor: pointer;
 }
 
-.historyValue {
+.keyItem:hover {
+    background: var(--mantine-color-gray-0);
+}
+
+.keyItemSelected {
+    background: var(--mantine-color-violet-0);
+}
+
+.keyItemSelected:hover {
+    background: var(--mantine-color-violet-0);
+}
+
+.detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.detailBody {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+.versionList {
+    width: 150px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--mantine-color-gray-2);
+}
+
+.versionItem {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+}
+
+.versionItem:hover {
+    background: var(--mantine-color-gray-0);
+}
+
+.versionItemSelected {
+    background: var(--mantine-color-violet-0);
+    border-left-color: var(--mantine-color-violet-5);
+}
+
+.versionItemSelected:hover {
+    background: var(--mantine-color-violet-0);
+}
+
+.valuePane {
+    flex: 1;
+    min-width: 0;
+}
+
+.valueTable {
+    table-layout: fixed;
+}
+
+.valueTable td:first-child {
+    width: 130px;
+}
+
+.clearButton {
+    flex-shrink: 0;
+}
+
+.valueTable code {
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.valueJson {
     white-space: pre-wrap;
     word-break: break-word;
 }
