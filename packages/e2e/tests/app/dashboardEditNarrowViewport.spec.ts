@@ -89,6 +89,10 @@ test.describe('Dashboard editing in a narrow viewport', () => {
         await expect(
             grid.getByText('Left tile', { exact: true }),
         ).toBeVisible();
+        // Tiles are visible in view mode too, but only draggable once edit mode has rendered
+        await expect(
+            grid.locator('.react-grid-item.react-draggable').first(),
+        ).toBeVisible();
         const gridWidth = await grid.evaluate((el) => el.clientWidth);
         expect(gridWidth).toBeLessThan(1200);
 
