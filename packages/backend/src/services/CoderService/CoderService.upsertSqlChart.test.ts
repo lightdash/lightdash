@@ -115,6 +115,7 @@ const buildService = (
 ) =>
     new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        featureFlagModel: {} as AnyType,
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,

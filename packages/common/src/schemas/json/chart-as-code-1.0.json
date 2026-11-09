@@ -1113,6 +1113,267 @@
             "enum": ["raw", "percentage"],
             "type": "string"
         },
+        "ComposerChartAsCode": {
+            "additionalProperties": false,
+            "description": "A composer chart: draws the stored pipeline, owned by a dashboard",
+            "properties": {
+                "chartConfig": {
+                    "discriminator": {
+                        "propertyName": "type"
+                    },
+                    "oneOf": [
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/BigNumber",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "big_number",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/CartesianChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "cartesian",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/CustomVis",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "custom",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/PieChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "pie",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/FunnelChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "funnel",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/TableChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "table",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/TreemapChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "treemap",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/GaugeChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "gauge",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/MapChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "map",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/SankeyChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "sankey",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/DataAppVizChartAsCode"
+                                },
+                                "type": {
+                                    "const": "data_app_viz"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        }
+                    ],
+                    "type": "object"
+                },
+                "contentType": {
+                    "$ref": "#/$defs/ContentAsCodeType.CHART",
+                    "description": "Content type discriminator"
+                },
+                "dashboardSlug": {
+                    "description": "Slug of the dashboard that owns this chart; a composer chart always lives in a dashboard",
+                    "pattern": "^[a-z0-9-]+$",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Optional description of what this chart displays",
+                    "type": "string"
+                },
+                "downloadedAt": {
+                    "description": "Timestamp when this chart was downloaded from Lightdash",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Display name of the chart",
+                    "type": "string"
+                },
+                "pipeline": {
+                    "$ref": "#/$defs/SavedComposerPipeline",
+                    "description": "The pipeline the chart runs, in its stored shape: every node and the node it draws."
+                },
+                "pivotConfig": {
+                    "description": "Pivot table configuration",
+                    "properties": {
+                        "columns": {
+                            "description": "Fields to use as pivot columns",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "rows": {
+                            "description": "Ordered fields to render on the pivot row axis",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["columns"],
+                    "type": "object"
+                },
+                "slug": {
+                    "description": "Unique identifier slug for this chart",
+                    "type": "string"
+                },
+                "spaceSlug": {
+                    "description": "Slug of the space containing the owning dashboard",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "verification": {
+                    "anyOf": [
+                        {
+                            "allOf": [
+                                {
+                                    "$ref": "#/$defs/ContentVerificationInfo"
+                                }
+                            ],
+                            "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "verified": {
+                    "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified.",
+                    "type": "boolean"
+                },
+                "version": {
+                    "const": 1,
+                    "description": "Schema version for this chart configuration",
+                    "format": "double",
+                    "type": "number"
+                }
+            },
+            "required": [
+                "name",
+                "slug",
+                "spaceSlug",
+                "version",
+                "dashboardSlug",
+                "chartConfig",
+                "pipeline"
+            ],
+            "type": "object"
+        },
         "ConditionalFormattingColorApplyTo": {
             "enum": ["cell", "text", "row"],
             "type": "string"
@@ -1855,6 +2116,53 @@
             "enum": ["string", "number", "timestamp", "date", "boolean"],
             "type": "string"
         },
+        "DuckdbSourceQuery": {
+            "description": "A DuckDB compose query as a source query. References expose other queries'\nresults as named tables the SQL can select from; a referenced result's\ncolumn names are those of the upstream query's result (field ids for\nsemanticLayer queries, SELECT output names for sql queries).\n\nReferences that name queries still running are waited on: this query\nexecutes once every referenced result is ready, and fails if any\nreferenced query fails.",
+            "properties": {
+                "description": {
+                    "description": "One-line note on what this query does, shown under the title.",
+                    "type": "string"
+                },
+                "limit": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "nodeId": {
+                    "$ref": "#/$defs/QueryNodeId",
+                    "description": "Names this query so other queries in the same submission can reference its results."
+                },
+                "pivotConfiguration": {
+                    "$ref": "#/$defs/PivotConfiguration",
+                    "description": "Pivots this node's result over the columns its SQL returns; checked at\nsubmission. Results carry pivotDetails. Omit for an unpivoted result."
+                },
+                "references": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "$ref": "#/$defs/QueryNodeId"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "$ref": "#/$defs/Record_QuerySourceTableName.QueryResultReference_"
+                        }
+                    ],
+                    "description": "Which query results the SQL reads, in one of two forms. Shorthand\narray: node ids of queries in the same submission, each exposed as a\ntable named by its node id — [\"orders\", \"revenue\"] lets the SQL run\nSELECT * FROM orders JOIN revenue. Map form for aliasing or existing\nresults: {tableName: nodeIdOrQueryUuid}, e.g. {\"o\": \"orders\", \"prev\":\n\"<queryUuid>\"}. Required at execution: the query runs on a session\nthat can reach only these results, so one that references nothing is\nrefused."
+                },
+                "sourceType": {
+                    "$ref": "#/$defs/QuerySourceType.DUCKDB"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it.",
+                    "type": "string"
+                }
+            },
+            "required": ["sql", "sourceType"],
+            "type": "object"
+        },
         "EChartsConfig": {
             "$ref": "#/$defs/Partial_CompleteEChartsConfig_"
         },
@@ -2482,6 +2790,15 @@
                 }
             },
             "required": ["color", "max", "min"],
+            "type": "object"
+        },
+        "GroupByColumn": {
+            "properties": {
+                "reference": {
+                    "type": "string"
+                }
+            },
+            "required": ["reference"],
             "type": "object"
         },
         "GroupValueMatchType": {
@@ -3634,6 +3951,84 @@
             "required": ["y"],
             "type": "object"
         },
+        "PivotConfiguration": {
+            "properties": {
+                "groupByColumns": {
+                    "items": {
+                        "$ref": "#/$defs/GroupByColumn"
+                    },
+                    "type": "array"
+                },
+                "indexColumn": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/PivotIndexColum"
+                        },
+                        {
+                            "items": {
+                                "$ref": "#/$defs/PivotIndexColum"
+                            },
+                            "type": "array"
+                        }
+                    ]
+                },
+                "metricsAsRows": {
+                    "description": "When true, metrics are displayed as rows instead of columns.\nThis affects column limit calculation - when metrics are rows,\nwe don't need to divide the column limit by the number of metrics.\nDefaults to false for backward compatibility (SQL runner behavior).",
+                    "type": "boolean"
+                },
+                "passthroughDimensions": {
+                    "description": "Hidden pivot-column dimensions that are NOT sort targets but still need\ntheir values carried through the SQL pipeline so that other fields'\n`richText` / `image:` templates can reference them via\n`row.<table>.<field>.raw`. They participate in `group_by_query` SELECT\nand GROUP BY (same as sortOnlyDimensions) but do NOT affect\n`column_ranking` ORDER BY (they don't drive sort). Without this bucket\nthe dim would be dropped entirely from the query and `row.*.raw`\nreferences would silently resolve to undefined.",
+                    "items": {
+                        "$ref": "#/$defs/GroupByColumn"
+                    },
+                    "type": "array"
+                },
+                "pivotColumnsOrder": {
+                    "description": "Declared order of the pivot-column dimensions (visible `groupByColumns`\nplus hidden `sortOnlyDimensions`) as they appear in the chart's\n`pivotConfig.columns`. `column_ranking` orders columns by this sequence so\na hidden sort-only dim sorts at its DECLARED position — hiding a dim then\nleaves column order identical to when it was visible, instead of hoisting\nthe hidden dim to the front of the ORDER BY. Passthrough (hidden, non-sort)\ndims are excluded since they don't drive sort. When omitted, ordering falls\nback to hoisting sort-only sort targets to the front (legacy behavior).",
+                    "items": {
+                        "$ref": "#/$defs/GroupByColumn"
+                    },
+                    "type": "array"
+                },
+                "sortBy": {
+                    "$ref": "#/$defs/SortBy"
+                },
+                "sortOnlyColumns": {
+                    "description": "Metrics/table calculations needed for sort anchor CTEs but not for display.\nThese are merged into valuesColumns for SQL generation in PivotQueryBuilder,\nbut excluded from pivotDetails so they don't appear as chart series.",
+                    "items": {
+                        "$ref": "#/$defs/ValuesColumn"
+                    },
+                    "type": "array"
+                },
+                "sortOnlyDimensions": {
+                    "description": "Dimensions referenced by ORDER BY but NOT spread into pivot columns.\nUsed when a user hides a dim that's part of `pivotConfig.columns` and has\na sort entry on it: the dim still ranks column order via the GROUP BY /\nORDER BY pipeline, but it doesn't become a pivot column header level.\nMirrors `sortOnlyColumns` (which serves the same purpose for metrics).",
+                    "items": {
+                        "$ref": "#/$defs/GroupByColumn"
+                    },
+                    "type": "array"
+                },
+                "valuesColumns": {
+                    "items": {
+                        "$ref": "#/$defs/ValuesColumn"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["valuesColumns"],
+            "type": "object"
+        },
+        "PivotIndexColum": {
+            "properties": {
+                "reference": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/VizIndexType"
+                }
+            },
+            "required": ["type", "reference"],
+            "type": "object"
+        },
         "PivotReference": {
             "properties": {
                 "field": {
@@ -3693,6 +4088,27 @@
                 }
             },
             "required": ["value", "field"],
+            "type": "object"
+        },
+        "QueryNodeId": {
+            "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+            "type": "string"
+        },
+        "QuerySourceType.DUCKDB": {
+            "enum": ["duckdb"],
+            "type": "string"
+        },
+        "QuerySourceType.SEMANTIC_LAYER": {
+            "enum": ["semanticLayer"],
+            "type": "string"
+        },
+        "Record_QuerySourceTableName.QueryResultReference_": {
+            "additionalProperties": {
+                "type": "string"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
             "type": "object"
         },
         "Record_string.boolean_": {
@@ -3858,6 +4274,51 @@
             "description": "How nodes are laid out:\n- `multi-step`: depth-unrolled journeys (default)\n- `merged`: one node per label, journeys preserved (acyclic flows only)\n- `direct`: two-column source→target pairs, no chaining",
             "enum": ["multi-step", "merged", "direct"],
             "type": "string"
+        },
+        "SavedComposerPipeline": {
+            "description": "The pipeline a composer chart version stores: the presented node's closed snapshot and the node it shows.",
+            "properties": {
+                "nodes": {
+                    "description": "Every node has a node id and reads only nodes of this list.",
+                    "items": {
+                        "$ref": "#/$defs/SavedComposerPipelineNode"
+                    },
+                    "type": "array"
+                },
+                "schemaVersion": {
+                    "enum": [1],
+                    "type": "number"
+                },
+                "terminalNodeId": {
+                    "$ref": "#/$defs/QueryNodeId"
+                }
+            },
+            "required": ["terminalNodeId", "nodes", "schemaVersion"],
+            "type": "object"
+        },
+        "SavedComposerPipelineNode": {
+            "allOf": [
+                {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/SemanticLayerSourceQuery"
+                        },
+                        {
+                            "$ref": "#/$defs/DuckdbSourceQuery"
+                        }
+                    ]
+                },
+                {
+                    "properties": {
+                        "nodeId": {
+                            "$ref": "#/$defs/QueryNodeId"
+                        }
+                    },
+                    "required": ["nodeId"],
+                    "type": "object"
+                }
+            ],
+            "description": "The node kinds a composer chart may store; sql joins once SQL nodes ship, the rest are refused by name."
         },
         "SavedMergeDefinition": {
             "properties": {
@@ -4071,6 +4532,113 @@
             ],
             "description": "A persisted merge source.\n\nThe chart source is a reference: its metric query already lives on the chart\nversion. Every additional source owns its query. This keeps one source of\ntruth while allowing more sources without adding `thirdQuery`, `fourthQuery`,\nand so on."
         },
+        "SemanticLayerSourceQuery": {
+            "description": "A semantic layer (metric) query as a source query. Only exploreName,\ndimensions and metrics are required; everything else defaults to empty\n(no filters, no sorts, no table calculations) and a default row limit.\n\nResult columns are named by field id — exactly the dimensions and metrics\nrequested (e.g. requesting metric \"payments_total_revenue\" yields a column\n\"payments_total_revenue\"), so referencing DuckDB SQL selects those names.",
+            "properties": {
+                "additionalMetrics": {
+                    "description": "Ad-hoc metrics not defined in the explore.",
+                    "items": {
+                        "$ref": "#/$defs/AdditionalMetric"
+                    },
+                    "type": "array"
+                },
+                "customDimensions": {
+                    "description": "Ad-hoc dimensions not defined in the explore.",
+                    "items": {
+                        "$ref": "#/$defs/CustomDimension"
+                    },
+                    "type": "array"
+                },
+                "description": {
+                    "description": "One-line note on what this query does, shown under the title.",
+                    "type": "string"
+                },
+                "dimensionOverrides": {
+                    "$ref": "#/$defs/DimensionOverrides",
+                    "description": "Formatting overrides for dimensions in this query, keyed by field id."
+                },
+                "dimensions": {
+                    "description": "Dimension field ids to group by, from the explore's schema.",
+                    "items": {
+                        "$ref": "#/$defs/FieldId"
+                    },
+                    "type": "array"
+                },
+                "exploreName": {
+                    "type": "string"
+                },
+                "filters": {
+                    "description": "Filters to apply, in the metric query filters shape: an optional filter\ngroup per field kind, e.g. {\"dimensions\": {\"id\": \"...\", \"and\": [{\"id\":\n\"...\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\",\n\"values\": [\"completed\"]}]}}. Defaults to no filters.",
+                    "properties": {
+                        "dimensions": {
+                            "$ref": "#/$defs/AnyType"
+                        },
+                        "metrics": {
+                            "$ref": "#/$defs/AnyType"
+                        },
+                        "tableCalculations": {
+                            "$ref": "#/$defs/AnyType"
+                        }
+                    },
+                    "type": "object"
+                },
+                "limit": {
+                    "description": "Max rows to return. Defaults to the standard query row limit.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "metricOverrides": {
+                    "$ref": "#/$defs/MetricOverrides",
+                    "description": "Formatting overrides for metrics in this query, keyed by field id."
+                },
+                "metrics": {
+                    "description": "Metric field ids to compute, from the explore's schema.",
+                    "items": {
+                        "$ref": "#/$defs/FieldId"
+                    },
+                    "type": "array"
+                },
+                "nodeId": {
+                    "$ref": "#/$defs/QueryNodeId",
+                    "description": "Names this query so other queries in the same submission can reference its results."
+                },
+                "parameters": {
+                    "$ref": "#/$defs/ParametersValuesMap",
+                    "description": "Parameter values for this query, layered over the submission's parameters."
+                },
+                "pivotConfiguration": {
+                    "$ref": "#/$defs/PivotConfiguration",
+                    "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
+                },
+                "sorts": {
+                    "description": "Sorts to apply, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]. Defaults to none.",
+                    "items": {
+                        "$ref": "#/$defs/SortField"
+                    },
+                    "type": "array"
+                },
+                "sourceType": {
+                    "$ref": "#/$defs/QuerySourceType.SEMANTIC_LAYER"
+                },
+                "tableCalculations": {
+                    "description": "Table calculations appended to the results. Defaults to none.",
+                    "items": {
+                        "$ref": "#/$defs/TableCalculation"
+                    },
+                    "type": "array"
+                },
+                "timezone": {
+                    "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\".",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it.",
+                    "type": "string"
+                }
+            },
+            "required": ["metrics", "dimensions", "exploreName", "sourceType"],
+            "type": "object"
+        },
         "Series": {
             "properties": {
                 "areaStyle": {
@@ -4205,6 +4773,12 @@
             },
             "required": ["color"],
             "type": "object"
+        },
+        "SortBy": {
+            "items": {
+                "$ref": "#/$defs/VizSortBy"
+            },
+            "type": "array"
         },
         "SortByDirection": {
             "enum": ["ASC", "DESC"],
@@ -4832,6 +5406,18 @@
             "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
             "type": "string"
         },
+        "ValuesColumn": {
+            "properties": {
+                "aggregation": {
+                    "$ref": "#/$defs/VizAggregationOptions"
+                },
+                "reference": {
+                    "type": "string"
+                }
+            },
+            "required": ["aggregation", "reference"],
+            "type": "object"
+        },
         "VizAggregationOptions": {
             "enum": ["sum", "count", "avg", "min", "max", "any"],
             "type": "string"
@@ -5191,9 +5777,17 @@
     },
     "$id": "https://schemas.lightdash.com/lightdash/chart-as-code.json",
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "description": "Schema for defining Lightdash charts (semantic layer charts and SQL charts) in YAML format for version control",
+    "description": "Schema for defining Lightdash charts (semantic layer charts, composer charts and SQL charts) in YAML format for version control",
     "else": {
-        "$ref": "#/$defs/ChartAsCode"
+        "else": {
+            "$ref": "#/$defs/ChartAsCode"
+        },
+        "if": {
+            "required": ["pipeline"]
+        },
+        "then": {
+            "$ref": "#/$defs/ComposerChartAsCode"
+        }
     },
     "if": {
         "anyOf": [

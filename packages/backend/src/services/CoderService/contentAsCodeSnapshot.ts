@@ -1,13 +1,13 @@
 import {
     type AgentAsCodeKnowledgeDocument,
-    type ChartAsCode,
     type DashboardAsCode,
+    type SavedChartAsCode,
     type SqlChartAsCode,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
 
 export type SnapshotAsCodeContent =
-    | ChartAsCode
+    | SavedChartAsCode
     | DashboardAsCode
     | SqlChartAsCode;
 

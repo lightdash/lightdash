@@ -33,6 +33,7 @@ import {
     type ContentDraftStalenessDetails,
     type DashboardAsCode,
     type LightdashProjectConfig,
+    type SavedChartAsCode,
     type SessionUser,
     type SqlChartAsCode,
 } from '@lightdash/common';
@@ -124,7 +125,9 @@ const commitAuthorFromUser = (user: {
 // Matches the CLI's writeContent (packages/cli/src/handlers/download.ts):
 // updatedAt/downloadedAt are transport metadata and verification is runtime
 // instance state — none of them land in the repo.
-const dumpContentAsCode = (content: ChartAsCode | DashboardAsCode): string => {
+const dumpContentAsCode = (
+    content: SavedChartAsCode | DashboardAsCode,
+): string => {
     const { updatedAt, downloadedAt, verification, ...cleanContent } = content;
     return yaml.dump(cleanContent, { quotingType: '"', sortKeys: true });
 };
@@ -1066,7 +1069,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         projectUuid: string,
         draft: ContentDraft,
     ): Promise<{
-        published: ChartAsCode | DashboardAsCode;
+        published: SavedChartAsCode | DashboardAsCode;
         draftDoc: ChartAsCode | DashboardAsCode;
     }> {
         if (draft.contentType === 'chart') {
@@ -1612,7 +1615,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         const notes: string[] = [];
         if (contentType === 'chart') {
             const chartAsCode =
-                (target.documentOverride as ChartAsCode | undefined) ??
+                (target.documentOverride as SavedChartAsCode | undefined) ??
                 (await this.coderService.getPortableChartAsCode(
                     projectUuid,
                     contentUuid,

@@ -1840,6 +1840,7 @@ export class ServiceRepository
                         this.models.getContentAsCodeProjectSettingsModel(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     projectService: this.getProjectService(),
                     groupsModel: this.models.getGroupsModel(),
                     organizationMemberProfileModel:
