@@ -55,11 +55,15 @@ export const user: SessionUser = {
     updatedAt: new Date(),
 };
 
-export const chartForValidation: Awaited<
-    ReturnType<SavedChartModel['findChartsForValidation']>
->[number] = {
+type SemanticChartForValidation = Extract<
+    Awaited<ReturnType<SavedChartModel['findChartsForValidation']>>[number],
+    { queryType: 'semantic' }
+>;
+
+export const chartForValidation: SemanticChartForValidation = {
     uuid: 'chartUuid',
     name: 'Test chart',
+    queryType: 'semantic',
     tableName: 'table',
     filters: {
         dimensions: {
@@ -121,9 +125,7 @@ export const chartForValidation: Awaited<
     pivotDimensions: [],
 };
 
-export const chartForValidationWithJoinedField: Awaited<
-    ReturnType<SavedChartModel['findChartsForValidation']>
->[number] = {
+export const chartForValidationWithJoinedField: SemanticChartForValidation = {
     ...chartForValidation,
     tableName: 'another_table',
     dimensions: ['table_dimension', 'another_table_dimension'],

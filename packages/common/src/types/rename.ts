@@ -46,6 +46,8 @@ export type ApiRenameResponse = {
         dashboards: RenameChange[];
         alerts: RenameChange[];
         dashboardSchedulers: RenameChange[];
+        /** Charts the rename left untouched by name, such as composer charts until rename reads pipelines. */
+        skippedCharts: RenameChange[];
     };
 };
 

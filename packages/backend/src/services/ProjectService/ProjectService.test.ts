@@ -634,6 +634,9 @@ const savedChartModel = {
     getInfoForAvailableFilters: vi.fn(),
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => [] as ChartSummary[]),
+    findComposerCharts: vi.fn(
+        async (): Promise<{ uuid: string; name: string; slug: string }[]> => [],
+    ),
     get: vi.fn(),
     createVersion: vi.fn(),
     getCustomSqlProvenanceForChart: vi.fn(),
@@ -13257,6 +13260,49 @@ describe('ProjectService', () => {
             expect(savedChartModel.find).toHaveBeenCalledWith({
                 projectUuid: defaultProject.projectUuid,
             });
+        });
+
+        test('leaves composer charts out and reports the custom metrics of the rest', async () => {
+            savedChartModel.find.mockResolvedValueOnce([
+                { uuid: 'classic-uuid', name: 'Classic' },
+                { uuid: 'composer-uuid', name: 'Pipeline' },
+            ] as ChartSummary[]);
+            savedChartModel.findComposerCharts.mockResolvedValueOnce([
+                { uuid: 'composer-uuid', name: 'Pipeline', slug: 'pipeline' },
+            ]);
+            savedChartModel.get.mockResolvedValueOnce({
+                uuid: 'classic-uuid',
+                name: 'Classic',
+                metricQuery: {
+                    additionalMetrics: [
+                        {
+                            uuid: 'metric-uuid',
+                            name: 'avg_amount',
+                            label: 'Avg amount',
+                            table: 'orders',
+                            sql: '${TABLE}.amount',
+                            type: MetricType.AVERAGE,
+                        },
+                    ],
+                },
+            });
+
+            const result = await service.getCustomMetrics(
+                user,
+                defaultProject.projectUuid,
+            );
+
+            expect(result).toEqual([
+                expect.objectContaining({
+                    name: 'metric-uuid',
+                    chartLabel: 'Classic',
+                }),
+            ]);
+            expect(savedChartModel.get).toHaveBeenCalledTimes(1);
+            expect(savedChartModel.get).toHaveBeenCalledWith(
+                'classic-uuid',
+                undefined,
+            );
         });
 
         test('throws ForbiddenError without querying charts when the user cannot view the project', async () => {

@@ -16244,6 +16244,19 @@ export class ProjectService
                     await this.savedChartModel.getInfoForAvailableFilters([
                         savedChartUuid,
                     ]);
+                if (!savedChart) {
+                    const [composerChart] =
+                        await this.savedChartModel.findComposerCharts([
+                            savedChartUuid,
+                        ]);
+                    if (composerChart) {
+                        throw new ComposerChartNotSupportedError(
+                            composerChart.uuid,
+                            composerChart.name,
+                        );
+                    }
+                    throw new NotFoundError('Saved query not found');
+                }
 
                 const spaceCtx =
                     await this.spacePermissionService.resolveAccess(
@@ -18278,9 +18291,24 @@ export class ProjectService
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
         });
-        const chartPromises = chartSummaries.map((summary) =>
-            this.savedChartModel.get(summary.uuid, undefined),
+        // Composer charts keep their custom metrics inside pipeline nodes, which this listing does not read yet
+        const composerChartUuids = new Set(
+            (
+                await this.savedChartModel.findComposerCharts(
+                    chartSummaries.map((summary) => summary.uuid),
+                )
+            ).map((composerChart) => composerChart.uuid),
         );
+        if (composerChartUuids.size > 0) {
+            this.logger.info(
+                `Custom metrics listing skipped ${composerChartUuids.size} composer charts in project ${projectUuid}`,
+            );
+        }
+        const chartPromises = chartSummaries
+            .filter((summary) => !composerChartUuids.has(summary.uuid))
+            .map((summary) =>
+                this.savedChartModel.get(summary.uuid, undefined),
+            );
 
         const charts = await Promise.all(chartPromises);
         return charts.reduce<AnyType[]>((acc, chart) => {
