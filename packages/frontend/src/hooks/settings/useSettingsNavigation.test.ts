@@ -43,6 +43,7 @@ const settingsContext = (
     isChartStudioAvailable: false,
     externalSourcesFlag: undefined,
     isMobileSettingsEnabled: false,
+    isMobileSettingsFlagLoading: false,
     isResultsCacheAvailable: false,
     embeddingEnabled: undefined,
     allowPasswordAuthentication: false,

@@ -99,6 +99,7 @@ export type SettingsContext = {
     isChartStudioAvailable: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
     isMobileSettingsEnabled: boolean;
+    isMobileSettingsFlagLoading: boolean;
     isResultsCacheAvailable: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
