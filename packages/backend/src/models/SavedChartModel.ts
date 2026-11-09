@@ -10,6 +10,7 @@ import {
     ChartType,
     ChartVersionSummary,
     ComposerChartNotSupportedError,
+    ComposerSavedChartDAO,
     ConflictError,
     ContentReviewContentType,
     ContentType,
@@ -29,6 +30,7 @@ import {
     getChartKind,
     getChartType,
     getItemId,
+    getSourceQueryLimit,
     isCustomBinDimension,
     isCustomSqlDimension,
     isFormulaTableCalculation,
@@ -65,6 +67,7 @@ import {
     UpdateMultipleSavedChart,
     UpdateSavedChart,
     type AgentIdentityClaim,
+    type CreateComposerChart,
     type StoredAgentIdentityClaim,
     type UUID,
 } from '@lightdash/common';
@@ -1372,6 +1375,96 @@ export class SavedChartModel {
             onVersionCreated,
         );
         return this.get(newSavedChartUuid);
+    }
+
+    /** Writes a dashboard-owned composer chart: one version holding the pipeline, with no explore, field or sort rows. */
+    async createComposerChart(
+        projectUuid: string,
+        userUuid: string,
+        {
+            name,
+            description,
+            dashboardUuid,
+            pipeline,
+            chartConfig,
+            pivotConfig,
+            slug,
+        }: CreateComposerChart & { slug: string },
+    ): Promise<ComposerSavedChartDAO> {
+        const terminalNode = pipeline.nodes.find(
+            (node) => node.nodeId === pipeline.terminalNodeId,
+        );
+        if (!terminalNode) {
+            throw new ParameterError(
+                `Node "${pipeline.terminalNodeId}" is not in the pipeline`,
+            );
+        }
+        const savedChartUuid = await this.database.transaction(async (trx) => {
+            await acquireProjectSlugLock(trx, projectUuid, slug);
+            const dashboard = await trx(DashboardsTableName)
+                .innerJoin(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .select(`${DashboardsTableName}.dashboard_uuid`)
+                .first();
+            if (!dashboard) {
+                throw new NotFoundError('Dashboard not found');
+            }
+            const [chart] = await trx(SavedChartsTableName)
+                .insert({
+                    name,
+                    description: description ?? undefined,
+                    last_version_chart_kind:
+                        getChartKind(chartConfig.type, chartConfig.config) ||
+                        ChartKind.VERTICAL_BAR,
+                    last_version_updated_by_user_uuid: userUuid,
+                    project_uuid: projectUuid,
+                    color_palette_uuid: null,
+                    slug: await generateUniqueSlugScopedToProject(
+                        trx,
+                        projectUuid,
+                        SavedChartsTableName,
+                        slug,
+                    ),
+                    dashboard_uuid: dashboardUuid,
+                    space_id: null,
+                })
+                .returning(['saved_query_id', 'saved_query_uuid']);
+            await trx(SavedChartVersionsTableName).insert({
+                saved_query_id: chart.saved_query_id,
+                explore_name: null,
+                pipeline,
+                filters: {},
+                row_limit: getSourceQueryLimit(terminalNode),
+                metric_overrides: null,
+                dimension_overrides: null,
+                chart_type: chartConfig.type,
+                chart_config: chartConfig.config,
+                pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
+                pivot_rows: pivotConfig?.rows ?? null,
+                parameters: null,
+                updated_by_user_uuid: userUuid,
+                timezone: toTimezoneSetting(undefined),
+                agent_identity: null,
+            });
+            return chart.saved_query_uuid;
+        });
+        const variant = await this.getVariant(savedChartUuid);
+        if (variant.queryType !== 'composer') {
+            throw new UnexpectedServerError(
+                `Chart ${savedChartUuid} was written with a pipeline but read back as a ${variant.queryType} chart`,
+            );
+        }
+        return variant.chart;
     }
 
     async createVersion(

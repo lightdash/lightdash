@@ -377,6 +377,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.updateAgentThreadMessageSavedQuery': [
         AgentCapability.ContentWrite,
     ],
+    'AiAgentController.saveComposerArtifactToDashboard': [
+        AgentCapability.ContentWrite,
+    ],
     'AiAgentController.updateArtifactVersionSavedDashboard': [
         AgentCapability.ContentWrite,
     ],

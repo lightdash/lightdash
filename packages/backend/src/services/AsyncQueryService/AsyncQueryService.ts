@@ -56,6 +56,7 @@ import {
     getAiExecutionCredentialUuid,
     getApiSourceQueryIssues,
     getColumnTimezone,
+    getComposerChartSeriesSplitStage,
     getDashboardFilterRulesForTables,
     getDateZoomFromRequestParameters,
     getDimensionMapFromTables,
@@ -9204,11 +9205,13 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const { nodes, terminalNodeId } = chart.pipeline;
+        const stage = AsyncQueryService.getComposerChartStage(chart);
+        const queries = stage ? [...nodes, stage] : nodes;
         const labels = Object.fromEntries(
             nodes.map((node) => [node.nodeId, node.title ?? node.nodeId]),
         );
         const plans = Object.fromEntries(
-            nodes
+            queries
                 .filter((node) => node.sourceType === QuerySourceType.DUCKDB)
                 .map((node): [string, DuckdbQueryPlan] => [
                     node.nodeId,
@@ -9238,31 +9241,39 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides,
         });
 
-        const { queries } = await this.getQuerySourceService().submitQueries({
-            composerChartQueryContext: ComposerChartQueryContext.fromChart(
+        const { queries: submissions } =
+            await this.getQuerySourceService().submitQueries({
+                composerChartQueryContext: ComposerChartQueryContext.fromChart(
+                    account,
+                    chart,
+                    stage?.nodeId ?? null,
+                ),
                 account,
-                chart,
-                null,
-            ),
-            account,
-            projectUuid,
-            context,
-            querySurface,
-            queries: nodes,
-            parameters: usedParametersValues,
-            userAttributeOverrides: userAttributeOverrides ?? {},
-            invalidateCache: invalidateCache ?? false,
-            plans,
-            aiAttribution: null,
-        });
-        const terminal = queries.find(
-            (query) => query.nodeId === terminalNodeId,
-        );
-        if (!terminal) {
-            throw new UnexpectedServerError(
-                'The composer chart terminal node was not submitted',
+                projectUuid,
+                context,
+                querySurface,
+                queries,
+                parameters: usedParametersValues,
+                userAttributeOverrides: userAttributeOverrides ?? {},
+                invalidateCache: invalidateCache ?? false,
+                plans,
+                aiAttribution: null,
+            });
+        const submissionOf = (nodeId: string, label: string) => {
+            const submission = submissions.find(
+                (query) => query.nodeId === nodeId,
             );
-        }
+            if (!submission) {
+                throw new UnexpectedServerError(
+                    `The composer chart ${label} was not submitted`,
+                );
+            }
+            return submission;
+        };
+        const terminal = submissionOf(terminalNodeId, 'terminal node');
+        const stageSubmission = stage
+            ? submissionOf(stage.nodeId, 'series split stage')
+            : null;
         return {
             queryType: 'composer',
             queryUuid: terminal.queryUuid,
@@ -9271,19 +9282,45 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues,
             resolvedTimezone: null,
             terminalNodeId,
-            nodes: queries.map(
-                ({ nodeId, sourceType, queryUuid, cacheHit }) => ({
+            nodes: submissions
+                .filter(({ nodeId }) => nodeId !== stage?.nodeId)
+                .map(({ nodeId, sourceType, queryUuid, cacheHit }) => ({
                     nodeId,
                     sourceType,
                     queryUuid,
                     cacheHit,
-                }),
-            ),
+                })),
+            chartStage: stageSubmission
+                ? {
+                      queryUuid: stageSubmission.queryUuid,
+                      cacheHit: stageSubmission.cacheHit,
+                  }
+                : null,
             chartVisualization: {
                 chartConfig: chart.chartConfig,
                 pivotConfig: chart.pivotConfig,
             },
         };
+    }
+
+    /** The series-split stage the stored pivot config asks for, named apart from the pipeline's nodes; null without a split. */
+    private static getComposerChartStage(
+        chart: ComposerSavedChartDAO,
+    ): (DuckdbSourceQuery & { nodeId: string }) | null {
+        const nodeIds = new Set(
+            chart.pipeline.nodes.map(({ nodeId }) => nodeId),
+        );
+        let nodeId = 'chart_stage';
+        while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+        const stage = getComposerChartSeriesSplitStage({
+            chartVisualization: {
+                chartConfig: chart.chartConfig,
+                pivotConfig: chart.pivotConfig,
+            },
+            nodeId,
+            source: chart.pipeline.terminalNodeId,
+        });
+        return stage ? { ...stage, nodeId } : null;
     }
 
     private async executeAsyncSavedComposerChartQuery({

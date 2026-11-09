@@ -17,6 +17,7 @@ import {
     type ChartKind,
     type ChartVersionSummary,
     type CreateSavedChart,
+    type SavedChartQueryType,
     type SavedChartType,
 } from './savedCharts';
 import type { SchedulerAndTargets } from './scheduler';
@@ -81,6 +82,8 @@ export type DashboardChartTileProperties = {
         chartName?: string | null;
         lastVersionChartKind?: ChartKind | null;
         chartSlug?: string | null;
+        /** Set by the backend on read from the chart's latest version; a composer tile is drawn from the run's columns. */
+        queryType?: SavedChartQueryType;
     };
 };
 

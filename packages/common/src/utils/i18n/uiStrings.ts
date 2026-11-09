@@ -130,6 +130,13 @@ export const DEFAULT_UI_STRINGS = {
     'tileMenu.downloadData': 'Download data',
     'tileMenu.exportImage': 'Export image',
     'tileMenu.viewUnderlyingData': 'View underlying data',
+
+    'composerTile.unavailable.title': 'Chart not available',
+    'composerTile.unavailable.embed':
+        'This chart type is not available in embedded dashboards yet.',
+    'composerTile.unavailable.disabled':
+        'This chart type is not enabled for this project.',
+    'composerTile.runError': 'The chart could not be run.',
     'dateZoom.defaultZoom': 'Default zoom',
     'dateZoom.none': 'None',
     'dateZoom.viewModeTooltip':
@@ -523,6 +530,8 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.view.lineage': 'Lineage',
     'aiAgent.composer.actions.quickActions': 'Quick actions',
     'aiAgent.composer.actions.downloadResults': 'Download results',
+    'aiAgent.composer.actions.saveToDashboard': 'Save to dashboard',
+    'aiAgent.composer.actions.savedToDashboard': 'Saved to {dashboard}',
     'aiAgent.composer.lineage.focusNode': 'Focus {node}',
     'aiAgent.composer.lineage.resize': 'Resize lineage graph and steps',
     'aiAgent.composer.lineage.focusHint':

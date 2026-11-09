@@ -247,6 +247,7 @@ export const dashboardTileEntry: DashboardTileTable['base'] = {
 export const dashboardTileWithSavedChartEntry = {
     ...dashboardTileEntry,
     saved_query_uuid: '123',
+    is_composer_chart: false,
 };
 
 export const loomTileEntry = {
@@ -292,6 +293,7 @@ export const expectedDashboard: DashboardDAO = {
                 savedChartUuid: savedChartEntry.saved_query_uuid,
                 hideTitle: false,
                 title: '',
+                queryType: 'semantic',
             },
             x: dashboardTileEntry.x_offset,
             y: dashboardTileEntry.y_offset,

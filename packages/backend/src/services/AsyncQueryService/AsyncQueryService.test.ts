@@ -84,6 +84,7 @@ import {
     type AgentIdentityClaim,
     type AuthType,
     type CaslSubjectNames,
+    type ChartConfig,
     type ComposerChartNodeRole,
     type ComposerSavedChartDAO,
     type CreateBigqueryCredentials,
@@ -221,6 +222,7 @@ import {
 } from '../../nats/natsConfig';
 import { NatsWorker } from '../../nats/NatsWorker';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { composerSavedChartVariant } from '../../testing/composerSavedChartFixture';
 import { buildCacheHash as buildIdentityCacheHash } from '../../utils/cacheUtils';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
@@ -32356,5 +32358,229 @@ describe('getQueryHistoryList hides composer node SQL without SQL runner access'
             ),
         );
         expect(bySql(data)).toEqual({ node: nodeSql, classic: nodeSql });
+    });
+});
+
+describe('composer chart series split stage', () => {
+    const barByStatus: ChartConfig = {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'composer_result_orders_status',
+                yField: ['composer_result_revenue'],
+            },
+            eChartsConfig: { series: [] },
+        },
+    };
+    const setup = (
+        chartOverrides: Partial<ComposerSavedChartDAO>,
+        featureEnabled = true,
+    ) => {
+        const variant = composerSavedChartVariant({
+            projectUuid,
+            chartConfig: barByStatus,
+            ...chartOverrides,
+        });
+        const submitQueries = vi.fn(
+            async ({ queries }: { queries: { nodeId: string }[] }) => ({
+                queries: queries.map(({ nodeId, ...query }) => ({
+                    ...query,
+                    nodeId,
+                    sourceType: (query as { sourceType: QuerySourceType })
+                        .sourceType,
+                    queryUuid: `${nodeId}-query`,
+                    cacheHit: false,
+                })),
+            }),
+        );
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => variant),
+            } as unknown as SavedChartModel,
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: featureEnabled })),
+            } as unknown as FeatureFlagModel,
+            spaceModel: {
+                getSpaceSummary: vi.fn(async () => ({})),
+            } as unknown as SpaceModel,
+            analyticsModel: {
+                addChartViewEvent: vi.fn(async () => {}),
+            } as unknown as AnalyticsModel,
+        });
+        (service as AnyType).checkDashboardChartQueryPermissions = vi.fn(
+            async () => {},
+        );
+        // Node visibility against the viewer explore has its own describe
+        (service as AnyType).assertComposerChartNodesVisible = vi.fn(
+            async () => {},
+        );
+        (service as AnyType).getQuerySourceService = () => ({ submitQueries });
+        const run = () =>
+            service.executeAsyncDashboardChartQuery({
+                account: buildAccount(),
+                projectUuid,
+                tileUuid: 'tile-uuid',
+                chartUuid: variant.chart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+            });
+        return { submitQueries, run, variant, service };
+    };
+
+    test('a stored split appends a pivot stage over the terminal node and the chart draws the stage', async () => {
+        const { submitQueries, run, variant } = setup({
+            pivotConfig: { columns: ['composer_result_orders_status'] },
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'composer_result_revenue',
+                        yField: ['composer_result_order_count'],
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            },
+        });
+        const result = await run();
+        if (!isComposerChartQueryResults(result)) {
+            throw new Error('expected a composer run');
+        }
+
+        const { queries, plans } = submitQueries.mock.calls[0][0] as {
+            queries: { nodeId: string }[];
+            plans: Record<string, { engine: string }>;
+        };
+        expect(queries.map(({ nodeId }) => nodeId)).toEqual([
+            ...variant.chart.pipeline.nodes.map(({ nodeId }) => nodeId),
+            'chart_stage',
+        ]);
+        expect(queries[2]).toMatchObject({
+            sourceType: QuerySourceType.DUCKDB,
+            sql: 'SELECT "revenue" AS "composer_result_revenue", "orders_status" AS "composer_result_orders_status", "order_count" AS "composer_result_order_count" FROM "node_result"',
+            references: { node_result: 'by_status' },
+            pivotConfiguration: {
+                groupByColumns: [
+                    { reference: 'composer_result_orders_status' },
+                ],
+            },
+        });
+        expect(plans.chart_stage).toMatchObject({
+            engine: 'scopedToReferencedResults',
+        });
+
+        expect(result.queryUuid).toBe('by_status-query');
+        expect(result.chartStage).toEqual({
+            queryUuid: 'chart_stage-query',
+            cacheHit: false,
+        });
+        expect(result.nodes.map(({ nodeId }) => nodeId)).toEqual([
+            'orders',
+            'by_status',
+        ]);
+    });
+
+    test('the stage row is stamped chartStage, the terminal terminal, and a viewer reads both', async () => {
+        const { submitQueries, run, variant, service } = setup({
+            pivotConfig: { columns: ['composer_result_orders_status'] },
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'composer_result_revenue',
+                        yField: ['composer_result_order_count'],
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            },
+        });
+        await run();
+        const { composerChartQueryContext } = submitQueries.mock
+            .calls[0][0] as unknown as {
+            composerChartQueryContext: ComposerChartQueryContext;
+        };
+        const stageSource = composerChartQueryContext.nodeSource('chart_stage');
+        expect(stageSource).toEqual({
+            chartUuid: variant.chart.uuid,
+            nodeId: 'chart_stage',
+            role: 'chartStage',
+        });
+        expect(composerChartQueryContext.nodeSource('by_status').role).toBe(
+            'terminal',
+        );
+        expect(composerChartQueryContext.nodeSource('orders').role).toBe(
+            'input',
+        );
+
+        // A dashboard viewer without SQL runner access polls the stage row
+        const viewer = buildAccount() as RegisteredAccount;
+        viewer.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+        ]);
+        (
+            service.queryHistoryModel.get as import('vitest').Mock
+        ).mockResolvedValue({
+            queryUuid: 'chart_stage-query',
+            projectUuid,
+            organizationUuid: variant.chart.organizationUuid,
+            createdByUserUuid: viewer.user.id,
+            context: QueryExecutionContext.DASHBOARD,
+            status: QueryHistoryStatus.ERROR,
+            error: 'Binder Error: column "secret" not found',
+            erroredAt: new Date('2026-01-01T00:00:00Z'),
+            resultsFileName: null,
+            resultsExpiresAt: null,
+            columns: {},
+            metricQuery: { timezone: null, limit: 500 },
+            fields: {},
+            requestParameters: {
+                context: QueryExecutionContext.DASHBOARD,
+                chartUuid: variant.chart.uuid,
+                composerChartSource: stageSource,
+            },
+        } as unknown as QueryHistory);
+        await expect(
+            service.getAsyncQueryResults({
+                account: viewer,
+                projectUuid,
+                queryUuid: 'chart_stage-query',
+            }),
+        ).resolves.toMatchObject({
+            status: QueryHistoryStatus.ERROR,
+            error: HIDDEN_COMPOSER_NODE_ERROR,
+        });
+    });
+
+    test('without pivot columns the pipeline runs as stored and there is no stage', async () => {
+        const { submitQueries, run } = setup({});
+        const result = await run();
+        if (!isComposerChartQueryResults(result)) {
+            throw new Error('expected a composer run');
+        }
+        const { queries } = submitQueries.mock.calls[0][0] as {
+            queries: { nodeId: string }[];
+        };
+        expect(queries.map(({ nodeId }) => nodeId)).toEqual([
+            'orders',
+            'by_status',
+        ]);
+        expect(result.chartStage).toBeNull();
+    });
+
+    test('a split the stored config cannot describe fails the run by name', async () => {
+        const { run } = setup({
+            chartConfig: { type: ChartType.PIE, config: {} },
+            pivotConfig: { columns: ['composer_result_orders_status'] },
+        });
+        await expect(run()).rejects.toThrow(
+            'A series split needs a cartesian chart with x and y fields',
+        );
     });
 });

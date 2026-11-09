@@ -11,7 +11,8 @@ export type DbAiArtifact = {
 
 export type AiArtifactsTable = Knex.CompositeTableType<
     DbAiArtifact,
-    Pick<DbAiArtifact, 'ai_thread_uuid' | 'artifact_type'>
+    Pick<DbAiArtifact, 'ai_thread_uuid' | 'artifact_type'> &
+        Partial<Pick<DbAiArtifact, 'ai_artifact_uuid'>>
 >;
 
 export const AiArtifactVersionsTableName = 'ai_artifact_versions';
@@ -42,6 +43,7 @@ export type AiArtifactVersionsTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbAiArtifactVersion,
+            | 'ai_artifact_version_uuid'
             | 'ai_artifact_uuid'
             | 'ai_prompt_uuid'
             | 'version_number'

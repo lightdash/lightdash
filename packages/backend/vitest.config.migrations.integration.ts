@@ -7,6 +7,7 @@ export default defineConfig({
             'src/**/database/migrations/__tests__/*.migration.integration.ts',
             'src/models/ProjectModel/ProjectModel.membershipOrdering.integration.test.ts',
             'src/models/SavedChartModel.composer.integration.test.ts',
+            'src/models/DashboardModel/DashboardModel.composer.integration.test.ts',
             'src/models/UsageQueryHistoryModel.integration.test.ts',
             'src/models/QueryHistoryModel/QueryHistoryModel.resultsCacheStats.integration.test.ts',
         ],

@@ -79,6 +79,7 @@ import {
     ApiUpdateAiMcpServerCredentialBody,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
+    assertComposerVizConfigStorable,
     assertRegisteredAccount,
     assertUnreachable,
     buildAgentIdentityClaim,
@@ -88,6 +89,7 @@ import {
     composerNodeContextKey,
     ConflictError,
     ContentType,
+    convertComposerVizConfigToChart,
     DATA_APP_VIZ_TEMPLATE,
     dataAppContextKey,
     dataAppElementContextKey,
@@ -156,6 +158,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
+    metricQueryOfSemanticNode,
     MetricSourcedMergeQuery,
     MetricType,
     MissingConfigError,
@@ -183,6 +186,7 @@ import {
     substituteAiAgentSkillArguments,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchemaPersisted,
+    toSavedComposerPipeline,
     UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
@@ -216,9 +220,11 @@ import {
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
     type ApiAiAgentComposerArtifactVizQuery,
+    type ApiAiAgentSaveComposerArtifactResults,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
     type ComposerStoredChartVizConfig,
+    type Dashboard,
     type DataAppVizChart,
     type DuckdbSourceQuery,
     type ItemsMap,
@@ -11410,6 +11416,181 @@ export class AiAgentService extends BaseService {
             ...artifact.chartConfig,
             vizConfig: parsed.vizConfig,
         });
+    }
+
+    /** Stores a composer artifact's presented node as a chart owned by the dashboard, with its tile, and backlinks the version to both. */
+    async saveComposerArtifactToDashboard(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            dashboardUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            dashboardUuid: string;
+        },
+    ): Promise<ApiAiAgentSaveComposerArtifactResults> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        const artifact = await this.getArtifact(
+            user,
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        );
+        // getArtifact filters by version only when a versionUuid is given
+        if (artifact.artifactUuid !== artifactUuid) {
+            throw new NotFoundError(
+                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
+            );
+        }
+        const { enabled } = await this.featureFlagService.get({
+            user: { userUuid: user.userUuid, organizationUuid },
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Multi-source queries are not enabled');
+        }
+        const config = artifact.chartConfig;
+        if (
+            !isAiComposerChartArtifactConfig(config) ||
+            config.schemaVersion !== 2
+        ) {
+            throw new ParameterError(
+                'Only a composer chart that draws its presented node can be saved to a dashboard',
+            );
+        }
+        assertComposerVizConfigStorable(
+            config.vizConfig,
+            config.terminalNodeId,
+        );
+        const pipeline = toSavedComposerPipeline(config);
+
+        // Authoring: a DuckDB node needs what the compose source asks for,
+        // manage:Explore on the project; each semantic node, access to its explore.
+        const account = fromSession(user);
+        const hasDuckdbNode = pipeline.nodes.some(
+            (node) => node.sourceType === QuerySourceType.DUCKDB,
+        );
+        if (hasDuckdbNode) {
+            const project = await this.projectModel.getSummary(projectUuid);
+            if (
+                this.createAuditedAbility(user).cannot(
+                    'manage',
+                    subject('Explore', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You cannot author multi-source queries in this project',
+                );
+            }
+        }
+        await Promise.all(
+            pipeline.nodes.map((node) =>
+                node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                    ? this.asyncQueryService.assertMetricQueryAuthoring({
+                          account,
+                          projectUuid,
+                          metricQuery: metricQueryOfSemanticNode(node),
+                      })
+                    : Promise.resolve(),
+            ),
+        );
+
+        // One run as the author gives the presented node's columns to convert over.
+        const { queries } = await this.querySourceService.submitQueries({
+            account,
+            projectUuid,
+            queries: pipeline.nodes,
+            context: QueryExecutionContext.AI,
+            querySurface: await this.getArtifactQuerySurface(
+                artifact.promptUuid,
+            ),
+            parameters: {},
+            userAttributeOverrides: {},
+            invalidateCache: false,
+            plans: {},
+            aiAttribution: null,
+        });
+        const terminal = queries.find(
+            ({ nodeId }) => nodeId === pipeline.terminalNodeId,
+        );
+        if (!terminal) {
+            throw new UnexpectedServerError(
+                `Node "${pipeline.terminalNodeId}" was not submitted`,
+            );
+        }
+        const history = await this.queryHistoryModel.pollForQueryCompletion({
+            queryUuid: terminal.queryUuid,
+            account,
+            projectUuid,
+            timeoutMs: 2 * 60 * 1000,
+            throwOnCancelled: true,
+            throwOnError: true,
+        });
+        if (!history.columns) {
+            throw new UnexpectedServerError(
+                `Node "${pipeline.terminalNodeId}" finished without columns`,
+            );
+        }
+        const title = artifact.title ?? 'Composer chart';
+        const visualization = convertComposerVizConfigToChart({
+            vizConfig: config.vizConfig,
+            columns: Object.values(history.columns),
+            terminalNodeId: pipeline.terminalNodeId,
+            metadata: { title, description: artifact.description ?? '' },
+        });
+
+        const chart = await this.savedChartService.createComposerChart(
+            account,
+            projectUuid,
+            {
+                name: title,
+                description: artifact.description,
+                dashboardUuid,
+                pipeline,
+                ...visualization,
+            },
+        );
+        let dashboard: Dashboard;
+        try {
+            dashboard = await this.dashboardService.appendChartTile(
+                user,
+                dashboardUuid,
+                chart,
+                { projectUuid },
+            );
+        } catch (error) {
+            // A chart without a tile would be unreachable from the dashboard.
+            await this.savedChartService
+                .delete(user, chart.uuid)
+                .catch((cleanupError) =>
+                    this.logger.warn(
+                        'Could not remove the composer chart after its tile failed',
+                        { error: cleanupError },
+                    ),
+                );
+            throw error;
+        }
+        await this.aiAgentModel.updateArtifactVersion(versionUuid, {
+            savedQueryUuid: chart.uuid,
+            savedDashboardUuid: dashboard.uuid,
+        });
+        return { chart, dashboard };
     }
 
     async getVerifiedSavedArtifactContent(

@@ -973,6 +973,17 @@ export type SavedChartVariant =
     | { queryType: 'semantic'; chart: SavedChartDAO }
     | { queryType: 'composer'; chart: ComposerSavedChartDAO };
 
+export type SavedChartQueryType = SavedChartVariant['queryType'];
+
+/** A saved chart as services return it, tagged by the kind of query it runs. */
+export type SavedChartWithAccessVariant =
+    | { queryType: 'semantic'; chart: SavedChart }
+    | { queryType: 'composer'; chart: ComposerSavedChart };
+
+export const isComposerSavedChart = (
+    chart: SavedChart | ComposerSavedChart,
+): chart is ComposerSavedChart => 'pipeline' in chart;
+
 export type SavedChart = {
     createdAt?: Date;
     projectName?: string;
@@ -1564,7 +1575,7 @@ export type SkippedReplaceCustomFields = {
 
 export type ApiSavedChartResponse = {
     status: 'ok';
-    results: SavedChart;
+    results: SavedChart | ComposerSavedChart;
 };
 
 export type ApiSavedChartSchedulersResponse = {

@@ -300,6 +300,14 @@ export class DashboardModel {
         this.contentVerificationModel = args.contentVerificationModel;
     }
 
+    /** Whether the tile's chart runs a pipeline, read from its latest version where the chart kind also lives. */
+    private isComposerChartSelect() {
+        return this.database.raw(
+            `(SELECT v.pipeline IS NOT NULL FROM ?? v WHERE v.saved_query_id = ??.saved_query_id ORDER BY v.created_at DESC LIMIT 1) AS is_composer_chart`,
+            [SavedChartVersionsTableName, SavedChartsTableName],
+        );
+    }
+
     private static async createVersion(
         trx: Transaction,
         dashboardId: number,
@@ -1343,6 +1351,7 @@ export class DashboardModel {
                     belongs_to_dashboard: boolean;
                     name: string | null;
                     last_version_chart_kind: string | null;
+                    is_composer_chart: boolean | null;
                     tab_uuid: string;
                     chart_slug: string;
                     app_uuid: string | null;
@@ -1371,6 +1380,7 @@ export class DashboardModel {
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
+                this.isComposerChartSelect(),
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
                 database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
@@ -1584,6 +1594,7 @@ export class DashboardModel {
                     belongs_to_dashboard,
                     name,
                     last_version_chart_kind,
+                    is_composer_chart,
                     tab_uuid,
                     chart_slug,
                     app_uuid,
@@ -1619,6 +1630,9 @@ export class DashboardModel {
                                     chartSlug: chart_slug,
                                     lastVersionChartKind:
                                         last_version_chart_kind,
+                                    queryType: is_composer_chart
+                                        ? 'composer'
+                                        : 'semantic',
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
@@ -2894,6 +2908,7 @@ export class DashboardModel {
                     belongs_to_dashboard: boolean;
                     name: string | null;
                     last_version_chart_kind: string | null;
+                    is_composer_chart: boolean | null;
                     tab_uuid: string;
                     chart_slug: string;
                     app_uuid: string | null;
@@ -2922,6 +2937,7 @@ export class DashboardModel {
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
+                this.isComposerChartSelect(),
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
                 this.database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
@@ -3116,6 +3132,7 @@ export class DashboardModel {
                     belongs_to_dashboard,
                     name,
                     last_version_chart_kind,
+                    is_composer_chart,
                     tab_uuid,
                     chart_slug,
                     app_uuid,
@@ -3151,6 +3168,9 @@ export class DashboardModel {
                                     chartSlug: chart_slug,
                                     lastVersionChartKind:
                                         last_version_chart_kind,
+                                    queryType: is_composer_chart
+                                        ? 'composer'
+                                        : 'semantic',
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:

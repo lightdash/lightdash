@@ -1,6 +1,8 @@
 import type {
     AiArtifact,
     AllVizChartConfig,
+    ApiAiAgentSaveComposerArtifactRequest,
+    ApiAiAgentSaveComposerArtifactResults,
     ApiError,
     ApiSuccessEmpty,
     ApiUpdateComposerVizConfigRequest,
@@ -277,6 +279,59 @@ type ArtifactVersionRef = {
     agentUuid: string;
     artifactUuid: string;
     versionUuid: string;
+};
+
+/** Saves a composer artifact version as a chart tile on a dashboard and backlinks the version to it. */
+export const useSaveComposerArtifactToDashboard = ({
+    projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
+}: ArtifactVersionRef) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentSaveComposerArtifactResults,
+        ApiError,
+        ApiAiAgentSaveComposerArtifactRequest
+    >({
+        mutationKey: [
+            AI_AGENT_ARTIFACT_KEY,
+            'saveToDashboard',
+            artifactUuid,
+            versionUuid,
+        ],
+        mutationFn: (body) =>
+            lightdashApi<ApiAiAgentSaveComposerArtifactResults>({
+                url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/save-to-dashboard`,
+                method: 'POST',
+                body: JSON.stringify(body),
+            }),
+        onSuccess: ({ dashboard }) => {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENT_ARTIFACT_KEY,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                ],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['saved_dashboard_query', dashboard.uuid],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['dashboards', projectUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Chart not saved to the dashboard',
+                apiError: error,
+            });
+        },
+    });
 };
 
 /** Writes the terminal node's viz config onto a composer artifact version. */

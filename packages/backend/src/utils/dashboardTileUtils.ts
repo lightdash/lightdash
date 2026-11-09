@@ -9,7 +9,7 @@ import {
 import { v4 as uuid4 } from 'uuid';
 
 export function createDashboardChartTiles(
-    savedCharts: SavedChart[],
+    savedCharts: Pick<SavedChart, 'uuid' | 'name' | 'slug' | 'chartConfig'>[],
     firstTabUuid?: string,
     positions?: readonly DashboardTilePosition[],
 ): DashboardChartTile[] {

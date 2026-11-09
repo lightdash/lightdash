@@ -48,24 +48,20 @@ export class ProjectSavedChartControllerV2 extends BaseController {
         const savedChartService = this.services.getSavedChartService();
         if (includeUnpublishedDraft === true) {
             assertRegisteredAccount(req.account);
-            return {
-                status: 'ok',
-                results: await savedChartService.getForViewer(
-                    toSessionUser(req.account),
-                    chartUuidOrSlug,
-                    req.account,
-                    { projectUuid },
-                ),
-            };
-        }
-        return {
-            status: 'ok',
-            results: await savedChartService.get(
+            const variant = await savedChartService.getForViewer(
+                toSessionUser(req.account),
                 chartUuidOrSlug,
-                req.account!,
+                req.account,
                 { projectUuid },
-            ),
-        };
+            );
+            return { status: 'ok', results: variant.chart };
+        }
+        const variant = await savedChartService.getVariant(
+            chartUuidOrSlug,
+            req.account!,
+            { projectUuid },
+        );
+        return { status: 'ok', results: variant.chart };
     }
 
     /**
