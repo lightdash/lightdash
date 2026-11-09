@@ -1,7 +1,7 @@
 import {
+    DashboardTileTypes,
     generateSlug,
     isComposerChartAsCode,
-    isDashboardChartTileType,
     PromotionAction,
     SEED_COMPOSER_CHART,
     SEED_COMPOSER_CHART_DASHBOARD,
@@ -12,6 +12,8 @@ import {
     type ApiDashboardAsCodeUpsertResponse,
     type ComposerChartAsCode,
     type DashboardAsCode,
+    type DashboardChartTileAsCode,
+    type DashboardTileAsCode,
     type FeatureFlag,
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -29,6 +31,11 @@ const uploadedSlug = 'api-test-composer-chart-as-code';
 type ApiErrorBody = { error: { name: string; message: string } };
 type ChartListBody = Body<ApiChartAsCodeListResponse['results']>;
 type ChartUpsertBody = Body<ApiChartAsCodeUpsertResponse['results']>;
+
+const isChartTileAsCode = (
+    tile: DashboardTileAsCode,
+): tile is DashboardChartTileAsCode =>
+    tile.type === DashboardTileTypes.SAVED_CHART;
 
 describe('Composer charts as code', () => {
     let admin: ApiClient;
@@ -205,6 +212,39 @@ describe('Composer charts as code', () => {
         );
     });
 
+    it('refuses a file carrying both a pipeline and a metric query by name', async () => {
+        const response = await uploadChart(uploadedSlug, {
+            ...seedChart,
+            slug: uploadedSlug,
+            tableName: 'orders',
+            metricQuery: {
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            },
+        });
+        expect(response.status).toBe(400);
+        expect(response.body.error.message).toContain(
+            `Chart "${uploadedSlug}" has both a pipeline and a metric query`,
+        );
+    });
+
+    it('refuses an unknown chart type by name instead of failing the write', async () => {
+        const response = await uploadChart(uploadedSlug, {
+            ...seedChart,
+            slug: uploadedSlug,
+            chartConfig: { ...seedChart.chartConfig, type: 'dataAppViz' },
+        });
+        expect(response.status).toBe(400);
+        expect(response.body.error.message).toContain(
+            `Chart "${uploadedSlug}" has an unknown chart type "dataAppViz"`,
+        );
+    });
+
     it('marks composer tiles in a dashboard as code and keeps them on upload', async () => {
         const download = await admin.get<
             Body<ApiDashboardAsCodeListResponse['results']>
@@ -215,7 +255,7 @@ describe('Composer charts as code', () => {
         expect(download.body.results.dashboards).toHaveLength(1);
         const [dashboard] = download.body.results.dashboards;
 
-        const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
+        const chartTiles = dashboard.tiles.filter(isChartTileAsCode);
         const composerTiles = chartTiles.filter(
             (tile) => tile.properties.queryType === 'composer',
         );
@@ -225,7 +265,9 @@ describe('Composer charts as code', () => {
         );
         chartTiles
             .filter(
-                (tile) => !seedChartSlugs.includes(tile.properties.chartSlug),
+                (tile) =>
+                    tile.properties.chartSlug === null ||
+                    !seedChartSlugs.includes(tile.properties.chartSlug),
             )
             .forEach((tile) =>
                 expect(tile.properties).not.toHaveProperty('queryType'),
@@ -248,7 +290,7 @@ describe('Composer charts as code', () => {
             `/api/v1/projects/${projectUuid}/code/dashboards?ids=${SEED_COMPOSER_CHART_DASHBOARD.slug}`,
         );
         const composerTilesAfter = after.body.results.dashboards[0].tiles
-            .filter(isDashboardChartTileType)
+            .filter(isChartTileAsCode)
             .filter((tile) => tile.properties.queryType === 'composer');
         expect(
             composerTilesAfter.map((tile) => tile.properties.chartSlug),

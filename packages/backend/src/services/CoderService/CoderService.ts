@@ -68,6 +68,7 @@ import {
     getParameterReferences,
     hasChartsInDashboard,
     isChartScheduler,
+    isChartType,
     isComposerChartAsCode,
     isDashboardChartTileType,
     isDashboardScheduler,
@@ -4247,6 +4248,32 @@ export class CoderService extends BaseService {
         };
     }
 
+    // The kind is read from the pipeline key, so a file with both would silently drop its metric query
+    private static assertOneChartKind(
+        slug: string,
+        chartAsCode: SavedChartAsCode,
+    ): void {
+        if (
+            isComposerChartAsCode(chartAsCode) &&
+            ('metricQuery' in chartAsCode || 'tableName' in chartAsCode)
+        ) {
+            throw new ParameterError(
+                `Chart "${slug}" has both a pipeline and a metric query. A chart is either a composer chart (pipeline) or a classic chart (metricQuery/tableName), never both.`,
+            );
+        }
+    }
+
+    // The upload body leaves chartConfig untyped, so an unknown type would only fail at the chart_type foreign key
+    private static assertKnownChartType(
+        slug: string,
+        chartConfig: Pick<ChartAsCodeConfig, 'type'>,
+    ): void {
+        if (isChartType(chartConfig.type)) return;
+        throw new ParameterError(
+            `Chart "${slug}" has an unknown chart type "${String(chartConfig.type)}". Expected one of: ${Object.values(ChartType).join(', ')}.`,
+        );
+    }
+
     async upsertChart(
         user: SessionUser,
         projectUuid: string,
@@ -4260,6 +4287,8 @@ export class CoderService extends BaseService {
             projectUuid,
             chartAsCode,
         );
+        CoderService.assertOneChartKind(slug, chartAsCode);
+        CoderService.assertKnownChartType(slug, chartAsCode.chartConfig);
         if (isComposerChartAsCode(chartAsCode)) {
             return this.upsertComposerChart(
                 user,

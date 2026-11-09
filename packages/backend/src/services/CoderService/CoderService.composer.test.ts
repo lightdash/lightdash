@@ -600,6 +600,63 @@ describe('content-as-code upload applies the authoring rules of save', () => {
     });
 });
 
+describe('content-as-code upload refuses a file of no single kind', () => {
+    it('refuses a file carrying both a pipeline and a metric query, naming the slug', async () => {
+        const { service, savedChartModel } = buildUploadService();
+        const file = {
+            ...composerFile,
+            tableName: classicChart.tableName,
+            metricQuery: classicChart.metricQuery,
+        } as AnyType as ComposerChartAsCode;
+        await expect(
+            service.upsertChart(admin, projectUuid, file.slug, file, {
+                syncEnabled: false,
+            }),
+        ).rejects.toThrow(
+            `Chart "${composerFile.slug}" has both a pipeline and a metric query. A chart is either a composer chart (pipeline) or a classic chart (metricQuery/tableName), never both.`,
+        );
+        expect(savedChartModel.createComposerChart).not.toHaveBeenCalled();
+        expect(savedChartModel.find).not.toHaveBeenCalled();
+    });
+
+    it('refuses an unknown chart type on a composer file by name', async () => {
+        const { service, savedChartModel } = buildUploadService();
+        const file = {
+            ...composerFile,
+            chartConfig: { type: 'dataAppViz', config: {} },
+        } as AnyType as ComposerChartAsCode;
+        await expect(
+            service.upsertChart(admin, projectUuid, file.slug, file, {
+                syncEnabled: false,
+            }),
+        ).rejects.toThrow(
+            `Chart "${composerFile.slug}" has an unknown chart type "dataAppViz". Expected one of: cartesian, table, big_number, pie, funnel, treemap, gauge, custom, map, sankey, data_app_viz.`,
+        );
+        expect(savedChartModel.createComposerChart).not.toHaveBeenCalled();
+    });
+
+    it('refuses an unknown chart type on a classic file by name', async () => {
+        const { service, savedChartModel } = buildUploadService();
+        const file = {
+            name: classicChart.name,
+            slug: classicChart.slug,
+            tableName: classicChart.tableName,
+            metricQuery: classicChart.metricQuery,
+            chartConfig: { type: 'Table' },
+            spaceSlug: space.slug,
+            version: 1,
+        } as AnyType;
+        await expect(
+            service.upsertChart(admin, projectUuid, file.slug, file, {
+                syncEnabled: false,
+            }),
+        ).rejects.toThrow(
+            `Chart "${classicChart.slug}" has an unknown chart type "Table".`,
+        );
+        expect(savedChartModel.find).not.toHaveBeenCalled();
+    });
+});
+
 describe('content-as-code upload onto an existing chart', () => {
     const classicFile = {
         name: classicChart.name,
