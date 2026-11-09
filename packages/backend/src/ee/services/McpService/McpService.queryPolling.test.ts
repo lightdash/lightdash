@@ -2233,6 +2233,45 @@ describe('MCP async query polling', () => {
         expect(asyncQueryService.getAsyncQueryResults).not.toHaveBeenCalled();
     });
 
+    it('refuses render_chart over a composer chart node run with the run_metric_query context', async () => {
+        const { asyncQueryService } = makeMcpService();
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValue({
+            ...makeQueryHistory(
+                QueryHistoryStatus.ERROR,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                'Binder Error: LINE 1: SELECT SUM(missing_amount) OVER () FROM orders',
+            ),
+            requestParameters: {
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                chartUuid: 'composer-chart',
+                query: makeQueryHistory(QueryHistoryStatus.READY).metricQuery,
+                composerChartSource: {
+                    chartUuid: 'composer-chart',
+                    nodeId: 'orders',
+                },
+            },
+        });
+
+        const result = await getToolCallback(McpToolName.RENDER_CHART)(
+            {
+                queryUuid,
+                title: 'Orders',
+                description: 'Orders count',
+                chartConfig: null,
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({ isError: true });
+        expect(JSON.stringify(result)).toContain(
+            'not started by an MCP query tool',
+        );
+        expect(JSON.stringify(result)).not.toContain('missing_amount');
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+    });
+
     it('keeps get_query_result running without fetching result pages', async () => {
         const { asyncQueryService } = makeMcpService();
         asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(

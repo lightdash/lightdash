@@ -11,6 +11,7 @@ import {
     getSqlFirstLine,
     getSqlQueryTitle,
     isJwtUser,
+    isWarehouseSignInExpiredMessage,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -1649,13 +1650,20 @@ export const canViewComposerNodeSql = (
 export const HIDDEN_COMPOSER_NODE_ERROR =
     'The query behind this chart node failed';
 
-/** Warehouse diagnostics quote the statement that failed, so a hidden node's error is replaced whole. */
+/**
+ * Warehouse diagnostics quote the statement that failed, so a hidden node's
+ * error is replaced whole; server-written sign-in expiry messages stay, the
+ * client offers a reconnect from them.
+ */
 export const getVisibleQueryError = (
     error: string | null,
     composerChartSource: ComposerChartQuerySource | undefined,
     canViewNodeSql: boolean,
 ): string | null =>
-    error !== null && composerChartSource && !canViewNodeSql
+    error !== null &&
+    composerChartSource &&
+    !canViewNodeSql &&
+    !isWarehouseSignInExpiredMessage(error)
         ? HIDDEN_COMPOSER_NODE_ERROR
         : error;
 

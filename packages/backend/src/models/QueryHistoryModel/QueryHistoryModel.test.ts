@@ -1,5 +1,6 @@
 import {
     AgentActorSurface,
+    BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     buildAgentIdentityClaim,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -1297,6 +1298,20 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
         });
         expect(shown.error).toBe(diagnostic);
         expect(shown.subline).toBe(diagnostic);
+    });
+
+    test('a failed node row keeps a warehouse sign-in expiry message: the client offers a reconnect from it', () => {
+        const signInExpired = `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER}: refresh token expired`;
+        const failedNodeRow = row({
+            ...duckdbNodeRow,
+            status: QueryHistoryStatus.ERROR,
+            error: signInExpired,
+        });
+        const hidden = mapQueryHistoryRowToListItem(failedNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(hidden.error).toBe(signInExpired);
+        expect(hidden.subline).toBe(signInExpired);
     });
 
     test('leaves a row without composer provenance alone whatever the access', () => {

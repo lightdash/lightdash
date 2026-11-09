@@ -31347,6 +31347,82 @@ describe('composer chart node queries', () => {
             [
                 { subject: 'Project', action: 'view' },
                 { subject: 'SavedChart', action: 'view' },
+                { subject: 'ExportCsv', action: 'manage' },
+            ],
+            HIDDEN_COMPOSER_NODE_ERROR,
+        ],
+        [
+            'SQL runner access',
+            [{ action: 'manage', subject: 'all' }],
+            'Binder Error: column "missing_amount" not found\nLINE 1: SELECT orders_status, SUM(missing_amount) OVER () FROM orders',
+        ],
+    ] as const)(
+        'downloading a failed node throws %s the error it may read into the job log',
+        async (_who, rules, expectedError) => {
+            const diagnostic =
+                'Binder Error: column "missing_amount" not found\nLINE 1: SELECT orders_status, SUM(missing_amount) OVER () FROM orders';
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    getVariant: vi.fn(async () => ({
+                        queryType: 'composer' as const,
+                        chart: {
+                            ...chart,
+                            name: 'Composer chart',
+                            organizationUuid: projectSummary.organizationUuid,
+                            spaceUuid: 'space',
+                            dashboardUuid: 'dashboard',
+                        },
+                    })),
+                } as unknown as SavedChartModel,
+            } as never);
+            const account = buildAccount() as RegisteredAccount;
+            account.user.ability = new Ability<PossibleAbilities>(
+                rules as unknown as ConstructorParameters<
+                    typeof Ability<PossibleAbilities>
+                >[0],
+            );
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue({
+                queryUuid: 'node-query',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                createdByUserUuid: account.user.id,
+                status: QueryHistoryStatus.ERROR,
+                error: diagnostic,
+                metricQuery: { timezone: null },
+                fields: {},
+                requestParameters: {
+                    context: QueryExecutionContext.DASHBOARD,
+                    chartUuid: chart.uuid,
+                    sql: 'SELECT orders_status, SUM(missing_amount) OVER () FROM orders',
+                    composerChartSource: {
+                        chartUuid: chart.uuid,
+                        nodeId: 'revenue_share',
+                    },
+                },
+            } as unknown as QueryHistory);
+
+            service.exportsStorageClient.isEnabled = vi.fn(() => true);
+            await expect(
+                service.download({
+                    account,
+                    projectUuid,
+                    queryUuid: 'node-query',
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                }),
+            ).rejects.toThrow(expectedError);
+        },
+    );
+
+    test.each([
+        [
+            'a viewer',
+            [
+                { subject: 'Project', action: 'view' },
+                { subject: 'SavedChart', action: 'view' },
             ],
             HIDDEN_COMPOSER_NODE_ERROR,
         ],
@@ -31550,6 +31626,28 @@ describe('composer chart runs and the internal materialization context', () => {
         );
         expect(submitQueries).not.toHaveBeenCalled();
     });
+
+    // MCP and AI readers trust these contexts as proof a tool started the row
+    test.each([
+        QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+        QueryExecutionContext.MCP_RUN_SQL,
+        QueryExecutionContext.MCP_QUERY,
+        QueryExecutionContext.AI,
+    ])(
+        'a chart-bound run refuses the tool-started context %s',
+        async (context) => {
+            const { service, submitQueries } = buildService();
+            await expect(
+                service.executeAsyncSavedChartQuery({
+                    account: buildAccount(),
+                    projectUuid,
+                    chartUuid: composerChart.uuid,
+                    context,
+                }),
+            ).rejects.toThrow(`context ${context} cannot run a composer chart`);
+            expect(submitQueries).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('composer chart runs check every node against the viewer explore before any node runs', () => {

@@ -9,6 +9,7 @@ import {
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
+import { isExpiredSharedSignInMessage } from './sharedSignIn';
 import type { SharedSignInExpiry } from './sharedSignIn';
 import type { WarehousePhaseTimings, WarehouseQueryPhase } from './warehouse';
 
@@ -1028,6 +1029,24 @@ export const isPreviewWarehouseSignInExpiredMessage = (
     message: string,
 ): boolean =>
     message.includes(PREVIEW_WAREHOUSE_SIGN_IN_EXPIRED_MESSAGE_MARKER);
+
+export const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
+    const normalizedMessage = message.toLowerCase();
+    return (
+        normalizedMessage.includes('redshift iam') &&
+        normalizedMessage.includes('expired')
+    );
+};
+
+/**
+ * A stored query error the server wrote itself about an expired warehouse
+ * sign-in; the client reads these to offer a reconnect, and they quote no SQL.
+ */
+export const isWarehouseSignInExpiredMessage = (message: string): boolean =>
+    isBigqueryTokenErrorMessage(message) ||
+    isPreviewWarehouseSignInExpiredMessage(message) ||
+    isRedshiftIamTokenErrorMessage(message) ||
+    isExpiredSharedSignInMessage(message);
 
 export class PreviewWarehouseSignInExpiredError extends LightdashError {
     constructor(upstream: {

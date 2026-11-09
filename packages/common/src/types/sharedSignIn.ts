@@ -127,6 +127,10 @@ export type SharedSignInExpiry = {
     subjectBasis: SignInSubjectBasis | null;
 };
 
+/** Matches every message `getExpiredSharedSignInMessage` writes, whatever the provider or subject. */
+export const isExpiredSharedSignInMessage = (message: string): boolean =>
+    /\bsign-in\b.{0,60}\bhas expired\b/.test(message);
+
 export const getExpiredSharedSignInMessage = (
     expiry: Omit<SharedSignInExpiry, 'projectUuid'>,
     viewerUserUuid: string | null,

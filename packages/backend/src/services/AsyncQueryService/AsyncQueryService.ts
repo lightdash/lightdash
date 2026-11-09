@@ -3418,7 +3418,17 @@ export class AsyncQueryService extends ProjectService {
                 throw new Error('Query was cancelled');
             case QueryHistoryStatus.EXPIRED:
             case QueryHistoryStatus.ERROR:
-                throw new Error(queryHistory.error ?? 'Warehouse query failed');
+                // The scheduler logs this message where the caller reads it
+                throw new Error(
+                    getVisibleQueryError(
+                        queryHistory.error,
+                        queryHistory.requestParameters?.composerChartSource,
+                        canViewComposerNodeSql(
+                            this.createAuditedAbility(account),
+                            { organizationUuid, projectUuid },
+                        ),
+                    ) ?? 'Warehouse query failed',
+                );
             case QueryHistoryStatus.PENDING:
             case QueryHistoryStatus.QUEUED:
             case QueryHistoryStatus.EXECUTING:
@@ -9060,8 +9070,13 @@ export class AsyncQueryService extends ProjectService {
         if (chart.projectUuid !== projectUuid) {
             throw new ForbiddenError('Chart does not belong to project');
         }
-        // Materialization skips model required filters; a chart-bound run never carries it
-        if (context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION) {
+        // Materialization skips model required filters, and AI/MCP readers
+        // trust their contexts as proof a tool started the row; a chart-bound
+        // run carries neither
+        if (
+            context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION ||
+            isAiAccessQueryContext(context)
+        ) {
             throw new ParameterError(
                 `context ${context} cannot run a composer chart`,
             );
