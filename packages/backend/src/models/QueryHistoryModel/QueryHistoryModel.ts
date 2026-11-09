@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     Account,
     AgentIdentityClaim,
@@ -31,6 +32,8 @@ import {
     sleep,
     SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
     type AgentConnectionGrantRef,
+    type ComposerChartQuerySource,
+    type MemberAbility,
     type QueryHistoryListItemRequestParameters,
 } from '@lightdash/common';
 import crypto from 'crypto';
@@ -1637,6 +1640,25 @@ export class QueryHistoryModel {
     }
 }
 
+/** Composer node rows carry the chart author's SQL; only SQL runner access may read or search it. */
+export const canViewComposerNodeSql = (
+    ability: Pick<MemberAbility, 'can'>,
+    scope: { organizationUuid: string; projectUuid: string },
+): boolean => ability.can('manage', subject('SqlRunner', scope));
+
+export const HIDDEN_COMPOSER_NODE_ERROR =
+    'The query behind this chart node failed';
+
+/** Warehouse diagnostics quote the statement that failed, so a hidden node's error is replaced whole. */
+export const getVisibleQueryError = (
+    error: string | null,
+    composerChartSource: ComposerChartQuerySource | undefined,
+    canViewNodeSql: boolean,
+): string | null =>
+    error !== null && composerChartSource && !canViewNodeSql
+        ? HIDDEN_COMPOSER_NODE_ERROR
+        : error;
+
 /** Who reads a user's history: the agent connection it is bound to, and whether composer node SQL is visible or searchable. */
 export type UserHistoryReader = {
     connection: AgentConnectionGrantRef | null;
@@ -1693,6 +1715,11 @@ export function mapQueryHistoryRowToListItem(
         ? null
         : (row.request_parameters?.composerChartSource ?? null);
     const compiledSql = hiddenSource ? '' : row.compiled_sql;
+    const error = getVisibleQueryError(
+        row.error,
+        row.request_parameters?.composerChartSource,
+        canViewNodeSql,
+    );
     const requestParameters: QueryHistoryListItemRequestParameters =
         hiddenSource
             ? {
@@ -1725,8 +1752,8 @@ export function mapQueryHistoryRowToListItem(
             : `${tilePart}${row.dashboard_name}`;
     }
 
-    if (row.status === QueryHistoryStatus.ERROR && row.error) {
-        subline = row.error;
+    if (row.status === QueryHistoryStatus.ERROR && error) {
+        subline = error;
     }
 
     const cacheHit = isQueryHistoryCacheHit({
@@ -1744,7 +1771,7 @@ export function mapQueryHistoryRowToListItem(
         status: row.status,
         title,
         subline,
-        error: row.error,
+        error,
         exploreName,
         metricQuery,
         requestParameters,

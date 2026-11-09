@@ -25,7 +25,11 @@ import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operation
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    canViewComposerNodeSql,
+    getVisibleQueryError,
+    type QueryHistoryModel,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { isConnectionProducedQuery } from '../../utils/queryResultProducer';
 import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpiry';
 import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
@@ -651,12 +655,19 @@ export class QuerySourceService extends BaseService {
                 const status = {
                     queryUuid: queryHistory.queryUuid,
                     status: queryHistory.status,
-                    error: await personaliseStoredSharedSignInError({
-                        account,
-                        projectUuid,
-                        error: queryHistory.error,
-                        projectModel: this.projectModel,
-                    }),
+                    error: getVisibleQueryError(
+                        await personaliseStoredSharedSignInError({
+                            account,
+                            projectUuid,
+                            error: queryHistory.error,
+                            projectModel: this.projectModel,
+                        }),
+                        queryHistory.requestParameters?.composerChartSource,
+                        canViewComposerNodeSql(account.user.ability, {
+                            organizationUuid: queryHistory.organizationUuid,
+                            projectUuid,
+                        }),
+                    ),
                     totalRowCount: queryHistory.totalRowCount,
                     warehouseExecutionTimeMs:
                         queryHistory.warehouseExecutionTimeMs,

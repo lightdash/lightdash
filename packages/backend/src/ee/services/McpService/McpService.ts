@@ -5263,11 +5263,18 @@ export class McpService extends BaseService {
                             options.queryEnabled &&
                             queryHistory.context ===
                                 QueryExecutionContext.MCP_QUERY;
+                        // Chart-bound composer node runs take the caller's context
+                        // but are never started by an MCP tool; their query is the
+                        // chart author's
+                        const isComposerChartNode = Boolean(
+                            queryHistory.requestParameters?.composerChartSource,
+                        );
 
                         if (
-                            !isMcpSqlQuery &&
-                            !isMcpMetricQuery &&
-                            !isMcpComposerQuery
+                            isComposerChartNode ||
+                            (!isMcpSqlQuery &&
+                                !isMcpMetricQuery &&
+                                !isMcpComposerQuery)
                         ) {
                             throw new ParameterError(
                                 'Query was not started by an MCP query tool',

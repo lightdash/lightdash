@@ -11,6 +11,7 @@ import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../auth/account/account.mock';
 import {
+    HIDDEN_COMPOSER_NODE_ERROR,
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
     type DbQueryHistoryListRow,
@@ -1275,6 +1276,27 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
                 nodeId: 'revenue_share',
             },
         });
+    });
+
+    test('a failed node row shows a generic error instead of the diagnostic quoting the SQL', () => {
+        // DuckDB and Postgres diagnostics quote the statement that failed
+        const diagnostic = `Binder Error: Referenced column "missing_amount" not found\nLINE 1: ${authoredSql.duckdbNode}`;
+        const failedNodeRow = row({
+            ...duckdbNodeRow,
+            status: QueryHistoryStatus.ERROR,
+            error: diagnostic,
+        });
+        const hidden = mapQueryHistoryRowToListItem(failedNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(hidden.error).toBe(HIDDEN_COMPOSER_NODE_ERROR);
+        expect(hidden.subline).toBe(HIDDEN_COMPOSER_NODE_ERROR);
+        expect(JSON.stringify(hidden)).not.toContain('missing_amount');
+        const shown = mapQueryHistoryRowToListItem(failedNodeRow, {
+            canViewNodeSql: true,
+        });
+        expect(shown.error).toBe(diagnostic);
+        expect(shown.subline).toBe(diagnostic);
     });
 
     test('leaves a row without composer provenance alone whatever the access', () => {

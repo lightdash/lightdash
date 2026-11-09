@@ -2200,6 +2200,39 @@ describe('MCP async query polling', () => {
         },
     );
 
+    it('refuses get_query_result over a composer chart node whatever context it was run with', async () => {
+        const { asyncQueryService } = makeMcpService();
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce({
+            ...makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+            requestParameters: {
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                chartUuid: 'composer-chart',
+                query: makeQueryHistory(QueryHistoryStatus.READY).metricQuery,
+                composerChartSource: {
+                    chartUuid: 'composer-chart',
+                    nodeId: 'orders',
+                },
+            },
+        });
+
+        const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
+            { queryUuid },
+            extra,
+        );
+
+        expect(result).toMatchObject({ isError: true });
+        expect(JSON.stringify(result)).toContain(
+            'not started by an MCP query tool',
+        );
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+        expect(asyncQueryService.getAsyncQueryResults).not.toHaveBeenCalled();
+    });
+
     it('keeps get_query_result running without fetching result pages', async () => {
         const { asyncQueryService } = makeMcpService();
         asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(

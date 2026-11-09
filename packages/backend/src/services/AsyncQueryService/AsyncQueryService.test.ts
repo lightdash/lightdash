@@ -195,7 +195,10 @@ import {
     withResultsCacheConfig,
 } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
-import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    HIDDEN_COMPOSER_NODE_ERROR,
+    QueryHistoryModel,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { RefreshTokenLockTimeoutError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -31287,7 +31290,7 @@ describe('composer chart node queries', () => {
         expect(execute).not.toHaveBeenCalled();
     });
 
-    test('a totals rerun over a node row inherits the node provenance', async () => {
+    test('totals over a node row are refused by name instead of returning the node query', async () => {
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             savedChartModel: {
                 getVariant: vi.fn(async () => ({
@@ -31326,21 +31329,92 @@ describe('composer chart node queries', () => {
             },
         } as unknown as QueryHistory);
 
-        await service.executeAsyncCalculateTotalFromQueryHistory({
-            account,
-            projectUuid,
-            queryUuid: 'node-query',
-            kind: 'grandTotal',
-        });
-
-        expect(execute).toHaveBeenCalledWith(
-            expect.objectContaining({ account }),
-            expect.objectContaining({
-                composerChartSource,
-                references: { source: 'node-query' },
+        await expect(
+            service.executeAsyncCalculateTotalFromQueryHistory({
+                account,
+                projectUuid,
+                queryUuid: 'node-query',
+                kind: 'grandTotal',
             }),
-        );
+        ).rejects.toThrow(NotSupportedError);
+        expect(execute).not.toHaveBeenCalled();
+        expect(composerChartSource.nodeId).toBe('orders');
     });
+
+    test.each([
+        [
+            'a viewer',
+            [
+                { subject: 'Project', action: 'view' },
+                { subject: 'SavedChart', action: 'view' },
+            ],
+            HIDDEN_COMPOSER_NODE_ERROR,
+        ],
+        [
+            'SQL runner access',
+            [{ action: 'manage', subject: 'all' }],
+            'Binder Error: column "missing_amount" not found\nLINE 1: SELECT orders_status, SUM(missing_amount) OVER () FROM orders',
+        ],
+    ] as const)(
+        'polling a failed node shows %s the error it may read',
+        async (_who, rules, expectedError) => {
+            const diagnostic =
+                'Binder Error: column "missing_amount" not found\nLINE 1: SELECT orders_status, SUM(missing_amount) OVER () FROM orders';
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    getVariant: vi.fn(async () => ({
+                        queryType: 'composer' as const,
+                        chart: {
+                            ...chart,
+                            name: 'Composer chart',
+                            organizationUuid: projectSummary.organizationUuid,
+                            spaceUuid: 'space',
+                            dashboardUuid: 'dashboard',
+                        },
+                    })),
+                } as unknown as SavedChartModel,
+            } as never);
+            const account = buildAccount() as RegisteredAccount;
+            account.user.ability = new Ability<PossibleAbilities>(
+                rules as unknown as ConstructorParameters<
+                    typeof Ability<PossibleAbilities>
+                >[0],
+            );
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue({
+                queryUuid: 'node-query',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                createdByUserUuid: account.user.id,
+                status: QueryHistoryStatus.ERROR,
+                error: diagnostic,
+                erroredAt: new Date('2026-01-01T00:00:00Z'),
+                metricQuery: null,
+                fields: {},
+                requestParameters: {
+                    context: QueryExecutionContext.DASHBOARD,
+                    chartUuid: chart.uuid,
+                    sql: 'SELECT orders_status, SUM(missing_amount) OVER () FROM orders',
+                    composerChartSource: {
+                        chartUuid: chart.uuid,
+                        nodeId: 'revenue_share',
+                    },
+                },
+            } as unknown as QueryHistory);
+
+            await expect(
+                service.getAsyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid: 'node-query',
+                }),
+            ).resolves.toMatchObject({
+                status: QueryHistoryStatus.ERROR,
+                error: expectedError,
+            });
+        },
+    );
 
     test('underlying data over a node row is refused by name instead of writing an unmarked row', async () => {
         const service = getMockedAsyncQueryService(lightdashConfigMock, {

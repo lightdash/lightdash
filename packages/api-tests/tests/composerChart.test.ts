@@ -598,24 +598,23 @@ describe('Composer chart run as a dashboard viewer', () => {
             expect(row.chartName).toBe(CLASSIC_CHART_NAME);
         }, 60_000);
 
-        it('a totals query over a semantic node row is hidden from the viewer too', async () => {
+        it('totals over a semantic node row are refused by name: the response would carry the node query', async () => {
             const started = await runTile(viewer, revenueShareTile);
             await pollQueryResults(viewer, started.body.results.queryUuid);
             const ordersNode = started.body.results.nodes.find(
                 ({ nodeId }) => nodeId === 'orders',
             )!;
-            const totals = await viewer.post<
-                Body<ApiExecuteAsyncMetricQueryResults>
-            >(
+            const totals = await viewer.post<ApiErrorBody>(
                 `/api/v2/projects/${projectUuid}/query/${ordersNode.queryUuid}/calculate-total`,
                 { kind: 'grandTotal' },
+                { failOnStatusCode: false },
             );
-            expect(totals.status).toBe(200);
-            await pollQueryResults(viewer, totals.body.results.queryUuid);
-            const [row] = await historyRows(viewer, [
-                totals.body.results.queryUuid,
-            ]);
-            expectNoSql([row]);
+            expect(totals.status).toBe(400);
+            expect(totals.body.error.name).toBe('NotSupportedError');
+            expect(totals.body.error.message).toContain('composer chart');
+            expect(JSON.stringify(totals.body)).not.toContain(
+                authoredSqlFragments[0],
+            );
         }, 60_000);
 
         it('history search cannot probe node SQL without SQL runner access', async () => {

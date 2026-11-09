@@ -266,6 +266,8 @@ import {
 import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
+    canViewComposerNodeSql,
+    getVisibleQueryError,
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
     type CachedResultsContent,
@@ -1850,12 +1852,10 @@ export class AsyncQueryService extends ProjectService {
         const connection = grant
             ? { grantUuid: grant.grantUuid, revision: grant.revision }
             : null;
-        // Composer node rows carry chart-author SQL; only SQL runner access may
-        // read or search it
-        const canViewNodeSql = auditedAbility.can(
-            'manage',
-            subject('SqlRunner', { organizationUuid, projectUuid }),
-        );
+        const canViewNodeSql = canViewComposerNodeSql(auditedAbility, {
+            organizationUuid,
+            projectUuid,
+        });
         const reader: UserHistoryReader = { connection, canViewNodeSql };
         const userUuid = account.user.id;
         const [{ data: rows, pagination }, counts] = await Promise.all([
@@ -2647,12 +2647,19 @@ export class AsyncQueryService extends ProjectService {
             status === QueryHistoryStatus.ERROR ||
             status === QueryHistoryStatus.EXPIRED
         ) {
-            const error = await personaliseStoredSharedSignInError({
-                account,
-                projectUuid,
-                error: queryHistory.error,
-                projectModel: this.projectModel,
-            });
+            const error = getVisibleQueryError(
+                await personaliseStoredSharedSignInError({
+                    account,
+                    projectUuid,
+                    error: queryHistory.error,
+                    projectModel: this.projectModel,
+                }),
+                queryHistory.requestParameters?.composerChartSource,
+                canViewComposerNodeSql(this.createAuditedAbility(account), {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            );
             if (getAgentConnectionGrantRef(queryHistory.agentIdentity))
                 await this.assertCanReadStoredResults(
                     account,
@@ -8236,6 +8243,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // The totals response carries the source query and its fields, which
+        // for a composer node are the chart author's SQL
+        if (source.requestParameters?.composerChartSource) {
+            throw new NotSupportedError(
+                'Totals are not available for a composer chart node',
+            );
+        }
 
         // A merged result has no single metric query to collapse: its totals
         // are aggregated over the merged rows on the compose engine
