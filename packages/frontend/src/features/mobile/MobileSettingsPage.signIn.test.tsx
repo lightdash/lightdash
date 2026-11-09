@@ -32,12 +32,17 @@ const signedIn: ReturnType<typeof useMobileSignInCode> = {
     decline: vi.fn(),
 };
 
-const scannedLink = {
-    link: null,
+const scannedLink: ReturnType<typeof useMobileAppLink> = {
+    link: {
+        linkUuid: 'link-0000-test',
+        scanUrl: 'https://app.example.com/m/app/scan-0000-test',
+        expiresAt: '2026-11-09T12:30:00.000Z',
+        expiresInSeconds: 1800,
+    },
     isScanned: true,
-    mintError: null,
+    hasFailed: false,
     retry: vi.fn(),
-} as unknown as ReturnType<typeof useMobileAppLink>;
+};
 
 describe('MobileSettingsPage sign-in step', () => {
     it('marks step 2 done once a phone is signed in', () => {

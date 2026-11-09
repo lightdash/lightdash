@@ -15,6 +15,7 @@ import { useNow } from './useNow';
 
 export const MOBILE_SIGN_IN_POLL_INTERVAL_MS = 2000;
 export const MOBILE_SIGN_IN_IDLE_LIMIT_MS = 15 * 60 * 1000;
+const MOBILE_SIGN_IN_MIN_REFRESH_MS = 60 * 1000;
 
 export type MobileSignInPhase =
     | 'hidden'
@@ -78,18 +79,25 @@ const getPhase = ({
 const getCodeTiming = ({
     now,
     code,
+    mintedAt,
     state,
 }: {
     now: number;
     code: MobileSignInCode | null;
+    mintedAt: number | null;
     state: MobileSignInCodeState | null;
 }) => {
     const isUnclaimed = state === null || state.device === null;
-    const expiresAt = isUnclaimed ? code?.expiresAt : state.expiresAt;
-    const expiresAtMs = expiresAt ? Date.parse(expiresAt) : null;
+    const lifetimeMs = code
+        ? Math.max(code.expiresInSeconds * 1000, MOBILE_SIGN_IN_MIN_REFRESH_MS)
+        : null;
     return {
         isUnclaimed,
-        isPastExpiry: expiresAtMs !== null && now >= expiresAtMs,
+        isPastExpiry:
+            isUnclaimed &&
+            lifetimeMs !== null &&
+            mintedAt !== null &&
+            now - mintedAt >= lifetimeMs,
     };
 };
 
@@ -253,6 +261,7 @@ export const useMobileSignInCode = () => {
     const [isShown, setIsShown] = useState(false);
     const [shownAt, setShownAt] = useState<number | null>(null);
     const [code, setCode] = useState<MobileSignInCode | null>(null);
+    const [mintedAt, setMintedAt] = useState<number | null>(null);
     const { now, isStopped } = useShownClock({
         isShown,
         isVisible,
@@ -262,13 +271,17 @@ export const useMobileSignInCode = () => {
 
     const { mint, cancel, state, decide } = useMobileSignInRequests({
         code,
-        onMinted: setCode,
+        onMinted: (minted) => {
+            setCode(minted);
+            setMintedAt(performance.now());
+        },
         isPolling: isShown && !isStopped && code !== null && isVisible,
     });
 
     const { isUnclaimed, isPastExpiry } = getCodeTiming({
         now,
         code,
+        mintedAt,
         state,
     });
 
@@ -298,7 +311,7 @@ export const useMobileSignInCode = () => {
     const show = useCallback(() => {
         resetMint();
         setIsShown(true);
-        setShownAt(Date.now());
+        setShownAt(performance.now());
         setCode(null);
         mintCode('show');
     }, [mintCode, resetMint]);

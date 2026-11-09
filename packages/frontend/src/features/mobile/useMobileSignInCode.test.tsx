@@ -45,7 +45,12 @@ const parseBody = (body: unknown) => {
 const mockServer = ({
     claimAfterPolls = Infinity,
     mintError,
-}: { claimAfterPolls?: number; mintError?: ApiError } = {}) => {
+    clockSkewMs = 0,
+}: {
+    claimAfterPolls?: number;
+    mintError?: ApiError;
+    clockSkewMs?: number;
+} = {}) => {
     const calls: Call[] = [];
     let mints = 0;
     let polls = 0;
@@ -65,7 +70,9 @@ const mockServer = ({
             if (method === 'POST' && url === '/user/mobile/sign-in-codes') {
                 if (mintError) throw mintError;
                 mints += 1;
-                const expiresAt = new Date(Date.now() + TTL_MS).toISOString();
+                const expiresAt = new Date(
+                    Date.now() - clockSkewMs + TTL_MS,
+                ).toISOString();
                 expiries.set(`code-${mints}`, expiresAt);
                 return {
                     codeUuid: `code-${mints}`,
@@ -95,11 +102,15 @@ const mockServer = ({
                     device: null,
                 };
             }
+            const isWindowOver = Date.now() >= START + CLAIM_MS;
+            const claimedStatus = approved
+                ? MobileSignInCodeStatus.APPROVED
+                : MobileSignInCodeStatus.CLAIMED;
             return {
                 codeUuid,
-                status: approved
-                    ? MobileSignInCodeStatus.APPROVED
-                    : MobileSignInCodeStatus.CLAIMED,
+                status: isWindowOver
+                    ? MobileSignInCodeStatus.EXPIRED
+                    : claimedStatus,
                 expiresAt: new Date(START + CLAIM_MS).toISOString(),
                 matchNumber: '47',
                 device: { platform: 'ios', clientName: 'Lightdash iOS' },
@@ -131,7 +142,18 @@ const advance = async (ms: number) => {
 let uninstallBridge: () => void;
 
 beforeEach(() => {
-    vi.useFakeTimers({ now: START, shouldAdvanceTime: false });
+    vi.useFakeTimers({
+        now: START,
+        shouldAdvanceTime: false,
+        toFake: [
+            'setTimeout',
+            'clearTimeout',
+            'setInterval',
+            'clearInterval',
+            'Date',
+            'performance',
+        ],
+    });
     uninstallBridge = installFakeTimerBridge();
     setVisibility('visible');
     api.mockReset();
@@ -293,5 +315,20 @@ describe('useMobileSignInCode', () => {
                 '/user/mobile/sign-in-codes/code-2',
             ),
         );
+    });
+
+    it('trusts the server lifetime, not the browser clock', async () => {
+        const server = mockServer({ clockSkewMs: 30 * 60 * 1000 });
+        const { result } = renderHookWithProviders(() => useMobileSignInCode());
+        act(() => result.current.show());
+        await waitFor(() => expect(result.current.phase).toBe('showing'));
+
+        await advance(TTL_MS - 5000);
+        expect(server.mints()).toHaveLength(1);
+
+        await advance(10_000);
+        await waitFor(() => expect(server.mints()).toHaveLength(2));
+        await advance(TTL_MS - 5000);
+        expect(server.mints()).toHaveLength(2);
     });
 });
