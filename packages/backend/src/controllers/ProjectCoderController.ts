@@ -88,11 +88,7 @@ import {
     toWritebackSummary,
 } from './CoderControllerUtils';
 
-/**
- * A chart file as uploaded: a classic chart (tableName, metricQuery) or a
- * composer chart (pipeline), plus the upload options. Named so both shapes
- * are validated as one request body.
- */
+// A classic (tableName, metricQuery) or composer (pipeline) chart file plus upload options
 type ChartAsCodeUploadBody = (
     | Omit<ChartAsCode, 'chartConfig' | 'description'>
     | Omit<ComposerChartAsCode, 'chartConfig' | 'description'>

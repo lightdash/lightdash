@@ -99,14 +99,15 @@ export const toSavedComposerPipeline = ({
     });
 };
 
-/** Refuses, before any write, a chart config a composer chart cannot hold: a custom chart type needs slots no saved chart stores. */
+const CUSTOM_CHART_TYPE_NOT_STORABLE =
+    'A custom chart type cannot be saved to a dashboard yet; pick a builtin chart type.';
+
+/** Refuses a stored chart config a composer chart cannot hold: a custom chart type. */
 export const assertComposerChartConfigStorable = (chartConfig: {
     type: ChartType;
 }): void => {
     if (chartConfig.type === ChartType.DATA_APP_VIZ) {
-        throw new NotSupportedError(
-            'A custom chart type cannot be saved to a dashboard yet; pick a builtin chart type.',
-        );
+        throw new NotSupportedError(CUSTOM_CHART_TYPE_NOT_STORABLE);
     }
 };
 
@@ -117,9 +118,7 @@ export function assertComposerVizConfigStorable(
 ): asserts vizConfig is ComposerBuiltinChartVizConfig | null {
     if (vizConfig === null) return;
     if (vizConfig.type === 'custom') {
-        throw new NotSupportedError(
-            'A custom chart type cannot be saved to a dashboard yet; pick a builtin chart type.',
-        );
+        throw new NotSupportedError(CUSTOM_CHART_TYPE_NOT_STORABLE);
     }
     [
         vizConfig.x,

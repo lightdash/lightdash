@@ -1961,13 +1961,13 @@ export class CoderService extends BaseService {
         };
     }
 
-    /** The composer chart file: the stored pipeline and drawing, placed by its dashboard. */
+    /** The composer chart file: the stored pipeline and drawing, placed by its dashboard; null when that dashboard is gone. */
     private static transformComposerChart(
         chart: ComposerSavedChartDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         dashboardSlugs: Record<string, string>,
         verificationMap: Map<string, ContentVerificationInfo>,
-    ): ComposerChartAsCode {
+    ): ComposerChartAsCode | null {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === chart.spaceUuid,
         );
@@ -1977,11 +1977,7 @@ export class CoderService extends BaseService {
         const dashboardSlug = chart.dashboardUuid
             ? dashboardSlugs[chart.dashboardUuid]
             : undefined;
-        if (!dashboardSlug) {
-            throw new NotFoundError(
-                `Dashboard of composer chart ${chart.slug} not found`,
-            );
-        }
+        if (!dashboardSlug) return null;
         return {
             name: chart.name,
             description: chart.description,
@@ -2305,7 +2301,7 @@ export class CoderService extends BaseService {
         tilesAsCode: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
     ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
-        const tiles = CoderService.withoutTileChartQuery(tilesAsCode);
+        const tiles = CoderService.withoutDerivedTileFields(tilesAsCode);
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
@@ -2685,8 +2681,8 @@ export class CoderService extends BaseService {
         };
     }
 
-    /** The upload schema accepts chartQuery and queryType so downloads round-trip, but both are derived from the chart and must not be stored. */
-    static withoutTileChartQuery(
+    /** chartQuery and queryType are derived from the chart; accepted on upload, never stored. */
+    static withoutDerivedTileFields(
         tiles: DashboardTileAsCode[],
     ): DashboardTileAsCode[] {
         return tiles.map((tile) => {
@@ -3115,16 +3111,17 @@ export class CoderService extends BaseService {
         const classicBySlug = new Map(
             chartsWithPolicies.map((chart) => [chart.slug, chart]),
         );
+        // A composer chart whose dashboard is gone is left out, not fatal
         const composerBySlug = new Map(
-            composerCharts.map((chart) => [
-                chart.slug,
-                CoderService.transformComposerChart(
+            composerCharts.flatMap((chart) => {
+                const asCode = CoderService.transformComposerChart(
                     chart,
                     spaces,
                     dashboards,
                     chartVerificationMap,
-                ),
-            ]),
+                );
+                return asCode ? [[chart.slug, asCode] as const] : [];
+            }),
         );
         // Both kinds in the page's order, so paging stays stable
         const chartsAsCode = limitedChartSummaries.flatMap((summary) => {
@@ -3694,13 +3691,20 @@ export class CoderService extends BaseService {
                     dashboardSlugs,
                     verificationMap,
                 );
-            case 'composer':
-                return CoderService.transformComposerChart(
+            case 'composer': {
+                const asCode = CoderService.transformComposerChart(
                     variant.chart,
                     spaces,
                     dashboardSlugs,
                     verificationMap,
                 );
+                if (!asCode) {
+                    throw new NotFoundError(
+                        `Dashboard of composer chart ${variant.chart.slug} not found`,
+                    );
+                }
+                return asCode;
+            }
             default:
                 return assertUnreachable(variant, 'Unknown chart query type');
         }
@@ -4263,34 +4267,22 @@ export class CoderService extends BaseService {
                 options,
             );
         }
+        const { skipSpaceCreate, publicSpaceCreate, force, spaceNames } =
+            options;
         const {
-            skipSpaceCreate,
-            publicSpaceCreate,
-            force,
-            spaceNames,
-            mode = 'upsert',
-            authorization = 'content_as_code',
-        } = options;
-        const shouldUpdateExistingContent = mode === 'upsert';
-        const shouldUseExactSlug = mode === 'upsert';
-        const syncEnabled = await this.resolveSyncEnabled(projectUuid, options);
-        const project = await this.projectModel.get(projectUuid);
-
-        const auditedAbility = this.createAuditedAbility(user);
-        const { canUploadAnyContent, allowSpaceCreate: userCanCreateSpace } =
-            CoderService.checkContentAsCodeWriteAccess({
-                auditedAbility,
-                project,
-                slug,
-                authorization,
-            });
-
-        const allowSpaceCreate =
-            userCanCreateSpace &&
-            !(
-                options.account?.authentication.type === 'oauth' &&
-                options.account.authentication.agentConnectionGrant
-            );
+            shouldUpdateExistingContent,
+            shouldUseExactSlug,
+            syncEnabled,
+            project,
+            auditedAbility,
+            canUploadAnyContent,
+            allowSpaceCreate,
+        } = await this.resolveChartUploadContext(
+            user,
+            projectUuid,
+            slug,
+            options,
+        );
         const metricQuery = {
             ...chartAsCode.metricQuery,
             filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
@@ -4548,7 +4540,7 @@ export class CoderService extends BaseService {
                 verified: chartAsCode.verified,
             });
 
-            if (mode === 'upsert') {
+            if (shouldUpdateExistingContent) {
                 await this.stampAppliedChartSnapshot(
                     user,
                     projectUuid,
@@ -4745,7 +4737,7 @@ export class CoderService extends BaseService {
             verified: chartAsCode.verified,
         });
 
-        if (mode === 'upsert') {
+        if (shouldUpdateExistingContent) {
             await this.stampAppliedChartSnapshot(
                 user,
                 projectUuid,
@@ -4770,11 +4762,7 @@ export class CoderService extends BaseService {
         return promotionChanges;
     }
 
-    /**
-     * The dashboard a dashboard-owned chart upload goes into: the one with
-     * the file's slug, or a placeholder in the file's space that the
-     * dashboard upload fills in later.
-     */
+    // The file's dashboard, or a placeholder the dashboard upload fills in later
     private async resolveDashboardForNewChart({
         user,
         auditedAbility,
@@ -4869,19 +4857,46 @@ export class CoderService extends BaseService {
         return newDashboard.uuid;
     }
 
-    /**
-     * What a composer chart file stores, checked as the save endpoint checks
-     * an artifact: a closed pipeline of allowed node kinds reading no query
-     * uuids, and a builtin chart type. The run that save does is not needed;
-     * the file already carries the converted drawing.
-     */
+    // What every chart upload resolves before touching content
+    private async resolveChartUploadContext(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        options: UpsertContentAsCodeOptions,
+    ) {
+        const { mode = 'upsert', authorization = 'content_as_code' } = options;
+        const syncEnabled = await this.resolveSyncEnabled(projectUuid, options);
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        const { canUploadAnyContent, allowSpaceCreate: userCanCreateSpace } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+                authorization,
+            });
+        return {
+            shouldUpdateExistingContent: mode === 'upsert',
+            shouldUseExactSlug: mode === 'upsert',
+            syncEnabled,
+            project,
+            auditedAbility,
+            canUploadAnyContent,
+            allowSpaceCreate:
+                userCanCreateSpace &&
+                !(
+                    options.account?.authentication.type === 'oauth' &&
+                    options.account.authentication.agentConnectionGrant
+                ),
+        };
+    }
+
+    // Checked as save checks an artifact; the file already carries the drawing, so no run
     private static parseComposerChartFile(
         chartAsCode: ComposerChartAsCode,
     ): ComposerChartVersionData {
         // Before the closure check, so a uuid reference gets save's own refusal
-        if (Array.isArray(chartAsCode.pipeline?.nodes)) {
-            assertNoQueryResultReferences(chartAsCode.pipeline.nodes);
-        }
+        assertNoQueryResultReferences(chartAsCode.pipeline.nodes);
         const pipeline = parseStoredComposerPipeline(chartAsCode.pipeline);
         assertComposerChartConfigStorable(chartAsCode.chartConfig);
         return {
@@ -4944,11 +4959,7 @@ export class CoderService extends BaseService {
         );
     }
 
-    /**
-     * Upload of a composer chart file. The pipeline is checked as the save
-     * endpoint checks it, then written through the same composer writer;
-     * promotion does not carry pipelines, so this path never goes through it.
-     */
+    // Checked as save checks, written by save's writer; promotion carries no pipelines
     private async upsertComposerChart(
         user: SessionUser,
         projectUuid: string,
@@ -4956,32 +4967,21 @@ export class CoderService extends BaseService {
         chartAsCode: ComposerChartAsCode,
         options: UpsertContentAsCodeOptions,
     ): Promise<PromotionChanges> {
+        const { skipSpaceCreate, publicSpaceCreate, force, spaceNames } =
+            options;
         const {
-            skipSpaceCreate,
-            publicSpaceCreate,
-            force,
-            spaceNames,
-            mode = 'upsert',
-            authorization = 'content_as_code',
-        } = options;
-        const shouldUpdateExistingContent = mode === 'upsert';
-        const shouldUseExactSlug = mode === 'upsert';
-        const syncEnabled = await this.resolveSyncEnabled(projectUuid, options);
-        const project = await this.projectModel.get(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        const { allowSpaceCreate: userCanCreateSpace } =
-            CoderService.checkContentAsCodeWriteAccess({
-                auditedAbility,
-                project,
-                slug,
-                authorization,
-            });
-        const allowSpaceCreate =
-            userCanCreateSpace &&
-            !(
-                options.account?.authentication.type === 'oauth' &&
-                options.account.authentication.agentConnectionGrant
-            );
+            shouldUpdateExistingContent,
+            shouldUseExactSlug,
+            syncEnabled,
+            project,
+            auditedAbility,
+            allowSpaceCreate,
+        } = await this.resolveChartUploadContext(
+            user,
+            projectUuid,
+            slug,
+            options,
+        );
 
         const { enabled: composeEnabled } = await this.featureFlagModel.get({
             user: {
@@ -5092,7 +5092,7 @@ export class CoderService extends BaseService {
                 contentUuid: newChart.uuid,
                 verified: chartAsCode.verified,
             });
-            if (mode === 'upsert') {
+            if (shouldUpdateExistingContent) {
                 await this.stampAppliedChartSnapshot(
                     user,
                     projectUuid,
@@ -5177,7 +5177,7 @@ export class CoderService extends BaseService {
             contentUuid: chart.uuid,
             verified: chartAsCode.verified,
         });
-        if (mode === 'upsert') {
+        if (shouldUpdateExistingContent) {
             await this.stampAppliedChartSnapshot(
                 user,
                 projectUuid,
@@ -6530,7 +6530,7 @@ export class CoderService extends BaseService {
                 ownerEmail: dashboardAsCode.ownerEmail,
             });
 
-            if (mode === 'upsert') {
+            if (shouldUpdateExistingContent) {
                 await this.stampAppliedDashboardSnapshot(
                     user,
                     projectUuid,
@@ -6715,7 +6715,7 @@ export class CoderService extends BaseService {
             ownerEmail: dashboardAsCode.ownerEmail,
         });
 
-        if (mode === 'upsert') {
+        if (shouldUpdateExistingContent) {
             await this.stampAppliedDashboardSnapshot(
                 user,
                 projectUuid,

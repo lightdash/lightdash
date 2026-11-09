@@ -121,11 +121,7 @@ export type ChartAsCode = Omit<
     access?: ContentAsCodeDirectAccess;
 };
 
-/**
- * A composer chart as code: the same chart vocabulary as a classic chart,
- * drawn over the stored pipeline instead of an explore's metric query. It has
- * no tableName, metricQuery or merge, and it is owned by a dashboard.
- */
+/** A chart drawn over its stored pipeline instead of a metric query; dashboard-owned, no tableName or merge. */
 export type ComposerChartAsCode = Pick<
     SavedChart,
     'name' | 'description' | 'pivotConfig' | 'slug'

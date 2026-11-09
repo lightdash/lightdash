@@ -1384,12 +1384,8 @@ export class SavedChartModel {
         return this.get(newSavedChartUuid);
     }
 
-    /**
-     * Writes a dashboard-owned composer chart: one version holding the
-     * pipeline, with no explore, field or sort rows. forceSlug inserts the
-     * slug exactly, reviving a deleted chart that owns it, as content as code
-     * needs; without it the slug is made unique.
-     */
+    // One version holding the pipeline, no explore/field/sort rows.
+    // forceSlug keeps the slug exactly, reviving a deleted owner.
     async createComposerChart(
         projectUuid: string,
         userUuid: string,
@@ -1549,10 +1545,11 @@ export class SavedChartModel {
             );
             await trx(SavedChartsTableName)
                 .update({
-                    last_version_chart_kind: getChartKind(
-                        data.chartConfig.type,
-                        data.chartConfig.config,
-                    ),
+                    last_version_chart_kind:
+                        getChartKind(
+                            data.chartConfig.type,
+                            data.chartConfig.config,
+                        ) || ChartKind.VERTICAL_BAR,
                     last_version_updated_at: new Date(),
                     last_version_updated_by_user_uuid: userUuid,
                 })
