@@ -63,6 +63,10 @@ describe('createLocalParquetUploadStream', () => {
         await expect(closing).rejects.toBeInstanceOf(
             PreAggregateResultsTooLargeError,
         );
+        await expect(closing).rejects.toMatchObject({
+            name: 'PreAggregateResultsTooLargeError',
+            statusCode: 422,
+        });
         await expect(closing).rejects.toThrow(
             "This pre-aggregate's results are too large to store (2 rows and 3 columns, 1 MB).",
         );

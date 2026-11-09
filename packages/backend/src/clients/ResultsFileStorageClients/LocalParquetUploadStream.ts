@@ -1,7 +1,7 @@
 import {
     formatMilliseconds,
     getErrorMessage,
-    PayloadTooLargeError,
+    LightdashError,
     type ResultColumns,
 } from '@lightdash/common';
 import {
@@ -31,16 +31,18 @@ const isDuckdbOutOfMemoryError = (error: unknown) =>
 const formatMegabytes = (bytes: number) =>
     `${Math.max(1, Math.round(bytes / 1024 / 1024)).toLocaleString('en-US')} MB`;
 
-export class PreAggregateResultsTooLargeError extends PayloadTooLargeError {
+export class PreAggregateResultsTooLargeError extends LightdashError {
     constructor(size: { rows: number; columns: number | null; bytes: number }) {
         const shape =
             size.columns !== null
                 ? `${size.rows.toLocaleString('en-US')} rows and ${size.columns.toLocaleString('en-US')} columns`
                 : `${size.rows.toLocaleString('en-US')} rows`;
-        super(
-            `This pre-aggregate's results are too large to store (${shape}, ${formatMegabytes(size.bytes)}). Remove dimensions and metrics it doesn't need, or split it into smaller pre-aggregates.`,
-            size,
-        );
+        super({
+            message: `This pre-aggregate's results are too large to store (${shape}, ${formatMegabytes(size.bytes)}). Remove dimensions and metrics it doesn't need, or split it into smaller pre-aggregates.`,
+            name: 'PreAggregateResultsTooLargeError',
+            statusCode: 422,
+            data: size,
+        });
     }
 }
 
