@@ -17,6 +17,7 @@ export type PostHogConnectionValues = {
     authMethod: PostHogAuthMethod;
     projectId: string;
     apiKey: string;
+    aiHint: string;
 };
 
 const PROJECT_ID = /^\d{1,12}$/;
@@ -46,6 +47,7 @@ export const toPostHogFormValues = (
                       ? connection.apiSource.projectId
                       : '',
               apiKey: '',
+              aiHint: connection.aiHint ?? '',
           }
         : {
               name: 'PostHog',
@@ -53,6 +55,7 @@ export const toPostHogFormValues = (
               authMethod: canSignIn ? 'signIn' : 'apiKey',
               projectId: '',
               apiKey: '',
+              aiHint: '',
           };
 
 /** Signing in picks the project on PostHog; a saved key stays when the field is blank. */
@@ -129,7 +132,9 @@ export const toPostHogUpdatePayload = (
     values: PostHogConnectionValues,
 ): UpdateExternalConnection => {
     // Region and project of a signed-in source change only by reconnecting.
-    if (values.authMethod === 'signIn') return { name: values.name.trim() };
+    if (values.authMethod === 'signIn') {
+        return { name: values.name.trim(), aiHint: values.aiHint };
+    }
     const apiKey = values.apiKey.trim();
     return {
         name: values.name.trim(),
@@ -138,6 +143,7 @@ export const toPostHogUpdatePayload = (
             connector: ApiConnectorType.POSTHOG,
             projectId: values.projectId.trim(),
         },
+        aiHint: values.aiHint,
         ...(apiKey ? { secret: apiKey } : {}),
     };
 };

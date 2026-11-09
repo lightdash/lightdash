@@ -85,7 +85,12 @@ const buildService = ({
     namesHeldAtClaim?: string[];
     hasExplores?: boolean;
 } = {}) => {
-    let fieldState: LiveSourceFieldState = { lastScan: null, fields: null };
+    let fieldState: LiveSourceFieldState = {
+        lastScan: null,
+        fields: null,
+        aiHint: null,
+        targetLabel: null,
+    };
     const externalConnectionModel = {
         findByUuid: vi
             .fn()
@@ -131,6 +136,8 @@ const buildService = ({
                     );
                 },
             ),
+        restoreLiveSourceDetails: vi.fn().mockResolvedValue(undefined),
+        saveLiveSourceTargetLabel: vi.fn().mockResolvedValue(undefined),
         withLiveSourceBuildLock: vi.fn(
             async (_uuid: string, rebuild: () => Promise<unknown>) => rebuild(),
         ),
@@ -800,6 +807,55 @@ describe('ExternalConnectionService live source explores', () => {
         expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
     });
 
+    describe('AI hint', () => {
+        it('rebuilds from the stored scan, without calling the integration', async () => {
+            const { service, projectModel, externalConnectionModel } =
+                buildService();
+            externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
+                lastScan: null,
+                fields: {},
+                aiHint: 'EU project',
+                targetLabel: null,
+            });
+            await service.update(account, 'proj-1', 'conn-1', {
+                aiHint: '  EU project  ',
+            });
+
+            expect(externalConnectionModel.update).toHaveBeenCalledWith(
+                'conn-1',
+                expect.anything(),
+                expect.objectContaining({ aiHint: 'EU project' }),
+            );
+            expect(mockSecureFetch).not.toHaveBeenCalled();
+            const [explore] =
+                projectModel.replaceApiSourceExplores.mock.calls[0][2];
+            expect(explore.aiHint).toEqual([
+                'PostHog project 303731, EU region',
+                'EU project',
+            ]);
+        });
+
+        it('clears an empty hint and keeps the target', async () => {
+            const { service, externalConnectionModel } = buildService();
+            await service.update(account, 'proj-1', 'conn-1', { aiHint: '  ' });
+            expect(externalConnectionModel.update).toHaveBeenCalledWith(
+                'conn-1',
+                expect.anything(),
+                expect.objectContaining({ aiHint: null }),
+            );
+        });
+
+        it('rejects a hint over the limit', async () => {
+            const { service, externalConnectionModel } = buildService();
+            await expect(
+                service.update(account, 'proj-1', 'conn-1', {
+                    aiHint: 'x'.repeat(501),
+                }),
+            ).rejects.toThrow('at most 500');
+            expect(externalConnectionModel.update).not.toHaveBeenCalled();
+        });
+    });
+
     describe('rebuilding after a code change', () => {
         const refs = [
             {
@@ -1043,7 +1099,33 @@ describe('ExternalConnectionService live source explores', () => {
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
         sourceName: 'posthog',
         fieldEdits: null,
+        aiHint: null,
+        targetLabel: null,
         ...overrides,
+    });
+
+    it("carries a deleted twin's hint and target label to the new source", async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService({
+            deletedSources: [
+                deletedTwin({
+                    sourceName: 'product_analytics',
+                    aiHint: 'EU project',
+                    targetLabel: 'Default project',
+                }),
+            ],
+        });
+        await service.create(account, 'proj-1', postHogSource);
+
+        expect(
+            externalConnectionModel.restoreLiveSourceDetails,
+        ).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+                aiHint: 'EU project',
+                targetLabel: 'Default project',
+            }),
+        );
     });
 
     it("gives a new source a deleted twin's field edits, so its property charts work again", async () => {
@@ -1117,6 +1199,8 @@ describe('ExternalConnectionService live source explores', () => {
                     },
                     sourceName: 'other_project',
                     fieldEdits: null,
+                    aiHint: null,
+                    targetLabel: null,
                 },
                 {
                     externalConnectionUuid: 'old-conn',
@@ -1127,6 +1211,8 @@ describe('ExternalConnectionService live source explores', () => {
                     },
                     sourceName: 'posthog',
                     fieldEdits: null,
+                    aiHint: null,
+                    targetLabel: null,
                 },
             ],
         });
@@ -1149,6 +1235,8 @@ describe('ExternalConnectionService live source explores', () => {
                     },
                     sourceName: null,
                     fieldEdits: null,
+                    aiHint: null,
+                    targetLabel: null,
                 },
             ],
         });

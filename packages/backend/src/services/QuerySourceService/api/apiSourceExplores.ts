@@ -152,6 +152,7 @@ const buildDefinitionExplore = (
         | 'label'
         | 'connectionUuid'
         | 'definitionHash'
+        | 'aiHint'
     >,
 ) => {
     const { baseVersion, capabilities } = getApiSourceBaseLayer(connector);
@@ -200,6 +201,9 @@ export const getApiSourceDefinitionHashes = memoize(
                                 ),
                                 label: 'source',
                                 connectionUuid: 'connection',
+                                // A placeholder, so a change to how hints
+                                // are built still changes the hash
+                                aiHint: ['hint'],
                             }),
                         ),
                     )
@@ -234,6 +238,18 @@ export const getLostApiSourceFieldIds = ({
     return storedFieldIds.filter((fieldId) => !kept.has(fieldId));
 };
 
+/** What the source reads, for the AI agent. Admins can't remove this. */
+export const describeApiSourceTarget = (
+    apiSource: ExternalConnectionApiSource,
+    origin: string,
+    targetLabel: string | null,
+): string =>
+    getApiSourceIntegration(apiSource.connector).describeTarget({
+        apiSource,
+        origin,
+        targetLabel,
+    });
+
 /** The explores a live data source answers metric queries with. */
 export const buildApiSourceExplores = ({
     connectionUuid,
@@ -242,6 +258,7 @@ export const buildApiSourceExplores = ({
     apiSource,
     scannedFields,
     edits,
+    aiHint,
 }: {
     connectionUuid: string;
     sourceName: string;
@@ -249,6 +266,8 @@ export const buildApiSourceExplores = ({
     apiSource: ExternalConnectionApiSource;
     scannedFields: ScannedLiveSourceField[];
     edits: LiveSourceFieldEdits;
+    /** The target first, then the admin's text. */
+    aiHint?: string[];
 }): Explore[] => {
     const {
         definitions: [wide, ...others],
@@ -262,6 +281,7 @@ export const buildApiSourceExplores = ({
             label: isWide ? label : `${label} ${definition.label}`,
             connectionUuid,
             definitionHash: definitionHashes[definition.name],
+            aiHint,
         });
     return [
         build(

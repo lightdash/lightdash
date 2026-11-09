@@ -11,6 +11,7 @@ import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import { ConnectionTestResult } from '../components/ConnectionTestResult';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
+import { LiveSourceHintField } from './LiveSourceHintField';
 import {
     getPostHogQueryPath,
     toPostHogCreatePayload,
@@ -120,6 +121,9 @@ export const PostHogConnectionStep: FC<Props> = ({
                             : 'Sign in with PostHog instead'}
                     </Button>
                 </Group>
+            )}
+            {isEditing && (
+                <LiveSourceHintField {...form.getInputProps('aiHint')} />
             )}
             {!isSignIn && (
                 <>

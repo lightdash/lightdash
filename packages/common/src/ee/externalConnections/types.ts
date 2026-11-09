@@ -207,6 +207,10 @@ export type ExternalConnection = {
      * Optional for compatibility with older servers during rolling upgrades.
      */
     liveSourceName?: string | null;
+    /** What an admin says this live source is for. Reaches the AI agent. */
+    aiHint?: string | null;
+    /** The name the connection picker showed for the source's target. */
+    targetLabel?: string | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -272,7 +276,12 @@ export type CreateExternalConnection = {
 };
 
 /** Omitted/blank `secret` means the stored secret is left unchanged. */
-export type UpdateExternalConnection = Partial<CreateExternalConnection>;
+export const LIVE_SOURCE_AI_HINT_MAX_LENGTH = 500;
+
+export type UpdateExternalConnection = Partial<CreateExternalConnection> & {
+    /** Live sources only. Empty or null clears it. */
+    aiHint?: string | null;
+};
 
 export type AppExternalConnectionLink = {
     externalConnectionUuid: string;
