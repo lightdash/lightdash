@@ -5,6 +5,7 @@ import {
     type AppStateHistoryEntry,
 } from '@lightdash/common';
 import {
+    Anchor,
     Button,
     Code,
     Group,
@@ -244,7 +245,20 @@ export const AppStateModal: FC<Props> = ({
                 opened={opened}
                 onClose={onClose}
                 title="App state"
-                subtitle="Values this app has saved. Shared values are visible to every viewer; per-user values are private to each person."
+                subtitle={
+                    <>
+                        Values this app has saved. Shared values are visible to
+                        every viewer; per-user values are private to each
+                        person.{' '}
+                        <Anchor
+                            href="https://docs.lightdash.com/data-apps/saved-app-state"
+                            target="_blank"
+                            fz="inherit"
+                        >
+                            Learn more
+                        </Anchor>
+                    </>
+                }
                 icon={IconDatabase}
                 size={760}
                 cancelLabel={false}
