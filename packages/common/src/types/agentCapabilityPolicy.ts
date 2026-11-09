@@ -1,26 +1,15 @@
 import { type AgentCapability } from './agentPermissions';
-import { type OrganizationMemberRole } from './organizationMemberProfile';
-
-export type AgentSystemRoleMatrix = Record<
-    OrganizationMemberRole,
-    AgentCapability[]
->;
 
 export interface AgentCapabilityPolicy {
     mode: 'legacy' | 'managed';
     version: number;
     allowedCapabilities: AgentCapability[] | null;
     allowedGroupUuids: string[] | null;
-    systemRoleMatrix: AgentSystemRoleMatrix;
 }
 export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
-    defaults: AgentSystemRoleMatrix;
     groupsAvailable: boolean;
 }
-export interface AgentCapabilityCeiling extends Pick<
-    AgentCapabilityPolicy,
-    'systemRoleMatrix'
-> {
+export interface AgentCapabilityCeiling {
     version?: number;
     mode?: 'legacy' | 'managed';
     allowedCapabilities?: AgentCapability[] | null;

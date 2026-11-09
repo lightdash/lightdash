@@ -1,8 +1,6 @@
 import {
     AgentCapability,
-    OrganizationMemberRole,
     type AgentCapabilityPolicyOverview,
-    type AgentSystemRoleMatrix,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
@@ -13,7 +11,6 @@ import {
     draftToPolicyRequest,
     getAgentPermissionChanges,
     countAgentPermissionChanges,
-    normaliseAgentPermissionDraft,
     sameAgentPermissionDraft,
 } from './agentPermissionDraft';
 
@@ -24,10 +21,6 @@ const read = [
     AgentCapability.Export,
     AgentCapability.RawSql,
 ];
-const matrix = (caps: AgentCapability[]) =>
-    Object.fromEntries(
-        Object.values(OrganizationMemberRole).map((role) => [role, [...caps]]),
-    ) as AgentSystemRoleMatrix;
 const policy = (
     overrides: Partial<AgentCapabilityPolicyOverview> = {},
 ): AgentCapabilityPolicyOverview => ({
@@ -35,8 +28,6 @@ const policy = (
     version: 4,
     allowedCapabilities: null,
     allowedGroupUuids: null,
-    systemRoleMatrix: matrix([]),
-    defaults: matrix(all),
     groupsAvailable: true,
     ...overrides,
 });
@@ -52,7 +43,6 @@ describe('agent permission draft', () => {
                 mode: 'managed',
                 allowedCapabilities: read,
                 allowedGroupUuids: ['a', 'b'],
-                systemRoleMatrix: matrix(read),
             }),
         );
         const reordered = policyToDraft(
@@ -61,7 +51,6 @@ describe('agent permission draft', () => {
                 version: 9,
                 allowedCapabilities: [...read].reverse(),
                 allowedGroupUuids: ['b', 'a'],
-                systemRoleMatrix: matrix([...read].reverse()),
             }),
         );
         expect(sameAgentPermissionDraft(saved, reordered)).toBe(true);
@@ -80,31 +69,27 @@ describe('agent permission draft', () => {
         expect(
             sameAgentPermissionDraft(saved, {
                 ...reordered,
-                systemRoleMatrix: {
-                    ...reordered.systemRoleMatrix,
-                    [OrganizationMemberRole.ADMIN]: [AgentCapability.Query],
-                },
+                allowedCapabilities: [AgentCapability.Query],
             }),
         ).toBe(false);
         expect(
             sameAgentPermissionDraft(saved, { ...reordered, mode: 'legacy' }),
         ).toBe(false);
     });
-    it('starts Custom with eleven capabilities and six full rows, counting the mode once', () => {
+    it('starts Custom with every capability, counting the mode once', () => {
         const baseline = policyToDraft(policy());
         const draft = chooseAgentPermission(baseline, 'custom', baseline);
         expect(draft.allowedCapabilities).toEqual(all);
-        expect(draft.systemRoleMatrix).toEqual(matrix(all));
+        expect(draft).not.toHaveProperty('systemRoleMatrix');
         expect(count(baseline, draft)).toBe(1);
     });
-    it('recognises Read and query only with the exact list and every exact row', () => {
+    it('recognises Read and query only with the exact list', () => {
         const draft = chooseAgentPermission(
             policyToDraft(policy()),
             'read',
             policyToDraft(policy()),
         );
         expect(draft.allowedCapabilities).toEqual(read);
-        expect(draft.systemRoleMatrix).toEqual(matrix(read));
         expect(getAgentPermissionChoice(draft)).toBe('read');
         expect(
             getAgentPermissionChoice({
@@ -115,15 +100,15 @@ describe('agent permission draft', () => {
         expect(
             getAgentPermissionChoice({
                 ...draft,
-                systemRoleMatrix: {
-                    ...draft.systemRoleMatrix,
-                    admin: [AgentCapability.Query],
-                },
+                allowedCapabilities: [AgentCapability.Query],
             }),
         ).toBe('custom');
         expect(
             getAgentPermissionChoice({ ...draft, allowedCapabilities: all }),
         ).toBe('custom');
+        expect(getAgentPermissionChoice({ ...draft, mode: 'legacy' })).toBe(
+            'person',
+        );
     });
     it('starts Custom fully enabled after the Read choice', () => {
         const draft = chooseAgentPermission(
@@ -137,7 +122,6 @@ describe('agent permission draft', () => {
             policyToDraft(policy()),
         );
         expect(custom.allowedCapabilities).toEqual(all);
-        expect(custom.systemRoleMatrix).toEqual(matrix(all));
     });
     it('counts named choices once and group changes separately', () => {
         const base = policyToDraft(policy());
@@ -164,21 +148,14 @@ describe('agent permission draft', () => {
             ),
         ).toBe(7);
     });
-    it('restores saved Custom capabilities and narrowed role rows', () => {
+    it('restores saved Custom capabilities', () => {
         const nine = all.filter(
             (cap) =>
                 cap !== AgentCapability.Delete &&
                 cap !== AgentCapability.Publish,
         );
         const base = policyToDraft(
-            policy({
-                mode: 'managed',
-                allowedCapabilities: nine,
-                systemRoleMatrix: {
-                    ...matrix(nine),
-                    admin: [AgentCapability.Query],
-                },
-            }),
+            policy({ mode: 'managed', allowedCapabilities: nine }),
         );
         const readDraft = chooseAgentPermission(base, 'read', base);
         const restored = chooseAgentPermission(readDraft, 'custom', base);
@@ -186,11 +163,8 @@ describe('agent permission draft', () => {
         expect(count(base, restored)).toBe(0);
         expect(chooseAgentPermission(base, 'custom', base)).toBe(base);
     });
-    it('preserves dormant rows on a legacy group-only save', () => {
-        const baseline = policyToDraft(
-            policy({ systemRoleMatrix: matrix(read) }),
-        );
-        expect(baseline.systemRoleMatrix).toEqual(matrix(read));
+    it('sends only the groups on a legacy group-only save', () => {
+        const baseline = policyToDraft(policy());
         expect(
             draftToPolicyRequest(baseline, {
                 ...baseline,
@@ -201,41 +175,38 @@ describe('agent permission draft', () => {
             mode: 'legacy',
             allowedCapabilities: null,
             allowedGroupUuids: ['a'],
-            systemRoleMatrix: matrix(read),
         });
     });
-    it('keeps historical rows and starts clean, then writes the visible list on a group-only save', () => {
-        const baseline = policyToDraft(
-            policy({ mode: 'managed', systemRoleMatrix: matrix(read) }),
-        );
+    it('starts a managed policy without a saved list clean, then writes the visible list on a group-only save', () => {
+        const baseline = policyToDraft(policy({ mode: 'managed' }));
         expect(getAgentPermissionChoice(baseline)).toBe('custom');
         expect(baseline.allowedCapabilities).toEqual(all);
-        expect(baseline.systemRoleMatrix).toEqual(matrix(read));
         expect(count(baseline, baseline)).toBe(0);
         const draft = { ...baseline, allowedGroupUuids: ['a'] };
         const changes = getAgentPermissionChanges(baseline, draft);
         expect(changes.stops).toEqual([]);
         expect(changes.allows).toEqual([]);
         expect(count(baseline, draft)).toBe(1);
-        expect(draftToPolicyRequest(baseline, draft)).toMatchObject({
+        expect(draftToPolicyRequest(baseline, draft)).toEqual({
             version: 4,
+            mode: 'managed',
             allowedCapabilities: all,
-            systemRoleMatrix: matrix(read),
             allowedGroupUuids: ['a'],
         });
     });
-    it('removes global capabilities from every row, restores them to every row and counts once each', () => {
-        const base = chooseAgentPermission(
-            policyToDraft(policy()),
-            'custom',
-            policyToDraft(policy()),
-        );
+    it('counts each switched-off capability once and restores it when switched back on', () => {
+        const saved = policyToDraft(policy());
+        const base = chooseAgentPermission(saved, 'custom', saved);
         const draft = toggleAgentCapability(
             toggleAgentCapability(base, AgentCapability.Delete),
             AgentCapability.Publish,
         );
-        expect(draft.systemRoleMatrix.admin).not.toContain(
-            AgentCapability.Delete,
+        expect(draft.allowedCapabilities).toEqual(
+            all.filter(
+                (c) =>
+                    c !== AgentCapability.Delete &&
+                    c !== AgentCapability.Publish,
+            ),
         );
         expect(count(base, draft)).toBe(2);
         expect(getAgentPermissionChanges(base, draft).stops).toEqual(
@@ -244,55 +215,24 @@ describe('agent permission draft', () => {
                 AgentCapability.Publish,
             ]),
         );
-        expect(getAgentPermissionChanges(base, draft).roles).toEqual([]);
         expect(
             toggleAgentCapability(draft, AgentCapability.Delete)
-                .systemRoleMatrix,
-        ).toEqual(matrix(all.filter((c) => c !== AgentCapability.Publish)));
-        expect(
-            count(
-                base,
-                toggleAgentCapability(
-                    toggleAgentCapability(draft, AgentCapability.Delete),
-                    AgentCapability.Publish,
-                ),
-            ),
-        ).toBe(0);
-    });
-    it('counts advanced edits separately and cannot restore a globally disabled cell', () => {
-        const base = chooseAgentPermission(
-            policyToDraft(policy()),
-            'custom',
-            policyToDraft(policy()),
+                .allowedCapabilities,
+        ).toEqual(all.filter((c) => c !== AgentCapability.Publish));
+        const restored = toggleAgentCapability(
+            toggleAgentCapability(draft, AgentCapability.Delete),
+            AgentCapability.Publish,
         );
-        const draft = {
-            ...base,
-            systemRoleMatrix: {
-                ...base.systemRoleMatrix,
-                admin: all.filter((c) => c !== AgentCapability.Delete),
-            },
-        };
-        expect(count(base, draft)).toBe(1);
-        expect(getAgentPermissionChanges(base, draft).roles).toEqual([
-            {
-                role: OrganizationMemberRole.ADMIN,
-                stops: [AgentCapability.Delete],
-                allows: [],
-            },
-        ]);
-        expect(
-            normaliseAgentPermissionDraft({ ...draft, allowedCapabilities: [] })
-                .systemRoleMatrix,
-        ).toEqual(matrix([]));
+        expect(restored.allowedCapabilities).toEqual(all);
+        expect(count(base, restored)).toBe(0);
     });
-    it('ignores group and capability order, version and inactive role rows', () => {
+    it('ignores group order and version', () => {
         const base = policyToDraft(policy({ allowedGroupUuids: ['a', 'b'] }));
         expect(
             count(base, {
                 ...base,
                 version: 8,
                 allowedGroupUuids: ['b', 'a'],
-                systemRoleMatrix: matrix([]),
             }),
         ).toBe(0);
     });
@@ -318,7 +258,6 @@ describe('agent permission draft', () => {
             policy({
                 mode: 'managed',
                 allowedCapabilities: read,
-                systemRoleMatrix: matrix(read),
                 allowedGroupUuids: ['a'],
             }),
         );
@@ -332,7 +271,6 @@ describe('agent permission draft', () => {
             version: 4,
             mode: 'legacy',
             allowedCapabilities: null,
-            systemRoleMatrix: matrix(read),
         });
         expect(getAgentPermissionChanges(base, draft).mode).toBe('legacy');
         expect(count(base, draft)).toBe(1);
@@ -343,15 +281,14 @@ describe('agent permission draft', () => {
             'custom',
             policyToDraft(policy()),
         );
-        const draft = {
-            ...base,
-            allowedCapabilities: [],
-            systemRoleMatrix: matrix([]),
-        };
+        const draft = { ...base, allowedCapabilities: [] };
         expect(getAgentPermissionChanges(base, draft).turnedOff).toBe(true);
         expect(getAgentPermissionChanges(draft, base).allows).toEqual(all);
         expect(getAgentPermissionChanges(draft, base)).not.toHaveProperty(
             'activity',
+        );
+        expect(getAgentPermissionChanges(draft, base)).not.toHaveProperty(
+            'roles',
         );
     });
 });

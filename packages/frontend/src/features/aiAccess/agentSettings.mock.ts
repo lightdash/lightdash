@@ -1,30 +1,17 @@
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
-    AgentCapability,
-    OrganizationMemberRole,
     type AgentCapabilityPolicyOverview,
-    type AgentSystemRoleMatrix,
     type ApiAiOrganizationSettingsResponse,
     type OrganizationAgentIdentityOverview,
 } from '@lightdash/common';
 
-export const agentSettingsPolicyMock = (): AgentCapabilityPolicyOverview => {
-    const matrix = Object.fromEntries(
-        Object.values(OrganizationMemberRole).map((role) => [
-            role,
-            Object.values(AgentCapability),
-        ]),
-    ) as AgentSystemRoleMatrix;
-    return {
-        mode: 'legacy',
-        version: 1,
-        allowedCapabilities: null,
-        allowedGroupUuids: null,
-        groupsAvailable: false,
-        systemRoleMatrix: matrix,
-        defaults: matrix,
-    };
-};
+export const agentSettingsPolicyMock = (): AgentCapabilityPolicyOverview => ({
+    mode: 'legacy',
+    version: 1,
+    allowedCapabilities: null,
+    allowedGroupUuids: null,
+    groupsAvailable: false,
+});
 export const agentSettingsIdentityMock: OrganizationAgentIdentityOverview = {
     rules: [],
     snowflakeConfigured: false,

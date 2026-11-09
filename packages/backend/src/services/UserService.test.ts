@@ -63,7 +63,6 @@ import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { getOrganizationSystemRoleScopes } from '../utils/organizationRolePermissions';
-import { agentSystemRoleMatrix } from './AgentPermissionService/AgentPermissionService';
 import { type SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { snowflakeAgentClientMock } from './AiAccessService/SnowflakeAgentClientResolver.mock';
 import { UserService } from './UserService';
@@ -5265,7 +5264,6 @@ describe('UserService', () => {
                         mode: mode === 'legacy' ? 'legacy' : 'managed',
                         version: 1,
                         allowedCapabilities: null,
-                        systemRoleMatrix: agentSystemRoleMatrix([]),
                     });
                 const actor = { ...sessionUser };
                 if (mode !== 'pat' && mode !== 'session')
@@ -5328,7 +5326,6 @@ describe('UserService', () => {
                         mode: 'managed',
                         version: 1,
                         allowedCapabilities: null,
-                        systemRoleMatrix: agentSystemRoleMatrix([]),
                     });
                 const originalFind =
                     userModel.findUserByEmail.getMockImplementation();

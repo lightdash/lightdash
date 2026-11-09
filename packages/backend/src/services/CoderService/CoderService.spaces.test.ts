@@ -21,7 +21,6 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { ProjectCoderController } from '../../controllers/ProjectCoderController';
 import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
-import { agentSystemRoleMatrix } from '../AgentPermissionService/AgentPermissionService';
 import {
     agentActionTestCases,
     withAgentActionScope,
@@ -907,7 +906,6 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                 mode: 'managed',
                 version: 1,
                 allowedCapabilities: null,
-                systemRoleMatrix: agentSystemRoleMatrix([]),
             });
             const user = makeSessionUser([
                 { subject: 'ContentAsCode', action: 'create' },
@@ -970,7 +968,6 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                     mode: mode === 'legacy' ? 'legacy' : 'managed',
                     version: 1,
                     allowedCapabilities: null,
-                    systemRoleMatrix: agentSystemRoleMatrix([]),
                 });
                 const user = makeSessionUser();
                 let account: Account = fromSession(user);
@@ -1059,7 +1056,6 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                     mode: mode === 'legacy' ? 'legacy' : 'managed',
                     version: 1,
                     allowedCapabilities: null,
-                    systemRoleMatrix: agentSystemRoleMatrix([]),
                 });
                 const user = makeSessionUser();
                 let account: Account = fromSession(user);

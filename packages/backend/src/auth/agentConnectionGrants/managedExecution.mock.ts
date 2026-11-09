@@ -5,10 +5,7 @@ import {
     type AgentConnectionExecution,
 } from '@lightdash/common';
 import { vi } from 'vitest';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../services/AgentPermissionService/AgentPermissionService';
 import { defaultSessionUser } from '../account/account.mock';
 import { AgentConnectionGrantService } from './AgentConnectionGrantService';
 import { grantFixture } from './grant.mock';
@@ -41,7 +38,6 @@ export const managedExecutionFixture = () => {
         version: 1,
         allowedCapabilities: null,
         allowedGroupUuids: null,
-        systemRoleMatrix: agentSystemRoleMatrix(Object.values(AgentCapability)),
     };
     const assignments = {
         systemRoles: [OrganizationMemberRole.VIEWER],

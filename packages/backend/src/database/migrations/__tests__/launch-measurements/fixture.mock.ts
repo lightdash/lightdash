@@ -193,14 +193,6 @@ export const fixture = async (database: Knex) => {
         mode: 'managed',
         allowedCapabilities: Object.values(AgentCapability),
         allowedGroupUuids: groupUuids,
-        systemRoleMatrix: {
-            member: [],
-            viewer: [],
-            interactive_viewer: [],
-            editor: [],
-            developer: Object.values(AgentCapability),
-            admin: Object.values(AgentCapability),
-        },
         updatedByUserUuid: user.user_uuid,
     });
     const usageUpdates: Promise<void>[] = [];

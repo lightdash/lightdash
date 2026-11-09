@@ -5,10 +5,7 @@ import {
     OrganizationMemberRole,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import { parseAgentWorkMarker } from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     WRITEBACK_AGENT_ACCESS_REFUSED_MESSAGE,
@@ -30,11 +27,10 @@ it.each([
         const policy = {
             mode: 'managed' as const,
             version: 1,
-            allowedCapabilities: null,
+            allowedCapabilities: [AgentCapability.ReadDiscover],
             allowedGroupUuids: null,
             storedAllowedGroupUuids: null,
             hasExistingAllowedGroup: null,
-            systemRoleMatrix: agentSystemRoleMatrix([]),
         };
         const userModel = {
             findSessionUserAndOrgByUuid: vi
@@ -90,7 +86,7 @@ it.each([
                 operation: operation.key,
             },
         });
-        policy.systemRoleMatrix.viewer = [AgentCapability.DbtWriteback];
+        policy.allowedCapabilities = [AgentCapability.DbtWriteback];
         await expect(guard.assert()).rejects.toBe(failure);
         expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(1);
     },
