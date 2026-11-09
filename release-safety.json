@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.179.3",
-  "previousVersion": "3.179.2",
-  "releaseDate": "2026-11-09T08:53:39.564Z",
+  "version": "3.179.4",
+  "previousVersion": "3.179.3",
+  "releaseDate": "2026-11-09T09:16:07.356Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261109100000_index_scheduler_log_export_history.ts",
-        "edition": "core",
-        "tables": [
-          "pg_index",
-          "scheduler_log"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

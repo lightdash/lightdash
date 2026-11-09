@@ -1,3 +1,10 @@
+## [3.179.4](https://github.com/lightdash/lightdash/compare/3.179.3...3.179.4) (2026-11-09)
+
+
+### Bug Fixes
+
+* keep MCP history ownership joins indexable ([#32217](https://github.com/lightdash/lightdash/issues/32217)) ([57c9491](https://github.com/lightdash/lightdash/commit/57c9491125878565dfd73c667ef94bfee62642eb))
+
 ## [3.179.3](https://github.com/lightdash/lightdash/compare/3.179.2...3.179.3) (2026-11-09)
 
 
