@@ -1,3 +1,10 @@
+## [3.179.2](https://github.com/lightdash/lightdash/compare/3.179.1...3.179.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **dashboard:** loading overlay follows tile corner radius ([#32216](https://github.com/lightdash/lightdash/issues/32216)) ([aeae948](https://github.com/lightdash/lightdash/commit/aeae948808287f6b36873b403effb07b9a9cd3ed))
+
 ## [3.179.1](https://github.com/lightdash/lightdash/compare/3.179.0...3.179.1) (2026-11-09)
 
 
