@@ -1384,6 +1384,7 @@ export class QueryHistoryModel {
             qh.cache_miss_reason,
             qh.cache_refresh_requested,
             COALESCE(qh.warehouse_execution_time_ms, 0) AS warehouse_ms,
+            COALESCE((qh.warehouse_execution_stats->>'bytesBilled')::float8, 0) AS bytes_billed,
             COALESCE(qh.results_created_at < qh.created_at, false) AS is_hit`;
 
     // Skips the JSON columns; use for aggregates that don't need chart targets.
@@ -1428,12 +1429,14 @@ export class QueryHistoryModel {
                 hits: number;
                 warehouse_time_on_misses_ms: number;
                 warehouse_time_saved_ms: number;
+                bytes_billed_saved: number;
             }>;
         }>(
             `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_SLIM_CTE},
             producers AS (
                 SELECT DISTINCT ON (cache_key, results_file_name)
-                    cache_key, results_file_name, warehouse_execution_time_ms
+                    cache_key, results_file_name, warehouse_execution_time_ms,
+                    (warehouse_execution_stats->>'bytesBilled')::float8 AS bytes_billed
                 FROM ${QueryHistoryTableName}
                 WHERE project_uuid = ?
                   AND results_created_at >= created_at
@@ -1445,7 +1448,8 @@ export class QueryHistoryModel {
                 count(*)::int AS runs,
                 (count(*) FILTER (WHERE r.is_hit))::int AS hits,
                 COALESCE(sum(r.warehouse_ms) FILTER (WHERE NOT r.is_hit), 0)::float8 AS warehouse_time_on_misses_ms,
-                COALESCE(sum(p.warehouse_execution_time_ms) FILTER (WHERE r.is_hit), 0)::float8 AS warehouse_time_saved_ms
+                COALESCE(sum(p.warehouse_execution_time_ms) FILTER (WHERE r.is_hit), 0)::float8 AS warehouse_time_saved_ms,
+                COALESCE(sum(p.bytes_billed) FILTER (WHERE r.is_hit), 0)::float8 AS bytes_billed_saved
             FROM runs r
             LEFT JOIN producers p
                 ON r.is_hit
@@ -1465,6 +1469,7 @@ export class QueryHistoryModel {
             hits: row.hits,
             warehouseTimeOnMissesMs: row.warehouse_time_on_misses_ms,
             warehouseTimeSavedMs: row.warehouse_time_saved_ms,
+            bytesBilledSaved: row.bytes_billed_saved,
         }));
     }
 
@@ -1582,6 +1587,7 @@ export class QueryHistoryModel {
                     is_hit: boolean;
                     forced_miss: boolean;
                     warehouse_ms: number;
+                    bytes_billed: number;
                 }>;
             }>(
                 `WITH ${QueryHistoryModel.RESULTS_CACHE_REPLAY_RUNS_CTE},
@@ -1596,7 +1602,8 @@ export class QueryHistoryModel {
                     r.results_created_at,
                     r.is_hit,
                     (r.cache_refresh_requested OR COALESCE(r.cache_miss_reason IN ('${ResultsCacheMissReason.CLEARED}', '${ResultsCacheMissReason.ACCESS_RESTRICTED}'), false)) AS forced_miss,
-                    r.warehouse_ms::float8 AS warehouse_ms
+                    r.warehouse_ms::float8 AS warehouse_ms,
+                    r.bytes_billed
                 FROM runs r
                 JOIN keys k ON k.cache_key = r.cache_key
                 ORDER BY r.cache_key, r.created_at
@@ -1613,6 +1620,7 @@ export class QueryHistoryModel {
                 isHit: row.is_hit,
                 forcedMiss: row.forced_miss,
                 warehouseTimeMs: row.warehouse_ms,
+                bytesBilled: row.bytes_billed,
             })),
         };
     }

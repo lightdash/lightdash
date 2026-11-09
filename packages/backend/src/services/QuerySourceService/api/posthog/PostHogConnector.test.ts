@@ -11,6 +11,7 @@ import {
 import type { ApiConnectorResponse } from '../ApiConnector';
 import {
     clickHouseTypeToDimensionType,
+    POSTHOG_CAPABILITIES,
     PostHogConnector,
 } from './PostHogConnector';
 
@@ -76,6 +77,7 @@ describe('PostHogConnector', () => {
                 callsPerHour: 2_400,
                 callsPerQuery: 1,
             },
+            capabilities: POSTHOG_CAPABILITIES,
         });
     });
 

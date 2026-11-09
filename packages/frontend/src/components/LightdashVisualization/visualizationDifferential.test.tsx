@@ -36,10 +36,6 @@ vi.mock('@shopify/react-web-worker', () => ({
     createWorkerFactory: () => () => ({}),
     useWorker: () => ({}),
 }));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => ({
-    ...(await importOriginal<object>()),
-    useServerFeatureFlag: () => ({ data: undefined }),
-}));
 
 const chartDataOf = (results: R): ChartData => ({
     rows: results.rows,

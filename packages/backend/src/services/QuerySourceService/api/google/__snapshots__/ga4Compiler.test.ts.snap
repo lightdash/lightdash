@@ -3,6 +3,9 @@
 exports[`GA4 semantic layer > keeps its field ids stable 1`] = `
 [
   "ga4_report_date",
+  "ga4_report_date_week",
+  "ga4_report_date_month",
+  "ga4_report_date_year",
   "ga4_report_year_month",
   "ga4_report_country",
   "ga4_report_city",

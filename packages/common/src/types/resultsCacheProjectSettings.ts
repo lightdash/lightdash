@@ -98,6 +98,8 @@ export type ResultsCacheStatsTotals = {
     misses: number;
     hitRate: number | null;
     warehouseTimeSavedMs: number;
+    // Only BigQuery reports bytes billed; 0 elsewhere.
+    bytesBilledSaved: number;
     warehouseTimeOnMissesMs: number;
 };
 
@@ -137,6 +139,7 @@ export type ResultsCacheTtlProjection = {
     hitRate: number | null;
     additionalHits: number;
     warehouseTimeSavedMs: number;
+    bytesBilledSaved: number;
 };
 
 export type ResultsCacheTtlProjections =
@@ -149,6 +152,7 @@ export type ResultsCacheTtlProjections =
               hits: number;
               hitRate: number | null;
               warehouseTimeSavedMs: number;
+              bytesBilledSaved: number;
           };
           // Empty when the duration is already at the longest suggestion.
           projections: ResultsCacheTtlProjection[];

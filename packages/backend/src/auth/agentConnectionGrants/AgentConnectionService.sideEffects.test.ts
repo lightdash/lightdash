@@ -11,10 +11,7 @@ import Logger from '../../logging/logger';
 import * as audit from '../../logging/winston';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import * as flagChecks from '../../models/FeatureFlagModel/flagCheckAggregator';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../services/AgentPermissionService/AgentPermissionService';
 import { fromSession } from '../account/account';
 import { defaultSessionUser } from '../account/account.mock';
 import { AgentConnectionService } from './AgentConnectionService';
@@ -115,16 +112,13 @@ describe.each([true, false])('audit level enabled: %s', (auditEnabled) => {
             const policy = {
                 mode: 'managed' as const,
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities: capabilities.filter(
+                    (capability) =>
+                        !refused || capability !== AgentCapability.RawSql,
+                ),
                 allowedGroupUuids: null,
                 storedAllowedGroupUuids: null,
                 hasExistingAllowedGroup: null,
-                systemRoleMatrix: agentSystemRoleMatrix(
-                    capabilities.filter(
-                        (capability) =>
-                            !refused || capability !== AgentCapability.RawSql,
-                    ),
-                ),
             };
             const permissions = new AgentPermissionService({
                 resolveResourceProjectUuid: vi

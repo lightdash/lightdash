@@ -326,11 +326,9 @@ const DashboardTileStatusProvider: React.FC<
         [dispatch],
     );
 
-    // Clears the cache time and loaded tiles, sets invalidateCache (causes
-    // results refetch) and bumps refreshCounter, which drives the iframe reload
-    // for data-app tiles (charts re-fetch via React Query invalidation, which
-    // happens separately in the refresh button). Bumping every call covers
-    // repeat refreshes — unlike invalidateCache, which is sticky once true.
+    // Clears the cache time and loaded tiles, sets invalidateCache and bumps
+    // refreshCounter, which is in every tile's query key (and reloads data-app
+    // iframes), so each refresh refetches even once invalidateCache is true.
     const clearCacheAndFetch = useCallback(() => {
         dispatch(dashboardTileStatusActions.refresh());
     }, [dispatch]);

@@ -1,4 +1,9 @@
-import { DimensionType, FilterOperator, MetricType } from '@lightdash/common';
+import {
+    DimensionType,
+    FilterOperator,
+    MetricType,
+    type ApiSourceMetricAggregation,
+} from '@lightdash/common';
 import { z } from 'zod';
 import type {
     ApiSourceDimensionDefinition,
@@ -56,11 +61,12 @@ const NUMBER_FILTERS = [
     FilterOperator.IN_BETWEEN,
     ...NULL_FILTERS,
 ];
-const DATE_FILTERS = [
+export const POSTHOG_DATE_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.NOT_EQUALS,
     FilterOperator.IN_THE_PAST,
     FilterOperator.NOT_IN_THE_PAST,
+    FilterOperator.IN_THE_CURRENT,
     FilterOperator.IN_BETWEEN,
     FilterOperator.LESS_THAN,
     FilterOperator.GREATER_THAN,
@@ -68,13 +74,14 @@ const DATE_FILTERS = [
 ];
 const BOOLEAN_FILTERS = [FilterOperator.EQUALS, ...NULL_FILTERS];
 
-const FILTERS_BY_TYPE: Record<DimensionType, FilterOperator[]> = {
-    [DimensionType.STRING]: STRING_FILTERS,
-    [DimensionType.NUMBER]: NUMBER_FILTERS,
-    [DimensionType.DATE]: DATE_FILTERS,
-    [DimensionType.TIMESTAMP]: DATE_FILTERS,
-    [DimensionType.BOOLEAN]: BOOLEAN_FILTERS,
-};
+export const POSTHOG_FILTERS_BY_TYPE: Record<DimensionType, FilterOperator[]> =
+    {
+        [DimensionType.STRING]: STRING_FILTERS,
+        [DimensionType.NUMBER]: NUMBER_FILTERS,
+        [DimensionType.DATE]: POSTHOG_DATE_FILTERS,
+        [DimensionType.TIMESTAMP]: POSTHOG_DATE_FILTERS,
+        [DimensionType.BOOLEAN]: BOOLEAN_FILTERS,
+    };
 
 const dimension = ({
     name,
@@ -97,13 +104,18 @@ const dimension = ({
     description,
     type,
     sql,
-    filterOperators: FILTERS_BY_TYPE[type],
+    filterOperators: POSTHOG_FILTERS_BY_TYPE[type],
 });
+
+export const POSTHOG_METRIC_FILTERS = NUMBER_FILTERS.filter(
+    (operator) => !NULL_FILTERS.includes(operator),
+);
 
 const metric = (
     name: string,
     label: string,
     type: MetricType,
+    aggregation: ApiSourceMetricAggregation,
     sql: string,
     description: string,
 ): ApiSourceMetricDefinition => ({
@@ -113,9 +125,8 @@ const metric = (
     description,
     type,
     sql,
-    filterOperators: NUMBER_FILTERS.filter(
-        (operator) => !NULL_FILTERS.includes(operator),
-    ),
+    filterOperators: POSTHOG_METRIC_FILTERS,
+    aggregation,
 });
 
 const eventProperty = (
@@ -238,6 +249,8 @@ export const POSTHOG_EVENTS_EXPLORE: ApiSourceExploreDefinition = {
             'event_count',
             'Events',
             MetricType.COUNT,
+            // A count of event rows (https://posthog.com/docs/sql)
+            { aggregation: 'additive' },
             '${TABLE}.uuid',
             'Events captured.',
         ),
@@ -245,6 +258,7 @@ export const POSTHOG_EVENTS_EXPLORE: ApiSourceExploreDefinition = {
             'unique_users',
             'Unique users',
             MetricType.COUNT_DISTINCT,
+            { aggregation: 'non_additive' },
             '${TABLE}.person_id',
             'Distinct people, after identify and merges.',
         ),
@@ -252,11 +266,12 @@ export const POSTHOG_EVENTS_EXPLORE: ApiSourceExploreDefinition = {
             'unique_sessions',
             'Unique sessions',
             MetricType.COUNT_DISTINCT,
+            // Sessions can span days, so daily counts overlap
+            { aggregation: 'non_additive' },
             '${TABLE}.$session_id',
             'Distinct sessions.',
         ),
     ],
-    filterGroups: { or: true, nested: true },
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },

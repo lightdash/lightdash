@@ -1,3 +1,116 @@
+## [3.181.2](https://github.com/lightdash/lightdash/compare/3.181.1...3.181.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **frontend:** hide the warehouse badge on live data source explores ([#32188](https://github.com/lightdash/lightdash/issues/32188)) ([0905f95](https://github.com/lightdash/lightdash/commit/0905f957214f59fa0f14d2b6bc424417ab7d5d6c))
+
+## [3.181.1](https://github.com/lightdash/lightdash/compare/3.181.0...3.181.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **redshift:** only run the stalled-query check on Serverless workgroups ([#32225](https://github.com/lightdash/lightdash/issues/32225)) ([7dbe066](https://github.com/lightdash/lightdash/commit/7dbe066e6920616e5d6e130713cf870789717dee))
+
+# [3.181.0](https://github.com/lightdash/lightdash/compare/3.180.1...3.181.0) (2026-11-09)
+
+
+### Bug Fixes
+
+* **agents:** remove per-role agent permission limits ([#32211](https://github.com/lightdash/lightdash/issues/32211)) ([23348e0](https://github.com/lightdash/lightdash/commit/23348e0d0967a9c4d52582e1bc604ff1b87707e7))
+
+
+### Features
+
+* **embed:** report rendered dashboard height to iframe hosts ([#32223](https://github.com/lightdash/lightdash/issues/32223)) ([b6555e0](https://github.com/lightdash/lightdash/commit/b6555e0fa63e40ded7a8db94717f624349cce5cd))
+
+## [3.180.1](https://github.com/lightdash/lightdash/compare/3.180.0...3.180.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **dashboards:** re-run every tile on each dashboard refresh ([#32221](https://github.com/lightdash/lightdash/issues/32221)) ([2468c5d](https://github.com/lightdash/lightdash/commit/2468c5d5e94cd9c3e2b9494d1b34064f5f0aad31))
+
+# [3.180.0](https://github.com/lightdash/lightdash/compare/3.179.5...3.180.0) (2026-11-09)
+
+
+### Features
+
+* show estimated cost savings for results caching ([#32222](https://github.com/lightdash/lightdash/issues/32222)) ([9945d8f](https://github.com/lightdash/lightdash/commit/9945d8f2868f0ba614bbdb54784b0efa5958807d))
+
+## [3.179.5](https://github.com/lightdash/lightdash/compare/3.179.4...3.179.5) (2026-11-09)
+
+
+### Bug Fixes
+
+* **frontend:** attribute chart image deliveries to the scheduled delivery ([#32186](https://github.com/lightdash/lightdash/issues/32186)) ([1709e23](https://github.com/lightdash/lightdash/commit/1709e2349ccdd426e51921151ff50b1b2c3702f5)), closes [#32187](https://github.com/lightdash/lightdash/issues/32187)
+
+## [3.179.4](https://github.com/lightdash/lightdash/compare/3.179.3...3.179.4) (2026-11-09)
+
+
+### Bug Fixes
+
+* keep MCP history ownership joins indexable ([#32217](https://github.com/lightdash/lightdash/issues/32217)) ([57c9491](https://github.com/lightdash/lightdash/commit/57c9491125878565dfd73c667ef94bfee62642eb))
+
+## [3.179.3](https://github.com/lightdash/lightdash/compare/3.179.2...3.179.3) (2026-11-09)
+
+
+### Bug Fixes
+
+* index retained export history by organization ([#32219](https://github.com/lightdash/lightdash/issues/32219)) ([cc6a3f0](https://github.com/lightdash/lightdash/commit/cc6a3f0edf95010f9fb5857e9fd1fa50f056b71a))
+
+## [3.179.2](https://github.com/lightdash/lightdash/compare/3.179.1...3.179.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **dashboard:** loading overlay follows tile corner radius ([#32216](https://github.com/lightdash/lightdash/issues/32216)) ([aeae948](https://github.com/lightdash/lightdash/commit/aeae948808287f6b36873b403effb07b9a9cd3ed))
+
+## [3.179.1](https://github.com/lightdash/lightdash/compare/3.179.0...3.179.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** small animated sketch for artifact loading states ([#32189](https://github.com/lightdash/lightdash/issues/32189)) ([a972d71](https://github.com/lightdash/lightdash/commit/a972d719ea2f44a37c6e31c51131116a1d8772f0))
+
+# [3.179.0](https://github.com/lightdash/lightdash/compare/3.178.0...3.179.0) (2026-11-06)
+
+
+### Features
+
+* remove user-groups-enabled flag, groups always on ([#32201](https://github.com/lightdash/lightdash/issues/32201)) ([9766b39](https://github.com/lightdash/lightdash/commit/9766b39348197c6ba20ff8882642611262d3794f))
+
+# [3.178.0](https://github.com/lightdash/lightdash/compare/3.177.1...3.178.0) (2026-11-06)
+
+
+### Features
+
+* **live-sources:** connectors declare their query capabilities ([#32191](https://github.com/lightdash/lightdash/issues/32191)) ([97be9c5](https://github.com/lightdash/lightdash/commit/97be9c536a5a143b829f49c8cfa40ef4e2d8fd97))
+* **live-sources:** map more filter operators and date grains to native API features ([#32194](https://github.com/lightdash/lightdash/issues/32194)) ([5baf367](https://github.com/lightdash/lightdash/commit/5baf367f3ed29ce36fac1e0471c0ef5f8595ec96))
+* **live-sources:** run table calculations, custom fields and period-over-period on PostHog ([#32195](https://github.com/lightdash/lightdash/issues/32195)) ([21b3308](https://github.com/lightdash/lightdash/commit/21b3308428b85d6272b1b0ae3021080c97bc3e05))
+* **live-sources:** stable error codes for refusals and upstream errors ([#32192](https://github.com/lightdash/lightdash/issues/32192)) ([7e4d8eb](https://github.com/lightdash/lightdash/commit/7e4d8eb69c21ccca8c34fd51d6fda253357019cf))
+
+## [3.177.1](https://github.com/lightdash/lightdash/compare/3.177.0...3.177.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **documents:** validate live data source charts against their integration ([#32197](https://github.com/lightdash/lightdash/issues/32197)) ([18d6314](https://github.com/lightdash/lightdash/commit/18d6314d26c2c3cf4bf5b88a57d3c9b0af2934d0))
+
+# [3.177.0](https://github.com/lightdash/lightdash/compare/3.176.2...3.177.0) (2026-11-06)
+
+
+### Features
+
+* **custom-charts:** show AI Vega generation wherever ambient AI is on ([#31834](https://github.com/lightdash/lightdash/issues/31834)) ([a52cfaa](https://github.com/lightdash/lightdash/commit/a52cfaa22ab6c864be1577359af87d5ce469171b))
+
+## [3.176.2](https://github.com/lightdash/lightdash/compare/3.176.1...3.176.2) (2026-11-06)
+
+
+### Bug Fixes
+
+* **cli:** keep vendored data app template intact in standalone binary ([#32190](https://github.com/lightdash/lightdash/issues/32190)) ([9f5a84d](https://github.com/lightdash/lightdash/commit/9f5a84d3d15e5f2ce3afed4dbb14093aaea4e506))
+
 ## [3.176.1](https://github.com/lightdash/lightdash/compare/3.176.0...3.176.1) (2026-11-06)
 
 

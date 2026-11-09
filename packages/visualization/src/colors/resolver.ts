@@ -36,8 +36,8 @@ export type SeriesColorResolverOptions = ColorAssignmentOptions & {
     computedSeries?: Series[];
     /**
      * Whether grouped series take a shared, first-come color from the
-     * mappings (the `CalculateSeriesColor` feature flag) instead of the
-     * palette color for their position.
+     * mappings instead of the palette color for their position. The web app
+     * leaves it off; `sharedSeriesColors` in the headless engine sets it.
      */
     calculateSeriesColor?: boolean;
 };

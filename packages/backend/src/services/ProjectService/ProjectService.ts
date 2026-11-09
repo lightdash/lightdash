@@ -1370,7 +1370,6 @@ export class ProjectService
                 organizationUuid,
                 onboardingFlow,
                 onboardingModel: this.onboardingModel,
-                userModel: this.userModel,
                 analytics: this.analytics,
             });
         } catch (error) {

@@ -6,10 +6,7 @@ import {
 } from '@lightdash/common';
 import { toSessionUser } from '../../../auth/account/account';
 import { buildAccount } from '../../../auth/account/account.mock';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -36,9 +33,8 @@ const setup = () => {
     const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
-        allowedCapabilities: null,
+        allowedCapabilities: [AgentCapability.Query],
         allowedGroupUuids: null,
-        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -180,7 +176,8 @@ test.each(denials)(
     'fast chart paths stop before effects when %s is denied',
     async (denial, reason) => {
         const h = setup();
-        if (denial === 'query') h.policy.systemRoleMatrix.viewer = [];
+        if (denial === 'query')
+            h.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
         if (denial === 'group') h.policy.allowedGroupUuids = [];
 
         if (denial === 'empty list') h.policy.allowedCapabilities = [];
@@ -235,7 +232,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
             h.featureFlagModel.get.mockResolvedValue({ enabled: false });
         if (mode === 'legacy') h.policy.mode = 'legacy';
         if (mode !== 'managed') {
-            h.policy.systemRoleMatrix.viewer = [];
+            h.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
         }
         await h.privateService.tryApplyChartEdit(h.args);
         await h.privateService.searchFilterValueCandidates({

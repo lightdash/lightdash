@@ -1493,7 +1493,6 @@ export type ApiLearnAccessResponse = {
 
 export const playgroundProjectTriggers = [
     'invite_expert',
-    'agent_onboarding_wait',
     'get_started',
 ] as const;
 

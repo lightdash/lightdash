@@ -97,7 +97,7 @@ const { suggestionsState } = vi.hoisted(() => ({
 
 const { onboardingState } = vi.hoisted(() => ({
     onboardingState: {
-        current: { isNewOnboarding: false, starterQuestions: [] as string[] },
+        current: { isNewOnboarding: false },
     },
 }));
 
@@ -107,20 +107,6 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
             enabled:
                 flag === FeatureFlags.NewOnboarding &&
                 onboardingState.current.isNewOnboarding,
-        },
-    }),
-}));
-
-vi.mock('../agentOnboarding/hooks/useAgentOnboarding', () => ({
-    useLatestAgentOnboardingRun: () => ({
-        isSuccess: true,
-        isError: false,
-        data: {
-            status: 'completed',
-            handoff: {
-                summary: null,
-                starterQuestions: onboardingState.current.starterQuestions,
-            },
         },
     }),
 }));
@@ -231,25 +217,7 @@ const renderWithSuggestions = (labels: string[]) => {
 describe('DayOneAskInput suggestion chips', () => {
     afterEach(() => {
         suggestionsState.current = { data: undefined, isLoading: false };
-        onboardingState.current = {
-            isNewOnboarding: false,
-            starterQuestions: [],
-        };
-    });
-
-    it('prefers the starter questions the onboarding run checked', () => {
-        onboardingState.current = {
-            isNewOnboarding: true,
-            starterQuestions: ['Which products sell best?'],
-        };
-        renderWithSuggestions(['Generated suggestion']);
-
-        expect(
-            screen.getAllByText('Which products sell best?').length,
-        ).toBeGreaterThan(0);
-        expect(
-            screen.queryByText('Generated suggestion'),
-        ).not.toBeInTheDocument();
+        onboardingState.current = { isNewOnboarding: false };
     });
 
     it('shows at most two chips on the homepage, however many are generated', () => {

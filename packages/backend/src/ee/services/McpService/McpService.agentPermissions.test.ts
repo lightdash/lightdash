@@ -20,10 +20,7 @@ import {
 } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { grantFixture } from '../../../auth/agentConnectionGrants/grant.mock';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     expectAdmissionSql,
     setupPermissionSql,
@@ -74,9 +71,8 @@ const setup = (
     const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
-        allowedCapabilities: null,
+        allowedCapabilities: [...restrictedCapabilities],
         allowedGroupUuids: null,
-        systemRoleMatrix: agentSystemRoleMatrix(restrictedCapabilities),
     };
     const deps = {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
@@ -540,9 +536,7 @@ describe('MCP resource protocol permissions', () => {
 
     test.each(resourceUris)('refuses %s without discovery', async (uri) => {
         const { client, policy, deps } = await setupResourceProtocol();
-        policy.systemRoleMatrix = agentSystemRoleMatrix([
-            AgentCapability.Query,
-        ]);
+        policy.allowedCapabilities = [AgentCapability.Query];
         try {
             await expect(client.readResource({ uri })).rejects.toMatchObject({
                 data: {
@@ -669,7 +663,7 @@ describe('MCP resource protocol permissions', () => {
             if (mode === 'off')
                 deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
             else policy.mode = 'legacy';
-            policy.systemRoleMatrix = agentSystemRoleMatrix([]);
+            policy.allowedCapabilities = [];
             try {
                 await Promise.all(
                     resourceUris.map(async (uri) => {

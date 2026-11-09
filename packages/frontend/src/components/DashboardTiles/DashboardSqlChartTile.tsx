@@ -24,6 +24,7 @@ import {
 import {
     selectInvalidateCache,
     selectParameterValues,
+    selectRefreshCounter,
     useDashboardSelector,
     useTileDashboardParameterInputs,
 } from '../../features/dashboard/store';
@@ -119,6 +120,7 @@ const SqlChartTile: FC<Props> = ({
     const { dashboardValues: parameters, excludedParameterKeys } =
         useTileDashboardParameterInputs(tile.uuid, appliedParameterValues);
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
+    const refreshCounter = useDashboardSelector(selectRefreshCounter);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -175,6 +177,7 @@ const SqlChartTile: FC<Props> = ({
                   parameters,
                   excludedParameterKeys,
                   invalidateCache,
+                  refreshCounter,
               },
     );
     const connections = useConnectionBadges(effectiveProjectUuid);

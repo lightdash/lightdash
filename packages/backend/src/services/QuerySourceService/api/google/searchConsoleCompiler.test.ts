@@ -7,7 +7,8 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
-import { compileSearchConsoleQuery } from './searchConsoleCompiler';
+import { compileSearchConsoleQuery, escapeRe2 } from './searchConsoleCompiler';
+import { SEARCH_CONSOLE_CAPABILITIES } from './SearchConsoleConnector';
 import {
     SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
     SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
@@ -23,6 +24,7 @@ const explore = buildApiSourceExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.SEARCH_CONSOLE,
     baseVersion: SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
+    capabilities: SEARCH_CONSOLE_CAPABILITIES,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -164,45 +166,57 @@ describe('compileSearchConsoleQuery', () => {
         );
         expect(request.dimensionFilterGroups).toBeUndefined();
     });
+    const filtersFor = (...rules: FilterRule[]) =>
+        compile(query({ filters: { dimensions: { id: 'root', and: rules } } }))
+            .request.dimensionFilterGroups[0].filters;
 
-    test('refuses matching several values, which needs an OR', () => {
-        expect(() =>
-            compile(
-                query({
-                    filters: {
-                        dimensions: {
-                            id: 'root',
-                            and: [
-                                rule('country', FilterOperator.EQUALS, [
-                                    'usa',
-                                    'gbr',
-                                ]),
-                            ],
-                        },
-                    },
-                }),
-            ),
-        ).toThrow('one value at a time');
+    test.each([
+        [FilterOperator.STARTS_WITH, ['/blog'], 'includingRegex', '^/blog'],
+        [FilterOperator.ENDS_WITH, ['.html'], 'includingRegex', '\\.html$'],
+        [
+            FilterOperator.STARTS_WITH,
+            ['/blog', '/docs'],
+            'includingRegex',
+            '^(/blog|/docs)',
+        ],
+        [FilterOperator.ENDS_WITH, ['/a', '/b'], 'includingRegex', '(/a|/b)$'],
+        [FilterOperator.EQUALS, ['a', 'b'], 'includingRegex', '^(a|b)$'],
+        [FilterOperator.INCLUDE, ['a', 'b'], 'includingRegex', '(a|b)'],
+        [FilterOperator.EQUALS, ['a.b'], 'equals', 'a.b'],
+        [FilterOperator.INCLUDE, ['a.b'], 'contains', 'a.b'],
+    ])(
+        'compiles %s %j to %s %s',
+        (operator, values, apiOperator, expression) => {
+            expect(filtersFor(rule('page', operator, values))).toEqual([
+                { dimension: 'page', operator: apiOperator, expression },
+            ]);
+        },
+    );
+
+    test('ANDs several negative values as separate filters', () => {
+        expect(
+            filtersFor(rule('query', FilterOperator.NOT_EQUALS, ['a', 'b'])),
+        ).toEqual([
+            { dimension: 'query', operator: 'notEquals', expression: 'a' },
+            { dimension: 'query', operator: 'notEquals', expression: 'b' },
+        ]);
     });
 
-    test('refuses metric filters, which Search Analytics cannot apply', () => {
-        expect(() =>
-            compile(
-                query({
-                    filters: {
-                        metrics: {
-                            id: 'metrics',
-                            and: [
-                                rule(
-                                    'clicks',
-                                    FilterOperator.GREATER_THAN,
-                                    [10],
-                                ),
-                            ],
-                        },
-                    },
-                }),
+    test('escapes RE2 metacharacters so values match literally', () => {
+        expect(escapeRe2('a.b?c(d|e)')).toBe('a\\.b\\?c\\(d\\|e\\)');
+        expect(escapeRe2('[x]{1}^$*+\\')).toBe(
+            '\\[x\\]\\{1\\}\\^\\$\\*\\+\\\\',
+        );
+        expect(
+            filtersFor(
+                rule('query', FilterOperator.EQUALS, ['what is a.b?', 'x|y']),
             ),
-        ).toThrow(`"${field('clicks')}" can't be filtered`);
+        ).toEqual([
+            {
+                dimension: 'query',
+                operator: 'includingRegex',
+                expression: '^(what is a\\.b\\?|x\\|y)$',
+            },
+        ]);
     });
 });

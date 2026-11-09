@@ -384,7 +384,7 @@ docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" --env-file .env.d
 # ---------------------------------------------------------------------------
 # The Docker sandbox provider launches agent containers from local images that
 # are built once per machine, never pulled. A missing image only surfaces later
-# as a runtime 404 ("No such image: lightdash-agent-onboarding:local") when a
+# as a runtime 404 ("No such image: lightdash-ai-writeback:local") when a
 # sandbox-backed feature first runs, so build any that are absent now. Env
 # overrides mean the operator points at their own image — leave those alone.
 if grep -q "^SANDBOX_PROVIDER=docker" .env.development.local 2>/dev/null; then
@@ -405,7 +405,6 @@ if grep -q "^SANDBOX_PROVIDER=docker" .env.development.local 2>/dev/null; then
     }
     ensure_sandbox_image lightdash-sandbox:local ./sandboxes/data-apps/build-local-image.sh SANDBOX_DOCKER_IMAGE
     ensure_sandbox_image lightdash-ai-writeback:local ./sandboxes/ai-writeback/build-local-image.sh SANDBOX_AI_WRITEBACK_DOCKER_IMAGE
-    ensure_sandbox_image lightdash-agent-onboarding:local ./sandboxes/agent-onboarding/build-local-image.sh SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE
 fi
 
 step "Wait for PostgreSQL"
@@ -520,6 +519,10 @@ if [ "$EE_MODE" = true ]; then
             pnpm -F backend exec knex seed:run --specific=01_embed.ts --knexfile src/knexfile.ts \
             || fail "ee-seed" "EE seed failed"
     fi
+    # DBs restored from an older EE base lack the agent.
+    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
+        pnpm -F backend exec knex seed:run --specific=02_ai_agent.ts --knexfile src/knexfile.ts \
+        || fail "ee-agent-seed" "EE agent seed failed"
     echo "OK: EE migration pass complete"
 
     # Seed the dedicated EE base for future EE instances (one-time). Captured here,

@@ -189,6 +189,55 @@ describe('RedshiftWarehouseClient', () => {
         },
     );
 
+    it.each([
+        [
+            'a provisioned cluster',
+            { host: 'c.abc.eu-west-1.redshift.amazonaws.com' },
+            false,
+        ],
+        [
+            'a host behind a custom domain',
+            { host: 'warehouse.example.com' },
+            false,
+        ],
+        [
+            'a Serverless workgroup host',
+            { host: 'wg.123.eu-west-1.redshift-serverless.amazonaws.com' },
+            true,
+        ],
+        [
+            'an IAM Serverless connection',
+            { host: 'warehouse.example.com', isServerless: true },
+            true,
+        ],
+    ])(
+        'watches for stalls only on Serverless: %s',
+        async (_label, overrides, watched) => {
+            const attempt = vi
+                .spyOn(
+                    PostgresClient.prototype as unknown as {
+                        streamQueryAttempt: () => Promise<void>;
+                    },
+                    'streamQueryAttempt',
+                )
+                .mockResolvedValue(undefined);
+            try {
+                const warehouse = new RedshiftWarehouseClient({
+                    ...credentials,
+                    ...overrides,
+                });
+                await warehouse.streamQuery('select 1', () => {}, {
+                    recoverStalledQuery: true,
+                });
+                expect(attempt).toHaveBeenCalledOnce();
+                const onAttemptStart = (attempt.mock.calls[0] as unknown[])[3];
+                expect(typeof onAttemptStart === 'function').toBe(watched);
+            } finally {
+                attempt.mockRestore();
+            }
+        },
+    );
+
     it('keeps catalog filters in the Redshift query', async () => {
         const warehouse = new RedshiftWarehouseClient(credentials);
         const runQuery = vi

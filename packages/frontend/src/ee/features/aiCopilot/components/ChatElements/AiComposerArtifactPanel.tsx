@@ -39,6 +39,7 @@ import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualizati
 import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 import { AiComposerLineage } from './composerPipeline/AiComposerLineage';
 import {
@@ -212,12 +213,14 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const fieldsDisabledReason = isWritable ? null : READ_ONLY_REASON;
     const [isChartOpen, setIsChartOpen] = useState(false);
 
-    const isRunQueryChart =
+    const drawsRunQueryChart =
         source.kind === 'artifact' &&
         !!runQueryVizConfig &&
-        !!queryUuid &&
         !runError &&
         !results.error;
+    const isRunQueryChart = drawsRunQueryChart && !!queryUuid;
+    // Until the run hands back a query, the table path below would flash its own loader.
+    const isAwaitingRunQueryChart = drawsRunQueryChart && !queryUuid;
     // The ref is only set for chart types that export as an image.
     const canExportImage =
         view === 'chart' &&
@@ -305,7 +308,9 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         </Box>
     );
 
-    const visualization = isRunQueryChart ? (
+    const visualization = isAwaitingRunQueryChart ? (
+        <ArtifactLoadingSketch />
+    ) : isRunQueryChart ? (
         <AiComposerRunQueryVisualization
             projectUuid={projectUuid}
             agentUuid={agentUuid}

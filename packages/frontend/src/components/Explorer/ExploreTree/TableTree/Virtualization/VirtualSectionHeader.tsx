@@ -12,7 +12,7 @@ import {
 } from '../../../../../features/explorer/store';
 import {
     NOT_ON_LIVE_SOURCES,
-    useApiSourceExplore,
+    useIsRefusedOnLiveSource,
 } from '../../../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import useApp from '../../../../../providers/App/useApp';
@@ -44,8 +44,10 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     // Get all custom metrics and dimensions for write-back
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const allCustomDimensions = useExplorerSelector(selectCustomDimensions);
-    const isLiveSource =
-        useApiSourceExplore(useExplorerSelector(selectTableName)) !== null;
+    const isCustomDimensionRefused = useIsRefusedOnLiveSource(
+        useExplorerSelector(selectTableName),
+        'customDimensions',
+    );
 
     // Write-back requires a base dimension column to attach the metric to in YAML
     const allAdditionalMetrics = useMemo(
@@ -160,7 +162,7 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                 {showAddButton && (
                     <Tooltip
                         label={
-                            isLiveSource
+                            isCustomDimensionRefused
                                 ? NOT_ON_LIVE_SOURCES
                                 : 'Add a custom dimension with SQL'
                         }
@@ -171,9 +173,11 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                             size="compact-xs"
                             leftSection={<MantineIcon icon={IconPlus} />}
                             // data-disabled keeps the tooltip working
-                            data-disabled={isLiveSource || undefined}
+                            data-disabled={
+                                isCustomDimensionRefused || undefined
+                            }
                             onClick={
-                                isLiveSource
+                                isCustomDimensionRefused
                                     ? undefined
                                     : handleAddCustomDimension
                             }

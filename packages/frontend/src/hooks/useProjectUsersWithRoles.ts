@@ -1,7 +1,6 @@
 import {
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToOrganizationRole,
-    FeatureFlags,
     getHighestProjectRole,
     isGroupWithMembers,
     isSystemRole,
@@ -19,7 +18,6 @@ import { useProjectGroupAccessList } from '../features/projectGroupAccess/hooks/
 import { useOrganizationGroups } from './useOrganizationGroups';
 import { useOrganizationUsers } from './useOrganizationUsers';
 import { useProjectAccess } from './useProjectAccess';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 export type ProjectUserWithRole = Omit<OrganizationMemberProfile, 'role'> & {
     inheritedRole: InheritedRoles | undefined;
@@ -91,10 +89,6 @@ export const useProjectUsersWithRoles = (
         paginateArgs?: KnexPaginateArgs;
     },
 ) => {
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
     const organizationUsersQuery = useOrganizationUsers({
         searchInput: params?.searchInput,
         projectUuid,
@@ -102,14 +96,7 @@ export const useProjectUsersWithRoles = (
         paginateArgs: params?.paginateArgs,
     });
 
-    const groupsQuery = useOrganizationGroups(
-        { includeMembers: 5 },
-        {
-            enabled:
-                userGroupsFeatureFlagQuery.isSuccess &&
-                userGroupsFeatureFlagQuery.data.enabled,
-        },
-    );
+    const groupsQuery = useOrganizationGroups({ includeMembers: 5 });
 
     const projectAccessQuery = useProjectAccess(projectUuid);
 

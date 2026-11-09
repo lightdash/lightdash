@@ -57,7 +57,6 @@ const setup = (
             version: 1,
             allowedGroupUuids: mode === 'people-only' ? null : [group.uuid],
             allowedCapabilities: null,
-            systemRoleMatrix: {} as never,
         });
     const service = new GroupsService({
         analytics: { track: vi.fn() } as never,

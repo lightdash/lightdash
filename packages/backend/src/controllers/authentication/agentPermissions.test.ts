@@ -29,10 +29,7 @@ import { authenticateServiceAccount } from '../../ee/authentication';
 import { errorHandler } from '../../errors';
 import { RegisterRoutes } from '../../generated/routes';
 import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../services/AgentPermissionService/AgentPermissionService';
 import {
     expectAdmissionSql,
     setupPermissionSql,
@@ -72,7 +69,7 @@ const setup = ({
     allowedProjectUuids = null,
     allowedUserUuids = null,
     allowedGroupUuids = null,
-    allowedCapabilities = null,
+    allowedCapabilities = [...restrictedCapabilities],
 }: {
     mode?: 'off' | 'legacy' | 'managed';
     clientId?: string;
@@ -100,7 +97,6 @@ const setup = ({
         allowed_user_uuids: allowedUserUuids,
         allowedCapabilities,
         allowedGroupUuids,
-        systemRoleMatrix: agentSystemRoleMatrix(restrictedCapabilities),
     });
     const resolveResourceProjectUuid = vi.fn().mockResolvedValue(null);
     const groupsModel = { findUserInGroups: vi.fn().mockResolvedValue([]) };
@@ -287,7 +283,6 @@ describe.each([
                 version: 1,
                 allowedCapabilities: null,
                 allowedGroupUuids: null,
-                systemRoleMatrix: agentSystemRoleMatrix([]),
             });
         try {
             await expect(
@@ -595,11 +590,10 @@ it.each([
             allowedGroupUuids: null,
             mode: 'managed',
             version: 1,
-            allowedCapabilities: null,
-            systemRoleMatrix: agentSystemRoleMatrix([
+            allowedCapabilities: [
                 AgentCapability.Administration,
                 AgentCapability.Publish,
-            ]),
+            ],
         });
         await expect(run(allowApiKeyAuthentication)).resolves.toMatchObject({
             refusal: {
@@ -645,8 +639,7 @@ it('allows managed OAuth space metadata edits with content_write', async () => {
         allowedGroupUuids: null,
         mode: 'managed',
         version: 1,
-        allowedCapabilities: null,
-        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.ContentWrite]),
+        allowedCapabilities: [AgentCapability.ContentWrite],
     });
     await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
 });
@@ -659,8 +652,7 @@ it('checks access changes after allowing the OAuth space REST operation', async 
         allowedGroupUuids: null,
         mode: 'managed' as const,
         version: 1,
-        allowedCapabilities: null,
-        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.ContentWrite]),
+        allowedCapabilities: [AgentCapability.ContentWrite],
     };
     getPolicy.mockResolvedValue(policy);
     const policyRead = vi
@@ -952,7 +944,6 @@ it('refuses a personal CLI membership change through the registered controller m
             version: 1,
             allowedCapabilities: null,
             allowedGroupUuids: null,
-            systemRoleMatrix: agentSystemRoleMatrix([]),
         });
     const projectService = new ProjectService({
         lightdashConfig,

@@ -46,7 +46,6 @@ const settingsContext = (
     embeddingEnabled: undefined,
     allowPasswordAuthentication: false,
     hasSocialLogin: false,
-    isGroupManagementEnabled: false,
     isAgentIdentityEnabled: false,
     isAgentIdentityFlagLoading: false,
     isGitProject: false,

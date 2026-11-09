@@ -53,7 +53,6 @@ import type { ExternalConnectionService } from '../services/ExternalConnectionSe
 import type { ExternalSourceService } from '../services/ExternalSourceService/ExternalSourceService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 import { type MobilePushNotificationService } from '../services/MobilePushNotificationService/MobilePushNotificationService';
-import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
 import { createReviewJiraIssue } from './tasks/createReviewJiraIssue';
@@ -79,7 +78,6 @@ const AI_AGENT_MEMORY_CONSOLIDATE_LLM_TIMEOUT_MS = 25 * 60 * 1000; // 25 minutes
 const AI_AGENT_MEMORY_CONSOLIDATE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
-const AGENT_ONBOARDING_TIMEOUT_MS = 60 * 60 * 1000;
 const EXTERNAL_SOURCE_INGEST_TIMEOUT_MS = 30 * 60 * 1000;
 
 export const cleanAiDeepResearchReports = async ({
@@ -137,7 +135,6 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentMemoryService: AiAgentMemoryService;
     aiWritebackService: AiWritebackService;
     aiDeepResearchService: AiDeepResearchService;
-    onboardingAgentService: OnboardingAgentService;
     aiAgentReviewClassifierService: AiAgentReviewClassifierService;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
@@ -194,8 +191,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiWritebackService: AiWritebackService;
 
     protected readonly aiDeepResearchService: AiDeepResearchService;
-
-    protected readonly onboardingAgentService: OnboardingAgentService;
 
     protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
 
@@ -263,7 +258,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.aiAgentMemoryService = args.aiAgentMemoryService;
         this.aiWritebackService = args.aiWritebackService;
         this.aiDeepResearchService = args.aiDeepResearchService;
-        this.onboardingAgentService = args.onboardingAgentService;
         this.aiAgentReviewClassifierService =
             args.aiAgentReviewClassifierService;
         this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
@@ -1145,31 +1139,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         await this.aiWritebackService.markRunError(
                             payload.aiWritebackRunUuid,
                             getErrorMessage(e),
-                        );
-                    },
-                );
-            },
-            [EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: async (
-                payload,
-                helpers,
-            ) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.onboardingAgentService.executeRun(
-                                payload,
-                            );
-                        },
-                    ),
-                    helpers.job,
-                    AGENT_ONBOARDING_TIMEOUT_MS,
-                    async () => {
-                        await this.onboardingAgentService.markRunTimedOut(
-                            payload.agentOnboardingRunUuid,
                         );
                     },
                 );

@@ -25,6 +25,7 @@ export type ResultsCacheContextStatsRow = {
     hits: number;
     warehouseTimeOnMissesMs: number;
     warehouseTimeSavedMs: number;
+    bytesBilledSaved: number;
 };
 
 export type ResultsCacheRecommendationRow = {
@@ -116,6 +117,10 @@ const toTotals = (
         hitRate: getHitRate(hits, runs),
         warehouseTimeSavedMs: rows.reduce(
             (sum, row) => sum + row.warehouseTimeSavedMs,
+            0,
+        ),
+        bytesBilledSaved: rows.reduce(
+            (sum, row) => sum + row.bytesBilledSaved,
             0,
         ),
         warehouseTimeOnMissesMs: rows.reduce(

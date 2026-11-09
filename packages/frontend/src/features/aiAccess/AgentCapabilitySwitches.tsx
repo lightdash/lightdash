@@ -1,17 +1,8 @@
 import { AgentCapability } from '@lightdash/common';
-import {
-    Accordion,
-    Anchor,
-    Badge,
-    Group,
-    Stack,
-    Switch,
-    Text,
-} from '@mantine/core';
+import { Accordion, Anchor, Stack, Switch, Text } from '@mantine/core';
 import { Link } from 'react-router';
 import Callout from '../../components/common/Callout';
 import { agentPageCapabilityLabels } from './agentCapabilityLabels';
-import { AgentCapabilityMatrix } from './AgentCapabilityMatrix';
 import {
     readAndQueryCapabilities,
     toggleAgentCapability,
@@ -72,14 +63,7 @@ export const AgentCapabilitySwitches = ({
     onChange: (draft: AgentPermissionDraft) => void;
     disabled: boolean;
 }) => {
-    const rows = Object.values(draft.systemRoleMatrix);
-    const firstRow = new Set(rows[0]);
     const allowed = new Set(draft.allowedCapabilities);
-    const sameRows = rows.every(
-        (row) =>
-            row.length === rows[0].length &&
-            row.every((cap) => firstRow.has(cap)),
-    );
     const developerCount = developer.filter((cap) => allowed.has(cap)).length;
     return (
         <Stack gap="md">
@@ -132,39 +116,11 @@ export const AgentCapabilitySwitches = ({
                         />
                     </Accordion.Panel>
                 </Accordion.Item>
-                <Accordion.Item value="roles">
-                    <Accordion.Control>
-                        <Stack gap={0}>
-                            <Group gap="xs">
-                                <Text size="sm" fw={500}>
-                                    Different limits per role
-                                </Text>
-                                <Badge size="xs">Advanced</Badge>
-                            </Group>
-                            <Text size="xs" c="dimmed">
-                                {sameRows
-                                    ? 'All roles get the same today.'
-                                    : 'Roles have different limits today.'}
-                            </Text>
-                        </Stack>
-                    </Accordion.Control>
-                    <Accordion.Panel>
-                        <AgentCapabilityMatrix
-                            matrix={draft.systemRoleMatrix}
-                            allowedCapabilities={draft.allowedCapabilities}
-                            disabled={disabled}
-                            onChange={(systemRoleMatrix) =>
-                                onChange({ ...draft, systemRoleMatrix })
-                            }
-                        />
-                    </Accordion.Panel>
-                </Accordion.Item>
             </Accordion>
             <Callout variant="info">
                 <Stack gap="xs">
                     <Text size="sm">
                         These limits apply to every role, custom roles included.
-                        A person never gets more than their own permissions.
                     </Text>
                     <Text size="sm">
                         Custom roles keep their own agent permissions.{' '}
