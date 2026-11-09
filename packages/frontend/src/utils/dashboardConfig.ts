@@ -1,5 +1,6 @@
 import {
     getParameterMirror,
+    isDashboardControlOrder,
     isEmptyDateZoomConfig,
     pruneDateZoomConfig,
     type AdditionalMetric,
@@ -93,8 +94,10 @@ export const buildDashboardConfig = ({
         parameterSections: existingConfig?.parameterSections,
         parameterControls:
             parameterControlsToSave ?? existingConfig?.parameterControls,
-        // No editor yet: carried forward as loaded
-        controlOrder: existingConfig?.controlOrder,
+        // Carried forward as loaded; a malformed stored order is omitted so the save validates
+        controlOrder: isDashboardControlOrder(existingConfig?.controlOrder)
+            ? existingConfig.controlOrder
+            : undefined,
     };
 };
 
