@@ -256,6 +256,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     getManagedSignInService: () =>
                         repository.getManagedSignInService(),
+                    getMobileSignInService: () =>
+                        repository.getMobileSignInService(),
                     onGrantRevoked: ({ userId, clientId }) =>
                         models
                             .getMobilePushNotificationModel<MobilePushNotificationModel>()
