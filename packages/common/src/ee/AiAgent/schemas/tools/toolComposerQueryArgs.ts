@@ -19,6 +19,7 @@ import {
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { getLiveSourceAgentQueryGuide } from '../../../../utils/liveSourceIntegrations';
 import {
     filterExpressionInputSchema,
     filterExpressionsSchema,
@@ -410,11 +411,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         payload: z
             .object({
                 kind: z.literal('query'),
-                query: z
-                    .string()
-                    .describe(
-                        'For "posthog": one HogQL SELECT, the ClickHouse SQL dialect, over tables such as events (event, timestamp, distinct_id, person_id, properties), persons (id, created_at, properties) and sessions. Read a property as properties.$browser or properties.plan. Alias every column with AS using letters, digits and underscores. PostHog stops a query after 10 seconds, so aggregate in HogQL rather than fetching raw events. List event names first when unsure which exist. For "search_console": one Search Analytics request as a JSON object with startDate and endDate (YYYY-MM-DD, required), dimensions from date, query, page, country, device and searchAppearance, and optionally type (web, image, video, news, discover, googleNews), dimensionFilterGroups and aggregationType. Rows carry the dimensions plus clicks, impressions, ctr and position; ctr and position are averages, so never sum them. Data lags about two days. For "ga4": one runReport request as a JSON object with dateRanges (startDate and endDate as YYYY-MM-DD, today, yesterday or NdaysAgo), metrics (1-10, e.g. activeUsers, sessions, screenPageViews, conversions, totalRevenue) and optionally dimensions (up to 9, e.g. date, country, deviceCategory, sessionSource, pagePath, eventName), dimensionFilter, metricFilter and orderBys in the GA4 Data API shape. Columns are the API names, with any character other than letters, digits and underscores replaced by an underscore; date comes back as YYYY-MM-DD. Rate and average metrics such as bounceRate or averageSessionDuration must not be summed. Each report spends hourly quota on the property, so prefer one aggregated report over many.',
-                    ),
+                query: z.string().describe(getLiveSourceAgentQueryGuide()),
             })
             .describe('What the API runs.'),
         limit: limitSchema,

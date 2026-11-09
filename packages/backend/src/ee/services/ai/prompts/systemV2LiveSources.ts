@@ -1,13 +1,6 @@
-import { ApiConnectorType } from '@lightdash/common';
+import { LIVE_SOURCE_INTEGRATION_PROFILES } from '@lightdash/common';
 import type { AgentLiveSource } from '../types/aiAgent';
 import { xmlBuilder } from '../xmlBuilder';
-
-export const LIVE_SOURCE_INTEGRATION_LABELS: Record<ApiConnectorType, string> =
-    {
-        [ApiConnectorType.POSTHOG]: 'PostHog',
-        [ApiConnectorType.SEARCH_CONSOLE]: 'Search Console',
-        [ApiConnectorType.GA4]: 'Google Analytics 4',
-    };
 
 export const getLiveSourcesSection = (
     liveSources: AgentLiveSource[],
@@ -28,7 +21,8 @@ export const getLiveSourcesSection = (
             ...liveSources.map(({ name, connector }) =>
                 xmlBuilder('live_data_source', {
                     name,
-                    integration: LIVE_SOURCE_INTEGRATION_LABELS[connector],
+                    integration:
+                        LIVE_SOURCE_INTEGRATION_PROFILES[connector].agentLabel,
                 }),
             ),
         ).toString(),

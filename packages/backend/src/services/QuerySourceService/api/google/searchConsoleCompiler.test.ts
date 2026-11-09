@@ -7,7 +7,8 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
-import { compileSearchConsoleQuery, escapeRe2 } from './searchConsoleCompiler';
+import { escapeRe2 } from '../escapeRe2';
+import { compileSearchConsoleQuery } from './searchConsoleCompiler';
 import { SEARCH_CONSOLE_CAPABILITIES } from './SearchConsoleConnector';
 import {
     SEARCH_CONSOLE_PERFORMANCE_EXPLORE,

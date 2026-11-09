@@ -1,8 +1,4 @@
-import {
-    ApiConnectorType,
-    assertUnreachable,
-    type ExternalConnectionApiSource,
-} from '@lightdash/common';
+import { ApiConnectorType } from '@lightdash/common';
 import {
     setLiveSourceReturnTo,
     type LiveSourceReturnTo,
@@ -59,18 +55,4 @@ export const getGoogleSignInUrl = (
     if (connectionUuid) params.set('connectionUuid', connectionUuid);
     setLiveSourceReturnTo(params, returnTo);
     return `/api/v1/ee/projects/${projectUuid}/live-sources/google/oauth/start?${params.toString()}`;
-};
-
-/** What a source reads: a PostHog project, a Search Console site or a GA4 property. */
-export const getApiSourceTarget = (apiSource: ExternalConnectionApiSource) => {
-    switch (apiSource.connector) {
-        case ApiConnectorType.POSTHOG:
-            return `Project ${apiSource.projectId}`;
-        case ApiConnectorType.SEARCH_CONSOLE:
-            return apiSource.siteUrl;
-        case ApiConnectorType.GA4:
-            return `Property ${apiSource.propertyId}`;
-        default:
-            return assertUnreachable(apiSource, 'Unknown connector');
-    }
 };

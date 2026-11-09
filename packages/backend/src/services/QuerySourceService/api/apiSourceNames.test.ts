@@ -9,8 +9,8 @@ import {
     getApiSourceReservedExploreNames,
     getLiveSourceNameBase,
     toScannedLiveSourceFields,
-    type ApiSourceScan,
 } from './apiSourceExplores';
+import { type ApiSourceScan } from './ApiSourceIntegration';
 import { type LiveSourceFieldEdits } from './liveSourceFields';
 
 /**

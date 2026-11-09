@@ -7,6 +7,7 @@ import {
 import {
     getApiDateRange,
     getIsoDateInTimeZone,
+    resolveAbsoluteDateRange,
     splitDateRangeFilter,
     toAbsoluteDateRange,
 } from './apiDateRange';
@@ -281,5 +282,43 @@ describe('getIsoDateInTimeZone', () => {
         expect(getIsoDateInTimeZone(now, 'America/Los_Angeles')).toBe(
             '2026-11-03',
         );
+    });
+});
+
+describe('resolveAbsoluteDateRange', () => {
+    const channel = rule(
+        FilterOperator.EQUALS,
+        ['Direct'],
+        undefined,
+        'report_channel',
+    );
+
+    test('reads the date filter and leaves the others', () => {
+        const date = rule(FilterOperator.IN_THE_PAST, [7]);
+        expect(
+            resolveAbsoluteDateRange({
+                dateRange: { fieldId: DATE, defaultDays: 28 },
+                filters: { id: 'root', and: [date, channel] },
+                today: TODAY,
+            }),
+        ).toEqual({
+            startDate: '2026-10-28',
+            endDate: TODAY,
+            otherFilters: { id: 'root', and: [channel] },
+        });
+    });
+
+    test('falls back to the default window ending yesterday', () => {
+        expect(
+            resolveAbsoluteDateRange({
+                dateRange: { fieldId: DATE, defaultDays: 28 },
+                filters: undefined,
+                today: TODAY,
+            }),
+        ).toEqual({
+            startDate: '2026-10-07',
+            endDate: '2026-11-03',
+            otherFilters: undefined,
+        });
     });
 });

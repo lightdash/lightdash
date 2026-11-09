@@ -6,7 +6,6 @@ import {
     isDimension,
     SupportedDbtAdapter,
     UnexpectedServerError,
-    WeekDay,
     type Explore,
     type ExternalConnectionApiSource,
     type ItemsMap,
@@ -15,8 +14,6 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
-import { type ApiConnectorCapabilities } from './ApiConnector';
-import { getIsoDateInTimeZone } from './apiDateRange';
 import {
     assertApiSourceQuery,
     buildApiSourceExplore,
@@ -24,55 +21,20 @@ import {
     type ApiSourcePeriodFormat,
     type CompiledApiSourceQuery,
 } from './apiSourceExplore';
-import { compileGa4Query } from './google/ga4Compiler';
-import { GA4_CAPABILITIES } from './google/Ga4Connector';
 import {
-    GA4_REPORT_EXPLORE,
-    GA4_SEMANTIC_LAYER_VERSION,
-    withGa4MetadataFields,
-} from './google/ga4SemanticLayer';
-import { compileSearchConsoleQuery } from './google/searchConsoleCompiler';
-import {
-    SEARCH_CONSOLE_CAPABILITIES,
-    SEARCH_CONSOLE_MAX_QUERY_ROWS,
-} from './google/SearchConsoleConnector';
-import {
-    SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
-    SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
-} from './google/searchConsoleSemanticLayer';
+    type ApiSourceBaseLayer,
+    type ApiSourceScan,
+} from './ApiSourceIntegration';
+import { getApiSourceIntegration } from './apiSourceIntegrations';
 import {
     applyLiveSourceFieldEdits,
     type LiveSourceFieldEdits,
     type ScannedLiveSourceField,
 } from './liveSourceFields';
-import { compilePostHogQuery } from './posthog/posthogCompiler';
-import { POSTHOG_CAPABILITIES } from './posthog/PostHogConnector';
-import {
-    isInternalPostHogProperty,
-    POSTHOG_EVENTS_EXPLORE,
-    POSTHOG_SEMANTIC_LAYER_VERSION,
-    withPostHogPropertyFields,
-    type PostHogPropertyKind,
-} from './posthog/posthogSemanticLayer';
 
-/** What an integration reports about its own fields; absent when not scanned. */
-export type ApiSourceScan = {
-    ga4Metadata?: unknown;
-    posthogProperties?: Record<PostHogPropertyKind, unknown>;
-};
-
-// Search Console reports dates in Pacific Time, whatever the property.
-const SEARCH_CONSOLE_TIME_ZONE = 'America/Los_Angeles';
-
-// PostHog weeks start on Monday, like its week field, not on ClickHouse's
-// default Sunday
-const getSqlBuilder = (connector: ApiConnectorType) =>
-    connector === ApiConnectorType.POSTHOG
-        ? warehouseSqlBuilderFromType(
-              SupportedDbtAdapter.CLICKHOUSE,
-              WeekDay.MONDAY,
-          )
-        : warehouseSqlBuilderFromType(SupportedDbtAdapter.DUCKDB);
+const DEFAULT_SQL_BUILDER = warehouseSqlBuilderFromType(
+    SupportedDbtAdapter.DUCKDB,
+);
 
 /**
  * The naming contract of live data source explores and fields. Saved charts,
@@ -114,51 +76,9 @@ export const getLiveSourceNameBase = (
     return /^[a-z][a-z0-9_]*$/.test(base) ? base : connector;
 };
 
-/**
- * The hand-written models of an integration, before any scan. The first is
- * the wide model: scans and field edits apply to it. Planned models aren't
- * built yet, but their explore names are reserved for every new source.
- */
-export type ApiSourceBaseLayer = {
-    baseVersion: number;
-    /** The connector's own declaration, shared by every model. */
-    capabilities: ApiConnectorCapabilities;
-    definitions: readonly [
-        ApiSourceExploreDefinition,
-        ...ApiSourceExploreDefinition[],
-    ];
-    plannedModelNames: readonly string[];
-};
-
 export const getApiSourceBaseLayer = (
     connector: ApiConnectorType,
-): ApiSourceBaseLayer => {
-    switch (connector) {
-        case ApiConnectorType.GA4:
-            return {
-                baseVersion: GA4_SEMANTIC_LAYER_VERSION,
-                capabilities: GA4_CAPABILITIES,
-                definitions: [GA4_REPORT_EXPLORE],
-                plannedModelNames: ['ecommerce'],
-            };
-        case ApiConnectorType.SEARCH_CONSOLE:
-            return {
-                baseVersion: SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
-                capabilities: SEARCH_CONSOLE_CAPABILITIES,
-                definitions: [SEARCH_CONSOLE_PERFORMANCE_EXPLORE],
-                plannedModelNames: ['search_appearance'],
-            };
-        case ApiConnectorType.POSTHOG:
-            return {
-                baseVersion: POSTHOG_SEMANTIC_LAYER_VERSION,
-                capabilities: POSTHOG_CAPABILITIES,
-                definitions: [POSTHOG_EVENTS_EXPLORE],
-                plannedModelNames: ['persons', 'sessions'],
-            };
-        default:
-            return assertUnreachable(connector, 'Unknown api connector');
-    }
-};
+): ApiSourceBaseLayer => getApiSourceIntegration(connector).baseLayer;
 
 /** The wide model of an integration, which scans and field edits apply to. */
 export const getApiSourceWideDefinition = (
@@ -190,31 +110,14 @@ export const toScannedLiveSourceFields = (
     scan: ApiSourceScan,
 ): ScannedLiveSourceField[] => {
     const definition = getApiSourceWideDefinition(connector);
-    const getScannedDefinition = (): ApiSourceExploreDefinition => {
-        switch (connector) {
-            case ApiConnectorType.GA4:
-                return withGa4MetadataFields(definition, scan.ga4Metadata);
-            case ApiConnectorType.SEARCH_CONSOLE:
-                return definition;
-            case ApiConnectorType.POSTHOG:
-                return scan.posthogProperties
-                    ? withPostHogPropertyFields(
-                          definition,
-                          scan.posthogProperties,
-                      )
-                    : definition;
-            default:
-                return assertUnreachable(connector, 'Unknown api connector');
-        }
-    };
-    const scanned = getScannedDefinition();
+    const { withScannedFields, isInternalField } =
+        getApiSourceIntegration(connector);
+    const scanned = withScannedFields?.(definition, scan) ?? definition;
     const builtInNames = new Set([
         ...definition.dimensions.map(({ name }) => name),
         ...definition.metrics.map(({ name }) => name),
     ]);
-    const isInternal = (apiName: string) =>
-        connector === ApiConnectorType.POSTHOG &&
-        isInternalPostHogProperty(apiName);
+    const isInternal = (apiName: string) => isInternalField?.(apiName) ?? false;
     return [
         ...scanned.dimensions
             .filter(({ name }) => !builtInNames.has(name))
@@ -268,7 +171,9 @@ export const buildApiSourceExplores = ({
             integration: apiSource.connector,
             baseVersion,
             capabilities,
-            warehouseSqlBuilder: getSqlBuilder(apiSource.connector),
+            warehouseSqlBuilder:
+                getApiSourceIntegration(apiSource.connector)
+                    .warehouseSqlBuilder ?? DEFAULT_SQL_BUILDER,
         });
     return [
         build(
@@ -292,37 +197,18 @@ export const compileApiSourceMetricQuery = ({
     now: Date;
 }): CompiledApiSourceQuery => {
     const integration = explore.apiSource?.integration;
-    if (integration !== undefined) {
-        assertApiSourceQuery(explore, metricQuery);
+    if (integration === undefined) {
+        throw new UnexpectedServerError(
+            `"${explore.name}" isn't a live data source explore`,
+        );
     }
-    switch (integration) {
-        case ApiConnectorType.GA4:
-            return compileGa4Query({
-                explore,
-                metricQuery,
-                today: getIsoDateInTimeZone(now, timezone),
-            });
-        case ApiConnectorType.SEARCH_CONSOLE:
-            return compileSearchConsoleQuery({
-                explore,
-                metricQuery,
-                today: getIsoDateInTimeZone(now, SEARCH_CONSOLE_TIME_ZONE),
-                maxRows: SEARCH_CONSOLE_MAX_QUERY_ROWS,
-            });
-        case ApiConnectorType.POSTHOG:
-            return compilePostHogQuery({
-                explore,
-                metricQuery,
-                warehouseSqlBuilder: getSqlBuilder(integration),
-                timezone,
-            });
-        case undefined:
-            throw new UnexpectedServerError(
-                `"${explore.name}" isn't a live data source explore`,
-            );
-        default:
-            return assertUnreachable(integration, 'Unknown api connector');
-    }
+    assertApiSourceQuery(explore, metricQuery);
+    return getApiSourceIntegration(integration).compile({
+        explore,
+        metricQuery,
+        timezone,
+        now,
+    });
 };
 
 const compareValues = (left: unknown, right: unknown): number => {
