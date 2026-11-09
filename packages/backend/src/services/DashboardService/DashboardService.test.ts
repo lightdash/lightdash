@@ -125,8 +125,8 @@ const savedChartModel = {
     createVersion: vi.fn(async () => chart),
     create: vi.fn(async () => ({ ...chart, uuid: 'duplicated-chart-uuid' })),
     permanentDelete: vi.fn(async () => ({
-        uuid: 'chart_uuid',
-        projectUuid: 'project_uuid',
+        queryType: 'semantic',
+        chart: { uuid: 'chart_uuid', projectUuid: 'project_uuid' },
     })),
     getInfoForAvailableFilters: vi.fn(async () => []),
 };

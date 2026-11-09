@@ -82,11 +82,12 @@ const buildService = (overrides: Overrides = {}) => {
     const getOrphanedCharts = vi
         .fn()
         .mockResolvedValue(overrides.orphanedCharts ?? []);
-    const permanentDelete = vi
-        .fn()
-        .mockImplementation((uuid: string) =>
-            Promise.resolve({ uuid, projectUuid: PROJECT_UUID }),
-        );
+    const permanentDelete = vi.fn().mockImplementation((uuid: string) =>
+        Promise.resolve({
+            queryType: 'semantic',
+            chart: { uuid, projectUuid: PROJECT_UUID },
+        }),
+    );
     const dashboardPermanentDelete = vi.fn().mockResolvedValue(dashboardDao);
     const dashboardSoftDelete = vi.fn().mockResolvedValue(dashboardDao);
     const dashboards = overrides.dashboards ?? [dashboardDao];

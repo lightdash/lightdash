@@ -1947,8 +1947,8 @@ export class SavedChartService
             user,
             savedChartUuid,
             {
-                projectUuid: deletedChart.projectUuid,
-                organizationUuid: deletedChart.organizationUuid,
+                projectUuid: deletedChart.chart.projectUuid,
+                organizationUuid: deletedChart.chart.organizationUuid,
             },
             { bypassPermissions: true }, // chart delete authorized above
         );

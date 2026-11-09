@@ -1,3 +1,4 @@
+import { type SavedComposerPipeline } from '../composer/savedComposerPipeline';
 import { type DataAppVizOptionValue } from '../ee/apps/dataAppVizConfigOptions';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type AgentIdentityClaim } from './agentIdentity';
@@ -946,6 +947,19 @@ export type SavedChartDAO = Omit<
     SavedChart,
     'inheritsFromOrgOrProject' | 'access'
 >;
+
+/** A saved chart whose query is a pipeline: no explore, metric query or merge; the chart config draws the terminal node. */
+export type ComposerSavedChartDAO = Omit<
+    SavedChartDAO,
+    'tableName' | 'metricQuery' | 'merge' | 'tableConfig'
+> & {
+    pipeline: SavedComposerPipeline;
+};
+
+/** A saved chart tagged by the kind of query it runs, as read from storage. */
+export type SavedChartVariant =
+    | { queryType: 'semantic'; chart: SavedChartDAO }
+    | { queryType: 'composer'; chart: ComposerSavedChartDAO };
 
 export type SavedChart = {
     createdAt?: Date;

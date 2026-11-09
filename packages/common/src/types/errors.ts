@@ -459,6 +459,18 @@ export class NotSupportedError extends LightdashError {
     }
 }
 
+/** Thrown by a surface that reads a saved chart as a classic chart when the row is a composer chart. */
+export class ComposerChartNotSupportedError extends LightdashError {
+    constructor(chartUuid: string, chartName: string) {
+        super({
+            message: `Chart "${chartName}" is a composer chart, which this feature does not support yet.`,
+            name: 'ComposerChartNotSupportedError',
+            statusCode: 400,
+            data: { chartUuid },
+        });
+    }
+}
+
 export class InvalidUser extends LightdashError {
     constructor(message: string) {
         super({

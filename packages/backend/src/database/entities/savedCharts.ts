@@ -15,6 +15,7 @@ import {
     MetricOverrides,
     MetricType,
     PivotSortAnchor,
+    SavedComposerPipeline,
     TableCalculationTemplate,
     TableCalculationTotalMode,
     TableCalculationType,
@@ -110,7 +111,9 @@ export type DbSavedChartVersion = {
     saved_queries_version_id: number;
     saved_queries_version_uuid: string;
     created_at: Date;
-    explore_name: string;
+    // Exactly one of explore_name and pipeline is set (CHECK constraint)
+    explore_name: string | null;
+    pipeline: SavedComposerPipeline | null; // JSONB
     filters: AnyType;
     row_limit: number;
     metric_overrides: MetricOverrides | null; // JSONB
@@ -134,6 +137,7 @@ export type CreateDbSavedChartVersion = Pick<
     DbSavedChartVersion,
     | 'saved_query_id'
     | 'explore_name'
+    | 'pipeline'
     | 'filters'
     | 'row_limit'
     | 'metric_overrides'

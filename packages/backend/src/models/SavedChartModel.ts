@@ -9,6 +9,7 @@ import {
     ChartSummary,
     ChartType,
     ChartVersionSummary,
+    ComposerChartNotSupportedError,
     ConflictError,
     ContentReviewContentType,
     ContentType,
@@ -44,11 +45,14 @@ import {
     NotFoundError,
     Organization,
     ParameterError,
+    parseStoredComposerPipeline,
     parseStoredMergeDefinition,
     Project,
     ResolvedProjectColorPalette,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
     SavedChartDAO,
+    SavedChartVariant,
+    SavedComposerPipeline,
     SessionUser,
     SortField,
     Space,
@@ -56,6 +60,7 @@ import {
     TimeFrames,
     TimezoneSetting,
     toTimezoneSetting,
+    UnexpectedServerError,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -135,7 +140,8 @@ type DbSavedChartDetails = {
     name: string;
     description: string | undefined;
     saved_queries_version_id: number;
-    explore_name: string;
+    explore_name: string | null;
+    pipeline: SavedComposerPipeline | null;
     filters: AnyType;
     row_limit: number;
     metric_overrides: MetricOverrides | null;
@@ -184,13 +190,17 @@ const additionalMetricColumns = [
 
 type SavedChartVersionQueryRow = Pick<
     DbSavedChartVersion,
-    | 'explore_name'
     | 'filters'
     | 'row_limit'
     | 'metric_overrides'
     | 'dimension_overrides'
     | 'timezone'
->;
+> & { explore_name: string };
+
+type SavedChartReadOptions = {
+    deleted?: boolean | 'any';
+    projectUuid?: string;
+};
 
 type SavedChartVersionRows = {
     fields: Pick<DbSavedChartVersionField, 'name' | 'field_type' | 'order'>[];
@@ -366,6 +376,7 @@ const createSavedChartVersion = async (
                 dimension_overrides: storedDimensionOverrides,
                 filters: JSON.stringify(filters),
                 explore_name: tableName,
+                pipeline: null,
                 saved_query_id: savedChartId,
                 pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
                 pivot_rows: pivotConfig?.rows ?? null,
@@ -1662,8 +1673,8 @@ export class SavedChartModel {
         );
     }
 
-    async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
-        const savedChart = await this.get(savedChartUuid, undefined, {
+    async permanentDelete(savedChartUuid: string): Promise<SavedChartVariant> {
+        const savedChart = await this.getVariant(savedChartUuid, undefined, {
             deleted: 'any',
         });
         await this.database(SavedChartsTableName)
@@ -1683,8 +1694,8 @@ export class SavedChartModel {
     async softDelete(
         savedChartUuid: string,
         userUuid: string,
-    ): Promise<SavedChartDAO> {
-        const savedChart = await this.get(savedChartUuid);
+    ): Promise<SavedChartVariant> {
+        const savedChart = await this.getVariant(savedChartUuid);
         await this.database(SavedChartsTableName)
             .update({
                 deleted_at: new Date(),
@@ -2271,12 +2282,35 @@ export class SavedChartModel {
         };
     }
 
+    /** Reads a classic chart. Throws a typed error on a composer row; readers that handle both kinds use getVariant. */
     async get(
         savedChartUuidOrSlug: string,
         versionUuid?: string,
-        options?: { deleted?: boolean | 'any'; projectUuid?: string },
+        options?: SavedChartReadOptions,
         trx?: Knex,
     ): Promise<SavedChartDAO> {
+        const variant = await this.getVariant(
+            savedChartUuidOrSlug,
+            versionUuid,
+            options,
+            trx,
+        );
+        if (variant.queryType === 'composer') {
+            throw new ComposerChartNotSupportedError(
+                variant.chart.uuid,
+                variant.chart.name,
+            );
+        }
+        return variant.chart;
+    }
+
+    /** Reads a chart of either kind, tagged by the query it runs. */
+    async getVariant(
+        savedChartUuidOrSlug: string,
+        versionUuid?: string,
+        options?: SavedChartReadOptions,
+        trx?: Knex,
+    ): Promise<SavedChartVariant> {
         const database = trx ?? this.database;
         return traceSpan(
             {
@@ -2376,6 +2410,7 @@ export class SavedChartModel {
                         `${DashboardsTableName}.slug as dashboardSlug`,
                         'saved_queries_versions.saved_queries_version_id',
                         'saved_queries_versions.explore_name',
+                        'saved_queries_versions.pipeline',
                         'saved_queries_versions.filters',
                         'saved_queries_versions.row_limit',
                         'saved_queries_versions.metric_overrides',
@@ -2452,6 +2487,101 @@ export class SavedChartModel {
                 const savedQueriesVersionId =
                     savedQuery.saved_queries_version_id;
 
+                const [resolvedPalette, verification] = await Promise.all([
+                    this.resolveColorPalette(
+                        {
+                            projectUuid: savedQuery.project_uuid,
+                            chartUuid: savedQuery.saved_query_uuid,
+                            dashboardUuid:
+                                savedQuery.dashboard_uuid ?? undefined,
+                        },
+                        trx,
+                    ),
+                    this.contentVerificationModel?.getByContent(
+                        ContentType.CHART,
+                        savedQuery.saved_query_uuid,
+                        trx,
+                    ) ?? null,
+                ]);
+
+                const chartConfig = {
+                    type: savedQuery.chart_type,
+                    config: savedQuery.chart_config,
+                } as ChartConfig;
+
+                // Everything both kinds share; the query itself is added per kind.
+                const base = {
+                    uuid: savedQuery.saved_query_uuid,
+                    projectUuid: savedQuery.project_uuid,
+                    name: savedQuery.name,
+                    description: savedQuery.description,
+                    createdAt: savedQuery.content_created_at,
+                    projectName: savedQuery.project_name,
+                    projectType: savedQuery.project_type,
+                    updatedAt: savedQuery.created_at,
+                    updatedByUser: {
+                        userUuid: savedQuery.user_uuid,
+                        firstName: savedQuery.first_name,
+                        lastName: savedQuery.last_name,
+                    },
+                    parameters: savedQuery.parameters || undefined,
+                    chartConfig,
+                    organizationUuid: savedQuery.organization_uuid,
+                    pivotConfig: getSavedChartPivotConfig(
+                        savedQuery.pivot_dimensions,
+                        savedQuery.pivot_rows,
+                    ),
+                    spaceUuid: savedQuery.space_uuid,
+                    spaceName: savedQuery.spaceName,
+                    pinnedListUuid: savedQuery.pinned_list_uuid,
+                    pinnedListOrder: null,
+                    dashboardUuid: savedQuery.dashboard_uuid,
+                    dashboardName: savedQuery.dashboardName,
+                    dashboardSlug: savedQuery.dashboardSlug,
+                    colorPalette: resolvedPalette.colors,
+                    colorPaletteUuid: savedQuery.color_palette_uuid ?? null,
+                    resolvedColorPalette: resolvedPalette,
+                    slug: savedQuery.slug,
+                    verification,
+                    // Soft delete fields (only populated when deleted: true)
+                    ...(savedQuery.deleted_at
+                        ? {
+                              deletedAt: savedQuery.deleted_at,
+                              deletedBy: savedQuery.deleted_by_user_uuid
+                                  ? {
+                                        userUuid:
+                                            savedQuery.deleted_by_user_uuid,
+                                        firstName:
+                                            savedQuery.deleted_by_user_first_name ??
+                                            '',
+                                        lastName:
+                                            savedQuery.deleted_by_user_last_name ??
+                                            '',
+                                    }
+                                  : null,
+                          }
+                        : {}),
+                };
+
+                // A composer version has no field, sort or metric query rows.
+                if (savedQuery.pipeline !== null) {
+                    return {
+                        queryType: 'composer',
+                        chart: {
+                            ...base,
+                            pipeline: parseStoredComposerPipeline(
+                                savedQuery.pipeline,
+                            ),
+                        },
+                    };
+                }
+                const exploreName = savedQuery.explore_name;
+                if (exploreName === null) {
+                    throw new UnexpectedServerError(
+                        `Chart version ${savedQueriesVersionId} has neither an explore nor a pipeline`,
+                    );
+                }
+
                 const fieldsQuery = database('saved_queries_version_fields')
                     .select(['name', 'field_type', 'order'])
                     .where('saved_queries_version_id', savedQueriesVersionId)
@@ -2507,7 +2637,6 @@ export class SavedChartModel {
                     additionalMetricsRows,
                     customBinDimensionsRows,
                     customSqlDimensionsRows,
-                    resolvedPalette,
                     mergeRow,
                 ] = await Promise.all([
                     fieldsQuery,
@@ -2516,20 +2645,11 @@ export class SavedChartModel {
                     additionalMetricsQuery,
                     customBinDimensionsQuery,
                     customSqlDimensionsQuery,
-                    this.resolveColorPalette(
-                        {
-                            projectUuid: savedQuery.project_uuid,
-                            chartUuid: savedQuery.saved_query_uuid,
-                            dashboardUuid:
-                                savedQuery.dashboard_uuid ?? undefined,
-                        },
-                        trx,
-                    ),
                     mergeQuery,
                 ]);
 
                 const metricQuery = SavedChartModel.buildMetricQuery(
-                    savedQuery,
+                    { ...savedQuery, explore_name: exploreName },
                     {
                         fields,
                         sorts,
@@ -2557,75 +2677,17 @@ export class SavedChartModel {
                     .sort((a, b) => a.order - b.order)
                     .map((x) => x.name);
 
-                const chartConfig = {
-                    type: savedQuery.chart_type,
-                    config: savedQuery.chart_config,
-                } as ChartConfig;
-
-                const verification =
-                    (await this.contentVerificationModel?.getByContent(
-                        ContentType.CHART,
-                        savedQuery.saved_query_uuid,
-                        trx,
-                    )) ?? null;
-
                 return {
-                    uuid: savedQuery.saved_query_uuid,
-                    projectUuid: savedQuery.project_uuid,
-                    name: savedQuery.name,
-                    description: savedQuery.description,
-                    tableName: savedQuery.explore_name,
-                    merge,
-                    createdAt: savedQuery.content_created_at,
-                    projectName: savedQuery.project_name,
-                    projectType: savedQuery.project_type,
-                    updatedAt: savedQuery.created_at,
-                    updatedByUser: {
-                        userUuid: savedQuery.user_uuid,
-                        firstName: savedQuery.first_name,
-                        lastName: savedQuery.last_name,
+                    queryType: 'semantic',
+                    chart: {
+                        ...base,
+                        tableName: exploreName,
+                        merge,
+                        metricQuery,
+                        tableConfig: {
+                            columnOrder,
+                        },
                     },
-                    metricQuery,
-                    parameters: savedQuery.parameters || undefined,
-                    chartConfig,
-                    tableConfig: {
-                        columnOrder,
-                    },
-                    organizationUuid: savedQuery.organization_uuid,
-                    pivotConfig: getSavedChartPivotConfig(
-                        savedQuery.pivot_dimensions,
-                        savedQuery.pivot_rows,
-                    ),
-                    spaceUuid: savedQuery.space_uuid,
-                    spaceName: savedQuery.spaceName,
-                    pinnedListUuid: savedQuery.pinned_list_uuid,
-                    pinnedListOrder: null,
-                    dashboardUuid: savedQuery.dashboard_uuid,
-                    dashboardName: savedQuery.dashboardName,
-                    dashboardSlug: savedQuery.dashboardSlug,
-                    colorPalette: resolvedPalette.colors,
-                    colorPaletteUuid: savedQuery.color_palette_uuid ?? null,
-                    resolvedColorPalette: resolvedPalette,
-                    slug: savedQuery.slug,
-                    verification,
-                    // Soft delete fields (only populated when deleted: true)
-                    ...(savedQuery.deleted_at
-                        ? {
-                              deletedAt: savedQuery.deleted_at,
-                              deletedBy: savedQuery.deleted_by_user_uuid
-                                  ? {
-                                        userUuid:
-                                            savedQuery.deleted_by_user_uuid,
-                                        firstName:
-                                            savedQuery.deleted_by_user_first_name ??
-                                            '',
-                                        lastName:
-                                            savedQuery.deleted_by_user_last_name ??
-                                            '',
-                                    }
-                                  : null,
-                          }
-                        : {}),
                 };
             },
         );

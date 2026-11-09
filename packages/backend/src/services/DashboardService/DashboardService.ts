@@ -794,8 +794,8 @@ export class DashboardService
                         event: 'saved_chart.deleted',
                         userId: user.userUuid,
                         properties: {
-                            savedQueryId: deletedChart.uuid,
-                            projectId: deletedChart.projectUuid,
+                            savedQueryId: deletedChart.chart.uuid,
+                            projectId: deletedChart.chart.projectUuid,
                             softDelete: false,
                             viaDashboardGrant: false,
                             grantOnly: false,
