@@ -73,6 +73,15 @@ const SOURCES: {
         apiSource: { connector: ApiConnectorType.META_ADS, adAccountId: '123' },
         scan: {},
     },
+    {
+        name: 'Google Ads',
+        apiSource: {
+            connector: ApiConnectorType.GOOGLE_ADS,
+            customerId: '1234567890',
+            loginCustomerId: null,
+        },
+        scan: {},
+    },
 ];
 
 describe('live data source names', () => {

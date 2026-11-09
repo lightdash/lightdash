@@ -127,7 +127,7 @@ import {
     buildGoogleAuthorizeUrl,
     GOOGLE_CONNECTORS,
     isGoogleConnector,
-    type GoogleApiGet,
+    type GoogleApi,
     type GoogleConnectorType,
 } from './googleOAuth';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
@@ -2182,10 +2182,15 @@ export class ExternalConnectionService extends BaseService {
         return organizationUuid;
     }
 
-    private readonly getGoogleApi: GoogleApiGet = async (url, accessToken) => {
+    private readonly requestGoogleApi = async (
+        url: string,
+        accessToken: string,
+        request: { method: 'GET' } | { method: 'POST'; body: string },
+        headers: Record<string, string>,
+    ) => {
         const response = await secureFetch(url, {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${accessToken}` },
+            ...request,
+            headers: { ...headers, Authorization: `Bearer ${accessToken}` },
             timeoutMs: GOOGLE_API_TIMEOUT_MS,
             maxResponseBytes: GOOGLE_API_RESPONSE_MAX_BYTES,
             allowedContentTypes: ['application/json'],
@@ -2198,6 +2203,18 @@ export class ExternalConnectionService extends BaseService {
             body = null;
         }
         return { status: response.status, body };
+    };
+
+    private readonly googleApi: GoogleApi = {
+        get: (url, accessToken) =>
+            this.requestGoogleApi(url, accessToken, { method: 'GET' }, {}),
+        post: (url, accessToken, body, headers) =>
+            this.requestGoogleApi(
+                url,
+                accessToken,
+                { method: 'POST', body: JSON.stringify(body) },
+                { ...headers, 'Content-Type': 'application/json' },
+            ),
     };
 
     /** Starts the Google sign-in that creates a source, or reconnects one. */
@@ -2324,7 +2341,7 @@ export class ExternalConnectionService extends BaseService {
             );
         }
         const choices = await config.listChoices(
-            this.getGoogleApi,
+            this.googleApi,
             tokens.accessToken,
         );
 

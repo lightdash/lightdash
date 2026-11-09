@@ -112,13 +112,15 @@ export const LIVE_SOURCE_CATALOG: LiveSourceCatalogEntry[] = [
         getTarget: ({ adAccountId }) => `Ad account ${adAccountId}`,
         setup: { kind: 'token', form: META_ADS_TOKEN_FORM },
     }),
-    {
+    available({
         id: 'google_ads',
-        status: 'requestable',
+        connector: ApiConnectorType.GOOGLE_ADS,
         label: 'Google Ads',
         description: 'Campaign spend, clicks and conversions',
         icon: googleAdsIcon,
-    },
+        getTarget: ({ customerId }) => `Account ${customerId}`,
+        setup: { kind: 'google' },
+    }),
     {
         id: 'linkedin_ads',
         status: 'requestable',

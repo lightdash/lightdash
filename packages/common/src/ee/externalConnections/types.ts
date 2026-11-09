@@ -39,12 +39,21 @@ export type MetaAdsApiSource = {
     adAccountId: string;
 };
 
+export type GoogleAdsApiSource = {
+    connector: ApiConnectorType.GOOGLE_ADS;
+    /** The 10-digit Google Ads customer id, without dashes. */
+    customerId: string;
+    /** The manager account the sign-in reaches the customer through, if any. */
+    loginCustomerId: string | null;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
     | SearchConsoleApiSource
     | Ga4ApiSource
-    | MetaAdsApiSource;
+    | MetaAdsApiSource
+    | GoogleAdsApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<

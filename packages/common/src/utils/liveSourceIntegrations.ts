@@ -42,6 +42,12 @@ export const LIVE_SOURCE_INTEGRATION_PROFILES: Record<
         agentQueryGuide:
             'one Insights request as a JSON object with level (account, campaign, adset or ad), time_range ({since, until} as YYYY-MM-DD), fields (campaign_id, campaign_name, objective, adset_id, adset_name, ad_id, ad_name, spend, impressions, reach, frequency, clicks, inline_link_clicks, ctr, cpc, cpm, and actions:<type>, action_values:<type> or purchase_roas:<type> such as actions:omni_purchase), and optionally time_increment (1, monthly or all_days), breakdowns (age, gender, country, region, publisher_platform, platform_position), filtering ([{field: campaign.name, campaign.id, adset.name, adset.id, ad.name or ad.id, operator: EQUAL, NOT_EQUAL, IN, NOT_IN, CONTAIN or NOT_CONTAIN, value}]) and sort (one entry such as spend_descending). Column names are the field names, plus date_start when time_increment is set; ctr comes back as a fraction. Reach and frequency are deduplicated per row and frequency depends on reach, so never sum them.',
     },
+    [ApiConnectorType.GOOGLE_ADS]: {
+        label: 'Google Ads',
+        agentLabel: 'Google Ads',
+        agentQueryGuide:
+            "one GAQL query, SELECT fields FROM resource (customer for account totals, campaign, ad_group) WHERE segments.date BETWEEN 'YYYY-MM-DD' AND 'YYYY-MM-DD'. GAQL returns one row per resource and segment and never groups, so only select attributes that identify that resource, and a segment in WHERE must also be in SELECT, except dates. Conditions combine only with AND. Columns are the GAQL field names; money metrics come back in the account currency, already converted from micros. Rates and impression shares must not be summed.",
+    },
 };
 
 /** The agent tool's description of its query field, one sentence block per integration. */

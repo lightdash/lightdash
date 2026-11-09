@@ -6,7 +6,8 @@ import {
 
 export type GoogleConnector =
     | ApiConnectorType.SEARCH_CONSOLE
-    | ApiConnectorType.GA4;
+    | ApiConnectorType.GA4
+    | ApiConnectorType.GOOGLE_ADS;
 
 const GOOGLE_SOURCES: {
     connector: GoogleConnector;
@@ -27,6 +28,13 @@ const GOOGLE_SOURCES: {
         defaultName: 'Google Analytics',
         description:
             'AI agents run reports on users, sessions, events and revenue for one GA4 property.',
+    },
+    {
+        connector: ApiConnectorType.GOOGLE_ADS,
+        label: 'Google Ads',
+        defaultName: 'Google Ads',
+        description:
+            'AI agents read cost, clicks, impressions and conversions for one Google Ads account.',
     },
 ];
 

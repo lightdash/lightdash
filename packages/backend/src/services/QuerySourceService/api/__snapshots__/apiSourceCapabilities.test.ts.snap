@@ -49,6 +49,86 @@ exports[`connector capability declarations > the summable tags 1`] = `
       "aggregation": "non_additive",
     },
   },
+  "google_ads": {
+    "all_conversions": {
+      "aggregation": "additive",
+    },
+    "all_conversions_value": {
+      "aggregation": "additive",
+    },
+    "average_cpc": {
+      "aggregation": "ratio",
+      "denominator": "clicks",
+      "numerator": "cost",
+    },
+    "average_cpm": {
+      "aggregation": "non_additive",
+    },
+    "clicks": {
+      "aggregation": "additive",
+    },
+    "conversion_rate": {
+      "aggregation": "ratio",
+      "denominator": "interactions",
+      "numerator": "conversions",
+    },
+    "conversions": {
+      "aggregation": "additive",
+    },
+    "conversions_value": {
+      "aggregation": "additive",
+    },
+    "cost": {
+      "aggregation": "additive",
+    },
+    "cost_per_conversion": {
+      "aggregation": "ratio",
+      "denominator": "conversions",
+      "numerator": "cost",
+    },
+    "ctr": {
+      "aggregation": "ratio",
+      "denominator": "impressions",
+      "numerator": "clicks",
+    },
+    "engagements": {
+      "aggregation": "additive",
+    },
+    "impressions": {
+      "aggregation": "additive",
+    },
+    "interaction_rate": {
+      "aggregation": "ratio",
+      "denominator": "impressions",
+      "numerator": "interactions",
+    },
+    "interactions": {
+      "aggregation": "additive",
+    },
+    "search_absolute_top_impression_share": {
+      "aggregation": "non_additive",
+    },
+    "search_budget_lost_impression_share": {
+      "aggregation": "non_additive",
+    },
+    "search_impression_share": {
+      "aggregation": "non_additive",
+    },
+    "search_rank_lost_impression_share": {
+      "aggregation": "non_additive",
+    },
+    "search_top_impression_share": {
+      "aggregation": "non_additive",
+    },
+    "value_per_conversion": {
+      "aggregation": "ratio",
+      "denominator": "conversions",
+      "numerator": "conversions_value",
+    },
+    "view_through_conversions": {
+      "aggregation": "additive",
+    },
+  },
   "meta_ads": {
     "adds_to_cart": {
       "aggregation": "additive",
