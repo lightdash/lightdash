@@ -1,3 +1,10 @@
+## [3.181.1](https://github.com/lightdash/lightdash/compare/3.181.0...3.181.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **redshift:** only run the stalled-query check on Serverless workgroups ([#32225](https://github.com/lightdash/lightdash/issues/32225)) ([7dbe066](https://github.com/lightdash/lightdash/commit/7dbe066e6920616e5d6e130713cf870789717dee))
+
 # [3.181.0](https://github.com/lightdash/lightdash/compare/3.180.1...3.181.0) (2026-11-09)
 
 

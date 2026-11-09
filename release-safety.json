@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.181.0",
-  "previousVersion": "3.180.1",
-  "releaseDate": "2026-11-09T10:27:11.717Z",
+  "version": "3.181.1",
+  "previousVersion": "3.181.0",
+  "releaseDate": "2026-11-09T10:32:23.741Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,18 +17,11 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "GET /api/v2/org/agent-permissions — removed the required property `results/defaults` from the response with the `200` status",
-        "GET /api/v2/org/agent-permissions — removed the required property `results/systemRoleMatrix` from the response with the `200` status",
-        "PUT /api/v2/org/agent-permissions — removed the required property `results/systemRoleMatrix` from the response with the `200` status",
-        "POST /api/v2/org/agent-permissions/reset — removed the required property `results/systemRoleMatrix` from the response with the `200` status"
-      ],
-      "breakingCount": 4,
-      "advisories": [
-        "PUT /api/v2/org/agent-permissions — removed the request property `systemRoleMatrix`"
-      ],
-      "advisoryCount": 1
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
@@ -49,23 +42,5 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": [
-    {
-      "id": "agent-permissions-per-role-fields-removed",
-      "reason": "The per-role agent limits are removed. GET /api/v2/org/agent-permissions no longer returns results.defaults or results.systemRoleMatrix. PUT and POST /api/v2/org/agent-permissions/reset no longer return results.systemRoleMatrix. PUT no longer takes systemRoleMatrix; a request that still sends it gets no error and the server ignores it. The agent-identity feature flag is off by default on Cloud and on self-hosted instances and is set per organization. With the flag off, agent enforcement does not change. For organizations with the flag on and agent limits on, a person with a built-in role gets every agent capability that the organization setting allows, and per-role limits saved earlier no longer apply. The stored per-role rows stay in the database, unread and unchanged. During a rolling update an old settings page tab or an old UI pod reads the missing matrix and shows an error until refresh, and a save from the new page that reaches an old API pod is refused until the rollout ends. This is accepted because the settings page is the only client and a refresh or retry after the rollout fixes both.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The organization Agents settings page in the Lightdash web app is the only client of these operations, and it no longer reads or sends the per-role fields. An old tab of that page shows an error until refresh.",
-        "covers": {
-          "rest": [
-            "GET /api/v2/org/agent-permissions",
-            "PUT /api/v2/org/agent-permissions",
-            "POST /api/v2/org/agent-permissions/reset"
-          ],
-          "mcp": []
-        }
-      }
-    }
-  ]
+  "declaredAdvisories": []
 }
