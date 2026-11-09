@@ -1,3 +1,10 @@
+## [3.179.3](https://github.com/lightdash/lightdash/compare/3.179.2...3.179.3) (2026-11-09)
+
+
+### Bug Fixes
+
+* index retained export history by organization ([#32219](https://github.com/lightdash/lightdash/issues/32219)) ([cc6a3f0](https://github.com/lightdash/lightdash/commit/cc6a3f0edf95010f9fb5857e9fd1fa50f056b71a))
+
 ## [3.179.2](https://github.com/lightdash/lightdash/compare/3.179.1...3.179.2) (2026-11-09)
 
 
