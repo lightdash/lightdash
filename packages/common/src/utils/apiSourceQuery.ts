@@ -21,6 +21,10 @@ import {
     type MetricQuery,
 } from '../types/metricQuery';
 import { ApiConnectorType } from '../types/querySources';
+import {
+    PROJECT_TIMEZONE_SETTING,
+    USER_TIMEZONE_SETTING,
+} from '../types/timezone';
 import assertUnreachable from './assertUnreachable';
 import { getItemId } from './item';
 
@@ -184,7 +188,13 @@ const getUnsupportedFeatureIssues = (
                 "Pivoted results aren't available from live data sources yet. Remove the pivot to run this query.",
         },
         {
-            isUsed: !!metricQuery.timezone && dates.timezone === 'fixed',
+            // The keywords saved charts store by default ask for no zone in
+            // particular, so only a named zone is an override
+            isUsed:
+                !!metricQuery.timezone &&
+                metricQuery.timezone !== PROJECT_TIMEZONE_SETTING &&
+                metricQuery.timezone !== USER_TIMEZONE_SETTING &&
+                dates.timezone === 'fixed',
             code: 'live_source.refused.timezone' as const,
             message:
                 'This live data source reports dates in its own time zone. Remove the time zone override to run this query.',
