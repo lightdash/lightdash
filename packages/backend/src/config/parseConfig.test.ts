@@ -2726,19 +2726,6 @@ describe('scheduler migration quiesce', () => {
     });
 });
 
-test('should set groups.enabled only when the environment variable is set', () => {
-    const undefinedConfig = parseConfig();
-    expect(undefinedConfig.groups.enabled).toBeUndefined();
-
-    process.env.GROUPS_ENABLED = 'true';
-    const trueConfig = parseConfig();
-    expect(trueConfig.groups.enabled).toBe(true);
-
-    process.env.GROUPS_ENABLED = 'false';
-    const falseConfig = parseConfig();
-    expect(falseConfig.groups.enabled).toBe(false);
-});
-
 describe('LD_SETUP_START_OF_WEEK', () => {
     beforeEach(() => {
         process.env.LD_SETUP_ADMIN_EMAIL = 'admin@example.com';
@@ -2997,7 +2984,6 @@ describe('getMultiProjectSetupConfig', () => {
 describe('legacy feature-flag env vars (compat repair for trivial-batch)', () => {
     test.each([
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
-        ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
         ['EMBEDDING_ENABLED', 'embedding'],
         ['SCIM_ENABLED', 'scim-token-management'],

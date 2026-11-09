@@ -1,13 +1,10 @@
 import {
     type OrganizationAgentIdentityOverview,
-    AgentCapability,
     WarehouseTypes,
     type OrganizationAgentIdentitySnowflakeSetup,
     type OrganizationAgentIdentitySnowflakeVerify,
-    OrganizationMemberRole,
     type ApiResponse,
     type AgentCapabilityPolicyOverview,
-    type AgentSystemRoleMatrix,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -72,20 +69,12 @@ vi.mock('../../hooks/settings/useSettingsContext', () => ({
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
-const matrix = Object.fromEntries(
-    Object.values(OrganizationMemberRole).map((role) => [
-        role,
-        Object.values(AgentCapability),
-    ]),
-) as AgentSystemRoleMatrix;
 const policy: AgentCapabilityPolicyOverview = {
     mode: 'legacy',
     version: 1,
     allowedCapabilities: null,
     allowedGroupUuids: null,
     groupsAvailable: true,
-    systemRoleMatrix: matrix,
-    defaults: matrix,
 };
 const api = mockedLightdashApi;
 const renderPage = (

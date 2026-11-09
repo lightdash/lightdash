@@ -749,9 +749,13 @@ section with a readable `slug`. Filters, parameter controls and date zoom
 controls refer to it with `sectionSlug`. Dashboard parameter section assignments
 use `config.parameterSectionSlugs`.
 
-Uploads match sections by slug and preserve their internal UUIDs, including
-after a name change. New sections receive UUID v4 IDs. Duplicate section slugs
-and unknown `sectionSlug` references are rejected.
+Section slugs come from the name on every download and are never saved, like
+tab slugs; repeated names are all suffixed `-1`, `-2` in list order. A slug in
+an uploaded file only resolves references inside that file. An upload keeps a
+saved section's internal UUID only when no other section shares its slug base
+(the name) on the saved dashboard or in the file; a renamed or repeated section
+gets a new UUID v4. Duplicate section slugs and unknown `sectionSlug` references are
+rejected.
 
 With the flag off, downloads retain section IDs and their legacy references,
 including previously saved sections, and omit parameter controls. Uploads
@@ -763,10 +767,10 @@ controls or replacing their saved values while the flag is off.
 When dashboard controls are enabled, dashboard files can save controls under
 `config.parameterControls`. Each control has a unique lowercase `slug`, a
 `label`, `value`, `valueType` (`type` and `multiple`), and a `parameters` map.
-Downloads derive readable slugs from labels or parameter keys when none is
-saved. Uploads save each slug and match existing controls by slug, preserving
-internal IDs through label changes. Legacy `id` fields are accepted; duplicate
-slugs are rejected.
+Downloads derive the slug from the label, else the first parameter key, and
+never save it; repeats are all suffixed `-1`, `-2`. An upload keeps a saved
+control's internal ID only when no other control shares its slug base on the
+saved dashboard or in the file; a relabelled or repeated control gets a new ID. Legacy `id` fields are accepted; duplicate slugs are rejected.
 
 Each parameter rule is `all`, `{ only: [tile-slug] }`, or
 `{ except: [tile-slug] }`. A key has at most one default (`all` or `except`),
@@ -784,8 +788,8 @@ interleave on the bar, as `{ kind, slug }` refs (`kind` is `filter`,
 `dashboard-controls` enabled, a dashboard with a saved order downloads its full
 reconciled order and a `slug` on every dimension and metric filter; a
 never-reordered dashboard downloads without either. Filter slugs come from the
-field id, suffixed `-1`, `-2` when several filters share a field, and a slug is
-saved once a file supplies it.
+field id on every download, suffixed `-1`, `-2` when several filters share a
+field, and are never saved.
 
 `controlOrder` only decides how kinds interleave, where sections sit and
 where bar lines start: an entry with `newLine: true` starts a new bar line, and
@@ -802,17 +806,15 @@ kind's positions, and line starts stay with their position: swapping two
 dimension filters inside `controlOrder` moves only their line starts, so
 reorder `filters.dimensions` to swap the filters themselves.
 
-Uploads match dimension filters by slug first, then by table and field, to keep
-their IDs. Once a slug is saved, renaming it in a file makes it a new filter
-with a new ID. Unknown, duplicate, malformed and `dateZoom` refs are rejected
-with the valid slugs listed; parameter refs need `config.parameterControls` in
-the file. When dashboard controls are on, a file without `controlOrder` resets
-the bar to the default order. With the flag off, downloads omit both keys and
-uploads ignore them, keeping the saved order and filter slugs. Scheduled
-delivery filters carry no slugs.
-
-Metric and table calculation filters write `tileTargets` by tile slug, like
-dimension filters; uploads still accept tile UUID keys from older files.
+Slugs in an uploaded file only resolve `controlOrder` refs inside that file.
+An upload keeps a dimension filter's ID only when it is the only filter on its
+table and field on the saved dashboard and in the file; filters sharing a field
+get new IDs, never each other's. Unknown, duplicate, malformed and `dateZoom`
+refs are rejected with the valid slugs listed; parameter refs need
+`config.parameterControls` in the file. When dashboard controls are on, a file
+without `controlOrder` resets the bar to the default order. With the flag off,
+downloads omit filter slugs and `controlOrder`, and uploads ignore them,
+keeping the saved order. Scheduled delivery filters carry no slugs.
 
 Charts, dashboards, SQL Runner charts, spaces, and data apps reserve slugs
 within their project, including slugs owned by soft-deleted rows. The database

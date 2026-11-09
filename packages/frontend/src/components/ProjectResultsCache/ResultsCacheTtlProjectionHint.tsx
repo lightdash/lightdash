@@ -2,6 +2,7 @@ import { type ResultsCacheStatsDays } from '@lightdash/common';
 import { Anchor, Box, Divider, Group, Stack, Text } from '@mantine/core';
 import { Fragment, type FC } from 'react';
 import { useResultsCacheTtlProjections } from '../../hooks/useProjectResultsCacheSettings';
+import { EstimatedWarehouseCost } from './EstimatedWarehouseCost';
 import { formatCacheDuration } from './formatCacheDuration';
 import { formatCompactNumber } from './formatCompactNumber';
 import { formatWarehouseTime } from './formatWarehouseTime';
@@ -79,15 +80,24 @@ export const ResultsCacheTtlProjectionHint: FC<Props> = ({
                                     {`+${formatCompactNumber(projection.additionalHits)} potential hits`}
                                 </Text>
                                 <Divider orientation="vertical" />
-                                <Text fz="sm">
+                                <Text fz="sm" className={classes.time}>
                                     {`${withApproximation(
                                         formatWarehouseTime(
                                             Math.round(
                                                 projection.warehouseTimeSavedMs,
                                             ),
                                         ),
-                                    )} warehouse time saved`}
+                                    )} time saved`}
                                 </Text>
+                                <EstimatedWarehouseCost
+                                    projectUuid={projectUuid}
+                                    usage={{
+                                        warehouseTimeMs:
+                                            projection.warehouseTimeSavedMs,
+                                        bytesBilled:
+                                            projection.bytesBilledSaved,
+                                    }}
+                                />
                             </Group>
                         </Fragment>
                     ))}

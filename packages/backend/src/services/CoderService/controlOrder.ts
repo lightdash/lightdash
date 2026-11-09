@@ -6,11 +6,14 @@ import {
     reconcileDashboardControlOrder,
     type DashboardControlRef,
     type DashboardControlRefAsCode,
+    type DashboardControlSectionAsCode,
     type DashboardControlSources,
     type DashboardFilterRule,
+    type DashboardFilterRuleAsCode,
+    type DashboardParameterControlAsCode,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
-import { getParameterControlsWithSlugs } from './parameterControlSlugs';
+import { controlSlugs } from './parameterControlSlugs';
 import { sectionSlugs } from './sectionSlugs';
 
 type OrderedControls = Omit<DashboardControlSources, 'controlOrder'>;
@@ -30,45 +33,86 @@ const getFilterRules = ({
     ...filters.metrics,
 ];
 
-// The slugs a file uses for each control, by kind, in array order
-const getControlSlugs = (
-    controls: OrderedControls,
-): Record<OrderableKind, { id: string; slug: string }[]> => {
-    const rules = getFilterRules(controls);
-    const filterSlugs = getDashboardFilterSlugs(rules);
-    const parameterSlugs = getParameterControlsWithSlugs(
+type ControlSlugs = Record<OrderableKind, { id: string; slug: string }[]>;
+
+const withIds = (controls: { id: string }[], slugs: string[]) =>
+    controls.map(({ id }, index) => ({ id, slug: slugs[index] }));
+
+/** Each dimension then metric filter's slug, derived as a download writes them */
+export const getFilterSlugsAsCode = (controls: OrderedControls): string[] =>
+    getDashboardFilterSlugs(
+        getFilterRules(controls).map(({ target }) => ({ target })),
+    );
+
+// Derived on every download: stored slugs are ignored
+const getDerivedControlSlugs = (controls: OrderedControls): ControlSlugs => ({
+    [DashboardControlRefKind.FILTER]: withIds(
+        getFilterRules(controls),
+        getFilterSlugsAsCode(controls),
+    ),
+    [DashboardControlRefKind.PARAMETER]: withIds(
         controls.parameterControls,
-    ).map(({ slug }) => slug!);
-    const sectionSlugList = sectionSlugs(controls.sections);
-    return {
-        [DashboardControlRefKind.FILTER]: rules.map(({ id }, index) => ({
-            id,
-            slug: filterSlugs[index],
-        })),
-        [DashboardControlRefKind.PARAMETER]: controls.parameterControls.map(
-            ({ id }, index) => ({
-                id,
-                slug: parameterSlugs[index],
-            }),
+        controlSlugs(
+            controls.parameterControls.map(({ label, parameters }) => ({
+                label,
+                parameters,
+            })),
         ),
-        [DashboardControlRefKind.SECTION]: controls.sections.map(
-            ({ id }, index) => ({
-                id,
-                slug: sectionSlugList[index],
-            }),
-        ),
-    };
+    ),
+    [DashboardControlRefKind.SECTION]: withIds(
+        controls.sections,
+        sectionSlugs(controls.sections.map(({ name }) => ({ name }))),
+    ),
+});
+
+/** Rejects malformed or repeated filter slugs in a file, so a ref never picks one of two filters */
+export const assertValidFilterSlugs = (
+    filters: Pick<DashboardFilterRuleAsCode, 'slug'>[],
+): void => {
+    const seen = new Set<string>();
+    filters.forEach(({ slug }) => {
+        if (slug === undefined) return;
+        if (
+            typeof slug !== 'string' ||
+            !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+        )
+            throw new ParameterError(`Invalid dashboard filter slug "${slug}"`);
+        if (seen.has(slug))
+            throw new ParameterError(
+                `Dashboard filter slug "${slug}" is duplicated`,
+            );
+        seen.add(slug);
+    });
 };
 
-/** Each dimension then metric filter's slug, as a file with a control order writes them */
-export const getFilterSlugsAsCode = (controls: OrderedControls): string[] =>
-    getDashboardFilterSlugs(getFilterRules(controls));
+/** The slugs an uploaded file's refs use (its own, else derived), with the ids its controls resolved to */
+export const getUploadedControlSlugs = (
+    file: {
+        filters: Pick<DashboardFilterRuleAsCode, 'target' | 'slug'>[];
+        parameterControls: DashboardParameterControlAsCode[];
+        sections: Pick<DashboardControlSectionAsCode, 'name' | 'slug'>[];
+    },
+    uploaded: OrderedControls,
+): ControlSlugs => ({
+    [DashboardControlRefKind.FILTER]: withIds(
+        getFilterRules(uploaded),
+        getDashboardFilterSlugs(file.filters),
+    ),
+    [DashboardControlRefKind.PARAMETER]: withIds(
+        uploaded.parameterControls,
+        controlSlugs(file.parameterControls),
+    ),
+    [DashboardControlRefKind.SECTION]: withIds(
+        uploaded.sections,
+        sectionSlugs(file.sections),
+    ),
+});
 
 /** The reconciled order as file refs, using the slugs the same file writes */
 export const getControlOrderAsCode = (
     sources: DashboardControlSources,
 ): DashboardControlRefAsCode[] => {
-    const slugs = getControlSlugs(sources);
+    const slugs = getDerivedControlSlugs(sources);
     const slugOf = (kind: OrderableKind, id: string) =>
         slugs[kind].find((control) => control.id === id)?.slug;
     return reconcileDashboardControlOrder(sources).flatMap(
@@ -105,9 +149,8 @@ const isOrderableKind = (kind: unknown): kind is OrderableKind =>
 /** Translates a file's control order to control ids, rejecting refs that resolve to nothing in the file */
 export const getControlOrderWithIds = (
     controlOrder: unknown,
-    controls: OrderedControls,
+    slugs: ControlSlugs,
 ): DashboardControlRef[] => {
-    const slugs = getControlSlugs(controls);
     const validSlugs = ORDERABLE_KINDS.map(
         (kind) =>
             `${kind}: ${slugs[kind].map(({ slug }) => slug).join(', ') || 'none'}`,

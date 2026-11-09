@@ -45,7 +45,6 @@ import {
     connectionFixture,
     connectionTestConfig,
     encryptionUtil,
-    matrix,
 } from './agentConnectionFixture.mock';
 import {
     githubDbtConnection,
@@ -163,9 +162,7 @@ export const queueEvidenceFixture = async (
         AgentCapability.Query,
         AgentCapability.ReadDiscover,
     ];
-    const policy = await f.savePolicy({
-        systemRoleMatrix: { ...matrix([]), admin: capabilities },
-    });
+    const policy = await f.savePolicy({ allowedCapabilities: capabilities });
     const grant = await f.grants.create({
         organizationUuid: f.organizationUuid,
         subjectUserUuid: f.userUuid,

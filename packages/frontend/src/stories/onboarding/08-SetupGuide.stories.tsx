@@ -9,7 +9,6 @@ import {
     type SetupGuideRowId,
 } from '../../ee/features/homepageBuilder/blocks/setupGuide/setupGuideModel';
 import { type ActionStatus } from '../../ee/features/homepageBuilder/blocks/useRecommendedActions';
-import { storyAgentRun } from './agentRunFixture';
 import { OnboardingStory, PROJECT_UUID } from './storyApi';
 
 const meta: Meta = {
@@ -18,7 +17,7 @@ const meta: Meta = {
 };
 export default meta;
 
-type GuideState = 'fresh' | 'building' | 'mostly-done';
+type GuideState = 'fresh' | 'mostly-done';
 
 const status = (url: string): ActionStatus => ({
     isVisible: true,
@@ -48,7 +47,7 @@ const Guide = ({ state }: { state: GuideState }) => {
                 annotation: state !== 'fresh' ? 'Postgres' : null,
             },
             'add-semantic-layer': status(
-                `/projects/${PROJECT_UUID}/agent-onboarding`,
+                `/generalSettings/projectManagement/${PROJECT_UUID}/settings`,
             ),
             'connect-source-control': status('/onboarding/dbt'),
             'connect-slack': status('/generalSettings/integrations'),
@@ -64,8 +63,6 @@ const Guide = ({ state }: { state: GuideState }) => {
         semanticModelCount: state === 'mostly-done' ? 3 : 0,
         chartCount: state === 'mostly-done' ? 2 : 0,
         chartTypeNames: [],
-        activeRun: state === 'building' ? storyAgentRun(false) : null,
-        completedRun: null,
         semanticStudioUrl: null,
         canAddLiveSources: true,
         appSourceNames:
@@ -116,10 +113,6 @@ const guideStory = (state: GuideState): StoryObj => ({
 });
 
 export const Fresh: StoryObj = { ...guideStory('fresh') };
-export const Building: StoryObj = {
-    name: 'Warehouse connected, semantic layer building',
-    ...guideStory('building'),
-};
 export const MostlyDone: StoryObj = {
     name: 'Mostly done with skipped steps',
     ...guideStory('mostly-done'),

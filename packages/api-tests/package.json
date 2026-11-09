@@ -4,7 +4,7 @@
     "private": true,
     "license": "MIT",
     "scripts": {
-        "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+        "linter": "OXLINT_TSGOLINT_PATH=node_modules/.bin/tsrs-lint oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter .",
         "fix-lint": "pnpm run linter . --fix",
@@ -24,8 +24,8 @@
         "@types/js-yaml": "4.0.9",
         "@types/pg": "8.11.10",
         "oxlint": "1.75.0",
-        "oxlint-tsgolint": "7.0.2001",
         "pg": "8.13.1",
+        "tsrs": "0.21.0-ts7.1.0-beta",
         "typescript": "7.0.2",
         "vitest": "4.1.11"
     }

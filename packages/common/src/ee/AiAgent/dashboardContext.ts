@@ -13,7 +13,6 @@ type AiDashboardFilterRuleInput = AiDashboardFilterRule &
             | 'lockedTabUuids'
             | 'requiredGroupId'
             | 'sectionId'
-            | 'slug'
         >
     >;
 
@@ -29,7 +28,6 @@ const serializeDashboardFilterRuleForAiContext = ({
     lockedTabUuids: _lockedTabUuids,
     requiredGroupId: _requiredGroupId,
     sectionId: _sectionId,
-    slug: _slug,
     ...filter
 }: AiDashboardFilterRuleInput): AiDashboardFilterRule => filter;
 

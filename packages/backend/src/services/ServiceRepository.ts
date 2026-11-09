@@ -223,7 +223,6 @@ interface ServiceManifest {
     aiDeepResearchService: unknown;
     aiAgentMemoryService: unknown;
     homepageRecommendedActionSkipsService: unknown;
-    onboardingAgentService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
     appGenerateService: unknown;
@@ -1098,13 +1097,11 @@ export class ServiceRepository
                         };
                         return (await resolvers[type]())?.projectUuid ?? null;
                     },
-                    areGroupsAvailable: (organizationUuid) =>
+                    areGroupsAvailable: () =>
                         areOrganizationGroupsAvailable({
-                            organizationUuid,
                             isLicensed: () =>
                                 this.getLicenseService().getLicenseStatus()
                                     .valid,
-                            featureFlagModel: this.models.getFeatureFlagModel(),
                         }),
                     groupsModel: this.models.getGroupsModel(),
                     isCustomRolesLicensed: () =>
@@ -2091,12 +2088,6 @@ export class ServiceRepository
         AiAgentMemoryServiceImplT,
     >(): AiAgentMemoryServiceImplT {
         return this.getService('aiAgentMemoryService');
-    }
-
-    public getOnboardingAgentService<
-        OnboardingAgentServiceImplT,
-    >(): OnboardingAgentServiceImplT {
-        return this.getService('onboardingAgentService');
     }
 
     public getWritebackPreviewService<

@@ -16,6 +16,8 @@ function App() {
     const [eventLog, setEventLog] = useState<EventLogEntry[]>([]);
     const [filterEventType, setFilterEventType] = useState('all');
     const [iframeKey, setIframeKey] = useState(0);
+    const [autoHeight, setAutoHeight] = useState(true);
+    const [contentHeight, setContentHeight] = useState<number | null>(null);
 
     // Save embed URL to localStorage when it changes
     useEffect(() => {
@@ -59,6 +61,12 @@ function App() {
                 };
 
                 setEventLog((prev) => [logEntry, ...prev]);
+                if (
+                    event.data.type === 'lightdash:contentHeightChanged' &&
+                    typeof event.data.payload.height === 'number'
+                ) {
+                    setContentHeight(event.data.payload.height);
+                }
                 console.log('Received Lightdash event:', event.data);
             }
         };
@@ -114,6 +122,15 @@ function App() {
                     />
                 </div>
 
+                <label className="checkbox-label">
+                    <input
+                        type="checkbox"
+                        checked={autoHeight}
+                        onChange={(e) => setAutoHeight(e.target.checked)}
+                    />
+                    Fit iframe to content height
+                </label>
+
                 <button
                     onClick={iframeSrc ? refreshIframe : loadIframe}
                     className="load-button"
@@ -130,6 +147,11 @@ function App() {
                             key={iframeKey}
                             src={iframeSrc}
                             className="lightdash-iframe"
+                            style={
+                                autoHeight && contentHeight !== null
+                                    ? { flex: 'none', height: contentHeight }
+                                    : undefined
+                            }
                             title="Lightdash Embedded Dashboard"
                             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                         />

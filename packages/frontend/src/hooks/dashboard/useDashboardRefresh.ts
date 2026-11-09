@@ -53,12 +53,6 @@ export const useDashboardRefresh = () => {
         });
     }, [queryClient]);
 
-    const invalidateDashboardResultsQueries = useCallback(() => {
-        return queryClient.invalidateQueries({
-            predicate: dashboardResultsQueryPredicate,
-        });
-    }, [queryClient]);
-
     const removeDashboardResultsQueries = useCallback(() => {
         queryClient.removeQueries({
             predicate: dashboardResultsQueryPredicate,
@@ -68,7 +62,6 @@ export const useDashboardRefresh = () => {
     return useMemo(
         () => ({
             invalidateDashboardRelatedQueries,
-            invalidateDashboardResultsQueries,
             removeDashboardResultsQueries,
             isFetching:
                 isFetchingDashboardRelatedQueries +
@@ -76,7 +69,6 @@ export const useDashboardRefresh = () => {
         }),
         [
             invalidateDashboardRelatedQueries,
-            invalidateDashboardResultsQueries,
             removeDashboardResultsQueries,
             isFetchingDashboardRelatedQueries,
             isFetchingDashboardResultsQueries,

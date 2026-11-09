@@ -17,30 +17,15 @@ export enum FeatureFlags {
     /** Extra warehouse connections of a different type to the project's original connection. */
     MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Backend-provisioned usage analytics projects. */
-    /* Show user groups */
-    UserGroupsEnabled = 'user-groups-enabled',
-
     /* Gate new timezone features: warehouse session timezone, timezone-aware
        DATE_TRUNC, per-viewer (user-profile) timezone resolution, result
        formatting, etc. Temporary — remove once stable. */
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
-     * Enable the dynamic calculation of series color, when not manually set on the chart config.
-     * This aims to make the colors more consistent, depending on the groups, but this could cause the opposite effect.
-     * For more details, see https://github.com/lightdash/lightdash/issues/13831
-     */
-    CalculateSeriesColor = 'calculate-series-color',
-
-    /**
      * Enable the ability to show the warehouse execution time and total time in the chart tile.
      */
     ShowExecutionTime = 'show-execution-time',
-
-    /**
-     * Enable the ability to create custom visualizations with AI
-     */
-    AiCustomViz = 'ai-custom-viz',
 
     /**
      * Enable admin user impersonation. When disabled, impersonation
@@ -148,14 +133,6 @@ export enum FeatureFlags {
      * product action (query execution). Off by default; enable per-org.
      */
     OrganizationTrialBlock = 'organization-trial-block',
-
-    /**
-     * Show the coding-agent project onboarding flow. With NewOnboarding, people
-     * without a repo can start an onboarding run right after connecting their
-     * warehouse. The CLI, APIs, and installed skills remain available
-     * independently.
-     */
-    CodingAgentOnboarding = 'coding-agent-onboarding',
 
     /**
      * Allow storing long-lived GitHub personal access tokens as GitHub MCP

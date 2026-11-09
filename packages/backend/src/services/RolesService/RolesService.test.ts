@@ -140,7 +140,6 @@ describe('RolesService', () => {
                 mode: 'managed',
                 version: 1,
                 allowedCapabilities: null,
-                systemRoleMatrix: {} as never,
             });
             await expect(
                 service.addScopesToRole(oauthAccount(), 'role', {
@@ -167,7 +166,6 @@ describe('RolesService', () => {
                 mode: 'managed',
                 version: 1,
                 allowedCapabilities: null,
-                systemRoleMatrix: {} as never,
             });
             await expect(
                 agentExecutionContext.run(
@@ -202,7 +200,6 @@ describe('RolesService', () => {
                         mode: 'legacy',
                         version: 0,
                         allowedCapabilities: null,
-                        systemRoleMatrix: {} as never,
                     });
                 mockRolesModel.getRoleByUuid.mockResolvedValue(mockCustomRole);
                 await service.addScopesToRole(
@@ -252,7 +249,6 @@ describe('RolesService', () => {
                     mode: 'managed',
                     version: 1,
                     allowedCapabilities: null,
-                    systemRoleMatrix: {} as never,
                 });
                 const mutation = service[method] as (
                     account: typeof mockAccount,

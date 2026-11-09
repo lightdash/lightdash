@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AGENT_CAPABILITY_SCOPES,
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusalReason,
@@ -16,21 +17,27 @@ import {
     defaultSessionUser,
 } from '../../auth/account/account.mock';
 import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInManaged';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-    evaluate,
-} from './AgentPermissionService';
+import { AgentPermissionService, evaluate } from './AgentPermissionService';
+
+const heldBy = (capabilities: readonly AgentCapability[]) => ({
+    systemRoles: [],
+    customRoles: [
+        {
+            roleUuid: 'agent-role',
+            scopes: capabilities.map(
+                (capability) => AGENT_CAPABILITY_SCOPES[capability],
+            ),
+        },
+    ],
+});
 
 const setup = () => {
     const account = buildAccount();
-    const matrix = agentSystemRoleMatrix([]);
     const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
         allowedCapabilities: null,
         allowedGroupUuids: null,
-        systemRoleMatrix: { ...matrix, viewer: [AgentCapability.Query] },
     };
     const deps = {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
@@ -51,10 +58,9 @@ const setup = () => {
             save: vi.fn(),
         },
         userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.VIEWER],
-                customRoles: [],
-            }),
+            getAgentRoleAssignments: vi
+                .fn()
+                .mockResolvedValue(heldBy([AgentCapability.Query])),
         },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
@@ -101,23 +107,75 @@ test.each(['off', 'legacy'] as const)(
     },
 );
 
-test('unions system and custom assignments without a system-role veto', async () => {
-    const { service, deps, operation } = setup();
+test('unions system and custom assignments within the organization list', async () => {
+    const { service, policy, deps, operation } = setup();
+    policy.allowedCapabilities = [
+        AgentCapability.Query,
+        AgentCapability.RawSql,
+        AgentCapability.Export,
+    ];
+    const customRoles = [
+        { roleUuid: 'direct', scopes: ['view:AgentRawSql'] },
+        { roleUuid: 'group', scopes: ['view:AgentExport'] },
+        { roleUuid: 'extra', scopes: ['view:AgentContentWrite'] },
+    ];
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue({
+        systemRoles: [],
+        customRoles,
+    });
+    expect((await service.resolvePolicy(operation)).capabilities).toEqual(
+        new Set([AgentCapability.RawSql, AgentCapability.Export]),
+    );
     deps.userModel.getAgentRoleAssignments.mockResolvedValue({
         systemRoles: [OrganizationMemberRole.VIEWER],
-        customRoles: [
-            { roleUuid: 'direct', scopes: ['view:AgentRawSql'] },
-            { roleUuid: 'group', scopes: ['view:AgentExport'] },
-            { roleUuid: 'extra', scopes: ['view:AgentContentWrite'] },
-        ],
+        customRoles,
     });
     expect((await service.resolvePolicy(operation)).capabilities).toEqual(
         new Set([
             AgentCapability.Query,
             AgentCapability.RawSql,
             AgentCapability.Export,
-            AgentCapability.ContentWrite,
         ]),
+    );
+});
+
+test('a built-in role gets every capability the organization allows', async () => {
+    const { service, policy, deps, operation } = setup();
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue({
+        systemRoles: [OrganizationMemberRole.VIEWER],
+        customRoles: [],
+    });
+    const allowed = [
+        AgentCapability.Query,
+        AgentCapability.RawSql,
+        AgentCapability.Export,
+    ];
+    policy.allowedCapabilities = allowed;
+    const { capabilities } = await service.resolvePolicy(operation);
+    expect(capabilities).toEqual(new Set(allowed));
+    expect(capabilities?.has(AgentCapability.ContentWrite)).toBe(false);
+    policy.allowedCapabilities = null;
+    expect((await service.resolvePolicy(operation)).capabilities).toEqual(
+        new Set(Object.values(AgentCapability)),
+    );
+});
+
+test('a custom role still adds its scopes', async () => {
+    const { service, deps, operation } = setup();
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue({
+        systemRoles: [],
+        customRoles: [
+            {
+                roleUuid: 'custom',
+                scopes: [
+                    AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
+                    AGENT_CAPABILITY_SCOPES[AgentCapability.Export],
+                ],
+            },
+        ],
+    });
+    expect((await service.resolvePolicy(operation)).capabilities).toEqual(
+        new Set([AgentCapability.RawSql, AgentCapability.Export]),
     );
 });
 
@@ -164,8 +222,10 @@ test('refuses unmapped operations and requires external_tools for connected tool
 });
 
 test('raw SQL is allowed with its role grant and no confirmation dependency', async () => {
-    const { service, policy, deps, operation } = setup();
-    policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
+    const { service, deps, operation } = setup();
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+        heldBy([AgentCapability.RawSql]),
+    );
     await expect(service.assertOperation(operation)).resolves.toBeUndefined();
     expect(Object.keys(deps)).not.toContain(
         'agentWarehouseRestrictionConfirmationModel',
@@ -180,8 +240,10 @@ test.each([
 ])(
     'the permission check has no MCP settings dependency on %s',
     async (surface) => {
-        const { service, policy, deps, operation } = setup();
-        policy.systemRoleMatrix.viewer = [AgentCapability.ContentWrite];
+        const { service, deps, operation } = setup();
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+            heldBy([AgentCapability.ContentWrite]),
+        );
         expect(deps).not.toHaveProperty('getOrganizationSettings');
         await expect(
             service.assertOperation({
@@ -287,8 +349,10 @@ test('uses the organization remedy when custom roles cannot be edited without a 
 });
 
 test('allows connected tools only with the external_tools capability', async () => {
-    const { service, policy, operation } = setup();
-    policy.systemRoleMatrix.viewer = [AgentCapability.ExternalTools];
+    const { service, deps, operation } = setup();
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+        heldBy([AgentCapability.ExternalTools]),
+    );
     await expect(
         service.assertOperation({
             ...operation,
@@ -394,8 +458,10 @@ test('resolves a resource project using the trusted resource lookup', async () =
 test.each([...HUMAN_ONLY_IN_MANAGED])(
     'keeps %s human-only even when every capability is granted',
     async (key) => {
-        const { service, policy, operation, deps } = setup();
-        policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+        const { service, operation, deps } = setup();
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+            heldBy(Object.values(AgentCapability)),
+        );
         operation.account.user.ability = new Ability<PossibleAbilities>([
             { action: 'manage', subject: 'all' },
         ]);
@@ -429,7 +495,9 @@ describe.each(admissionSurfaces)(
             async (mode) => {
                 const { service, policy, operation, deps } = setup();
                 policy.mode = mode;
-                policy.systemRoleMatrix.viewer = [AgentCapability.ReadDiscover];
+                deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+                    heldBy([AgentCapability.ReadDiscover]),
+                );
                 deps.agentCapabilityPolicyModel.getForEnforcement.mockImplementation(
                     async () => ({
                         ...policy,
@@ -516,8 +584,10 @@ const newHumanOnlyOperations = [
 test.each(newHumanOnlyOperations)(
     'refuses %s with all capabilities and admin rights',
     async (key) => {
-        const { service, operation, policy } = setup();
-        policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+        const { service, operation, deps } = setup();
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+            heldBy(Object.values(AgentCapability)),
+        );
         operation.account.user.ability = new Ability<PossibleAbilities>([
             { action: 'manage', subject: 'all' },
         ]);
@@ -551,15 +621,20 @@ const toolEffectFixtures = [
 test.each(toolEffectFixtures)(
     'enforces all requirements for %s',
     async (key, required) => {
-        const { service, operation, policy } = setup();
+        const { service, operation, deps } = setup();
         const effect = { ...operation, kind: 'tool_effect' as const, key };
-        policy.systemRoleMatrix.viewer = [...required];
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+            heldBy(required),
+        );
         await expect(service.assertOperation(effect)).resolves.toBeUndefined();
         await Promise.all(
             required.map(async (missing) => {
                 const missingSetup = setup();
-                missingSetup.policy.systemRoleMatrix.viewer = required.filter(
+                const held = required.filter(
                     (capability) => capability !== missing,
+                );
+                missingSetup.deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+                    heldBy(held),
                 );
                 await expect(
                     missingSetup.service.assertOperation({
@@ -582,8 +657,10 @@ test.each(toolEffectFixtures)(
 test.each(['unknown', 'toString', 'constructor', '__proto__'])(
     'denies unknown tool effect %s',
     async (key) => {
-        const { service, operation, policy } = setup();
-        policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+        const { service, operation, deps } = setup();
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+            heldBy(Object.values(AgentCapability)),
+        );
         await expect(
             service.assertOperation({ ...operation, kind: 'tool_effect', key }),
         ).rejects.toMatchObject({
@@ -596,7 +673,7 @@ test.each(['off', 'legacy'] as const)(
     '%s bypasses every new managed check',
     async (mode) => {
         const { service, operation, policy, deps } = setup();
-        policy.systemRoleMatrix.viewer = [];
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(heldBy([]));
         if (mode === 'off')
             deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
         else policy.mode = 'legacy';
@@ -640,7 +717,9 @@ const parityCases = [
 const paritySetup = (scenario: (typeof parityCases)[number]) => {
     const fixture = setup();
     const { policy, deps, operation } = fixture;
-    policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+        heldBy(Object.values(AgentCapability)),
+    );
     operation.key = 'SchedulerController.post';
     if (scenario === 'off')
         deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
@@ -664,8 +743,10 @@ const paritySetup = (scenario: (typeof parityCases)[number]) => {
         external_tools: '',
     };
     if (Object.values(AgentCapability).includes(scenario as AgentCapability)) {
-        policy.systemRoleMatrix.viewer = Object.values(AgentCapability).filter(
-            (c) => c !== scenario,
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+            heldBy(
+                Object.values(AgentCapability).filter((c) => c !== scenario),
+            ),
         );
         operation.key = capabilityOperations[scenario as AgentCapability];
     }
@@ -718,8 +799,8 @@ test.each(parityCases)('existing refusal snapshot: %s', async (scenario) => {
 });
 
 test('collects missing delivery capabilities in order', async () => {
-    const { service, operation, policy, deps } = setup();
-    policy.systemRoleMatrix.viewer = [];
+    const { service, operation, deps } = setup();
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue(heldBy([]));
 
     const refusal = await refusalFrom(
         service.assertOperation({
@@ -929,8 +1010,10 @@ test.each(['allowed', 'off', 'legacy'] as const)(
 );
 
 test('raw SQL with its role grant only reads the remaining policy inputs', async () => {
-    const { service, operation, deps, policy } = setup();
-    policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
+    const { service, operation, deps } = setup();
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+        heldBy([AgentCapability.RawSql]),
+    );
     await expect(service.assertOperation(operation)).resolves.toBeUndefined();
     expect(deps.featureFlagModel.get).toHaveBeenCalledTimes(1);
     expect(
@@ -950,8 +1033,7 @@ test('raw SQL with its role grant only reads the remaining policy inputs', async
 test('all independent blockers are ordered and disclose no role sources or project lists', async () => {
     const { service, operation, deps, policy } = setup();
     policy.allowedGroupUuids = ['another-group'];
-
-    policy.systemRoleMatrix.viewer = [];
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue(heldBy([]));
 
     const refusal = await refusalFrom(
         service.assertOperation({
@@ -974,11 +1056,10 @@ test('all independent blockers are ordered and disclose no role sources or proje
 });
 
 test('content writes do not need an organization settings read', async () => {
-    const { service, operation, deps, policy } = setup();
-    policy.systemRoleMatrix.viewer = [
-        AgentCapability.ContentWrite,
-        AgentCapability.Publish,
-    ];
+    const { service, operation, deps } = setup();
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue(
+        heldBy([AgentCapability.ContentWrite, AgentCapability.Publish]),
+    );
     await expect(
         service.assertOperation({
             ...operation,

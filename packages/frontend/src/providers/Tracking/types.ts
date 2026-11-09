@@ -1,5 +1,4 @@
 import {
-    type AgentOnboardingRunStatus,
     type AppVersionStatus,
     type AiDeepResearchTerminalStatus,
     type ContentReviewContentType,
@@ -51,7 +50,6 @@ type GenericEvent = {
         | EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_CLI_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED
-        | EventName.CREATE_PROJECT_AGENT_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_WAREHOUSE_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_CLI_SSO_OPTION_CLICKED
         | EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED
@@ -1095,50 +1093,13 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
     };
 };
 
-type AgentOnboardingDemoOfferProperties = {
-    organizationId: string | null;
-    projectUuid: string;
-    agentOnboardingRunUuid: string;
-    offerType: 'provision_demo' | 'open_existing_demo';
-};
-
-type AgentOnboardingDemoOfferShownEvent = {
-    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_SHOWN;
-    properties: AgentOnboardingDemoOfferProperties;
-};
-
-type AgentOnboardingDemoOfferAcceptedEvent = {
-    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED;
-    properties: AgentOnboardingDemoOfferProperties & {
-        demoProjectUuid: string | null;
-    };
-};
-
-type AgentOnboardingCompletionToastProperties = {
-    organizationId: string | null;
-    projectUuid: string;
-    agentOnboardingRunUuid: string;
-};
-
 type OnboardingDoneActionClickedEvent = {
     name: EventName.ONBOARDING_DONE_ACTION_CLICKED;
     properties: {
         organizationId: string | null;
         projectId: string;
         action: 'ask_first_question' | 'look_around';
-        areMetricsLive: boolean;
-        runStatus: AgentOnboardingRunStatus | null;
     };
-};
-
-type AgentOnboardingCompletionToastShownEvent = {
-    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN;
-    properties: AgentOnboardingCompletionToastProperties;
-};
-
-type AgentOnboardingCompletionToastClickedEvent = {
-    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED;
-    properties: AgentOnboardingCompletionToastProperties;
 };
 
 /** Where a map chart was rendered when tile telemetry was captured. */
@@ -1390,10 +1351,6 @@ export type EventData =
     | DashboardWorkbookEvent
     | MapTileUsageEvent
     | MapTileFallbackEvent
-    | AgentOnboardingDemoOfferShownEvent
-    | AgentOnboardingDemoOfferAcceptedEvent
-    | AgentOnboardingCompletionToastShownEvent
-    | AgentOnboardingCompletionToastClickedEvent
     | OnboardingDoneActionClickedEvent
     | SetupInviteSentEvent
     | PlaygroundProjectEnteredEvent

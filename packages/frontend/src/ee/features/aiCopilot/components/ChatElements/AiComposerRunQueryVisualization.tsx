@@ -26,7 +26,7 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
 import { AiComposerRunQueryChart } from './AiComposerRunQueryChart';
-import { ArtifactChartSkeleton } from './ArtifactChartSkeleton';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 
 const DATA_APP_VIZ_RENDER_TARGET = {
     isEmbedded: false,
@@ -164,7 +164,7 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
             );
         }
         if (!readyChart || !results.hasFetchedAllRows) {
-            return <ArtifactChartSkeleton withHeading={false} />;
+            return <ArtifactLoadingSketch />;
         }
         return (
             <AiComposerRunQueryChart

@@ -490,29 +490,6 @@
     max-width: rem(440px);
 }
 
-/* Background work floats over the page so the visuals keep their space */
-.activityToast {
-    position: fixed;
-    right: var(--mantine-spacing-lg);
-    bottom: var(--mantine-spacing-lg);
-    z-index: 200;
-    width: min(rem(360px), calc(100vw - var(--mantine-spacing-lg) * 2));
-    animation: toastIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes toastIn {
-    from {
-        opacity: 0;
-        transform: translateY(12px) scale(0.98);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .activityToast {
-        animation: none;
-    }
-}
-
 .splitForm {
     display: flex;
     flex: 1;
@@ -559,11 +536,6 @@
 @media (max-width: $mantine-breakpoint-md) {
     .splitVisual {
         display: none;
-    }
-
-    /* The page scrolls here, so leave room to lift the last button clear of the toast */
-    .splitRoot:has(.activityToast) .splitForm {
-        padding-bottom: rem(176px);
     }
 }
 

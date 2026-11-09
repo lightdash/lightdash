@@ -1,5 +1,5 @@
 import { type WarehouseConnectionForUserCredentials } from '@lightdash/common';
-import { getConnectionName } from '../components/common/connectionName';
+import { getExploreConnectionName } from '../components/common/connectionName';
 import useEmbed from '../ee/providers/Embed/useEmbed';
 import { useExplores } from './useExplores';
 import { useProject } from './useProject';
@@ -34,5 +34,5 @@ export const useExploreConnectionName = (
     const explore = explores?.find(({ name }) => name === exploreName);
     return explore === undefined
         ? null
-        : getConnectionName(connections, explore.warehouseConnectionUuid);
+        : getExploreConnectionName(connections, explore);
 };

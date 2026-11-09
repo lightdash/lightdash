@@ -31,7 +31,6 @@ interface UserAccessMultiSelectProps extends Omit<
     'data' | 'renderOption'
 > {
     projectUuid: string;
-    isGroupsEnabled?: boolean;
     /**
      * The selected users as the agent reports them. The org user search is
      * paginated, so a selected user is often not among the results the
@@ -42,7 +41,6 @@ interface UserAccessMultiSelectProps extends Omit<
 
 export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
     projectUuid,
-    isGroupsEnabled = false,
     selectedUserDetails = NO_SELECTED_USER_DETAILS,
     value = [],
     onChange,
@@ -191,11 +189,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                     </Tooltip>
                 </Group>
             }
-            description={`Select specific users from this project who can access this agent. ${
-                isGroupsEnabled
-                    ? 'If no users or groups are selected, all users will have access.'
-                    : 'If no users are selected, all users will have access.'
-            }`}
+            description="Select specific users from this project who can access this agent. If no users or groups are selected, all users will have access."
             placeholder="Search users"
             data={selectData}
             clearable

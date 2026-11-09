@@ -347,10 +347,8 @@ describe('reconcileDashboardControlOrder', () => {
                     ],
                     metrics: [],
                 },
-                parameterControls: [
-                    parameter('p1', { slug: 'region', hidden: true }),
-                ],
-                sections: [{ ...section('s1'), slug: 'main' }],
+                parameterControls: [parameter('p1', { hidden: true })],
+                sections: [section('s1')],
                 controlOrder: [
                     ref(FILTER, 'd1'),
                     ref(PARAMETER, 'p1'),
@@ -361,21 +359,18 @@ describe('reconcileDashboardControlOrder', () => {
         expect(param).toMatchObject({
             kind: PARAMETER,
             id: 'p1',
-            slug: 'region',
             sectionId: null,
             label: 'p1',
             hidden: true,
         });
         expect(sec).toMatchObject({
             kind: SECTION,
-            slug: 'main',
             label: 's1',
             sectionId: null,
         });
         expect(filter).toMatchObject({
             kind: FILTER,
             id: 'd1',
-            slug: 'orders-d1',
             sectionId: 's1',
             label: 'Status',
             hidden: false,
@@ -397,7 +392,7 @@ describe('getDashboardFilterSlugs', () => {
         ).toEqual(['orders-status-1', 'orders-status-2', 'orders-status-3']);
     });
 
-    it('keeps a stored slug and derives around it', () => {
+    it("keeps a file's slug and derives around it", () => {
         expect(
             getDashboardFilterSlugs([
                 { target: target('orders_status') },

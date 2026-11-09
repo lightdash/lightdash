@@ -1,0 +1,80 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`connector capability declarations > the summable tags 1`] = `
+{
+  "ga4": {
+    "active_users": {
+      "aggregation": "non_additive",
+    },
+    "average_session_duration": {
+      "aggregation": "non_additive",
+    },
+    "ecommerce_purchases": {
+      "aggregation": "additive",
+    },
+    "engaged_sessions": {
+      "aggregation": "non_additive",
+    },
+    "engagement_rate": {
+      "aggregation": "non_additive",
+    },
+    "event_count": {
+      "aggregation": "additive",
+    },
+    "item_revenue": {
+      "aggregation": "additive",
+    },
+    "items_purchased": {
+      "aggregation": "additive",
+    },
+    "items_viewed": {
+      "aggregation": "additive",
+    },
+    "key_events": {
+      "aggregation": "additive",
+    },
+    "new_users": {
+      "aggregation": "non_additive",
+    },
+    "screen_page_views": {
+      "aggregation": "additive",
+    },
+    "sessions": {
+      "aggregation": "non_additive",
+    },
+    "total_revenue": {
+      "aggregation": "additive",
+    },
+    "total_users": {
+      "aggregation": "non_additive",
+    },
+  },
+  "posthog": {
+    "event_count": {
+      "aggregation": "additive",
+    },
+    "unique_sessions": {
+      "aggregation": "non_additive",
+    },
+    "unique_users": {
+      "aggregation": "non_additive",
+    },
+  },
+  "search_console": {
+    "clicks": {
+      "aggregation": "additive",
+    },
+    "ctr": {
+      "aggregation": "ratio",
+      "denominator": "impressions",
+      "numerator": "clicks",
+    },
+    "impressions": {
+      "aggregation": "additive",
+    },
+    "position": {
+      "aggregation": "non_additive",
+    },
+  },
+}
+`;

@@ -164,9 +164,6 @@ const RowStatus: FC<{ row: SetupGuideRow }> = ({ row }) => {
             />
         );
     }
-    if (row.status === 'building') {
-        return <Box className={classes.liveDot} aria-label="In progress" />;
-    }
     if (row.status === 'skipped') {
         return (
             <Text fz="xs" c="dimmed">
@@ -208,11 +205,6 @@ const GuideRow: FC<
                 <Text fz="sm" lineClamp={2} className={classes.rowTitle}>
                     {row.title}
                 </Text>
-                {row.status === 'building' && row.evidence && (
-                    <Text fz="xs" c="dimmed" truncate>
-                        {row.evidence.text}
-                    </Text>
-                )}
             </Box>
             {row.choices.length > 0 ? (
                 <MantineIcon icon={IconChevronRight} size={14} color="dimmed" />

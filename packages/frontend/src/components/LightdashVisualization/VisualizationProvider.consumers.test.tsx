@@ -58,11 +58,6 @@ vi.mock('@shopify/react-web-worker', () => ({
     useWorker: () => ({}),
 }));
 
-vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => ({
-    ...(await importOriginal<object>()),
-    useServerFeatureFlag: () => ({ data: undefined }),
-}));
-
 const Shell: FC<PropsWithChildren<{ chartConfig: ChartConfig }>> = ({
     chartConfig,
     children,

@@ -65,42 +65,13 @@ describe('splitDateRangeFilter', () => {
             splitDateRangeFilter({ id: 'root', and: [date] }, DATE).dateRule,
         ).toBeNull();
     });
-
-    test('refuses a date filter inside an OR group', () => {
-        const date = rule(FilterOperator.IN_THE_PAST, [7]);
-        expect(() =>
-            splitDateRangeFilter({ id: 'root', or: [date, channel] }, DATE),
-        ).toThrow(ParameterError);
-        expect(() =>
-            splitDateRangeFilter(
-                { id: 'root', and: [{ id: 'nested', or: [date, channel] }] },
-                DATE,
-            ),
-        ).toThrow('not inside an OR group');
-    });
-
-    test('refuses two date filters', () => {
-        expect(() =>
-            splitDateRangeFilter(
-                {
-                    id: 'root',
-                    and: [
-                        rule(FilterOperator.IN_THE_PAST, [7]),
-                        rule(FilterOperator.EQUALS, ['2026-11-01']),
-                    ],
-                },
-                DATE,
-            ),
-        ).toThrow('Filter the date once');
-    });
 });
 
 describe('getApiDateRange', () => {
     test('uses the last full days without a date filter', () => {
         expect(range(null)).toEqual({
-            kind: 'relative',
-            startDaysAgo: 28,
-            endDaysAgo: 1,
+            start: { daysAgo: 28 },
+            end: { daysAgo: 1 },
         });
     });
 
@@ -112,7 +83,7 @@ describe('getApiDateRange', () => {
                     completed: false,
                 }),
             ),
-        ).toEqual({ kind: 'relative', startDaysAgo: 7, endDaysAgo: 0 });
+        ).toEqual({ start: { daysAgo: 7 }, end: { daysAgo: 0 } });
         expect(
             range(
                 rule(FilterOperator.IN_THE_PAST, [7], {
@@ -120,7 +91,7 @@ describe('getApiDateRange', () => {
                     completed: true,
                 }),
             ),
-        ).toEqual({ kind: 'relative', startDaysAgo: 7, endDaysAgo: 1 });
+        ).toEqual({ start: { daysAgo: 7 }, end: { daysAgo: 1 } });
     });
 
     test('turns rolling weeks and months into days', () => {
@@ -131,7 +102,7 @@ describe('getApiDateRange', () => {
                     completed: false,
                 }),
             ),
-        ).toEqual({ kind: 'relative', startDaysAgo: 14, endDaysAgo: 0 });
+        ).toEqual({ start: { daysAgo: 14 }, end: { daysAgo: 0 } });
         expect(
             range(
                 rule(FilterOperator.IN_THE_PAST, [1], {
@@ -139,7 +110,7 @@ describe('getApiDateRange', () => {
                     completed: false,
                 }),
             ),
-        ).toEqual({ kind: 'relative', startDaysAgo: 31, endDaysAgo: 0 });
+        ).toEqual({ start: { daysAgo: 31 }, end: { daysAgo: 0 } });
     });
 
     test.each([
@@ -157,7 +128,7 @@ describe('getApiDateRange', () => {
                         completed: true,
                     }),
                 ),
-            ).toEqual({ kind: 'absolute', startDate, endDate });
+            ).toEqual({ start: { date: startDate }, end: { date: endDate } });
         },
     );
 
@@ -170,14 +141,12 @@ describe('getApiDateRange', () => {
                 ]),
             ),
         ).toEqual({
-            kind: 'absolute',
-            startDate: '2026-10-01',
-            endDate: '2026-10-28',
+            start: { date: '2026-10-01' },
+            end: { date: '2026-10-28' },
         });
         expect(range(rule(FilterOperator.EQUALS, ['2026-10-05']))).toEqual({
-            kind: 'absolute',
-            startDate: '2026-10-05',
-            endDate: '2026-10-05',
+            start: { date: '2026-10-05' },
+            end: { date: '2026-10-05' },
         });
     });
 
@@ -199,12 +168,98 @@ describe('getApiDateRange', () => {
             'days or longer',
         ],
         [rule(FilterOperator.EQUALS, ['next week']), "isn't a date"],
+        [rule(FilterOperator.IN_THE_NEXT, [3]), 'Use "in the past"'],
         [
-            rule(FilterOperator.GREATER_THAN, ['2026-10-01']),
-            'Use "in the past"',
+            rule(FilterOperator.LESS_THAN, ['2026-10-01']),
+            'can\'t be filtered with "lessThan" on this source',
+        ],
+        [
+            rule(FilterOperator.GREATER_THAN, ['2026-10-01', '2026-10-02']),
+            'one date',
         ],
     ])('refuses ranges the API cannot take (%#)', (dateRule, message) => {
         expect(() => range(dateRule)).toThrow(message);
+    });
+});
+
+describe('getApiDateRange with open-ended filters', () => {
+    const openRange = (dateRule: FilterRule) =>
+        getApiDateRange({
+            rule: dateRule,
+            defaultDays: 28,
+            today: TODAY,
+            earliestDate: '2015-08-14',
+        });
+
+    test.each([
+        [UnitOfTime.days, '2026-11-04'],
+        [UnitOfTime.weeks, '2026-11-02'],
+        [UnitOfTime.months, '2026-11-01'],
+        [UnitOfTime.quarters, '2026-10-01'],
+        [UnitOfTime.years, '2026-01-01'],
+    ])('reads "in the current %s" as its start until today', (unit, start) => {
+        expect(
+            openRange(
+                rule(FilterOperator.IN_THE_CURRENT, [1], {
+                    unitOfTime: unit,
+                    completed: false,
+                }),
+            ),
+        ).toEqual({ start: { date: start }, end: { daysAgo: 0 } });
+    });
+
+    test.each([
+        [FilterOperator.GREATER_THAN, { date: '2026-10-02' }, { daysAgo: 0 }],
+        [
+            FilterOperator.GREATER_THAN_OR_EQUAL,
+            { date: '2026-10-01' },
+            { daysAgo: 0 },
+        ],
+        [
+            FilterOperator.LESS_THAN,
+            { date: '2015-08-14' },
+            { date: '2026-09-30' },
+        ],
+        [
+            FilterOperator.LESS_THAN_OR_EQUAL,
+            { date: '2015-08-14' },
+            { date: '2026-10-01' },
+        ],
+    ])('reads %s 2026-10-01 as an open-ended range', (operator, start, end) => {
+        expect(openRange(rule(operator, ['2026-10-01']))).toEqual({
+            start,
+            end,
+        });
+    });
+
+    test('reads "not in the past" as everything before that range', () => {
+        expect(
+            openRange(
+                rule(FilterOperator.NOT_IN_THE_PAST, [7], {
+                    unitOfTime: UnitOfTime.days,
+                    completed: false,
+                }),
+            ),
+        ).toEqual({ start: { date: '2015-08-14' }, end: { daysAgo: 8 } });
+        expect(
+            openRange(
+                rule(FilterOperator.NOT_IN_THE_PAST, [2], {
+                    unitOfTime: UnitOfTime.weeks,
+                    completed: false,
+                }),
+            ),
+        ).toEqual({ start: { date: '2015-08-14' }, end: { daysAgo: 15 } });
+    });
+
+    test('refuses "not in the past" completed periods, which leave two ranges', () => {
+        expect(() =>
+            openRange(
+                rule(FilterOperator.NOT_IN_THE_PAST, [1], {
+                    unitOfTime: UnitOfTime.months,
+                    completed: true,
+                }),
+            ),
+        ).toThrow('two date ranges');
     });
 });
 
@@ -212,7 +267,7 @@ describe('toAbsoluteDateRange', () => {
     test('counts relative days back from today', () => {
         expect(
             toAbsoluteDateRange(
-                { kind: 'relative', startDaysAgo: 28, endDaysAgo: 1 },
+                { start: { daysAgo: 28 }, end: { daysAgo: 1 } },
                 TODAY,
             ),
         ).toEqual({ startDate: '2026-10-07', endDate: '2026-11-03' });

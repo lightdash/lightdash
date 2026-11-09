@@ -13,7 +13,6 @@ import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyMo
 import { GroupsService } from '../GroupService';
 import { OrganizationService } from '../OrganizationService/OrganizationService';
 import { ProjectService } from '../ProjectService/ProjectService';
-import { agentSystemRoleMatrix } from './AgentPermissionService';
 
 const setup = (mode: 'off' | 'legacy' | 'managed', oauth: boolean) => {
     const ability = new Ability<PossibleAbilities>([
@@ -48,10 +47,6 @@ const setup = (mode: 'off' | 'legacy' | 'managed', oauth: boolean) => {
         mode: mode === 'off' ? 'managed' : mode,
         version: 1,
         allowedCapabilities: null,
-        systemRoleMatrix: agentSystemRoleMatrix([
-            AgentCapability.Administration,
-            AgentCapability.Publish,
-        ]),
     });
     const projectModel = {
         getSummary: vi

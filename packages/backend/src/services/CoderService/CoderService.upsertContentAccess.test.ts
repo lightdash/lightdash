@@ -1828,10 +1828,7 @@ const registerContentAccessTests = (
                 { name: 'week_start', config: { label: 'Week start' } },
             ]);
             const section = created.config?.controlSections?.[0];
-            expect(section).toMatchObject({
-                slug: 'calendar',
-                name: 'Calendar',
-            });
+            expect(section).toEqual({ id: section?.id, name: 'Calendar' });
             expect(section?.id).toMatch(
                 /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
             );
@@ -3679,6 +3676,9 @@ describe('CoderService section uploads with the flag disabled', () => {
                 format === 'legacy'
                     ? { sectionId: 'saved-section' }
                     : { sectionSlug: 'saved-section' };
+            // A portable section keeps its id by name, so only the legacy one is renamed
+            const sectionName =
+                format === 'legacy' ? 'Renamed section' : 'Saved section';
             const uploaded: DashboardAsCode = {
                 ...dashboardAsCode,
                 filters: {
@@ -3701,7 +3701,7 @@ describe('CoderService section uploads with the flag disabled', () => {
                             ...(format === 'legacy'
                                 ? { id: 'saved-section' }
                                 : { slug: 'saved-section' }),
-                            name: 'Renamed section',
+                            name: sectionName,
                         },
                     ],
                     // Disabled incoming controls must be ignored before resolving their references.
@@ -3736,7 +3736,7 @@ describe('CoderService section uploads with the flag disabled', () => {
                         controlSections: [
                             expect.objectContaining({
                                 id: 'saved-section',
-                                name: 'Renamed section',
+                                name: sectionName,
                             }),
                         ],
                         parameterControls: savedConfig.parameterControls,
@@ -3757,6 +3757,7 @@ describe('CoderService section uploads with the flag disabled', () => {
 
 describe('CoderService dashboard control order as code', () => {
     const status = { fieldId: 'orders_status', tableName: 'orders' };
+    const city = { fieldId: 'orders_city', tableName: 'orders' };
     const statusFilter = (id: string, extra: AnyType = {}) => ({
         id,
         label: undefined,
@@ -3785,7 +3786,10 @@ describe('CoderService dashboard control order as code', () => {
             filters: {
                 dimensions: [
                     statusFilter('first-id', firstFilter),
-                    statusFilter('second-id', { sectionId: 'section-id' }),
+                    statusFilter('second-id', {
+                        target: city,
+                        sectionId: 'section-id',
+                    }),
                 ],
                 metrics: [
                     {
@@ -3817,8 +3821,8 @@ describe('CoderService dashboard control order as code', () => {
                 ...config,
             },
         }) as unknown as DashboardDAO;
-    const withoutOrder = (firstFilter: AnyType = {}) => {
-        const dashboard = savedDashboard({}, firstFilter);
+    const withoutOrder = () => {
+        const dashboard = savedDashboard();
         const { controlOrder: _order, ...config } = dashboard.config!;
         return { ...dashboard, config };
     };
@@ -3842,7 +3846,10 @@ describe('CoderService dashboard control order as code', () => {
     };
     const upload = async (
         file: DashboardAsCode,
-        { enabled = true, saved = savedDashboard() } = {},
+        {
+            enabled = true,
+            saved = savedDashboard(),
+        }: { enabled?: boolean; saved?: DashboardDAO } = {},
     ) => {
         const service = buildService();
         vi.mocked(
@@ -3912,21 +3919,18 @@ describe('CoderService dashboard control order as code', () => {
         return { ...file, config: { ...file.config!, controlOrder } };
     };
     const validSlugs =
-        'Valid slugs are filter: orders-status-1, orders-status-2, orders-total; parameter: region; section: calendar';
+        'Valid slugs are filter: orders-status, orders-city, orders-total; parameter: region; section: calendar';
 
-    it('downloads byte-identical without the flag, whatever is stored', () => {
-        expect(
-            JSON.stringify(
-                download(savedDashboard({}, { slug: 'stored-slug' }), false),
-            ),
-        ).toBe(JSON.stringify(download(withoutOrder(), false)));
+    it('downloads without filter slugs or an order with the flag off, whatever is stored', () => {
+        const file = JSON.stringify(download(savedDashboard(), false));
+        expect(file).toBe(JSON.stringify(download(withoutOrder(), false)));
+        expect(file).not.toContain('orders-status');
+        expect(file).not.toContain('controlOrder');
     });
 
-    it('downloads a never-reordered dashboard byte-identical with the flag on', () => {
-        const file = JSON.stringify(
-            download(withoutOrder({ slug: 'stored-slug' }), true),
-        );
-        expect(file).toBe(JSON.stringify(download(withoutOrder(), true)));
+    it('downloads a never-reordered dashboard without filter slugs or an order with the flag on', () => {
+        const file = JSON.stringify(download(withoutOrder(), true));
+        expect(file).not.toContain('orders-status');
         expect(file).not.toContain('controlOrder');
     });
 
@@ -3936,13 +3940,13 @@ describe('CoderService dashboard control order as code', () => {
             [...file.filters!.dimensions!, ...file.filters!.metrics!].map(
                 ({ slug }) => slug,
             ),
-        ).toEqual(['orders-status-1', 'orders-status-2', 'orders-total']);
+        ).toEqual(['orders-status', 'orders-city', 'orders-total']);
         expect(file.config?.controlOrder).toEqual([
             { kind: 'parameter', slug: 'region' },
             { kind: 'filter', slug: 'orders-total' },
             { kind: 'section', slug: 'calendar' },
-            { kind: 'filter', slug: 'orders-status-2' },
-            { kind: 'filter', slug: 'orders-status-1' },
+            { kind: 'filter', slug: 'orders-city' },
+            { kind: 'filter', slug: 'orders-status' },
         ]);
     });
 
@@ -3972,8 +3976,8 @@ describe('CoderService dashboard control order as code', () => {
             { kind: 'parameter', slug: 'region' },
             { kind: 'filter', slug: 'orders-total' },
             { kind: 'section', slug: 'calendar', newLine: true },
-            { kind: 'filter', slug: 'orders-status-2' },
-            { kind: 'filter', slug: 'orders-status-1', newLine: true },
+            { kind: 'filter', slug: 'orders-city' },
+            { kind: 'filter', slug: 'orders-status', newLine: true },
         ]);
         const saved = await upload(file, {
             saved: savedDashboard({ controlOrder: orderWithLines }),
@@ -3991,7 +3995,7 @@ describe('CoderService dashboard control order as code', () => {
         );
         expect(
             file.config?.controlOrder?.filter(({ newLine }) => newLine),
-        ).toEqual([{ kind: 'filter', slug: 'orders-status-1', newLine: true }]);
+        ).toEqual([{ kind: 'filter', slug: 'orders-status', newLine: true }]);
         const saved = await upload({
             ...file,
             config: {
@@ -4005,12 +4009,12 @@ describe('CoderService dashboard control order as code', () => {
                     { kind: DashboardControlRefKind.SECTION, slug: 'calendar' },
                     {
                         kind: DashboardControlRefKind.FILTER,
-                        slug: 'orders-status-2',
+                        slug: 'orders-city',
                         newLine: true,
                     },
                     {
                         kind: DashboardControlRefKind.FILTER,
-                        slug: 'orders-status-1',
+                        slug: 'orders-status',
                     },
                 ],
             },
@@ -4082,22 +4086,47 @@ describe('CoderService dashboard control order as code', () => {
         expect(result.config?.controlOrder).toEqual(orderWithLines);
     });
 
-    it('keeps the ids of two filters on one field when the file reorders them', async () => {
-        const file = download(savedDashboard(), true);
-        const saved = await upload({
-            ...file,
+    it('never swaps the ids of two filters on one field after a UI reorder', async () => {
+        const sameField = savedDashboard();
+        const [first, second] = sameField.filters.dimensions;
+        const before = {
+            ...sameField,
             filters: {
-                ...file.filters,
-                dimensions: [...file.filters!.dimensions!].reverse(),
+                ...sameField.filters,
+                dimensions: [first, { ...second, target: status }],
             },
-        });
-        expect(
-            saved.filters.dimensions.map(({ id, slug }) => [id, slug]),
-        ).toEqual([
-            ['second-id', 'orders-status-2'],
-            ['first-id', 'orders-status-1'],
+        } as DashboardDAO;
+        const file = download(before, true);
+        expect(file.filters!.dimensions!.map(({ slug }) => slug)).toEqual([
+            'orders-status-1',
+            'orders-status-2',
         ]);
-        expect(saved.config?.controlOrder).toEqual(savedOrder);
+        const reordered = {
+            ...before,
+            filters: {
+                ...before.filters,
+                dimensions: [...before.filters.dimensions].reverse(),
+            },
+        } as DashboardDAO;
+        const result = await upload(file, { saved: reordered });
+        const ids = result.filters.dimensions.map(({ id }) => id);
+        expect(ids).not.toContain('first-id');
+        expect(ids).not.toContain('second-id');
+        expect(ids[0]).not.toBe(ids[1]);
+        expect(result.config?.controlOrder).toEqual(
+            savedOrder.map((ref) => {
+                if (ref.id === 'first-id') return { ...ref, id: ids[0] };
+                if (ref.id === 'second-id') return { ...ref, id: ids[1] };
+                return ref;
+            }),
+        );
+    });
+
+    it('stores no slugs on upload', async () => {
+        const result = await upload(download(savedDashboard(), true));
+        expect(JSON.stringify(result)).not.toMatch(
+            /"slug":"(orders|region|calendar)/,
+        );
     });
 
     it('changes only the order when the file only reorders the list', async () => {
@@ -4640,22 +4669,51 @@ describe('CoderService dashboard control order as code', () => {
         const file = withOrder([{ kind: 'parameter', slug: 'region' }]);
         const { parameterControls: _controls, ...config } = file.config;
         expect(await rejection({ ...file, config })).toBe(
-            'Unknown parameter slug "region" in controlOrder. Valid slugs are filter: orders-status-1, orders-status-2, orders-total; parameter: none; section: calendar',
+            'Unknown parameter slug "region" in controlOrder. Valid slugs are filter: orders-status, orders-city, orders-total; parameter: none; section: calendar',
         );
     });
 
-    it('rejects a duplicated filter slug', async () => {
+    it.each([
+        [
+            'a duplicated slug',
+            'orders-status',
+            'Dashboard filter slug "orders-status" is duplicated',
+        ],
+        [
+            'a malformed slug',
+            'Orders Status',
+            'Invalid dashboard filter slug "Orders Status"',
+        ],
+    ])('rejects %s on filters', async (_name, slug, message) => {
         const file = download(savedDashboard(), true);
         const [first] = file.filters!.dimensions!;
+        const [metric] = file.filters!.metrics!;
         expect(
             await rejection({
                 ...file,
                 filters: {
                     ...file.filters,
-                    dimensions: [first, { ...first, values: ['other'] }],
+                    dimensions: [{ ...first, slug }],
+                    metrics: [{ ...metric, slug: 'orders-status' }],
                 },
             }),
-        ).toBe('Dashboard filter slug "orders-status-1" is duplicated');
+        ).toBe(message);
+    });
+
+    it('ignores duplicated filter slugs with the flag off', async () => {
+        const file = download(savedDashboard(), true);
+        const [first, second] = file.filters!.dimensions!;
+        const result = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [first, { ...second, slug: first.slug }],
+                },
+            },
+            { enabled: false },
+        );
+        expect(result.filters.dimensions).toHaveLength(2);
     });
 
     it.each([true, false])(
@@ -4712,14 +4770,7 @@ describe('CoderService dashboard control order as code', () => {
     });
 
     it('ignores the order and filter slugs in the file with the flag off', async () => {
-        const saved = savedDashboard(
-            {},
-            {
-                slug: 'stored-slug',
-                target: { fieldId: 'orders_city', tableName: 'orders' },
-            },
-        );
-        const file = download(saved, true);
+        const file = download(savedDashboard(), true);
         const [first, second] = file.filters!.dimensions!;
         const result = await upload(
             {
@@ -4738,14 +4789,147 @@ describe('CoderService dashboard control order as code', () => {
                     ],
                 },
             },
-            { enabled: false, saved },
+            { enabled: false },
         );
         expect(result.config?.controlOrder).toEqual(savedOrder);
-        expect(
-            result.filters.dimensions.map(({ id, slug }) => [id, slug]),
-        ).toEqual([
-            ['first-id', 'stored-slug'],
-            ['second-id', undefined],
+        expect(result.filters.dimensions.map(({ id }) => id)).toEqual([
+            'first-id',
+            'second-id',
         ]);
+        expect(result.filters.dimensions[0]).not.toHaveProperty('slug');
+    });
+
+    it('keeps no ids from the source when uploading into another project', async () => {
+        const source = savedDashboard();
+        const target = {
+            ...source,
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            config: { isDateZoomDisabled: false },
+        } as unknown as DashboardDAO;
+        const result = await upload(download(source, true), {
+            saved: target,
+        });
+        const ids = [
+            ...result.filters.dimensions.map(({ id }) => id),
+            ...result.config!.parameterControls!.map(({ id }) => id),
+            ...result.config!.controlSections!.map(({ id }) => id),
+        ];
+        expect(ids).toHaveLength(4);
+        ids.forEach((id) => expect(id).toMatch(/^[0-9a-f-]{36}$/));
+    });
+
+    describe('section and parameter control identity', () => {
+        const regionControl = (id: string, label: string) => ({
+            id,
+            label,
+            value: null,
+            valueType: { type: 'string', multiple: false },
+            parameters: { region: 'all' },
+        });
+        const withControls = (
+            controlSections: AnyType[],
+            parameterControls: AnyType[],
+        ) =>
+            savedDashboard({
+                controlSections,
+                parameterControls,
+                controlOrder: undefined,
+            });
+        const uploadIds = async (
+            saved: DashboardDAO,
+            edit: (file: DashboardAsCode) => DashboardAsCode = (file) => file,
+        ) => {
+            const result = await upload(edit(download(saved, true)), {
+                saved,
+            });
+            return {
+                sections: result.config!.controlSections!.map(({ id }) => id),
+                parameters: result.config!.parameterControls!.map(
+                    ({ id }) => id,
+                ),
+            };
+        };
+
+        it('keeps the id of a uniquely named section or labelled control', async () => {
+            const ids = await uploadIds(
+                withControls(
+                    [
+                        { id: 'section-id', name: 'Calendar' },
+                        { id: 'other-id', name: 'Other' },
+                    ],
+                    [regionControl('region-id', 'Region')],
+                ),
+            );
+            expect(ids).toEqual({
+                sections: ['section-id', 'other-id'],
+                parameters: ['region-id'],
+            });
+        });
+
+        it('mints ids for two sections with one name and two controls with one label', async () => {
+            const ids = await uploadIds(
+                withControls(
+                    [
+                        { id: 'section-id', name: 'Calendar' },
+                        { id: 'twin-id', name: 'Calendar' },
+                    ],
+                    [
+                        regionControl('region-id', 'Region'),
+                        {
+                            ...regionControl('twin-control-id', 'Region'),
+                            parameters: { country: 'all' },
+                        },
+                    ],
+                ),
+            );
+            [...ids.sections, ...ids.parameters].forEach((id) =>
+                expect(id).not.toMatch(
+                    /section-id|twin-id|region-id|twin-control-id/,
+                ),
+            );
+            expect(new Set(ids.sections).size).toBe(2);
+            expect(new Set(ids.parameters).size).toBe(2);
+        });
+
+        it('mints an id for a section or control renamed in the file', async () => {
+            const ids = await uploadIds(
+                withControls(
+                    [{ id: 'section-id', name: 'Calendar' }],
+                    [regionControl('region-id', 'Region')],
+                ),
+                (file) => ({
+                    ...file,
+                    config: {
+                        ...file.config!,
+                        controlSections: [
+                            {
+                                ...file.config!.controlSections![0],
+                                name: 'Dates',
+                            },
+                        ],
+                        parameterControls: [
+                            {
+                                ...file.config!.parameterControls![0],
+                                label: 'Area',
+                            },
+                        ],
+                    },
+                }),
+            );
+            expect(ids.sections[0]).not.toBe('section-id');
+            expect(ids.parameters[0]).not.toBe('region-id');
+        });
+
+        it('ignores a stored section or control slug on download', () => {
+            const file = download(
+                withControls(
+                    [{ id: 'section-id', name: 'Calendar', slug: 'custom' }],
+                    [{ ...regionControl('region-id', 'Region'), slug: 'kept' }],
+                ),
+                true,
+            );
+            expect(file.config?.controlSections?.[0].slug).toBe('calendar');
+            expect(file.config?.parameterControls?.[0].slug).toBe('region');
+        });
     });
 });

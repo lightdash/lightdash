@@ -1,6 +1,5 @@
 import {
     DashboardTileTypes,
-    getDashboardFilterSlugs,
     getMalformedParameterControlMessages,
     ParameterError,
     type DashboardAsCode,
@@ -8,7 +7,6 @@ import {
     type DashboardConfig,
     type DashboardDAO,
     type DashboardFilterRule,
-    type DashboardFilters,
     type DashboardParameterControl,
     type DashboardTile,
     type DashboardTileAsCode,
@@ -63,65 +61,50 @@ export const getTileSlugForTileUuid = (
     return contentSlug;
 };
 
-/** The slug format files use for filters, parameter controls and sections */
-export const PORTABLE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-const getTileTargetsWithSlugs = (
-    dashboard: DashboardDAO,
-    tileTargets: DashboardFilterRule['tileTargets'],
-    tileSlugs: Map<string, string> | undefined,
-): Record<string, DashboardTileTarget> =>
-    Object.entries(tileTargets ?? {}).reduce<
-        Record<string, DashboardTileTarget>
-    >((result, [tileUuid, target]) => {
-        const legacySlug = getTileSlugForTileUuid(dashboard, tileUuid);
-        const tileSlug = legacySlug && (tileSlugs?.get(tileUuid) ?? legacySlug);
-        return tileSlug ? { ...result, [tileSlug]: target } : result;
-    }, {});
-
 /** `filterSlugs` holds each dimension then metric filter's slug to write; null writes none */
 export const getFiltersWithTileSlugs = (
     dashboard: DashboardDAO,
     tileSlugs?: Map<string, string>,
     filterSlugs: string[] | null = null,
 ): Required<NonNullable<DashboardAsCode['filters']>> => {
-    const toCode = (
-        { slug: _storedSlug, ...filter }: DashboardFilterRule,
-        slug: string | undefined,
-    ): DashboardFilterRule => ({
-        ...filter,
-        ...(filter.tileTargets && {
-            tileTargets: getTileTargetsWithSlugs(
-                dashboard,
-                filter.tileTargets,
-                tileSlugs,
-            ),
-        }),
-        ...(slug !== undefined && { slug }),
-    });
+    const withSlug = <T>(filter: T, slug: string | undefined) =>
+        slug === undefined ? filter : { ...filter, slug };
     const dimensionCount = dashboard.filters.dimensions.length;
     return {
         ...dashboard.filters,
-        dimensions: dashboard.filters.dimensions.map((filter, index) => ({
-            ...toCode(filter, filterSlugs?.[index]),
-            id: undefined,
-            tileTargets: getTileTargetsWithSlugs(
-                dashboard,
-                filter.tileTargets,
-                tileSlugs,
+        dimensions: dashboard.filters.dimensions.map((filter, index) =>
+            withSlug(
+                {
+                    ...filter,
+                    id: undefined,
+                    tileTargets: Object.entries(
+                        filter.tileTargets ?? {},
+                    ).reduce<Record<string, DashboardTileTarget>>(
+                        (result, [tileUuid, target]) => {
+                            const legacySlug = getTileSlugForTileUuid(
+                                dashboard,
+                                tileUuid,
+                            );
+                            const tileSlug =
+                                legacySlug &&
+                                (tileSlugs?.get(tileUuid) ?? legacySlug);
+                            return tileSlug
+                                ? { ...result, [tileSlug]: target }
+                                : result;
+                        },
+                        {},
+                    ),
+                },
+                filterSlugs?.[index],
             ),
-        })),
-        // Stored filters can predate the metric and table calculation lists
-        ...(dashboard.filters.metrics && {
-            metrics: dashboard.filters.metrics.map((filter, index) =>
-                toCode(filter, filterSlugs?.[dimensionCount + index]),
-            ),
-        }),
-        ...(dashboard.filters.tableCalculations && {
-            tableCalculations: dashboard.filters.tableCalculations.map(
-                (filter) => toCode(filter, undefined),
-            ),
-        }),
+        ),
+        // Stored filters can predate the metric list
+        ...(filterSlugs &&
+            dashboard.filters.metrics && {
+                metrics: dashboard.filters.metrics.map((filter, index) =>
+                    withSlug(filter, filterSlugs[dimensionCount + index]),
+                ),
+            }),
     };
 };
 
@@ -134,161 +117,69 @@ const findTileUuid = (
             tile.tileSlug === tileSlug || getTileContentSlug(tile) === tileSlug,
     )?.uuid;
 
-// Old files keyed metric and table calculation targets by tile uuid
-const getTileTargetsWithUuids = (
-    tiles: DashboardTileWithSlug[],
-    tileTargets: DashboardFilterRule['tileTargets'],
-): Record<string, DashboardTileTarget> =>
-    Object.entries(tileTargets ?? {}).reduce<
-        Record<string, DashboardTileTarget>
-    >((result, [tileSlug, target]) => {
-        const tileUuid =
-            findTileUuid(tiles, tileSlug) ??
-            tiles.find((tile) => tile.uuid === tileSlug)?.uuid;
-        if (!tileUuid) {
-            console.error(
-                `Tile with slug ${tileSlug} not found in tilesWithUuids`,
-            );
-            return result;
-        }
-        return { ...result, [tileUuid]: target };
-    }, {});
-
 const getFilterFieldKey = ({
     target,
 }: Pick<DashboardFilterRule, 'target'>): string =>
     JSON.stringify([target.tableName, target.fieldId]);
 
-type SavedFilters = Pick<DashboardFilters, 'dimensions' | 'metrics'>;
-
-/**
- * Keeps a saved filter's id for an uploaded one: by slug first (stored or
- * derived), else when exactly one saved and one uploaded filter share its
- * field. A saved id is used at most once; otherwise mints one.
- */
-export const getStableDimensionFilterIds = (
-    uploadedFilters: Pick<DashboardFilterRule, 'target' | 'slug'>[],
-    savedFilters: SavedFilters,
+/** Keeps a saved control's id when its key occurs exactly once among the saved and once among the uploaded controls; otherwise mints one. */
+export const getStableIds = <U, S extends { id: string }>(
+    uploaded: U[],
+    saved: S[],
+    keyOf: (control: U | S) => string,
 ): string[] => {
-    const saved = savedFilters.dimensions;
-    const savedSlugs = getDashboardFilterSlugs([
-        ...saved,
-        ...(savedFilters.metrics ?? []),
-    ]);
-    const claimed = new Set<string>();
-    const bySlug = uploadedFilters.map(({ slug }) => {
-        const index = slug === undefined ? -1 : savedSlugs.indexOf(slug);
-        const id =
-            index < 0 || index >= saved.length ? undefined : saved[index].id;
-        if (id === undefined || claimed.has(id)) return undefined;
-        claimed.add(id);
-        return id;
-    });
-    const unclaimed = saved.filter(({ id }) => !claimed.has(id));
-    const unmatched = uploadedFilters.filter(
-        (_, index) => bySlug[index] === undefined,
-    );
-    const uploadedCounts = countBy(unmatched, getFilterFieldKey);
-    const savedCounts = countBy(unclaimed, getFilterFieldKey);
-    return uploadedFilters.map((filter, index) => {
-        const slugMatch = bySlug[index];
-        if (slugMatch !== undefined) return slugMatch;
-        const key = getFilterFieldKey(filter);
+    const uploadedCounts = countBy(uploaded, keyOf);
+    const savedCounts = countBy(saved, keyOf);
+    return uploaded.map((control) => {
+        const key = keyOf(control);
         const match =
             uploadedCounts[key] === 1 && savedCounts[key] === 1
-                ? unclaimed.find(
-                      (candidate) =>
-                          getFilterFieldKey(candidate) === key &&
-                          // A stored slug never changes: another slug is another filter
-                          (filter.slug === undefined ||
-                              candidate.slug === undefined),
-                  )
+                ? saved.find((candidate) => keyOf(candidate) === key)
                 : undefined;
         return match?.id ?? uuidv4();
     });
 };
 
-/** Rejects malformed or repeated filter slugs supplied by a file */
-const assertValidFilterSlugs = (
-    rules: Pick<DashboardFilterRule, 'slug'>[],
-): void => {
-    const seen = new Set<string>();
-    rules.forEach(({ slug }) => {
-        if (slug === undefined) return;
-        if (typeof slug !== 'string' || !PORTABLE_SLUG_PATTERN.test(slug))
-            throw new ParameterError(`Invalid dashboard filter slug "${slug}"`);
-        if (seen.has(slug))
-            throw new ParameterError(
-                `Dashboard filter slug "${slug}" is duplicated`,
-            );
-        seen.add(slug);
-    });
-};
+export const getStableDimensionFilterIds = (
+    uploadedFilters: Pick<DashboardFilterRule, 'target'>[],
+    savedFilters: Pick<DashboardFilterRule, 'id' | 'target'>[],
+): string[] => getStableIds(uploadedFilters, savedFilters, getFilterFieldKey);
 
-/**
- * `useFileSlugs` false ignores filter slugs in the file. Either way, a
- * filter matched to a saved one keeps the saved slug unless the file
- * supplies one.
- */
 export const getFiltersWithTileUuids = (
     dashboard: DashboardAsCode,
     tiles: DashboardTileWithSlug[],
-    savedFilters: SavedFilters,
-    useFileSlugs: boolean,
+    savedDimensionFilters: DashboardFilterRule[],
 ): DashboardDAO['filters'] => {
-    const fileSlug = (slug: string | undefined) =>
-        useFileSlugs ? slug : undefined;
     const dimensions = dashboard.filters?.dimensions ?? [];
-    const metrics = dashboard.filters?.metrics ?? [];
-    if (useFileSlugs) assertValidFilterSlugs([...dimensions, ...metrics]);
-    const ids = getStableDimensionFilterIds(
-        dimensions.map(({ target, slug }) => ({
-            target,
-            slug: fileSlug(slug),
-        })),
-        savedFilters,
-    );
-    // Stored filters can predate the metric list
-    const savedRules = [
-        ...savedFilters.dimensions,
-        ...(savedFilters.metrics ?? []),
-    ];
-    const withTileUuidTargets = <T extends Omit<DashboardFilterRule, 'slug'>>(
-        filter: T,
-    ): T => ({
-        ...filter,
-        ...(filter.tileTargets && {
-            tileTargets: getTileTargetsWithUuids(tiles, filter.tileTargets),
-        }),
-    });
-    const withTileUuids = ({
-        slug: uploadedSlug,
-        ...filter
-    }: DashboardFilterRule): DashboardFilterRule => {
-        const slug =
-            fileSlug(uploadedSlug) ??
-            savedRules.find((saved) => saved.id === filter.id)?.slug;
-        return {
-            ...withTileUuidTargets(filter),
-            ...(slug !== undefined && { slug }),
-        };
-    };
+    const ids = getStableDimensionFilterIds(dimensions, savedDimensionFilters);
+    // A file's slugs only resolve refs inside it
     return {
         // Hand-written metric filters can omit the id an order ref needs
-        metrics: metrics.map((filter) =>
-            withTileUuids({ ...filter, id: filter.id || uuidv4() }),
-        ),
-        // Not on the bar, so never slugged
-        tableCalculations: (dashboard.filters?.tableCalculations ?? []).map(
-            ({ slug: _slug, ...filter }) => withTileUuidTargets(filter),
-        ),
-        dimensions: dimensions.map((filter, index) =>
-            withTileUuids({
+        metrics: (dashboard.filters?.metrics ?? []).map(
+            ({ slug: _slug, ...filter }) => ({
                 ...filter,
-                id: ids[index],
-                tileTargets: filter.tileTargets ?? {},
+                id: filter.id || uuidv4(),
             }),
         ),
+        tableCalculations: (dashboard.filters?.tableCalculations ?? []).map(
+            ({ slug: _slug, ...filter }) => filter,
+        ),
+        dimensions: dimensions.map(({ slug: _slug, ...filter }, index) => ({
+            ...filter,
+            id: ids[index],
+            tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
+                Record<string, DashboardTileTarget>
+            >((result, [tileSlug, target]) => {
+                const tileUuid = findTileUuid(tiles, tileSlug);
+                if (!tileUuid) {
+                    console.error(
+                        `Tile with slug ${tileSlug} not found in tilesWithUuids`,
+                    );
+                    return result;
+                }
+                return { ...result, [tileUuid]: target };
+            }, {}),
+        })),
     };
 };
 

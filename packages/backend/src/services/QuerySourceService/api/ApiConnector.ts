@@ -1,5 +1,6 @@
 import type {
     ApiConnectorType,
+    ApiSourceCapabilities,
     ApiSourcePayload,
     DimensionType,
     QueryExecutionContext,
@@ -29,6 +30,24 @@ export type ApiConnectorDescription = {
     /** How long the API lets one query run before failing it. */
     timeoutMs: number;
     limits: ApiConnectorLimits;
+    capabilities: ApiConnectorCapabilities;
+};
+
+/**
+ * What the connector can do with a metric query, declared once per
+ * connector. Metric additivity is tagged on each metric of the semantic
+ * layer and joins these when an explore is built.
+ */
+export type ApiConnectorCapabilities = Omit<ApiSourceCapabilities, 'metrics'>;
+
+/** Every feature the shared check gates, refused. */
+export const ALL_PUSHDOWN_REFUSED: ApiConnectorCapabilities['pushdown'] = {
+    tableCalculations: 'refused',
+    customDimensions: 'refused',
+    customMetrics: 'refused',
+    pivots: 'refused',
+    periodOverPeriod: 'refused',
+    dateZoom: 'refused',
 };
 
 export type ApiConnectorColumn = {

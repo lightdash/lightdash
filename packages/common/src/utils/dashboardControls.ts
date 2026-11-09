@@ -34,7 +34,6 @@ export type DashboardControl<
     [P in K]: {
         kind: P;
         id: string;
-        slug: string | null;
         /** The section it renders in: a dangling id is null, a section's own is null */
         sectionId: string | null;
         label: string | null;
@@ -59,7 +58,7 @@ type Adapter<K extends DashboardControlKind> = (
 
 const FILTER_GROUPS: DashboardFilterControlGroup[] = ['dimensions', 'metrics'];
 
-/** Stored slug, else derived from the field; repeats follow `getPortableSlugs` */
+/** A file's slug, else derived from the field; repeats follow `getPortableSlugs` */
 export const getDashboardFilterSlugs = (
     rules: { slug?: string; target: { fieldId: string } }[],
 ): string[] =>
@@ -77,12 +76,9 @@ const adapters: { [K in DashboardControlKind]: Adapter<K> } = {
         const groups = FILTER_GROUPS.map((group) =>
             filters[group].map((rule) => ({ rule, group })),
         );
-        const all = groups.flat();
-        const slugs = getDashboardFilterSlugs(all.map(({ rule }) => rule));
-        return all.map(({ rule, group }, index) => ({
+        return groups.flat().map(({ rule, group }) => ({
             kind: DashboardControlRefKind.FILTER,
             id: rule.id,
-            slug: slugs[index],
             sectionId: sectionOf(rule.sectionId),
             label: rule.label ?? null,
             hidden: false,
@@ -94,7 +90,6 @@ const adapters: { [K in DashboardControlKind]: Adapter<K> } = {
         parameterControls.map((control) => ({
             kind: DashboardControlRefKind.PARAMETER,
             id: control.id,
-            slug: control.slug ?? null,
             sectionId: sectionOf(control.sectionId),
             label: control.label,
             hidden: control.hidden ?? false,
@@ -107,7 +102,6 @@ const adapters: { [K in DashboardControlKind]: Adapter<K> } = {
         uniqBy(sections, 'id').map((section) => ({
             kind: DashboardControlRefKind.SECTION,
             id: section.id,
-            slug: section.slug ?? null,
             sectionId: null,
             label: section.name,
             hidden: false,

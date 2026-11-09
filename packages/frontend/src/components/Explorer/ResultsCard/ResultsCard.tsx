@@ -24,7 +24,7 @@ import {
 } from '../../../features/explorer/store';
 import {
     NOT_ON_LIVE_SOURCES,
-    useApiSourceExplore,
+    useIsRefusedOnLiveSource,
 } from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
@@ -64,7 +64,10 @@ const ResultsCard: FC = memo(() => {
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
     const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
-    const apiSource = useApiSourceExplore(tableName);
+    const isTableCalculationRefused = useIsRefusedOnLiveSource(
+        tableName,
+        'tableCalculations',
+    );
     const sorts = useExplorerSelector(selectSorts);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const parameters = useExplorerSelector(selectParameters);
@@ -239,7 +242,7 @@ const ResultsCard: FC = memo(() => {
                                 {isEditMode && (
                                     <AddTableCalculationButton
                                         disabledReason={
-                                            apiSource
+                                            isTableCalculationRefused
                                                 ? NOT_ON_LIVE_SOURCES
                                                 : undefined
                                         }

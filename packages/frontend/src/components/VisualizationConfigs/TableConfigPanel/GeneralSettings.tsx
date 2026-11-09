@@ -13,7 +13,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import {
     NOT_ON_LIVE_SOURCES,
-    useApiSourceExplore,
+    useIsRefusedOnLiveSource,
 } from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import {
     selectTableColumnProperties,
@@ -77,8 +77,10 @@ const usePivotLayout = () => {
 const PivotLayout: FC = () => {
     const { setPivotDimensions, setPivotRows } = useVisualizationServices();
     const { resultsData } = useVisualizationInputs();
-    const isLiveSource =
-        useApiSourceExplore(resultsData?.metricQuery?.exploreName) !== null;
+    const isPivotRefused = useIsRefusedOnLiveSource(
+        resultsData?.metricQuery?.exploreName,
+        'pivots',
+    );
     const isPivotTableEnabled = useVisualizationInputSelector(
         selectTableIsPivotTableEnabled,
     );
@@ -123,7 +125,7 @@ const PivotLayout: FC = () => {
                     source.droppableId === DroppableIds.ROWS &&
                     dimensions.includes(fieldId)
                 ) {
-                    if (isLiveSource) {
+                    if (isPivotRefused) {
                         showToastError({
                             title: `Pivots: ${NOT_ON_LIVE_SOURCES.toLowerCase()}`,
                         });
@@ -216,7 +218,7 @@ const PivotLayout: FC = () => {
             showToastError,
             dimensions,
             resultsData?.fields,
-            isLiveSource,
+            isPivotRefused,
         ],
     );
 

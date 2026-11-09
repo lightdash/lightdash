@@ -22,6 +22,7 @@ import {
     selectInvalidateCache,
     selectIsAutoRefresh,
     selectParameterValues,
+    selectRefreshCounter,
     selectTileChartSorts,
     selectTileParameterReferences,
     useDashboardDateZoomConfig,
@@ -99,6 +100,7 @@ export const useDashboardChartReadyQuery = (
     const tileQueryQueue = useTileQueryQueue();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
+    const refreshCounter = useDashboardSelector(selectRefreshCounter);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const appliedParameterValues = useDashboardSelector(selectParameterValues);
     const { dashboardValues: parameterValues, excludedParameterKeys } =
@@ -309,6 +311,7 @@ export const useDashboardChartReadyQuery = (
             sessionTimezone,
             chartVersion,
             includeUnpublishedDraft,
+            refreshCounter,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -327,6 +330,7 @@ export const useDashboardChartReadyQuery = (
             sessionTimezone,
             chartVersion,
             includeUnpublishedDraft,
+            refreshCounter,
         ],
     );
 

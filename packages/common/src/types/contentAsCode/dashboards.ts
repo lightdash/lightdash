@@ -147,6 +147,8 @@ export type DashboardControlSectionAsCode = {
 
 export type DashboardFilterRuleAsCode = DashboardFilterRule & {
     sectionSlug?: string;
+    /** Resolves `controlOrder` refs in this file; derived on download, never stored */
+    slug?: string;
 };
 
 export type DateZoomControlAsCode = {
