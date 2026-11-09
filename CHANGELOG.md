@@ -1,3 +1,10 @@
+# [3.187.0](https://github.com/lightdash/lightdash/compare/3.186.0...3.187.0) (2026-11-09)
+
+
+### Features
+
+* Mobile settings page behind a feature flag (SPK-2949) ([#32239](https://github.com/lightdash/lightdash/issues/32239)) ([4ea848d](https://github.com/lightdash/lightdash/commit/4ea848d8bad68660d642ee83e59026e0cc536202))
+
 # [3.186.0](https://github.com/lightdash/lightdash/compare/3.185.2...3.186.0) (2026-11-09)
 
 
