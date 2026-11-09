@@ -10,6 +10,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type Dashboard,
     type FeatureFlag,
+    type QueryHistoryListItem,
     type ResultRow,
     type UserAttribute,
 } from '@lightdash/common';
@@ -22,6 +23,8 @@ import { pollUntil } from '../helpers/polling';
 // DuckDB node) without authoring rights; values must match the semantic node.
 const projectUuid = SEED_PROJECT.project_uuid;
 const COMPOSE_FLAG = 'compose-sql-runner';
+const QUERY_HISTORY_FLAG = 'query-history';
+const CLASSIC_CHART_NAME = 'How much revenue do we have per payment method?';
 const resultsCacheUrl = `/api/v1/projects/${projectUuid}/results-cache-config`;
 
 const fieldReference = (id: string) => `\${${id}}`;
@@ -376,6 +379,155 @@ describe('Composer chart run as a dashboard viewer', () => {
         );
         expect(resp.status).toBe(400);
         expect(resp.body.error.message).toContain('limit');
+    });
+
+    it.each([
+        [
+            'dashboard-chart',
+            () => ({
+                url: `/api/v2/projects/${projectUuid}/query/dashboard-chart`,
+                body: tileRequest(revenueShareTile, {
+                    context:
+                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                }),
+            }),
+        ],
+        [
+            'chart',
+            () => ({
+                url: `/api/v2/projects/${projectUuid}/query/chart`,
+                body: {
+                    chartUuid: revenueShareTile.chartUuid,
+                    context:
+                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                },
+            }),
+        ],
+    ])(
+        'refuses the internal materialization context by name on %s: it would drop the model required filters',
+        async (_route, request) => {
+            const { url, body } = request();
+            const resp = await viewer.post<ApiErrorBody>(url, body, {
+                failOnStatusCode: false,
+            });
+            expect(resp.status).toBe(400);
+            expect(resp.body.error.name).toBe('ParameterError');
+            expect(resp.body.error.message).toContain(
+                QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            );
+        },
+    );
+
+    describe('query history shows node SQL only with SQL runner access', () => {
+        let historyFlagWasEnabled: boolean;
+        const historyUrl = `/api/v2/projects/${projectUuid}/query/history?pageSize=100`;
+        type HistoryBody = Body<{ data: QueryHistoryListItem[] }>;
+
+        const historyRows = async (
+            client: ApiClient,
+            queryUuids: string[],
+        ): Promise<QueryHistoryListItem[]> => {
+            const resp = await client.get<HistoryBody>(historyUrl);
+            expect(resp.status).toBe(200);
+            const rows = resp.body.results.data.filter((row) =>
+                queryUuids.includes(row.queryUuid),
+            );
+            expect(rows.map(({ queryUuid }) => queryUuid).sort()).toEqual(
+                [...queryUuids].sort(),
+            );
+            return rows;
+        };
+
+        const nodeSql = (row: QueryHistoryListItem): string | null =>
+            'sql' in row.requestParameters ? row.requestParameters.sql : null;
+
+        const runTileAndListNodeRows = async (client: ApiClient) => {
+            const started = await runTile(client, revenueShareTile);
+            expect(started.status).toBe(200);
+            await pollQueryResults(client, started.body.results.queryUuid);
+            const { nodes, terminalNodeId } = started.body.results;
+            const rows = await historyRows(
+                client,
+                nodes.map(({ queryUuid }) => queryUuid),
+            );
+            const terminalQueryUuid = nodes.find(
+                ({ nodeId }) => nodeId === terminalNodeId,
+            )!.queryUuid;
+            const duckdbRow = rows.find(
+                ({ queryUuid }) => queryUuid === terminalQueryUuid,
+            )!;
+            const semanticRow = rows.find(
+                ({ queryUuid }) => queryUuid !== terminalQueryUuid,
+            )!;
+            return { duckdbRow, semanticRow };
+        };
+
+        beforeAll(async () => {
+            const flag = await admin.get<Body<FeatureFlag>>(
+                `/api/v2/feature-flag/${QUERY_HISTORY_FLAG}`,
+            );
+            expect(flag.status).toBe(200);
+            historyFlagWasEnabled = flag.body.results.enabled;
+            if (!historyFlagWasEnabled) {
+                const enabled = await admin.post(
+                    `/api/v2/feature-flag/${QUERY_HISTORY_FLAG}`,
+                    { enabled: true },
+                );
+                expect(enabled.status).toBe(200);
+            }
+        });
+
+        afterAll(async () => {
+            if (!historyFlagWasEnabled) {
+                await admin.post(`/api/v2/feature-flag/${QUERY_HISTORY_FLAG}`, {
+                    enabled: false,
+                });
+            }
+        });
+
+        it('a viewer sees the node rows without compiled SQL, node SQL or an SQL subline', async () => {
+            const { duckdbRow, semanticRow } =
+                await runTileAndListNodeRows(viewer);
+            expect(duckdbRow.compiledSql).toBe('');
+            expect(nodeSql(duckdbRow)).toBe('');
+            expect(duckdbRow.title).toBe('SQL query');
+            expect(duckdbRow.subline).not.toMatch(/select/i);
+            expect(semanticRow.compiledSql).toBe('');
+            expect(nodeSql(semanticRow)).toBeNull();
+            expect(semanticRow.exploreName).toBe('orders');
+        }, 60_000);
+
+        it('a user with SQL runner access sees the node SQL', async () => {
+            const { duckdbRow, semanticRow } =
+                await runTileAndListNodeRows(admin);
+            expect(duckdbRow.compiledSql).toMatch(/select/i);
+            expect(nodeSql(duckdbRow)).toMatch(/revenue_share/);
+            expect(semanticRow.compiledSql).toMatch(/select/i);
+        }, 60_000);
+
+        it('a classic chart run keeps its compiled SQL for the viewer', async () => {
+            const charts = await viewer.get<
+                Body<{ uuid: string; name: string }[]>
+            >(`/api/v1/projects/${projectUuid}/charts`);
+            expect(charts.status).toBe(200);
+            const classic = charts.body.results.find(
+                ({ name }) => name === CLASSIC_CHART_NAME,
+            );
+            if (!classic) throw new Error(`No chart "${CLASSIC_CHART_NAME}"`);
+            const started = await viewer.post<
+                Body<ApiExecuteAsyncMetricQueryResults>
+            >(`/api/v2/projects/${projectUuid}/query/chart`, {
+                chartUuid: classic.uuid,
+                context: QueryExecutionContext.CHART,
+            });
+            expect(started.status).toBe(200);
+            await pollQueryResults(viewer, started.body.results.queryUuid);
+            const [row] = await historyRows(viewer, [
+                started.body.results.queryUuid,
+            ]);
+            expect(row.compiledSql).toMatch(/select/i);
+            expect(row.chartName).toBe(CLASSIC_CHART_NAME);
+        }, 60_000);
     });
 
     it.each([

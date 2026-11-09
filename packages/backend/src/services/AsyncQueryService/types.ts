@@ -13,6 +13,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiSourcePayload,
     type CacheMetadata,
+    type ComposerChartQuerySource,
     type ConditionalFormattingConfig,
     type DashboardFilters,
     type DateZoom,
@@ -499,6 +500,8 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
     /** The node's own pivot stage, composed by a supplied plan or over discovered columns. */
     pivotConfiguration?: PivotConfiguration;
     plan: DuckdbQueryPlan;
+    /** Set when the query is a node of a composer chart run as its viewer. */
+    composerChartSource?: ComposerChartQuerySource;
 };
 
 /** A query's references, bound: the CTEs to attach and the result files they read. */

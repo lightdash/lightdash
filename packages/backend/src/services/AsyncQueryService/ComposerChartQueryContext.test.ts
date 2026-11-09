@@ -69,21 +69,30 @@ describe('ComposerChartQueryContext', () => {
         chart,
     );
 
-    test('lets each semantic-layer node of the version run', () => {
-        expect(() =>
+    test('lets each semantic-layer node of the version run and names the node it matched', () => {
+        expect(
             context.assertMetricQuery(
                 account as Account,
                 projectUuid,
                 metricQueryOfSemanticNode(ordersNode),
             ),
-        ).not.toThrow();
-        expect(() =>
+        ).toEqual({ chartUuid: 'chart', nodeId: 'orders' });
+        expect(
             context.assertMetricQuery(
                 account as Account,
                 projectUuid,
                 metricQueryOfSemanticNode(paymentsNode),
             ),
-        ).not.toThrow();
+        ).toEqual({ chartUuid: 'chart', nodeId: 'payments' });
+    });
+
+    test('names a duckdb node of the version and refuses any other node id', () => {
+        expect(context.nodeSource('joined')).toEqual({
+            chartUuid: 'chart',
+            nodeId: 'joined',
+        });
+        expect(() => context.nodeSource('elsewhere')).toThrow(ForbiddenError);
+        expect(() => context.nodeSource(undefined)).toThrow(ForbiddenError);
     });
 
     test.each([

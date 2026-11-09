@@ -1866,8 +1866,15 @@ export class AsyncQueryService extends ProjectService {
 
         if (grant) await validateConnection();
 
+        // Composer node rows carry chart-author SQL; only SQL runner access may read it
+        const canViewNodeSql = auditedAbility.can(
+            'manage',
+            subject('SqlRunner', { organizationUuid, projectUuid }),
+        );
         return {
-            data: rows.map(mapQueryHistoryRowToListItem),
+            data: rows.map((row) =>
+                mapQueryHistoryRowToListItem(row, { canViewNodeSql }),
+            ),
             pagination,
             counts: {
                 ...counts,
@@ -7946,9 +7953,18 @@ export class AsyncQueryService extends ProjectService {
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
                 : {}),
-            // Result reads re-check chart access through this, as for saved charts
+            // Result reads re-check chart access through chartUuid, as for saved
+            // charts; history hides the node's SQL through composerChartSource
             ...(composerChartQueryContext
-                ? { chartUuid: composerChartQueryContext.chartUuid }
+                ? {
+                      chartUuid: composerChartQueryContext.chartUuid,
+                      composerChartSource:
+                          composerChartQueryContext.assertMetricQuery(
+                              account,
+                              projectUuid,
+                              inputMetricQuery,
+                          ),
+                  }
                 : {}),
             ...(references ? { references } : {}),
             context,
@@ -9013,6 +9029,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         chart: ComposerSavedChartDAO,
         projectUuid: string,
+        context: QueryExecutionContext,
     ): void {
         if (isJwtUser(account)) {
             throw new ComposerChartNotAvailableInEmbedError(
@@ -9022,6 +9039,12 @@ export class AsyncQueryService extends ProjectService {
         }
         if (chart.projectUuid !== projectUuid) {
             throw new ForbiddenError('Chart does not belong to project');
+        }
+        // Materialization skips model required filters; a chart-bound run never carries it
+        if (context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION) {
+            throw new ParameterError(
+                `context ${context} cannot run a composer chart`,
+            );
         }
     }
 
@@ -9166,6 +9189,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             chart,
             projectUuid,
+            context,
         );
         AsyncQueryService.assertNoComposerChartRunOptions({
             limit,
@@ -9253,6 +9277,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             chart,
             projectUuid,
+            context,
         );
         // Dashboard filters, sorts and date zoom do not reach a composer
         // chart yet; a limit would reshape the stored pipeline.
@@ -13256,6 +13281,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         plan,
         invalidateCache,
+        composerChartSource,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
 
@@ -13370,7 +13396,10 @@ export class AsyncQueryService extends ProjectService {
                 ...(agentIdentity ? { agentIdentity } : {}),
                 fields: resolved.fields,
                 compiledSql: resolved.sql,
-                requestParameters: resolved.requestParameters,
+                requestParameters: {
+                    ...resolved.requestParameters,
+                    ...(composerChartSource ? { composerChartSource } : {}),
+                },
                 usedParameters: resolved.usedParameters,
                 metricQuery: resolved.metricQuery,
                 cacheKey,

@@ -1,4 +1,5 @@
 import { type ParametersValuesMap, type PivotConfiguration } from '../..';
+import type { ComposerChartQuerySource } from '../../composer/savedComposerPipeline';
 import type { QueryExecutionContext } from '../analytics';
 import type { ConditionalFormattingConfig } from '../conditionalFormatting';
 import type { DocumentQueryReference } from '../document';
@@ -277,7 +278,11 @@ export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncUnderlyingDataRequestParams
     | ExecuteAsyncDashboardSqlChartRequestParams
     | ExecuteAsyncFieldValueSearchRequestParams
-) & { documentSource?: DocumentQueryReference };
+) & {
+    documentSource?: DocumentQueryReference;
+    /** Server-set: the row ran as this node of a composer chart. */
+    composerChartSource?: ComposerChartQuerySource;
+};
 
 // Recovers dateZoom from a persisted request-parameters union without duck-typing at call sites.
 export const getDateZoomFromRequestParameters = (

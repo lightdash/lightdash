@@ -10,7 +10,11 @@ import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../auth/account/account.mock';
-import { QueryHistoryModel } from './QueryHistoryModel';
+import {
+    mapQueryHistoryRowToListItem,
+    QueryHistoryModel,
+    type DbQueryHistoryListRow,
+} from './QueryHistoryModel';
 
 describe('QueryHistoryModel connection attribution', () => {
     test.each(['connection', null])(
@@ -1033,5 +1037,78 @@ describe('cancelRunningQueriesReadOnlyBy', () => {
             tracker.reset();
             await database.destroy();
         }
+    });
+});
+
+describe('mapQueryHistoryRowToListItem composer node SQL', () => {
+    const nodeSql = 'SELECT orders_status FROM orders';
+    const row = (
+        request_parameters: DbQueryHistoryListRow['request_parameters'],
+    ): DbQueryHistoryListRow =>
+        ({
+            query_uuid: 'query',
+            created_at: new Date('2026-01-01T00:00:00Z'),
+            project_uuid: 'project',
+            context: QueryExecutionContext.DASHBOARD,
+            status: QueryHistoryStatus.READY,
+            error: null,
+            metric_query: null,
+            fields: {},
+            request_parameters,
+            compiled_sql: nodeSql,
+            total_row_count: 3,
+            warehouse_execution_time_ms: 10,
+            results_created_at: null,
+            results_expires_at: null,
+            processing_started_at: null,
+            results_updated_at: null,
+            errored_at: null,
+            chart_name: null,
+            sql_chart_name: null,
+            dashboard_name: null,
+        }) as unknown as DbQueryHistoryListRow;
+    const composerNodeRow = row({
+        sql: nodeSql,
+        context: QueryExecutionContext.DASHBOARD,
+        composerChartSource: { chartUuid: 'chart', nodeId: 'revenue_share' },
+    });
+    const classicSqlRow = row({
+        sql: nodeSql,
+        context: QueryExecutionContext.SQL_RUNNER,
+    });
+
+    test('hides compiled SQL, node SQL and the SQL subline from a caller without SQL runner access', () => {
+        const item = mapQueryHistoryRowToListItem(composerNodeRow, {
+            canViewNodeSql: false,
+        });
+        expect(item.compiledSql).toBe('');
+        expect(item.requestParameters).toEqual({
+            sql: '',
+            context: QueryExecutionContext.DASHBOARD,
+            composerChartSource: {
+                chartUuid: 'chart',
+                nodeId: 'revenue_share',
+            },
+        });
+        expect(item.title).toBe('SQL query');
+        expect(item.subline).toBe('');
+    });
+
+    test('shows the node SQL to a caller with SQL runner access', () => {
+        const item = mapQueryHistoryRowToListItem(composerNodeRow, {
+            canViewNodeSql: true,
+        });
+        expect(item.compiledSql).toBe(nodeSql);
+        expect(item.requestParameters).toMatchObject({ sql: nodeSql });
+        expect(item.subline).toBe(nodeSql);
+    });
+
+    test('leaves a row without composer provenance alone whatever the access', () => {
+        const item = mapQueryHistoryRowToListItem(classicSqlRow, {
+            canViewNodeSql: false,
+        });
+        expect(item.compiledSql).toBe(nodeSql);
+        expect(item.requestParameters).toMatchObject({ sql: nodeSql });
+        expect(item.subline).toBe(nodeSql);
     });
 });

@@ -1657,16 +1657,25 @@ export function isQueryHistoryCacheHit({
  */
 export function mapQueryHistoryRowToListItem(
     row: DbQueryHistoryListRow,
+    { canViewNodeSql }: { canViewNodeSql: boolean },
 ): QueryHistoryListItem {
     const language = getQueryLanguage(row.request_parameters);
     const exploreName = row.metric_query?.exploreName ?? null;
     const chartName = row.chart_name ?? row.sql_chart_name;
+    // A composer node's SQL is the chart author's, not the viewer's
+    const hideSql =
+        !canViewNodeSql && Boolean(row.request_parameters?.composerChartSource);
+    const compiledSql = hideSql ? '' : row.compiled_sql;
+    const requestParameters =
+        hideSql && 'sql' in row.request_parameters
+            ? { ...row.request_parameters, sql: '' }
+            : row.request_parameters;
 
     let title: string;
     let subline: string;
     if (language === QueryLanguage.SQL) {
-        title = chartName ?? getSqlQueryTitle(row.compiled_sql) ?? 'SQL query';
-        subline = getSqlFirstLine(row.compiled_sql);
+        title = chartName ?? getSqlQueryTitle(compiledSql) ?? 'SQL query';
+        subline = getSqlFirstLine(compiledSql);
     } else {
         title = exploreName ?? chartName ?? 'Query';
         subline = getSemanticQuerySummary(row.metric_query, row.fields);
@@ -1702,7 +1711,7 @@ export function mapQueryHistoryRowToListItem(
         exploreName,
         metricQuery:
             language === QueryLanguage.SEMANTIC ? row.metric_query : null,
-        requestParameters: row.request_parameters,
+        requestParameters,
         chartName: row.chart_name,
         chartUuid:
             row.request_parameters && 'chartUuid' in row.request_parameters
@@ -1717,7 +1726,7 @@ export function mapQueryHistoryRowToListItem(
             row.request_parameters && 'dashboardUuid' in row.request_parameters
                 ? row.request_parameters.dashboardUuid
                 : null,
-        compiledSql: row.compiled_sql,
+        compiledSql,
         totalRowCount: row.total_row_count,
         warehouseExecutionTimeMs: row.warehouse_execution_time_ms,
         cacheHit,
