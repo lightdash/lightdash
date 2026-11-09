@@ -128,28 +128,31 @@ _group_ (that is `requiredGroupId`).
   counter key re-announces the same text). An end stays focusable
   (`data-disabled`).
 - A pointer drag drops on insertion points (`chooseInsertionPoint`, pure,
-  over `measureBar`'s rects): every gap between two items of a bar line,
-  each line's start (after "Add filter" on the first) and end, and for a
-  pill only, inside each open capsule, before each member and after the
-  last (folded or empty: one point, last in it). The line whose band holds
+  over `measureBar`'s rects; the pointer is the one collision detection
+  last saw, so scrolling mid-drag stays right). The line whose band holds
   the pointer is taken; between lines, or up to 40px below the last, a
-  line gap starts a line of its own (`LineGap`). On that line the nearest
-  point wins, so the pointer always has one drop line, and where it shows
-  is where it lands. Inside points count only with the pointer in the
-  capsule and off its head (`data-section-head`: before it, outside) and
-  trailing actions or count (`data-section-end`: after it, outside). A
-  dragged section sees outside points and line gaps only. "New section"
-  takes a drop only right under the pointer.
+  line gap starts a line of its own (`LineGap`). On that line, the visual
+  row (a wrapped or, narrow, stacked run) holding the pointer: before each
+  item and after the row's last; between two rows, after the upper row's
+  last. The nearest point wins, so there is always one drop line, and
+  where it shows is where it lands.
+- In a capsule (a pill's drag only): its head and the frame left of and
+  above it put the control before it, outside. With members shown, its
+  trailing actions put it after it, outside, and the rest gives its
+  members' points the same way (wrapped rows too). Folded or empty,
+  anything past the head joins it (its line before the "+"); after it is
+  the gap outside. A dragged section sees outside points and line gaps
+  only. "New section" takes a drop only right under the pointer.
 - A keyboard drag keeps dnd-kit's targets (`underPointerFor`, nearest
   centre): every saved pill (`BarDroppable`), each capsule (joins it
-  last), the first button (out of its section, right after it), "New
-  section"; a section also meets controls outside every section, and line
-  gaps. `placementOf` maps the target, beside a control on the side it
-  moves towards.
+  last), the first button (a member out of its section, right after it;
+  else first on the bar), "New section"; a section also meets controls
+  outside every section, and line gaps. `placementOf` maps the target,
+  beside a control on the side it moves towards.
 - Both give a placement (`placeControl`) kept in `drop` while it moves
-  something (a drop where the control already is writes nothing, shows no
-  line). A section change writes the membership too; a selection lands
-  together, in its order.
+  something (a drop where the controls already are writes nothing, shows
+  no line). A carried selection lands together, in bar order; a section
+  change writes the membership too.
 - One drop line between controls (`DropLine`, `.dropLine` in
   `FilterPills.module.css`): 2px, a pill's height (`--controls-pill-height`),
   centred on the bar line, 4px into the gap; on a capsule outside its border

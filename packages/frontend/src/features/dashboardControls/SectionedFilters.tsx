@@ -564,6 +564,9 @@ export const SectionedFilters: FC<Props> = ({
     const [drop, setDrop] = useState<ControlPlacement | null>(null);
     // The bar's flow, measured when a pointer drag moves
     const barRef = useRef<HTMLDivElement>(null);
+    // The pointer as collision detection last saw it, in the viewport after
+    // any scroll; null for a keyboard drag
+    const pointerRef = useRef<{ x: number; y: number } | null>(null);
     // An editor's picked pills, and the pill picked last (a range's start)
     const [picked, setPicked] = useState<{
         ids: string[];
@@ -1466,7 +1469,11 @@ export const SectionedFilters: FC<Props> = ({
         if (overId === activeId) return null;
         const gap = lineGapPlacementOf(overId);
         if (gap !== null) return gap;
-        if (overId === UNSECTIONED_TARGET_ID) return { sectionId: null };
+        // Out of its section, else first on the bar, as a pointer there does
+        if (overId === UNSECTIONED_TARGET_ID)
+            return (controlOf(activeId)?.sectionId ?? null) === null
+                ? { barStart: true }
+                : { sectionId: null };
         const over_ = controlOf(overId);
         if (over_ === undefined) return null;
         if (
@@ -1579,56 +1586,36 @@ export const SectionedFilters: FC<Props> = ({
         };
     };
     // A pointer drag lands on the insertion point nearest the pointer, on
-    // "New section" only right under it; a keyboard drag has no pointer
+    // "New section" only right under it; a keyboard drag has no pointer.
+    // Without collision detection (tests), the activator's point plus the move
     const pointerOf = ({ activatorEvent, delta }: DragMoveEvent) =>
-        // Tests and some sensors send none
-        activatorEvent != null && 'clientX' in activatorEvent
+        pointerRef.current ??
+        (activatorEvent != null && 'clientX' in activatorEvent
             ? {
                   x: (activatorEvent as PointerEvent).clientX + delta.x,
                   y: (activatorEvent as PointerEvent).clientY + delta.y,
               }
-            : null;
-    const isOnNewSection = (
-        { x, y }: { x: number; y: number },
-        over: Over | null,
-    ) =>
-        over !== null &&
-        String(over.id) === NEW_SECTION_TARGET_ID &&
-        x >= over.rect.left &&
-        x <= over.rect.left + over.rect.width &&
-        y >= over.rect.top &&
-        y <= over.rect.top + over.rect.height;
-    const dropOf = (event: DragMoveEvent): ControlPlacement | null => {
-        const { active, over } = event;
-        const pointer = pointerOf(event);
-        const layout =
-            pointer === null || barRef.current === null
-                ? null
-                : measureBar(barRef.current);
-        const placement =
-            pointer === null
-                ? placementOf(active, over)
-                : layout === null || isOnNewSection(pointer, over)
-                  ? null
-                  : chooseInsertionPoint(
-                        layout,
-                        pointer,
-                        active.data?.current?.kind === SECTION_DRAG,
-                    );
-        // Where it already is: no line, nothing written
-        return placement !== null &&
-            placeControl(ordered, String(active.id), placement) !== ordered
-            ? placement
-            : null;
+            : null);
+    const isOnNewSection = ({ x, y }: { x: number; y: number }) => {
+        const ghost = barRef.current?.querySelector(NEW_SECTION_SELECTOR);
+        const rect = ghost?.getBoundingClientRect();
+        return (
+            rect !== undefined &&
+            x >= rect.left &&
+            x <= rect.right &&
+            y >= rect.top &&
+            y <= rect.bottom
+        );
     };
-    const handleDragMove = (event: DragMoveEvent) => {
-        const next = dropOf(event);
-        setDrop((previous) => (isEqual(next, previous) ? previous : next));
-    };
-    // Each control at the placement, the rest of a selection right after it;
-    // a section change writes the control's own section too
-    const commitPlacement = (ids: string[], placement: ControlPlacement) => {
-        const next = ids.reduce(
+    // A carried selection moves in bar order, the rest after the first
+    const movedIdsOf = (activeId: string) =>
+        allSelected.length > 1 && allSelected.includes(activeId)
+            ? ordered
+                  .filter(({ id }) => allSelected.includes(id))
+                  .map(({ id }) => id)
+            : [activeId];
+    const placeAll = (ids: string[], placement: ControlPlacement) =>
+        ids.reduce(
             (list, id, index) =>
                 placeControl(
                     list,
@@ -1639,6 +1626,38 @@ export const SectionedFilters: FC<Props> = ({
                 ),
             ordered,
         );
+    const dropOf = (
+        { active, over }: DragMoveEvent,
+        pointer: { x: number; y: number } | null,
+    ): ControlPlacement | null => {
+        const layout =
+            pointer === null || barRef.current === null
+                ? null
+                : measureBar(barRef.current);
+        const placement =
+            pointer === null
+                ? placementOf(active, over)
+                : layout === null || isOnNewSection(pointer)
+                  ? null
+                  : chooseInsertionPoint(
+                        layout,
+                        pointer,
+                        active.data?.current?.kind === SECTION_DRAG,
+                    );
+        // Where it already is: no line, nothing written
+        return placement !== null &&
+            placeAll(movedIdsOf(String(active.id)), placement) !== ordered
+            ? placement
+            : null;
+    };
+    const handleDragMove = (event: DragMoveEvent) => {
+        const next = dropOf(event, pointerOf(event));
+        setDrop((previous) => (isEqual(next, previous) ? previous : next));
+    };
+    // Each control at the placement, the rest of a selection right after it;
+    // a section change writes the control's own section too
+    const commitPlacement = (ids: string[], placement: ControlPlacement) => {
+        const next = placeAll(ids, placement);
         if (next === ordered) return;
         if (ids.some((id) => selectedIds.includes(id))) clearSelection();
         let filters = dashboardFilters;
@@ -1668,10 +1687,11 @@ export const SectionedFilters: FC<Props> = ({
     };
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
+        const pointer = pointerOf(event);
         setDraggedId(null);
         setDrop(null);
+        pointerRef.current = null;
         const activeId = String(active.id);
-        const pointer = pointerOf(event);
         // A picked pill carries the selection, filters and parameters alike
         const isCarryingSelection =
             allSelected.length > 1 && allSelected.includes(activeId);
@@ -1680,7 +1700,7 @@ export const SectionedFilters: FC<Props> = ({
         if (
             pointer === null
                 ? over !== null && String(over.id) === NEW_SECTION_TARGET_ID
-                : isOnNewSection(pointer, over)
+                : isOnNewSection(pointer)
         ) {
             if (isEditing) return;
             setNaming({
@@ -1689,30 +1709,10 @@ export const SectionedFilters: FC<Props> = ({
             });
             return;
         }
-        // By keyboard all of the selection joins the target's section: a
-        // pill's, a capsule's, or none; anything else moves nothing
-        if (pointer === null && over && isCarryingSelection) {
-            const overId = String(over.id);
-            // Dropped back on itself: nothing moves
-            if (overId === activeId) return;
-            const target =
-                overId === UNSECTIONED_TARGET_ID
-                    ? null
-                    : controlOf(overId)?.kind ===
-                        DashboardControlRefKind.SECTION
-                      ? overId
-                      : controlOf(overId)?.sectionId;
-            if (target !== undefined) moveSelected(target, 'drag');
-            return;
-        }
-        const placement = dropOf(event);
-        if (placement === null) return;
-        commitPlacement(
-            isCarryingSelection
-                ? [activeId, ...allSelected.filter((id) => id !== activeId)]
-                : [activeId],
-            placement,
-        );
+        // By pointer or keyboard, it lands where its line showed
+        const placement = dropOf(event, pointer);
+        if (placement !== null)
+            commitPlacement(movedIdsOf(activeId), placement);
     };
     const dragged = allRules.find(({ rule }) => rule.id === draggedId);
     const draggedSection = sections.find(({ id }) => id === draggedId);
@@ -1750,9 +1750,10 @@ export const SectionedFilters: FC<Props> = ({
         <BarSelectionContext.Provider value={selection}>
             <DndContext
                 sensors={sensors}
-                collisionDetection={(args) =>
-                    underPointerFor(args, sectionTargetIds)
-                }
+                collisionDetection={(args) => {
+                    pointerRef.current = args.pointerCoordinates;
+                    return underPointerFor(args, sectionTargetIds);
+                }}
                 accessibility={{ announcements: getDragAnnouncements(nameOf) }}
                 onDragStart={({ active }: DragStartEvent) =>
                     setDraggedId(String(active.id))
@@ -1763,6 +1764,7 @@ export const SectionedFilters: FC<Props> = ({
                 onDragCancel={() => {
                     setDraggedId(null);
                     setDrop(null);
+                    pointerRef.current = null;
                 }}
             >
                 <BarMoveContext.Provider value={moveByKeyboard}>

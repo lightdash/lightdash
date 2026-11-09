@@ -86,7 +86,8 @@ describe('chooseInsertionPoint', () => {
     it('lands before a capsule over its head, after it over its actions', () => {
         expect(at(200, 14)).toEqual({ overId: 'S', side: 'before' });
         expect(at(380, 14)).toEqual({ overId: 'S', side: 'after' });
-        expect(at(150, 60)).toEqual({ overId: 'T', side: 'after' });
+        // A folded one has nothing to land between: past its head it joins
+        expect(at(150, 60)).toEqual({ sectionId: 'T' });
     });
 
     it('lands inside a capsule only away from its head and actions', () => {
@@ -139,5 +140,120 @@ describe('chooseInsertionPoint', () => {
         expect(point).not.toBeNull();
         expect(placeControl(bar, 'f1', point!)).toBe(bar);
         expect(placeControl(bar, 'f1', at(200, 14)!)).toBe(bar);
+    });
+});
+
+// Real sizes: 28px pills, a 6px gap, a capsule's 1px border and 3px padding
+describe('chooseInsertionPoint at real sizes', () => {
+    const one = (items: BarItem[], start = box(-100, -40)): BarLayout => ({
+        start,
+        lines: [{ lineStartId: null, items }],
+    });
+
+    it("lands after each wrapped row's last control, between rows after the upper one's", () => {
+        // a and b on the first row of a 340px bar, c wrapped below
+        const wrapped = one(
+            [
+                pill('a', box(70, 200)),
+                pill('b', box(206, 330)),
+                pill('c', box(0, 120, 36, 64)),
+            ],
+            box(0, 60),
+        );
+        const on = (x: number, y: number) =>
+            chooseInsertionPoint(wrapped, { x, y }, false);
+        expect(on(338, 14)).toEqual({ overId: 'b', side: 'after' });
+        expect(on(300, 14)).toEqual({ overId: 'b', side: 'after' });
+        expect(on(250, 14)).toEqual({ overId: 'b', side: 'before' });
+        expect(on(150, 32)).toEqual({ overId: 'b', side: 'after' });
+        expect(on(150, 50)).toEqual({ overId: 'c', side: 'after' });
+    });
+
+    it('lands between stacked capsules on a narrow bar, by row', () => {
+        const section = (id: string, rect: BarRect): BarItem => ({
+            id,
+            rect,
+            section: {
+                head: box(
+                    rect.left + 4,
+                    rect.left + 60,
+                    rect.top + 4,
+                    rect.bottom - 4,
+                ),
+                end: box(
+                    rect.right - 50,
+                    rect.right - 4,
+                    rect.top + 4,
+                    rect.bottom - 4,
+                ),
+                members: [],
+            },
+        });
+        const narrow: BarLayout = {
+            start: box(0, 60),
+            lines: [
+                { lineStartId: null, items: [] },
+                {
+                    lineStartId: 'S1',
+                    items: [
+                        section('S1', box(0, 200, 40, 76)),
+                        section('S2', box(0, 150, 92, 128)),
+                        section('S3', box(0, 180, 144, 180)),
+                    ],
+                },
+            ],
+        };
+        const on = (x: number, y: number) =>
+            chooseInsertionPoint(narrow, { x, y }, true);
+        expect(on(100, 80)).toEqual({ overId: 'S1', side: 'after' });
+        expect(on(100, 86)).toEqual({ overId: 'S1', side: 'after' });
+        expect(on(190, 58)).toEqual({ overId: 'S1', side: 'after' });
+        expect(on(170, 110)).toEqual({ overId: 'S2', side: 'after' });
+    });
+
+    // Border 1 + padding 3; head 4-110, gap 6, count 116-140, gap 6, actions 146-196
+    const folded = one([
+        {
+            id: 'T',
+            rect: box(0, 201, -4, 32),
+            section: { head: box(4, 110), end: box(116, 196), members: [] },
+        },
+    ]);
+    const onFolded = (x: number, y: number) =>
+        chooseInsertionPoint(folded, { x, y }, false);
+
+    it('joins a folded or empty section anywhere past its head; after it is the gap outside', () => {
+        for (const x of [113, 130, 170, 199])
+            expect(onFolded(x, 14)).toEqual({ sectionId: 'T' });
+        expect(onFolded(60, 14)).toEqual({ overId: 'T', side: 'before' });
+        expect(onFolded(204, 14)).toEqual({ overId: 'T', side: 'after' });
+    });
+
+    it("counts the frame left of and above the head as the head, so entering doesn't flicker", () => {
+        expect(onFolded(2, 14)).toEqual({ overId: 'T', side: 'before' });
+        expect(onFolded(60, -2)).toEqual({ overId: 'T', side: 'before' });
+        const open = one([
+            {
+                id: 'S',
+                rect: box(0, 300, -4, 32),
+                section: {
+                    head: box(4, 110),
+                    end: box(250, 296),
+                    members: [
+                        { id: 'm1', rect: box(116, 180) },
+                        { id: 'm2', rect: box(186, 244) },
+                    ],
+                },
+            },
+        ]);
+        for (const x of [-3, 2, 60])
+            expect(chooseInsertionPoint(open, { x, y: 14 }, false)).toEqual({
+                overId: 'S',
+                side: 'before',
+            });
+        expect(chooseInsertionPoint(open, { x: 118, y: 14 }, false)).toEqual({
+            overId: 'm1',
+            side: 'before',
+        });
     });
 });

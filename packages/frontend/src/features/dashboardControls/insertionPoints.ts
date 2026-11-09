@@ -26,54 +26,82 @@ export type BarLayout = {
     lines: { lineStartId: string | null; items: BarItem[] }[];
 };
 
-type Point = { x: number; row: BarRect; placement: ControlPlacement };
+type Point = { x: number; placement: ControlPlacement };
 
 // Below the last line by more than this, a drop goes nowhere
 const BELOW_LAST_LINE = 40;
+// Controls whose tops differ by less share a row (a capsule overhangs by 4px)
+const ROW_TOLERANCE = 8;
 
 const isWithin = (rect: BarRect, x: number, y: number) =>
     x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 
-// Across the pointer's row first, then across rows
-const distance = ({ x, row }: Point, px: number, py: number) =>
-    Math.abs(x - px) + 4 * Math.max(0, row.top - py, py - row.bottom);
+// A wrapped run's rows, in order: each item joins the row above unless it starts lower
+const rowsOf = <T extends { rect: BarRect }>(items: T[]): T[][] =>
+    items.reduce<T[][]>((rows, item) => {
+        const row = rows.at(-1);
+        if (
+            row !== undefined &&
+            item.rect.top - row[0].rect.top < ROW_TOLERANCE
+        )
+            row.push(item);
+        else rows.push([item]);
+        return rows;
+    }, []);
 
-const nearest = (points: Point[], x: number, y: number) =>
+const afterLast = <T extends { id: string; rect: BarRect }>(
+    row: T[],
+): Point => {
+    const last = row[row.length - 1];
+    return {
+        x: last.rect.right,
+        placement: { overId: last.id, side: 'after' },
+    };
+};
+
+// On the pointer's row: before each control and after the row's last.
+// Between two rows (a wrapped or stacked run): after the upper row's last
+const pointsOnRow = <T extends { id: string; rect: BarRect }>(
+    items: T[],
+    y: number,
+): Point[] => {
+    const rows = rowsOf(items).map((row) => ({
+        row,
+        top: Math.min(...row.map(({ rect }) => rect.top)),
+        bottom: Math.max(...row.map(({ rect }) => rect.bottom)),
+    }));
+    const upper = rows.filter(({ bottom }) => bottom < y).at(-1);
+    const lower = rows.find(({ top }) => top > y);
+    const onRow = rows.find(({ top, bottom }) => y >= top && y <= bottom);
+    if (onRow === undefined && upper !== undefined && lower !== undefined)
+        return [afterLast(upper.row)];
+    const row = (onRow ?? upper ?? lower)?.row;
+    if (row === undefined) return [];
+    return [
+        ...row.map(({ id, rect }) => ({
+            x: rect.left,
+            placement: { overId: id, side: 'before' as const },
+        })),
+        afterLast(row),
+    ];
+};
+
+const nearest = (points: Point[], x: number) =>
     points.reduce<Point | null>(
         (best, point) =>
-            best === null || distance(point, x, y) < distance(best, x, y)
+            best === null || Math.abs(point.x - x) < Math.abs(best.x - x)
                 ? point
                 : best,
         null,
     )?.placement ?? null;
 
-// Before each control of a run and after its last; an empty run only after `start`
-const pointsAround = (
-    items: { id: string; rect: BarRect }[],
-    empty: Point | null,
-): Point[] => {
-    const last = items.at(-1);
-    if (last === undefined) return empty === null ? [] : [empty];
-    return [
-        ...items.map(({ id, rect }) => ({
-            x: rect.left,
-            row: rect,
-            placement: { overId: id, side: 'before' as const },
-        })),
-        {
-            x: last.rect.right,
-            row: last.rect,
-            placement: { overId: last.id, side: 'after' },
-        },
-    ];
-};
-
 /**
- * Where a pointer drag drops: the insertion point nearest the pointer, on
- * the bar line whose band holds it (between lines, or just below the last,
- * a line of its own). In a section's capsule, away from its head and
- * trailing actions, only its inside points count (never for a dragged
- * section); on its head, before it; on its actions, after it
+ * Where a pointer drag drops: on the bar line whose band holds the pointer
+ * (between lines, or just below the last, a line of its own), the point
+ * nearest it on its visual row. In a section's capsule (never for a dragged
+ * section): on its head and the frame before and above it, before it; with
+ * nothing shown in it, anywhere else joins it; else on its trailing
+ * actions, after it, and elsewhere its members' points
  */
 export const chooseInsertionPoint = (
     layout: BarLayout,
@@ -106,32 +134,15 @@ export const chooseInsertionPoint = (
           );
     if (capsule?.section) {
         const { head, end, members } = capsule.section;
-        if (head !== null && isWithin(head, x, y))
+        // The frame left of and above the head counts as the head
+        if (head !== null && x <= head.right && y <= head.bottom)
             return { overId: capsule.id, side: 'before' };
+        // Nothing shown in it (folded or empty): the rest of it joins it
+        if (members.length === 0) return { sectionId: capsule.id };
         if (end !== null && isWithin(end, x, y))
             return { overId: capsule.id, side: 'after' };
-        return nearest(
-            pointsAround(members, {
-                x: end?.left ?? capsule.rect.right,
-                row: end ?? capsule.rect,
-                placement: { sectionId: capsule.id },
-            }),
-            x,
-            y,
-        );
+        return nearest(pointsOnRow(members, y), x);
     }
-    return nearest(
-        pointsAround(
-            line.items,
-            index === 0
-                ? {
-                      x: layout.start.right,
-                      row: layout.start,
-                      placement: { barStart: true },
-                  }
-                : null,
-        ),
-        x,
-        y,
-    );
+    if (line.items.length === 0) return { barStart: true };
+    return nearest(pointsOnRow(line.items, y), x);
 };

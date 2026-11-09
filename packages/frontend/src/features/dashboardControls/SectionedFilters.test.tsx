@@ -75,6 +75,9 @@ const mockDragMove = vi.hoisted(() => ({
 const mockDragStart = vi.hoisted(() => ({
     handlers: [] as ((event: DragStartEvent) => void)[],
 }));
+const mockCollision = vi.hoisted(() => ({
+    detect: null as null | ((args: unknown) => unknown),
+}));
 // A drop state dnd-kit would report mid-drag, without the gesture
 const mockDroppable = vi.hoisted(() => ({
     current: null as null | {
@@ -122,6 +125,10 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
             if (props.onDragMove) mockDragMove.handlers.push(props.onDragMove);
             if (props.onDragStart)
                 mockDragStart.handlers.push(props.onDragStart);
+            if (props.collisionDetection)
+                mockCollision.detect = props.collisionDetection as (
+                    args: unknown,
+                ) => unknown;
             return <actual.DndContext {...props} />;
         },
         useDraggable: (args: Parameters<typeof actual.useDraggable>[0]) => {
@@ -1098,6 +1105,26 @@ describe('SectionedFilters', () => {
                 ).toContainEqual(['loose', 'a']);
             });
 
+            it('follows the pointer collision detection saw, scroll included, over the drag delta', () => {
+                const { store } = renderBar();
+                // dnd-kit's delta says the head; the pointer is on the actions
+                mockCollision.detect!({
+                    active: { id: 'loose', data: { current: undefined } },
+                    collisionRect: box(370, 390, 50),
+                    droppableRects: new Map(),
+                    droppableContainers: [],
+                    pointerCoordinates: { x: 380, y: 60 },
+                });
+                drop(150, 60);
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    'loose',
+                    '/b',
+                    '/c',
+                ]);
+            });
+
             it('drops nothing where it already is, and starts a line between lines', () => {
                 const { store } = renderBar();
                 expect(drop(100, 14)).toEqual([]);
@@ -1114,6 +1141,34 @@ describe('SectionedFilters', () => {
                     '/c',
                 ]);
             });
+        });
+
+        it('lands a loose pill dragged by keyboard onto Add filter first on the bar, with the line after Add', () => {
+            const { store } = renderSectioned(
+                [
+                    rule('first', undefined),
+                    rule('second', undefined),
+                    rule('one', 'a'),
+                ],
+                'tab-1',
+            );
+            const event = {
+                active: { id: 'second', data: { current: undefined } },
+                over: { id: 'unsectioned-target' },
+            } as unknown as DragMoveEvent;
+            act(() => mockDragMove.handlers.at(-1)!(event));
+            expect(
+                document.querySelector('[data-bar-start] > [data-drop-line]'),
+            ).toHaveAttribute('data-drop-line', 'after');
+            expect(document.querySelectorAll('[data-drop-line]')).toHaveLength(
+                1,
+            );
+            act(() =>
+                mockDragEnd.handlers.at(-1)!(event as unknown as DragEndEvent),
+            );
+            expect(
+                selectControlOrder(store.getState())?.map(({ id }) => id),
+            ).toEqual(['second', 'first', 'a', 'one', 'b', 'c']);
         });
 
         it('draws the line after the section a member leaves by keyboard, in the shared drop line', () => {
@@ -1648,6 +1703,27 @@ describe('SectionedFilters', () => {
                 ['one', 'b'],
             ]);
             expect(pickedIds()).toEqual([]);
+        });
+
+        it('lands a selection dragged by keyboard beside the pill its line is on, in bar order', () => {
+            const { store } = renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'one', data: { current: undefined } },
+                    over: { id: 'three' },
+                } as unknown as DragEndEvent),
+            );
+            expect(
+                selectControlOrder(store.getState())?.map(({ id }) => id),
+            ).toEqual(['a', 'two', 'b', 'three', 'loose', 'one', 'c']);
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual(
+                expect.arrayContaining([
+                    ['loose', 'b'],
+                    ['one', 'b'],
+                ]),
+            );
         });
 
         it('takes the whole selection out of its sections on the first button', () => {
