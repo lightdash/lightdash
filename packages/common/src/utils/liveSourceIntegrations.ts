@@ -36,6 +36,12 @@ export const LIVE_SOURCE_INTEGRATION_PROFILES: Record<
         agentQueryGuide:
             'one runReport request as a JSON object with dateRanges (startDate and endDate as YYYY-MM-DD, today, yesterday or NdaysAgo), metrics (1-10, e.g. activeUsers, sessions, screenPageViews, conversions, totalRevenue) and optionally dimensions (up to 9, e.g. date, country, deviceCategory, sessionSource, pagePath, eventName), dimensionFilter, metricFilter and orderBys in the GA4 Data API shape. Columns are the API names, with any character other than letters, digits and underscores replaced by an underscore; date comes back as YYYY-MM-DD. Rate and average metrics such as bounceRate or averageSessionDuration must not be summed. Each report spends hourly quota on the property, so prefer one aggregated report over many.',
     },
+    [ApiConnectorType.META_ADS]: {
+        label: 'Meta Ads',
+        agentLabel: 'Meta Ads',
+        agentQueryGuide:
+            'one Insights request as a JSON object with level (account, campaign, adset or ad), time_range ({since, until} as YYYY-MM-DD), fields (campaign_id, campaign_name, objective, adset_id, adset_name, ad_id, ad_name, spend, impressions, reach, frequency, clicks, inline_link_clicks, ctr, cpc, cpm, and actions:<type>, action_values:<type> or purchase_roas:<type> such as actions:omni_purchase), and optionally time_increment (1, monthly or all_days), breakdowns (age, gender, country, region, publisher_platform, platform_position), filtering ([{field: campaign.name, campaign.id, adset.name, adset.id, ad.name or ad.id, operator: EQUAL, NOT_EQUAL, IN, NOT_IN, CONTAIN or NOT_CONTAIN, value}]) and sort (one entry such as spend_descending). Column names are the field names, plus date_start when time_increment is set; ctr comes back as a fraction. Reach and frequency are deduplicated per row and frequency depends on reach, so never sum them.',
+    },
 };
 
 /** The agent tool's description of its query field, one sentence block per integration. */

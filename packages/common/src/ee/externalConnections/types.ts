@@ -33,11 +33,18 @@ export type Ga4ApiSource = {
     propertyId: string;
 };
 
+export type MetaAdsApiSource = {
+    connector: ApiConnectorType.META_ADS;
+    /** The numeric ad account id, without the act_ prefix. */
+    adAccountId: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
     | SearchConsoleApiSource
-    | Ga4ApiSource;
+    | Ga4ApiSource
+    | MetaAdsApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -64,6 +71,12 @@ export const POSTHOG_REGION_ORIGINS = {
     us: 'https://us.posthog.com',
     eu: 'https://eu.posthog.com',
 } as const;
+
+export const META_ADS_ORIGIN = 'https://graph.facebook.com';
+export const META_ADS_API_VERSION = 'v25.0';
+
+export const getMetaAdsInsightsPath = (adAccountId: string) =>
+    `/${META_ADS_API_VERSION}/act_${adAccountId}/insights`;
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */

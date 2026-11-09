@@ -49,6 +49,65 @@ exports[`connector capability declarations > the summable tags 1`] = `
       "aggregation": "non_additive",
     },
   },
+  "meta_ads": {
+    "adds_to_cart": {
+      "aggregation": "additive",
+    },
+    "checkouts_initiated": {
+      "aggregation": "additive",
+    },
+    "clicks": {
+      "aggregation": "additive",
+    },
+    "cpc": {
+      "aggregation": "ratio",
+      "denominator": "clicks",
+      "numerator": "spend",
+    },
+    "cpm": {
+      "aggregation": "non_additive",
+    },
+    "ctr": {
+      "aggregation": "ratio",
+      "denominator": "impressions",
+      "numerator": "clicks",
+    },
+    "frequency": {
+      "aggregation": "non_additive",
+    },
+    "impressions": {
+      "aggregation": "additive",
+    },
+    "landing_page_views": {
+      "aggregation": "additive",
+    },
+    "leads": {
+      "aggregation": "additive",
+    },
+    "link_clicks": {
+      "aggregation": "additive",
+    },
+    "purchase_roas": {
+      "aggregation": "ratio",
+      "denominator": "spend",
+      "numerator": "purchase_value",
+    },
+    "purchase_value": {
+      "aggregation": "additive",
+    },
+    "purchases": {
+      "aggregation": "additive",
+    },
+    "reach": {
+      "aggregation": "non_additive",
+    },
+    "registrations_completed": {
+      "aggregation": "additive",
+    },
+    "spend": {
+      "aggregation": "additive",
+    },
+  },
   "posthog": {
     "event_count": {
       "aggregation": "additive",

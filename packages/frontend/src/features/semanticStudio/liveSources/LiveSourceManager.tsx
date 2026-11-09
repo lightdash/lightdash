@@ -25,6 +25,7 @@ import {
 } from '../../externalConnections/liveSources/postHogConnection';
 import { PostHogConnectionModal } from '../../externalConnections/liveSources/PostHogConnectionModal';
 import { SourceConnectedModal } from '../../externalConnections/liveSources/SourceConnectedModal';
+import { TokenLiveSourceModal } from '../../externalConnections/liveSources/TokenLiveSourceModal';
 import { useLiveSourceSignInResult } from '../../externalConnections/liveSources/useLiveSourceSignInResult';
 import {
     LiveSourceActionsContext,
@@ -133,6 +134,9 @@ export const LiveSourceManager: FC<{
                                       ),
                                   )
                             : null;
+                    // A token is edited from the source's own form
+                    case 'token':
+                        return null;
                     default:
                         return assertUnreachable(setup, 'Unknown source setup');
                 }
@@ -193,6 +197,17 @@ const LiveSourceConnectDialog: FC<{
                     projectUuid={projectUuid}
                     connection={connection}
                     canSignIn={canSignIn}
+                    onCreated={onCreated}
+                />
+            );
+        case 'token':
+            return (
+                <TokenLiveSourceModal
+                    form={setup.form}
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    connection={connection}
                     onCreated={onCreated}
                 />
             );

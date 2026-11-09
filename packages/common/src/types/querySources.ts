@@ -57,6 +57,7 @@ export enum ApiConnectorType {
     POSTHOG = 'posthog',
     SEARCH_CONSOLE = 'search_console',
     GA4 = 'ga4',
+    META_ADS = 'meta_ads',
 }
 
 /**

@@ -6,6 +6,7 @@ import {
 import { type ApiSourceIntegration } from './ApiSourceIntegration';
 import { ga4Integration } from './google/ga4Integration';
 import { searchConsoleIntegration } from './google/searchConsoleIntegration';
+import { metaAdsIntegration } from './meta/metaAdsIntegration';
 import { postHogIntegration } from './posthog/postHogIntegration';
 
 /** One entry per integration; a missing one fails typecheck. */
@@ -15,6 +16,7 @@ const API_SOURCE_INTEGRATIONS: {
     [ApiConnectorType.GA4]: ga4Integration,
     [ApiConnectorType.SEARCH_CONSOLE]: searchConsoleIntegration,
     [ApiConnectorType.POSTHOG]: postHogIntegration,
+    [ApiConnectorType.META_ADS]: metaAdsIntegration,
 };
 
 export const getApiSourceIntegration = (
