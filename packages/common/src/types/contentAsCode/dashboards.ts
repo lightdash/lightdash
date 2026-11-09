@@ -19,7 +19,6 @@ import type {
 } from '../dashboard';
 import type { DashboardFilterRule } from '../filter';
 import type { PromotionChanges } from '../promotion';
-import type { SavedChartQueryType } from '../savedCharts';
 import type { ContentAsCodeType } from './core';
 import type { ContentAsCodeDirectAccess } from './directAccess';
 import type { SpaceAsCode } from './spaces';
@@ -68,7 +67,7 @@ export type DashboardChartTileAsCode = DashboardTileAsCodeBase & {
         /** Read-only and stripped on upload: absent on exports and uploads, set on AI content reads, null when the chart is not found in this project. */
         chartQuery?: DashboardTileChartQuery | null;
         /** Set by download on a tile whose chart is a composer chart; derived from the chart on upload, so a file cannot change it. */
-        queryType?: SavedChartQueryType;
+        queryType?: 'composer';
     };
 };
 

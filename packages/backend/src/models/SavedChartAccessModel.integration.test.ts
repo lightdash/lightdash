@@ -260,7 +260,7 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
                     project_uuid: projectSpace.projectUuid,
                     ...owner,
                     name: `Saved chart access ${randomUUID()}`,
-                    description: undefined,
+                    description: null,
                     last_version_chart_kind: ChartKind.TABLE,
                     last_version_updated_by_user_uuid:
                         SEED_ORG_1_ADMIN.user_uuid,
@@ -553,7 +553,7 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
                 space_id: fixture.spaceId,
                 dashboard_uuid: null,
                 name: `Saved chart access concurrent ${randomUUID()}`,
-                description: undefined,
+                description: null,
                 last_version_chart_kind: ChartKind.TABLE,
                 last_version_updated_by_user_uuid: fixture.userUuid,
                 slug: `saved-chart-access-concurrent-${randomUUID()}`,

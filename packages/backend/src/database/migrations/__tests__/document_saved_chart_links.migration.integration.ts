@@ -66,7 +66,7 @@ const createFixture = async (database: Knex): Promise<Fixture> => {
     const [{ saved_query_uuid: chartUuid }] = await database('saved_queries')
         .insert({
             name: 'Monthly revenue',
-            description: undefined,
+            description: null,
             slug: 'monthly-revenue',
             last_version_chart_kind: ChartKind.TABLE,
             last_version_updated_by_user_uuid: userUuid,

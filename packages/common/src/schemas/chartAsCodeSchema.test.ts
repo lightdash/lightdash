@@ -3,6 +3,7 @@ import { ContentAsCodeType } from '../types/contentAsCode/core';
 import { CustomFormatType, TableCalculationTemplateType } from '../types/field';
 import {
     chartAsCodeSchema,
+    COMPOSER_CHART_BRANCH,
     getChartAsCodeBranchSchema,
 } from './chartAsCodeSchema';
 
@@ -215,6 +216,11 @@ describe('chartAsCodeSchema', () => {
         ).toBe(false);
     });
 
+    test('rejects a chart file with neither a pipeline nor a metric query', () => {
+        const { pipeline, ...neither } = validComposerChart;
+        expect(validate(neither)).toBe(false);
+    });
+
     test('keeps chart config definitions addressable under $defs', () => {
         expect(chartAsCodeSchema.$defs).toHaveProperty('PieChartConfig');
         expect(chartAsCodeSchema.$defs).toHaveProperty('ChartAsCode');
@@ -240,7 +246,7 @@ describe('getChartAsCodeBranchSchema', () => {
 
     test('validates composer charts only, with errors scoped to the missing field', () => {
         const validateComposerChart = ajv.compile(
-            getChartAsCodeBranchSchema('composer_chart'),
+            getChartAsCodeBranchSchema(COMPOSER_CHART_BRANCH),
         );
         expect(validateComposerChart(validComposerChart)).toBe(true);
         expect(validateComposerChart(validChart)).toBe(false);

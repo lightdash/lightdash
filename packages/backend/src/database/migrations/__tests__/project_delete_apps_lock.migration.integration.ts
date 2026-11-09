@@ -69,7 +69,7 @@ const createProjectWithContent = async (
         spaces.map(({ space_id: spaceId }, index) => ({
             name: `chart ${index}`,
             slug: `chart-${index}`,
-            description: undefined,
+            description: null,
             last_version_chart_kind: ChartKind.TABLE,
             last_version_updated_by_user_uuid: userUuid,
             color_palette_uuid: null,

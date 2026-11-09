@@ -4,10 +4,11 @@ import chartAsCodeSchema from './json/chart-as-code-1.0.json';
 
 // Classic and composer charts share `contentType: chart`; the file's
 // `pipeline` tells them apart, so the branch is named by shape.
+export const COMPOSER_CHART_BRANCH = 'composer_chart';
 export type ChartAsCodeBranch =
     | ContentAsCodeType.CHART
     | ContentAsCodeType.SQL_CHART
-    | 'composer_chart';
+    | typeof COMPOSER_CHART_BRANCH;
 
 // One chart shape plus the shared `$defs`, so validation errors skip the
 // if/then/else wrapper error the whole-file schema adds.
@@ -16,7 +17,7 @@ export const getChartAsCodeBranchSchema = (branch: ChartAsCodeBranch) => {
     switch (branch) {
         case ContentAsCodeType.CHART:
             return { $schema, ...$defs.ChartAsCode, $defs };
-        case 'composer_chart':
+        case COMPOSER_CHART_BRANCH:
             return { $schema, ...$defs.ComposerChartAsCode, $defs };
         case ContentAsCodeType.SQL_CHART:
             return { $schema, ...$defs.SqlChartAsCode, $defs };

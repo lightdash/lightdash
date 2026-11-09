@@ -3,6 +3,7 @@ import {
     ChartType,
     ComposerChartNotSupportedError,
     ContentAsCodeType,
+    NotFoundError,
     PossibleAbilities,
     PromotionAction,
     QuerySourceType,
@@ -12,6 +13,7 @@ import {
     type ComposerSavedChartDAO,
     type SavedChartDAO,
     type SavedChartVariant,
+    type SavedComposerPipelineNode,
     type SessionUser,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
@@ -199,6 +201,56 @@ describe('content-as-code chart download with a composer chart', () => {
         expect(results.missingIds).toEqual([]);
     });
 
+    it.each([
+        ['space', { spaceUuid: 'gone-space-uuid' }],
+        ['dashboard', { dashboardUuid: 'gone-dashboard-uuid' }],
+    ])(
+        'leaves out a composer chart whose %s is gone and warns once with its uuid',
+        async (_missing, orphaned) => {
+            const { service, savedChartModel } = buildService();
+            savedChartModel.getVariant.mockImplementation(async (uuid) =>
+                uuid === composerChart.uuid
+                    ? {
+                          queryType: 'composer',
+                          chart: { ...composerChart, ...orphaned },
+                      }
+                    : variants[uuid],
+            );
+            const warn = vi
+                .spyOn((service as AnyType).logger, 'warn')
+                .mockImplementation(() => undefined);
+
+            const results = await service.getChartsForRead(admin, projectUuid, [
+                classicChart.slug,
+                composerChart.slug,
+            ]);
+
+            expect(results.charts.map((chart) => chart.slug)).toEqual([
+                classicChart.slug,
+            ]);
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0][0]).toContain(composerChart.uuid);
+        },
+    );
+
+    it.each([
+        ['space', { spaceUuid: 'gone-space-uuid' }],
+        ['dashboard', { dashboardUuid: 'gone-dashboard-uuid' }],
+    ])(
+        'a single read of a composer chart whose %s is gone is not found',
+        async (_missing, orphaned) => {
+            const { service, savedChartModel } = buildService();
+            savedChartModel.getVariant.mockResolvedValueOnce({
+                queryType: 'composer',
+                chart: { ...composerChart, ...orphaned },
+            });
+
+            await expect(
+                service.getCurrentChartAsCode(composerChart.uuid),
+            ).rejects.toBeInstanceOf(NotFoundError);
+        },
+    );
+
     it('drops the empty config a table chart stores, so the file validates', async () => {
         const { service, savedChartModel } = buildService();
         savedChartModel.getVariant.mockResolvedValueOnce({
@@ -357,6 +409,46 @@ describe('content-as-code upload of a composer chart file', () => {
                 },
             },
         ]);
+    });
+});
+
+describe('content-as-code upload stores the terminal closure, as save does', () => {
+    it('drops a node the terminal node never reads and checks authoring for the stored nodes only', async () => {
+        const { service, savedChartModel, projectService } =
+            buildUploadService();
+        const unreadNode: SavedComposerPipelineNode = {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'customers',
+            exploreName: 'customers',
+            dimensions: ['customers_segment'],
+            metrics: [],
+            limit: 500,
+        };
+        const file: ComposerChartAsCode = {
+            ...composerFile,
+            pipeline: {
+                ...composerFile.pipeline,
+                nodes: [...composerFile.pipeline.nodes, unreadNode],
+            },
+        };
+
+        await service.upsertChart(admin, projectUuid, file.slug, file, {
+            syncEnabled: false,
+        });
+
+        expect(savedChartModel.createComposerChart).toHaveBeenCalledWith(
+            projectUuid,
+            admin.userUuid,
+            expect.objectContaining({ pipeline: composerFile.pipeline }),
+        );
+        expect(projectService.assertMetricQueryAuthoring).toHaveBeenCalledTimes(
+            1,
+        );
+        expect(projectService.assertMetricQueryAuthoring).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metricQuery: expect.objectContaining({ exploreName: 'orders' }),
+            }),
+        );
     });
 });
 

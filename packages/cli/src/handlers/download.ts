@@ -41,6 +41,7 @@ import {
     generateSlug,
     getErrorMessage,
     GoogleSheetsSyncAsCode,
+    isComposerChartAsCode,
     LightdashError,
     normalizeContentAsCodePath,
     ParameterError,
@@ -976,7 +977,7 @@ const extractChartTableNames = (charts: SavedChartAsCode[]): string[] => [
     ...new Set(
         charts
             .map((chart) =>
-                'tableName' in chart ? chart.tableName : undefined,
+                isComposerChartAsCode(chart) ? undefined : chart.tableName,
             )
             .filter((tableName): tableName is string => !!tableName),
     ),
@@ -3306,7 +3307,7 @@ const storeUploadChanges = (
     promoteChanges: PromotionChanges,
 ): Record<string, number> => {
     // The API also echoes untouched spaces and chart tiles; only count the
-    // uploaded type. A composer chart upload reports under composerCharts.
+    // uploaded type. Composer charts report apart; older servers omit them.
     const promotions: { action: PromotionAction }[] = [
         ...promoteChanges[type],
         ...(type === 'charts' ? (promoteChanges.composerCharts ?? []) : []),

@@ -1512,6 +1512,7 @@ describe('PromoteService promoting and mutating changes', () => {
             skippedCharts: [],
             spaces: [],
             dashboards: [],
+            composerCharts: [],
             charts: [
                 {
                     action: PromotionAction.UPDATE,
@@ -1573,6 +1574,7 @@ describe('PromoteService promoting and mutating changes', () => {
             skippedCharts: [],
             spaces: [],
             dashboards: [],
+            composerCharts: [],
             charts: [
                 {
                     action: PromotionAction.UPDATE,
@@ -1614,6 +1616,7 @@ describe('PromoteService promoting and mutating changes', () => {
             skippedCharts: [],
             spaces: [],
             dashboards: [],
+            composerCharts: [],
             charts: [
                 {
                     action: PromotionAction.UPDATE,
@@ -2491,6 +2494,7 @@ describe('PromoteService data app promotion', () => {
     const dataAppChanges = (): PromotionChanges => ({
         skippedCharts: [],
         spaces: [],
+        composerCharts: [],
         charts: [],
         dashboards: [
             {
@@ -2562,6 +2566,7 @@ describe('PromoteService data app promotion', () => {
         const changesWithoutApps: PromotionChanges = {
             skippedCharts: [],
             spaces: [],
+            composerCharts: [],
             charts: [],
             dashboards: [
                 {
@@ -2601,6 +2606,7 @@ describe('PromoteService data app promotion', () => {
         skippedCharts: [],
         spaces: [],
         dashboards: [],
+        composerCharts: [],
         charts: [
             {
                 action: PromotionAction.CREATE,
@@ -2738,6 +2744,7 @@ describe('agent content writes', () => {
                 log.mockClear();
                 const dashboardChanges: PromotionChanges = {
                     skippedCharts: [],
+                    composerCharts: [],
                     charts: [],
                     spaces: [],
                     dashboards: [
@@ -2780,6 +2787,7 @@ describe('agent content writes', () => {
                     user,
                     {
                         skippedCharts: [],
+                        composerCharts: [],
                         charts: [],
                         dashboards: [],
                         spaces: [
@@ -2892,6 +2900,7 @@ describe('agent content writes', () => {
                     skippedCharts: [],
                     spaces: [],
                     dashboards: [],
+                    composerCharts: [],
                     charts: [
                         {
                             action: PromotionAction.UPDATE,
@@ -2931,6 +2940,7 @@ describe('agent content writes', () => {
                 await service.updateDashboard(user, {
                     skippedCharts: [],
                     spaces: [],
+                    composerCharts: [],
                     charts: [],
                     dashboards: [
                         {
@@ -2962,6 +2972,7 @@ describe('agent content writes', () => {
                     user,
                     {
                         skippedCharts: [],
+                        composerCharts: [],
                         charts: [],
                         dashboards: [],
                         spaces: [
@@ -3048,6 +3059,7 @@ describe('agent content writes', () => {
                     skippedCharts: [],
                     spaces: [],
                     dashboards: [],
+                    composerCharts: [],
                     charts: [
                         {
                             action: PromotionAction.UPDATE,

@@ -93,7 +93,7 @@ describe('Dashboard tiles over composer charts on the real schema', () => {
         )
             .insert({
                 name,
-                description: undefined,
+                description: null,
                 slug: `${name}-${randomUUID()}`,
                 last_version_chart_kind: ChartKind.VERTICAL_BAR,
                 last_version_updated_by_user_uuid: fixture.userUuid,

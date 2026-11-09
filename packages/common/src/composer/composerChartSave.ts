@@ -1,3 +1,4 @@
+import { type ChartAsCodeConfig } from '../types/contentAsCode/charts';
 import { NotSupportedError, ParameterError } from '../types/errors';
 import {
     getSourceQueryResultReferences,
@@ -5,7 +6,7 @@ import {
     type SourceQuery,
 } from '../types/querySources';
 import { type ResultColumn } from '../types/results';
-import { ChartType } from '../types/savedCharts';
+import { ChartType, type ChartConfig } from '../types/savedCharts';
 import { type AiComposerChartArtifactConfigV2 } from './composerArtifact';
 import {
     getComposerChartRunQueryChart,
@@ -102,13 +103,14 @@ export const toSavedComposerPipeline = ({
 const CUSTOM_CHART_TYPE_NOT_STORABLE =
     'A custom chart type cannot be saved to a dashboard yet; pick a builtin chart type.';
 
-/** Refuses a stored chart config a composer chart cannot hold: a custom chart type. */
-export const assertComposerChartConfigStorable = (chartConfig: {
-    type: ChartType;
-}): void => {
+/** The drawing a composer chart file stores; a custom chart type is refused, so no instance binding is needed. */
+export const composerChartConfigFromAsCode = (
+    chartConfig: ChartAsCodeConfig,
+): ChartConfig => {
     if (chartConfig.type === ChartType.DATA_APP_VIZ) {
         throw new NotSupportedError(CUSTOM_CHART_TYPE_NOT_STORABLE);
     }
+    return chartConfig;
 };
 
 /** Refuses, before any run, a viz config no saved chart can hold: a custom chart type, or a charted column named with "__". */

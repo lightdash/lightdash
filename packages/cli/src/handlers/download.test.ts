@@ -712,6 +712,7 @@ describe('storeUploadChanges', () => {
         expect(
             storeUploadChanges({}, 'charts', {
                 charts: [],
+                skippedCharts: [],
                 composerCharts: [
                     { action: PromotionAction.CREATE, data: {} as never },
                 ],
@@ -725,6 +726,7 @@ describe('storeUploadChanges', () => {
         expect(
             storeUploadChanges({ 'charts updated': 1 }, 'charts', {
                 charts: [{ action: PromotionAction.UPDATE } as never],
+                skippedCharts: [],
                 composerCharts: [
                     { action: PromotionAction.NO_CHANGES, data: {} as never },
                 ],

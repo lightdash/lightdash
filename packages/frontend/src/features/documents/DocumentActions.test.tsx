@@ -637,6 +637,7 @@ describe('Document actions', () => {
             skippedCharts: [],
             spaces: [],
             dashboards: [],
+            composerCharts: [],
             charts: [],
             documents: [
                 {

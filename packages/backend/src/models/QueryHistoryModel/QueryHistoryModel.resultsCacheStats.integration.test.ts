@@ -88,7 +88,7 @@ describe('QueryHistoryModel results cache stats', () => {
         [{ saved_query_uuid: chartUuid }] = await database('saved_queries')
             .insert({
                 name: 'Revenue',
-                description: undefined,
+                description: null,
                 slug: 'revenue',
                 last_version_chart_kind: ChartKind.TABLE,
                 last_version_updated_by_user_uuid: userUuid,

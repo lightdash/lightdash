@@ -1149,7 +1149,7 @@ export class PromoteService extends BaseService {
         const getChartByOldUuid = (oldUuid: string) => {
             const chart =
                 allCharts.find((c) => c.oldUuid === oldUuid) ??
-                promotionChanges.composerCharts?.find(
+                promotionChanges.composerCharts.find(
                     (c) => c.data.oldUuid === oldUuid,
                 )?.data;
             if (chart === undefined)
@@ -2116,6 +2116,7 @@ export class PromoteService extends BaseService {
             skippedCharts: [],
             spaces: spaceChanges,
             dashboards: [],
+            composerCharts: [],
             charts: [],
         });
         return PromoteService.getSpaceByPath(result.spaces, path).uuid;
@@ -2498,6 +2499,7 @@ export class PromoteService extends BaseService {
                     skippedCharts: [],
                     spaces: [spaceChange],
                     dashboards: [],
+                    composerCharts: [],
                     charts: [],
                 },
                 sqlChartChange,
@@ -2515,6 +2517,7 @@ export class PromoteService extends BaseService {
                 skippedCharts: [],
                 spaces: [spaceChange, ...spaceChanges],
                 dashboards: [],
+                composerCharts: [],
                 charts: [],
             },
             sqlChartChange,
@@ -2618,6 +2621,7 @@ export class PromoteService extends BaseService {
             return {
                 spaces: [spaceChange],
                 dashboards: [],
+                composerCharts: [],
                 charts: [chartChange],
                 skippedCharts: [],
             };
@@ -2632,6 +2636,7 @@ export class PromoteService extends BaseService {
         return {
             spaces: [spaceChange, ...spaceChanges],
             dashboards: [],
+            composerCharts: [],
             charts: [chartChange],
             skippedCharts: [],
         };
@@ -2642,9 +2647,8 @@ export class PromoteService extends BaseService {
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
         includeOrphanChartsWithinDashboard?: boolean,
-        // Promotion writes classic chart versions, so it drops composer tiles
-        // and names them; a same-project content-as-code upload keeps them,
-        // since their charts already exist where the dashboard is written.
+        // Promotion drops composer tiles and names them; a same-project
+        // content-as-code upload keeps them, since their charts already exist
         { composerTiles }: { composerTiles: 'drop' | 'keep' } = {
             composerTiles: 'drop',
         },
@@ -2731,7 +2735,7 @@ export class PromoteService extends BaseService {
                           };
                       }),
                   )
-                : undefined;
+                : [];
         const sqlChartPromises = savedSqlUuids.map((savedSqlUuid) =>
             this.getPromoteSqlCharts(user, upstreamProjectUuid, savedSqlUuid),
         );
@@ -2874,9 +2878,7 @@ export class PromoteService extends BaseService {
                 spaces: spaceChanges,
                 dashboards: dashboardChanges,
                 charts: chartChanges,
-                ...(keptComposerCharts && {
-                    composerCharts: keptComposerCharts,
-                }),
+                composerCharts: keptComposerCharts,
                 skippedCharts: composerTiles === 'keep' ? [] : skippedCharts,
             },
             charts, // For permission checks
@@ -3175,6 +3177,7 @@ export class PromoteService extends BaseService {
         return {
             spaces: PromoteService.sortSpaceChanges(spaceChanges),
             dashboards: [],
+            composerCharts: [],
             charts: [],
             skippedCharts: [],
             dataApps: dataAppChanges.map(({ uuid, name, action }) => ({

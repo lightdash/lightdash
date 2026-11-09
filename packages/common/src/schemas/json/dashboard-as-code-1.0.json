@@ -353,8 +353,9 @@
                             "type": "boolean"
                         },
                         "queryType": {
-                            "$ref": "#/$defs/SavedChartQueryType",
-                            "description": "Set by download on a tile whose chart is a composer chart; derived from the chart on upload, so a file cannot change it."
+                            "description": "Set by download on a tile whose chart is a composer chart; derived from the chart on upload, so a file cannot change it.",
+                            "enum": ["composer"],
+                            "type": "string"
                         },
                         "title": {
                             "type": "string"
@@ -1583,10 +1584,6 @@
             },
             "required": ["type", "multiple"],
             "type": "object"
-        },
-        "SavedChartQueryType": {
-            "enum": ["semantic", "composer"],
-            "type": "string"
         },
         "SpaceMemberRole": {
             "enum": ["viewer", "editor", "admin"],

@@ -270,6 +270,7 @@ describe('content version agent identity migration', () => {
                 };
                 const createChanges: PromotionChanges = {
                     skippedCharts: [],
+                    composerCharts: [],
                     charts: [
                         {
                             action: PromotionAction.CREATE,
@@ -382,6 +383,7 @@ describe('content version agent identity migration', () => {
                     user,
                     {
                         skippedCharts: [],
+                        composerCharts: [],
                         charts: [],
                         spaces: [],
                         dashboards: [
@@ -448,6 +450,7 @@ describe('content version agent identity migration', () => {
                             .returning('space_uuid');
                     const dashboardChanges: PromotionChanges = {
                         skippedCharts: [],
+                        composerCharts: [],
                         charts: [],
                         spaces: [],
                         dashboards: [
@@ -515,6 +518,7 @@ describe('content version agent identity migration', () => {
                 };
                 const sqlChanges: PromotionChanges = {
                     skippedCharts: [],
+                    composerCharts: [],
                     charts: [],
                     dashboards: [],
                     spaces: [

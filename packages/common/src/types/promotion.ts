@@ -69,7 +69,7 @@ export type PromotionChanges = {
         data: PromotedChart;
     }[];
     /** Composer charts a content-as-code upload wrote; listed apart from charts, which promotion writes as classic versions. */
-    composerCharts?: {
+    composerCharts: {
         action: PromotionAction;
         data: PromotedComposerChart;
     }[];
