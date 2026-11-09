@@ -573,6 +573,34 @@ describe('Composer chart run as a dashboard viewer', () => {
                 await searchUuids(viewer, 'payments_payment_method'),
             ).toContain(classicQueryUuid);
         }, 90_000);
+
+        it('underlying data over a node row is refused by name', async () => {
+            const { client: interactiveViewer } = await loginWithPermissions(
+                'interactive_viewer',
+                [],
+            );
+            const started = await runTile(interactiveViewer, revenueShareTile);
+            expect(started.status).toBe(200);
+            await pollQueryResults(
+                interactiveViewer,
+                started.body.results.queryUuid,
+            );
+            const ordersNode = started.body.results.nodes.find(
+                ({ nodeId }) => nodeId === 'orders',
+            )!;
+            const resp = await interactiveViewer.post<ApiErrorBody>(
+                `/api/v2/projects/${projectUuid}/query/underlying-data`,
+                {
+                    underlyingDataSourceQueryUuid: ordersNode.queryUuid,
+                    filters: {},
+                    context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                },
+                { failOnStatusCode: false },
+            );
+            expect(resp.status).toBe(400);
+            expect(resp.body.error.name).toBe('NotSupportedError');
+            expect(resp.body.error.message).toContain('composer chart');
+        }, 60_000);
     });
 
     it.each([

@@ -31340,6 +31340,58 @@ describe('composer chart node queries', () => {
             }),
         );
     });
+
+    test('underlying data over a node row is refused by name instead of writing an unmarked row', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => ({
+                    queryType: 'composer' as const,
+                    chart: {
+                        ...chart,
+                        name: 'Composer chart',
+                        organizationUuid: projectSummary.organizationUuid,
+                        spaceUuid: 'space',
+                        dashboardUuid: 'dashboard',
+                    },
+                })),
+            } as unknown as SavedChartModel,
+        } as never);
+        const execute = stubExecution(service);
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        (
+            service.queryHistoryModel.get as import('vitest').Mock
+        ).mockResolvedValue({
+            queryUuid: 'node-query',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: account.user.id,
+            metricQuery: metricQueryOfSemanticNode(node),
+            fields: {},
+            requestParameters: {
+                context: QueryExecutionContext.DASHBOARD,
+                chartUuid: chart.uuid,
+                composerChartSource: {
+                    chartUuid: chart.uuid,
+                    nodeId: 'orders',
+                },
+                query: metricQueryOfSemanticNode(node),
+            },
+        } as unknown as QueryHistory);
+
+        await expect(
+            service.executeAsyncUnderlyingDataQuery({
+                account,
+                projectUuid,
+                underlyingDataSourceQueryUuid: 'node-query',
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                filters: {},
+            }),
+        ).rejects.toThrow(NotSupportedError);
+        expect(execute).not.toHaveBeenCalled();
+    });
 });
 
 describe('composer chart runs and the internal materialization context', () => {

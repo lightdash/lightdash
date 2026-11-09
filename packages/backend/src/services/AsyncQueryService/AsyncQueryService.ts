@@ -10751,6 +10751,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // Composer tiles offer no underlying data yet; a rerun here would
+        // write the node's SQL to history without its provenance
+        if (source.requestParameters?.composerChartSource) {
+            throw new NotSupportedError(
+                'Underlying data is not available for a composer chart node',
+            );
+        }
 
         const {
             warehouseCredentials,
