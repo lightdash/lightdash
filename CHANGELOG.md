@@ -1,3 +1,32 @@
+# [3.187.0](https://github.com/lightdash/lightdash/compare/3.186.0...3.187.0) (2026-11-09)
+
+
+### Features
+
+* Mobile settings page behind a feature flag (SPK-2949) ([#32239](https://github.com/lightdash/lightdash/issues/32239)) ([4ea848d](https://github.com/lightdash/lightdash/commit/4ea848d8bad68660d642ee83e59026e0cc536202))
+
+# [3.186.0](https://github.com/lightdash/lightdash/compare/3.185.2...3.186.0) (2026-11-09)
+
+
+### Features
+
+* **ai-agents:** read and edit the dashboard control order ([#32230](https://github.com/lightdash/lightdash/issues/32230)) ([8f36082](https://github.com/lightdash/lightdash/commit/8f360828fceebab4e467387baead9f9dcbc718ee))
+* **dashboards-as-code:** order dashboard controls in dashboard files ([#32229](https://github.com/lightdash/lightdash/issues/32229)) ([9691c67](https://github.com/lightdash/lightdash/commit/9691c67edc9676aff0a98cd7b09214a4f3f299c3))
+
+## [3.185.2](https://github.com/lightdash/lightdash/compare/3.185.1...3.185.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* keep tile sizes when editing a dashboard with tabs in a narrow window ([#32248](https://github.com/lightdash/lightdash/issues/32248)) ([c9bc5f0](https://github.com/lightdash/lightdash/commit/c9bc5f0cfeeceaab21e33271ae62c6a18d890c6d))
+
+## [3.185.1](https://github.com/lightdash/lightdash/compare/3.185.0...3.185.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **dev:** make dev-fast-start recover from stale PG base, missing EE table and wrong dbt venv python ([#32254](https://github.com/lightdash/lightdash/issues/32254)) ([8e6b444](https://github.com/lightdash/lightdash/commit/8e6b444a2bd983d779521f47912aa66ea20667cd))
+
 # [3.185.0](https://github.com/lightdash/lightdash/compare/3.184.0...3.185.0) (2026-11-09)
 
 

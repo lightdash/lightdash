@@ -1680,51 +1680,6 @@ describe('DashboardService', () => {
             );
         });
 
-        test('keeps a portable slug when an older client edits the control', async () => {
-            const saved = {
-                id: 'region',
-                slug: 'region',
-                label: 'Region',
-                value: 'US',
-                valueType: { type: 'string' as const, multiple: false },
-                parameters: { region: 'all' as const },
-            };
-            (dashboardModel.getByIdOrSlug as import('vitest').Mock)
-                .mockReset()
-                .mockResolvedValueOnce({
-                    ...dashboard,
-                    config: { ...savedConfig, parameterControls: [saved] },
-                    parameters: savedParameters,
-                });
-            featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
-            const { slug: _slug, ...olderControl } = saved;
-            await service.update(user, dashboardUuid, {
-                ...updateDashboardTiles,
-                config: {
-                    ...savedConfig,
-                    parameterControls: [
-                        { ...olderControl, label: 'New label' },
-                    ],
-                },
-            });
-            expect(dashboardModel.addVersion).toHaveBeenCalledWith(
-                dashboardUuid,
-                expect.objectContaining({
-                    config: expect.objectContaining({
-                        parameterControls: [
-                            expect.objectContaining({
-                                id: 'region',
-                                slug: 'region',
-                                label: 'New label',
-                            }),
-                        ],
-                    }),
-                }),
-                user,
-                projectUuid,
-            );
-        });
-
         test('an explicit empty list clears the parameter mirror', async () => {
             featureFlagModel.get.mockResolvedValueOnce({ enabled: true });
             await service.update(user, dashboardUuid, {

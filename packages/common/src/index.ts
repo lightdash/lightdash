@@ -86,6 +86,7 @@ export * from './parameters/dashboardTileParameters';
 export * from './parameters/parameterDefaults';
 export * from './parameters/parameterOptions';
 export * from './parameters/reservedParameters';
+export * from './constants/mobileApp';
 export * from './constants/screenshot';
 export * from './constants/sessionStorageKeys';
 export * from './constants/spaces';

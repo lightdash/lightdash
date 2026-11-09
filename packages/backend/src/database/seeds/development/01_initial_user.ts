@@ -127,11 +127,14 @@ export async function seed(knex: Knex): Promise<void> {
     const { organizationId, organizationUuid } =
         await addOrganization(SEED_ORG_1);
 
-    await knex('organization_homepage_settings').insert({
-        organization_uuid: organizationUuid,
-        enabled: true,
-        opening: null,
-    });
+    // Table is created by an EE migration; core-only databases don't have it.
+    if (await knex.schema.hasTable('organization_homepage_settings')) {
+        await knex('organization_homepage_settings').insert({
+            organization_uuid: organizationUuid,
+            enabled: true,
+            opening: null,
+        });
+    }
 
     // Add user attribute
     await new UserAttributesModel({ database: knex }).create(

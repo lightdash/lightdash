@@ -432,7 +432,7 @@ A SQL chart (`contentType: sql_chart`) is saved from raw warehouse SQL instead o
 
 ## Dashboards
 
-Dashboards arrange charts and content in a grid layout. See [Dashboard Reference](./resources/dashboard-reference.md) for YAML structure, tile types, tabs, and filters.
+Dashboards arrange charts and content in a grid layout. See [Dashboard Reference](./resources/dashboard-reference.md) for YAML structure, tile types, tabs, filters, and the order of filter bar controls.
 
 ## Exploring the Warehouse
 

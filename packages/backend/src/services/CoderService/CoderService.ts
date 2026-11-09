@@ -191,6 +191,13 @@ import {
     type SnapshotAsCodeContent,
 } from './contentAsCodeSnapshot';
 import {
+    assertValidFilterSlugs,
+    getControlOrderAsCode,
+    getControlOrderWithIds,
+    getFilterSlugsAsCode,
+    getUploadedControlSlugs,
+} from './controlOrder';
+import {
     getConfigWithDateZoomTileSlugs,
     getConfigWithDateZoomTileUuids,
     getConfigWithParameterControlTileSlugs,
@@ -1995,7 +2002,8 @@ export class CoderService extends BaseService {
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         verificationMap: Map<string, ContentVerificationInfo>,
-        useSectionSlugs = false,
+        controlsEnabled = false,
+        withFilterSlugs = false,
     ): DashboardAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === dashboard.spaceUuid,
@@ -2150,6 +2158,20 @@ export class CoderService extends BaseService {
                 controlTileSlugs,
             ),
         );
+        // The order appears only once stored; agents also get filter slugs so they can write one
+        const orderedControls =
+            controlsEnabled &&
+            (withFilterSlugs || config?.controlOrder !== undefined)
+                ? {
+                      filters: {
+                          dimensions: dashboard.filters.dimensions,
+                          // Stored filters can predate the metric list
+                          metrics: dashboard.filters.metrics ?? [],
+                      },
+                      parameterControls: config?.parameterControls ?? [],
+                      sections: config?.controlSections ?? [],
+                  }
+                : undefined;
         const dashboardAsCode: DashboardAsCode = {
             name: dashboard.name,
             description: dashboard.description,
@@ -2159,6 +2181,7 @@ export class CoderService extends BaseService {
             filters: CoderService.getFiltersWithTileSlugs(
                 dashboard,
                 controlTileSlugs,
+                orderedControls ? getFilterSlugsAsCode(orderedControls) : null,
             ),
             tabs: sortedTabs.map(({ uuid, name, order, hidden }) => ({
                 slug: getDashboardTabSlug(dashboardWithSortedTabs, uuid),
@@ -2169,13 +2192,19 @@ export class CoderService extends BaseService {
             slug: dashboard.slug,
             ...(config && {
                 config: {
-                    // controlOrder reaches as-code files in a later version
                     ...omit(config, 'controlOrder'),
-                    ...(config.parameterControls !== undefined && {
+                    ...(config?.parameterControls !== undefined && {
                         parameterControls: getParameterControlsWithSlugs(
                             config.parameterControls,
                         ),
                     }),
+                    ...(orderedControls &&
+                        config.controlOrder !== undefined && {
+                            controlOrder: getControlOrderAsCode({
+                                ...orderedControls,
+                                controlOrder: config?.controlOrder,
+                            }),
+                        }),
                 },
             }),
             ...(dashboard.parameters
@@ -2191,7 +2220,7 @@ export class CoderService extends BaseService {
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
-        return useSectionSlugs
+        return controlsEnabled
             ? getDashboardWithSectionSlugs(dashboardAsCode)
             : dashboardAsCode;
     }
@@ -2573,6 +2602,9 @@ export class CoderService extends BaseService {
             user,
             projectUuid,
             slugs,
+            undefined,
+            undefined,
+            { withFilterSlugs: true },
         );
         const chartSlugs = [
             ...new Set(
@@ -2668,7 +2700,10 @@ export class CoderService extends BaseService {
         // Access blocks are export-only: the AI/MCP read path enforces
         // per-item view access, which is not enough to see who a resource
         // is shared with.
-        { includeAccess = false }: { includeAccess?: boolean } = {},
+        {
+            includeAccess = false,
+            withFilterSlugs = false,
+        }: { includeAccess?: boolean; withFilterSlugs?: boolean } = {},
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -2754,16 +2789,20 @@ export class CoderService extends BaseService {
                 dashboardUuidsForVerification,
             );
 
-        const controlsEnabled = dashboardsWithAccess.some(
-            (dashboard) =>
-                dashboard.config?.parameterControls !== undefined ||
-                dashboard.config?.controlSections !== undefined,
-        )
-            ? await this.dashboardService.areDashboardControlsEnabled(
-                  user,
-                  project.organizationUuid,
-              )
-            : false;
+        const controlsEnabled =
+            dashboardsWithAccess.length > 0 &&
+            (withFilterSlugs ||
+                dashboardsWithAccess.some(
+                    (dashboard) =>
+                        dashboard.config?.parameterControls !== undefined ||
+                        dashboard.config?.controlSections !== undefined ||
+                        dashboard.config?.controlOrder !== undefined,
+                ))
+                ? await this.dashboardService.areDashboardControlsEnabled(
+                      user,
+                      project.organizationUuid,
+                  )
+                : false;
         const transformedDashboards = dashboardsWithAccess.map((dashboard) => {
             if (controlsEnabled || !dashboard.config) {
                 return CoderService.transformDashboard(
@@ -2771,6 +2810,7 @@ export class CoderService extends BaseService {
                     spaces,
                     dashboardVerificationMap,
                     controlsEnabled,
+                    withFilterSlugs,
                 );
             }
             const { parameterControls: _ignored, ...config } = dashboard.config;
@@ -2779,6 +2819,7 @@ export class CoderService extends BaseService {
                 spaces,
                 dashboardVerificationMap,
                 controlsEnabled,
+                withFilterSlugs,
             );
         });
 
@@ -3676,7 +3717,8 @@ export class CoderService extends BaseService {
     ): Promise<DashboardAsCode> {
         const controlsEnabled =
             dashboard.config?.parameterControls !== undefined ||
-            dashboard.config?.controlSections !== undefined
+            dashboard.config?.controlSections !== undefined ||
+            dashboard.config?.controlOrder !== undefined
                 ? await this.dashboardService.areDashboardControlsEnabled(
                       user,
                       dashboard.organizationUuid,
@@ -5782,9 +5824,20 @@ export class CoderService extends BaseService {
             ? await this.dashboardModel.getByIdOrSlug(dashboardSummary.uuid)
             : undefined;
         let controlsEnabled = true;
-        if (
+        const hasParameterControls =
             dashboardWithDefaults.config?.parameterControls !== undefined ||
-            existingDashboard?.config?.parameterControls !== undefined
+            existingDashboard?.config?.parameterControls !== undefined;
+        if (
+            hasParameterControls ||
+            dashboardWithDefaults.config?.controlOrder !== undefined ||
+            existingDashboard?.config?.controlOrder !== undefined ||
+            dashboardWithDefaults.config?.controlSections !== undefined ||
+            existingDashboard?.config?.controlSections !== undefined ||
+            [
+                ...dashboardWithDefaults.filters.dimensions,
+                ...dashboardWithDefaults.filters.metrics,
+                ...dashboardWithDefaults.filters.tableCalculations,
+            ].some((filter) => filter.slug !== undefined)
         ) {
             const enabled =
                 await this.dashboardService.areDashboardControlsEnabled(
@@ -5792,7 +5845,7 @@ export class CoderService extends BaseService {
                     project.organizationUuid,
                 );
             controlsEnabled = enabled;
-            if (!enabled) {
+            if (!enabled && hasParameterControls) {
                 const { parameterControls: _ignored, ...config } =
                     dashboardWithDefaults.config ?? {
                         isDateZoomDisabled: false,
@@ -5813,6 +5866,7 @@ export class CoderService extends BaseService {
         const dashboardWithResolvedSections = getDashboardWithSectionIds(
             dashboardWithDefaults,
             existingDashboard?.config,
+            controlsEnabled,
         );
         const { tabs: tabsWithUuids, tabUuidsBySlug } =
             CoderService.convertTabsWithSlugsToUuids(
@@ -5840,18 +5894,27 @@ export class CoderService extends BaseService {
             tiles: dashboardWithDefaults.tiles,
         });
 
+        if (controlsEnabled)
+            assertValidFilterSlugs([
+                ...dashboardWithDefaults.filters.dimensions,
+                ...dashboardWithDefaults.filters.metrics,
+            ]);
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
             dashboardWithResolvedTabs,
             tilesWithUuids,
             existingDashboard?.filters.dimensions ?? [],
+            controlsEnabled,
         );
         let dashboardConfig: DashboardConfig | undefined;
         if (dashboardWithResolvedTabs.config) {
-            const { parameterControls: portableControls, ...config } =
-                CoderService.getConfigWithDateZoomTileUuids(
-                    dashboardWithResolvedTabs.config,
-                    tilesWithUuids,
-                );
+            const {
+                parameterControls: portableControls,
+                controlOrder: _portableOrder,
+                ...config
+            } = CoderService.getConfigWithDateZoomTileUuids(
+                dashboardWithResolvedTabs.config,
+                tilesWithUuids,
+            );
             const existingControls =
                 existingDashboard?.config?.parameterControls;
             dashboardConfig = controlsEnabled
@@ -5869,15 +5932,44 @@ export class CoderService extends BaseService {
                   )
                 : { ...config, parameterControls: existingControls };
         }
-        // Files can't set the control order yet, so the saved one stays
-        const savedOrder = existingDashboard?.config?.controlOrder;
-        if (dashboardConfig || savedOrder !== undefined) {
-            const { controlOrder: _ignored, ...config } = dashboardConfig ?? {
-                isDateZoomDisabled: false,
+        // Flag on, the file's order is declarative: absent resets to the default order
+        const fileOrder = dashboardWithResolvedTabs.config?.controlOrder;
+        let controlOrder = existingDashboard?.config?.controlOrder;
+        if (controlsEnabled) {
+            const sources = {
+                filters: dashboardFilters,
+                parameterControls: dashboardConfig?.parameterControls ?? [],
+                sections: dashboardConfig?.controlSections ?? [],
             };
+            // An empty list renders like no list, so it isn't stored
+            controlOrder =
+                fileOrder === undefined || fileOrder.length === 0
+                    ? undefined
+                    : getControlOrderWithIds(
+                          fileOrder,
+                          getUploadedControlSlugs(
+                              {
+                                  filters: [
+                                      ...(dashboardWithResolvedTabs.filters
+                                          ?.dimensions ?? []),
+                                      ...(dashboardWithResolvedTabs.filters
+                                          ?.metrics ?? []),
+                                  ],
+                                  parameterControls:
+                                      dashboardWithResolvedTabs.config
+                                          ?.parameterControls ?? [],
+                                  sections:
+                                      dashboardWithDefaults.config
+                                          ?.controlSections ?? [],
+                              },
+                              sources,
+                          ),
+                      );
+        }
+        if (dashboardConfig || controlOrder !== undefined) {
             dashboardConfig = {
-                ...config,
-                ...(savedOrder !== undefined && { controlOrder: savedOrder }),
+                ...(dashboardConfig ?? { isDateZoomDisabled: false }),
+                ...(controlOrder !== undefined && { controlOrder }),
             };
         }
         if (controlsEnabled && dashboardConfig?.parameterControls) {
