@@ -2552,9 +2552,12 @@ Sources in this project: Core models, marketing, finance.`;
                 const before = await guardedState(fixture.projectUuid);
                 await expect(deploy()).rejects.toMatchObject({
                     statusCode: 409,
-                    message: expectedRejection(
-                        'several sources (Core models, marketing) provide analytics; the preview cannot assign its models to one source',
-                    ),
+                    message: `This deploy was not saved and nothing in the project changed.
+The project has several dbt sources and Lightdash could not tell which one these explores belong to: several sources (Core models, marketing) provide analytics; the preview cannot assign its models to one source.
+
+To fix it, deploy again and name one of these sources with --source: Core models, marketing.
+
+Sources in this project: Core models, marketing, finance.`,
                 });
                 expect(await guardedState(fixture.projectUuid)).toEqual(before);
             });

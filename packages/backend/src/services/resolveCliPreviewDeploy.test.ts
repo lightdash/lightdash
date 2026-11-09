@@ -166,18 +166,6 @@ test.each([null, 'extra'])(
     },
 );
 
-test('rejects ambiguous package ownership', async () => {
-    const { models, args } = setup();
-    models.dbtSourceRefCatalogModel.getProjectNames.mockResolvedValue([
-        { dbt_source_uuid: 'parent-primary', project_name: 'analytics' },
-        { dbt_source_uuid: 'parent-extra', project_name: 'analytics' },
-    ]);
-    await rejected(
-        'several sources (Core models, Replica models) provide analytics',
-        resolvePackages(models, args),
-    );
-});
-
 test('does not infer dbt project names from source labels', async () => {
     const { models, args } = setup();
     models.dbtSourceRefCatalogModel.getProjectNames.mockResolvedValue([]);
@@ -313,4 +301,74 @@ test('PROD-12882: an explicit source decides which source owns a package that tw
     });
     expect(result.sourcesByPackage.get('analytics')).toBe('extra');
     expect(result.sourceUuids).toEqual(['extra']);
+});
+
+test('keeps a single-owner package on its own source when a source is named', async () => {
+    const { models, args } = setup();
+    models.dbtSourceRefCatalogModel.getProjectNames.mockResolvedValue([
+        { dbt_source_uuid: 'parent-primary', project_name: 'analytics' },
+        { dbt_source_uuid: 'parent-extra', project_name: 'analytics' },
+        { dbt_source_uuid: 'parent-extra', project_name: 'finance' },
+    ]);
+    const result = await resolveCliPreviewDeploy(models, {
+        ...args,
+        sourceUuid: 'primary',
+    });
+    expect(result.sourcesByPackage).toEqual(
+        new Map([
+            ['analytics', 'primary'],
+            ['finance', 'extra'],
+        ]),
+    );
+    expect([...result.sourceUuids].sort()).toEqual(['extra', 'primary']);
+});
+
+test('refuses a package that two sources provide and names --source as the fix', async () => {
+    const { models, args } = twoSourcesProvideAnalytics();
+    const error = await resolveCliPreviewDeploy(models, args).catch(
+        (value: unknown) => value,
+    );
+    expect(error).toMatchObject({ statusCode: 409 });
+    const { message } = error as Error;
+    expect(message).toContain(
+        'several sources (Core models, Replica models) provide analytics; the preview cannot assign its models to one source',
+    );
+    expect(message).toContain(
+        'name one of these sources with --source: Core models, Replica models.',
+    );
+    expect(message).toContain(
+        'Sources in this project: Core models, Replica models.',
+    );
+    expect(message).not.toContain('distinct name');
+});
+
+test('refuses when the named source is not one of the sources that provide the package', async () => {
+    const { models, args } = twoSourcesProvideAnalytics();
+    const copy = (projectDbtSourceUuid: string, name: string) => ({
+        projectDbtSourceUuid,
+        name,
+        dbtConnection: { type: DbtProjectType.NONE },
+        warehouseConnectionUuid: null,
+    });
+    models.projectDbtSourcesModel.getSourcesWithBindings.mockImplementation(
+        async (project: string) =>
+            project === 'preview'
+                ? [
+                      copy('extra', 'Replica models'),
+                      copy('other', 'Other models'),
+                  ]
+                : [copy('parent-extra', 'Replica models')],
+    );
+    const error = await resolveCliPreviewDeploy(models, {
+        ...args,
+        sourceUuid: 'other',
+    }).catch((value: unknown) => value);
+    expect(error).toMatchObject({ statusCode: 409 });
+    const { message } = error as Error;
+    expect(message).toContain(
+        'several sources (Core models, Replica models) provide analytics; the deploy named source Other models, which is not one of them',
+    );
+    expect(message).toContain(
+        'Sources in this project: Core models, Replica models, Other models.',
+    );
 });
