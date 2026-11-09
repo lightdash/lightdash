@@ -2,7 +2,7 @@ import {
     MOBILE_APP_STORE_URL,
     MOBILE_GOOGLE_PLAY_URL,
 } from '@lightdash/common';
-import { Group, Stack, Text, Title } from '@mantine/core';
+import { Code, Group, Stack, Text, Title } from '@mantine/core';
 import {
     IconBrandApple,
     IconBrandGooglePlay,
@@ -39,11 +39,11 @@ const StoreBadge: FC<{
 );
 
 const getHost = (siteUrl: string | undefined) => {
-    if (!siteUrl) return null;
+    if (!siteUrl) return window.location.host;
     try {
         return new URL(siteUrl).host;
     } catch {
-        return null;
+        return window.location.host;
     }
 };
 
@@ -59,11 +59,6 @@ export const MobileSettingsPage: FC = () => {
                         <MantineIcon icon={IconDeviceMobile} />
                         <Title order={5}>{MOBILE_STRINGS.getAppTitle}</Title>
                     </Group>
-                    {host && (
-                        <Text size="sm" c="dimmed">
-                            {MOBILE_STRINGS.signInTo(host)}
-                        </Text>
-                    )}
                     <Group gap="sm" aria-label={MOBILE_STRINGS.storeLinksLabel}>
                         <StoreBadge
                             href={MOBILE_APP_STORE_URL}
@@ -77,6 +72,10 @@ export const MobileSettingsPage: FC = () => {
                             caption={MOBILE_STRINGS.googlePlayCaption}
                             store={MOBILE_STRINGS.googlePlayName}
                         />
+                    </Group>
+                    <Group gap="xs" wrap="nowrap">
+                        <Text size="sm">{MOBILE_STRINGS.signInTo}</Text>
+                        <Code fz="sm">{host}</Code>
                     </Group>
                 </Stack>
             </SettingsCard>

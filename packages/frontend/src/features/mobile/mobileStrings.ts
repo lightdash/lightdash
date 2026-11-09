@@ -4,7 +4,7 @@ export const MOBILE_STRINGS = {
     navLabel: 'Mobile',
     pageTitle: 'Mobile',
     getAppTitle: 'Get the app',
-    signInTo: (host: string) => `Sign in to ${host}.`,
+    signInTo: 'Sign in to',
     storeLinksLabel: 'Store links',
     appStoreCaption: 'Download on the',
     appStoreName: 'App Store',
