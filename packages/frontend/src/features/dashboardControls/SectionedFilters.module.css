@@ -183,6 +183,9 @@
     border-radius: var(--mantine-radius-xl);
     box-shadow: var(--mantine-shadow-sm);
     cursor: grabbing;
+    /* Floats beside the pointer, see-through, over the drop line's area */
+    opacity: 0.85;
+    pointer-events: none;
 }
 
 .toggle {

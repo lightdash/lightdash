@@ -1,5 +1,6 @@
 import {
     DashboardControlRefKind,
+    reconcileDashboardControlOrder,
     type DashboardControlSection,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -21,6 +22,7 @@ import {
     removeSectionFromRules,
     getDragAnnouncements,
     underPointerFor,
+    besidePointer,
 } from './sections';
 
 const rule = (id: string, sectionId?: string): DashboardFilterRule => {
@@ -358,6 +360,28 @@ describe('underPointerFor', () => {
     });
 });
 
+describe('besidePointer', () => {
+    const transform = { x: 5, y: 7, scaleX: 1, scaleY: 1 };
+    const args = (activatorEvent: unknown) =>
+        ({
+            activatorEvent,
+            draggingNodeRect: { left: 100, top: 50 },
+            transform,
+        }) as unknown as Parameters<typeof besidePointer>[0];
+
+    it("puts the dragged copy's top-left 12px right of and 8px below the pointer", () => {
+        expect(besidePointer(args({ clientX: 130, clientY: 60 }))).toEqual({
+            ...transform,
+            x: 5 + 30 + 12,
+            y: 7 + 10 + 8,
+        });
+    });
+
+    it("leaves a keyboard drag's copy on its control", () => {
+        expect(besidePointer(args({ key: ' ' }))).toBe(transform);
+    });
+});
+
 describe('getMoveNeighbours', () => {
     const shown = () => true;
 
@@ -547,5 +571,34 @@ describe('bar order', () => {
             { kind: PARAMETER, id: 'p' },
             { kind: SECTION, id: 'S', newLine: true },
         ]);
+    });
+
+    it('keeps never saved parameter controls where an order already lists them', () => {
+        const control = {
+            id: 'p',
+            label: 'p',
+            value: null,
+            valueType: { type: 'string' as const, multiple: false },
+            parameters: {},
+        };
+        // A section dragged first on the bar, before the parameter control
+        const order = [
+            { kind: SECTION, id: 'S' },
+            { kind: PARAMETER, id: 'p' },
+            { kind: FILTER, id: 'f' },
+        ];
+        const effective = getEffectiveControlOrder(order, [control], false);
+        expect(effective).toBe(order);
+        expect(
+            reconcileDashboardControlOrder({
+                controlOrder: effective,
+                filters: {
+                    dimensions: [rule('f')],
+                    metrics: [],
+                },
+                parameterControls: [control],
+                sections: [{ id: 'S', name: 'S' }],
+            }).map(({ id }) => id),
+        ).toEqual(['S', 'p', 'f']);
     });
 });

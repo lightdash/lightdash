@@ -3,6 +3,7 @@ import {
     pointerWithin,
     type Announcements,
     type CollisionDetection,
+    type Modifier,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import {
@@ -541,7 +542,8 @@ export const toControlRefs = (list: BarControl[]): DashboardControlRef[] =>
 
 /**
  * The stored order the bar follows: none when absent or empty; parameter
- * controls never saved (ids made per load) go before the first section
+ * controls never saved (ids made per load) and not listed go before the
+ * first section
  */
 export const getEffectiveControlOrder = (
     order: DashboardControlRef[] | undefined,
@@ -550,10 +552,18 @@ export const getEffectiveControlOrder = (
 ): DashboardControlRef[] | undefined => {
     if (order === undefined || order.length === 0) return undefined;
     if (areParameterControlsSaved || parameterControls === null) return order;
-    const refs = parameterControls.map(({ id }) => ({
-        kind: DashboardControlRefKind.PARAMETER,
-        id,
-    }));
+    // Only those it doesn't list: a reorder in this visit placed the rest
+    const refs = parameterControls
+        .filter(
+            ({ id }) =>
+                !order.some(
+                    (ref) =>
+                        ref.kind === DashboardControlRefKind.PARAMETER &&
+                        ref.id === id,
+                ),
+        )
+        .map(({ id }) => ({ kind: DashboardControlRefKind.PARAMETER, id }));
+    if (refs.length === 0) return order;
     const at = order.findIndex(
         ({ kind }) => kind === DashboardControlRefKind.SECTION,
     );
@@ -588,6 +598,33 @@ export const lineGapPlacementOf = (
 
 /** The droppable id of the rail's header, which takes a filter out of its section */
 export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
+
+/**
+ * The dragged copy floats just below-right of the pointer, so the drop line
+ * by the pointer stays in sight; a keyboard drag's copy stays on its control
+ */
+export const besidePointer: Modifier = ({
+    activatorEvent,
+    draggingNodeRect,
+    transform,
+}) =>
+    draggingNodeRect !== null &&
+    activatorEvent !== null &&
+    'clientX' in activatorEvent
+        ? {
+              ...transform,
+              x:
+                  transform.x +
+                  (activatorEvent as PointerEvent).clientX -
+                  draggingNodeRect.left +
+                  12,
+              y:
+                  transform.y +
+                  (activatorEvent as PointerEvent).clientY -
+                  draggingNodeRect.top +
+                  8,
+          }
+        : transform;
 
 /** The droppable id of the bar's New section capsule */
 export const NEW_SECTION_TARGET_ID = 'new-section-target';

@@ -123,6 +123,7 @@ import {
     removeSectionFromRules,
     SECTION_DRAG,
     underPointerFor,
+    besidePointer,
     groupSectionsIntoLines,
     getShownBarLines,
     lineGapPlacementOf,
@@ -177,6 +178,8 @@ type CapsuleProps = {
     actions: CapsuleActions | null;
     /** Where the drag would land: beside it, or last in it */
     drop: 'before' | 'after' | 'into' | undefined;
+    /** A line beside it on the row nearest the pointer, from its top (default its first row) */
+    dropTop: number | null;
     /** Its parameter controls on the tab in view, drawn after its filters. */
     parameterCount: number;
     hasParameterMembers: boolean;
@@ -196,6 +199,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
     triggerClassName,
     actions,
     drop,
+    dropTop,
     parameterCount,
     withParameters,
     hasParameterMembers,
@@ -374,7 +378,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
             data-can-drag={isDraggable || undefined}
         >
             {(drop === 'before' || drop === 'after') && (
-                <DropLine side={drop} />
+                <DropLine side={drop} top={dropTop} />
             )}
             {headNode}
             {isFolded ? (
@@ -533,6 +537,8 @@ const BarSpace = forwardRef<
     </Box>
 ));
 
+const OVERLAY_MODIFIERS = [besidePointer];
+
 type Props = {
     activeTabUuid: string | undefined;
     /** A viewer's bar before the pills (default: `AddControl`); an embed passes its own. */
@@ -562,6 +568,8 @@ export const SectionedFilters: FC<Props> = ({
     // Where a dragged control would land, while that moves something: the
     // drop line beside a capsule or across the gap between lines
     const [drop, setDrop] = useState<ControlPlacement | null>(null);
+    // Beside a capsule of several rows, the line's top on the row by the pointer
+    const [dropTop, setDropTop] = useState<number | null>(null);
     // The bar's flow, measured when a pointer drag moves
     const barRef = useRef<HTMLDivElement>(null);
     // The pointer as collision detection last saw it, in the viewport after
@@ -965,6 +973,7 @@ export const SectionedFilters: FC<Props> = ({
             key={section.id}
             renderMembers={renderMembers}
             drop={capsuleDropOf(section.id)}
+            dropTop={dropTop}
             section={section}
             rules={rules}
             visibleRules={visibleRules}
@@ -1660,9 +1669,41 @@ export const SectionedFilters: FC<Props> = ({
             ? placement
             : null;
     };
+    // The row of a capsule nearest `y` (its head, members or actions), from
+    // inside its border; null for its first row
+    const capsuleRowTopOf = (sectionId: string, y: number) => {
+        const capsule = barRef.current?.querySelector(
+            `[data-section-capsule="${sectionId}"]`,
+        );
+        if (capsule === null || capsule === undefined) return null;
+        const outline = capsule.getBoundingClientRect();
+        const row = [
+            ...capsule.querySelectorAll(
+                '[data-section-head], [data-section-end], [data-controls-pill], [data-parameter-pill]',
+            ),
+        ]
+            .map((element) => element.getBoundingClientRect())
+            .reduce<DOMRect | null>((best, rect) => {
+                const off = (r: DOMRect) =>
+                    Math.max(0, r.top - y, y - r.bottom);
+                return best === null || off(rect) < off(best) ? rect : best;
+            }, null);
+        // 1px border, 3px padding: the first row needs no offset
+        const top = row === null ? null : row.top - outline.top - 1;
+        return top === null || top <= 3 ? null : top;
+    };
     const handleDragMove = (event: DragMoveEvent) => {
-        const next = dropOf(event, pointerOf(event));
+        const pointer = pointerOf(event);
+        const next = dropOf(event, pointer);
+        const top =
+            pointer !== null &&
+            next !== null &&
+            'overId' in next &&
+            sections.some(({ id }) => id === next.overId)
+                ? capsuleRowTopOf(next.overId, pointer.y)
+                : null;
         setDrop((previous) => (isEqual(next, previous) ? previous : next));
+        setDropTop(top);
     };
     // Each control at the placement, the rest of a selection right after it;
     // a section change writes the control's own section too
@@ -1700,6 +1741,7 @@ export const SectionedFilters: FC<Props> = ({
         const pointer = pointerOf(event);
         setDraggedId(null);
         setDrop(null);
+        setDropTop(null);
         pointerRef.current = null;
         const activeId = String(active.id);
         // A picked pill carries the selection, filters and parameters alike
@@ -1774,6 +1816,7 @@ export const SectionedFilters: FC<Props> = ({
                 onDragCancel={() => {
                     setDraggedId(null);
                     setDrop(null);
+                    setDropTop(null);
                     pointerRef.current = null;
                 }}
             >
@@ -1830,7 +1873,7 @@ export const SectionedFilters: FC<Props> = ({
                 </VisuallyHidden>
                 {/* On the body, so the bar's overflow doesn't clip the copy */}
                 {createPortal(
-                    <DragOverlay>
+                    <DragOverlay modifiers={OVERLAY_MODIFIERS}>
                         {draggedSection ? (
                             <Group
                                 gap="xs"

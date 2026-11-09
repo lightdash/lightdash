@@ -67,8 +67,17 @@ export const PillDraggable: FC<{
 };
 
 /** Every drop line between controls: one look, whatever is dragged or its target */
-export const DropLine: FC<{ side: 'before' | 'after' }> = ({ side }) => (
-    <Box className={classes.dropLine} data-drop-line={side} aria-hidden />
+export const DropLine: FC<{
+    side: 'before' | 'after';
+    /** From its box's top, for a capsule's row nearest the pointer (default its first row) */
+    top?: number | null;
+}> = ({ side, top = null }) => (
+    <Box
+        className={classes.dropLine}
+        data-drop-line={side}
+        aria-hidden
+        style={{ '--drop-line-top': top === null ? undefined : `${top}px` }}
+    />
 );
 
 // A pill as a keyboard drag's target on the sectioned bar; its line shows

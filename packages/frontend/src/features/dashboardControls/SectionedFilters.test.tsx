@@ -40,6 +40,7 @@ import type * as AddControlModule from './AddControl';
 import type * as FilterEditorModule from './FilterEditor';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import { SectionedFilters } from './SectionedFilters';
+import { besidePointer } from './sections';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -74,6 +75,9 @@ const mockDragMove = vi.hoisted(() => ({
 }));
 const mockDragStart = vi.hoisted(() => ({
     handlers: [] as ((event: DragStartEvent) => void)[],
+}));
+const mockOverlay = vi.hoisted(() => ({
+    modifiers: undefined as unknown,
 }));
 const mockCollision = vi.hoisted(() => ({
     detect: null as null | ((args: unknown) => unknown),
@@ -130,6 +134,10 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
                     args: unknown,
                 ) => unknown;
             return <actual.DndContext {...props} />;
+        },
+        DragOverlay: (props: Parameters<typeof actual.DragOverlay>[0]) => {
+            mockOverlay.modifiers = props.modifiers;
+            return <actual.DragOverlay {...props} />;
         },
         useDraggable: (args: Parameters<typeof actual.useDraggable>[0]) => {
             mockDraggableDisabled.set(args.id, args.disabled ?? false);
@@ -1149,6 +1157,59 @@ describe('SectionedFilters', () => {
                 expect(
                     screen.getByRole('textbox', { name: 'Section name' }),
                 ).toBeInTheDocument();
+            });
+
+            it('draws the line beside a capsule of several rows on the row by the pointer', () => {
+                const { store } = renderBar();
+                // Dates now spans two rows: "one" and its actions on the second
+                const tall = (element: Element): DOMRect => {
+                    if (element.getAttribute('data-section-capsule') === 'a')
+                        return {
+                            x: 0,
+                            y: 44,
+                            toJSON: () => ({}),
+                            left: 0,
+                            right: 400,
+                            top: 44,
+                            bottom: 120,
+                            width: 400,
+                            height: 76,
+                        } as DOMRect;
+                    if (element.getAttribute('data-controls-pill') === 'one')
+                        return box(235, 290, 84);
+                    if (element.hasAttribute('data-section-end'))
+                        return box(360, 396, 84);
+                    return rectOf(element);
+                };
+                const rect = vi
+                    .spyOn(Element.prototype, 'getBoundingClientRect')
+                    .mockImplementation(function (this: Element) {
+                        return tall(this);
+                    });
+                act(() => mockDragMove.handlers.at(-1)!(pointerEvent(380, 96)));
+                const line = capsuleOf('Dates').querySelector(
+                    ':scope > [data-drop-line]',
+                ) as HTMLElement;
+                expect(line).toHaveAttribute('data-drop-line', 'after');
+                // The second row's top, from inside the 1px border
+                expect(line.style.getPropertyValue('--drop-line-top')).toBe(
+                    '39px',
+                );
+                act(() => mockDragEnd.handlers.at(-1)!(pointerEvent(380, 96)));
+                rect.mockRestore();
+                // Landing is the same: after the section
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    'loose',
+                    '/b',
+                    '/c',
+                ]);
+            });
+
+            it('floats the dragged copy beside the pointer', () => {
+                renderBar();
+                expect(mockOverlay.modifiers).toEqual([besidePointer]);
             });
 
             it('follows the pointer collision detection saw, scroll included, over the drag delta', () => {

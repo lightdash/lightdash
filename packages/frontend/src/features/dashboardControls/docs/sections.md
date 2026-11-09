@@ -42,8 +42,8 @@ _group_ (that is `requiredGroupId`).
   writes one at once, like a section move, and the page's Cancel puts the
   saved one back. `selectOrderedControls` is the bar's list:
   `reconcileDashboardControlOrder` over `getEffectiveControlOrder`, which
-  reads `[]` as none and puts never saved parameter controls before the
-  first section.
+  reads `[]` as none and puts never saved parameter controls it doesn't
+  list before the first section.
 - `arrangeControls` also marks never saved parameter controls changed, so
   a refill from the tiles can't replace the ids the order lists.
 - Save (`getControlsToSave`, `getControlOrderToSave`): only after a reorder, the full reconciled
@@ -159,8 +159,10 @@ _group_ (that is `requiredGroupId`).
 - One drop line between controls (`DropLine`, `.dropLine` in
   `FilterPills.module.css`): 2px, a pill's height (`--controls-pill-height`),
   centred on the bar line, 4px into the gap; on a capsule outside its border
-  on its first row, last in it before its actions. Line gaps draw the
-  horizontal line.
+  on its row nearest the pointer (`capsuleRowTopOf`, first row by
+  keyboard), last in it before its actions. Line gaps draw the horizontal
+  line. The dragged copy floats 12px right of and 8px below the pointer
+  (`besidePointer`), see-through, so it never covers the line.
 - Keyboard (`BarMoveContext`, `moveControlBy`), on a pill or a section's
   name: Alt+ArrowLeft / Alt+ArrowRight go one place along the bar across
   kinds, stepping over a capsule (inside one, among its members);
