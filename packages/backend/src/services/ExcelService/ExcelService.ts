@@ -7,6 +7,7 @@ import {
     formatItemValue,
     formatRawValue,
     formatRows,
+    getCellUrls,
     getColorFromRange,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
@@ -25,6 +26,7 @@ import {
     ItemsMap,
     PivotConfig,
     pivotResultsAsData,
+    renderTemplatedUrl,
     ResultRow,
     shouldShiftItemTimezone,
     timeIntervalToExcelNumFmt,
@@ -37,6 +39,7 @@ import {
     type PivotRowTotalsByIndex,
     type PivotValuesColumn,
     type ReadyQueryResultsPage,
+    type ResultValue,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
 import fs from 'fs';
@@ -169,6 +172,158 @@ export class ExcelService {
                 undefined,
                 timezone,
             );
+        });
+    }
+
+    /**
+     * Resolves the link a cell should carry: the field's first configured
+     * `urls` entry (Excel allows one hyperlink per cell), rendered with the
+     * same template engine the results table uses. Returns undefined when the
+     * template cannot be rendered (e.g. it references a field not in the row)
+     * or does not produce an http(s) URL, so the cell stays plain text.
+     */
+    static getCellHyperlink(
+        item: ItemsMap[string] | undefined,
+        value: ResultValue,
+        row: Record<string, Record<string, ResultValue>>,
+    ): string | undefined {
+        const urls = getCellUrls(
+            isField(item) ? item.urls : undefined,
+            value.raw,
+        );
+        if (urls.length === 0) return undefined;
+        try {
+            const rendered = renderTemplatedUrl(urls[0].url, value, row);
+            const parsed = new URL(rendered);
+            return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+                ? rendered
+                : undefined;
+        } catch {
+            return undefined;
+        }
+    }
+
+    /**
+     * Builds the `row.<table>.<field>` context URL templates can reference,
+     * from every field present in the results row (hidden fields included,
+     * matching the results table).
+     */
+    private static buildTemplatedUrlRow(
+        parsedRow: Record<string, unknown>,
+        fields: ItemsMap,
+        timezone?: string,
+    ): Record<string, Record<string, ResultValue>> {
+        return Object.entries(parsedRow).reduce<
+            Record<string, Record<string, ResultValue>>
+        >((acc, [fieldId, raw]) => {
+            const item = fields[fieldId];
+            if (!isField(item)) return acc;
+            acc[item.table] = acc[item.table] ?? {};
+            acc[item.table][item.name] = {
+                raw,
+                formatted: formatItemValue(
+                    item,
+                    raw,
+                    undefined,
+                    undefined,
+                    timezone,
+                ),
+            };
+            return acc;
+        }, {});
+    }
+
+    /**
+     * Replaces the cell value with a hyperlink cell. String cells keep their
+     * text; numbers and dates show the formatted value, as the app does.
+     */
+    private static toHyperlinkCellValue(
+        excelCell: Excel.Cell,
+        hyperlink: string,
+        formatted: string,
+    ): void {
+        const current = excelCell.value;
+        if (current === null || current === undefined) return;
+        const text = typeof current === 'string' ? current : formatted;
+        // eslint-disable-next-line no-param-reassign
+        excelCell.value = { text, hyperlink };
+    }
+
+    /**
+     * Turns cells of fields with `urls` into clickable Excel hyperlinks,
+     * keeping the displayed value. Applied after the row is added so the
+     * value conversion above stays untouched.
+     */
+    private static applyHyperlinksToRow({
+        excelRow,
+        parsedRow,
+        fields,
+        sortedFieldIds,
+        onlyRaw,
+        timezone,
+    }: {
+        excelRow: Excel.Row;
+        parsedRow: Record<string, unknown>;
+        fields: ItemsMap;
+        sortedFieldIds: string[];
+        onlyRaw: boolean;
+        timezone?: string;
+    }): void {
+        let row: Record<string, Record<string, ResultValue>> | undefined;
+        sortedFieldIds.forEach((fieldId, colIndex) => {
+            const item = fields[fieldId];
+            const raw = parsedRow[fieldId];
+            if (raw === null || raw === undefined) return;
+            if (!isField(item)) return;
+            if (getCellUrls(item.urls, raw).length === 0) return;
+            row =
+                row ??
+                ExcelService.buildTemplatedUrlRow(parsedRow, fields, timezone);
+            const value = row[item.table][item.name];
+            const hyperlink = ExcelService.getCellHyperlink(item, value, row);
+            if (hyperlink) {
+                ExcelService.toHyperlinkCellValue(
+                    excelRow.getCell(colIndex + 1),
+                    hyperlink,
+                    onlyRaw ? String(raw) : value.formatted,
+                );
+            }
+        });
+    }
+
+    private static applyPivotHyperlinks(
+        excelRow: Excel.Row,
+        pivotRow: PivotResultsDataCell[],
+        itemMap: ItemsMap,
+    ): void {
+        const row = pivotRow.reduce<
+            Record<string, Record<string, ResultValue>>
+        >((acc, cell) => {
+            const item = itemMap[cell.itemId ?? cell.fieldId];
+            if (!isField(item) || cell.raw === null || cell.raw === undefined)
+                return acc;
+            acc[item.table] = acc[item.table] ?? {};
+            acc[item.table][item.name] = {
+                raw: cell.raw,
+                formatted: cell.formatted,
+            };
+            return acc;
+        }, {});
+        pivotRow.forEach((cell, colIndex) => {
+            if (cell.raw === null || cell.raw === undefined) return;
+            const item = itemMap[cell.itemId ?? cell.fieldId];
+            const hyperlink = ExcelService.getCellHyperlink(
+                item,
+                { raw: cell.raw, formatted: cell.formatted },
+                row,
+            );
+            if (hyperlink) {
+                ExcelService.toHyperlinkCellValue(
+                    excelRow.getCell(colIndex + 1),
+                    hyperlink,
+                    cell.formatted,
+                );
+            }
         });
     }
 
@@ -613,6 +768,8 @@ export class ExcelService {
                     cell.numFmt = numFmt;
                 }
             });
+
+            ExcelService.applyPivotHyperlinks(wsRow, row, itemMap);
         });
 
         // Auto-adjust column widths
@@ -708,6 +865,7 @@ export class ExcelService {
                     itemMap,
                     onlyRaw,
                 );
+                ExcelService.applyPivotHyperlinks(wsRow, pivotRow, itemMap);
             }
 
             if (index === 0) {
@@ -952,6 +1110,15 @@ export class ExcelService {
                     );
 
                     const row = worksheet.addRow(rowObject);
+
+                    ExcelService.applyHyperlinksToRow({
+                        excelRow: row,
+                        parsedRow,
+                        fields,
+                        sortedFieldIds,
+                        onlyRaw,
+                        timezone,
+                    });
 
                     if (conditionalFormattings?.length) {
                         ExcelService.applyConditionalFormattingToRow({
