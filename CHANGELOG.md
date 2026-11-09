@@ -1,3 +1,10 @@
+## [3.185.1](https://github.com/lightdash/lightdash/compare/3.185.0...3.185.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **dev:** make dev-fast-start recover from stale PG base, missing EE table and wrong dbt venv python ([#32254](https://github.com/lightdash/lightdash/issues/32254)) ([8e6b444](https://github.com/lightdash/lightdash/commit/8e6b444a2bd983d779521f47912aa66ea20667cd))
+
 # [3.185.0](https://github.com/lightdash/lightdash/compare/3.184.0...3.185.0) (2026-11-09)
 
 
