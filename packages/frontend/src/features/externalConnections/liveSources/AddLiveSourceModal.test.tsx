@@ -53,9 +53,32 @@ describe('AddLiveSourceModal', () => {
         onPick.mockClear();
     });
 
-    it('offers LinkedIn Ads only when the server has a LinkedIn client', () => {
+    it('shows LinkedIn Ads as requestable without a LinkedIn client', async () => {
         renderModal({ canUseLinkedInAds: false });
-        expect(screen.queryByText('LinkedIn Ads')).not.toBeInTheDocument();
+
+        const requestButtons = screen.getAllByRole('button', {
+            name: 'Request',
+        });
+        expect(screen.getByText('LinkedIn Ads')).toBeInTheDocument();
+        await userEvent.click(requestButtons[0]);
+
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: EventName.LIVE_DATA_SOURCE_REQUESTED,
+                properties: expect.objectContaining({
+                    integration: 'linkedin_ads',
+                }),
+            }),
+        );
+        expect(onPick).not.toHaveBeenCalled();
+    });
+
+    it('connects LinkedIn Ads when the server has a LinkedIn client', async () => {
+        renderModal();
+
+        await userEvent.click(screen.getByText('LinkedIn Ads'));
+
+        expect(onPick).toHaveBeenCalledWith('linkedin_ads');
     });
 
     it('tracks a typed source by its trimmed name', async () => {

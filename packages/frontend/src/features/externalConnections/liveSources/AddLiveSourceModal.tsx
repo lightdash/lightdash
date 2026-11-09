@@ -36,6 +36,20 @@ type Props = {
     onPick: (connector: ApiConnectorType) => void;
 };
 
+const toRequestableUnlessConnectable = (
+    entry: LiveSourceCatalogEntry,
+): LiveSourceCatalogEntry =>
+    isAvailableLiveSource(entry) &&
+    entry.connector === ApiConnectorType.LINKEDIN_ADS
+        ? {
+              id: entry.id,
+              status: 'requestable',
+              label: entry.label,
+              description: entry.description,
+              icon: entry.icon,
+          }
+        : entry;
+
 const CardHead: FC<{ entry: LiveSourceCatalogEntry }> = ({ entry }) => (
     <Group gap="sm" wrap="nowrap" align="flex-start">
         <img src={entry.icon} alt="" className={styles.icon} />
@@ -65,10 +79,17 @@ export const AddLiveSourceModal: FC<Props> = ({
     const entries = LIVE_SOURCE_CATALOG.filter(
         (entry) =>
             !isAvailableLiveSource(entry) ||
-            ((canUseGoogle || !isGoogleConnector(entry.connector)) &&
-                (canUseLinkedInAds ||
-                    entry.connector !== ApiConnectorType.LINKEDIN_ADS)),
+            canUseGoogle ||
+            !isGoogleConnector(entry.connector),
     );
+    // LinkedIn needs a client most servers won't have, so it stays requestable
+    const shownEntries = canUseLinkedInAds
+        ? entries
+        : entries.map(toRequestableUnlessConnectable);
+    const orderedEntries = [
+        ...shownEntries.filter(isAvailableLiveSource),
+        ...shownEntries.filter((entry) => !isAvailableLiveSource(entry)),
+    ];
 
     const requestProperties = {
         organizationId: user.data?.organizationUuid ?? null,
@@ -109,7 +130,7 @@ export const AddLiveSourceModal: FC<Props> = ({
         >
             <Stack gap="sm">
                 <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="sm">
-                    {entries.map((entry) =>
+                    {orderedEntries.map((entry) =>
                         isAvailableLiveSource(entry) ? (
                             <UnstyledButton
                                 key={entry.id}
