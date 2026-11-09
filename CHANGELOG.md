@@ -1,3 +1,10 @@
+## [3.179.5](https://github.com/lightdash/lightdash/compare/3.179.4...3.179.5) (2026-11-09)
+
+
+### Bug Fixes
+
+* **frontend:** attribute chart image deliveries to the scheduled delivery ([#32186](https://github.com/lightdash/lightdash/issues/32186)) ([1709e23](https://github.com/lightdash/lightdash/commit/1709e2349ccdd426e51921151ff50b1b2c3702f5)), closes [#32187](https://github.com/lightdash/lightdash/issues/32187)
+
 ## [3.179.4](https://github.com/lightdash/lightdash/compare/3.179.3...3.179.4) (2026-11-09)
 
 
