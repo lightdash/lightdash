@@ -20,13 +20,14 @@ vi.mock('../../../providers/App/useApp', () => ({
 
 const onPick = vi.fn();
 
-const renderModal = () =>
+const renderModal = ({ canUseLinkedInAds = true } = {}) =>
     renderWithProviders(
         <AddLiveSourceModal
             opened
             onClose={vi.fn()}
             projectUuid="project-1"
             canUseGoogle
+            canUseLinkedInAds={canUseLinkedInAds}
             onPick={onPick}
         />,
     );
@@ -50,6 +51,11 @@ describe('AddLiveSourceModal', () => {
     beforeEach(() => {
         track.mockClear();
         onPick.mockClear();
+    });
+
+    it('offers LinkedIn Ads only when the server has a LinkedIn client', () => {
+        renderModal({ canUseLinkedInAds: false });
+        expect(screen.queryByText('LinkedIn Ads')).not.toBeInTheDocument();
     });
 
     it('tracks a typed source by its trimmed name', async () => {

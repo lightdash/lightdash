@@ -1924,6 +1924,10 @@ export type LightdashConfig = {
             oauthClientId: string | undefined;
             oauthClientSecret: string | undefined;
         };
+        linkedinAds: {
+            oauthClientId: string | undefined;
+            oauthClientSecret: string | undefined;
+        };
     };
     contentAsCode: {
         maxDownloads: number;
@@ -4111,6 +4115,12 @@ export const parseConfig = (): LightdashConfig => {
                 oauthClientId: process.env.POSTHOG_OAUTH_CLIENT_ID || undefined,
                 oauthClientSecret:
                     process.env.POSTHOG_OAUTH_CLIENT_SECRET || undefined,
+            },
+            linkedinAds: {
+                oauthClientId:
+                    process.env.LINKEDIN_ADS_OAUTH_CLIENT_ID || undefined,
+                oauthClientSecret:
+                    process.env.LINKEDIN_ADS_OAUTH_CLIENT_SECRET || undefined,
             },
         },
         contentAsCode: {

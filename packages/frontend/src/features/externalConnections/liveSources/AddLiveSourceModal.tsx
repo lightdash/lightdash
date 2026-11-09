@@ -1,4 +1,4 @@
-import { type ApiConnectorType } from '@lightdash/common';
+import { ApiConnectorType } from '@lightdash/common';
 import {
     Badge,
     Button,
@@ -32,6 +32,7 @@ type Props = {
     onClose: () => void;
     projectUuid: string;
     canUseGoogle: boolean;
+    canUseLinkedInAds: boolean;
     onPick: (connector: ApiConnectorType) => void;
 };
 
@@ -54,6 +55,7 @@ export const AddLiveSourceModal: FC<Props> = ({
     onClose,
     projectUuid,
     canUseGoogle,
+    canUseLinkedInAds,
     onPick,
 }) => {
     const { user } = useApp();
@@ -63,8 +65,9 @@ export const AddLiveSourceModal: FC<Props> = ({
     const entries = LIVE_SOURCE_CATALOG.filter(
         (entry) =>
             !isAvailableLiveSource(entry) ||
-            canUseGoogle ||
-            !isGoogleConnector(entry.connector),
+            ((canUseGoogle || !isGoogleConnector(entry.connector)) &&
+                (canUseLinkedInAds ||
+                    entry.connector !== ApiConnectorType.LINKEDIN_ADS)),
     );
 
     const requestProperties = {

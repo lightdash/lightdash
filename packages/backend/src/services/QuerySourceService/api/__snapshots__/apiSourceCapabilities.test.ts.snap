@@ -129,6 +129,62 @@ exports[`connector capability declarations > the summable tags 1`] = `
       "aggregation": "additive",
     },
   },
+  "linkedin_ads": {
+    "clicks": {
+      "aggregation": "additive",
+    },
+    "comments": {
+      "aggregation": "additive",
+    },
+    "conversion_value": {
+      "aggregation": "additive",
+    },
+    "conversions": {
+      "aggregation": "additive",
+    },
+    "cost": {
+      "aggregation": "additive",
+    },
+    "follows": {
+      "aggregation": "additive",
+    },
+    "impressions": {
+      "aggregation": "additive",
+    },
+    "landing_page_clicks": {
+      "aggregation": "additive",
+    },
+    "lead_form_opens": {
+      "aggregation": "additive",
+    },
+    "leads": {
+      "aggregation": "additive",
+    },
+    "likes": {
+      "aggregation": "additive",
+    },
+    "post_click_conversions": {
+      "aggregation": "additive",
+    },
+    "post_view_conversions": {
+      "aggregation": "additive",
+    },
+    "reach": {
+      "aggregation": "non_additive",
+    },
+    "shares": {
+      "aggregation": "additive",
+    },
+    "total_engagements": {
+      "aggregation": "additive",
+    },
+    "video_completions": {
+      "aggregation": "additive",
+    },
+    "video_views": {
+      "aggregation": "additive",
+    },
+  },
   "meta_ads": {
     "adds_to_cart": {
       "aggregation": "additive",

@@ -75,6 +75,12 @@ import { type ApiSourceScan } from '../../../services/QuerySourceService/api/Api
 import { getApiSourceIntegration } from '../../../services/QuerySourceService/api/apiSourceIntegrations';
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/api/google/googleSignIn';
 import {
+    getLinkedInAdsAccountPath,
+    LINKEDIN_ADS_ORIGIN,
+    LINKEDIN_ADS_REQUEST_HEADERS,
+    LINKEDIN_ADS_TOKEN_URL,
+} from '../../../services/QuerySourceService/api/linkedin/LinkedInAdsConnector';
+import {
     applyLiveSourceFieldChanges,
     getInitialLiveSourceFieldEdits,
     getRequiredFieldNames,
@@ -131,6 +137,10 @@ import {
     type GoogleConnectorType,
 } from './googleOAuth';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
+import {
+    buildLinkedInAdsAuthorizeUrl,
+    getLinkedInAdsOAuthRedirectUri,
+} from './linkedInAdsOAuth';
 import {
     isAccessTokenFresh,
     OAuthGrantRejectedError,
@@ -196,6 +206,7 @@ export const parseLiveSourceReturnTo = (
 ): LiveSourceReturnTo => (value === 'onboarding' ? 'onboarding' : 'settings');
 // A new source tries `posthog`, `posthog_2` … `posthog_20` before falling back to its id.
 const MAX_LIVE_SOURCE_NAME_SUFFIX = 20;
+const LINKEDIN_AD_ACCOUNT_ID = /^\d{1,20}$/;
 
 /** What the sign-in callback needs from the request that started it. */
 export type PostHogOAuthSession = {
@@ -206,6 +217,16 @@ export type PostHogOAuthSession = {
     clientId: string;
     redirectUri: string;
     codeVerifier: string;
+};
+
+/** What the LinkedIn sign-in callback needs from the request that started it. */
+export type LinkedInAdsOAuthSession = {
+    projectUuid: string;
+    name: string;
+    adAccountId: string;
+    connectionUuid: string | null;
+    clientId: string;
+    redirectUri: string;
 };
 
 /** What the Google sign-in callback needs from the request that started it. */
@@ -230,6 +251,8 @@ export type PendingGoogleLiveSource = {
 
 const GOOGLE_API_TIMEOUT_MS = 10_000;
 const GOOGLE_API_RESPONSE_MAX_BYTES = 1024 * 1024;
+const LINKEDIN_ACCOUNT_CHECK_TIMEOUT_MS = 10_000;
+const LINKEDIN_ACCOUNT_CHECK_MAX_BYTES = 1024 * 1024;
 
 export class ExternalConnectionService extends BaseService {
     private readonly allowedPrivateHostCidrs: AllowedPrivateHostCidrs;
@@ -1796,6 +1819,7 @@ export class ExternalConnectionService extends BaseService {
                             method: request.method,
                             path: request.path,
                             query: request.query,
+                            rawQuery: request.rawQuery,
                             body: request.body,
                         },
                         { account, appUuid: null },
@@ -1862,6 +1886,10 @@ export class ExternalConnectionService extends BaseService {
         const { oauthClientId, oauthClientSecret } =
             this.lightdashConfig.liveSources.posthog;
         if (clientId === oauthClientId) return oauthClientSecret ?? null;
+        const linkedInAds = this.lightdashConfig.liveSources.linkedinAds;
+        if (clientId === linkedInAds.oauthClientId) {
+            return linkedInAds.oauthClientSecret ?? null;
+        }
         const google = this.getGoogleClient();
         return google && clientId === google.clientId
             ? google.clientSecret
@@ -2216,6 +2244,197 @@ export class ExternalConnectionService extends BaseService {
                 { ...headers, 'Content-Type': 'application/json' },
             ),
     };
+
+    private static assertSameLinkedInAdsSource(
+        existing: ExternalConnection,
+        adAccountId: string,
+    ) {
+        if (
+            existing.apiSource?.connector !== ApiConnectorType.LINKEDIN_ADS ||
+            existing.apiSource.adAccountId !== adAccountId
+        ) {
+            throw new ParameterError(
+                `Live data source "${existing.name}" reads a different LinkedIn ad account`,
+            );
+        }
+    }
+
+    /** Starts the LinkedIn sign-in that creates a source, or reconnects one. */
+    async startLinkedInAdsOAuth(
+        account: RegisteredAccount,
+        projectUuid: string,
+        request: {
+            name: string;
+            adAccountId: string;
+            connectionUuid: string | null;
+        },
+    ): Promise<{
+        authorizeUrl: string;
+        state: string;
+        session: LinkedInAdsOAuthSession;
+    }> {
+        const { oauthClientId, oauthClientSecret } =
+            this.lightdashConfig.liveSources.linkedinAds;
+        if (!oauthClientId || !oauthClientSecret) {
+            throw new MissingConfigError(
+                'Signing in to LinkedIn is not configured on this server',
+            );
+        }
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        await this.assertLiveSourcesEnabled(account);
+        const name = request.name.trim();
+        if (!name) {
+            throw new ParameterError('Name is required');
+        }
+        const adAccountId = request.adAccountId.trim();
+        if (!LINKEDIN_AD_ACCOUNT_ID.test(adAccountId)) {
+            throw new ParameterError(
+                'The LinkedIn ad account ID must be a number',
+            );
+        }
+        const { connectionUuid } = request;
+        if (connectionUuid) {
+            ExternalConnectionService.assertSameLinkedInAdsSource(
+                await this.getOwnedConnection(
+                    account,
+                    projectUuid,
+                    connectionUuid,
+                ),
+                adAccountId,
+            );
+        }
+
+        const state = randomBytes(24).toString('base64url');
+        const redirectUri = getLinkedInAdsOAuthRedirectUri(
+            this.lightdashConfig.siteUrl,
+        );
+        return {
+            authorizeUrl: buildLinkedInAdsAuthorizeUrl({
+                clientId: oauthClientId,
+                redirectUri,
+                state,
+            }),
+            state,
+            session: {
+                projectUuid,
+                name,
+                adAccountId,
+                connectionUuid,
+                clientId: oauthClientId,
+                redirectUri,
+            },
+        };
+    }
+
+    /** Refuses a sign-in that can't read the ad account the admin named. */
+    private async assertCanReadLinkedInAdAccount(
+        adAccountId: string,
+        accessToken: string,
+    ) {
+        const response = await secureFetch(
+            `${LINKEDIN_ADS_ORIGIN}${getLinkedInAdsAccountPath(adAccountId)}`,
+            {
+                method: 'GET',
+                headers: {
+                    ...LINKEDIN_ADS_REQUEST_HEADERS,
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                timeoutMs: LINKEDIN_ACCOUNT_CHECK_TIMEOUT_MS,
+                maxResponseBytes: LINKEDIN_ACCOUNT_CHECK_MAX_BYTES,
+                allowedContentTypes: ['application/json'],
+                allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
+            },
+        );
+        if (response.status < 200 || response.status >= 300) {
+            this.logger.warn(
+                `LinkedIn ad account check returned ${response.status}`,
+            );
+            throw new WarehouseConnectionError(
+                `This LinkedIn member can't read ad account ${adAccountId}. Check the ID in Campaign Manager and that the member has a role on the account.`,
+            );
+        }
+    }
+
+    /** Exchanges the sign-in code and stores the tokens on a new or reconnected source. */
+    async completeLinkedInAdsOAuth(
+        account: RegisteredAccount,
+        session: LinkedInAdsOAuthSession,
+        code: string,
+    ): Promise<ExternalConnection> {
+        const { projectUuid, adAccountId } = session;
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        await this.assertLiveSourcesEnabled(account);
+
+        const client: OAuthAuthorizationCodeClientConfig = {
+            tokenUrl: LINKEDIN_ADS_TOKEN_URL,
+            clientId: session.clientId,
+            clientSecret: this.getOAuthClientSecret(session.clientId),
+        };
+        let grant: Awaited<
+            ReturnType<OAuthAuthorizationCodeTokenClient['exchangeCode']>
+        >;
+        try {
+            grant = await this.oauthAuthorizationCodeTokenClient.exchangeCode(
+                client,
+                { code, redirectUri: session.redirectUri },
+            );
+        } catch (error) {
+            this.logger.warn(
+                `LinkedIn sign-in failed: ${getErrorMessage(error)}`,
+            );
+            throw new WarehouseConnectionError(
+                'LinkedIn did not accept the sign-in. Try connecting again.',
+            );
+        }
+        await this.assertCanReadLinkedInAdAccount(
+            adAccountId,
+            grant.tokens.accessToken,
+        );
+
+        const config = withApiSourceAccessRules<CreateExternalConnection>({
+            name: session.name,
+            type: 'oauth_authorization_code',
+            origin: LINKEDIN_ADS_ORIGIN,
+            secret: serializeStoredOAuthTokens(grant.tokens),
+            apiSource: {
+                connector: ApiConnectorType.LINKEDIN_ADS,
+                adAccountId,
+            },
+            oauthTokenUrl: client.tokenUrl,
+            oauthClientId: client.clientId,
+            oauthClientAuthMethod: null,
+            oauthScopes: null,
+            apiKeyName: null,
+            apiKeyLocation: null,
+            allowedPathPrefixes: [],
+            allowedMethods: [],
+            allowedContentTypes: [],
+            allowBrowserImages: false,
+            allowDataAppBuilderLinking: false,
+            forwardUserIdentity: false,
+            instructions: null,
+        });
+        return this.saveSignedInConnection(account, {
+            projectUuid,
+            organizationUuid,
+            connectionUuid: session.connectionUuid,
+            config,
+        });
+    }
 
     /** Starts the Google sign-in that creates a source, or reconnects one. */
     async startGoogleOAuth(
@@ -2749,6 +2968,8 @@ export class ExternalConnectionService extends BaseService {
             method: ExternalConnectionMethod;
             path: string;
             query?: Record<string, string>;
+            /** Set only by connectors, never by a proxy caller. */
+            rawQuery?: string;
             body?: unknown;
         },
         context: { account: Account; appUuid: string | null },
@@ -2898,7 +3119,12 @@ export class ExternalConnectionService extends BaseService {
         // Build the outbound URL server-side (host pinned to origin).
         let url: string;
         try {
-            url = buildOutboundUrl(connection.origin, validatedPath, query);
+            url = buildOutboundUrl(
+                connection.origin,
+                validatedPath,
+                query,
+                req.rawQuery,
+            );
         } catch (error) {
             if (error instanceof ParameterError) {
                 throw error;

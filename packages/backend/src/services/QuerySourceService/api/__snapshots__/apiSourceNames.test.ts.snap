@@ -114,6 +114,52 @@ exports[`live data source names > 'Google Analytics' explore names and field ids
 }
 `;
 
+exports[`live data source names > 'LinkedIn Ads' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "linkedin_ads_performance_campaign_group_id",
+        "linkedin_ads_performance_campaign_group_name",
+        "linkedin_ads_performance_campaign_id",
+        "linkedin_ads_performance_campaign_name",
+        "linkedin_ads_performance_campaign_objective",
+        "linkedin_ads_performance_campaign_status",
+        "linkedin_ads_performance_campaign_type",
+        "linkedin_ads_performance_clicks",
+        "linkedin_ads_performance_comments",
+        "linkedin_ads_performance_conversion_value",
+        "linkedin_ads_performance_conversions",
+        "linkedin_ads_performance_cost",
+        "linkedin_ads_performance_date",
+        "linkedin_ads_performance_date_month",
+        "linkedin_ads_performance_date_year",
+        "linkedin_ads_performance_follows",
+        "linkedin_ads_performance_impressions",
+        "linkedin_ads_performance_landing_page_clicks",
+        "linkedin_ads_performance_lead_form_opens",
+        "linkedin_ads_performance_leads",
+        "linkedin_ads_performance_likes",
+        "linkedin_ads_performance_post_click_conversions",
+        "linkedin_ads_performance_post_view_conversions",
+        "linkedin_ads_performance_reach",
+        "linkedin_ads_performance_shares",
+        "linkedin_ads_performance_total_engagements",
+        "linkedin_ads_performance_video_completions",
+        "linkedin_ads_performance_video_views",
+      ],
+      "name": "linkedin_ads_performance",
+    },
+  ],
+  "reservedExploreNames": [
+    "linkedin_ads_creatives",
+    "linkedin_ads_demographics",
+    "linkedin_ads_conversions",
+    "linkedin_ads_organic_shares",
+  ],
+}
+`;
+
 exports[`live data source names > 'Meta Ads' explore names and field ids never change 1`] = `
 {
   "explores": [

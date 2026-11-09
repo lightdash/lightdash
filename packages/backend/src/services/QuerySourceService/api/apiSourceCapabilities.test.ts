@@ -48,6 +48,17 @@ const SOURCES = [
         },
     },
     {
+        apiSource: {
+            connector: ApiConnectorType.LINKEDIN_ADS,
+            adAccountId: '507404993',
+        },
+        fields: {
+            dimension: 'campaign_id',
+            other: 'campaign_group_id',
+            metric: 'impressions',
+        },
+    },
+    {
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
         fields: {
             dimension: 'event',

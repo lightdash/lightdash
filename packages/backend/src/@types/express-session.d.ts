@@ -1,6 +1,7 @@
 import 'express-session';
 import {
     type GoogleOAuthSession,
+    type LinkedInAdsOAuthSession,
     type LiveSourceReturnTo,
     type PendingGoogleLiveSource,
     type PostHogOAuthSession,
@@ -40,6 +41,7 @@ declare module 'express-session' {
                 encryptedClientSecret: string;
             };
             postHog?: PostHogOAuthSession;
+            linkedInAds?: LinkedInAdsOAuthSession;
             googleLiveSource?: GoogleOAuthSession;
             liveSourceReturnTo?: LiveSourceReturnTo;
             isPopup?: boolean | undefined;

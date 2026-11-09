@@ -88,7 +88,7 @@ export class OAuthAuthorizationCodeTokenClient {
 
     async exchangeCode(
         client: OAuthAuthorizationCodeClientConfig,
-        grant: { code: string; redirectUri: string; codeVerifier: string },
+        grant: { code: string; redirectUri: string; codeVerifier?: string },
     ): Promise<{
         tokens: StoredOAuthTokens;
         response: Record<string, unknown>;
@@ -97,7 +97,9 @@ export class OAuthAuthorizationCodeTokenClient {
             grant_type: 'authorization_code',
             code: grant.code,
             redirect_uri: grant.redirectUri,
-            code_verifier: grant.codeVerifier,
+            ...(grant.codeVerifier
+                ? { code_verifier: grant.codeVerifier }
+                : {}),
         });
         return { tokens: this.toStoredTokens(response, null), response };
     }

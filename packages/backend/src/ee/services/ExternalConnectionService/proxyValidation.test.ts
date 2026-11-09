@@ -165,6 +165,18 @@ describe('normalizeAndValidatePath', () => {
 });
 
 describe('buildOutboundUrl', () => {
+    it('keeps a raw query as written, on the same host', () => {
+        const url = buildOutboundUrl(
+            'https://api.linkedin.com',
+            '/rest/adAnalytics',
+            undefined,
+            'q=analytics&dateRange=(start:(year:2026,month:1,day:2))&accounts=List(urn%3Ali%3AsponsoredAccount%3A1)',
+        );
+        expect(url).toBe(
+            'https://api.linkedin.com/rest/adAnalytics?q=analytics&dateRange=(start:(year:2026,month:1,day:2))&accounts=List(urn%3Ali%3AsponsoredAccount%3A1)',
+        );
+    });
+
     it('joins origin + path and serializes query via URLSearchParams', () => {
         const url = buildOutboundUrl('https://api.example.com', '/v1/users', {
             page: '2',

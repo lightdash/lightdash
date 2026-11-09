@@ -67,6 +67,14 @@ const SOURCES: {
         scan: {},
     },
     {
+        name: 'LinkedIn Ads',
+        apiSource: {
+            connector: ApiConnectorType.LINKEDIN_ADS,
+            adAccountId: '507404993',
+        },
+        scan: {},
+    },
+    {
         name: 'PostHog',
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
         scan: {

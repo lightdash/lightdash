@@ -31,7 +31,8 @@ type LiveSourceCatalogBase = {
 export type LiveSourceSetup =
     | { kind: 'google' }
     | { kind: 'posthog' }
-    | { kind: 'token'; form: TokenLiveSourceForm };
+    | { kind: 'token'; form: TokenLiveSourceForm }
+    | { kind: 'linkedin_ads' };
 
 type AvailableLiveSourceFields<C extends ApiConnectorType> = {
     connector: C;
@@ -121,13 +122,15 @@ export const LIVE_SOURCE_CATALOG: LiveSourceCatalogEntry[] = [
         getTarget: ({ customerId }) => `Account ${customerId}`,
         setup: { kind: 'google' },
     }),
-    {
+    available({
         id: 'linkedin_ads',
-        status: 'requestable',
+        connector: ApiConnectorType.LINKEDIN_ADS,
         label: 'LinkedIn Ads',
         description: 'Campaign reach, clicks and leads',
         icon: linkedinAdsIcon,
-    },
+        getTarget: ({ adAccountId }) => `Ad account ${adAccountId}`,
+        setup: { kind: 'linkedin_ads' },
+    }),
     available({
         id: 'youtube_analytics',
         connector: ApiConnectorType.YOUTUBE_ANALYTICS,
