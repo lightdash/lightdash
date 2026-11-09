@@ -660,10 +660,10 @@ export class MobileSignInService extends BaseService {
                 description: 'user_not_allowed',
             });
         }
-        const platform =
-            row.reported_platform === 'ios' ||
-            row.reported_platform === 'android'
-                ? [row.reported_platform]
+        const reportedPlatform = row.reported_platform;
+        const platform: readonly MobileSignInPlatform[] =
+            reportedPlatform === 'ios' || reportedPlatform === 'android'
+                ? [reportedPlatform]
                 : MOBILE_PLATFORMS;
         const refusal = await this.refusal(user, platform);
         if (refusal) {
