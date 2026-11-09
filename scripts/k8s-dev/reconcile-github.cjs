@@ -1,7 +1,7 @@
 // Write a GitHub App installation straight into github_app_installations for the k8s
 // deployment, encrypted with the running LIGHTDASH_SECRET. Mirrors the backend EncryptionUtil
-// EXACTLY (aes-256-gcm, pbkdf2 sha512/2000/32, layout salt[64]|tag[16]|iv[12]|msg) — same as
-// scripts/dev-github-reconcile.cjs — but uses the real first user (no seeded demo).
+// EXACTLY (aes-256-gcm, pbkdf2 sha512/2000/32, layout salt[64]|tag[16]|iv[12]|msg). It uses
+// the real first user (no seeded demo).
 const crypto = require('crypto');
 const { Client } = require('pg');
 

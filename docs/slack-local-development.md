@@ -16,7 +16,7 @@ Use a Slack app that belongs to you or the team for development. Never use the p
 - **Interactivity & Shortcuts**: on. Socket mode delivers button clicks too.
 - **App unfurl domains**: add your tunnel host if you test link unfurls.
 
-The shared dev app's values are in the Lightdash 1Password item "Slack ENV for lightdash share local", a secure note with an `export KEY=""value""` block. `scripts/dev-op-pull.sh pull SLACK_APP` writes them into `.env.development.local`. If you use your own app, copy the same keys from its settings pages.
+The shared dev app's values are in the Lightdash 1Password item "Slack ENV for lightdash share local", a secure note with an `export KEY=""value""` block. Copy the five `SLACK_*` values from that note into `.env.development.local`. If you use your own app, copy the same keys from its settings pages.
 
 ## 2. Environment
 

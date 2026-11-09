@@ -211,6 +211,6 @@ surfaces.
   except that the stored embed secret itself is registered ciphertext and is
   migrated by the command like any other field.
 - Dev tooling that mirrors the backend encryption (`sdk-test-app`,
-  `scripts/dev-github-reconcile.cjs`, `scripts/k8s-dev/reconcile-github.cjs`)
+  `scripts/k8s-dev/reconcile-github.cjs`)
   reads a single secret and should be pointed at the active secret after a
   rotation.
