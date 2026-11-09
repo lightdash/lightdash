@@ -1,0 +1,48 @@
+import { ApiConnectorType } from '../types/querySources';
+
+/** What the shared query check and AI agents need to know about an integration. */
+export type LiveSourceIntegrationProfile = {
+    /** The name refusals use. */
+    label: string;
+    /** The name AI agents read and repeat. */
+    agentLabel: string;
+    /** How an agent writes one request in the integration's own query language. */
+    agentQueryGuide: string;
+};
+
+/**
+ * One entry per integration. The agent guide is read in this order, so add
+ * new integrations at the end.
+ */
+export const LIVE_SOURCE_INTEGRATION_PROFILES: Record<
+    ApiConnectorType,
+    LiveSourceIntegrationProfile
+> = {
+    [ApiConnectorType.POSTHOG]: {
+        label: 'PostHog',
+        agentLabel: 'PostHog',
+        agentQueryGuide:
+            'one HogQL SELECT, the ClickHouse SQL dialect, over tables such as events (event, timestamp, distinct_id, person_id, properties), persons (id, created_at, properties) and sessions. Read a property as properties.$browser or properties.plan. Alias every column with AS using letters, digits and underscores. PostHog stops a query after 10 seconds, so aggregate in HogQL rather than fetching raw events. List event names first when unsure which exist.',
+    },
+    [ApiConnectorType.SEARCH_CONSOLE]: {
+        label: 'Search Console',
+        agentLabel: 'Search Console',
+        agentQueryGuide:
+            'one Search Analytics request as a JSON object with startDate and endDate (YYYY-MM-DD, required), dimensions from date, query, page, country, device and searchAppearance, and optionally type (web, image, video, news, discover, googleNews), dimensionFilterGroups and aggregationType. Rows carry the dimensions plus clicks, impressions, ctr and position; ctr and position are averages, so never sum them. Data lags about two days.',
+    },
+    [ApiConnectorType.GA4]: {
+        label: 'Google Analytics',
+        agentLabel: 'Google Analytics 4',
+        agentQueryGuide:
+            'one runReport request as a JSON object with dateRanges (startDate and endDate as YYYY-MM-DD, today, yesterday or NdaysAgo), metrics (1-10, e.g. activeUsers, sessions, screenPageViews, conversions, totalRevenue) and optionally dimensions (up to 9, e.g. date, country, deviceCategory, sessionSource, pagePath, eventName), dimensionFilter, metricFilter and orderBys in the GA4 Data API shape. Columns are the API names, with any character other than letters, digits and underscores replaced by an underscore; date comes back as YYYY-MM-DD. Rate and average metrics such as bounceRate or averageSessionDuration must not be summed. Each report spends hourly quota on the property, so prefer one aggregated report over many.',
+    },
+};
+
+/** The agent tool's description of its query field, one sentence block per integration. */
+export const getLiveSourceAgentQueryGuide = () =>
+    Object.entries(LIVE_SOURCE_INTEGRATION_PROFILES)
+        .map(
+            ([connector, { agentQueryGuide }]) =>
+                `For "${connector}": ${agentQueryGuide}`,
+        )
+        .join(' ');

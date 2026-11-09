@@ -1,10 +1,6 @@
 import { ApiConnectorType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import {
-    getApiSourceTarget,
-    getGoogleSignInUrl,
-    isGoogleConnector,
-} from './googleConnection';
+import { getGoogleSignInUrl, isGoogleConnector } from './googleConnection';
 
 describe('getGoogleSignInUrl', () => {
     it('starts a new sign-in with the trimmed name', () => {
@@ -47,29 +43,6 @@ describe('getGoogleSignInUrl', () => {
             'http://localhost',
         );
         expect(url.searchParams.get('returnTo')).toBe('onboarding');
-    });
-});
-
-describe('getApiSourceTarget', () => {
-    it('names what each source reads', () => {
-        expect(
-            getApiSourceTarget({
-                connector: ApiConnectorType.POSTHOG,
-                projectId: '4321',
-            }),
-        ).toBe('Project 4321');
-        expect(
-            getApiSourceTarget({
-                connector: ApiConnectorType.SEARCH_CONSOLE,
-                siteUrl: 'sc-domain:example.com',
-            }),
-        ).toBe('sc-domain:example.com');
-        expect(
-            getApiSourceTarget({
-                connector: ApiConnectorType.GA4,
-                propertyId: '123456',
-            }),
-        ).toBe('Property 123456');
     });
 });
 

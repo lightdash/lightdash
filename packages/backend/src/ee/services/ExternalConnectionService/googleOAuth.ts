@@ -13,7 +13,6 @@ import {
 
 export const GOOGLE_AUTHORIZE_URL =
     'https://accounts.google.com/o/oauth2/v2/auth';
-export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 export type GoogleConnectorType =
     | ApiConnectorType.SEARCH_CONSOLE

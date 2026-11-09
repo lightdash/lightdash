@@ -8,12 +8,12 @@ import {
     getGa4MetadataPath,
     getGa4ReportPath,
 } from '../../../services/QuerySourceService/api/google/Ga4Connector';
+import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/api/google/googleSignIn';
 import { getSearchConsoleQueryPath } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
 import {
     validateApiSourceConnection,
     withApiSourceAccessRules,
 } from './apiSourceConnection';
-import { GOOGLE_TOKEN_URL } from './googleOAuth';
 import { buildOutboundUrl, normalizeAndValidatePath } from './proxyValidation';
 
 const posthog: ExternalConnectionApiSource = {

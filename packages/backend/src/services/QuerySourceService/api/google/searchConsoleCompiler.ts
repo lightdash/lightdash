@@ -16,11 +16,7 @@ import {
     getApiSourceExplore,
     type CompiledApiSourceQuery,
 } from '../apiSourceExplore';
-
-// RE2, the syntax Search Console regex filters use
-// (https://github.com/google/re2/wiki/Syntax)
-export const escapeRe2 = (value: string) =>
-    value.replace(/[\\.+*?()|[\]{}^$]/g, '\\$&');
+import { escapeRe2 } from '../escapeRe2';
 
 const anyOf = (values: string[]) => {
     const escaped = values.map(escapeRe2);

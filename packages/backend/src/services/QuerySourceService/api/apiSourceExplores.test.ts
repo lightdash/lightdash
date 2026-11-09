@@ -17,8 +17,8 @@ import {
     toApiSourceResult,
     toPeriodStart,
     toScannedLiveSourceFields,
-    type ApiSourceScan,
 } from './apiSourceExplores';
+import { type ApiSourceScan } from './ApiSourceIntegration';
 import { compileSearchConsoleQuery } from './google/searchConsoleCompiler';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from './google/SearchConsoleConnector';
 import { getInitialLiveSourceFieldEdits } from './liveSourceFields';

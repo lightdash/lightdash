@@ -4,7 +4,7 @@
  * live here once, and sign-in callbacks (?connected=, ?signInError=,
  * ?pickGoogleSource=) and ?add=true land here, on whichever page they open.
  */
-import { type ApiConnectorType } from '@lightdash/common';
+import { assertUnreachable, type ApiConnectorType } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
@@ -18,6 +18,7 @@ import {
 } from '../../externalConnections/liveSources/googleConnection';
 import { GoogleConnectionModal } from '../../externalConnections/liveSources/GoogleConnectionModal';
 import { GoogleSourcePickerModal } from '../../externalConnections/liveSources/GoogleSourcePickerModal';
+import { getLiveSource } from '../../externalConnections/liveSources/liveSourceCatalog';
 import {
     getPostHogSignInUrl,
     toPostHogFormValues,
@@ -102,31 +103,39 @@ export const LiveSourceManager: FC<{
             remove: (connection) => setDialog({ kind: 'remove', connection }),
             getReconnect: (connection) => {
                 const { connector } = connection.apiSource;
-                if (isGoogleConnector(connector)) {
-                    return canUseGoogle
-                        ? () =>
-                              window.location.assign(
-                                  getGoogleSignInUrl(
-                                      projectUuid,
-                                      connector,
-                                      connection.name,
-                                      connection.externalConnectionUuid,
-                                      'settings',
-                                  ),
-                              )
-                        : null;
+                const { setup } = getLiveSource(connector);
+                switch (setup.kind) {
+                    case 'google':
+                        return canUseGoogle && isGoogleConnector(connector)
+                            ? () =>
+                                  window.location.assign(
+                                      getGoogleSignInUrl(
+                                          projectUuid,
+                                          connector,
+                                          connection.name,
+                                          connection.externalConnectionUuid,
+                                          'settings',
+                                      ),
+                                  )
+                            : null;
+                    case 'posthog':
+                        return canSignIn
+                            ? () =>
+                                  window.location.assign(
+                                      getPostHogSignInUrl(
+                                          projectUuid,
+                                          toPostHogFormValues(
+                                              connection,
+                                              canSignIn,
+                                          ),
+                                          connection.externalConnectionUuid,
+                                          'settings',
+                                      ),
+                                  )
+                            : null;
+                    default:
+                        return assertUnreachable(setup, 'Unknown source setup');
                 }
-                return canSignIn
-                    ? () =>
-                          window.location.assign(
-                              getPostHogSignInUrl(
-                                  projectUuid,
-                                  toPostHogFormValues(connection, canSignIn),
-                                  connection.externalConnectionUuid,
-                                  'settings',
-                              ),
-                          )
-                    : null;
             },
         }),
         [projectUuid, canSignIn, canUseGoogle],
@@ -147,6 +156,49 @@ export const LiveSourceManager: FC<{
             />
         </LiveSourceActionsContext.Provider>
     );
+};
+
+const LiveSourceConnectDialog: FC<{
+    projectUuid: string;
+    connector: ApiConnectorType;
+    connection: LiveSourceConnection | null;
+    canSignIn: boolean;
+    onClose: () => void;
+    onCreated: (connectionUuid: string) => void;
+}> = ({
+    projectUuid,
+    connector,
+    connection,
+    canSignIn,
+    onClose,
+    onCreated,
+}) => {
+    const { setup } = getLiveSource(connector);
+    switch (setup.kind) {
+        case 'google':
+            return isGoogleConnector(connector) ? (
+                <GoogleConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    connector={connector}
+                    connection={connection}
+                />
+            ) : null;
+        case 'posthog':
+            return (
+                <PostHogConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    connection={connection}
+                    canSignIn={canSignIn}
+                    onCreated={onCreated}
+                />
+            );
+        default:
+            return assertUnreachable(setup, 'Unknown source setup');
+    }
 };
 
 const LiveSourceDialogs: FC<{
@@ -201,29 +253,19 @@ const LiveSourceDialogs: FC<{
                     setDialog({ kind: 'create', connector: picked })
                 }
             />
-            {connector !== null &&
-                (isGoogleConnector(connector) ? (
-                    <GoogleConnectionModal
-                        key={formKey}
-                        opened
-                        onClose={close}
-                        projectUuid={projectUuid}
-                        connector={connector}
-                        connection={connection}
-                    />
-                ) : (
-                    <PostHogConnectionModal
-                        key={formKey}
-                        opened
-                        onClose={close}
-                        projectUuid={projectUuid}
-                        connection={connection}
-                        canSignIn={canSignIn}
-                        onCreated={(connectionUuid) =>
-                            setDialog({ kind: 'connected', connectionUuid })
-                        }
-                    />
-                ))}
+            {connector !== null && (
+                <LiveSourceConnectDialog
+                    key={formKey}
+                    projectUuid={projectUuid}
+                    connector={connector}
+                    connection={connection}
+                    canSignIn={canSignIn}
+                    onClose={close}
+                    onCreated={(connectionUuid) =>
+                        setDialog({ kind: 'connected', connectionUuid })
+                    }
+                />
+            )}
             {isPickingGoogleSource && (
                 <GoogleSourcePickerModal
                     projectUuid={projectUuid}

@@ -39,6 +39,12 @@ export type ExternalConnectionApiSource =
     | SearchConsoleApiSource
     | Ga4ApiSource;
 
+/** The settings of one integration's sources. */
+export type ApiSourceOf<C extends ApiConnectorType> = Extract<
+    ExternalConnectionApiSource,
+    { connector: C }
+>;
+
 /** A Google property the signed-in account can query, offered after sign-in. */
 export type GoogleLiveSourceChoice = {
     value: string;

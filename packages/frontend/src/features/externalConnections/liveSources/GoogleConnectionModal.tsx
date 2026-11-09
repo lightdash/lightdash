@@ -5,11 +5,11 @@ import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
 import {
-    getApiSourceTarget,
     getGoogleSignInUrl,
     getGoogleSource,
     type GoogleConnector,
 } from './googleConnection';
+import { getApiSourceTarget } from './liveSourceCatalog';
 
 type Props = {
     opened: boolean;

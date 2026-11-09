@@ -70,17 +70,17 @@ import {
     getLegacyLiveSourceName,
     getLiveSourceNameBase,
     toScannedLiveSourceFields,
-    type ApiSourceScan,
 } from '../../../services/QuerySourceService/api/apiSourceExplores';
-import { Ga4Connector } from '../../../services/QuerySourceService/api/google/Ga4Connector';
-import { SearchConsoleConnector } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
+import { type ApiSourceScan } from '../../../services/QuerySourceService/api/ApiSourceIntegration';
+import { getApiSourceIntegration } from '../../../services/QuerySourceService/api/apiSourceIntegrations';
+import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/api/google/googleSignIn';
 import {
     applyLiveSourceFieldChanges,
     getInitialLiveSourceFieldEdits,
     getRequiredFieldNames,
     listLiveSourceFields,
 } from '../../../services/QuerySourceService/api/liveSourceFields';
-import { PostHogConnector } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
+import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
 import {
     scanPostHogSchema,
     toFailedScan,
@@ -126,7 +126,6 @@ import {
 import {
     buildGoogleAuthorizeUrl,
     GOOGLE_CONNECTORS,
-    GOOGLE_TOKEN_URL,
     isGoogleConnector,
     type GoogleApiGet,
     type GoogleConnectorType,
@@ -149,7 +148,6 @@ import {
     buildPostHogAuthorizeUrl,
     getPostHogClientMetadata,
     getPostHogGrantedProjectId,
-    getPostHogOAuthEndpoints,
     getPostHogOAuthRedirectUri,
 } from './postHogOAuth';
 import {
@@ -1777,7 +1775,6 @@ export class ExternalConnectionService extends BaseService {
         // Live source access rules come from the integration, so sources
         // saved before a rule changed get the current rules.
         const connection = withApiSourceAccessRules(storedConnection);
-        let connector: ApiConnector;
         let callsThisQuery = 0;
         const usage: ApiConnectorUsage = {
             apiCalls: 0,
@@ -1827,6 +1824,7 @@ export class ExternalConnectionService extends BaseService {
             }
         };
         const send: ApiConnectorTransport = async (request) => {
+            // eslint-disable-next-line no-use-before-define -- connectors only send once created
             const { label, limits } = connector.describe();
             callsThisQuery += 1;
             if (isPerQuery && callsThisQuery > limits.callsPerQuery) {
@@ -1838,48 +1836,10 @@ export class ExternalConnectionService extends BaseService {
                 sendOnce(request),
             );
         };
-        switch (apiSource.connector) {
-            case ApiConnectorType.POSTHOG: {
-                const postHog = new PostHogConnector({
-                    projectId: apiSource.projectId,
-                    send,
-                });
-                connector = postHog;
-                return {
-                    connector,
-                    usage,
-                    scan: async () => {
-                        const [event, person] = await Promise.all([
-                            postHog.getPropertyDefinitions('event'),
-                            postHog.getPropertyDefinitions('person'),
-                        ]);
-                        return { posthogProperties: { event, person } };
-                    },
-                };
-            }
-            case ApiConnectorType.SEARCH_CONSOLE:
-                connector = new SearchConsoleConnector({
-                    siteUrl: apiSource.siteUrl,
-                    send,
-                });
-                return { connector, usage, scan: async () => ({}) };
-            case ApiConnectorType.GA4: {
-                const ga4 = new Ga4Connector({
-                    propertyId: apiSource.propertyId,
-                    send,
-                });
-                connector = ga4;
-                return {
-                    connector,
-                    usage,
-                    scan: async () => ({
-                        ga4Metadata: await ga4.getMetadata(),
-                    }),
-                };
-            }
-            default:
-                return assertUnreachable(apiSource, 'Unknown api connector');
-        }
+        const { connector, scan = async () => ({}) } = getApiSourceIntegration(
+            apiSource.connector,
+        ).createConnector(apiSource, send);
+        return { connector, usage, scan };
     }
 
     private static isPostHogRegion(region: string): region is PostHogRegion {
