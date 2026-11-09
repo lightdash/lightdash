@@ -168,10 +168,21 @@ describe('getNodeCitationVizQuery', () => {
             promptUuid: 'message-uuid',
             nodeId: 'net',
         };
-        expect(asyncQueryService.bindQueryToMessageQuery.mock.calls).toEqual([
-            [expect.anything(), 'project-uuid', 'orders-run', binding],
-            [expect.anything(), 'project-uuid', 'net-run', binding],
-        ]);
+        expect(asyncQueryService.bindQueryToMessageQuery).toHaveBeenCalledTimes(
+            2,
+        );
+        expect(asyncQueryService.bindQueryToMessageQuery).toHaveBeenCalledWith(
+            expect.anything(),
+            'project-uuid',
+            'orders-run',
+            binding,
+        );
+        expect(asyncQueryService.bindQueryToMessageQuery).toHaveBeenCalledWith(
+            expect.anything(),
+            'project-uuid',
+            'net-run',
+            binding,
+        );
     });
 
     it('refuses an embedded citation whose closure reads warehouse SQL', async () => {

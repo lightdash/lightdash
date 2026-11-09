@@ -24,7 +24,6 @@ export const isContentType = (value: unknown): value is ContentType =>
 
 interface LinkProcessor {
     fragment: string;
-    /** Overrides the default "contains the fragment" test. */
     matches?: (href: string) => boolean;
     contentType: ContentType;
     cleanUrl: (href: string) => string;

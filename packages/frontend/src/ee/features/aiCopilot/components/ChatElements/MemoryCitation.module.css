@@ -22,12 +22,7 @@
         background-color 120ms ease;
 }
 
-.marker:not(:disabled):hover {
-    border-color: var(--mantine-color-indigo-4);
-    background: var(--mantine-color-indigo-0);
-    color: var(--mantine-color-indigo-7);
-}
-
+.marker:not(:disabled):hover,
 .marker[data-active='true'] {
     border-color: var(--mantine-color-indigo-4);
     background: var(--mantine-color-indigo-0);

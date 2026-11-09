@@ -26,7 +26,6 @@ type Props = {
     agentUuid: string;
 };
 
-/** A figure's citation: opens the cited node's result; clicking again closes it. */
 export const NodeCitationMarker: FC<Props> = ({
     nodeId,
     citationNumber,

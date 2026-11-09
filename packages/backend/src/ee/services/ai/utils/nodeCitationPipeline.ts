@@ -25,9 +25,7 @@ export const buildNodeCitationPipeline = ({
     };
 };
 
-/** Whether a citation's pipeline reads the warehouse with raw SQL. */
 export const nodeCitationReadsWarehouseSql = (
-    pipeline: AiAgentNodeCitationPipeline | null,
+    pipeline: AiAgentNodeCitationPipeline,
 ): boolean =>
-    pipeline?.nodes.some((node) => node.sourceType === QuerySourceType.SQL) ??
-    false;
+    pipeline.nodes.some((node) => node.sourceType === QuerySourceType.SQL);

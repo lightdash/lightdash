@@ -9,7 +9,6 @@ const NODE_CITATION_LINK = `\\[(?:[^\\[\\]]|\\[[^\\]]*\\])*\\]\\(${NODE_CITATION
 const codeOrCitationRegex = () =>
     new RegExp(`(${MARKDOWN_CODE})|[ \\t]*${NODE_CITATION_LINK}`, 'g');
 
-/** The node a citation href names. */
 export const getNodeCitationNodeId = (href: string): string | null =>
     href.match(NODE_CITATION_HREF_REGEX)?.[1] ?? null;
 

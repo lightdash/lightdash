@@ -11048,13 +11048,17 @@ export class AiAgentService extends BaseService {
         // A citation an embed viewer can't open must not resolve for them.
         return threadNodes
             .map(({ nodeId }) => nodeId)
-            .filter(
-                (nodeId) =>
-                    !runtimeOptions ||
-                    !nodeCitationReadsWarehouseSql(
-                        buildNodeCitationPipeline({ nodeId, threadNodes }),
-                    ),
-            );
+            .filter((nodeId) => {
+                if (!runtimeOptions) return true;
+                const pipeline = buildNodeCitationPipeline({
+                    nodeId,
+                    threadNodes,
+                });
+                return (
+                    pipeline !== null &&
+                    !nodeCitationReadsWarehouseSql(pipeline)
+                );
+            });
     }
 
     async getNodeCitationPipeline(
