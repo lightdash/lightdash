@@ -1,3 +1,8 @@
 .clickableRow {
     cursor: pointer;
 }
+
+.historyValue {
+    white-space: pre-wrap;
+    word-break: break-word;
+}

@@ -88,7 +88,7 @@ const HistoryList: FC<{
                         <TimeAgo date={entry.createdAt} />
                     </Group>
                     <ScrollArea.Autosize mah={120}>
-                        <Code block fz="xs">
+                        <Code block fz="xs" className={classes.historyValue}>
                             {JSON.stringify(entry.value, null, 2)}
                         </Code>
                     </ScrollArea.Autosize>
