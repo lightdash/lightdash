@@ -11,6 +11,7 @@ import AppIframePreview, {
 import { getVisiblePreviewTokenError } from '../hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../hooks/useAppPreviewToken';
 import type {
+    AppStateEvent,
     ExternalRequestEvent,
     QueryEvent,
     SdkManifest,
@@ -29,6 +30,8 @@ export type AppPreviewProps = {
     invalidateCache?: boolean;
     onQueryEvent?: (event: QueryEvent) => void;
     onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
+    /** Reports app-state reads/writes for the same inspector tab. */
+    onAppStateEvent?: (event: AppStateEvent) => void;
     inspectorEnabled?: boolean;
     onElementSelected?: (event: { label: string }) => void;
     onInspectorAvailabilityChange?: (available: boolean) => void;
@@ -66,6 +69,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             invalidateCache,
             onQueryEvent,
             onExternalRequestEvent,
+            onAppStateEvent,
             inspectorEnabled,
             onElementSelected,
             onInspectorAvailabilityChange,
@@ -143,6 +147,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 invalidateCache={invalidateCache}
                 onQueryEvent={onQueryEvent}
                 onExternalRequestEvent={onExternalRequestEvent}
+                onAppStateEvent={onAppStateEvent}
                 inspectorEnabled={inspectorEnabled}
                 onElementSelected={onElementSelected}
                 onInspectorAvailabilityChange={onInspectorAvailabilityChange}
