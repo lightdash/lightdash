@@ -1419,6 +1419,7 @@ describe('PromoteService promoting and mutating changes', () => {
             slug: 'renamed-chart',
         };
         const changes: PromotionChanges = {
+            skippedCharts: [],
             spaces: [],
             dashboards: [],
             charts: [
@@ -1479,6 +1480,7 @@ describe('PromoteService promoting and mutating changes', () => {
             slug: 'occupied-chart',
         };
         const changes: PromotionChanges = {
+            skippedCharts: [],
             spaces: [],
             dashboards: [],
             charts: [
@@ -1519,6 +1521,7 @@ describe('PromoteService promoting and mutating changes', () => {
             slug: 'renamed-chart',
         };
         const changes: PromotionChanges = {
+            skippedCharts: [],
             spaces: [],
             dashboards: [],
             charts: [
@@ -2396,6 +2399,7 @@ describe('PromoteService data app promotion', () => {
     const serviceWithoutApps = new PromoteService(baseArgs);
 
     const dataAppChanges = (): PromotionChanges => ({
+        skippedCharts: [],
         spaces: [],
         charts: [],
         dashboards: [
@@ -2466,6 +2470,7 @@ describe('PromoteService data app promotion', () => {
 
     test('returns changes unchanged and skips the app service when there are no DATA_APP tiles', async () => {
         const changesWithoutApps: PromotionChanges = {
+            skippedCharts: [],
             spaces: [],
             charts: [],
             dashboards: [
@@ -2503,6 +2508,7 @@ describe('PromoteService data app promotion', () => {
     });
 
     const vizChartChanges = (): PromotionChanges => ({
+        skippedCharts: [],
         spaces: [],
         dashboards: [],
         charts: [
@@ -2641,6 +2647,7 @@ describe('agent content writes', () => {
                 expect(log).toHaveBeenCalledTimes(expectedClaim ? 1 : 0);
                 log.mockClear();
                 const dashboardChanges: PromotionChanges = {
+                    skippedCharts: [],
                     charts: [],
                     spaces: [],
                     dashboards: [
@@ -2682,6 +2689,7 @@ describe('agent content writes', () => {
                 await service.upsertSqlCharts(
                     user,
                     {
+                        skippedCharts: [],
                         charts: [],
                         dashboards: [],
                         spaces: [
@@ -2791,6 +2799,7 @@ describe('agent content writes', () => {
             agentActionLogModel.insert.mockClear();
             const run = async () => {
                 await service.upsertCharts(user, {
+                    skippedCharts: [],
                     spaces: [],
                     dashboards: [],
                     charts: [
@@ -2830,6 +2839,7 @@ describe('agent content writes', () => {
                 agentActionLogModel.insert.mockClear();
                 log.mockClear();
                 await service.updateDashboard(user, {
+                    skippedCharts: [],
                     spaces: [],
                     charts: [],
                     dashboards: [
@@ -2861,6 +2871,7 @@ describe('agent content writes', () => {
                 await service.upsertSqlCharts(
                     user,
                     {
+                        skippedCharts: [],
                         charts: [],
                         dashboards: [],
                         spaces: [
@@ -2944,6 +2955,7 @@ describe('agent content writes', () => {
         await expect(
             agentExecutionContext.run(scope, () =>
                 service.upsertCharts(user, {
+                    skippedCharts: [],
                     spaces: [],
                     dashboards: [],
                     charts: [

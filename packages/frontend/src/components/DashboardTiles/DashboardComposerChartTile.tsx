@@ -1,5 +1,6 @@
 import {
     ChartType,
+    COMPOSER_CHART_NOT_AVAILABLE_IN_EMBED_ERROR_NAME,
     COMPOSER_RESULT_TABLE_NAME,
     FeatureFlags,
     getChartKind,
@@ -62,8 +63,6 @@ type Props = Pick<
 };
 
 type UnavailableReason = 'embed' | 'disabled';
-
-const EMBED_ERROR_NAME = 'ComposerChartNotAvailableInEmbedError';
 
 const tileTitle = (tile: IDashboardChartTile, chartName?: string) =>
     tile.properties.title || chartName || tile.properties.chartName || '';
@@ -250,10 +249,10 @@ const LiveComposerChartTile: FC<Props> = ({
             return {
                 tileUuid: tile.uuid,
                 queryUuid: run?.queryUuid ?? null,
-                label: title || 'Chart',
+                label: title || getUiString('composerTile.defaultTitle'),
                 status: error ? ('error' as const) : ('ready' as const),
             };
-        }, [isLoading, tile.uuid, run?.queryUuid, title, error]),
+        }, [isLoading, tile.uuid, run?.queryUuid, title, error, getUiString]),
     );
 
     const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
@@ -281,13 +280,13 @@ const LiveComposerChartTile: FC<Props> = ({
     );
 
     const getDownloadQueryUuid = useCallback(async () => {
-        if (!run) throw new Error('The chart has not run yet');
+        if (!run) throw new Error(getUiString('composerTile.notRunYet'));
         return run.queryUuid;
-    }, [run]);
+    }, [run, getUiString]);
 
     if (error) {
         const errorName = error instanceof Error ? null : error.error?.name;
-        if (errorName === EMBED_ERROR_NAME) {
+        if (errorName === COMPOSER_CHART_NOT_AVAILABLE_IN_EMBED_ERROR_NAME) {
             return (
                 <ComposerChartUnavailableTile
                     tile={tile}

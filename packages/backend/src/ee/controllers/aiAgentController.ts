@@ -2404,6 +2404,10 @@ export class AiAgentController extends BaseController {
         };
     }
 
+    /**
+     * Saves a composer artifact version to a dashboard as a dashboard-owned composer chart tile
+     * @summary Save composer artifact to dashboard
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,

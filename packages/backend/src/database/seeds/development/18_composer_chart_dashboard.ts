@@ -1,5 +1,5 @@
 import {
-    ChartKind,
+    CartesianSeriesType,
     ChartType,
     DashboardTileTypes,
     generateSlug,
@@ -10,46 +10,42 @@ import {
     SEED_COMPOSER_CHART_DASHBOARD,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-    toTimezoneSetting,
+    type ChartConfig,
     type SavedComposerPipeline,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
+import { lightdashConfig } from '../../../config/lightdashConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SpaceModel } from '../../../models/SpaceModel';
-import {
-    SavedChartsTableName,
-    SavedChartVersionsTableName,
-} from '../../entities/savedCharts';
 
-// Rows are written directly: the saved chart model has no composer writer yet.
 type SeedComposerChart = {
     name: string;
-    chartKind: ChartKind;
-    chartType: ChartType;
-    chartConfig: Record<string, unknown>;
+    chartConfig: ChartConfig;
     pipeline: SavedComposerPipeline;
 };
 
 const revenueShare: SeedComposerChart = {
     name: SEED_COMPOSER_CHART.revenueShare,
-    chartKind: ChartKind.VERTICAL_BAR,
-    chartType: ChartType.CARTESIAN,
     chartConfig: {
-        layout: {
-            xField: 'composer_result_orders_status',
-            yField: ['composer_result_revenue_share'],
-        },
-        eChartsConfig: {
-            series: [
-                {
-                    type: 'bar',
-                    encode: {
-                        xRef: { field: 'composer_result_orders_status' },
-                        yRef: { field: 'composer_result_revenue_share' },
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'composer_result_orders_status',
+                yField: ['composer_result_revenue_share'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        encode: {
+                            xRef: { field: 'composer_result_orders_status' },
+                            yRef: { field: 'composer_result_revenue_share' },
+                        },
                     },
-                },
-            ],
+                ],
+            },
         },
     },
     pipeline: {
@@ -95,9 +91,7 @@ const revenueShare: SeedComposerChart = {
 
 const customersByAge: SeedComposerChart = {
     name: SEED_COMPOSER_CHART.customersByAge,
-    chartKind: ChartKind.TABLE,
-    chartType: ChartType.TABLE,
-    chartConfig: {},
+    chartConfig: { type: ChartType.TABLE },
     pipeline: {
         schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
         nodes: [
@@ -128,9 +122,7 @@ const customersByAge: SeedComposerChart = {
 // the already-permitted `orders` node unexecuted.
 const revenueAndCustomers: SeedComposerChart = {
     name: SEED_COMPOSER_CHART.revenueAndCustomers,
-    chartKind: ChartKind.TABLE,
-    chartType: ChartType.TABLE,
-    chartConfig: {},
+    chartConfig: { type: ChartType.TABLE },
     pipeline: {
         schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
         nodes: [
@@ -173,51 +165,34 @@ const revenueAndCustomers: SeedComposerChart = {
     },
 };
 
-const insertComposerChart = async (
-    knex: Knex,
+const createComposerChart = (
+    savedChartModel: SavedChartModel,
     dashboardUuid: string,
     chart: SeedComposerChart,
-): Promise<string> => {
-    const [{ saved_query_id: savedQueryId, saved_query_uuid: savedQueryUuid }] =
-        await knex(SavedChartsTableName)
-            .insert({
+): Promise<string> =>
+    savedChartModel
+        .createComposerChart(
+            SEED_PROJECT.project_uuid,
+            SEED_ORG_1_ADMIN.user_uuid,
+            {
                 name: chart.name,
                 description: 'Seeded composer chart',
+                dashboardUuid,
+                pipeline: chart.pipeline,
+                chartConfig: chart.chartConfig,
+                pivotConfig: undefined,
                 slug: generateSlug(chart.name),
-                last_version_chart_kind: chart.chartKind,
-                last_version_updated_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
-                color_palette_uuid: null,
-                project_uuid: SEED_PROJECT.project_uuid,
-                space_id: null,
-                dashboard_uuid: dashboardUuid,
-            })
-            .returning(['saved_query_id', 'saved_query_uuid']);
-    const terminalNode = chart.pipeline.nodes.find(
-        (node) => node.nodeId === chart.pipeline.terminalNodeId,
-    );
-    await knex(SavedChartVersionsTableName).insert({
-        saved_query_id: savedQueryId,
-        explore_name: null,
-        pipeline: chart.pipeline,
-        filters: {},
-        row_limit: terminalNode?.limit ?? 500,
-        chart_type: chart.chartType,
-        chart_config: chart.chartConfig,
-        pivot_dimensions: null,
-        pivot_rows: null,
-        metric_overrides: null,
-        dimension_overrides: null,
-        parameters: null,
-        updated_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
-        timezone: toTimezoneSetting(undefined),
-        agent_identity: null,
-    });
-    return savedQueryUuid;
-};
+            },
+        )
+        .then((created) => created.uuid);
 
 export async function seed(knex: Knex): Promise<void> {
     const dashboardModel = new DashboardModel({ database: knex });
     const spaceModel = new SpaceModel({ database: knex });
+    const savedChartModel = new SavedChartModel({
+        database: knex,
+        lightdashConfig,
+    });
 
     const [seedSpace] = await spaceModel.find({
         projectUuid: SEED_PROJECT.project_uuid,
@@ -241,7 +216,7 @@ export async function seed(knex: Knex): Promise<void> {
 
     const chartUuids = await Promise.all(
         [revenueShare, customersByAge, revenueAndCustomers].map((chart) =>
-            insertComposerChart(knex, dashboard.uuid, chart),
+            createComposerChart(savedChartModel, dashboard.uuid, chart),
         ),
     );
 

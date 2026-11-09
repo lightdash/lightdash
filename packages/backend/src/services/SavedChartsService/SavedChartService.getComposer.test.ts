@@ -70,10 +70,7 @@ const spaceContext = { inheritsFromOrgOrProject: true, access: [] };
 const buildService = () => {
     const savedChartModel = {
         get: vi.fn(async () => {
-            throw new ComposerChartNotSupportedError(
-                composerChart.uuid,
-                composerChart.name,
-            );
+            throw new ComposerChartNotSupportedError(composerChart.uuid);
         }),
         getVariant: vi.fn(async () => composerVariant),
     };

@@ -27,14 +27,18 @@ import {
     QueryHistoryWindow,
     QueryLanguage,
     QueryTrigger,
+    type Account,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncComposeMergeQueryRequest,
+    type ApiExecuteAsyncComposerChartQueryResults,
+    type ApiExecuteAsyncDashboardChartQueryResults,
     type ApiExecuteAsyncDashboardChartQueryResultsVariant,
     type ApiExecuteAsyncMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiExecuteAsyncSavedChartQueryResults,
     type ApiExecuteAsyncSavedChartQueryResultsVariant,
     type ApiJobScheduledResponse,
     type ApiQueryCostEstimateResponse,
@@ -505,6 +509,23 @@ export class QueryController extends BaseController {
         };
     }
 
+    /** A composer chart response carries no field SQL, so only classic results are redacted. */
+    private redactChartQueryResults<
+        T extends
+            | ApiExecuteAsyncSavedChartQueryResults
+            | ApiExecuteAsyncDashboardChartQueryResults,
+    >(
+        account: Account,
+        projectUuid: string,
+        results: T | ApiExecuteAsyncComposerChartQueryResults,
+    ): T | ApiExecuteAsyncComposerChartQueryResults {
+        return isComposerChartQueryResults(results)
+            ? results
+            : this.services
+                  .getAsyncQueryService()
+                  .redactFieldsSqlForResponse(account, projectUuid, results);
+    }
+
     /**
      * Executes a saved chart query asynchronously with optional parameter overrides
      * @summary Execute saved chart
@@ -558,15 +579,11 @@ export class QueryController extends BaseController {
 
         return {
             status: 'ok',
-            results: isComposerChartQueryResults(results)
-                ? results
-                : this.services
-                      .getAsyncQueryService()
-                      .redactFieldsSqlForResponse(
-                          req.account!,
-                          projectUuid,
-                          results,
-                      ),
+            results: this.redactChartQueryResults(
+                req.account!,
+                projectUuid,
+                results,
+            ),
         };
     }
 
@@ -616,15 +633,11 @@ export class QueryController extends BaseController {
 
         return {
             status: 'ok',
-            results: isComposerChartQueryResults(results)
-                ? results
-                : this.services
-                      .getAsyncQueryService()
-                      .redactFieldsSqlForResponse(
-                          req.account!,
-                          projectUuid,
-                          results,
-                      ),
+            results: this.redactChartQueryResults(
+                req.account!,
+                projectUuid,
+                results,
+            ),
         };
     }
 

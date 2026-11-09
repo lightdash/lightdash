@@ -462,10 +462,8 @@ export class ValidationService extends BaseService {
                                 source: ValidationSourceType.Chart,
                                 chartName: name,
                                 errorType: ValidationErrorType.Chart,
-                                error: new ComposerChartNotSupportedError(
-                                    uuid,
-                                    name,
-                                ).message,
+                                error: new ComposerChartNotSupportedError(uuid)
+                                    .message,
                             },
                         ];
                     }

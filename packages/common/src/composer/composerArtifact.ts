@@ -221,11 +221,7 @@ export const toComposerNodeColumns = (
 const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
     !!node.nodeId;
 
-/**
- * Builds a submission's pipeline: submitted nodes plus every reused thread
- * node and everything it reads, in dependency order. A node id names one
- * definition for the whole thread.
- */
+/** A submission's pipeline: submitted nodes plus every reused thread node and what it reads, in dependency order; a node id names one definition per thread. */
 export const buildComposerArtifactPipeline = ({
     queries,
     threadNodes: threadNodeList,

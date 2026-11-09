@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isDashboardChartTileType,
     QueryExecutionContext,
     SEED_AI_AGENT,
@@ -22,7 +23,7 @@ import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 // The first writer of composer charts: an author saves a seeded composer
 // artifact version to a dashboard, and a viewer runs the resulting tile.
 const projectUuid = SEED_PROJECT.project_uuid;
-const COMPOSE_FLAG = 'compose-sql-runner';
+const COMPOSE_FLAG = FeatureFlags.ComposeSqlRunner;
 const resultsCacheUrl = `/api/v1/projects/${projectUuid}/results-cache-config`;
 
 type ArtifactRef = { artifactUuid: string; versionUuid: string };

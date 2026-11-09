@@ -73,7 +73,7 @@ export type PromotionChanges = {
         data: PromotedDocument;
     }[];
     /** Charts the promotion left out by name, such as composer charts until promotion carries pipelines. */
-    skippedCharts?: SkippedChart[];
+    skippedCharts: SkippedChart[];
 };
 
 export type ApiPromoteDocumentResponse = ApiSuccess<Document>;

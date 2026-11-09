@@ -9095,10 +9095,7 @@ export class AsyncQueryService extends ProjectService {
         context: QueryExecutionContext,
     ): void {
         if (isJwtUser(account)) {
-            throw new ComposerChartNotAvailableInEmbedError(
-                chart.uuid,
-                chart.name,
-            );
+            throw new ComposerChartNotAvailableInEmbedError(chart.uuid);
         }
         if (chart.projectUuid !== projectUuid) {
             throw new ForbiddenError('Chart does not belong to project');
@@ -9116,11 +9113,8 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    /**
-     * Run-time reshaping of the stored pipeline is refused by name;
-     * `pivotResults` is ignored since nothing is pivoted. `schedulerFilters`
-     * only arrives from internal callers: HTTP has no such field and drops it.
-     */
+    // Run-time reshaping of the stored pipeline is refused by name; `pivotResults`
+    // is ignored (nothing is pivoted) and `schedulerFilters` never arrives over HTTP.
     private static assertNoComposerChartRunOptions(
         options: Record<string, unknown>,
     ): void {
@@ -9134,11 +9128,8 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    /**
-     * Every semantic node is checked against the viewer's attribute-filtered
-     * explore before any node is submitted, so a refusal leaves no node
-     * executed and no history row written.
-     */
+    // Every semantic node is checked against the viewer's attribute-filtered explore
+    // before any is submitted, so a refusal executes no node and writes no row.
     private async assertComposerChartNodesVisible({
         account,
         chart,
@@ -11618,9 +11609,9 @@ export class AsyncQueryService extends ProjectService {
      * uuid (the creator-scoped QueryHistoryModel.get lookup plus
      * throwIfCannotReadQueryHistory). The referenced query does NOT need to
      * be finished — waiting for results happens in the background execution
-     * phase (waitForQueryReferences).
+     * phase (waitForQueryReferences). `composerChartSource` is the node being
+     * run when the reads are a composer chart's own pipeline.
      */
-    /** `composerChartSource` is the node being run when the reads are a composer chart's own pipeline. */
     private async authorizeQueryReferences({
         account,
         projectUuid,
@@ -17425,7 +17416,6 @@ export class AsyncQueryService extends ProjectService {
         if (savedChartVariant.queryType === 'composer') {
             throw new ComposerChartNotSupportedError(
                 savedChartVariant.chart.uuid,
-                savedChartVariant.chart.name,
             );
         }
         const savedChart = savedChartVariant.chart;

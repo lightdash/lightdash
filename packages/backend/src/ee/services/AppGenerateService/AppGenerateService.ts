@@ -11349,10 +11349,7 @@ export class AppGenerateService extends BaseService {
             case 'semantic':
                 break;
             case 'composer':
-                throw new ComposerChartNotSupportedError(
-                    variant.chart.uuid,
-                    variant.chart.name,
-                );
+                throw new ComposerChartNotSupportedError(variant.chart.uuid);
             default:
                 return assertUnreachable(
                     variant,

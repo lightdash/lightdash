@@ -137,6 +137,8 @@ export const DEFAULT_UI_STRINGS = {
     'composerTile.unavailable.disabled':
         'This chart type is not enabled for this project.',
     'composerTile.runError': 'The chart could not be run.',
+    'composerTile.defaultTitle': 'Chart',
+    'composerTile.notRunYet': 'The chart has not run yet',
     'dateZoom.defaultZoom': 'Default zoom',
     'dateZoom.none': 'None',
     'dateZoom.viewModeTooltip':

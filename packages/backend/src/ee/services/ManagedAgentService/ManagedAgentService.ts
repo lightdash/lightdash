@@ -824,10 +824,7 @@ export class ManagedAgentService extends BaseService {
             case 'semantic':
                 return variant.chart;
             case 'composer':
-                throw new ComposerChartNotSupportedError(
-                    variant.chart.uuid,
-                    variant.chart.name,
-                );
+                throw new ComposerChartNotSupportedError(variant.chart.uuid);
             default:
                 return assertUnreachable(
                     variant,
@@ -1688,10 +1685,7 @@ export class ManagedAgentService extends BaseService {
                 );
                 return;
             case 'composer':
-                throw new ComposerChartNotSupportedError(
-                    previous.chart.uuid,
-                    previous.chart.name,
-                );
+                throw new ComposerChartNotSupportedError(previous.chart.uuid);
             default:
                 return assertUnreachable(
                     previous,

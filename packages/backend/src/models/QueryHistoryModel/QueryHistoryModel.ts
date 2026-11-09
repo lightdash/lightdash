@@ -149,11 +149,8 @@ export const HIDDEN_COMPOSER_NODE_ERROR =
 export const INPUT_COMPOSER_NODE_RESULTS_ERROR =
     'Results of an input node of a composer chart are not available';
 
-/**
- * A viewer's result reads stop at the node the chart draws: an input node's
- * columns are inferred from the author's SQL. A row written before roles
- * existed reads as an input.
- */
+// A viewer reads only the node the chart draws: input node columns come from the
+// author's SQL. A row written before roles existed reads as an input.
 export const canReadComposerNodeResults = (
     composerChartSource: ComposerChartQuerySource | undefined,
     canViewNodeSql: boolean,
@@ -172,11 +169,8 @@ export const assertCanReadComposerNodeResults = (
     }
 };
 
-/**
- * Warehouse diagnostics quote the statement that failed, so a hidden node's
- * stored error is never returned; an expired sign-in is reported in its
- * canonical server-written form so the client still offers a reconnect.
- */
+// Warehouse diagnostics quote the failed statement, so a hidden node's error is
+// never returned; an expired sign-in keeps its canonical message for reconnect.
 export const getVisibleQueryError = (
     error: string | null,
     composerChartSource: ComposerChartQuerySource | undefined,
@@ -1083,9 +1077,8 @@ export class QueryHistoryModel {
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED:
                     if (throwOnError) {
-                        // The message lands in derived rows and job logs read
-                        // by whoever consumes them; a hidden node's diagnostic
-                        // never leaves its row
+                        // Lands in derived rows and job logs; a hidden node's
+                        // diagnostic never leaves its row
                         throw new Error(
                             getVisibleQueryError(
                                 queryHistory.error,

@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isDashboardChartTileType,
     MetricType,
     QueryExecutionContext,
@@ -22,7 +23,7 @@ import { pollUntil } from '../helpers/polling';
 // A viewer runs a composer chart (semantic node with custom SQL, reshaped by a
 // DuckDB node) without authoring rights; values must match the semantic node.
 const projectUuid = SEED_PROJECT.project_uuid;
-const COMPOSE_FLAG = 'compose-sql-runner';
+const COMPOSE_FLAG = FeatureFlags.ComposeSqlRunner;
 const QUERY_HISTORY_FLAG = 'query-history';
 const CLASSIC_CHART_NAME = 'How much revenue do we have per payment method?';
 const resultsCacheUrl = `/api/v1/projects/${projectUuid}/results-cache-config`;

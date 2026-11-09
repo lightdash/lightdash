@@ -3064,10 +3064,8 @@ export class CoderService extends BaseService {
             charts: chartsWithPolicies,
             skippedCharts: composerCharts.map((composerChart) => ({
                 ...composerChart,
-                reason: new ComposerChartNotSupportedError(
-                    composerChart.uuid,
-                    composerChart.name,
-                ).message,
+                reason: new ComposerChartNotSupportedError(composerChart.uuid)
+                    .message,
             })),
             languageMap: languageMap
                 ? chartsWithPolicies.map((chart) => {
@@ -4555,6 +4553,7 @@ export class CoderService extends BaseService {
                 `Finished creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
             const promotionChanges: PromotionChanges = {
+                skippedCharts: [],
                 charts: [
                     {
                         action: PromotionAction.CREATE,
@@ -5112,6 +5111,7 @@ export class CoderService extends BaseService {
             // Note: We use a minimal object for the promotion changes since SQL charts
             // don't have the same structure as regular charts. The CLI only uses the action.
             const promotionChanges: PromotionChanges = {
+                skippedCharts: [],
                 charts: [
                     {
                         action: PromotionAction.CREATE,
@@ -5182,6 +5182,7 @@ export class CoderService extends BaseService {
         await this.stampAppliedSqlChartSnapshot(user, projectUuid, slug, false);
 
         const promotionChanges: PromotionChanges = {
+            skippedCharts: [],
             charts: [
                 {
                     action: PromotionAction.UPDATE,
@@ -6094,6 +6095,7 @@ export class CoderService extends BaseService {
 
             return withTileWarnings(
                 {
+                    skippedCharts: [],
                     dashboards: [
                         {
                             action: PromotionAction.CREATE,

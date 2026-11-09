@@ -634,6 +634,7 @@ describe('Document actions', () => {
         expect(mocks.requestDiff).toHaveBeenCalledWith('document');
 
         mocks.promotionDiff = {
+            skippedCharts: [],
             spaces: [],
             dashboards: [],
             charts: [],

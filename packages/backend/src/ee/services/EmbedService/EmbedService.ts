@@ -547,7 +547,6 @@ export class EmbedService extends BaseService {
             case 'composer':
                 throw new ComposerChartNotAvailableInEmbedError(
                     variant.chart.uuid,
-                    variant.chart.name,
                 );
             default:
                 return assertUnreachable(
@@ -1667,10 +1666,7 @@ export class EmbedService extends BaseService {
                     : null,
             });
         if (isComposerChartQueryResults(results)) {
-            throw new ComposerChartNotAvailableInEmbedError(
-                chart.uuid,
-                chart.name,
-            );
+            throw new ComposerChartNotAvailableInEmbedError(chart.uuid);
         }
         return this.asyncQueryService.redactFieldsSqlForResponse(
             account,

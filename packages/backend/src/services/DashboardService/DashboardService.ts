@@ -820,7 +820,6 @@ export class DashboardService
         );
     }
 
-    /** Copying a chart writes a classic version, which a composer chart has none of; refuse before anything is created. */
     /** Dashboard-owned charts referenced by more than one tile, as happens when a tab is duplicated. */
     private static getChartUuidsToDuplicate(
         tiles: DashboardVersionedFields['tiles'],
@@ -846,16 +845,14 @@ export class DashboardService
         );
     }
 
+    /** Copying a chart writes a classic version, which a composer chart has none of; refuse before anything is created. */
     private async assertNoComposerChartsToCopy(
         chartUuids: string[],
     ): Promise<void> {
         const [composerChart] =
             await this.savedChartModel.findComposerCharts(chartUuids);
         if (composerChart) {
-            throw new ComposerChartNotSupportedError(
-                composerChart.uuid,
-                composerChart.name,
-            );
+            throw new ComposerChartNotSupportedError(composerChart.uuid);
         }
     }
 

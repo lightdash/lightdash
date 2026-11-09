@@ -11299,7 +11299,6 @@ export class ProjectService
         if (savedChartVariant.queryType === 'composer') {
             throw new ComposerChartNotSupportedError(
                 savedChartVariant.chart.uuid,
-                savedChartVariant.chart.name,
             );
         }
         const savedChart = savedChartVariant.chart;
@@ -11409,7 +11408,6 @@ export class ProjectService
         if (savedChartVariant.queryType === 'composer') {
             throw new ComposerChartNotSupportedError(
                 savedChartVariant.chart.uuid,
-                savedChartVariant.chart.name,
             );
         }
         const savedChart = savedChartVariant.chart;
@@ -16293,7 +16291,6 @@ export class ProjectService
                     if (composerChart) {
                         throw new ComposerChartNotSupportedError(
                             composerChart.uuid,
-                            composerChart.name,
                         );
                     }
                     throw new NotFoundError('Saved query not found');

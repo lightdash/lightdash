@@ -7,6 +7,7 @@ import {
     type SemanticLayerSourceQuery,
     type SourceQuery,
 } from '../types/querySources';
+import assertUnreachable from '../utils/assertUnreachable';
 
 export const SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION: SavedComposerPipeline['schemaVersion'] = 1;
 
@@ -67,7 +68,7 @@ const hasRequiredFields = (node: SavedComposerPipelineNode): boolean => {
                 typeof node.sql === 'string' && hasReferences(node.references)
             );
         default:
-            return false;
+            return assertUnreachable(node, 'Unknown composer pipeline node');
     }
 };
 

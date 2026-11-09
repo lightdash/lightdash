@@ -464,13 +464,18 @@ export class NotSupportedError extends LightdashError {
 }
 
 /** Thrown by a surface that reads a saved chart as a classic chart when the row is a composer chart. */
+export const COMPOSER_CHART_NOT_SUPPORTED_ERROR_NAME =
+    'ComposerChartNotSupportedError';
+export const COMPOSER_CHART_NOT_AVAILABLE_IN_EMBED_ERROR_NAME =
+    'ComposerChartNotAvailableInEmbedError';
+
 export class ComposerChartNotSupportedError extends LightdashError {
     // No chart name in the error: some callers raise it before authorization.
-    constructor(chartUuid: string, _chartName: string) {
+    constructor(chartUuid: string) {
         super({
             message:
                 'This chart is a composer chart, which this feature does not support yet.',
-            name: 'ComposerChartNotSupportedError',
+            name: COMPOSER_CHART_NOT_SUPPORTED_ERROR_NAME,
             statusCode: 400,
             data: { chartUuid },
         });
@@ -479,11 +484,11 @@ export class ComposerChartNotSupportedError extends LightdashError {
 
 /** Thrown by an embed path that reaches a composer chart; embeds show a not-available state for them. */
 export class ComposerChartNotAvailableInEmbedError extends LightdashError {
-    constructor(chartUuid: string, _chartName: string) {
+    constructor(chartUuid: string) {
         super({
             message:
                 'This chart is a composer chart, which is not available in embedded content.',
-            name: 'ComposerChartNotAvailableInEmbedError',
+            name: COMPOSER_CHART_NOT_AVAILABLE_IN_EMBED_ERROR_NAME,
             statusCode: 400,
             data: { chartUuid },
         });
@@ -1041,12 +1046,7 @@ export const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
     );
 };
 
-/**
- * For a stored query error a reader may not see: the server-written message of
- * the same expired-sign-in kind, so the client still offers a reconnect, or
- * null when the error is not one. Never the stored text, which a warehouse
- * diagnostic quoting SQL could mimic.
- */
+/** Server-written expired-sign-in message for a hidden stored error, or null; never the stored text, which could quote SQL. */
 export const getCanonicalWarehouseSignInExpiredMessage = (
     message: string,
 ): string | null => {

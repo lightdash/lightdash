@@ -129,10 +129,7 @@ export const getSavedQuery = async (
         includeUnpublishedDraft,
     );
     if (isComposerSavedChart(chart)) {
-        const refusal = new ComposerChartNotSupportedError(
-            chart.uuid,
-            chart.name,
-        );
+        const refusal = new ComposerChartNotSupportedError(chart.uuid);
         const error: ApiError = {
             status: 'error',
             error: {

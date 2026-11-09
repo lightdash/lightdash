@@ -2109,6 +2109,7 @@ export class PromoteService extends BaseService {
                 upstreamProjectUuid,
             );
         const result = await this.upsertSpaces(user, projectUuid, {
+            skippedCharts: [],
             spaces: spaceChanges,
             dashboards: [],
             charts: [],
@@ -2490,6 +2491,7 @@ export class PromoteService extends BaseService {
         if (sqlChartChange.action === PromotionAction.NO_CHANGES) {
             return {
                 promotionChanges: {
+                    skippedCharts: [],
                     spaces: [spaceChange],
                     dashboards: [],
                     charts: [],
@@ -2506,6 +2508,7 @@ export class PromoteService extends BaseService {
 
         return {
             promotionChanges: {
+                skippedCharts: [],
                 spaces: [spaceChange, ...spaceChanges],
                 dashboards: [],
                 charts: [],
@@ -2612,6 +2615,7 @@ export class PromoteService extends BaseService {
                 spaces: [spaceChange],
                 dashboards: [],
                 charts: [chartChange],
+                skippedCharts: [],
             };
         }
 
@@ -2625,6 +2629,7 @@ export class PromoteService extends BaseService {
             spaces: [spaceChange, ...spaceChanges],
             dashboards: [],
             charts: [chartChange],
+            skippedCharts: [],
         };
     }
 
@@ -3137,6 +3142,7 @@ export class PromoteService extends BaseService {
             spaces: PromoteService.sortSpaceChanges(spaceChanges),
             dashboards: [],
             charts: [],
+            skippedCharts: [],
             dataApps: dataAppChanges.map(({ uuid, name, action }) => ({
                 action:
                     action === 'create'

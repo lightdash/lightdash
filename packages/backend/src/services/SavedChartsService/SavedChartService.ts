@@ -802,10 +802,7 @@ export class SavedChartService
         const [composerChart] =
             await this.savedChartModel.findComposerCharts(savedChartUuids);
         if (composerChart) {
-            throw new ComposerChartNotSupportedError(
-                composerChart.uuid,
-                composerChart.name,
-            );
+            throw new ComposerChartNotSupportedError(composerChart.uuid);
         }
     }
 
@@ -894,10 +891,7 @@ export class SavedChartService
                 existingChart.uuid,
             );
             if (variant.queryType === 'composer') {
-                throw new ComposerChartNotSupportedError(
-                    variant.chart.uuid,
-                    variant.chart.name,
-                );
+                throw new ComposerChartNotSupportedError(variant.chart.uuid);
             }
             chartForOverlay = variant.chart;
         }
@@ -1784,10 +1778,7 @@ export class SavedChartService
                 : [];
         const savedChartsDaos = updatedVariants.map((variant) => {
             if (variant.queryType === 'composer') {
-                throw new ComposerChartNotSupportedError(
-                    variant.chart.uuid,
-                    variant.chart.name,
-                );
+                throw new ComposerChartNotSupportedError(variant.chart.uuid);
             }
             return variant.chart;
         });
@@ -2243,10 +2234,7 @@ export class SavedChartService
             options,
         );
         if (variant.queryType === 'composer') {
-            throw new ComposerChartNotSupportedError(
-                variant.chart.uuid,
-                variant.chart.name,
-            );
+            throw new ComposerChartNotSupportedError(variant.chart.uuid);
         }
         return variant.chart;
     }

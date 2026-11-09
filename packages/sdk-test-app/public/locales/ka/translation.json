@@ -137,6 +137,8 @@
         "composerTile.unavailable.embed": "ამ ტიპის დიაგრამა ჯერ არ არის ხელმისაწვდომი ჩაშენებულ დაფებში.",
         "composerTile.unavailable.disabled": "ამ ტიპის დიაგრამა არ არის ჩართული ამ პროექტისთვის.",
         "composerTile.runError": "დიაგრამის გაშვება ვერ მოხერხდა.",
+        "composerTile.defaultTitle": "დიაგრამა",
+        "composerTile.notRunYet": "დიაგრამა ჯერ არ გაშვებულა",
         "dateZoom.defaultZoom": "ნაგულისხმევი მასშტაბი",
         "dateZoom.none": "არცერთი",
         "dateZoom.viewModeTooltip": "დიაგრამები აჩვენებენ თარიღებს თავდაპირველი გრანულარობით.",

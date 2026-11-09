@@ -2412,10 +2412,7 @@ export class SavedChartModel {
             trx,
         );
         if (variant.queryType === 'composer') {
-            throw new ComposerChartNotSupportedError(
-                variant.chart.uuid,
-                variant.chart.name,
-            );
+            throw new ComposerChartNotSupportedError(variant.chart.uuid);
         }
         return variant.chart;
     }
