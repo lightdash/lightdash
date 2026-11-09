@@ -1,5 +1,3 @@
-import { calculateSeriesLikeIdentifier, type SeriesLike } from './series';
-
 /**
  * A unique key used to track the latest index assigned within a group,
  * within the color mappings Map.
@@ -82,14 +80,4 @@ export const calculateKeyColorAssignment = (
     groupMappings.set(identifier, nextIdx);
 
     return colorHex;
-};
-
-export const calculateSeriesColorAssignment = (
-    options: ColorAssignmentOptions,
-    series: SeriesLike,
-): string => {
-    const [baseField, completeIdentifier] =
-        calculateSeriesLikeIdentifier(series);
-
-    return calculateKeyColorAssignment(options, baseField, completeIdentifier);
 };
