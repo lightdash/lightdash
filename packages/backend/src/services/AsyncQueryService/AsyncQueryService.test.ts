@@ -48,6 +48,7 @@ import {
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeJoinType,
     MergeQueryErrorKind,
+    metricQueryOfSemanticNode,
     MetricType,
     MissingConfigError,
     NotFoundError,
@@ -69,6 +70,7 @@ import {
     ResultColumns,
     ResultsCacheMissReason,
     ResultsExpiredError,
+    SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
     SignInSubjectBasis,
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
@@ -81,6 +83,7 @@ import {
     type AgentIdentityClaim,
     type AuthType,
     type CaslSubjectNames,
+    type ComposerSavedChartDAO,
     type CreateBigqueryCredentials,
     type DashboardParameterControl,
     type Document,
@@ -96,6 +99,7 @@ import {
     type PivotConfiguration,
     type ProjectDefaults,
     type RegisteredAccount,
+    type SemanticLayerSourceQuery,
     type SessionUser,
     type UserAccessControls,
 } from '@lightdash/common';
@@ -302,6 +306,7 @@ import {
     COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
     ComposeEngineClient,
 } from './ComposeEngineClient';
+import { ComposerChartQueryContext } from './ComposerChartQueryContext';
 import { buildComposeMergeOriginalColumns } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
@@ -31132,5 +31137,140 @@ describe('results cache stats', () => {
                 7,
             ),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('composer chart node queries', () => {
+    const node: SemanticLayerSourceQuery & { nodeId: string } = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'orders',
+        exploreName: metricQueryMock.exploreName,
+        dimensions: metricQueryMock.dimensions,
+        metrics: metricQueryMock.metrics,
+        additionalMetrics: [
+            {
+                name: 'amount_x2',
+                table: metricQueryMock.exploreName,
+                type: MetricType.SUM,
+                sql: '${TABLE}.amount * 2',
+            },
+        ],
+        limit: 500,
+    };
+    const chart = {
+        uuid: 'composer-chart',
+        projectUuid,
+        pipeline: {
+            schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
+            nodes: [node],
+            terminalNodeId: 'orders',
+        },
+    } as unknown as ComposerSavedChartDAO;
+    const projectViewer = () => {
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+        ]);
+        return account;
+    };
+    const stubExecution = (service: AsyncQueryService) => {
+        vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
+            {
+                explore: validExplore,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            },
+        );
+        vi.spyOn(
+            service as unknown as {
+                prepareMetricQueryAsyncQueryArgs: (
+                    args: unknown,
+                ) => Promise<QueryComposer>;
+            },
+            'prepareMetricQueryAsyncQueryArgs',
+        ).mockResolvedValue(createQueryComposerMock({}));
+        return vi
+            .spyOn(
+                service as unknown as {
+                    executeAsyncQuery: (
+                        args: unknown,
+                        parameters: ExecuteAsyncQueryRequestParams,
+                    ) => Promise<ExecuteAsyncQueryReturn>;
+                },
+                'executeAsyncQuery',
+            )
+            .mockResolvedValue({
+                queryUuid: 'node-query',
+                cacheMetadata: { cacheHit: false },
+            });
+    };
+
+    test('a project viewer runs a stored node with custom SQL and the row records the chart', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const execute = stubExecution(service);
+        const account = projectViewer();
+
+        const result = await service.executeAsyncMetricQuery({
+            account,
+            projectUuid,
+            metricQuery: metricQueryOfSemanticNode(node),
+            context: QueryExecutionContext.DASHBOARD,
+            composerChartQueryContext: ComposerChartQueryContext.fromChart(
+                account,
+                chart,
+            ),
+        });
+
+        expect(result.queryUuid).toBe('node-query');
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({ account }),
+            expect.objectContaining({ chartUuid: chart.uuid }),
+        );
+    });
+
+    test('a query that is not a node of the chart is refused before any explore is read', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const execute = stubExecution(service);
+        const account = projectViewer();
+
+        await expect(
+            service.executeAsyncMetricQuery({
+                account,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryOfSemanticNode(node),
+                    dimensions: [...node.dimensions!, 'orders_order_id'],
+                },
+                context: QueryExecutionContext.DASHBOARD,
+                composerChartQueryContext: ComposerChartQueryContext.fromChart(
+                    account,
+                    chart,
+                ),
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    test('without project access the node is refused', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const execute = stubExecution(service);
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([]);
+
+        await expect(
+            service.executeAsyncMetricQuery({
+                account,
+                projectUuid,
+                metricQuery: metricQueryOfSemanticNode(node),
+                context: QueryExecutionContext.DASHBOARD,
+                composerChartQueryContext: ComposerChartQueryContext.fromChart(
+                    account,
+                    chart,
+                ),
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(execute).not.toHaveBeenCalled();
     });
 });

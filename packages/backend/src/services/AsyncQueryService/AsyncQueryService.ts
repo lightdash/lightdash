@@ -7677,10 +7677,8 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 inputMetricQuery,
             );
-            // The node's custom SQL is the chart author's, so the viewer
-            // needs no explore or custom-SQL rights of their own; project
-            // access is still theirs, and the explore's user attributes
-            // apply when the explore is loaded.
+            // The node's custom SQL is the chart author's; project access
+            // and the explore's user attributes are still the viewer's.
             if (
                 this.createAuditedAbility(account).cannot(
                     'view',
@@ -7756,6 +7754,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
             totalConfiguration,
             documentQueryContext,
+            composerChartQueryContext,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
@@ -7946,6 +7945,10 @@ export class AsyncQueryService extends ProjectService {
         const requestParameters: ExecuteAsyncQueryRequestParams = {
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
+                : {}),
+            // Result reads re-check chart access through this, as for saved charts
+            ...(composerChartQueryContext
+                ? { chartUuid: composerChartQueryContext.chartUuid }
                 : {}),
             ...(references ? { references } : {}),
             context,
@@ -9006,10 +9009,23 @@ export class AsyncQueryService extends ProjectService {
         return { projectUuid, invalidatedAt };
     }
 
-    /**
-     * Composer charts run their stored pipeline as is: the run-time
-     * reshaping the classic path accepts is refused by name, not dropped.
-     */
+    private static assertComposerChartRunnable(
+        account: Account,
+        chart: ComposerSavedChartDAO,
+        projectUuid: string,
+    ): void {
+        if (isJwtUser(account)) {
+            throw new ComposerChartNotAvailableInEmbedError(
+                chart.uuid,
+                chart.name,
+            );
+        }
+        if (chart.projectUuid !== projectUuid) {
+            throw new ForbiddenError('Chart does not belong to project');
+        }
+    }
+
+    /** Run-time reshaping of the stored pipeline is refused by name; `pivotResults` is ignored since nothing is pivoted. */
     private static assertNoComposerChartRunOptions(
         options: Record<string, unknown>,
     ): void {
@@ -9023,12 +9039,8 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    /**
-     * Runs a composer chart's pipeline as its viewer. Semantic-layer nodes
-     * carry the chart context, so the metric-query path checks node
-     * membership instead of the viewer's explore and custom-SQL rights;
-     * duckdb nodes run scoped to the results they reference.
-     */
+    // Semantic nodes carry the chart context so the metric-query path checks
+    // node membership; duckdb nodes run scoped to the results they reference.
     private async executeAsyncComposerChartQuery({
         account,
         projectUuid,
@@ -9143,19 +9155,18 @@ export class AsyncQueryService extends ProjectService {
         schedulerFilters,
         dashboardFilters,
         userAttributeOverrides,
-    }: Omit<ExecuteAsyncSavedChartQueryArgs, 'chartUuid' | 'versionUuid'> & {
+    }: Omit<
+        ExecuteAsyncSavedChartQueryArgs,
+        'chartUuid' | 'versionUuid' | 'pivotResults'
+    > & {
         chart: ComposerSavedChartDAO;
     }): Promise<ApiExecuteAsyncComposerChartQueryResults> {
         assertIsAccountWithOrg(account);
-        if (isJwtUser(account)) {
-            throw new ComposerChartNotAvailableInEmbedError(
-                chart.uuid,
-                chart.name,
-            );
-        }
-        if (chart.projectUuid !== projectUuid) {
-            throw new ForbiddenError('Chart does not belong to project');
-        }
+        AsyncQueryService.assertComposerChartRunnable(
+            account,
+            chart,
+            projectUuid,
+        );
         AsyncQueryService.assertNoComposerChartRunOptions({
             limit,
             pivotConfiguration,
@@ -9238,15 +9249,11 @@ export class AsyncQueryService extends ProjectService {
         chart: ComposerSavedChartDAO;
     }): Promise<ApiExecuteAsyncComposerChartQueryResults> {
         assertIsAccountWithOrg(account);
-        if (isJwtUser(account)) {
-            throw new ComposerChartNotAvailableInEmbedError(
-                chart.uuid,
-                chart.name,
-            );
-        }
-        if (chart.projectUuid !== projectUuid) {
-            throw new ForbiddenError('Chart does not belong to project');
-        }
+        AsyncQueryService.assertComposerChartRunnable(
+            account,
+            chart,
+            projectUuid,
+        );
         // Dashboard filters, sorts and date zoom do not reach a composer
         // chart yet; a limit would reshape the stored pipeline.
         AsyncQueryService.assertNoComposerChartRunOptions({ limit });
@@ -9319,7 +9326,6 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
                 limit,
                 parameters,
-                pivotResults,
                 pivotConfiguration: requestedPivotConfiguration,
                 filterOverrides,
                 schedulerFilters,

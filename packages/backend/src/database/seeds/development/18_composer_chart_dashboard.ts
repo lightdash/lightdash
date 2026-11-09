@@ -22,8 +22,7 @@ import {
     SavedChartVersionsTableName,
 } from '../../entities/savedCharts';
 
-// Rows are written directly: the saved chart model gains a composer writer
-// with the save-to-dashboard step.
+// Rows are written directly: the saved chart model has no composer writer yet.
 type SeedComposerChart = {
     name: string;
     chartKind: ChartKind;

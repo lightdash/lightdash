@@ -1213,11 +1213,7 @@ export type ComposerChartNodeSubmission = {
     cacheHit: boolean;
 };
 
-/**
- * A composer chart run, from either saved chart execution endpoint. The
- * pipeline's columns are discovered when the terminal node runs, so there is
- * no metric query or fields at submit; `queryUuid` is the terminal node's.
- */
+/** A composer chart run from either saved-chart endpoint; `queryUuid` is the terminal node's, columns are discovered when it runs. */
 export type ApiExecuteAsyncComposerChartQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         queryType: 'composer';

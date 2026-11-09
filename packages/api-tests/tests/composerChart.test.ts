@@ -16,12 +16,10 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login, loginAsViewer, loginWithPermissions } from '../helpers/auth';
+import { pollUntil } from '../helpers/polling';
 
-// A composer chart is a saved chart whose query is a pipeline: here a
-// semantic-layer node with a hand-authored custom metric, reshaped by a DuckDB
-// node. A dashboard viewer runs it through the ordinary saved-chart endpoints
-// without holding the authoring permissions for either node, and every value
-// must equal what the semantic node returns on its own.
+// A viewer runs a composer chart (semantic node with custom SQL, reshaped by a
+// DuckDB node) without authoring rights; values must match the semantic node.
 const projectUuid = SEED_PROJECT.project_uuid;
 const COMPOSE_FLAG = 'compose-sql-runner';
 const resultsCacheUrl = `/api/v1/projects/${projectUuid}/results-cache-config`;
@@ -81,32 +79,21 @@ describe('Composer chart run as a dashboard viewer', () => {
     let flagWasEnabled: boolean;
     let cacheWasEnabled: boolean;
 
-    const pollQuery = async (
-        client: ApiClient,
-        queryUuid: string,
-        maxRetries = 120,
-    ): Promise<QueryResultsBody['results']> => {
-        // eslint-disable-next-line no-plusplus
-        for (let i = 0; i < maxRetries; i++) {
-            const resp = await client.get<QueryResultsBody>(
-                `/api/v2/projects/${projectUuid}/query/${queryUuid}`,
-            );
-            const { status } = resp.body.results;
-            if (status === 'ready' || status === 'error') {
-                return resp.body.results;
-            }
-            await new Promise((resolve) => {
-                setTimeout(resolve, 500);
-            });
-        }
-        throw new Error(`Query ${queryUuid} did not finish`);
-    };
-
     const pollQueryResults = async (
         client: ApiClient,
         queryUuid: string,
     ): Promise<QueryResultsBody['results']> => {
-        const results = await pollQuery(client, queryUuid);
+        const { results } = await pollUntil<QueryResultsBody>(
+            client,
+            `/api/v2/projects/${projectUuid}/query/${queryUuid}`,
+            {
+                timeout: 60_000,
+                interval: 500,
+                condition: (body) =>
+                    body.results.status === 'ready' ||
+                    body.results.status === 'error',
+            },
+        );
         if (results.status === 'error') {
             throw new Error(`Query failed: ${JSON.stringify(results)}`);
         }
@@ -254,6 +241,17 @@ describe('Composer chart run as a dashboard viewer', () => {
         });
     }, 90_000);
 
+    it('ignores the dashboard draft flag: a composer chart has no draft overlay', async () => {
+        const started = await viewer.post<
+            Body<ApiExecuteAsyncComposerChartQueryResults>
+        >(
+            `/api/v2/projects/${projectUuid}/query/dashboard-chart`,
+            tileRequest(revenueShareTile, { includeUnpublishedDraft: true }),
+        );
+        expect(started.status).toBe(200);
+        expect(started.body.results.queryType).toBe('composer');
+    });
+
     it('runs the chart through the saved-chart path too', async () => {
         const started = await runChart(viewer, revenueShareTile.chartUuid);
         expect(started.status).toBe(200);
@@ -381,18 +379,18 @@ describe('Composer chart run as a dashboard viewer', () => {
     });
 
     it.each([
-        ['results', {}],
+        ['results', () => ({})],
         [
             'chart-and-results',
-            { dashboardSorts: [], dashboardFilters: {}, dashboardUuid: '' },
+            () => ({ dashboardSorts: [], dashboardFilters: {}, dashboardUuid }),
         ],
-        ['calculate-total', {}],
+        ['calculate-total', () => ({})],
     ])(
         'the classic-only route %s refuses the chart by name',
         async (route, body) => {
             const resp = await viewer.post<ApiErrorBody>(
                 `/api/v1/saved/${revenueShareTile.chartUuid}/${route}`,
-                'dashboardUuid' in body ? { ...body, dashboardUuid } : body,
+                body(),
                 { failOnStatusCode: false },
             );
             expect(resp.status).toBe(400);

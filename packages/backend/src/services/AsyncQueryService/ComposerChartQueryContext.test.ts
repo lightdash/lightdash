@@ -69,10 +69,6 @@ describe('ComposerChartQueryContext', () => {
         chart,
     );
 
-    test('lists the explore of every semantic-layer node', () => {
-        expect(context.exploreNames).toEqual(['orders', 'payments']);
-    });
-
     test('lets each semantic-layer node of the version run', () => {
         expect(() =>
             context.assertMetricQuery(

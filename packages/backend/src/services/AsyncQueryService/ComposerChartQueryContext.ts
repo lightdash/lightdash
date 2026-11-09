@@ -9,21 +9,14 @@ import {
     type SemanticLayerSourceQuery,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
-
-const comparable = (value: unknown): unknown =>
-    JSON.parse(JSON.stringify(value));
+import { comparable } from '../DocumentService/DocumentQueryContext';
 
 const isSemanticNode = (
     node: SavedComposerPipelineNode,
 ): node is SemanticLayerSourceQuery & { nodeId: string } =>
     node.sourceType === QuerySourceType.SEMANTIC_LAYER;
 
-/**
- * Server-only proof that a semantic-layer query is a node of a composer chart
- * version the account may view. Custom SQL in such a node is trusted the way
- * a viewable saved chart's custom SQL is; explore access and user attributes
- * are still the viewer's.
- */
+/** Server-only proof that a semantic-layer query is a node of a composer chart version the account may view. */
 export class ComposerChartQueryContext {
     private constructor(
         private readonly accountUserUuid: string,
@@ -44,15 +37,6 @@ export class ComposerChartQueryContext {
                 .filter(isSemanticNode)
                 .map(metricQueryOfSemanticNode),
         );
-    }
-
-    /** The explore of every semantic-layer node, for the per-node explore check. */
-    get exploreNames(): string[] {
-        return [
-            ...new Set(
-                this.nodeMetricQueries.map((query) => query.exploreName),
-            ),
-        ];
     }
 
     /** Only a node of the bound version may run, by the account that opened the chart. */
