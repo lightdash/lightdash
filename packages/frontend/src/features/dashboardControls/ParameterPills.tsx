@@ -29,7 +29,7 @@ import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { useFilterTabPlacement } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { ShadowedReservedNameWarning } from '../parameters/components/ShadowedReservedNameWarning';
 import { getParameterDisplayValue } from '../parameters/utils/parameterDisplayValue';
-import { useBarSelection } from './barSelection';
+import { MOVE_KEYS, useBarMove, useBarSelection } from './barSelection';
 import editorClasses from './FilterEditor.module.css';
 import pillClasses from './FilterPills.module.css';
 import { ParameterControlPopover } from './ParameterControlPopover';
@@ -204,6 +204,7 @@ const ParameterPill: FC<{
     const remove = useParameterEditorSelector((c) => c.remove);
     const isEditing = useIsControlEdited();
     const selection = useBarSelection();
+    const barMove = useBarMove();
     // On an editor's sectioned bar a modified click picks the pill, with the
     // filter pills in one selection
     const isSelectable =
@@ -257,12 +258,15 @@ const ParameterPill: FC<{
     const canEdit = !isViewer && !isNeedsValue;
 
     const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-        if (
-            !canEdit ||
-            !event.altKey ||
-            (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
-        )
+        const direction = MOVE_KEYS[event.key];
+        if (!canEdit || !event.altKey || direction === undefined) return;
+        // On an editor's sectioned bar: along the bar or between lines
+        if (barMove !== null) {
+            event.preventDefault();
+            barMove(control.id, direction);
             return;
+        }
+        if (direction !== 'left' && direction !== 'right') return;
         event.preventDefault();
         const index = neighbourIds.indexOf(control.id);
         const overId =
@@ -403,18 +407,24 @@ type Props = {
     sectionId?: string | null;
     /** In the sectioned bar's one drag context: editors drag the pills. */
     isInBarContext?: boolean;
+    /** Only these pills, in this order (default every one of the pass, in list order). */
+    ids?: string[];
+    /** Every control in bar order, for the side a drop line takes (default the parameter list). */
+    barOrder?: string[];
 };
 
 // Parameter controls after the filters of the same pass, in list order
 export const ParameterPills: FC<Props> = ({
     sectionId,
     isInBarContext = false,
+    ids,
+    barOrder,
 }) => {
     const bar = useParameterBarControls();
     const isViewer = useParameterEditorSelector((c) => c.isViewer);
     const editingId = useParameterEditorSelector((c) => c.editingId);
     // A hidden control is an editor's to see; its value still applies
-    const entries = bar.entries.filter(
+    const passEntries = bar.entries.filter(
         (entry) =>
             !(isViewer && entry.control.hidden) &&
             (sectionId === undefined ||
@@ -422,10 +432,17 @@ export const ParameterPills: FC<Props> = ({
                     ? sectionId === null
                     : entry.sectionId === sectionId)),
     );
+    const entries =
+        ids === undefined
+            ? passEntries
+            : ids.flatMap((id) =>
+                  passEntries.filter(({ control }) => control.id === id),
+              );
     const neighbourIds = entries
         .filter(({ isNeedsValue }) => !isNeedsValue)
         .map(({ control }) => control.id);
-    const orderedKeys = bar.entries.map(({ control }) => control.id);
+    const orderedKeys =
+        barOrder ?? bar.entries.map(({ control }) => control.id);
     return (
         <>
             {entries.map((entry) => {

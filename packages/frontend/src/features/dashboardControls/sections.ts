@@ -6,10 +6,14 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import {
+    DashboardControlRefKind,
+    type DashboardControlRef,
     type DashboardControlSection,
+    type DashboardParameterControl,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
+import { sortBy } from 'es-toolkit/compat';
 
 export type FilterGroup = 'dimensions' | 'metrics';
 
@@ -327,119 +331,256 @@ export const removeSectionKeepingLines = (
     );
 };
 
-/**
- * Where a dragged section lands: beside another section (`side` of it, on
- * its line) or on a line of its own before the line `lineIndex`, counting
- * the lines on screen (the line count: after the last line)
- */
-export type SectionPlacement =
-    | { overId: string; side: 'before' | 'after' }
-    | { lineIndex: number };
-
-/** Puts the section `id` at `placement`; the same array when nothing moves */
-export const placeSection = (
-    sections: DashboardControlSection[],
-    id: string,
-    placement: SectionPlacement,
-): DashboardControlSection[] => {
-    const moving = sections.find((section) => section.id === id);
-    if (moving === undefined) return sections;
-    if ('overId' in placement && placement.overId === id) return sections;
-    const rest = removeSectionKeepingLines(sections, id);
-    let next: DashboardControlSection[];
-    if ('overId' in placement) {
-        const overIndex = rest.findIndex((s) => s.id === placement.overId);
-        if (overIndex === -1) return sections;
-        const over = rest[overIndex];
-        next =
-            placement.side === 'after'
-                ? [
-                      ...rest.slice(0, overIndex + 1),
-                      withLineKeys(moving, true),
-                      ...rest.slice(overIndex + 1),
-                  ]
-                : [
-                      ...rest.slice(0, overIndex),
-                      // It takes the line's start when the section it goes before had it
-                      withLineKeys(moving, over.inline === true),
-                      withLineKeys(over, true),
-                      ...rest.slice(overIndex + 1),
-                  ];
-    } else {
-        // `lineIndex` counts the lines on screen, the moving section's own
-        // included: a line it leaves empty goes
-        const current = groupSectionsIntoLines(sections);
-        const own = current.findIndex((line) =>
-            line.some((section) => section.id === id),
-        );
-        const lineIndex =
-            current[own].length === 1 && placement.lineIndex > own
-                ? placement.lineIndex - 1
-                : placement.lineIndex;
-        const lines = groupSectionsIntoLines(rest);
-        const at = Math.max(0, Math.min(lineIndex, lines.length));
-        const index = lines.slice(0, at).flat().length;
-        next = [
-            ...rest.slice(0, index),
-            withLineKeys(moving, false),
-            ...rest.slice(index),
-        ];
-    }
-    next = normaliseLines(next);
-    const shape = (list: DashboardControlSection[]) =>
-        normaliseLines(list)
-            .map(({ id: key, inline }) => `${key}:${inline ? 1 : 0}`)
-            .join(',');
-    return shape(next) === shape(sections) ? sections : next;
+/** A control on the bar, as `reconcileDashboardControlOrder` lists it */
+export type BarControl = {
+    kind: DashboardControlRefKind;
+    id: string;
+    sectionId: string | null;
+    newLine: boolean;
 };
 
 /**
- * A keyboard move: Alt+Left/Right goes one place along the bar, joining the
- * neighbour's line; Alt+Up/Down joins the line above or below, or takes a
- * line of its own at the top or bottom when it shares its line
+ * Where a moved control lands: beside another (its line and section; a
+ * section never enters one), on a line of its own before the line that
+ * `lineStartId` starts (null: after the last), last in a section, or out of
+ * its section (null) right after it; a control outside every section ends the first line
  */
-export const moveSectionBy = (
-    sections: DashboardControlSection[],
+export type ControlPlacement =
+    | { overId: string; side: 'before' | 'after' }
+    | { lineStartId: string | null }
+    | { sectionId: string | null };
+
+const isSection = (control: BarControl) =>
+    control.kind === DashboardControlRefKind.SECTION;
+
+// The end of the control at `index`: a section's block takes its members
+const blockEnd = (list: BarControl[], index: number) => {
+    let end = index + 1;
+    if (isSection(list[index]))
+        while (list[end]?.sectionId === list[index].id) end += 1;
+    return end;
+};
+
+const shapeOf = (list: BarControl[]) =>
+    list
+        .map(({ id, sectionId, newLine }) => `${id}:${sectionId}:${newLine}`)
+        .join(',');
+
+/** Puts the control `id` at `placement`; the same list when nothing moves */
+export const placeControl = <T extends BarControl>(
+    list: T[],
     id: string,
-    direction: 'left' | 'right' | 'up' | 'down',
-): DashboardControlSection[] => {
-    const index = sections.findIndex((section) => section.id === id);
-    if (index === -1) return sections;
+    placement: ControlPlacement,
+): T[] => {
+    const from = list.findIndex((control) => control.id === id);
+    if (from === -1) return list;
+    const mover = list[from];
+    const end = blockEnd(list, from);
+    const block = list.slice(from, end);
+    const rest = [...list.slice(0, from), ...list.slice(end)];
+    // A line start passes to the next control on the bar
+    if (mover.sectionId === null && mover.newLine) {
+        const next = rest.findIndex(
+            (control, index) => index >= from && control.sectionId === null,
+        );
+        if (next !== -1) rest[next] = { ...rest[next], newLine: true };
+    }
+    let at: number;
+    let sectionId: string | null = null;
+    let newLine = false;
+    if ('overId' in placement) {
+        const overIndex = rest.findIndex(
+            (control) => control.id === placement.overId,
+        );
+        if (overIndex === -1) return list;
+        const over = rest[overIndex];
+        if (isSection(mover) && over.sectionId !== null) return list;
+        sectionId = over.sectionId;
+        if (placement.side === 'before') {
+            at = overIndex;
+            // It takes the line's start when the control it goes before had it
+            if (over.newLine) {
+                newLine = true;
+                rest[overIndex] = { ...over, newLine: false };
+            }
+        } else {
+            at = blockEnd(rest, overIndex);
+        }
+    } else if ('lineStartId' in placement) {
+        newLine = true;
+        if (placement.lineStartId === null) {
+            at = rest.length;
+        } else {
+            at = rest.findIndex(
+                (control) => control.id === placement.lineStartId,
+            );
+            if (at === -1) return list;
+        }
+    } else if (placement.sectionId !== null) {
+        if (isSection(mover)) return list;
+        sectionId = placement.sectionId;
+        const section = rest.findIndex(
+            (control) => isSection(control) && control.id === sectionId,
+        );
+        if (section === -1) return list;
+        at = blockEnd(rest, section);
+    } else if (mover.sectionId !== null) {
+        const section = rest.findIndex(
+            (control) => isSection(control) && control.id === mover.sectionId,
+        );
+        if (section === -1) return list;
+        at = blockEnd(rest, section);
+    } else {
+        const lineOne = rest.findIndex(
+            (control) => control.sectionId === null && control.newLine,
+        );
+        at = lineOne === -1 ? rest.length : lineOne;
+    }
+    const next = [
+        ...rest.slice(0, at),
+        { ...mover, sectionId, newLine },
+        ...block.slice(1),
+        ...rest.slice(at),
+    ];
+    return shapeOf(next) === shapeOf(list) ? list : next;
+};
+
+/** The bar's lines of top-level controls; the first is "Add filter"'s, maybe empty */
+const groupIntoBarLines = <T extends BarControl>(list: T[]): T[][] =>
+    list
+        .filter((control) => control.sectionId === null)
+        .reduce<T[][]>(
+            (lines, control) => {
+                if (control.newLine) lines.push([control]);
+                else lines[lines.length - 1].push(control);
+                return lines;
+            },
+            [[]],
+        );
+
+/** The bar's lines as shown: a hidden line start keeps its line; the first line always shows */
+export const getShownBarLines = <T extends BarControl>(
+    list: T[],
+    isShown: (control: T) => boolean,
+): T[][] =>
+    groupIntoBarLines(list)
+        .map((line) => line.filter(isShown))
+        .filter((line, index) => index === 0 || line.length > 0);
+
+export type MoveDirection = 'left' | 'right' | 'up' | 'down';
+
+/**
+ * A keyboard move among the controls shown: Alt+Left/Right goes one place
+ * along its container (the bar steps over a section, a section's members
+ * stay in it); Alt+Up/Down joins the end of the line above or below, or at
+ * the bottom takes a line of its own when it shares its line
+ */
+export const moveControlBy = <T extends BarControl>(
+    list: T[],
+    id: string,
+    direction: MoveDirection,
+    isShown: (control: T) => boolean,
+): T[] => {
+    const mover = list.find((control) => control.id === id);
+    if (mover === undefined) return list;
+    const isMoverOrShown = (control: T) =>
+        control === mover || isShown(control);
+    const peers = list.filter(
+        (control) =>
+            control.sectionId === mover.sectionId && isMoverOrShown(control),
+    );
     if (direction === 'left' || direction === 'right') {
-        const neighbour =
-            sections[direction === 'left' ? index - 1 : index + 1];
-        if (neighbour === undefined) return sections;
-        return placeSection(sections, id, {
+        const index = peers.indexOf(mover);
+        const neighbour = peers[direction === 'left' ? index - 1 : index + 1];
+        if (neighbour === undefined) return list;
+        return placeControl(list, id, {
             overId: neighbour.id,
             side: direction === 'left' ? 'before' : 'after',
         });
     }
-    const lines = groupSectionsIntoLines(sections);
-    const lineIndex = lines.findIndex((line) =>
-        line.some((section) => section.id === id),
-    );
-    const isAlone = lines[lineIndex].length === 1;
+    if (mover.sectionId !== null) return list;
+    const lines = getShownBarLines(list, isMoverOrShown);
+    const lineIndex = lines.findIndex((line) => line.includes(mover));
+    if (direction === 'up' && lineIndex === 0) return list;
     const target = lines[direction === 'up' ? lineIndex - 1 : lineIndex + 1];
     if (target === undefined)
-        return isAlone
-            ? sections
-            : placeSection(sections, id, {
-                  lineIndex: direction === 'up' ? 0 : lines.length,
-              });
-    return placeSection(sections, id, {
-        overId: target[target.length - 1].id,
-        side: 'after',
-    });
+        return lineIndex > 0 && lines[lineIndex].length === 1
+            ? list
+            : placeControl(list, id, { lineStartId: null });
+    const last = target.at(-1);
+    return last === undefined
+        ? // The first line holds only "Add filter": it ends that line
+          placeControl(list, id, { sectionId: null })
+        : placeControl(list, id, { overId: last.id, side: 'after' });
 };
 
-/** The droppable id of the gap before the bar's section line `index` */
-export const sectionLineTargetId = (index: number) => `section-line:${index}`;
+/**
+ * Every section change from `before` to `after` is a reorder: the control
+ * goes last in its new section, or right after the section it left
+ */
+export const placeSectionChanges = <T extends BarControl>(
+    before: T[],
+    after: BarControl[],
+): T[] =>
+    after.reduce((list, control) => {
+        const was = before.find(({ id }) => id === control.id);
+        return was === undefined || was.sectionId === control.sectionId
+            ? list
+            : placeControl(list, control.id, { sectionId: control.sectionId });
+    }, before);
 
-/** The line index a section line target names, else null */
-export const sectionLineIndexOf = (id: string): number | null => {
-    const match = /^section-line:(\d+)$/.exec(id);
-    return match ? Number(match[1]) : null;
+/** The order as stored: every control, `newLine` only when true */
+export const toControlRefs = (list: BarControl[]): DashboardControlRef[] =>
+    list.map(({ kind, id, newLine }) =>
+        newLine ? { kind, id, newLine } : { kind, id },
+    );
+
+/**
+ * The stored order the bar follows: none when absent or empty; parameter
+ * controls never saved (ids made per load) go before the first section
+ */
+export const getEffectiveControlOrder = (
+    order: DashboardControlRef[] | undefined,
+    parameterControls: DashboardParameterControl[] | null,
+    areParameterControlsSaved: boolean,
+): DashboardControlRef[] | undefined => {
+    if (order === undefined || order.length === 0) return undefined;
+    if (areParameterControlsSaved || parameterControls === null) return order;
+    const refs = parameterControls.map(({ id }) => ({
+        kind: DashboardControlRefKind.PARAMETER,
+        id,
+    }));
+    const at = order.findIndex(
+        ({ kind }) => kind === DashboardControlRefKind.SECTION,
+    );
+    return at === -1
+        ? [...order, ...refs]
+        : [...order.slice(0, at), ...refs, ...order.slice(at)];
 };
+
+/** Items sorted to follow the order; unlisted ones keep their place at the end; the same array when unchanged */
+export const followOrder = <T extends { id: string }>(
+    items: T[],
+    ids: string[],
+): T[] => {
+    const rank = new Map(ids.map((id, index) => [id, index]));
+    const sorted = sortBy(items, (item) => rank.get(item.id) ?? ids.length);
+    return sorted.every((item, index) => item === items[index])
+        ? items
+        : sorted;
+};
+
+/** The droppable id of the gap before the bar line `lineStartId` starts (null: after the last) */
+export const lineGapTargetId = (lineStartId: string | null) =>
+    `line-gap:${lineStartId ?? ''}`;
+
+/** The placement a line gap's id names, else null */
+export const lineGapPlacementOf = (
+    id: string,
+): { lineStartId: string | null } | null =>
+    id.startsWith('line-gap:')
+        ? { lineStartId: id.slice('line-gap:'.length) || null }
+        : null;
 
 /** The droppable id of the rail's header, which takes a filter out of its section */
 export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
@@ -492,14 +633,21 @@ const underPointer: CollisionDetection = (args) => {
     });
 };
 
-// A dragged capsule lands only on another capsule, or a gap between section lines
+// A dragged capsule lands only on another capsule, a line gap or a control
+// outside every section (`sectionTargetIds`); line gaps take any pointer drag
 export const SECTION_DRAG = 'section';
-export const underPointerFor: CollisionDetection = (args) => {
+const NO_IDS: ReadonlySet<string> = new Set();
+export const underPointerFor = (
+    args: Parameters<CollisionDetection>[0],
+    sectionTargetIds: ReadonlySet<string> = NO_IDS,
+): ReturnType<CollisionDetection> => {
     const isSectionDrag = args.active.data?.current?.kind === SECTION_DRAG;
     const droppableContainers = args.droppableContainers.filter((container) =>
         isSectionDrag
-            ? container.data?.current?.kind === SECTION_DRAG
-            : // The gaps between section lines take capsules only
+            ? container.data?.current?.kind === SECTION_DRAG ||
+              sectionTargetIds.has(String(container.id))
+            : // A pill's keyboard drag keeps to pills and capsules
+              args.pointerCoordinates !== null ||
               container.data?.current?.isLineGap !== true,
     );
     const pointer = args.pointerCoordinates;

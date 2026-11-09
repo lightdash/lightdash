@@ -70,7 +70,9 @@ import {
     selectDashboardParameters,
     selectDashboardTabs,
     selectDashboardTiles,
+    selectControlOrder,
     selectControlSections,
+    selectHasControlOrderChanged,
     selectHasDefaultDateZoomGranularityChanged,
     selectHasParameterOrderChanged,
     selectHaveControlSectionsChanged,
@@ -141,6 +143,7 @@ import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import {
     buildDashboardConfig,
+    getControlOrderToSave,
     getParametersToSave,
 } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
@@ -301,6 +304,9 @@ const Dashboard: FC = () => {
     const controlSections = useDashboardSelector(selectControlSections);
     const haveControlSectionsChanged = useDashboardSelector(
         selectHaveControlSectionsChanged,
+    );
+    const hasControlOrderChanged = useDashboardSelector(
+        selectHasControlOrderChanged,
     );
     const dateZoomGranularities = useDashboardDateZoomGranularities();
     const haveDateZoomGranularitiesChanged = useDashboardSelector(
@@ -767,6 +773,14 @@ const Dashboard: FC = () => {
                 dashboard.config?.controlSections ?? [],
             ),
         );
+        dashboardDispatch(
+            dashboardEditActions.setHasControlOrderChanged(false),
+        );
+        dashboardDispatch(
+            dashboardEditActions.syncControlOrder(
+                dashboard.config?.controlOrder,
+            ),
+        );
         setDateZoomGranularities(
             dashboard.config?.dateZoomGranularities ??
                 Object.values(DateGranularity),
@@ -875,6 +889,7 @@ const Dashboard: FC = () => {
         havePinnedParametersChanged ||
         hasParameterOrderChanged ||
         haveControlSectionsChanged ||
+        hasControlOrderChanged ||
         haveDateZoomGranularitiesChanged ||
         hasDefaultDateZoomGranularityChanged ||
         hasDateZoomConfigChanged;
@@ -923,6 +938,9 @@ const Dashboard: FC = () => {
             setHasDateZoomConfigChanged(false);
             dashboardDispatch(
                 dashboardEditActions.setHaveControlSectionsChanged(false),
+            );
+            dashboardDispatch(
+                dashboardEditActions.setHasControlOrderChanged(false),
             );
             dashboardDispatch(
                 dashboardParametersActions.setHaveParameterControlsChanged(
@@ -1389,12 +1407,30 @@ const Dashboard: FC = () => {
             isDashboardControlsEnabled,
         );
 
-        const { parameterControlsToSave, parameters } = getParametersToSave({
+        // A reorder writes the full order, each kind's list following it,
+        // and the parameter controls, so unsaved ones keep their ids
+        const orderToSave = getControlOrderToSave({
+            controlOrder: selectControlOrder(dashboardState),
+            hasControlOrderChanged:
+                selectHasControlOrderChanged(dashboardState),
+            dimensions: dimensionFiltersToSave,
+            metrics: [
+                ...dashboardFilters.metrics,
+                ...dashboardTemporaryFilters.metrics,
+            ],
             parameterControls: selectParameterControls(dashboardState),
+            controlSections,
+        });
+
+        const { parameterControlsToSave, parameters } = getParametersToSave({
+            parameterControls:
+                orderToSave?.parameterControls ??
+                selectParameterControls(dashboardState),
             areParameterControlsSaved:
                 selectAreParameterControlsSaved(dashboardState),
             haveParameterControlsChanged:
-                selectHaveParameterControlsChanged(dashboardState),
+                selectHaveParameterControlsChanged(dashboardState) ||
+                orderToSave !== null,
             existingParameterControls:
                 dashboard.config?.parameterControls ?? null,
             parameterPicks: selectParameterPicks(dashboardState),
@@ -1405,8 +1441,8 @@ const Dashboard: FC = () => {
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
-                dimensions: dimensionFiltersToSave,
-                metrics: [
+                dimensions: orderToSave?.dimensions ?? dimensionFiltersToSave,
+                metrics: orderToSave?.metrics ?? [
                     ...dashboardFilters.metrics,
                     ...dashboardTemporaryFilters.metrics,
                 ],
@@ -1434,9 +1470,14 @@ const Dashboard: FC = () => {
                 stagedCustomMetrics: haveCustomMetricsChanged
                     ? dashboardCustomMetrics
                     : undefined,
-                controlSections,
-                haveControlSectionsChanged,
+                controlSections:
+                    orderToSave?.controlSections ?? controlSections,
+                haveControlSectionsChanged:
+                    haveControlSectionsChanged ||
+                    (orderToSave !== null &&
+                        orderToSave.controlSections !== controlSections),
                 parameterControlsToSave,
+                controlOrderToSave: orderToSave?.controlOrder ?? null,
             }),
             parameters,
             ...(preserveVerification !== undefined

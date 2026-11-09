@@ -13,6 +13,26 @@ export const BarSelectionContext = createContext<BarSelection | null>(null);
 
 export const useBarSelection = () => useContext(BarSelectionContext);
 
+/** Alt with an arrow on a pill of an editor's sectioned bar: moves it along the bar or between lines */
+export type BarMove = (
+    id: string,
+    direction: 'left' | 'right' | 'up' | 'down',
+) => void;
+
+// Null outside an editor's sectioned bar
+export const BarMoveContext = createContext<BarMove | null>(null);
+
+export const useBarMove = () => useContext(BarMoveContext);
+
+export const MOVE_KEYS: Partial<
+    Record<string, 'left' | 'right' | 'up' | 'down'>
+> = {
+    ArrowLeft: 'left',
+    ArrowRight: 'right',
+    ArrowUp: 'up',
+    ArrowDown: 'down',
+};
+
 const countOf = (count: number, one: string, many: string) =>
     `${count} ${count === 1 ? one : many}`;
 

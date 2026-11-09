@@ -166,6 +166,13 @@ export const seedDashboardEditState = (
             ),
         );
     }
+    if (values.dashboard?.config?.controlOrder) {
+        dispatch(
+            dashboardEditActions.syncControlOrder(
+                values.dashboard.config.controlOrder,
+            ),
+        );
+    }
     if ('dashboardTiles' in values) {
         dispatch(dashboardEditActions.setTiles(values.dashboardTiles));
     }

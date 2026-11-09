@@ -1,4 +1,5 @@
 import {
+    DashboardControlRefKind,
     type DashboardControlSection,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -6,8 +7,10 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     groupSectionsIntoLines,
-    moveSectionBy,
-    placeSection,
+    moveControlBy,
+    placeControl,
+    placeSectionChanges,
+    getEffectiveControlOrder,
     removeSectionKeepingLines,
     countSectionChanges,
     getMoveNeighbours,
@@ -467,55 +470,148 @@ describe('section lines', () => {
         expect(lineIds(next)).toEqual([['b'], ['c', 'd']]);
         expect(next[0]).not.toHaveProperty('inline');
     });
+});
 
-    it('joins a line beside a section, taking its start when dropped before it', () => {
-        expect(
-            lineIds(placeSection([a, c], 'c', { overId: 'a', side: 'after' })),
-        ).toEqual([['a', 'c']]);
-        expect(
-            lineIds(
-                placeSection([a, b, c], 'c', { overId: 'a', side: 'before' }),
-            ),
-        ).toEqual([['c', 'a', 'b']]);
-    });
+describe('bar order', () => {
+    const { FILTER, PARAMETER, SECTION } = DashboardControlRefKind;
+    // `/` starts a line, `S>` is a member of S
+    const parse = (shape: string) =>
+        shape.split(' ').map((token) => {
+            const newLine = token.startsWith('/');
+            const [sectionId, id] = token.replace('/', '').includes('>')
+                ? token.replace('/', '').split('>')
+                : [null, token.replace('/', '')];
+            return {
+                kind: id.startsWith('S')
+                    ? SECTION
+                    : id.startsWith('p')
+                      ? PARAMETER
+                      : FILTER,
+                id,
+                sectionId,
+                newLine,
+            };
+        });
+    const shapeOf = (list: ReturnType<typeof parse>) =>
+        list
+            .map(
+                ({ id, sectionId, newLine }) =>
+                    `${newLine ? '/' : ''}${sectionId ? `${sectionId}>` : ''}${id}`,
+            )
+            .join(' ');
+    const bar = parse('f1 p1 /S S>f2 S>p2 f3 /f4');
+    const place = (id: string, placement: Parameters<typeof placeControl>[2]) =>
+        shapeOf(placeControl(bar, id, placement));
+    const move = (
+        id: string,
+        direction: 'left' | 'right' | 'up' | 'down',
+        list = bar,
+    ) => shapeOf(moveControlBy(list, id, direction, () => true));
 
-    it('gives a section a line of its own between lines, or last', () => {
-        expect(
-            lineIds(placeSection([a, b, c, d], 'b', { lineIndex: 1 })),
-        ).toEqual([['a'], ['b'], ['c', 'd']]);
-        expect(
-            lineIds(placeSection([a, b, c, d], 'a', { lineIndex: 2 })),
-        ).toEqual([['b'], ['c', 'd'], ['a']]);
-    });
-
-    it('returns the same array when nothing moves', () => {
-        const list = [a, b, c];
-        expect(placeSection(list, 'c', { lineIndex: 1 })).toBe(list);
-        expect(placeSection(list, 'b', { overId: 'a', side: 'after' })).toBe(
-            list,
+    it('drops beside any control, joining its line and section', () => {
+        expect(place('f3', { overId: 'p1', side: 'before' })).toBe(
+            'f1 f3 p1 /S S>f2 S>p2 /f4',
         );
-        expect(placeSection(list, 'a', { overId: 'a', side: 'after' })).toBe(
-            list,
+        // A line start passes to the next control on the bar
+        expect(place('S', { overId: 'f4', side: 'after' })).toBe(
+            'f1 p1 /f3 /f4 S S>f2 S>p2',
+        );
+        // Before a line's first control it takes the line's start
+        expect(place('f1', { overId: 'f4', side: 'before' })).toBe(
+            'p1 /S S>f2 S>p2 f3 /f1 f4',
+        );
+        expect(place('f1', { overId: 'f2', side: 'before' })).toBe(
+            'p1 /S S>f1 S>f2 S>p2 f3 /f4',
         );
     });
 
-    it('moves by keyboard along the bar, and between lines', () => {
-        expect(lineIds(moveSectionBy([a, b, c], 'c', 'left'))).toEqual([
-            ['a', 'c', 'b'],
+    it('starts a line on a line gap', () => {
+        expect(place('f1', { lineStartId: 'S' })).toBe(
+            'p1 /f1 /S S>f2 S>p2 f3 /f4',
+        );
+        expect(place('p2', { lineStartId: null })).toBe(
+            'f1 p1 /S S>f2 f3 /f4 /p2',
+        );
+    });
+
+    it('joins a section last, and leaves one right after it', () => {
+        expect(place('f1', { sectionId: 'S' })).toBe(
+            'p1 /S S>f2 S>p2 S>f1 f3 /f4',
+        );
+        expect(place('f2', { sectionId: null })).toBe(
+            'f1 p1 /S S>p2 f2 f3 /f4',
+        );
+        // Outside every section: the end of the first line
+        expect(place('f4', { sectionId: null })).toBe(
+            'f1 p1 f4 /S S>f2 S>p2 f3',
+        );
+    });
+
+    it('returns the same list when nothing moves, or a section would enter one', () => {
+        expect(placeControl(bar, 'p1', { overId: 'f1', side: 'after' })).toBe(
+            bar,
+        );
+        expect(placeControl(bar, 'S', { overId: 'f2', side: 'after' })).toBe(
+            bar,
+        );
+        expect(placeControl(bar, 'S', { sectionId: 'S' })).toBe(bar);
+    });
+
+    it('moves by keyboard across kinds, stepping over a section', () => {
+        expect(move('f3', 'left')).toBe('f1 p1 /f3 S S>f2 S>p2 /f4');
+        expect(move('p1', 'right')).toBe('f1 /S S>f2 S>p2 p1 f3 /f4');
+        // Inside a section, among its members
+        expect(move('f2', 'right')).toBe('f1 p1 /S S>p2 S>f2 f3 /f4');
+        expect(moveControlBy(bar, 'p2', 'right', () => true)).toBe(bar);
+    });
+
+    it('joins the line above or below by keyboard, or a line of its own at the bottom', () => {
+        expect(move('f4', 'up')).toBe('f1 p1 /S S>f2 S>p2 f3 f4');
+        expect(move('p1', 'down')).toBe('f1 /S S>f2 S>p2 f3 p1 /f4');
+        // The first line is "Add filter"'s: nothing above it
+        expect(moveControlBy(bar, 'f1', 'up', () => true)).toBe(bar);
+        // Alone on the last line: nowhere to go; sharing it: a line of its own
+        expect(moveControlBy(bar, 'f4', 'down', () => true)).toBe(bar);
+        const shared = parse('f1 /S f4');
+        expect(move('f4', 'down', shared)).toBe('f1 /S /f4');
+        // Up onto a first line holding only "Add filter"
+        expect(move('S', 'up', parse('/S S>f2 /f4'))).toBe('S S>f2 /f4');
+        // A member never changes lines
+        expect(moveControlBy(bar, 'f2', 'up', () => true)).toBe(bar);
+    });
+
+    it('steps over controls not shown on the tab', () => {
+        expect(
+            shapeOf(moveControlBy(bar, 'f1', 'right', ({ id }) => id !== 'p1')),
+        ).toBe('p1 /S S>f2 S>p2 f1 f3 /f4');
+    });
+
+    it('places every section change: last in the new section, right after the one left', () => {
+        const after = parse('S>f1 p1 /S f2 S>p2 f3 /f4');
+        expect(shapeOf(placeSectionChanges(bar, after))).toBe(
+            'p1 /S S>p2 S>f1 f2 f3 /f4',
+        );
+        expect(placeSectionChanges(bar, bar)).toBe(bar);
+    });
+
+    it('treats an empty order as none, and puts never saved parameter controls before the first section', () => {
+        const control = {
+            id: 'p',
+            label: 'p',
+            value: null,
+            valueType: { type: 'string' as const, multiple: false },
+            parameters: {},
+        };
+        expect(getEffectiveControlOrder([], [control], false)).toBeUndefined();
+        const order = [
+            { kind: FILTER, id: 'f' },
+            { kind: SECTION, id: 'S', newLine: true },
+        ];
+        expect(getEffectiveControlOrder(order, [control], true)).toBe(order);
+        expect(getEffectiveControlOrder(order, [control], false)).toEqual([
+            { kind: FILTER, id: 'f' },
+            { kind: PARAMETER, id: 'p' },
+            { kind: SECTION, id: 'S', newLine: true },
         ]);
-        expect(lineIds(moveSectionBy([a, b, c], 'c', 'up'))).toEqual([
-            ['a', 'b', 'c'],
-        ]);
-        expect(lineIds(moveSectionBy([a, b, c], 'b', 'down'))).toEqual([
-            ['a'],
-            ['c', 'b'],
-        ]);
-        expect(lineIds(moveSectionBy([a, b, c], 'a', 'up'))).toEqual([
-            ['a'],
-            ['b'],
-            ['c'],
-        ]);
-        const alone = [a, c];
-        expect(moveSectionBy(alone, 'a', 'up')).toBe(alone);
     });
 });

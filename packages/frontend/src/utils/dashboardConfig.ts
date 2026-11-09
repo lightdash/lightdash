@@ -3,9 +3,12 @@ import {
     isDashboardControlOrder,
     isEmptyDateZoomConfig,
     pruneDateZoomConfig,
+    reconcileDashboardControlOrder,
     type AdditionalMetric,
     type DashboardConfig,
+    type DashboardControlRef,
     type DashboardControlSection,
+    type DashboardFilterRule,
     type DashboardParameterControl,
     type DashboardParameters,
     type DateGranularity,
@@ -16,6 +19,10 @@ import {
     applyParameterPicks,
     type ParameterPicks,
 } from '../features/dashboard/store/parameterControls';
+import {
+    followOrder,
+    toControlRefs,
+} from '../features/dashboardControls/sections';
 
 type BuildDashboardConfigArgs = {
     existingConfig: DashboardConfig | undefined;
@@ -36,6 +43,8 @@ type BuildDashboardConfigArgs = {
     haveControlSectionsChanged: boolean;
     /** Null carries the saved list forward, keeping an absent list absent */
     parameterControlsToSave: DashboardParameterControl[] | null;
+    /** Null carries the stored order forward; an order is written only on a reorder */
+    controlOrderToSave: DashboardControlRef[] | null;
 };
 
 /**
@@ -60,6 +69,7 @@ export const buildDashboardConfig = ({
     controlSections,
     haveControlSectionsChanged,
     parameterControlsToSave,
+    controlOrderToSave,
 }: BuildDashboardConfigArgs): DashboardConfig => {
     // Prune empty controls + dangling targets on save; omit the field
     // entirely when no controls remain so untouched dashboards don't churn.
@@ -94,10 +104,61 @@ export const buildDashboardConfig = ({
         parameterSections: existingConfig?.parameterSections,
         parameterControls:
             parameterControlsToSave ?? existingConfig?.parameterControls,
-        // Carried forward as loaded; a malformed stored order is omitted so the save validates
-        controlOrder: isDashboardControlOrder(existingConfig?.controlOrder)
-            ? existingConfig.controlOrder
-            : undefined,
+        // Else carried forward as loaded; a malformed stored order is omitted so the save validates
+        controlOrder:
+            controlOrderToSave ??
+            (isDashboardControlOrder(existingConfig?.controlOrder)
+                ? existingConfig.controlOrder
+                : undefined),
+    };
+};
+
+/**
+ * What a save writes once the editor reordered the bar: the full order (every
+ * control, its line starts), and each kind's list sorted to follow it. Null
+ * when nothing was reordered, or there is no control: `[]` is never written.
+ */
+export const getControlOrderToSave = ({
+    controlOrder,
+    hasControlOrderChanged,
+    dimensions,
+    metrics,
+    parameterControls,
+    controlSections,
+}: {
+    controlOrder: DashboardControlRef[] | undefined;
+    hasControlOrderChanged: boolean;
+    dimensions: DashboardFilterRule[];
+    metrics: DashboardFilterRule[];
+    parameterControls: DashboardParameterControl[] | null;
+    controlSections: DashboardControlSection[];
+}): {
+    controlOrder: DashboardControlRef[];
+    dimensions: DashboardFilterRule[];
+    metrics: DashboardFilterRule[];
+    parameterControls: DashboardParameterControl[] | null;
+    controlSections: DashboardControlSection[];
+} | null => {
+    if (!hasControlOrderChanged) return null;
+    const refs = toControlRefs(
+        reconcileDashboardControlOrder({
+            controlOrder,
+            filters: { dimensions, metrics },
+            parameterControls: parameterControls ?? [],
+            sections: controlSections,
+        }),
+    );
+    if (refs.length === 0) return null;
+    const ids = refs.map(({ id }) => id);
+    return {
+        controlOrder: refs,
+        dimensions: followOrder(dimensions, ids),
+        metrics: followOrder(metrics, ids),
+        parameterControls:
+            parameterControls === null
+                ? null
+                : followOrder(parameterControls, ids),
+        controlSections: followOrder(controlSections, ids),
     };
 };
 

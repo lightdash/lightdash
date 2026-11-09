@@ -29,7 +29,9 @@ import { EventName } from '../../types/Events';
 import {
     dashboardEditActions,
     dashboardFiltersActions,
+    selectControlOrder,
     selectDashboardFilters,
+    selectOrderedControls,
     selectHaveFiltersChanged,
     selectRawTemporaryFilters,
     useDashboardSelector,
@@ -755,6 +757,44 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.addFirstField(statusField));
         act(() => result.current.close());
         expect('sectionId' in latest.filters.dimensions[2]).toBe(false);
+    });
+
+    it('writes the order with a Section setting change, never with another edit', () => {
+        const { result } = setup();
+        act(() => {
+            currentStore.dispatch(
+                dashboardEditActions.syncControlSections([
+                    { id: 's', name: 'Dates' },
+                ]),
+            );
+        });
+        const orderIds = () =>
+            selectControlOrder(currentStore.getState())?.map(({ id }) => id);
+        act(() => result.current.open('a'));
+        act(() => result.current.updateFilter(rule('a', ['9'])));
+        act(() => result.current.close());
+        expect(orderIds()).toBeUndefined();
+
+        // The section change reaches the dashboard at once, and its order with it
+        act(() => result.current.open('a'));
+        act(() =>
+            result.current.updateFilter({
+                ...editedRule(result.current),
+                sectionId: 's',
+            }),
+        );
+        expect(orderIds()).toEqual(['b', 's', 'a']);
+        expect(latest.filters.dimensions[0].sectionId).toBe('s');
+        // Leaving it: right after that section
+        act(() => {
+            const { sectionId: _left, ...left } = editedRule(result.current);
+            result.current.updateFilter(left);
+        });
+        expect(
+            selectOrderedControls(currentStore.getState()).map(
+                ({ id, sectionId }) => `${sectionId ?? ''}${id}`,
+            ),
+        ).toEqual(['b', 's', 'a']);
     });
 
     describe('section membership is no edit', () => {

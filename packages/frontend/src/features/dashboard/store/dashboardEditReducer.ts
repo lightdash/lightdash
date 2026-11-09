@@ -5,6 +5,7 @@ import {
     type AdditionalMetric,
     type Dashboard,
     type DashboardConfig,
+    type DashboardControlRef,
     type DashboardControlSection,
     type DateZoomConfig,
 } from '@lightdash/common';
@@ -43,6 +44,9 @@ export type DashboardEditState = {
     /** Staged sections of the controls rail, in display order */
     controlSections: DashboardControlSection[];
     haveControlSectionsChanged: boolean;
+    /** The bar's order of every control: the saved one, or the editor's reorder */
+    controlOrder: DashboardControlRef[] | undefined;
+    hasControlOrderChanged: boolean;
 };
 
 export const initialDashboardEditState: DashboardEditState = {
@@ -63,6 +67,8 @@ export const initialDashboardEditState: DashboardEditState = {
     hasDefaultDateZoomGranularityChanged: false,
     controlSections: [],
     haveControlSectionsChanged: false,
+    controlOrder: undefined,
+    hasControlOrderChanged: false,
 };
 
 // Sub-day granularities are offered only when an editor enables them
@@ -170,6 +176,17 @@ export const dashboardEditActions = {
     /** The sections in a new order and lines (a drag or a keyboard move on the bar) */
     arrangeControlSections: createAction<DashboardControlSection[]>(
         'dashboardEdit/arrangeControlSections',
+    ),
+    /** Seeds the order from the saved config unless the editor reordered */
+    syncControlOrder: createAction<DashboardControlRef[] | undefined>(
+        'dashboardEdit/syncControlOrder',
+    ),
+    setHasControlOrderChanged: createAction<boolean>(
+        'dashboardEdit/setHasControlOrderChanged',
+    ),
+    /** A reorder on the bar: a drag, a keyboard move or a section change */
+    arrangeControls: createAction<DashboardControlRef[]>(
+        'dashboardEdit/arrangeControls',
     ),
     /** `undefined` removes the key: the section follows the default again */
     setControlSectionCollapsed: createAction<{
@@ -347,6 +364,21 @@ export const dashboardEditReducer = (
         return action.payload === state.controlSections
             ? state
             : withControlSections(state, action.payload);
+    }
+    if (dashboardEditActions.syncControlOrder.match(action)) {
+        return state.hasControlOrderChanged
+            ? state
+            : set(state, 'controlOrder', action.payload);
+    }
+    if (dashboardEditActions.setHasControlOrderChanged.match(action)) {
+        return set(state, 'hasControlOrderChanged', action.payload);
+    }
+    if (dashboardEditActions.arrangeControls.match(action)) {
+        return {
+            ...state,
+            controlOrder: action.payload,
+            hasControlOrderChanged: true,
+        };
     }
     return state;
 };

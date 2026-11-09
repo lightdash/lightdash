@@ -40,6 +40,7 @@ import {
     setParameterKeyTiles,
     type ParameterTileChange,
 } from './parameterPeers';
+import { useOrderSectionChanges } from './useControlOrder';
 import { type FieldApply } from './useControlsSidebar';
 import { useEditorDismiss } from './useEditorDismiss';
 import { type ParameterBarEntry } from './useParameterBarControls';
@@ -147,6 +148,7 @@ export const ParameterEditorProvider: FC<{
     children: ReactNode;
 }> = ({ isViewer, children }) => {
     const store = useDashboardStore();
+    const orderSectionChanges = useOrderSectionChanges();
     const dispatch = useDashboardDispatch();
     const setParameter = useDashboardContext((c) => c.setParameter);
     const controls = useDashboardSelector(selectParameterControls);
@@ -453,6 +455,7 @@ export const ParameterEditorProvider: FC<{
             !current.isNeedsValue &&
             !current.isNew &&
             sectionId !== (current.draft.sectionId ?? null);
+        const before = store.getState();
         if (isSectionMove)
             writeControls((list) =>
                 list.map((control) =>
@@ -461,6 +464,8 @@ export const ParameterEditorProvider: FC<{
                         : control,
                 ),
             );
+        // A section change is a reorder, written with it
+        if (isSectionMove) orderSectionChanges(before);
         setState({
             ...current,
             draft: next,

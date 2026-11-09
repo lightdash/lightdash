@@ -60,6 +60,11 @@
     pointer-events: none;
 }
 
+/* With no section line, the bar's one line holds the end gap itself */
+.flow[data-end-gap] {
+    position: relative;
+}
+
 .lineGap[data-end] {
     top: auto;
     bottom: -14px;
@@ -140,14 +145,13 @@
 }
 
 /* A pill leaving its section over the bar's empty space: the drop line
-   where it lands, after the loose item marked for its kind
-   (`data-loose-end`), in the gap, so nothing moves */
+   where it lands, right after the section it leaves (`data-loose-end`), in
+   the gap, so nothing moves */
 .flow [data-loose-end] {
     position: relative;
 }
 
-.flow[data-over='dimensions'] [data-loose-end~='dimensions']::after,
-.flow[data-over='metrics'] [data-loose-end~='metrics']::after {
+.flow[data-over] [data-loose-end='leaving']::after {
     content: '';
     position: absolute;
     top: 2px;
@@ -337,4 +341,17 @@
 .actions {
     position: relative;
     flex: 0 0 auto;
+}
+
+/* With a stored order, one bar line of any controls (the first holds "Add
+   filter"); line starts come from the order. Capsules top-align with the
+   pills beside them */
+.orderLine {
+    position: relative;
+    display: flex;
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: inherit;
+    min-width: 0;
 }

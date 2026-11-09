@@ -1,10 +1,5 @@
 import { ActionIcon, Menu } from '@mantine/core';
-import {
-    IconDots,
-    IconFolderMinus,
-    IconPencil,
-    IconSeparatorHorizontal,
-} from '@tabler/icons-react';
+import { IconDots, IconFolderMinus, IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 
@@ -15,21 +10,15 @@ type MenuProps = {
     hasMembers: boolean;
     /** Names it in place, as a click on the name does */
     onRename: () => void;
-    /** It shares its line: offers a line of its own */
-    isSharingLine: boolean;
-    onOwnLine: () => void;
     onRemove: () => void;
 };
 
-// A bar capsule's "..." menu: rename, a line of its own when it shares one,
-// and the remove item, one click: "Remove section, keep controls" moves the members out,
-// deleting nothing
+// A bar capsule's "..." menu: rename, and the remove item, one click:
+// "Remove section, keep controls" moves the members out, deleting nothing
 export const SectionMenu: FC<MenuProps> = ({
     label,
     hasMembers,
     onRename,
-    isSharingLine,
-    onOwnLine,
     onRemove,
 }) => (
     <Menu position="bottom-start" returnFocus={false}>
@@ -45,16 +34,6 @@ export const SectionMenu: FC<MenuProps> = ({
             >
                 Rename
             </Menu.Item>
-            {isSharingLine && (
-                <Menu.Item
-                    leftSection={
-                        <MantineIcon icon={IconSeparatorHorizontal} size={14} />
-                    }
-                    onClick={onOwnLine}
-                >
-                    Move to its own line
-                </Menu.Item>
-            )}
             <Menu.Item
                 leftSection={<MantineIcon icon={IconFolderMinus} size={14} />}
                 onClick={onRemove}

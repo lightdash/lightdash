@@ -17,7 +17,7 @@ import {
     getFilterLockToggle,
 } from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
-import { useBarSelection } from './barSelection';
+import { MOVE_KEYS, useBarMove, useBarSelection } from './barSelection';
 import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
@@ -83,6 +83,7 @@ export const FilterPill: FC<Props> = memo(
             (c) => c.setHaveFiltersChanged,
         );
         const selection = useBarSelection();
+        const barMove = useBarMove();
         const os = useOs();
         // On an editor's sectioned bar a modified click picks the pill
         const isSelectable =
@@ -165,13 +166,17 @@ export const FilterPill: FC<Props> = memo(
 
         // As a section's name: Alt with an arrow moves it one place
         const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-            if (
-                !event.altKey ||
-                (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
-            )
+            const direction = MOVE_KEYS[event.key];
+            if (!event.altKey || direction === undefined) return;
+            // On an editor's sectioned bar: along the bar or between lines
+            if (barMove !== null && kind === 'editor') {
+                event.preventDefault();
+                barMove(filter.id, direction);
                 return;
+            }
+            if (direction !== 'left' && direction !== 'right') return;
             event.preventDefault();
-            moveFilter(filter.id, event.key === 'ArrowLeft' ? 'left' : 'right');
+            moveFilter(filter.id, direction);
         };
 
         return (

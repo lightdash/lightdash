@@ -41,6 +41,10 @@ export const selectControlSections = (state: DashboardStoreState) =>
     state.edit.controlSections;
 export const selectHaveControlSectionsChanged = (state: DashboardStoreState) =>
     state.edit.haveControlSectionsChanged;
+export const selectControlOrder = (state: DashboardStoreState) =>
+    state.edit.controlOrder;
+export const selectHasControlOrderChanged = (state: DashboardStoreState) =>
+    state.edit.hasControlOrderChanged;
 
 const tileTypesThatSupportFilters = [
     DashboardTileTypes.SQL_CHART,

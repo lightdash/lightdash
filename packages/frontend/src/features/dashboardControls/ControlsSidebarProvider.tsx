@@ -45,6 +45,7 @@ import {
     selectHaveFiltersChanged,
     selectRawTemporaryFilters,
     useDashboardSelector,
+    useDashboardStore,
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
 import { moveFilterRule } from '../dashboardFilters/ActiveFilters/filterOrder';
@@ -91,6 +92,7 @@ import {
     withSectionOf,
     type ControlsSidebarSnapshot,
 } from './sidebarState';
+import { useOrderSectionChanges } from './useControlOrder';
 import {
     ControlsSidebarContext,
     type FieldApply,
@@ -471,6 +473,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const isEditMode = isEditModeInput ?? mode === 'edit';
     const isViewer = !isEditMode;
     const isEmbedded = useIsEmbedded();
+    const store = useDashboardStore();
+    const orderSectionChanges = useOrderSectionChanges();
     const savedFilters = useDashboardSelector(selectDashboardFilters);
     const rawTemporaryFilters = useDashboardSelector(selectRawTemporaryFilters);
     const setSavedFilters = useDashboardContext((c) => c.setDashboardFilters);
@@ -978,10 +982,13 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     rule.id,
                 );
                 if (stored !== null) {
+                    const before = store.getState();
                     writeStore((filters) =>
                         replaceFilterRule(filters, withSectionOf(stored, rule)),
                     );
                     writeFiltersChanged(true);
+                    // A section change is a reorder, written with it
+                    orderSectionChanges(before);
                 }
             }
         },
@@ -992,6 +999,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             writePlaceholder,
             writeUndo,
             clearHighlightedField,
+            store,
+            orderSectionChanges,
         ],
     );
 
