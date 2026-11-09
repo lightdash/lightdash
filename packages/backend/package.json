@@ -30,7 +30,7 @@
         "test:integration:dev": "vitest run --config vitest.config.integration.ts --watch",
         "test:scheduler-integration": "vitest run --config vitest.config.scheduler.integration.ts",
         "test:ai-filter-permutations": "TZ=UTC LANG=en_US.UTF-8 vitest run --config vitest.config.ai-filter-permutations.ts",
-        "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+        "linter": "OXLINT_TSGOLINT_PATH=node_modules/.bin/tsrs-lint oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./src",
         "fix-lint": "pnpm run linter ./src --fix",
@@ -245,7 +245,7 @@
         "knex-mock-client": "1.11.0",
         "nodemon": "3.1.9",
         "oxlint": "1.75.0",
-        "oxlint-tsgolint": "7.0.2001",
+        "tsrs": "0.21.0-ts7.1.0-beta",
         "typescript": "7.0.2",
         "typescript-compiler-api": "npm:typescript@5.9.3"
     }
