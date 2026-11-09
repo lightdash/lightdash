@@ -260,7 +260,7 @@ export const AppStateModal: FC<Props> = ({
                     </>
                 }
                 icon={IconDatabase}
-                size={760}
+                size={960}
                 cancelLabel={false}
             >
                 {isInitialLoading && (
