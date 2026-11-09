@@ -86,6 +86,7 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
             chatNodeIds={NO_CHAT_NODES}
             onAddToChat={null}
             onClose={() => dispatch(clearPreview())}
+            initialView="lineage"
         />
     );
 };

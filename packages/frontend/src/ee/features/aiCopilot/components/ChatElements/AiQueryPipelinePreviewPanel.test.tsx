@@ -121,20 +121,20 @@ describe('AiQueryPipelinePreviewPanel', () => {
         );
     });
 
-    it('opens on the cited node result', () => {
+    it('shows the cited node result in the Chart view', () => {
         renderPanel();
 
-        expect(screen.getByText('Net orders')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('radio', { name: 'Chart' }));
+
         expect(
             screen.getByRole('columnheader', { name: 'Net total' }),
         ).toBeInTheDocument();
     });
 
-    it('shows the cited node as the final result in the Lineage', () => {
+    it('opens on the Lineage with the cited node as the final result', () => {
         renderPanel();
 
-        fireEvent.click(screen.getByRole('radio', { name: 'Lineage' }));
-
+        expect(screen.getByRole('radio', { name: 'Lineage' })).toBeChecked();
         const netCell = within(
             document.querySelector<HTMLElement>('[data-node-id="net"]')!,
         );
@@ -144,13 +144,13 @@ describe('AiQueryPipelinePreviewPanel', () => {
         ).toBeInTheDocument();
     });
 
-    it('resets to the result view when another node is cited', () => {
+    it('returns to the Lineage when another node is cited', () => {
         const { rerender } = renderPanel();
-        fireEvent.click(screen.getByRole('radio', { name: 'Lineage' }));
+        fireEvent.click(screen.getByRole('radio', { name: 'Chart' }));
 
         rerender(panelFor({ ...preview, nodeId: 'orders' }));
 
-        expect(screen.getByRole('radio', { name: 'Chart' })).toBeChecked();
+        expect(screen.getByRole('radio', { name: 'Lineage' })).toBeChecked();
     });
 
     it('shows the load error when the node cannot be read', () => {
