@@ -52,7 +52,7 @@ import type {
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
-import type { ComposerChartQueryContext } from './ComposerChartQueryContext';
+import type { ComposerChartNodeQueryContext } from './ComposerChartQueryContext';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -118,7 +118,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     documentQueryContext?: DocumentQueryContext;
     /** Proof the metric query is a node of a composer chart the account may view. */
-    composerChartQueryContext?: ComposerChartQueryContext;
+    composerChartQueryContext?: ComposerChartNodeQueryContext;
     metricQuery: MetricQuery;
     limit?: number | null | undefined;
     dataAppPreviewToken?: string;

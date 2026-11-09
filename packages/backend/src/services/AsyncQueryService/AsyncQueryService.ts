@@ -3096,13 +3096,20 @@ export class AsyncQueryService extends ProjectService {
         args: DownloadAsyncQueryResultsArgs,
         pollingOptions?: PollingOptions,
     ) {
-        const { queryUuid, projectUuid, account } = args;
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { queryUuid, projectUuid, account, type } = args;
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
+        this.assertAnalyticsDownloadSupported(project, type);
         this.assertEmbedAiAgentCanDownload(
             account,
-            organizationUuid,
+            project.organizationUuid,
             projectUuid,
+        );
+        // Refused by name before waiting on a row the caller may not read
+        this.assertCanReadComposerNodeResults(
+            account,
+            projectUuid,
+            await this.queryHistoryModel.get(queryUuid, projectUuid, account),
         );
         await this.pollForQueryCompletion({
             account,
@@ -15826,6 +15833,13 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             queryUuid,
+        );
+        // Checked here, not only in the references pass: compile errors
+        // name the source's fields before the join is authorized
+        this.assertCanReadComposerNodeResults(
+            account,
+            projectUuid,
+            queryHistory,
         );
         if (!this.mergeSubmissionQueries.getStore()) {
             await this.assertCanReadStoredResults(

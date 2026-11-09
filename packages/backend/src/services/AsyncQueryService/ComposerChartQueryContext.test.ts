@@ -70,21 +70,75 @@ describe('ComposerChartQueryContext', () => {
         null,
     );
 
-    test('lets each semantic-layer node of the version run and names the node it matched as an input', () => {
+    test('lets each semantic-layer node of the version run and names the node it is bound to as an input', () => {
         expect(
-            context.assertMetricQuery(
-                account as Account,
-                projectUuid,
-                metricQueryOfSemanticNode(ordersNode),
-            ),
+            context
+                .forSemanticNode('orders')
+                .assertMetricQuery(
+                    account as Account,
+                    projectUuid,
+                    metricQueryOfSemanticNode(ordersNode),
+                ),
         ).toEqual({ chartUuid: 'chart', nodeId: 'orders', role: 'input' });
         expect(
-            context.assertMetricQuery(
-                account as Account,
-                projectUuid,
-                metricQueryOfSemanticNode(paymentsNode),
-            ),
+            context
+                .forSemanticNode('payments')
+                .assertMetricQuery(
+                    account as Account,
+                    projectUuid,
+                    metricQueryOfSemanticNode(paymentsNode),
+                ),
         ).toEqual({ chartUuid: 'chart', nodeId: 'payments', role: 'input' });
+    });
+
+    test('binds to a semantic node only: a duckdb or unknown node id is refused', () => {
+        expect(() => context.forSemanticNode('joined')).toThrow(ForbiddenError);
+        expect(() => context.forSemanticNode('elsewhere')).toThrow(
+            ForbiddenError,
+        );
+    });
+
+    test("a node's query run under another node's id is refused", () => {
+        expect(() =>
+            context
+                .forSemanticNode('payments')
+                .assertMetricQuery(
+                    account as Account,
+                    projectUuid,
+                    metricQueryOfSemanticNode(ordersNode),
+                ),
+        ).toThrow(ForbiddenError);
+    });
+
+    test('two nodes with the same query each keep their own id and role', () => {
+        const twin = { ...ordersNode, nodeId: 'orders_again' };
+        const twins = ComposerChartQueryContext.fromChart(
+            account as Account,
+            {
+                ...chart,
+                pipeline: {
+                    ...chart.pipeline,
+                    nodes: [ordersNode, twin],
+                    terminalNodeId: 'orders_again',
+                },
+            },
+            null,
+        );
+        const query = metricQueryOfSemanticNode(ordersNode);
+        expect(
+            twins
+                .forSemanticNode('orders')
+                .assertMetricQuery(account as Account, projectUuid, query),
+        ).toEqual({ chartUuid: 'chart', nodeId: 'orders', role: 'input' });
+        expect(
+            twins
+                .forSemanticNode('orders_again')
+                .assertMetricQuery(account as Account, projectUuid, query),
+        ).toEqual({
+            chartUuid: 'chart',
+            nodeId: 'orders_again',
+            role: 'terminal',
+        });
     });
 
     test('names the terminal duckdb node of the version and refuses any other node id', () => {
@@ -111,11 +165,13 @@ describe('ComposerChartQueryContext', () => {
             null,
         );
         expect(
-            semanticTerminal.assertMetricQuery(
-                account as Account,
-                projectUuid,
-                metricQueryOfSemanticNode(ordersNode),
-            ),
+            semanticTerminal
+                .forSemanticNode('orders')
+                .assertMetricQuery(
+                    account as Account,
+                    projectUuid,
+                    metricQueryOfSemanticNode(ordersNode),
+                ),
         ).toEqual({ chartUuid: 'chart', nodeId: 'orders', role: 'terminal' });
     });
 
@@ -157,25 +213,28 @@ describe('ComposerChartQueryContext', () => {
         ['a dropped filter', { ...ordersNode, filters: { dimensions: {} } }],
     ])('refuses a query outside the version: %s', (_label, node) => {
         expect(() =>
-            context.assertMetricQuery(
-                account as Account,
-                projectUuid,
-                metricQueryOfSemanticNode(node),
-            ),
+            context
+                .forSemanticNode('orders')
+                .assertMetricQuery(
+                    account as Account,
+                    projectUuid,
+                    metricQueryOfSemanticNode(node),
+                ),
         ).toThrow(ForbiddenError);
     });
 
     test('refuses another account or project', () => {
         const query = metricQueryOfSemanticNode(ordersNode);
+        const orders = context.forSemanticNode('orders');
         expect(() =>
-            context.assertMetricQuery(
+            orders.assertMetricQuery(
                 otherAccount as Account,
                 projectUuid,
                 query,
             ),
         ).toThrow(ForbiddenError);
         expect(() =>
-            context.assertMetricQuery(
+            orders.assertMetricQuery(
                 account as Account,
                 'another-project',
                 query,

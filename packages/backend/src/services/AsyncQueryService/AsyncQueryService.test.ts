@@ -31232,7 +31232,7 @@ describe('composer chart node queries', () => {
                 account,
                 chart,
                 null,
-            ),
+            ).forSemanticNode('orders'),
         });
 
         expect(result.queryUuid).toBe('node-query');
@@ -31267,7 +31267,7 @@ describe('composer chart node queries', () => {
                     account,
                     chart,
                     null,
-                ),
+                ).forSemanticNode('orders'),
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(execute).not.toHaveBeenCalled();
@@ -31289,7 +31289,7 @@ describe('composer chart node queries', () => {
                     account,
                     chart,
                     null,
-                ),
+                ).forSemanticNode('orders'),
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(execute).not.toHaveBeenCalled();
@@ -31819,6 +31819,56 @@ describe('composer chart node queries', () => {
                     },
                 }),
             ).rejects.toThrow(MissingConfigError);
+        });
+
+        test('a viewer merging over an input node row is refused by name before any leg runs', async () => {
+            const service = buildService();
+            const account = accountWith(viewerRules);
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(
+                nodeRow('input', QueryHistoryStatus.READY, account.user.id),
+            );
+            await expectRefusedByName(
+                service,
+                service.executeAsyncMergeQuery({
+                    account,
+                    projectUuid,
+                    mergeQuery: {
+                        sources: [{ id: 'in', queryUuid: nodeQueryUuid }],
+                        joinKey: [],
+                        joinType: 'full',
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    context: QueryExecutionContext.EXPLORE,
+                    mode: { type: 'interactive' },
+                }),
+            );
+        });
+
+        test('a sync download of an input node is refused by name before it waits for the row', async () => {
+            const service = buildService();
+            const account = accountWith(viewerRules);
+            const poll = vi.fn();
+            service.queryHistoryModel.pollForQueryCompletion = poll;
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(
+                nodeRow('input', QueryHistoryStatus.PENDING, account.user.id),
+            );
+            await expectRefusedByName(
+                service,
+                service.downloadSyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid: nodeQueryUuid,
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                }),
+            );
+            expect(poll).not.toHaveBeenCalled();
         });
 
         test("another chart's node cannot read this chart's input as the viewer", async () => {
