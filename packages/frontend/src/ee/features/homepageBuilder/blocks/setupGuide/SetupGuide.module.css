@@ -132,25 +132,6 @@
     }
 }
 
-.liveDot {
-    position: relative;
-    flex-shrink: 0;
-    width: 8px;
-    height: 8px;
-    margin-inline: 5px;
-    border-radius: 50%;
-    background: var(--mantine-color-ldGray-9);
-}
-
-.liveDot::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    border: 1px solid var(--mantine-color-ldGray-6);
-    animation: livePulse 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
-}
-
 @keyframes rise {
     from {
         opacity: 0;
@@ -162,20 +143,8 @@
     }
 }
 
-@keyframes livePulse {
-    from {
-        opacity: 0.8;
-        transform: scale(0.6);
-    }
-    to {
-        opacity: 0;
-        transform: scale(1.4);
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .dock,
-    .liveDot::after {
+    .dock {
         animation: none;
     }
 }

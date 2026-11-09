@@ -125,6 +125,7 @@ describe('QueryHistoryModel results cache stats', () => {
         hit = false,
         fileName = `file-${randomUUID()}`,
         warehouseMs = 2000,
+        bytesBilled = null,
         reason = null,
         refresh = false,
         context = QueryExecutionContext.CHART,
@@ -139,6 +140,7 @@ describe('QueryHistoryModel results cache stats', () => {
         hit?: boolean;
         fileName?: string;
         warehouseMs?: number;
+        bytesBilled?: number | null;
         reason?: ResultsCacheMissReason | null;
         refresh?: boolean;
         context?: QueryExecutionContext;
@@ -169,6 +171,10 @@ describe('QueryHistoryModel results cache stats', () => {
             results_updated_at: resultsCreatedAt,
             cache_invalidated_at: invalidated ? new Date() : null,
             warehouse_execution_time_ms: hit ? 0 : warehouseMs,
+            warehouse_execution_stats:
+                hit || bytesBilled === null
+                    ? null
+                    : JSON.stringify({ bytesBilled }),
             cache_miss_reason: reason,
             cache_refresh_requested: refresh,
         });
@@ -176,7 +182,11 @@ describe('QueryHistoryModel results cache stats', () => {
     };
 
     test('counts hits, misses, time saved, and excludes bypassed and errored runs', async () => {
-        const produced = await insertRun({ minutesAgo: 60, warehouseMs: 5000 });
+        const produced = await insertRun({
+            minutesAgo: 60,
+            warehouseMs: 5000,
+            bytesBilled: 1024,
+        });
         await insertRun({ minutesAgo: 30, hit: true, fileName: produced });
         await insertRun({ minutesAgo: 20, cacheKey: 'key-a.random' });
         await insertRun({
@@ -194,6 +204,7 @@ describe('QueryHistoryModel results cache stats', () => {
                 hits: 1,
                 warehouseTimeOnMissesMs: 5000,
                 warehouseTimeSavedMs: 5000,
+                bytesBilledSaved: 1024,
             },
         ]);
     });

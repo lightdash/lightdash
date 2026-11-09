@@ -18,7 +18,6 @@ import {
 import {
     connectionFixture,
     encryptionUtil,
-    matrix,
     seedConnectionClient,
 } from './agentConnectionFixture.mock';
 
@@ -83,7 +82,7 @@ test('MCP switches and historical people and project lists do not gate other sur
         }),
     ).resolves.toBeUndefined();
     await f.savePolicy({
-        systemRoleMatrix: matrix([capability, AgentCapability.ContentWrite]),
+        allowedCapabilities: [capability, AgentCapability.ContentWrite],
     });
     await expect(
         f.permissions.assertOperation({
@@ -268,7 +267,6 @@ describe('OAuth token revocation limits', () => {
 describe('Fresh permission checks after committed narrowing', () => {
     it.each([
         ['project role', AiAccessRefusalReason.AGENT_CAPABILITY_DENIED],
-        ['capability matrix', AiAccessRefusalReason.AGENT_CAPABILITY_DENIED],
         ['capability list', AiAccessRefusalReason.AGENT_CAPABILITY_DENIED],
         [
             'allowed group membership',
@@ -295,18 +293,28 @@ describe('Fresh permission checks after committed narrowing', () => {
             await f.savePolicy({ allowedGroupUuids: [group.group_uuid] });
             await expect(f.check()).resolves.toBeUndefined();
             switch (change) {
-                case 'project role':
+                case 'project role': {
+                    const [role] = await f
+                        .database('roles')
+                        .insert({
+                            name: 'Organization role without agent actions',
+                            description: null,
+                            level: 'organization',
+                            organization_uuid: f.organizationUuid,
+                            created_by: f.userUuid,
+                        })
+                        .returning('*');
+                    await f
+                        .database('organization_memberships')
+                        .where('user_id', f.user.user_id)
+                        .update({ role_uuid: role.role_uuid });
+                    await expect(f.check()).resolves.toBeUndefined();
                     await f.projects.deleteProjectAccess(
                         f.projectUuid,
                         f.userUuid,
                     );
                     break;
-                case 'capability matrix':
-                    await f.savePolicy({
-                        systemRoleMatrix: matrix([]),
-                        allowedGroupUuids: [group.group_uuid],
-                    });
-                    break;
+                }
                 case 'capability list':
                     await f.savePolicy({
                         allowedCapabilities: Object.values(
@@ -365,7 +373,7 @@ describe('Stored grant approval after policy widening', () => {
         await expect(connection.execute()).resolves.toBeDefined();
         const secondProjectUuid = await f.createProject();
         await f.savePolicy({
-            systemRoleMatrix: matrix([capability, AgentCapability.Query]),
+            allowedCapabilities: [capability, AgentCapability.Query],
         });
         await expect(
             f.permissions.assertOperation({

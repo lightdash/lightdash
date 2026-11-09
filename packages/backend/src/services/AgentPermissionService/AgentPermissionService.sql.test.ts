@@ -197,7 +197,6 @@ test('freezes its snapshot but a second request sees a policy change', async () 
     const request = await h.service.loadRequest(h.operation.organizationUuid);
     expect(Object.isFrozen(request.policy)).toBe(true);
     expect(Object.isFrozen(request.policy?.storedAllowedGroupUuids)).toBe(true);
-    expect(Object.isFrozen(request.policy?.systemRoleMatrix.viewer)).toBe(true);
     h.state.policy.allowedGroupUuids = [];
     await h.service.assertOperationWithRequest({
         request,

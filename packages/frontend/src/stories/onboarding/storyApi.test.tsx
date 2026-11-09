@@ -72,28 +72,3 @@ describe('onboarding story API', () => {
         }
     });
 });
-
-describe('agent run story fixtures', () => {
-    it('keeps the running fixture mid-stage and the completed fixture ready for handoff', async () => {
-        const { storyAgentRun } = await import('./agentRunFixture');
-        expect(storyAgentRun(false)).toMatchObject({
-            status: 'running',
-            stage: 'deploying_semantic_layer',
-            handoff: null,
-            completedAt: null,
-        });
-        const completed = storyAgentRun(true);
-        expect(completed.status).toBe('completed');
-        expect(completed.events.at(-1)?.stage).toBe('handoff');
-        expect(completed.handoff?.starterQuestions).toHaveLength(3);
-        expect(completed.files.map(({ path }) => path)).toContain('handoff.md');
-        expect(
-            completed.events.every(
-                (event, index) =>
-                    index === 0 ||
-                    Date.parse(event.createdAt) >=
-                        Date.parse(completed.events[index - 1].createdAt),
-            ),
-        ).toBe(true);
-    });
-});

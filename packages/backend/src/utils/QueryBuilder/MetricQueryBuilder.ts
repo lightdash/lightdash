@@ -366,7 +366,9 @@ export function getIntervalSyntax(
                 value,
                 granularity,
             );
-            const func = isAdd ? 'date_add' : 'date_sub';
+            // dateAdd/dateSub are ClickHouse's own names; date_add/date_sub
+            // are aliases that PostHog's HogQL rejects
+            const func = isAdd ? 'dateAdd' : 'dateSub';
             intervalExpression = `${func}(${columnWithInterval}, INTERVAL ${chValue} ${chGranularity})`;
             break;
         }

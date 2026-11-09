@@ -7,7 +7,6 @@ import {
     RequestMethod,
 } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { OnboardingAgentService } from '../../ee/services/OnboardingAgentService/OnboardingAgentService';
 import { ServiceAccountService } from '../../ee/services/ServiceAccountService/ServiceAccountService';
 import Logger from '../../logging/logger';
 import { LearnSandboxService } from '../../services/LearnSandboxService/LearnSandboxService';
@@ -78,12 +77,6 @@ const build = (mode: 'log' | 'enforce') => {
         clientName: 'client',
         redirectUris: ['https://example.com/callback'],
     };
-    const onboarding = new OnboardingAgentService({
-        lightdashConfig: lightdashConfigMock,
-        projectModel: { getSummary: read },
-        agentOnboardingRunModel: { create: write },
-        schedulerClient: { agentOnboardingRun: write },
-    } as unknown as ConstructorParameters<typeof OnboardingAgentService>[0]);
     const learn = new LearnSandboxService({
         lightdashConfig: lightdashConfigMock,
         projectModel: { getSummary: read },
@@ -91,8 +84,6 @@ const build = (mode: 'log' | 'enforce') => {
         schedulerClient: { learnSandboxCommand: write },
     } as unknown as ConstructorParameters<typeof LearnSandboxService>[0]);
     const calls = {
-        startOnboardingRun: () =>
-            onboarding.createRun({ user: sessionUser, projectUuid: 'project' }),
         enqueueLearnSandboxCommand: () =>
             learn.enqueueCommand(sessionUser, 'project', {
                 tool: 'dbt',
@@ -151,7 +142,6 @@ const build = (mode: 'log' | 'enforce') => {
 };
 
 const operations = [
-    'startOnboardingRun',
     'enqueueLearnSandboxCommand',
     'createPersonalAccessToken',
     'rotatePersonalAccessToken',

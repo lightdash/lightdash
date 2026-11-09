@@ -5809,7 +5809,7 @@ describe('connection compile jobs', () => {
             await f.run(structuredClone(payload));
             expect(f.effect).toHaveBeenCalledOnce();
             f.effect.mockClear();
-            authority.policy.systemRoleMatrix.viewer = Object.values(
+            authority.policy.allowedCapabilities = Object.values(
                 AgentCapability,
             ).filter((value) => value !== capability);
             await f.run(structuredClone(payload));

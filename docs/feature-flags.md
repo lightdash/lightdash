@@ -279,9 +279,9 @@ in `legacy` mode. Saving with limits on activates `managed` mode; resetting
 restores `legacy` and clears the organization capability list. Disabling the flag preserves the
 saved policy and makes the permission service return `off` without new checks.
 
-Managed policy resolution unions system-role matrix grants with custom-role
-capability scopes, then intersects them with `allowedCapabilities` when it is
-not null. Null preserves existing grants until the first save. New policy
+Managed policy resolution gives built-in roles every capability, adds
+custom-role capability scopes, then intersects the result with
+`allowedCapabilities` when it is not null. Null preserves existing grants until the first save. New policy
 defaults contain all eleven capabilities. An empty saved list refuses agent
 turns on every covered surface. Custom roles keep their own scopes. MCP owns
 Agents over MCP and Allow content changes via MCP; neither setting limits
@@ -324,12 +324,11 @@ reads as `[]` and admits nobody. It applies with capability limits off and on,
 on MCP tools and resource reads, in-app and Slack agents, OAuth REST, and query
 sources. Slack requires a verified sender when the restriction is active.
 
-A valid deployment licence and the organization-level `UserGroupsEnabled` flag
-allow new group restrictions. Saved restrictions still apply when groups later
+A valid deployment licence allows new group restrictions. Saved restrictions still apply when groups later
 become unavailable. Clearing a restriction is always allowed. Personal-access-token
 and service-account calls keep their existing exemptions. With `agent-identity`
 off, group admission adds no checks or reads. A PUT can set
-`mode: 'legacy'` to save group admission and preserve the dormant role matrix.
+`mode: 'legacy'` to save group admission.
 Reset keeps groups and clears the capability list. Old people and project lists
 are ignored and omitted from GET, PUT and reset. An old browser save succeeds
 and drops those choices. The page uses the final policy API for Same as the

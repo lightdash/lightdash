@@ -911,7 +911,7 @@ describe('current managed policy intersection', () => {
                     recheckOperation: false,
                 });
             await expect(run()).resolves.toBeDefined();
-            f.policy.systemRoleMatrix.viewer = Object.values(
+            f.policy.allowedCapabilities = Object.values(
                 AgentCapability,
             ).filter((value) => value !== capability);
             await expect(run()).rejects.toMatchObject({
@@ -984,7 +984,7 @@ describe.each([false, true])(
             Object.assign(f.grant, projectGrantFixture(), {
                 clientId: 'lightdash-cli',
             });
-            f.policy.systemRoleMatrix.viewer = [AgentCapability.Query];
+            f.policy.allowedCapabilities = [AgentCapability.Query];
             const run = () =>
                 f.service.assertActiveExecution(f.execution, {
                     projectUuid: f.projectUuid,
@@ -992,7 +992,7 @@ describe.each([false, true])(
                     recheckOperation,
                 });
             await expect(run()).rejects.toThrow();
-            f.policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+            f.policy.allowedCapabilities = Object.values(AgentCapability);
             await expect(run()).rejects.toThrow();
             await expect(
                 f.service.assertActiveExecution(f.execution, {

@@ -1,13 +1,11 @@
 import {
     AgentCapability,
-    OrganizationMemberRole,
     AthenaAuthenticationType,
     DatabricksAuthenticationType,
     SnowflakeAuthenticationType,
     BigqueryAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountSlot,
-    type AgentSystemRoleMatrix,
     type AiServiceAccountCredentialInput,
     type AiServiceAccountTestResult,
     type ApiAiServiceAccountSaveResponse,
@@ -426,18 +424,11 @@ describe('AI service account save', () => {
 });
 
 describe('final policy contract', () => {
-    const matrix = Object.fromEntries(
-        Object.values(OrganizationMemberRole).map((role) => [
-            role,
-            [AgentCapability.Query],
-        ]),
-    ) as AgentSystemRoleMatrix;
     const wire = {
         mode: 'managed',
         version: 2,
         allowedCapabilities: [AgentCapability.Query],
         allowedGroupUuids: null,
-        systemRoleMatrix: matrix,
     };
     beforeEach(() => {
         vi.clearAllMocks();
@@ -446,7 +437,6 @@ describe('final policy contract', () => {
     it('returns the final GET shape without an adapter or extra request', async () => {
         mockedLightdashApi.mockResolvedValue({
             ...wire,
-            defaults: matrix,
             groupsAvailable: true,
         } as never);
         flagEnabled = false;
@@ -463,7 +453,6 @@ describe('final policy contract', () => {
         await waitFor(() =>
             expect(result.current.policy.data).toEqual({
                 ...wire,
-                defaults: matrix,
                 groupsAvailable: true,
             }),
         );
@@ -482,7 +471,6 @@ describe('final policy contract', () => {
         await act(async () => {
             await result.current.mutateAsync({
                 version: 1,
-                systemRoleMatrix: matrix,
                 mode: 'managed',
                 allowedCapabilities: [AgentCapability.Query],
             });

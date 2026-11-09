@@ -55,8 +55,8 @@ import {
 } from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { isArtifactRevision } from './ArtifactButton/artifactCardMeta';
-import { ArtifactChartSkeleton } from './ArtifactChartSkeleton';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 import { ChatElementsUtils } from './utils';
 
@@ -273,6 +273,15 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                 : 'table';
 
         const effectiveChartType = selectedChartType ?? defaultChartType;
+        // The query hasn't resolved the type yet, so read the stored one.
+        const storedChartConfig = vizConfig?.vizTool.chartConfig;
+        const loadingSketchShape =
+            (selectedChartType ??
+                (isCustomChartTypeSlugChartConfig(storedChartConfig)
+                    ? undefined
+                    : storedChartConfig?.defaultVizType)) === 'table'
+                ? 'table'
+                : 'chart';
 
         const groupByDimensions = parsedChartConfig
             ? getGroupByDimensions(parsedChartConfig)
@@ -329,7 +338,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
             if (variant === 'floating') {
                 return (
                     <Box className={styles.floatingPanel}>
-                        <ArtifactChartSkeleton />
+                        <ArtifactLoadingSketch />
                     </Box>
                 );
             }
@@ -448,7 +457,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
         ) {
             return (
                 <Box className={styles.floatingPanel}>
-                    <ArtifactChartSkeleton />
+                    <ArtifactLoadingSketch shape={loadingSketchShape} />
                 </Box>
             );
         }

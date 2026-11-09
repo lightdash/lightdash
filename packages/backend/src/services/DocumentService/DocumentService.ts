@@ -6,12 +6,14 @@ import {
     ContentType,
     DirectAccessResourceType,
     DOCUMENT_SCHEMA_VERSION,
+    ExploreType,
     FeatureFlags,
     ForbiddenError,
     formatDocumentTag,
     getContentAsCodePathFromLtreePath,
     getDataAppVizChartConfigErrors,
     getDocumentSavedChartLinks,
+    getErrorMessage,
     getLtreePathFromContentAsCodePath,
     getSavedChartTagName,
     mapDocumentCharts,
@@ -82,6 +84,7 @@ import {
 } from '../CoderService/handlers/contentConnections';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { ProjectService } from '../ProjectService/ProjectService';
+import { assertApiSourceQuery } from '../QuerySourceService/api/apiSourceExplore';
 import type {
     AccessTarget,
     SpacePermissionService,
@@ -1648,10 +1651,26 @@ export class DocumentService extends BaseService {
         metricQuery: MetricQuery;
         parameters: ParametersValuesMap | undefined;
     }): Promise<void> {
+        const explore = await this.dependencies.projectService.getExplore(
+            account,
+            projectUuid,
+            metricQuery.exploreName,
+        );
+        // Live data source charts run on their integration, not as SQL.
+        if (explore.type === ExploreType.API_SOURCE) {
+            try {
+                assertApiSourceQuery(explore, metricQuery);
+            } catch (error) {
+                throw new ParameterError(
+                    `Invalid chart "${chartId}": ${getErrorMessage(error)}`,
+                );
+            }
+            return;
+        }
         const compiled = await this.dependencies.projectService.compileQuery({
             account,
             projectUuid,
-            exploreName: metricQuery.exploreName,
+            explore,
             body: { ...metricQuery, parameters },
             usePreAggregateCache: false,
         });

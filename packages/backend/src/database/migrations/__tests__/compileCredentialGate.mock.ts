@@ -28,7 +28,6 @@ import {
     connectionFixture,
     connectionTestConfig,
     encryptionUtil,
-    matrix,
 } from './agentConnectionFixture.mock';
 import {
     githubDbtConnection,
@@ -47,12 +46,7 @@ export const compileCredentialGateFixture = async (
     await database('project_memberships')
         .where('user_id', f.user.user_id)
         .update({ role: ProjectMemberRole.ADMIN });
-    await f.savePolicy({
-        systemRoleMatrix: {
-            ...matrix([]),
-            admin: [AgentCapability.DeployUpload],
-        },
-    });
+    await f.savePolicy({ allowedCapabilities: [AgentCapability.DeployUpload] });
     const user = await f.users.findSessionUserAndOrgByUuid(
         f.userUuid,
         f.organizationUuid,

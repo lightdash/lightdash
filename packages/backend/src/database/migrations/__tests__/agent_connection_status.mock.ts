@@ -15,10 +15,7 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { GroupsModel } from '../../../models/GroupsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 
 export const statusFixture = async (
@@ -160,22 +157,6 @@ export const statusFixture = async (
         encryptionUtil,
     });
     const policies = new AgentCapabilityPolicyModel({ database });
-    const roleMatrix = {
-        ...agentSystemRoleMatrix([]),
-        admin: Object.values(AgentCapability),
-        developer: [
-            AgentCapability.DeployUpload,
-            AgentCapability.ReadDiscover,
-            AgentCapability.Administration,
-        ],
-        editor: [
-            AgentCapability.ContentWrite,
-            AgentCapability.Publish,
-            AgentCapability.Delete,
-        ],
-        interactive_viewer: [AgentCapability.RawSql],
-        viewer: [AgentCapability.Query],
-    };
     const savePolicy = (
         overrides: Partial<Parameters<typeof policies.save>[0]> = {},
     ) =>
@@ -184,7 +165,6 @@ export const statusFixture = async (
             mode: 'managed',
             allowedCapabilities: [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
             allowedGroupUuids: null,
-            systemRoleMatrix: roleMatrix,
             updatedByUserUuid: people[0].user_uuid,
             ...overrides,
         });
@@ -228,7 +208,6 @@ export const statusFixture = async (
         accounts,
         loaders: { userModel: users, projectModel },
         savePolicy,
-        roleMatrix,
         flags,
         users,
         projectModel,

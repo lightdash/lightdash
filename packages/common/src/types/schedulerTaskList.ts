@@ -1,6 +1,5 @@
 import { includes } from 'es-toolkit/compat';
 import {
-    type AgentOnboardingJobPayload,
     type AiAgentEvalRunJobPayload,
     type AiAgentReviewClassifierJobPayload,
     type AiAgentReviewRemediationCompileJobPayload,
@@ -137,9 +136,6 @@ export type AiWritebackPipelineJobPayload = TraceTaskBase & {
 export type AiDeepResearchPipelineJobPayload = TraceTaskBase &
     AiDeepResearchJobPayload;
 
-export type AgentOnboardingPipelineJobPayload = TraceTaskBase &
-    AgentOnboardingJobPayload;
-
 export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
     aiWritebackRunUuid: string;
     // Serializes back-to-back edits in the same thread: the pipeline job runs on
@@ -225,7 +221,6 @@ export const EE_SCHEDULER_TASKS = {
     AI_DEEP_RESEARCH: 'aiDeepResearch',
     DATA_APP_INVESTIGATE: 'dataAppInvestigate',
     DATA_APP_INSTRUCTION_INVESTIGATE: 'dataAppInstructionInvestigate',
-    AGENT_ONBOARDING_RUN: 'agentOnboardingRun',
     AI_AGENT_EDIT_DBT_PROJECT_PIPELINE: 'aiAgentEditDbtProjectPipeline',
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
     SWEEP_STALE_AI_WRITEBACK_RUNS: 'sweepStaleAiWritebackRuns',
@@ -411,7 +406,6 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES]: Record<string, never>;
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
-    [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
 }
 
@@ -458,7 +452,6 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.SEND_AI_CREDIT_ALLOWANCE_ALERTS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
-    [EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;

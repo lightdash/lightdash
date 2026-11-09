@@ -1,15 +1,19 @@
 import {
     ApiConnectorType,
+    CustomDimensionType,
     DimensionType,
     FilterOperator,
+    MetricType,
     ParameterError,
     SupportedDbtAdapter,
+    TimeFrames,
     type FilterRule,
     type MetricQuery,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
 import { compilePostHogQuery } from './posthogCompiler';
+import { POSTHOG_CAPABILITIES } from './PostHogConnector';
 import {
     POSTHOG_EVENTS_EXPLORE,
     POSTHOG_MAX_SCANNED_PROPERTIES,
@@ -30,6 +34,7 @@ const buildExplore = (definition = POSTHOG_EVENTS_EXPLORE) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.POSTHOG,
         baseVersion: POSTHOG_SEMANTIC_LAYER_VERSION,
+        capabilities: POSTHOG_CAPABILITIES,
         warehouseSqlBuilder,
     });
 
@@ -172,21 +177,88 @@ describe('compilePostHogQuery', () => {
         expect(hogql).toContain(`("${field('event_count')}") > (5)`);
         expect(hogql).toMatch(/\) AS live_query\nORDER BY c0 ASC, c3 DESC$/);
     });
+});
 
-    test('refuses features live data sources cannot run yet', () => {
-        expect(() =>
-            compile(
-                query({
-                    tableCalculations: [
-                        {
-                            name: 'share',
-                            displayName: 'Share',
-                            sql: '1',
-                        },
-                    ],
-                }),
-            ),
-        ).toThrow(ParameterError);
+describe('compilePostHogQuery with SQL features', () => {
+    test('selects table calculations as columns of the HogQL query', () => {
+        const { query: hogql, fieldIdsByColumn } = compile(
+            query({
+                tableCalculations: [
+                    {
+                        name: 'events_per_user',
+                        displayName: 'Events per user',
+                        sql: `\${${EXPLORE}.event_count} / \${${EXPLORE}.unique_users}`,
+                    },
+                ],
+                sorts: [{ fieldId: 'events_per_user', descending: true }],
+            }),
+        );
+        expect(fieldIdsByColumn.c4).toBe('events_per_user');
+        expect(hogql).toContain('"events_per_user" AS c4');
+        expect(hogql).toContain('ORDER BY c4 DESC');
+    });
+
+    test('compiles custom dimensions and custom metrics on event properties', () => {
+        const { query: hogql, fieldIdsByColumn } = compile(
+            query({
+                dimensions: ['host'],
+                metrics: [field('distinct_paths')],
+                sorts: [],
+                customDimensions: [
+                    {
+                        id: 'host',
+                        name: 'Host',
+                        table: EXPLORE,
+                        type: CustomDimensionType.SQL,
+                        sql: '${TABLE}.properties.$host',
+                        dimensionType: DimensionType.STRING,
+                    },
+                ],
+                additionalMetrics: [
+                    {
+                        name: 'distinct_paths',
+                        label: 'Distinct paths',
+                        table: EXPLORE,
+                        type: MetricType.COUNT_DISTINCT,
+                        sql: '${TABLE}.properties.$pathname',
+                    },
+                ],
+            }),
+        );
+        expect(fieldIdsByColumn).toEqual({
+            c0: 'host',
+            c1: field('distinct_paths'),
+        });
+        expect(hogql).toContain(`"${EXPLORE}".properties.$host`);
+        expect(hogql).toContain(
+            `COUNT(DISTINCT "${EXPLORE}".properties.$pathname)`,
+        );
+    });
+
+    test('shifts period-over-period dates with dateSub, which HogQL accepts', () => {
+        const { query: hogql } = compile(
+            query({
+                dimensions: [field('date')],
+                metrics: [field('event_count'), field('event_count_previous')],
+                sorts: [],
+                additionalMetrics: [
+                    {
+                        name: 'event_count_previous',
+                        label: 'Event count (previous week)',
+                        table: EXPLORE,
+                        type: MetricType.SUM,
+                        sql: '1',
+                        generationType: 'periodOverPeriod',
+                        baseMetricId: field('event_count'),
+                        timeDimensionId: field('date'),
+                        granularity: TimeFrames.WEEK,
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+        expect(hogql).toMatch(/dateSub\(/);
+        expect(hogql).not.toMatch(/date_sub\(/i);
     });
 });
 

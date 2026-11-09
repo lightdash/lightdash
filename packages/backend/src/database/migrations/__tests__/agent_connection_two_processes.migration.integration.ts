@@ -1,4 +1,8 @@
-import { AgentCapability, ProjectMemberRole } from '@lightdash/common';
+import {
+    AGENT_CAPABILITY_SCOPES,
+    AgentCapability,
+    ProjectMemberRole,
+} from '@lightdash/common';
 import { type ChildProcess } from 'node:child_process';
 import {
     createMigratedDatabase,
@@ -6,7 +10,6 @@ import {
 } from '../../../testing/migratedDatabase';
 import {
     connectionFixture,
-    matrix,
     seedConnectionClient,
 } from './agentConnectionFixture.mock';
 import {
@@ -103,6 +106,32 @@ beforeAll(async () => {
     expect(first.pid).not.toBe(process.pid);
 });
 afterAll(cleanup);
+const customRole = async (
+    f: Awaited<ReturnType<typeof connectionFixture>>,
+    name: string,
+    level: 'organization' | 'project',
+    scopes: string[],
+): Promise<string> => {
+    const [role] = await f
+        .database('roles')
+        .insert({
+            name,
+            description: null,
+            level,
+            organization_uuid: f.organizationUuid,
+            created_by: f.userUuid,
+        })
+        .returning('*');
+    if (scopes.length > 0)
+        await f.database('scoped_roles').insert(
+            scopes.map((scope_name) => ({
+                role_uuid: role.role_uuid,
+                scope_name,
+                granted_by: f.userUuid,
+            })),
+        );
+    return role.role_uuid;
+};
 const warm = async (
     f: Awaited<ReturnType<typeof connectionFixture>>,
     token: string,
@@ -146,13 +175,23 @@ it.each([
         await f
             .database('project_memberships')
             .where('user_id', f.user.user_id)
-            .update({ role: ProjectMemberRole.DEVELOPER });
-        await f.savePolicy({
-            systemRoleMatrix: {
-                ...matrix([]),
-                developer: [AgentCapability.ReadDiscover],
-            },
-        });
+            .update({
+                role: ProjectMemberRole.DEVELOPER,
+                role_uuid: await customRole(f, 'Agent reader', 'project', [
+                    AGENT_CAPABILITY_SCOPES[AgentCapability.ReadDiscover],
+                ]),
+            });
+        await f
+            .database('organization_memberships')
+            .where('user_id', f.user.user_id)
+            .update({
+                role_uuid: await customRole(
+                    f,
+                    'Organization member',
+                    'organization',
+                    [],
+                ),
+            });
         const [group] = await f
             .database('groups')
             .insert({
@@ -165,13 +204,7 @@ it.each([
         const [membership] = await f.groups.addGroupMembers(group.group_uuid, [
             f.userUuid,
         ]);
-        await f.savePolicy({
-            allowedGroupUuids: [group.group_uuid],
-            systemRoleMatrix: {
-                ...matrix([]),
-                developer: [AgentCapability.ReadDiscover],
-            },
-        });
+        await f.savePolicy({ allowedGroupUuids: [group.group_uuid] });
         const connection = await f.createConnection();
         const { route, cookie } = await warm(f, connection.accessToken);
         switch (change) {
@@ -179,7 +212,15 @@ it.each([
                 await f
                     .database('project_memberships')
                     .where('user_id', f.user.user_id)
-                    .update({ role: ProjectMemberRole.VIEWER });
+                    .update({
+                        role: ProjectMemberRole.VIEWER,
+                        role_uuid: await customRole(
+                            f,
+                            'Project reader',
+                            'project',
+                            [],
+                        ),
+                    });
                 break;
             case 'project removed':
                 await f.projects.deleteProjectAccess(f.projectUuid, f.userUuid);
@@ -193,10 +234,6 @@ it.each([
                         (capability) =>
                             capability !== AgentCapability.ReadDiscover,
                     ),
-                    systemRoleMatrix: {
-                        ...matrix([]),
-                        developer: [AgentCapability.ReadDiscover],
-                    },
                     allowedGroupUuids: [group.group_uuid],
                 });
                 break;
@@ -250,12 +287,6 @@ it.each([
 it('loads the person fresh for a connection while both stale caches still admit the same person session', async () => {
     const f = await connectionFixture(migrated.database);
     await enableConnectionFlag(f.database, f.organizationUuid);
-    await f.savePolicy({
-        systemRoleMatrix: {
-            ...matrix([AgentCapability.ReadDiscover]),
-            member: [AgentCapability.ReadDiscover],
-        },
-    });
     const connection = await f.createConnection();
     const { cookie, route } = await warm(f, connection.accessToken);
     const filled = await Promise.all(

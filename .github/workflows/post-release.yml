@@ -753,19 +753,6 @@ jobs:
             source_tag_env: E2B_PYTHON_TEMPLATE_SOURCE_TAG
             additional_watch_paths: ''
             install_root_deps: false
-          - display_name: agent onboarding E2B template
-            directory: sandboxes/agent-onboarding
-            name: lightdash-agent-onboarding
-            name_env: E2B_AGENT_ONBOARDING_TEMPLATE_NAME
-            tag_env: E2B_AGENT_ONBOARDING_TEMPLATE_TAG
-            extra_tags_env: E2B_AGENT_ONBOARDING_TEMPLATE_EXTRA_TAGS
-            source_tag_env: E2B_AGENT_ONBOARDING_TEMPLATE_SOURCE_TAG
-            additional_watch_paths: |
-              packages/cli
-              packages/common
-              packages/warehouses
-              skills
-            install_root_deps: false
     uses: ./.github/workflows/publish-e2b-template.yml
     with:
       release_tag: ${{ github.event.release.tag_name }}

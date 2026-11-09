@@ -327,7 +327,9 @@ export class HealthService extends BaseService {
                     this.lightdashConfig.ai.analyticsProjectUuid,
                 analyticsDashboardUuid:
                     this.lightdashConfig.ai.analyticsDashboardUuid,
+                // Ambient AI endpoints only exist under a valid licence.
                 isAmbientAiEnabled:
+                    this.licenseService.getLicenseStatus().valid &&
                     !!this.lightdashConfig.ai.copilot.providers.anthropic
                         ?.apiKey,
                 threadDumpEnabled:

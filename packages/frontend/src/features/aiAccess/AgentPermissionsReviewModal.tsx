@@ -1,5 +1,4 @@
 import {
-    OrganizationMemberRoleLabels,
     type Group as OrganizationGroup,
     type AgentCapability,
 } from '@lightdash/common';
@@ -50,7 +49,7 @@ export const AgentPermissionsReviewModal = ({
                     <Text fw={500}>Agents are turned off for everyone</Text>
                     <Text size="sm">
                         No one can use Ask AI, the Slack agent, MCP clients or
-                        the CLI. People can still work themselves.
+                        the CLI.
                     </Text>
                 </Stack>
             ) : (
@@ -66,8 +65,7 @@ export const AgentPermissionsReviewModal = ({
                             for agents
                         </Text>
                         <Text size="sm">
-                            For every role, custom roles included. People can
-                            still do these themselves.
+                            For every role, custom roles included.
                         </Text>
                     </Stack>
                 )
@@ -78,30 +76,8 @@ export const AgentPermissionsReviewModal = ({
                         ALLOWS
                     </Text>
                     <Text fw={500}>{names(changes.allows)}</Text>
-                    <Text size="sm">
-                        These limits are removed. A person’s own permissions
-                        still apply.
-                    </Text>
                 </Stack>
             )}
-            {!changes.turnedOff &&
-                changes.roles.map((row) => (
-                    <Stack gap="xs" key={row.role}>
-                        <Text fw={500}>
-                            {OrganizationMemberRoleLabels[row.role]}
-                        </Text>
-                        {row.stops.length > 0 && (
-                            <Text>STOPS: {names(row.stops)}</Text>
-                        )}
-                        {row.allows.length > 0 && (
-                            <Text>ALLOWS: {names(row.allows)}</Text>
-                        )}
-                        <Text size="sm">
-                            Other roles, including custom roles, can still allow
-                            these actions within the limits for everyone.
-                        </Text>
-                    </Stack>
-                ))}
             {changes.groups && (
                 <Stack gap="xs">
                     <Text size="xs" c="blue" fw={500}>
@@ -140,8 +116,7 @@ export const AgentPermissionsReviewModal = ({
                 </Text>
             )}
             <Callout variant="info">
-                Agents never get more access than the person. Personal access
-                tokens are not limited.
+                Personal access tokens are not limited.
             </Callout>
         </Stack>
     </MantineModal>

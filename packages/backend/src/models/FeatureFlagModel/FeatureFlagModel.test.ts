@@ -365,19 +365,6 @@ describe('FeatureFlagModel', () => {
 
             expect(result.enabled).toBe(true);
         });
-
-        it('env var override takes precedence over config handlers that default to true', async () => {
-            const model = buildModel({
-                enabledFeatureFlags: new Set([FeatureFlags.UserGroupsEnabled]),
-                groups: { enabled: false },
-            });
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.UserGroupsEnabled,
-            });
-
-            expect(result.enabled).toBe(true);
-        });
     });
 
     describe('preview environment defaults', () => {

@@ -102,7 +102,6 @@ export type SettingsContext = {
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
-    isGroupManagementEnabled: boolean;
     isAgentIdentityEnabled: boolean;
     isAgentIdentityFlagLoading: boolean;
     isGitProject: boolean;

@@ -68,7 +68,6 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
         const {
             isFetching,
             invalidateDashboardRelatedQueries,
-            invalidateDashboardResultsQueries,
             removeDashboardResultsQueries,
         } = useDashboardRefresh();
 
@@ -82,21 +81,17 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
         const isOneAtLeastFetching = isFetching > 0;
 
         const invalidateAndSetRefreshTime = useCallback(async () => {
-            // Remove old cached results before refreshing so stale data
-            // doesn't persist when navigating away and back (SPA navigation).
-            // Without this, old cache entries keyed with invalidateCache:false
-            // survive and are served when DashboardProvider remounts.
+            // Drop old results so a remount after navigating away can't serve
+            // them; clearCacheAndFetch bumps the tiles' query keys to refetch.
             removeDashboardResultsQueries();
             clearCacheAndFetch();
             await invalidateDashboardRelatedQueries();
-            await invalidateDashboardResultsQueries();
 
             setLastRefreshTime(new Date());
         }, [
             removeDashboardResultsQueries,
             clearCacheAndFetch,
             invalidateDashboardRelatedQueries,
-            invalidateDashboardResultsQueries,
         ]);
 
         // The interval restarts whenever its callback identity changes, so

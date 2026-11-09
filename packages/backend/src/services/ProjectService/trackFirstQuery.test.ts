@@ -1,33 +1,15 @@
 import { fromApiKey, fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
-import { ONBOARDING_AGENT_PAT_DESCRIPTION_PREFIX } from '../../models/OnboardingModel/OnboardingModel';
 import { trackFirstQuery } from './trackFirstQuery';
 
 const ORGANIZATION_UUID = defaultSessionUser.organizationUuid!;
 
-const patLookup = (description: string) => ({
-    data: {
-        user: defaultSessionUser,
-        personalAccessToken: {
-            uuid: 'pat-uuid',
-            createdAt: new Date(),
-            lastUsedAt: null,
-            rotatedAt: null,
-            expiresAt: null,
-            description,
-        },
-    },
-    cacheHit: true,
-});
-
 const setup = ({
     ranQueryAt = null,
     updated = true,
-    patDescription = 'My token',
 }: {
     ranQueryAt?: Date | null;
     updated?: boolean;
-    patDescription?: string;
 } = {}) => {
     const onboardingModel = {
         getByOrganizationUuid: vi.fn(async () => ({
@@ -37,13 +19,8 @@ const setup = ({
         })),
         setRanQueryAtIfUnset: vi.fn(async () => updated),
     };
-    const userModel = {
-        findSessionUserByPersonalAccessToken: vi.fn(async () =>
-            patLookup(patDescription),
-        ),
-    };
     const analytics = { trackAccount: vi.fn() };
-    return { onboardingModel, userModel, analytics };
+    return { onboardingModel, analytics };
 };
 
 describe('trackFirstQuery', () => {
@@ -71,9 +48,6 @@ describe('trackFirstQuery', () => {
                 },
             },
         );
-        expect(
-            deps.userModel.findSessionUserByPersonalAccessToken,
-        ).not.toHaveBeenCalled();
     });
 
     test('does not track when a concurrent query already set the row', async () => {
@@ -95,25 +69,6 @@ describe('trackFirstQuery', () => {
             onboardingFlow: 'legacy',
             ...deps,
         });
-        expect(
-            deps.onboardingModel.setRanQueryAtIfUnset,
-        ).not.toHaveBeenCalled();
-        expect(deps.analytics.trackAccount).not.toHaveBeenCalled();
-    });
-
-    test('ignores queries made with the onboarding agent token', async () => {
-        const deps = setup({
-            patDescription: `${ONBOARDING_AGENT_PAT_DESCRIPTION_PREFIX}run-uuid`,
-        });
-        await trackFirstQuery({
-            account: fromApiKey(defaultSessionUser, 'ApiKey ldpat_agent'),
-            organizationUuid: ORGANIZATION_UUID,
-            onboardingFlow: 'new',
-            ...deps,
-        });
-        expect(
-            deps.userModel.findSessionUserByPersonalAccessToken,
-        ).toHaveBeenCalledWith('ldpat_agent');
         expect(
             deps.onboardingModel.setRanQueryAtIfUnset,
         ).not.toHaveBeenCalled();

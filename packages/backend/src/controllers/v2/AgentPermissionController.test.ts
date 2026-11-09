@@ -3,16 +3,14 @@ import {
     AgentActorSurface,
     AgentCapability,
     ForbiddenError,
+    OrganizationMemberRole,
     type AgentCapabilityPolicy,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { type Request } from 'express';
 import { buildAccount } from '../../auth/account/account.mock';
 import { createOAuthScopedAbility } from '../../auth/oauthScopes/scopedAbility';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../services/AgentPermissionService/AgentPermissionService';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -30,8 +28,6 @@ const setup = () => {
         version: 0,
         allowedCapabilities: null,
         allowedGroupUuids: null,
-
-        systemRoleMatrix: agentSystemRoleMatrix([]),
     };
     const deps = {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
@@ -65,7 +61,7 @@ const setup = () => {
         getAgentPermissionService: () => service,
     } as ServiceRepository);
     const req = { account } as Request;
-    return { controller, req, account, deps };
+    return { controller, req, account, deps, service, policy };
 };
 
 const operations = [
@@ -73,10 +69,7 @@ const operations = [
     (c: AgentPermissionController, req: Request) =>
         c.saveCeiling(req, {
             version: 0,
-
             allowedGroupUuids: null,
-
-            systemRoleMatrix: agentSystemRoleMatrix([]),
         }),
     (c: AgentPermissionController, req: Request) =>
         c.resetToLegacy(req, { version: 0 }),
@@ -159,7 +152,6 @@ test('ignores old people and project fields instead of storing them', async () =
         version: 0,
         allowedUserUuids: ['excluded'],
         allowedProjectUuids: ['foreign'],
-        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
     await controller.saveCeiling(req, oldBody);
     const [saved] = deps.agentCapabilityPolicyModel.save.mock.calls[0];
@@ -176,7 +168,6 @@ test.each([null, ['invalid'], 'query'])(
         await expect(
             controller.saveCeiling(req, {
                 allowedCapabilities,
-                systemRoleMatrix: agentSystemRoleMatrix([]),
             } as never),
         ).rejects.toMatchObject({ name: 'ParameterError' });
         expect(deps.agentCapabilityPolicyModel.save).not.toHaveBeenCalled();
@@ -188,10 +179,7 @@ test.each([-1, 1.5, NaN])(
     async (version) => {
         const { controller, req } = setup();
         await expect(
-            controller.saveCeiling(req, {
-                version,
-                systemRoleMatrix: agentSystemRoleMatrix([]),
-            }),
+            controller.saveCeiling(req, { version }),
         ).rejects.toMatchObject({ name: 'ParameterError' });
         await expect(
             controller.resetToLegacy(req, { version }),
@@ -205,20 +193,12 @@ test('legacy cannot retain an inactive capability list', async () => {
         controller.saveCeiling(req, {
             mode: 'legacy',
             allowedCapabilities: [],
-            systemRoleMatrix: agentSystemRoleMatrix([]),
         }),
     ).rejects.toMatchObject({ name: 'ParameterError' });
 });
 
-test('reset clears the capability list, keeps the matrix and omits groups', async () => {
+test('reset clears the capability list and omits groups without a role matrix', async () => {
     const { controller, req, deps } = setup();
-    deps.agentCapabilityPolicyModel.get.mockResolvedValue({
-        mode: 'managed',
-        version: 8,
-        allowedCapabilities: [AgentCapability.Query],
-        allowedGroupUuids: ['group'],
-        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
-    });
     await controller.resetToLegacy(req, { version: 7 });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -226,19 +206,51 @@ test('reset clears the capability list, keeps the matrix and omits groups', asyn
             mode: 'legacy',
             allowedCapabilities: null,
             allowedGroupUuids: undefined,
-            systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
         }),
     );
+    const [saved] = deps.agentCapabilityPolicyModel.save.mock.calls[0];
+    expect(saved).not.toHaveProperty('systemRoleMatrix');
+    expect(deps.agentCapabilityPolicyModel.get).not.toHaveBeenCalled();
 });
 
-test('GET offers all eleven opt-out defaults without rewriting the saved matrix', async () => {
+test('GET returns the saved policy without a role matrix or defaults', async () => {
     const { controller, req, deps } = setup();
-    expect((await controller.getPolicy(req)).results).toMatchObject({
-        allowedCapabilities: null,
-        systemRoleMatrix: agentSystemRoleMatrix([]),
-        defaults: agentSystemRoleMatrix(Object.values(AgentCapability)),
-    });
+    const { results } = await controller.getPolicy(req);
+    expect(results).toMatchObject({ allowedCapabilities: null });
+    expect(results).not.toHaveProperty('systemRoleMatrix');
+    expect(results).not.toHaveProperty('defaults');
     expect(deps.agentCapabilityPolicyModel.save).not.toHaveBeenCalled();
+});
+
+test('save accepts a legacy role matrix and does not store it', async () => {
+    const { service, account, deps, policy } = setup();
+    const allowedCapabilities = [AgentCapability.Query, AgentCapability.RawSql];
+    const systemRoleMatrix = {
+        [OrganizationMemberRole.MEMBER]: [],
+        [OrganizationMemberRole.VIEWER]: [AgentCapability.Query],
+        [OrganizationMemberRole.INTERACTIVE_VIEWER]: [AgentCapability.Query],
+        [OrganizationMemberRole.EDITOR]: [
+            AgentCapability.Query,
+            AgentCapability.ContentWrite,
+        ],
+        [OrganizationMemberRole.DEVELOPER]: [
+            AgentCapability.Query,
+            AgentCapability.RawSql,
+        ],
+        [OrganizationMemberRole.ADMIN]: Object.values(AgentCapability),
+    };
+    const legacyCeiling = {
+        mode: 'managed' as const,
+        allowedCapabilities,
+        systemRoleMatrix,
+    };
+    await expect(service.saveCeiling(account, legacyCeiling)).resolves.toBe(
+        policy,
+    );
+    expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledOnce();
+    const [saved] = deps.agentCapabilityPolicyModel.save.mock.calls[0];
+    expect(saved).not.toHaveProperty('systemRoleMatrix');
+    expect(saved).toMatchObject({ mode: 'managed', allowedCapabilities });
 });
 
 test.each([true, false])(
@@ -251,7 +263,6 @@ test.each([true, false])(
             version: 2,
             allowedGroupUuids: ['group'],
             allowedCapabilities: null,
-            systemRoleMatrix: agentSystemRoleMatrix([]),
         });
         expect((await controller.getPolicy(req)).results).toMatchObject({
             allowedGroupUuids: ['group'],
@@ -263,46 +274,33 @@ test.each([true, false])(
     },
 );
 
-test('legacy PUT validates the body but preserves the stored ceiling', async () => {
+test('legacy PUT stores the group restriction but preserves the stored ceiling', async () => {
     const { controller, req, deps } = setup();
-    const matrix = agentSystemRoleMatrix([AgentCapability.Query]);
     await controller.saveCeiling(req, {
         mode: 'legacy',
         allowedGroupUuids: ['group'],
-
-        systemRoleMatrix: matrix,
     });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
         expect.objectContaining({
             mode: 'legacy',
+            allowedCapabilities: undefined,
             allowedGroupUuids: ['group'],
         }),
     );
-    await expect(
-        controller.saveCeiling(req, {
-            mode: 'legacy',
-            allowedGroupUuids: ['group'],
-
-            systemRoleMatrix: {} as never,
-        }),
-    ).rejects.toMatchObject({ name: 'ParameterError' });
 });
 
 test('PUT rejects a new restriction when groups are unavailable but permits clearing and omission', async () => {
     const { controller, req, deps } = setup();
     deps.areGroupsAvailable.mockResolvedValue(false);
-    const body = {
-        systemRoleMatrix: agentSystemRoleMatrix([]),
-    };
     await expect(
-        controller.saveCeiling(req, { ...body, allowedGroupUuids: ['group'] }),
+        controller.saveCeiling(req, { allowedGroupUuids: ['group'] }),
     ).rejects.toThrow('Groups are not available for this organization.');
     expect(deps.agentCapabilityPolicyModel.save).not.toHaveBeenCalled();
-    await controller.saveCeiling(req, { ...body, allowedGroupUuids: null });
+    await controller.saveCeiling(req, { allowedGroupUuids: null });
     expect(
         deps.agentCapabilityPolicyModel.save.mock.calls[0][0].allowedGroupUuids,
     ).toBeNull();
-    await controller.saveCeiling(req, body);
+    await controller.saveCeiling(req, {});
     expect(
         deps.agentCapabilityPolicyModel.save.mock.calls[1][0].allowedGroupUuids,
     ).toBeUndefined();
@@ -318,7 +316,6 @@ test('reset omits the group column so even an all-deleted restriction is preserv
         version: 2,
         allowedGroupUuids: [],
         allowedCapabilities: null,
-        systemRoleMatrix: agentSystemRoleMatrix([]),
     });
     await controller.resetToLegacy(req, { version: 2 });
     expect(
