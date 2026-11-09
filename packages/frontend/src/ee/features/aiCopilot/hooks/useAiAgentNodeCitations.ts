@@ -52,8 +52,8 @@ export const useAiAgentThreadComposerNodeIds = ({
         enabled,
         refetchOnWindowFocus: false,
     });
-    if (query.isError) return [];
-    return query.data ?? null;
+    // A failed read keeps earlier results; with none, the citations can't be opened.
+    return query.data ?? (query.isError ? [] : null);
 };
 
 export const useAiAgentNodeCitationPipeline = (ref: NodeCitationRef) => {
