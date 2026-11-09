@@ -35,14 +35,12 @@ export const MOBILE_SIGN_IN_STRINGS = {
     anotherPhone: 'Sign in another phone',
     qrLabel: 'Sign-in QR code',
     refreshed: 'New code',
-    waiting: 'Waiting for you to confirm',
     typeOnPhone: 'Type on your phone',
     expired: 'Code expired',
     declined: 'Sign-in declined',
     signedIn: 'Signed in on a phone',
     signedInAs: (platform: string, account: string) =>
         `${platform} · ${account}`,
-    mintFailed: 'Could not create a code.',
     confirm: {
         title: 'A phone wants to sign in as you',
         description: 'Confirm only if you just scanned this code.',
@@ -77,14 +75,12 @@ export const MOBILE_SIGN_IN_STRINGS = {
     platforms: {
         ios: 'iOS',
         android: 'Android',
-        unknown: 'Unknown',
     },
     fallbackAccount: 'your account',
 } as const;
 
 export const MOBILE_SIGN_IN_LANDING_STRINGS = {
-    title: 'Open in the Lightdash app',
-    body: 'Install the app, then scan the code again.',
+    body: 'Then scan the sign-in code again.',
 } as const;
 
 export const MOBILE_APP_SIGN_IN_STRINGS = {

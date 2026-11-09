@@ -5,15 +5,15 @@ import {
 } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { maskEmail } from './mobileFormat';
 import MobileSignInLandingPage from './MobileSignInLandingPage';
 import { MobileSignInStep } from './MobileSignInStep';
 import { stripMobileSignInFragment } from './stripMobileSignInFragment';
-import { useMobileSignInCode } from './useMobileSignInCode';
+import { type useMobileSignInCode } from './useMobileSignInCode';
 
-vi.mock('./useMobileSignInCode', () => ({ useMobileSignInCode: vi.fn() }));
+let current: ReturnType<typeof useMobileSignInCode>;
 
 const code = {
     codeUuid: 'code-1',
@@ -49,16 +49,18 @@ const mockSignIn = (
         decline: vi.fn(),
         ...overrides,
     };
-    vi.mocked(useMobileSignInCode).mockReturnValue(value);
+    current = value;
     return value;
 };
 
 const renderStep = () =>
     renderWithProviders(
-        <MobileSignInStep host="app.example.com" email="jo@example.com" />,
+        <MobileSignInStep
+            signIn={current}
+            host="app.example.com"
+            email="jo@example.com"
+        />,
     );
-
-beforeEach(() => vi.mocked(useMobileSignInCode).mockReset());
 
 describe('maskEmail', () => {
     it('keeps the first letter and the domain', () => {
@@ -124,7 +126,7 @@ describe('MobileSignInStep', () => {
         expect(within(dialog).getByText('j••••@example.com')).toBeVisible();
         expect(within(dialog).getByText('app.example.com')).toBeVisible();
         expect(within(dialog).getByText('iOS')).toBeVisible();
-        expect(within(dialog).getByLabelText('4 7')).toBeVisible();
+        expect(within(dialog).getByText('4 7')).toBeInTheDocument();
         expect(
             within(dialog).queryByText(/Expires in/),
         ).not.toBeInTheDocument();
@@ -148,7 +150,7 @@ describe('MobileSignInStep', () => {
         renderStep();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(screen.getByText('Type on your phone')).toBeVisible();
-        expect(screen.getByLabelText('4 7')).toBeVisible();
+        expect(screen.getByText('4 7')).toBeInTheDocument();
     });
 
     it('offers a new code after expiry or a decline', async () => {
@@ -210,6 +212,64 @@ describe('MobileSignInStep', () => {
         renderStep();
         expect(screen.getByText(message)).toBeVisible();
     });
+
+    it('shows a waiting line beside the QR code', () => {
+        mockSignIn({ phase: 'showing', code });
+        renderStep();
+        expect(screen.getByText('Waiting for scan')).toBeVisible();
+    });
+
+    it('lets the user cancel after confirming and announces the number', async () => {
+        const signIn = mockSignIn({
+            phase: 'approved',
+            code,
+            state: { ...claimedState, status: MobileSignInCodeStatus.APPROVED },
+        });
+        renderStep();
+        expect(screen.getByText('Type on your phone: 4 7')).toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Hide code' }),
+        );
+        expect(signIn.hide).toHaveBeenCalledOnce();
+    });
+
+    it('hides the device row when the phone reported no platform', async () => {
+        mockSignIn({
+            phase: 'claimed',
+            code,
+            state: { ...claimedState, device: null },
+        });
+        renderStep();
+        const dialog = await screen.findByRole('dialog', {
+            name: 'A phone wants to sign in as you',
+        });
+        expect(within(dialog).queryByText('Device')).not.toBeInTheDocument();
+        expect(
+            within(dialog).queryByRole('button', { name: /close/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows a short title and never the server message when the code cannot be created', async () => {
+        const signIn = mockSignIn({
+            phase: 'failed',
+            mintError: {
+                status: 'error',
+                error: {
+                    name: 'UnexpectedServerError',
+                    statusCode: 500,
+                    message: 'database timeout at node-0000-test',
+                    data: {},
+                },
+            },
+        });
+        renderStep();
+        expect(screen.getByText("Couldn't create the code")).toBeVisible();
+        expect(screen.queryByText(/database timeout/)).not.toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Try again' }),
+        );
+        expect(signIn.show).toHaveBeenCalledOnce();
+    });
 });
 
 describe('MobileSignInLandingPage', () => {
@@ -217,7 +277,7 @@ describe('MobileSignInLandingPage', () => {
         renderWithProviders(<MobileSignInLandingPage />);
         expect(
             screen.getByRole('heading', {
-                name: 'Open in the Lightdash app',
+                name: 'Get the Lightdash app',
             }),
         ).toBeVisible();
         expect(

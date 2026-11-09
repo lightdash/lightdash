@@ -11,13 +11,15 @@ import {
     Text,
     VisuallyHidden,
 } from '@mantine/core';
+import { IconCircleCheck } from '@tabler/icons-react';
 import { lazy, Suspense, type FC } from 'react';
 import Callout from '../../components/common/Callout';
+import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import { maskEmail } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MOBILE_SIGN_IN_STRINGS as S, MOBILE_STRINGS } from './mobileStrings';
-import { useMobileSignInCode } from './useMobileSignInCode';
+import { type useMobileSignInCode } from './useMobileSignInCode';
 
 const MobileAppQrCode = lazy(() => import('./MobileAppQrCode'));
 
@@ -27,16 +29,20 @@ type StepContext = {
     signIn: SignIn;
     site: string;
     account: string;
-    platform: string;
+    platform: string | null;
 };
 
 const getPlatformLabel = (state: MobileSignInCodeState | null) => {
-    const platform = state?.device?.platform ?? 'unknown';
-    return S.platforms[platform];
+    const platform = state?.device?.platform;
+    return platform === 'ios' || platform === 'android'
+        ? S.platforms[platform]
+        : null;
 };
 
+const spellNumber = (value: string) => value.split('').join(' ');
+
 const MatchNumber: FC<{ value: string }> = ({ value }) => (
-    <Group gap="xs" justify="center" aria-label={value.split('').join(' ')}>
+    <Group gap="xs" justify="center">
         {value.split('').map((digit, position) => (
             <Text
                 key={position}
@@ -47,6 +53,7 @@ const MatchNumber: FC<{ value: string }> = ({ value }) => (
                 {digit}
             </Text>
         ))}
+        <VisuallyHidden>{spellNumber(value)}</VisuallyHidden>
     </Group>
 );
 
@@ -67,24 +74,26 @@ const RefusedNotice: FC<StepContext> = ({ signIn }) => {
         );
     }
     return signIn.refusal ? (
-        <Callout variant="neutral">{S.refusals[signIn.refusal]}</Callout>
+        <Callout variant="neutral" title={S.refusals[signIn.refusal]} />
     ) : null;
 };
 
 const FailedMint: FC<StepContext> = ({ signIn }) => (
-    <Group gap="sm">
-        <Text size="sm" c="red.7">
-            {signIn.mintError?.error.message ?? S.mintFailed}
-        </Text>
+    <Stack gap="sm" align="flex-start">
+        <Callout
+            variant="danger"
+            title={MOBILE_STRINGS.couldNotCreateCode}
+            w="100%"
+        />
         <Button size="xs" variant="default" onClick={signIn.show}>
             {MOBILE_STRINGS.tryAgain}
         </Button>
-    </Group>
+    </Stack>
 );
 
 const ShownCode: FC<StepContext> = ({ signIn }) =>
     signIn.code ? (
-        <Group align="flex-start" gap="lg" wrap="nowrap">
+        <Group align="flex-start" gap="lg">
             <Box className={classes.qrFrame}>
                 <Suspense fallback={<Loader size="sm" />}>
                     <MobileAppQrCode
@@ -94,8 +103,14 @@ const ShownCode: FC<StepContext> = ({ signIn }) =>
                 </Suspense>
             </Box>
             <Stack gap="sm" className={classes.details}>
+                <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
                 <Group>
-                    <Button size="xs" variant="default" onClick={signIn.hide}>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        onClick={signIn.hide}
+                        autoFocus
+                    >
                         {S.hideCode}
                     </Button>
                 </Group>
@@ -103,11 +118,7 @@ const ShownCode: FC<StepContext> = ({ signIn }) =>
         </Group>
     ) : null;
 
-const ClaimedNote: FC<StepContext> = () => (
-    <Text size="sm" c="dimmed">
-        {S.waiting}
-    </Text>
-);
+const ClaimedNote: FC<StepContext> = () => null;
 
 const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
     signIn.state?.matchNumber ? (
@@ -116,6 +127,9 @@ const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
                 {S.typeOnPhone}
             </Text>
             <MatchNumber value={signIn.state.matchNumber} />
+            <Button size="xs" variant="default" onClick={signIn.hide} autoFocus>
+                {S.hideCode}
+            </Button>
         </Stack>
     ) : null;
 
@@ -131,7 +145,7 @@ const ExpiredCode: FC<StepContext> = ({ signIn }) => (
 const DeclinedCode: FC<StepContext> = ({ signIn }) => (
     <Stack gap="sm" align="flex-start">
         <Callout variant="neutral" title={S.declined} w="100%" />
-        <Button size="xs" onClick={signIn.show}>
+        <Button size="xs" variant="default" onClick={signIn.show}>
             {S.newCode}
         </Button>
     </Stack>
@@ -139,8 +153,13 @@ const DeclinedCode: FC<StepContext> = ({ signIn }) => (
 
 const SignedIn: FC<StepContext> = ({ signIn, account, platform }) => (
     <Stack gap="sm" align="flex-start">
-        <Callout variant="success" title={S.signedIn} w="100%">
-            {S.signedInAs(platform, account)}
+        <Callout
+            variant="neutral"
+            icon={<MantineIcon icon={IconCircleCheck} color="green.7" />}
+            title={S.signedIn}
+            w="100%"
+        >
+            {platform ? S.signedInAs(platform, account) : account}
         </Callout>
         <Button size="xs" variant="default" onClick={signIn.show}>
             {S.anotherPhone}
@@ -167,7 +186,9 @@ const ConfirmModal: FC<StepContext> = ({ signIn, site, account, platform }) => (
         title={S.confirm.title}
         description={S.confirm.description}
         role="alertdialog"
-        size="sm"
+        size="md"
+        withCloseButton={false}
+        modalRootProps={{ returnFocus: false }}
         cancelLabel={S.confirm.decline}
         onCancel={signIn.decline}
         cancelDisabled={signIn.isDeciding}
@@ -180,7 +201,7 @@ const ConfirmModal: FC<StepContext> = ({ signIn, site, account, platform }) => (
                 {[
                     [S.confirm.account, account],
                     [S.confirm.site, site],
-                    [S.confirm.device, platform],
+                    ...(platform ? [[S.confirm.device, platform]] : []),
                 ].map(([label, value]) => (
                     <Box key={label} className={classes.confirmRow}>
                         <Text component="dt" size="sm" c="dimmed">
@@ -204,11 +225,19 @@ const ConfirmModal: FC<StepContext> = ({ signIn, site, account, platform }) => (
     </MantineModal>
 );
 
+const getAnnouncement = (signIn: SignIn): string => {
+    if (signIn.phase === 'showing' && signIn.isRefreshed) return S.refreshed;
+    if (signIn.phase === 'approved' && signIn.state?.matchNumber) {
+        return `${S.typeOnPhone}: ${spellNumber(signIn.state.matchNumber)}`;
+    }
+    return '';
+};
+
 export const MobileSignInStep: FC<{
+    signIn: SignIn;
     host: string;
     email: string | undefined;
-}> = ({ host, email }) => {
-    const signIn = useMobileSignInCode();
+}> = ({ signIn, host, email }) => {
     const context: StepContext = {
         signIn,
         site: host,
@@ -222,9 +251,7 @@ export const MobileSignInStep: FC<{
             <PhaseView {...context} />
             <ConfirmModal {...context} />
             <VisuallyHidden aria-live="polite">
-                {signIn.phase === 'showing' && signIn.isRefreshed
-                    ? S.refreshed
-                    : ''}
+                {getAnnouncement(signIn)}
             </VisuallyHidden>
         </Stack>
     );

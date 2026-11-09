@@ -41,6 +41,10 @@ import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
 import { StoreBadges } from './StoreBadges';
 import { useMobileAppLink } from './useMobileAppLink';
+import {
+    useMobileSignInCode,
+    type MobileSignInPhase,
+} from './useMobileSignInCode';
 
 const MobileAppQrCode = lazy(() => import('./MobileAppQrCode'));
 
@@ -236,11 +240,20 @@ const GetAppView: FC<ViewProps> = ({ host, appLink }) => {
     );
 };
 
+const getStepTwoState = (
+    isStepOneDone: boolean,
+    phase: MobileSignInPhase,
+): StepState => {
+    if (phase === 'redeemed') return 'done';
+    return isStepOneDone ? 'current' : 'upcoming';
+};
+
 const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
     const { link, isScanned, hasFailed, retry } = appLink;
     const { user } = useApp();
     const [hasApp, setHasApp] = useState(false);
     const isStepOneDone = isScanned || hasApp;
+    const signIn = useMobileSignInCode();
 
     const stepOneHeading = useRef<HTMLHeadingElement>(null);
     const stepTwoHeading = useRef<HTMLHeadingElement>(null);
@@ -257,6 +270,7 @@ const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
         setHasApp(true);
     };
     const showCode = () => {
+        signIn.hide();
         pendingFocus.current = stepOneHeading;
         setHasApp(false);
     };
@@ -300,12 +314,16 @@ const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
             <StepCard
                 step={2}
                 title={MOBILE_STRINGS.signInTitle}
-                state={isStepOneDone ? 'current' : 'upcoming'}
+                state={getStepTwoState(isStepOneDone, signIn.phase)}
                 headingRef={stepTwoHeading}
             >
                 {isStepOneDone && <SignInHost host={host} />}
                 {isStepOneDone && (
-                    <MobileSignInStep host={host} email={user.data?.email} />
+                    <MobileSignInStep
+                        signIn={signIn}
+                        host={host}
+                        email={user.data?.email}
+                    />
                 )}
             </StepCard>
         </Stack>
