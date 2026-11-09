@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DownloadFileType,
     formatDate,
+    XlsxExportContent,
     type ConditionalFormattingConfig,
     type DownloadOptions,
     type PivotConfig,
@@ -71,6 +72,8 @@ export type ExportResultsProps = {
     showColumnTotals?: boolean;
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
+    // Saved non-table charts can export XLSX as a rendered image of the chart
+    canExportChartImage?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
 };
 
@@ -91,6 +94,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         showColumnTotals,
         hideLimitSelection = false,
         forceShowLimitSelection = false,
+        canExportChartImage = false,
         renderDialogActions,
     }) => {
         const lightdashApi = useLightdashApi();
@@ -107,6 +111,13 @@ const ExportResults: FC<ExportResultsProps> = memo(
         const [fileType, setFileType] = useState<DownloadFileType>(
             DownloadFileType.CSV,
         );
+        const [xlsxContent, setXlsxContent] = useState<XlsxExportContent>(
+            XlsxExportContent.DATA,
+        );
+        const isChartImageExport =
+            canExportChartImage &&
+            fileType === DownloadFileType.XLSX &&
+            xlsxContent === XlsxExportContent.CHART_IMAGE;
 
         const [hasExported, setHasExported] = useState(false);
         const { isLoading: isExporting, mutateAsync: exportMutation } =
@@ -147,6 +158,9 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             exportPivotedData && pivotConfig
                                 ? undefined
                                 : showColumnTotals,
+                        xlsxContent: isChartImageExport
+                            ? XlsxExportContent.CHART_IMAGE
+                            : undefined,
                     };
 
                     return scheduleDownloadQuery(
@@ -229,10 +243,45 @@ const ExportResults: FC<ExportResultsProps> = memo(
         const isPivotTable = exportPivotedData && !!pivotConfig;
         const isDialog = !!renderDialogActions;
         const showLimitNote =
-            isPivotTable ||
-            (fileType === DownloadFileType.XLSX &&
-                (limit === Limit.ALL || limit === Limit.CUSTOM) &&
-                !isPivotTable);
+            !isChartImageExport &&
+            (isPivotTable ||
+                (fileType === DownloadFileType.XLSX &&
+                    (limit === Limit.ALL || limit === Limit.CUSTOM) &&
+                    !isPivotTable));
+
+        const xlsxContentSelection =
+            canExportChartImage && fileType === DownloadFileType.XLSX ? (
+                <Stack gap="sm">
+                    <Stack gap={4}>
+                        <Text fw={600} fz="sm">
+                            Content
+                        </Text>
+                        <Text fz="xs" c="dimmed">
+                            Data exports the rows behind the chart. Chart image
+                            embeds a picture of the chart as it is shown.
+                        </Text>
+                    </Stack>
+                    <SegmentedControl
+                        size="sm"
+                        fullWidth
+                        value={xlsxContent}
+                        onChange={(value) =>
+                            setXlsxContent(value as XlsxExportContent)
+                        }
+                        data={[
+                            {
+                                label: 'Data',
+                                value: XlsxExportContent.DATA,
+                            },
+                            {
+                                label: 'Chart image',
+                                value: XlsxExportContent.CHART_IMAGE,
+                            },
+                        ]}
+                        data-testid="export-xlsx-content"
+                    />
+                </Stack>
+            ) : null;
 
         const limitSelection = (
             <Stack gap="sm">
@@ -415,34 +464,39 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             />
                         </Stack>
 
-                        <Stack gap="sm">
-                            <Stack gap={4}>
-                                <Text fw={600} fz="sm">
-                                    Values
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    Formatted keeps table presentation. Raw uses
-                                    the underlying values.
-                                </Text>
+                        {xlsxContentSelection}
+
+                        {!isChartImageExport && (
+                            <Stack gap="sm">
+                                <Stack gap={4}>
+                                    <Text fw={600} fz="sm">
+                                        Values
+                                    </Text>
+                                    <Text fz="xs" c="dimmed">
+                                        Formatted keeps table presentation. Raw
+                                        uses the underlying values.
+                                    </Text>
+                                </Stack>
+                                <SegmentedControl
+                                    size="sm"
+                                    fullWidth
+                                    value={format}
+                                    onChange={(value) => setFormat(value)}
+                                    data={[
+                                        {
+                                            label: 'Formatted',
+                                            value: Values.FORMATTED,
+                                        },
+                                        { label: 'Raw', value: Values.RAW },
+                                    ]}
+                                />
                             </Stack>
-                            <SegmentedControl
-                                size="sm"
-                                fullWidth
-                                value={format}
-                                onChange={(value) => setFormat(value)}
-                                data={[
-                                    {
-                                        label: 'Formatted',
-                                        value: Values.FORMATTED,
-                                    },
-                                    { label: 'Raw', value: Values.RAW },
-                                ]}
-                            />
-                        </Stack>
+                        )}
 
-                        {layoutSelection}
+                        {!isChartImageExport && layoutSelection}
 
-                        {!hideLimitSelection &&
+                        {!isChartImageExport &&
+                            !hideLimitSelection &&
                             (forceShowLimitSelection ? (
                                 <Stack gap="sm">
                                     <Stack gap={4}>
@@ -527,7 +581,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     </Stack>
                 )}
 
-                {!isPivotTable && (
+                {!isPivotTable && !isChartImageExport && (
                     <LargeExportWarning
                         limit={limit}
                         customLimit={customLimit}

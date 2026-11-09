@@ -83,6 +83,8 @@ import {
     isCustomDimension,
     isDashboardChartTileType,
     isDateItem,
+    isExecuteAsyncChartRequestParams,
+    isExecuteAsyncDashboardChartRequestParams,
     isExploreError,
     isField,
     isJwtUser,
@@ -136,6 +138,7 @@ import {
     WarehouseQueryTimeoutError,
     WarehouseTypes,
     withAgentMarkerTag,
+    XlsxExportContent,
     type AgentIdentityClaim,
     type AiExecutionPlan,
     type ApiCompiledMergeQueryResults,
@@ -229,7 +232,11 @@ import {
     type OnboardingFlow,
 } from '../../analytics/LightdashAnalytics';
 import { getEmbedActorChartSpaceUuids } from '../../auth/account';
-import { fromServiceAccount, fromSession } from '../../auth/account/account';
+import {
+    fromServiceAccount,
+    fromSession,
+    toSessionUser,
+} from '../../auth/account/account';
 import { destroyS3Body } from '../../clients/Aws/s3Streams';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -407,6 +414,7 @@ import {
 } from '../ResultsCacheStats/ttlProjections';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
+import type { UnfurlService } from '../UnfurlService/UnfurlService';
 import {
     auditAndFilterExplore,
     auditMetricQueryAttributeAccess,
@@ -629,6 +637,8 @@ type AsyncQueryExecutionPlan =
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
     getDocumentService: () => DocumentService;
+    /** Lazy: renders chart images for XLSX exports via the headless browser. */
+    getUnfurlService: () => UnfurlService;
     contentDraftModel: ContentDraftModel;
     queryHistoryModel: QueryHistoryModel;
     downloadAuditModel: DownloadAuditModel;
@@ -881,6 +891,7 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly getQuerySourceService: () => QuerySourceService;
     private readonly getDocumentService: () => DocumentService;
+    private readonly getUnfurlService: () => UnfurlService;
 
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
@@ -906,6 +917,7 @@ export class AsyncQueryService extends ProjectService {
         this.composeEngineClient = args.composeEngineClient;
         this.getQuerySourceService = args.getQuerySourceService;
         this.getDocumentService = args.getDocumentService;
+        this.getUnfurlService = args.getUnfurlService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
@@ -3313,6 +3325,64 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /**
+     * XLSX whose single sheet is a screenshot of the saved chart the query
+     * ran for. A dashboard-tile query renders with the filters and
+     * parameters that produced its rows, so the picture matches the data a
+     * data export would have returned.
+     */
+    private async downloadChartImageXlsx({
+        account,
+        projectUuid,
+        queryHistory,
+        attachmentDownloadName,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryHistory: QueryHistory;
+        attachmentDownloadName: string | undefined;
+    }): Promise<{ fileUrl: string; s3Key: string }> {
+        // The headless browser signs in as a registered user to render the chart
+        assertRegisteredAccount(account);
+        const { requestParameters } = queryHistory;
+        if (!isExecuteAsyncChartRequestParams(requestParameters)) {
+            throw new ParameterError(
+                'Chart image exports are only available for saved charts',
+            );
+        }
+        const chart = await this.savedChartModel.get(
+            requestParameters.chartUuid,
+            undefined,
+            { projectUuid },
+        );
+        if (chart.chartConfig.type === ChartType.TABLE) {
+            throw new ParameterError(
+                'Table charts export their data rows, not an image',
+            );
+        }
+
+        const imageBuffer = await this.getUnfurlService().captureChartImage({
+            chartUuid: chart.uuid,
+            user: toSessionUser(account),
+            projectUuid,
+            chartFilters: isExecuteAsyncDashboardChartRequestParams(
+                requestParameters,
+            )
+                ? queryHistory.metricQuery.filters
+                : undefined,
+            parameters:
+                requestParameters.resultEffectiveParameters ??
+                requestParameters.parameters,
+        });
+
+        return ExcelService.downloadChartImageXlsx({
+            imageBuffer,
+            chartName: chart.name,
+            exportsStorageClient: this.exportsStorageClient,
+            attachmentDownloadName,
+        });
+    }
+
     private async downloadAsyncQueryResults({
         account,
         projectUuid,
@@ -3330,6 +3400,7 @@ export class AsyncQueryService extends ProjectService {
         conditionalFormattings,
         showColumnTotals = false,
         accessMode,
+        xlsxContent = XlsxExportContent.DATA,
     }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
 
@@ -3618,6 +3689,35 @@ export class AsyncQueryService extends ProjectService {
                 return withCellLimitTruncation(csv);
             }
             case DownloadFileType.XLSX: {
+                if (xlsxContent === XlsxExportContent.CHART_IMAGE) {
+                    const chartImageXlsx = await this.downloadChartImageXlsx({
+                        account,
+                        projectUuid,
+                        queryHistory,
+                        attachmentDownloadName,
+                    });
+                    const chartImagePersistentUrl =
+                        await this.persistentDownloadFileService.createPersistentUrl(
+                            {
+                                s3Key: chartImageXlsx.s3Key,
+                                fileType: DownloadFileType.XLSX,
+                                organizationUuid,
+                                projectUuid,
+                                createdByUserUuid: isJwtUser(account)
+                                    ? null
+                                    : account.user.userUuid,
+                                accessMode,
+                                expirationSeconds: expirationSecondsOverride,
+                                source: 'async_query',
+                            },
+                        );
+                    return {
+                        fileUrl: chartImagePersistentUrl,
+                        s3FileUrl: chartImageXlsx.fileUrl,
+                        truncated: false,
+                    };
+                }
+
                 // Check if this is a pivot table download
                 const isPivotXlsx =
                     downloadPivotConfig &&

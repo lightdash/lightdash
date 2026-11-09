@@ -1493,6 +1493,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
+                    getUnfurlService: () => repository.getUnfurlService(),
                     contentDraftModel: models.getContentDraftModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,

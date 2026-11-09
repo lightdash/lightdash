@@ -8,7 +8,7 @@ import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ContentReviewNotificationEvent } from './contentReviewRequests';
-import type { DownloadFileType } from './downloadFile';
+import type { DownloadFileType, XlsxExportContent } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
 import {
     type DashboardFilterRule,
@@ -1047,6 +1047,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
+    xlsxContent?: XlsxExportContent;
     encodedJwt?: string;
     /**
      * Access mode for the persistent URL of the exported file. Set to SIGNED
