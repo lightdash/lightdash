@@ -26,7 +26,6 @@ const mockLink = (overrides: Partial<ReturnType<typeof useMobileAppLink>>) =>
             expiresAt: '2026-11-09T12:30:00.000Z',
         },
         isScanned: false,
-        remainingSeconds: 29 * 60 + 41,
         mintError: null,
         retry: vi.fn(),
         ...overrides,
@@ -43,7 +42,9 @@ describe('MobileSettingsPage', () => {
             await screen.findByRole('img', { name: QR_NAME }),
         ).toBeInTheDocument();
         expect(screen.getByText('Waiting for scan')).toBeVisible();
-        expect(screen.getByText('Expires in 29:41')).toBeVisible();
+        expect(
+            screen.queryByText(/Expires|minutes|\d+:\d{2}/),
+        ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Copy link' })).toBeVisible();
         expect(screen.queryByText(SCAN_URL)).not.toBeInTheDocument();
         expect(screen.queryByText('Sign in to')).not.toBeInTheDocument();
@@ -98,7 +99,6 @@ describe('MobileSettingsPage', () => {
         const retry = vi.fn();
         mockLink({
             link: null,
-            remainingSeconds: null,
             retry,
             mintError: {
                 status: 'error',

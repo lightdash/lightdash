@@ -10,17 +10,6 @@ import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 export const MOBILE_APP_LINK_POLL_INTERVAL_MS = 2000;
 
-const useNow = (isTicking: boolean) => {
-    const [now, setNow] = useState(() => Date.now());
-    useEffect(() => {
-        if (!isTicking) return undefined;
-        setNow(Date.now());
-        const timer = window.setInterval(() => setNow(Date.now()), 1000);
-        return () => window.clearInterval(timer);
-    }, [isTicking]);
-    return now;
-};
-
 export const useMobileAppLink = () => {
     const lightdashApi = useLightdashApi();
     const isVisible = useDocumentVisibility() === 'visible';
@@ -56,9 +45,19 @@ export const useMobileAppLink = () => {
     const scannedAt = status.data?.scannedAt ?? null;
     const isScanned = scannedAt !== null;
 
-    const now = useNow(isVisible && link !== null && !isScanned);
-    const expiresAtMs = link ? Date.parse(link.expiresAt) : null;
-    const isExpired = expiresAtMs !== null && now >= expiresAtMs;
+    const [expiredLinkUuid, setExpiredLinkUuid] = useState<string | null>(null);
+    useEffect(() => {
+        if (!isVisible || link === null || isScanned) return undefined;
+        const markExpired = () => setExpiredLinkUuid(link.linkUuid);
+        const msUntilExpiry = Date.parse(link.expiresAt) - Date.now();
+        if (msUntilExpiry <= 0) {
+            markExpired();
+            return undefined;
+        }
+        const timer = window.setTimeout(markExpired, msUntilExpiry);
+        return () => window.clearTimeout(timer);
+    }, [isVisible, link, isScanned]);
+    const isExpired = link !== null && expiredLinkUuid === link.linkUuid;
 
     const { mutate, isLoading: isMinting, isError: isMintError } = mint;
     const requestedFor = useRef<string | null>(null);
@@ -74,10 +73,6 @@ export const useMobileAppLink = () => {
     return {
         link,
         isScanned,
-        remainingSeconds:
-            expiresAtMs === null
-                ? null
-                : Math.max(0, Math.ceil((expiresAtMs - now) / 1000)),
         mintError: mint.error ?? null,
         retry: () => {
             requestedFor.current = null;

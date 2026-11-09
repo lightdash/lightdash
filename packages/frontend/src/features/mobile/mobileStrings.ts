@@ -7,7 +7,6 @@ export const MOBILE_STRINGS = {
     signInTitle: 'Sign in on your phone',
     signInTo: 'Sign in to',
     waitingForScan: 'Waiting for scan',
-    expiresIn: (time: string) => `Expires in ${time}`,
     openedOnPhone: 'Opened on a phone',
     alreadyHaveApp: 'I already have the app',
     showCode: 'Show code',

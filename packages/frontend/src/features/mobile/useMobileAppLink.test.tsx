@@ -108,7 +108,6 @@ describe('useMobileAppLink', () => {
             expect(result.current.link?.linkUuid).toBe('link-2'),
         );
         expect(server.mintCount()).toBe(2);
-        expect(result.current.remainingSeconds).toBeGreaterThan(29 * 60);
     });
 
     it('pauses polling and refresh while the tab is hidden', async () => {

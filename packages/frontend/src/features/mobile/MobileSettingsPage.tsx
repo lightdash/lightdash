@@ -50,12 +50,6 @@ const getHost = (siteUrl: string | undefined) => {
     }
 };
 
-const formatCountdown = (totalSeconds: number) => {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = String(totalSeconds % 60).padStart(2, '0');
-    return `${minutes}:${seconds}`;
-};
-
 const StepCard: FC<
     PropsWithChildren<{
         step: number;
@@ -99,11 +93,10 @@ const StepCard: FC<
 
 const QrCodePanel: FC<{
     link: MobileAppLink | null;
-    remainingSeconds: number | null;
     mintError: ApiError | null;
     onRetry: () => void;
     onHasApp: () => void;
-}> = ({ link, remainingSeconds, mintError, onRetry, onHasApp }) => (
+}> = ({ link, mintError, onRetry, onHasApp }) => (
     <Group align="flex-start" gap="lg">
         <Box className={classes.qrFrame}>
             {mintError ? (
@@ -120,17 +113,7 @@ const QrCodePanel: FC<{
             {mintError ? (
                 <Text size="sm">{MOBILE_STRINGS.couldNotCreateCode}</Text>
             ) : (
-                link &&
-                remainingSeconds !== null && (
-                    <Stack gap={2}>
-                        <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
-                        <Text size="xs" c="dimmed">
-                            {MOBILE_STRINGS.expiresIn(
-                                formatCountdown(remainingSeconds),
-                            )}
-                        </Text>
-                    </Stack>
-                )
+                link && <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
             )}
             <Group gap="xs">
                 {mintError ? (
@@ -170,8 +153,7 @@ const QrCodePanel: FC<{
 export const MobileSettingsPage: FC = () => {
     const { data: health } = useHealth();
     const host = getHost(health?.siteUrl);
-    const { link, isScanned, remainingSeconds, mintError, retry } =
-        useMobileAppLink();
+    const { link, isScanned, mintError, retry } = useMobileAppLink();
     const [hasApp, setHasApp] = useState(false);
     const isStepOneDone = isScanned || hasApp;
 
@@ -228,7 +210,6 @@ export const MobileSettingsPage: FC = () => {
                     {!isStepOneDone && (
                         <QrCodePanel
                             link={link}
-                            remainingSeconds={remainingSeconds}
                             mintError={mintError}
                             onRetry={retry}
                             onHasApp={showSignIn}
