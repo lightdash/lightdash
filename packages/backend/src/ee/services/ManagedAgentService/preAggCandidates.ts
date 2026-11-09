@@ -4,6 +4,7 @@ import {
     getItemId,
     isPreAggregateCompatibleMetricType,
     parseDbtPreAggregateDef,
+    PRE_AGGREGATE_FIELD_COUNT_WARNING_THRESHOLD,
     TimeFrames,
     type CompiledDimension,
     type CompiledMetric,
@@ -318,6 +319,17 @@ export const buildPreAggCandidateSuggestion = ({
     if (eligibleDimensions.length === 0 && !chosenTimeUsage) {
         return {
             ...empty('no_eligible_dimensions_in_observed_queries'),
+            ineligibleFields,
+            unresolvedFieldIds,
+        };
+    }
+
+    const fieldCount = eligibleDimensions.length + eligibleMetrics.length;
+    if (fieldCount > PRE_AGGREGATE_FIELD_COUNT_WARNING_THRESHOLD) {
+        return {
+            ...empty(
+                `too_many_fields_for_one_pre_aggregate: ${fieldCount} dimensions and metrics, above the recommended ${PRE_AGGREGATE_FIELD_COUNT_WARNING_THRESHOLD}`,
+            ),
             ineligibleFields,
             unresolvedFieldIds,
         };

@@ -1,6 +1,7 @@
 import {
     formatMilliseconds,
     getErrorMessage,
+    PayloadTooLargeError,
     type ResultColumns,
 } from '@lightdash/common';
 import {
@@ -23,6 +24,25 @@ type LocalParquetUploadStreamArgs = {
     logger: typeof Logger;
     prometheusMetrics?: PrometheusMetrics;
 };
+
+const isDuckdbOutOfMemoryError = (error: unknown) =>
+    getErrorMessage(error).startsWith('Out of Memory Error');
+
+const formatMegabytes = (bytes: number) =>
+    `${Math.max(1, Math.round(bytes / 1024 / 1024)).toLocaleString('en-US')} MB`;
+
+export class PreAggregateResultsTooLargeError extends PayloadTooLargeError {
+    constructor(size: { rows: number; columns: number | null; bytes: number }) {
+        const shape =
+            size.columns !== null
+                ? `${size.rows.toLocaleString('en-US')} rows and ${size.columns.toLocaleString('en-US')} columns`
+                : `${size.rows.toLocaleString('en-US')} rows`;
+        super(
+            `This pre-aggregate's results are too large to store (${shape}, ${formatMegabytes(size.bytes)}). Remove dimensions and metrics it doesn't need, or split it into smaller pre-aggregates.`,
+            size,
+        );
+    }
+}
 
 const cleanupDir = (dir: string) => {
     try {
@@ -202,6 +222,15 @@ export const createLocalParquetUploadStream = ({
                     logger.error(
                         `Failed to convert local JSONL to Parquet: ${getErrorMessage(error)}`,
                     );
+                    if (isDuckdbOutOfMemoryError(error)) {
+                        throw new PreAggregateResultsTooLargeError({
+                            rows: totalRowsWritten,
+                            columns: columns
+                                ? Object.keys(columns).length
+                                : null,
+                            bytes: totalBytesWritten,
+                        });
+                    }
                     throw error;
                 } finally {
                     cleanupDir(tmpDir);

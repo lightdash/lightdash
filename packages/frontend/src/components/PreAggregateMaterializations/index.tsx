@@ -502,10 +502,30 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const cols = row.original.materialization?.columns;
                     const count = cols ? Object.keys(cols).length : null;
+                    const fieldCountWarning = row.original.warnings.find(
+                        (w: PreAggregateMaterializationWarning) =>
+                            w.type === 'field_count_exceeded',
+                    );
                     return (
-                        <Text size="xs" c="dimmed" ff="monospace">
-                            {count != null ? count : '\u2014'}
-                        </Text>
+                        <Group gap={4} wrap="nowrap">
+                            <Text size="xs" c="dimmed" ff="monospace">
+                                {count != null ? count : '\u2014'}
+                            </Text>
+                            {fieldCountWarning && (
+                                <Tooltip
+                                    label={fieldCountWarning.message}
+                                    position="top"
+                                    multiline
+                                    w={280}
+                                >
+                                    <MantineIcon
+                                        icon={IconAlertTriangle}
+                                        size="sm"
+                                        color="dimmed"
+                                    />
+                                </Tooltip>
+                            )}
+                        </Group>
                     );
                 },
             },
