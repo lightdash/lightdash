@@ -1667,8 +1667,9 @@ export class EmbedService extends BaseService {
                     : null,
             });
         if (isComposerChartQueryResults(results)) {
-            throw new ForbiddenError(
-                'Composer charts are not available to embedded viewers',
+            throw new ComposerChartNotAvailableInEmbedError(
+                chart.uuid,
+                chart.name,
             );
         }
         return this.asyncQueryService.redactFieldsSqlForResponse(

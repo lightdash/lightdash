@@ -24,6 +24,7 @@ import {
     CalculateTotalFromQuery,
     ChartType,
     CompiledDimension,
+    ComposerChartNotAvailableInEmbedError,
     ComposerChartNotSupportedError,
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
@@ -9147,8 +9148,9 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<ApiExecuteAsyncComposerChartQueryResults> {
         assertIsAccountWithOrg(account);
         if (isJwtUser(account)) {
-            throw new ForbiddenError(
-                'Composer charts are not available to embedded viewers',
+            throw new ComposerChartNotAvailableInEmbedError(
+                chart.uuid,
+                chart.name,
             );
         }
         if (chart.projectUuid !== projectUuid) {
@@ -9237,8 +9239,9 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<ApiExecuteAsyncComposerChartQueryResults> {
         assertIsAccountWithOrg(account);
         if (isJwtUser(account)) {
-            throw new ForbiddenError(
-                'Composer charts are not available to embedded viewers',
+            throw new ComposerChartNotAvailableInEmbedError(
+                chart.uuid,
+                chart.name,
             );
         }
         if (chart.projectUuid !== projectUuid) {
