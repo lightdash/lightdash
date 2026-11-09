@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type ChartAsCode } from '../../types/coder';
+import { type SavedChartAsCode } from '../../types/coder';
 import { ChartType } from '../../types/savedCharts';
 import { AsCodeInternalization } from './abstract';
 import { mergeExisting } from './merge';
@@ -144,14 +144,14 @@ const chartAsCodeSchema = z.object({
 });
 
 export class ChartAsCodeInternalization extends AsCodeInternalization<
-    { type: 'chart'; content: ChartAsCode },
+    { type: 'chart'; content: SavedChartAsCode },
     typeof chartAsCodeSchema
 > {
     constructor(protected schema = chartAsCodeSchema) {
         super();
     }
 
-    public getLanguageMap(chartAsCode: ChartAsCode) {
+    public getLanguageMap(chartAsCode: SavedChartAsCode) {
         const languageMapSchema = this.schema.partial().strip();
         type ChartAsCodeLanguageMapEntry = z.infer<typeof languageMapSchema>;
 
@@ -174,7 +174,7 @@ export class ChartAsCodeInternalization extends AsCodeInternalization<
     // eslint-disable-next-line class-methods-use-this
     public merge(
         internalizationMap: ReturnType<this['getLanguageMap']>['chart'][string],
-        content: ChartAsCode,
+        content: SavedChartAsCode,
     ) {
         return mergeExisting(content, internalizationMap);
     }

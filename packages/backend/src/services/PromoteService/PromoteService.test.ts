@@ -8,6 +8,7 @@ import {
     PossibleAbilities,
     PromotionAction,
     SessionUser,
+    type AnyType,
     type PromotionChanges,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
@@ -150,6 +151,10 @@ const savedChartModel = {
     findComposerCharts: vi.fn(
         async (): Promise<{ uuid: string; name: string; slug: string }[]> => [],
     ),
+    getVariant: vi.fn(async () => ({
+        queryType: 'composer' as const,
+        chart: { ...promotedChart.chart, pipeline: {} } as AnyType,
+    })),
     create: vi.fn(createChart),
     createVersion: vi.fn(createChartVersion),
     updateInTransaction: vi.fn(async () => undefined),
@@ -818,6 +823,90 @@ describe('PromoteService dashboard changes', () => {
             },
         ]);
         expect(savedChartModel.get).not.toHaveBeenCalled();
+    });
+
+    test('getPromotionDashboardChanges keeps a composer tile in place for a same-project upload', async () => {
+        savedChartModel.findComposerCharts.mockResolvedValueOnce([
+            {
+                uuid: promotedChart.chart.uuid,
+                name: promotedChart.chart.name,
+                slug: promotedChart.chart.slug,
+            },
+        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+
+        const [changes] = await service.getPromotionDashboardChanges(
+            user,
+            promotedDashboard,
+            existingUpstreamDashboard,
+            undefined,
+            { composerTiles: 'keep' },
+        );
+
+        expect(changes.charts).toEqual([]);
+        expect(changes.dashboards[0].data.tiles).toEqual(
+            promotedDashboard.dashboard.tiles,
+        );
+        expect(changes.skippedCharts).toEqual([]);
+        expect(changes.composerCharts).toEqual([
+            {
+                action: PromotionAction.NO_CHANGES,
+                data: expect.objectContaining({
+                    uuid: promotedChart.chart.uuid,
+                    oldUuid: promotedChart.chart.uuid,
+                    spaceSlug: promotedDashboard.space.slug,
+                    spacePath: promotedDashboard.space.path,
+                }),
+            },
+        ]);
+        expect(savedChartModel.get).not.toHaveBeenCalled();
+    });
+
+    test('upsertCharts leaves a kept composer tile pointing at its chart', async () => {
+        const composerUuid = 'composer-chart-uuid';
+        const tile: AnyType = {
+            ...promotedDashboard.dashboard.tiles[0],
+            properties: {
+                ...promotedDashboard.dashboard.tiles[0].properties,
+                savedChartUuid: composerUuid,
+            },
+        };
+        const changes: PromotionChanges = {
+            spaces: [],
+            charts: [],
+            composerCharts: [
+                {
+                    action: PromotionAction.NO_CHANGES,
+                    data: {
+                        ...promotedChart.chart,
+                        uuid: composerUuid,
+                        oldUuid: composerUuid,
+                        spaceSlug: promotedDashboard.space.slug,
+                        spacePath: promotedDashboard.space.path,
+                    } as AnyType,
+                },
+            ],
+            dashboards: [
+                {
+                    action: PromotionAction.UPDATE,
+                    data: {
+                        ...promotedDashboard.dashboard,
+                        tiles: [tile],
+                        projectUuid: existingUpstreamDashboard.projectUuid,
+                        spaceSlug: promotedDashboard.space.slug,
+                        spacePath: promotedDashboard.space.path,
+                    },
+                },
+            ],
+        };
+
+        const newChanges = await service.upsertCharts(user, changes);
+
+        expect(newChanges.dashboards[0].data.tiles).toEqual([tile]);
+        expect(newChanges.composerCharts).toEqual(changes.composerCharts);
+        expect(savedChartModel.create).not.toHaveBeenCalled();
     });
 
     test('getPromotionDashboardChanges update dashboard with chart tiles', async () => {

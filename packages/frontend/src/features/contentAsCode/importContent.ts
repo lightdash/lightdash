@@ -5,7 +5,9 @@ import {
     isApiError,
     SpaceMemberRole,
     type ChartAsCode,
+    type ComposerChartAsCode,
     type DashboardAsCode,
+    type SavedChartAsCode,
     type SpaceAsCode,
 } from '@lightdash/common';
 import Ajv from 'ajv';
@@ -48,7 +50,7 @@ const readYaml = (source: string): unknown => {
 
 export type ImportDocument =
     | { type: 'space'; content: SpaceAsCode }
-    | { type: 'chart'; content: ChartAsCode }
+    | { type: 'chart'; content: SavedChartAsCode }
     | { type: 'dashboard'; content: DashboardAsCode };
 
 export type ImportEntry = {
@@ -67,6 +69,9 @@ const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true });
 addFormats(ajv);
 const validateChart = ajv.compile<ChartAsCode>(
     getChartAsCodeBranchSchema(ContentAsCodeType.CHART),
+);
+const validateComposerChart = ajv.compile<ComposerChartAsCode>(
+    getChartAsCodeBranchSchema('composer_chart'),
 );
 const validateDashboard = ajv.compile<DashboardAsCode>(dashboardAsCodeSchema);
 
@@ -181,7 +186,11 @@ export const parseImportFile = async (file: File): Promise<ImportEntry> => {
                     ? { ...value, description: undefined }
                     : value;
             const validate =
-                type === 'chart' ? validateChart : validateDashboard;
+                type === 'dashboard'
+                    ? validateDashboard
+                    : 'pipeline' in content
+                      ? validateComposerChart
+                      : validateChart;
             if (!validate(content)) {
                 throw new Error(
                     (validate.errors ?? [])
@@ -194,7 +203,7 @@ export const parseImportFile = async (file: File): Promise<ImportEntry> => {
                 );
             }
             if (type === 'chart') {
-                document = { type, content: content as ChartAsCode };
+                document = { type, content: content as SavedChartAsCode };
             } else {
                 document = { type, content: content as DashboardAsCode };
             }

@@ -5,6 +5,7 @@ import {
     ForbiddenError,
     OrganizationMemberRole,
     SpaceMemberRole,
+    type AnyType,
     type ContentAsCodeDirectAccess,
     type SessionUser,
 } from '@lightdash/common';
@@ -54,6 +55,7 @@ const buildService = ({ members = [], groups = [], gateError }: Setup = {}) => {
     const replacePolicy = vi.fn(async () => {});
     const service = new CoderService({
         agentActionLogModel,
+        featureFlagModel: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {} as never,

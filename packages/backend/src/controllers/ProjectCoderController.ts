@@ -44,6 +44,7 @@ import {
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
+    type ComposerChartAsCode,
     type ContentAsCodeReleasableType,
     type ContentAsCodeSettingsStamp,
     type ContentAsCodeSnapshotPrune,
@@ -86,6 +87,23 @@ import {
     toDraftSummary,
     toWritebackSummary,
 } from './CoderControllerUtils';
+
+/**
+ * A chart file as uploaded: a classic chart (tableName, metricQuery) or a
+ * composer chart (pipeline), plus the upload options. Named so both shapes
+ * are validated as one request body.
+ */
+type ChartAsCodeUploadBody = (
+    | Omit<ChartAsCode, 'chartConfig' | 'description'>
+    | Omit<ComposerChartAsCode, 'chartConfig' | 'description'>
+) & {
+    skipSpaceCreate?: boolean;
+    publicSpaceCreate?: boolean;
+    force?: boolean;
+    spaceNames?: Record<string, string>;
+    chartConfig: AnyType;
+    description?: string | null;
+};
 
 type AiAgentCoder = {
     downloadAgents(
@@ -1046,13 +1064,7 @@ export class ProjectCoderController extends BaseController {
         @Path() projectUuid: string,
         @Path() slug: string,
         @Body()
-        chart: Omit<ChartAsCode, 'chartConfig' | 'description'> & {
-            skipSpaceCreate?: boolean;
-            publicSpaceCreate?: boolean;
-            force?: boolean;
-            spaceNames?: Record<string, string>;
-            chartConfig: AnyType;
-            description?: string | null;
+        chart: ChartAsCodeUploadBody & {
             filePath?: string;
         },
         @Request() req: express.Request,
@@ -1531,14 +1543,7 @@ export class ProjectCoderController extends BaseController {
         @Path() projectUuid: string,
         @Path() slug: string,
         @Body()
-        chart: Omit<ChartAsCode, 'chartConfig' | 'description'> & {
-            skipSpaceCreate?: boolean;
-            publicSpaceCreate?: boolean;
-            force?: boolean;
-            spaceNames?: Record<string, string>;
-            chartConfig: AnyType;
-            description?: string | null;
-        },
+        chart: ChartAsCodeUploadBody,
         @Request() req: express.Request,
     ): Promise<ApiChartAsCodeUpsertResponse> {
         return this.upsertChartAsCode(projectUuid, slug, chart, req);

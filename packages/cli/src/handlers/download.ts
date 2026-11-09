@@ -48,6 +48,7 @@ import {
     PromotionAction,
     PromotionChanges,
     removePivotedSeriesValuesFromChartConfig,
+    SavedChartAsCode,
     ScheduledDeliveryAsCode,
     SqlChartAsCode,
     validateDataAppDependencies,
@@ -369,7 +370,7 @@ const parseContentFilters = (items: string[]): string => {
 type ContentAsCodeType =
     | {
           type: 'chart';
-          content: ChartAsCode;
+          content: SavedChartAsCode;
           translationMap: object | undefined;
       }
     | {
@@ -429,10 +430,10 @@ type MetadataEntry = {
     downloadedAt: string;
 };
 
-const sanitizeChartForDownload = (
-    chart: ChartAsCode,
+const sanitizeChartForDownload = <T extends SavedChartAsCode>(
+    chart: T,
     stripPivotSeries: boolean,
-): ChartAsCode =>
+): T =>
     // Only cartesian configs carry pivoted series; the helper takes the
     // runtime config union, so narrow before calling.
     stripPivotSeries && chart.chartConfig.type === ChartType.CARTESIAN
@@ -494,7 +495,7 @@ const writeContent = async (
     const itemPath = path.join(outputDir, fileNames[0]);
     // Strip timestamps — they go to .lightdash-metadata.json instead
     const { updatedAt, downloadedAt, ...cleanContent } = content as
-        | ChartAsCode
+        | SavedChartAsCode
         | SqlChartAsCode
         | DashboardAsCode;
     const chartYml = yaml.dump(cleanContent, {
@@ -820,7 +821,9 @@ const readLooseCodeFiles = async (
     return { charts, dashboards };
 };
 
-const groupBySpace = <T extends ChartAsCode | DashboardAsCode | SqlChartAsCode>(
+const groupBySpace = <
+    T extends SavedChartAsCode | DashboardAsCode | SqlChartAsCode,
+>(
     items: T[],
 ): Record<string, Array<{ item: T; index: number }>> => {
     const itemsWithIndex = items.map((item, index) => ({ item, index }));
@@ -828,7 +831,7 @@ const groupBySpace = <T extends ChartAsCode | DashboardAsCode | SqlChartAsCode>(
 };
 
 const writeSpaceContent = async <
-    T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
+    T extends SavedChartAsCode | DashboardAsCode | SqlChartAsCode,
 >({
     projectName,
     spaceSlug,
@@ -953,7 +956,9 @@ const extractAppSlugsFromDashboards = (
  * Custom chart type refs bound by DATA_APP_VIZ charts — the portable slug,
  * or the legacy uuid for files written before slug bindings.
  */
-const extractChartTypeRefsFromCharts = (charts: ChartAsCode[]): string[] => [
+const extractChartTypeRefsFromCharts = (
+    charts: SavedChartAsCode[],
+): string[] => [
     ...new Set(
         charts.reduce<string[]>((acc, chart) => {
             if (chart.chartConfig.type !== ChartType.DATA_APP_VIZ) return acc;
@@ -966,11 +971,13 @@ const extractChartTypeRefsFromCharts = (charts: ChartAsCode[]): string[] => [
 ];
 
 // A virtual view's slug is the explore name charts store in tableName, so
-// these names double as virtual view slug candidates.
-const extractChartTableNames = (charts: ChartAsCode[]): string[] => [
+// these names double as virtual view slug candidates. Composer charts have none.
+const extractChartTableNames = (charts: SavedChartAsCode[]): string[] => [
     ...new Set(
         charts
-            .map((chart) => chart.tableName)
+            .map((chart) =>
+                'tableName' in chart ? chart.tableName : undefined,
+            )
             .filter((tableName): tableName is string => !!tableName),
     ),
 ];
@@ -3298,8 +3305,12 @@ const storeUploadChanges = (
     type: 'charts' | 'dashboards',
     promoteChanges: PromotionChanges,
 ): Record<string, number> => {
-    // The API also echoes untouched spaces and chart tiles; only count the uploaded type
-    const promotions: { action: PromotionAction }[] = promoteChanges[type];
+    // The API also echoes untouched spaces and chart tiles; only count the
+    // uploaded type. A composer chart upload reports under composerCharts.
+    const promotions: { action: PromotionAction }[] = [
+        ...promoteChanges[type],
+        ...(type === 'charts' ? (promoteChanges.composerCharts ?? []) : []),
+    ];
     return promotions.reduce<Record<string, number>>(
         (acc, promoteChange) => {
             const key = `${type} ${getPromoteAction(promoteChange.action)}`;
@@ -3384,7 +3395,7 @@ const runUploadChangesPhase = async ({
     return updatedChanges;
 };
 
-const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
+const upsertSingleItem = async <T extends SavedChartAsCode | DashboardAsCode>(
     item: T & { needsUpdating: boolean },
     type: 'charts' | 'dashboards',
     projectId: string,
@@ -3428,9 +3439,9 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             }),
         });
 
-        GlobalState.debug(
-            `${type} "${item.name}": ${upsertData[type]?.[0].action}`,
-        );
+        const uploaded =
+            upsertData[type]?.[0] ?? upsertData.composerCharts?.[0];
+        GlobalState.debug(`${type} "${item.name}": ${uploaded?.action}`);
         (upsertData.warnings ?? []).forEach((warning) =>
             GlobalState.log(styles.warning(`  ⚠ ${item.slug}: ${warning}`)),
         );
@@ -3837,7 +3848,7 @@ const selectVirtualViewCandidates = ({
     dashboardItems,
     dashboardSlugs,
 }: {
-    chartItems: ChartAsCode[];
+    chartItems: SavedChartAsCode[];
     chartSlugs: string[];
     dashboardItems: DashboardAsCode[];
     dashboardSlugs: string[];
@@ -5328,6 +5339,7 @@ export const uploadHandler = async (
 
 export const testHelpers = {
     assertUniqueSpacePaths,
+    storeUploadChanges,
     countChangeDelta,
     downloadLinkedVirtualViews,
     downloadSpaces,

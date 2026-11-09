@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    AlreadyExistsError,
     AnyType,
     BinType,
     ChartConfig,
@@ -805,6 +806,12 @@ export const createSavedChart = async (
     throw new Error('Failed to create saved chart');
 };
 
+/** What a composer chart version stores: the pipeline and its drawing. */
+export type ComposerChartVersionData = Pick<
+    CreateComposerChart,
+    'pipeline' | 'chartConfig' | 'pivotConfig'
+>;
+
 type SavedChartModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
@@ -1377,7 +1384,12 @@ export class SavedChartModel {
         return this.get(newSavedChartUuid);
     }
 
-    /** Writes a dashboard-owned composer chart: one version holding the pipeline, with no explore, field or sort rows. */
+    /**
+     * Writes a dashboard-owned composer chart: one version holding the
+     * pipeline, with no explore, field or sort rows. forceSlug inserts the
+     * slug exactly, reviving a deleted chart that owns it, as content as code
+     * needs; without it the slug is made unique.
+     */
     async createComposerChart(
         projectUuid: string,
         userUuid: string,
@@ -1389,18 +1401,25 @@ export class SavedChartModel {
             chartConfig,
             pivotConfig,
             slug,
-        }: CreateComposerChart & { slug: string },
+            forceSlug = false,
+        }: CreateComposerChart & { slug: string; forceSlug?: boolean },
     ): Promise<ComposerSavedChartDAO> {
-        const terminalNode = pipeline.nodes.find(
-            (node) => node.nodeId === pipeline.terminalNodeId,
-        );
-        if (!terminalNode) {
-            throw new ParameterError(
-                `Node "${pipeline.terminalNodeId}" is not in the pipeline`,
-            );
-        }
         const savedChartUuid = await this.database.transaction(async (trx) => {
             await acquireProjectSlugLock(trx, projectUuid, slug);
+            let deletedOwnerUuid: string | undefined;
+            if (forceSlug) {
+                const owner = await getSavedChartSlugOwner(
+                    trx,
+                    projectUuid,
+                    slug,
+                );
+                if (owner && !owner.deleted_at) {
+                    throw new AlreadyExistsError(
+                        `Chart slug "${slug}" is already used in this project`,
+                    );
+                }
+                deletedOwnerUuid = owner?.saved_query_uuid;
+            }
             const dashboard = await trx(DashboardsTableName)
                 .innerJoin(
                     SpaceTableName,
@@ -1419,46 +1438,137 @@ export class SavedChartModel {
             if (!dashboard) {
                 throw new NotFoundError('Dashboard not found');
             }
-            const [chart] = await trx(SavedChartsTableName)
-                .insert({
-                    name,
-                    description: description ?? undefined,
-                    last_version_chart_kind:
-                        getChartKind(chartConfig.type, chartConfig.config) ||
-                        ChartKind.VERTICAL_BAR,
-                    last_version_updated_by_user_uuid: userUuid,
-                    project_uuid: projectUuid,
-                    color_palette_uuid: null,
-                    slug: await generateUniqueSlugScopedToProject(
-                        trx,
-                        projectUuid,
-                        SavedChartsTableName,
-                        slug,
-                    ),
-                    dashboard_uuid: dashboardUuid,
-                    space_id: null,
-                })
-                .returning(['saved_query_id', 'saved_query_uuid']);
-            await trx(SavedChartVersionsTableName).insert({
-                saved_query_id: chart.saved_query_id,
-                explore_name: null,
-                pipeline,
-                filters: {},
-                row_limit: getSourceQueryLimit(terminalNode),
-                metric_overrides: null,
-                dimension_overrides: null,
-                chart_type: chartConfig.type,
-                chart_config: chartConfig.config,
-                pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
-                pivot_rows: pivotConfig?.rows ?? null,
-                parameters: null,
-                updated_by_user_uuid: userUuid,
-                timezone: toTimezoneSetting(undefined),
-                agent_identity: null,
-            });
+            const chartRow = {
+                name,
+                description: description ?? undefined,
+                last_version_chart_kind:
+                    getChartKind(chartConfig.type, chartConfig.config) ||
+                    ChartKind.VERTICAL_BAR,
+                last_version_updated_by_user_uuid: userUuid,
+                project_uuid: projectUuid,
+                color_palette_uuid: null,
+                dashboard_uuid: dashboardUuid,
+                space_id: null,
+            };
+            // An exact slug owned by a deleted chart is the same content
+            // as code identity, so it comes back where the upload puts it.
+            const [chart] = deletedOwnerUuid
+                ? await trx(SavedChartsTableName)
+                      .update({
+                          ...chartRow,
+                          last_version_updated_at: new Date(),
+                          deleted_at: null,
+                          deleted_by_user_uuid: null,
+                      })
+                      .where('saved_query_uuid', deletedOwnerUuid)
+                      .returning(['saved_query_id', 'saved_query_uuid'])
+                : await trx(SavedChartsTableName)
+                      .insert({
+                          ...chartRow,
+                          slug: forceSlug
+                              ? slug
+                              : await generateUniqueSlugScopedToProject(
+                                    trx,
+                                    projectUuid,
+                                    SavedChartsTableName,
+                                    slug,
+                                ),
+                      })
+                      .returning(['saved_query_id', 'saved_query_uuid']);
+            await SavedChartModel.insertComposerChartVersion(
+                trx,
+                chart.saved_query_id,
+                userUuid,
+                { pipeline, chartConfig, pivotConfig },
+            );
             return chart.saved_query_uuid;
         });
         const variant = await this.getVariant(savedChartUuid);
+        if (variant.queryType !== 'composer') {
+            throw new UnexpectedServerError(
+                `Chart ${savedChartUuid} was written with a pipeline but read back as a ${variant.queryType} chart`,
+            );
+        }
+        return variant.chart;
+    }
+
+    /** The one version row a composer chart has: the pipeline plus the drawing; no field, sort or metric query rows. */
+    private static async insertComposerChartVersion(
+        trx: Knex,
+        savedQueryId: number,
+        userUuid: string,
+        { pipeline, chartConfig, pivotConfig }: ComposerChartVersionData,
+    ): Promise<void> {
+        const terminalNode = pipeline.nodes.find(
+            (node) => node.nodeId === pipeline.terminalNodeId,
+        );
+        if (!terminalNode) {
+            throw new ParameterError(
+                `Node "${pipeline.terminalNodeId}" is not in the pipeline`,
+            );
+        }
+        await trx(SavedChartVersionsTableName).insert({
+            saved_query_id: savedQueryId,
+            explore_name: null,
+            pipeline,
+            filters: {},
+            row_limit: getSourceQueryLimit(terminalNode),
+            metric_overrides: null,
+            dimension_overrides: null,
+            chart_type: chartConfig.type,
+            chart_config: chartConfig.config,
+            pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
+            pivot_rows: pivotConfig?.rows ?? null,
+            parameters: null,
+            updated_by_user_uuid: userUuid,
+            timezone: toTimezoneSetting(undefined),
+            agent_identity: null,
+        });
+    }
+
+    /** Appends a version to an existing composer chart, as a content-as-code upload does. The caller checks the chart is a composer chart. */
+    async createComposerChartVersion(
+        savedChartUuid: string,
+        userUuid: string,
+        data: ComposerChartVersionData,
+        tx?: Knex,
+    ): Promise<ComposerSavedChartDAO> {
+        const doWork = async (trx: Knex) => {
+            const [savedChart] = await trx(SavedChartsTableName)
+                .where('saved_query_uuid', savedChartUuid)
+                .whereNull('deleted_at')
+                .select(['saved_query_id']);
+            if (!savedChart) {
+                throw new NotFoundError('Saved chart not found');
+            }
+            await SavedChartModel.insertComposerChartVersion(
+                trx,
+                savedChart.saved_query_id,
+                userUuid,
+                data,
+            );
+            await trx(SavedChartsTableName)
+                .update({
+                    last_version_chart_kind: getChartKind(
+                        data.chartConfig.type,
+                        data.chartConfig.config,
+                    ),
+                    last_version_updated_at: new Date(),
+                    last_version_updated_by_user_uuid: userUuid,
+                })
+                .where('saved_query_uuid', savedChartUuid);
+        };
+        if (tx) {
+            await doWork(tx);
+        } else {
+            await this.database.transaction(doWork);
+        }
+        const variant = await this.getVariant(
+            savedChartUuid,
+            undefined,
+            undefined,
+            tx,
+        );
         if (variant.queryType !== 'composer') {
             throw new UnexpectedServerError(
                 `Chart ${savedChartUuid} was written with a pipeline but read back as a ${variant.queryType} chart`,
@@ -3248,6 +3358,8 @@ export class SavedChartModel {
             .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
             .whereIn(`${SavedChartsTableName}.slug`, slugs)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
+            // A composer chart has no explore to filter; its tile reads as having no query
+            .whereNotNull(`${SavedChartVersionsTableName}.explore_name`)
             .whereRaw(
                 `${SavedChartVersionsTableName}.saved_queries_version_id = ${latestSavedChartVersionColumnSql(
                     'saved_queries_version_id',

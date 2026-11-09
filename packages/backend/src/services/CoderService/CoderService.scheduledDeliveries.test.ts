@@ -9,6 +9,7 @@ import {
     SchedulerFormat,
     ThresholdOperator,
     type AlertAsCode,
+    type AnyType,
     type DashboardDAO,
     type DashboardFilterRule,
     type Filters,
@@ -291,6 +292,7 @@ const buildService = ({
 
     const service = new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        featureFlagModel: {} as AnyType,
         directAccessService: {} as never,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
