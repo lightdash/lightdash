@@ -4301,6 +4301,16 @@ describe('CoderService dashboard control order as code', () => {
         expect(saved.config).toBeUndefined();
     });
 
+    it('stores the default config for a dashboard that had none with the flag off', async () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, false);
+        const saved = await upload(
+            { ...file, config: { isDateZoomDisabled: false } },
+            { saved: dashboard as DashboardDAO, enabled: false },
+        );
+        expect(saved.config).toEqual({ isDateZoomDisabled: false });
+    });
+
     it('stores a config when an agent reorders a dashboard that had none', async () => {
         const { config: _config, ...dashboard } = withoutOrder();
         const file = download(dashboard as DashboardDAO, true, true);

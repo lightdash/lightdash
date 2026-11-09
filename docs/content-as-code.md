@@ -798,8 +798,8 @@ section member passes to the next entry in the list outside a section; it is
 dropped if there is none. Without a saved
 order, lines follow each section's `inline`. Controls left out of
 `controlOrder` go to the end of their container, inline; to place a new
-control, add its entry. AI agent reads always include the full order and
-filter slugs. An upload, from the CLI or an AI agent, whose order renders the
+control, add its entry. With dashboard controls enabled, AI agent reads always include the full
+order and filter slugs. An upload, from the CLI or an AI agent, whose order renders the
 default bar stores no order as long as none was saved before; once an order is
 saved, uploads store the list as given.
 

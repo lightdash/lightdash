@@ -5985,7 +5985,12 @@ export class CoderService extends BaseService {
             isEqual(
                 omitBy(dashboardConfig, (value) => value === undefined),
                 { isDateZoomDisabled: false },
-            )
+            ) &&
+            // controlsEnabled defaults to true when nothing above needed the flag
+            (await this.dashboardService.areDashboardControlsEnabled(
+                user,
+                project.organizationUuid,
+            ))
         ) {
             dashboardConfig = undefined;
         }
