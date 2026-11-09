@@ -482,6 +482,18 @@ export class ComposerChartNotSupportedError extends LightdashError {
     }
 }
 
+/** Thrown by a composer-only surface when the row is a classic (semantic) chart. */
+export class NotComposerChartError extends LightdashError {
+    constructor(chartUuid: string) {
+        super({
+            message: 'This chart is not a composer chart.',
+            name: 'NotComposerChartError',
+            statusCode: 400,
+            data: { chartUuid },
+        });
+    }
+}
+
 /** Thrown by an embed path that reaches a composer chart; embeds show a not-available state for them. */
 export class ComposerChartNotAvailableInEmbedError extends LightdashError {
     constructor(chartUuid: string) {

@@ -1,5 +1,7 @@
 import {
     assertRegisteredAccount,
+    ComposerChartNotSupportedError,
+    type ApiComposerSavedChartResponse,
     type ApiErrorPayload,
     type ApiSavedChartResponse,
     type ApiSuccessEmpty,
@@ -31,7 +33,8 @@ import { BaseController } from '../baseController';
 @Tags('v2', 'Charts')
 export class ProjectSavedChartControllerV2 extends BaseController {
     /**
-     * Get a saved chart by uuid or slug within a project
+     * Get a saved chart by uuid or slug within a project.
+     * Composer charts are served by the `/composer` route and refused here.
      * @summary Get chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -54,14 +57,38 @@ export class ProjectSavedChartControllerV2 extends BaseController {
                 req.account,
                 { projectUuid },
             );
+            if (variant.queryType === 'composer') {
+                throw new ComposerChartNotSupportedError(variant.chart.uuid);
+            }
             return { status: 'ok', results: variant.chart };
         }
-        const variant = await savedChartService.getVariant(
+        const chart = await savedChartService.get(
             chartUuidOrSlug,
             req.account!,
             { projectUuid },
         );
-        return { status: 'ok', results: variant.chart };
+        return { status: 'ok', results: chart };
+    }
+
+    /**
+     * Get a composer chart by uuid or slug within a project.
+     * Classic charts are served by the chart route and refused here.
+     * @summary Get composer chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{chartUuidOrSlug}/composer')
+    @OperationId('getProjectComposerSavedChart')
+    async getComposer(
+        @Path() projectUuid: string,
+        @Path() chartUuidOrSlug: string,
+        @Request() req: express.Request,
+    ): Promise<ApiComposerSavedChartResponse> {
+        this.setStatus(200);
+        const chart = await this.services
+            .getSavedChartService()
+            .getComposer(chartUuidOrSlug, req.account!, { projectUuid });
+        return { status: 'ok', results: chart };
     }
 
     /**

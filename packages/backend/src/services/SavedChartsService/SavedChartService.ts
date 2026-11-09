@@ -54,6 +54,7 @@ import {
     MetricType,
     MissingConfigError,
     normalizeSavedMergeDefinition,
+    NotComposerChartError,
     NotFoundError,
     ParameterError,
     ProjectType,
@@ -2237,6 +2238,22 @@ export class SavedChartService
         );
         if (variant.queryType === 'composer') {
             throw new ComposerChartNotSupportedError(variant.chart.uuid);
+        }
+        return variant.chart;
+    }
+
+    async getComposer(
+        savedChartUuidOrSlug: string,
+        account: Account,
+        options?: { projectUuid?: string },
+    ): Promise<ComposerSavedChart> {
+        const variant = await this.getVariant(
+            savedChartUuidOrSlug,
+            account,
+            options,
+        );
+        if (variant.queryType === 'semantic') {
+            throw new NotComposerChartError(variant.chart.uuid);
         }
         return variant.chart;
     }

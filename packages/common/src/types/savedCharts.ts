@@ -983,10 +983,6 @@ export type SavedChartWithAccessVariant =
     | { queryType: 'semantic'; chart: SavedChart }
     | { queryType: 'composer'; chart: ComposerSavedChart };
 
-export const isComposerSavedChart = (
-    chart: SavedChart | ComposerSavedChart,
-): chart is ComposerSavedChart => 'pipeline' in chart;
-
 export type SavedChart = {
     createdAt?: Date;
     projectName?: string;
@@ -1578,7 +1574,12 @@ export type SkippedReplaceCustomFields = {
 
 export type ApiSavedChartResponse = {
     status: 'ok';
-    results: SavedChart | ComposerSavedChart;
+    results: SavedChart;
+};
+
+export type ApiComposerSavedChartResponse = {
+    status: 'ok';
+    results: ComposerSavedChart;
 };
 
 export type ApiSavedChartSchedulersResponse = {

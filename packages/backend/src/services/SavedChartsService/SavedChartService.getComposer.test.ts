@@ -2,6 +2,8 @@ import { Ability } from '@casl/ability';
 import {
     ChartType,
     ComposerChartNotSupportedError,
+    NotComposerChartError,
+    NotFoundError,
     QuerySourceType,
     type AnyType,
     type ComposerSavedChartDAO,
@@ -67,17 +69,19 @@ const account = fromSession(viewer);
 
 const spaceContext = { inheritsFromOrgOrProject: true, access: [] };
 
-const buildService = () => {
+const buildService = (variant: SavedChartVariant = composerVariant) => {
     const savedChartModel = {
         get: vi.fn(async () => {
             throw new ComposerChartNotSupportedError(composerChart.uuid);
         }),
-        getVariant: vi.fn(async () => composerVariant),
+        getVariant: vi.fn(async () => variant),
     };
     const projectModel = {
         getExploreFromCache: vi
             .fn()
-            .mockRejectedValue(new Error('No cached explore in unit test')),
+            .mockRejectedValue(
+                new NotFoundError('No cached explore in unit test'),
+            ),
     };
     const findOpenDraft = vi.fn(async () => {
         throw new Error('a composer chart has no draft overlay');
@@ -131,6 +135,25 @@ describe('SavedChartService reads a composer chart', () => {
         await expect(
             service.get(composerChart.uuid, account),
         ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
+    });
+
+    test('getComposer returns it with the caller access', async () => {
+        const { service } = buildService();
+
+        await expect(
+            service.getComposer(composerChart.uuid, account),
+        ).resolves.toEqual({ ...composerChart, ...spaceContext });
+    });
+
+    test('getComposer refuses a classic chart by name', async () => {
+        const { service } = buildService({
+            queryType: 'semantic',
+            chart: { ...composerChart, tableName: 'orders' } as AnyType,
+        });
+
+        await expect(
+            service.getComposer(composerChart.uuid, account),
+        ).rejects.toBeInstanceOf(NotComposerChartError);
     });
 
     test('getForViewer returns it without a draft overlay', async () => {
