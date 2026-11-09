@@ -36,7 +36,7 @@ Agents use the `rainbow-env` skill (`.agents/skills/rainbow-env/SKILL.md`). It c
 
 ## Not available on Rainbow today
 
-- **Fork pull requests**: they get no environment.
+- **Fork pull requests**: Rainbow does not create an environment for them. Check for the `rainbow-machine/preview` status on the head commit.
 - **Slack**: no Slack host is in the egress allow list and no Slack secret is set. Use a local instance ([slack-local-development.md](slack-local-development.md)).
 - **Headless browser**: there is no headless browser service.
 - **NATS**: there is no NATS service.
