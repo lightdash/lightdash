@@ -1,8 +1,11 @@
 import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
 import {
+    AUTO_FIT_MAX_SCALE,
+    AUTO_FIT_MIN_SCALE,
     canFitGridToScreen,
     DEFAULT_ROW_HEIGHT,
     FIT_TO_SCREEN_MIN_ROW_HEIGHT,
+    getAutoFitRowHeight,
     getBreakpointForWidth,
     getFitToScreenRowHeight,
     getGridHeight,
@@ -191,6 +194,48 @@ describe('fit to screen', () => {
                 ),
             ),
         ).toEqual(['a', 'c']);
+    });
+
+    describe('auto fit', () => {
+        const scaleOf = (rowHeight: number) => rowHeight / DEFAULT_ROW_HEIGHT;
+        const viewportFor = (rows: number, scale: number) =>
+            getGridHeight(rows, DEFAULT_ROW_HEIGHT * scale) + 1;
+
+        it('fills the viewport when the squash is gentle', () => {
+            const rowHeight = getAutoFitRowHeight(viewportFor(20, 0.8), 20);
+            expect(scaleOf(rowHeight!)).toBeCloseTo(0.8, 2);
+            expect(getGridHeight(20, rowHeight!)).toBeLessThanOrEqual(
+                viewportFor(20, 0.8),
+            );
+        });
+
+        it('keeps the natural height below the squash floor', () => {
+            expect(
+                getAutoFitRowHeight(
+                    viewportFor(20, AUTO_FIT_MIN_SCALE * 0.98),
+                    20,
+                ),
+            ).toBeNull();
+            expect(
+                scaleOf(
+                    getAutoFitRowHeight(
+                        viewportFor(20, AUTO_FIT_MIN_SCALE * 1.02),
+                        20,
+                    )!,
+                ),
+            ).toBeCloseTo(AUTO_FIT_MIN_SCALE * 1.02, 2);
+            expect(getAutoFitRowHeight(1000, 0)).toBeNull();
+            expect(getAutoFitRowHeight(0, 5)).toBeNull();
+        });
+
+        it('stretches a short grid, up to the cap', () => {
+            expect(
+                scaleOf(getAutoFitRowHeight(viewportFor(4, 1.5), 4)!),
+            ).toBeCloseTo(1.5, 2);
+            expect(getAutoFitRowHeight(viewportFor(4, 3), 4)).toBe(
+                DEFAULT_ROW_HEIGHT * AUTO_FIT_MAX_SCALE,
+            );
+        });
     });
 
     it('passes the row height to the grid', () => {

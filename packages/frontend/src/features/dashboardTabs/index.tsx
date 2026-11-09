@@ -229,6 +229,8 @@ type DashboardTabsProps = {
 
     // fit to screen: the computed row height, null when not fitting
     fitToScreenRowHeight: number | null;
+    // the grid springs between fitted and natural while true
+    isFitToScreenSnapping: boolean;
     gridContainerRef: (element: HTMLDivElement | null) => void;
 
     // parameters
@@ -259,6 +261,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     setAddingTab,
     onNewChart,
     fitToScreenRowHeight,
+    isFitToScreenSnapping,
     gridContainerRef,
     // parameters
     hasTilesThatSupportFilters,
@@ -1141,6 +1144,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 showGridLines ? styles.gridLines : undefined,
                                 isInteracting
                                     ? styles.gridInteracting
+                                    : undefined,
+                                isFitToScreenSnapping
+                                    ? styles.gridSnapping
                                     : undefined,
                             ]
                                 .filter(Boolean)
