@@ -322,8 +322,8 @@ export type DashboardConfig = {
     parameterSections?: { [parameterName: string]: string };
     /** Absent: filled from the parameters tiles use. Present (even empty): exactly these. */
     parameterControls?: DashboardParameterControl[];
-    /** How controls of every kind interleave on the bar. A hint: readers reconcile
-     *  it with the controls' arrays and sections. Absent: the default order. */
+    /** The order of controls of every kind on the bar. A hint: readers drop refs
+     *  that match no control and append unlisted ones. Absent: the default order. */
     controlOrder?: DashboardControlRef[];
 };
 

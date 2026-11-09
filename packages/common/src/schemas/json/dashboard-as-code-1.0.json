@@ -400,7 +400,7 @@
         "DashboardConfigAsCode": {
             "properties": {
                 "controlOrder": {
-                    "description": "How filters, parameter controls and sections interleave on the bar. Absent: the default order.",
+                    "description": "The order of filters, parameter controls and sections on the bar. Absent: the default order.",
                     "items": {
                         "$ref": "#/$defs/DashboardControlRefAsCode"
                     },
