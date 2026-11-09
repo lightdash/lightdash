@@ -1,3 +1,10 @@
+## [3.179.1](https://github.com/lightdash/lightdash/compare/3.179.0...3.179.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** small animated sketch for artifact loading states ([#32189](https://github.com/lightdash/lightdash/issues/32189)) ([a972d71](https://github.com/lightdash/lightdash/commit/a972d719ea2f44a37c6e31c51131116a1d8772f0))
+
 # [3.179.0](https://github.com/lightdash/lightdash/compare/3.178.0...3.179.0) (2026-11-06)
 
 
