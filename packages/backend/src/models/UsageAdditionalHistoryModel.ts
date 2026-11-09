@@ -403,13 +403,20 @@ export class UsageAdditionalHistoryModel {
         query: Knex.QueryBuilder,
         project: string,
         organizationUuid: string,
+        projectType: 'uuid' | 'text',
     ) {
         return query
             .leftJoin('projects as p', function joinProject() {
                 this.on(
-                    query.client.raw('p.project_uuid::text'),
+                    query.client.raw(
+                        projectType === 'uuid'
+                            ? 'p.project_uuid'
+                            : 'p.project_uuid::text',
+                    ),
                     '=',
-                    query.client.raw(`${project}::text`),
+                    query.client.raw(
+                        projectType === 'uuid' ? project : `${project}::text`,
+                    ),
                 );
             })
             .leftJoin(
@@ -498,6 +505,7 @@ export class UsageAdditionalHistoryModel {
                 .where('s.created_at', '<', before),
             's.project_uuid',
             organizationUuid,
+            'text',
         ).select(this.jsonSelection(fields));
         yield* this.pages(query, 's.ai_usage_ledger_uuid');
     }
@@ -646,7 +654,12 @@ export class UsageAdditionalHistoryModel {
             query
                 .whereRaw(`${org} = ?`, [organizationUuid])
                 .where(timestamp, '<', before);
-            query = this.withProjectOwnership(query, project, organizationUuid);
+            query = this.withProjectOwnership(
+                query,
+                project,
+                organizationUuid,
+                source.table === 'mcp_tool_call' ? 'uuid' : 'text',
+            );
             if (source.scope === 'export') {
                 // Only the two actual export-job tasks have this recorded
                 // provenance. Delivering a scheduled message is not an export.
