@@ -489,7 +489,12 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     useImperativeHandle(ref, () => ({ focusNode, showLineage, hideLineage }));
 
     return (
-        <Stack gap="lg" className={styles.notebook} ref={notebookEl}>
+        <Stack
+            gap="lg"
+            className={styles.notebook}
+            ref={notebookEl}
+            data-focus-room={initialFocusNodeId !== null}
+        >
             <svg
                 className={styles.lineage}
                 data-lineage
