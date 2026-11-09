@@ -269,7 +269,7 @@ describe('DirectAccessModel generic store PostgreSQL integration', () => {
                     dashboard_uuid: null,
                     name: 'Direct access chart',
                     slug: `direct-access-chart-${randomUUID()}`,
-                    description: undefined,
+                    description: null,
                     last_version_chart_kind: ChartKind.TABLE,
                     last_version_updated_by_user_uuid: userUuid,
                     color_palette_uuid: null,

@@ -110,7 +110,7 @@ describe('Composer chart rows on the real schema', () => {
         )
             .insert({
                 name,
-                description: undefined,
+                description: null,
                 slug: `${name}-${randomUUID()}`,
                 last_version_chart_kind: ChartKind.VERTICAL_BAR,
                 last_version_updated_by_user_uuid: fixture.userUuid,
@@ -277,6 +277,89 @@ describe('Composer chart rows on the real schema', () => {
             expect(updated.chart.name).toBe('new title');
             const reread = await model.getVariant(chart.uuid);
             expect(reread.chart.name).toBe('new title');
+        });
+    });
+
+    describe('writing composer rows', () => {
+        const createDashboard = async () => {
+            const [{ dashboard_uuid: dashboardUuid }] = await database(
+                'dashboards',
+            )
+                .insert({
+                    name: 'Revenue',
+                    description: undefined,
+                    project_uuid: fixture.projectUuid,
+                    slug: `revenue-${randomUUID()}`,
+                    space_id: fixture.spaceId,
+                })
+                .returning('dashboard_uuid');
+            return dashboardUuid as string;
+        };
+        const chartConfig = {
+            type: ChartType.CARTESIAN,
+            config: barChartConfig,
+        } as const;
+
+        test('createComposerChart stores a null description as null', async () => {
+            const created = await model.createComposerChart(
+                fixture.projectUuid,
+                fixture.userUuid,
+                {
+                    name: 'no description',
+                    description: null,
+                    dashboardUuid: await createDashboard(),
+                    pipeline,
+                    chartConfig,
+                    pivotConfig: undefined,
+                    slug: `no-description-${randomUUID()}`,
+                },
+            );
+            expect(created.description).toBeNull();
+            await expect(
+                database('saved_queries')
+                    .where('saved_query_uuid', created.uuid)
+                    .first('description'),
+            ).resolves.toEqual({ description: null });
+        });
+
+        test('createComposerChartVersion clears a stored description when given null', async () => {
+            const created = await model.createComposerChart(
+                fixture.projectUuid,
+                fixture.userUuid,
+                {
+                    name: 'described',
+                    description: 'Revenue by status',
+                    dashboardUuid: await createDashboard(),
+                    pipeline,
+                    chartConfig,
+                    pivotConfig: undefined,
+                    slug: `described-${randomUUID()}`,
+                },
+            );
+            expect(created.description).toBe('Revenue by status');
+            const updated = await model.createComposerChartVersion(
+                created.uuid,
+                fixture.userUuid,
+                {
+                    name: 'described',
+                    description: null,
+                    pipeline,
+                    chartConfig,
+                    pivotConfig: undefined,
+                },
+            );
+            expect(updated.description).toBeNull();
+            await expect(
+                database('saved_queries_versions')
+                    .whereIn(
+                        'saved_query_id',
+                        database('saved_queries')
+                            .select('saved_query_id')
+                            .where('saved_query_uuid', created.uuid),
+                    )
+                    .count('* as versions')
+                    .first(),
+            ).resolves.toEqual({ versions: '2' });
         });
     });
 

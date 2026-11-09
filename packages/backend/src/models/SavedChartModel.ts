@@ -675,7 +675,7 @@ export const createSavedChart = async (
                 let chart: InsertChart;
                 const baseChart = {
                     name,
-                    description,
+                    description: description ?? null,
                     last_version_chart_kind:
                         getChartKind(chartConfig.type, chartConfig.config) ||
                         ChartKind.VERTICAL_BAR,
@@ -1439,7 +1439,7 @@ export class SavedChartModel {
             }
             const chartRow = {
                 name,
-                description: description ?? undefined,
+                description,
                 last_version_chart_kind:
                     getChartKind(chartConfig.type, chartConfig.config) ||
                     ChartKind.VERTICAL_BAR,
