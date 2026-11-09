@@ -1,3 +1,10 @@
+## [3.180.1](https://github.com/lightdash/lightdash/compare/3.180.0...3.180.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **dashboards:** re-run every tile on each dashboard refresh ([#32221](https://github.com/lightdash/lightdash/issues/32221)) ([2468c5d](https://github.com/lightdash/lightdash/commit/2468c5d5e94cd9c3e2b9494d1b34064f5f0aad31))
+
 # [3.180.0](https://github.com/lightdash/lightdash/compare/3.179.5...3.180.0) (2026-11-09)
 
 
