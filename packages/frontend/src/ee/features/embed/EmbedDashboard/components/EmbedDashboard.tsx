@@ -54,7 +54,6 @@ import { TileOverlays } from '../../../../../features/dashboardControls/TileOver
 import GuidedFilterSetupOverlay from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
 import {
     convertLayoutToBaseCoordinates,
-    GRID_CONTAINER_PADDING,
     getDashboardLayouts,
     type DashboardLayouts,
     getResponsiveGridLayoutProps,
@@ -171,7 +170,6 @@ const EmbedDashboardGrid: FC<{
     gridProps: ResponsiveGridLayoutProps;
     isEditMode: boolean;
     onLayoutChange: (layout: Layout[]) => void;
-    onBreakpointChange: (cols: number) => void;
     onDeleteTile: (tile: DashboardTile) => void;
     onEditTile: (tile: DashboardTile) => void;
     onEditChart?: (chart: SavedChart) => void;
@@ -190,7 +188,6 @@ const EmbedDashboardGrid: FC<{
     gridProps,
     isEditMode,
     onLayoutChange,
-    onBreakpointChange,
     onDeleteTile,
     onEditTile,
     onEditChart,
@@ -218,10 +215,8 @@ const EmbedDashboardGrid: FC<{
                 <ResponsiveGridLayout
                     {...gridProps}
                     layouts={layouts}
-                    containerPadding={GRID_CONTAINER_PADDING}
                     onDragStop={onLayoutChange}
                     onResizeStop={onLayoutChange}
-                    onBreakpointChange={(_, cols) => onBreakpointChange(cols)}
                     className="react-grid-layout-dashboard"
                 >
                     {filteredTiles.map((tile, index) => (
@@ -467,9 +462,6 @@ const EmbedDashboard: FC<{
     const [draftDashboardName, setDraftDashboardName] = useState(
         initialDashboard?.name ?? '',
     );
-    const [currentCols, setCurrentCols] = useState(
-        getResponsiveGridLayoutProps().cols.lg,
-    );
 
     if (!embedToken) {
         throw new Error('Embed token is required');
@@ -688,8 +680,8 @@ const EmbedDashboard: FC<{
         isEditMode,
     });
     const layouts = useMemo(
-        () => getDashboardLayouts(filteredTiles, isEditMode, gridProps.cols),
-        [filteredTiles, gridProps.cols, isEditMode],
+        () => getDashboardLayouts(filteredTiles, isEditMode),
+        [filteredTiles, isEditMode],
     );
 
     const writeSpaceUuids = useMemo(
@@ -767,10 +759,7 @@ const EmbedDashboard: FC<{
 
     const handleLayoutChange = useCallback(
         (layout: Layout[]) => {
-            const unscaledLayout = convertLayoutToBaseCoordinates(
-                layout,
-                currentCols,
-            );
+            const unscaledLayout = convertLayoutToBaseCoordinates(layout);
 
             const nextTiles = currentDashboardTiles.map((tile) => {
                 const layoutTile = unscaledLayout.find(
@@ -790,12 +779,7 @@ const EmbedDashboard: FC<{
             setDashboardTiles(nextTiles);
             setHaveTilesChanged(true);
         },
-        [
-            currentCols,
-            currentDashboardTiles,
-            setDashboardTiles,
-            setHaveTilesChanged,
-        ],
+        [currentDashboardTiles, setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleAddTiles = useCallback(
@@ -995,19 +979,9 @@ const EmbedDashboard: FC<{
             .filter((group) => group.tiles.length > 0)
             .map((group) => ({
                 ...group,
-                layouts: getDashboardLayouts(
-                    group.tiles,
-                    false,
-                    gridProps.cols,
-                ),
+                layouts: getDashboardLayouts(group.tiles, false),
             }));
-    }, [
-        currentDashboardTiles,
-        exportSelectedTabs,
-        gridProps.cols,
-        isMinimal,
-        visibleTabs,
-    ]);
+    }, [currentDashboardTiles, exportSelectedTabs, isMinimal, visibleTabs]);
     // Locked chart tiles render a placeholder and never report readiness.
     const exportAwaitedTileUuids = useMemo(
         () =>
@@ -1165,7 +1139,6 @@ const EmbedDashboard: FC<{
                 gridProps={gridProps}
                 isEditMode={isEditMode}
                 onLayoutChange={handleLayoutChange}
-                onBreakpointChange={setCurrentCols}
                 onDeleteTile={handleDeleteTile}
                 onEditTile={handleEditTile}
                 onEditChart={canUseChartBuilder ? setChartToEdit : undefined}
@@ -1204,7 +1177,6 @@ const EmbedDashboard: FC<{
                             gridProps={gridProps}
                             isEditMode={false}
                             onLayoutChange={handleLayoutChange}
-                            onBreakpointChange={setCurrentCols}
                             onDeleteTile={handleDeleteTile}
                             onEditTile={handleEditTile}
                             useDashboardEditorTileQueries={false}
