@@ -7,10 +7,10 @@
  * Multi-instance support:
  *   Set LD_INSTANCE_ID to namespace PM2 process names (default: 'lightdash').
  *   Port env vars (PORT, FE_PORT, SCHEDULER_PORT, etc.) override defaults.
- *   Give each worktree its own ports in its .env.development.local.
+ *   Use scripts/dev-ports.sh to manage port allocation across worktrees.
  *
  * Prerequisites:
- *   - Postgres and MinIO running (see "Setup Development Environment without Docker" in .github/CONTRIBUTING.md)
+ *   - Docker services running: `/docker-dev`
  *   - Dependencies installed: `pnpm install`
  *
  * Process overview:
