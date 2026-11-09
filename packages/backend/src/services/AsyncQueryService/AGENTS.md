@@ -141,6 +141,9 @@ When `getAsyncQueryResults` is called, results are always read from the S3 JSONL
 
 **Pagination:**
 Results are paginated (default 500 rows, max 5000). Use `page` and `pageSize` parameters.
+
+**Per-row read rules:**
+Every caller-facing read of one stored result (results page, statuses, download, totals, underlying data, reruns, MCP readers) passes through the public `assertCanReadStoredResults`; the pipeline's own reference reads (`bindDuckdbQueryReferences`, `preflightDiscoveredPivot`) call the private `assertCanReadStoredResultsForQueries` directly. A rule about which rows a caller may read at all (e.g. `canReadComposerNodeResults`: only the chart's terminal and chart-stage nodes for a viewer) therefore lives in the public wrapper and in `authorizeQueryReferences`, which exempts a chart's own nodes reading its inputs; `QuerySourceService.getSourceQueryStatuses` applies the same predicate because a plain viewer's status read never reaches the wrapper.
 </importantToKnow>
 
 <links>

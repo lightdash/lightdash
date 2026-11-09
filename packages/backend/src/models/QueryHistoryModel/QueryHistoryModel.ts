@@ -15,6 +15,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    NotSupportedError,
     QUERY_HISTORY_WINDOW_MINUTES,
     QUERY_HISTORY_WINDOWS_ORDERED,
     QUERY_TRIGGER_BY_CONTEXT,
@@ -144,6 +145,32 @@ export const canViewComposerNodeSql = (
 
 export const HIDDEN_COMPOSER_NODE_ERROR =
     'The query behind this chart node failed';
+
+export const INPUT_COMPOSER_NODE_RESULTS_ERROR =
+    'Results of an input node of a composer chart are not available';
+
+/**
+ * A viewer's result reads stop at the node the chart draws: an input node's
+ * columns are inferred from the author's SQL. A row written before roles
+ * existed reads as an input.
+ */
+export const canReadComposerNodeResults = (
+    composerChartSource: ComposerChartQuerySource | undefined,
+    canViewNodeSql: boolean,
+): boolean =>
+    !composerChartSource ||
+    canViewNodeSql ||
+    composerChartSource.role === 'terminal' ||
+    composerChartSource.role === 'chartStage';
+
+export const assertCanReadComposerNodeResults = (
+    composerChartSource: ComposerChartQuerySource | undefined,
+    canViewNodeSql: boolean,
+): void => {
+    if (!canReadComposerNodeResults(composerChartSource, canViewNodeSql)) {
+        throw new NotSupportedError(INPUT_COMPOSER_NODE_RESULTS_ERROR);
+    }
+};
 
 /**
  * Warehouse diagnostics quote the statement that failed, so a hidden node's

@@ -5,6 +5,7 @@ import {
     DimensionType,
     FeatureFlags,
     ForbiddenError,
+    NotSupportedError,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -13,6 +14,7 @@ import {
     UnexpectedServerError,
     VizAggregationOptions,
     VizIndexType,
+    type ComposerChartNodeRole,
     type PivotConfiguration,
     type PossibleAbilities,
     type SourceQuery,
@@ -806,6 +808,7 @@ describe('QuerySourceService', () => {
                         composerChartSource: {
                             chartUuid: 'chart',
                             nodeId: 'revenue_share',
+                            role: 'terminal',
                         },
                     },
                 });
@@ -817,6 +820,95 @@ describe('QuerySourceService', () => {
                 expect(result.statuses[0].error).toBe(expectedError);
             },
         );
+
+        describe('the status of a composer node carries its inferred columns', () => {
+            const secretColumn = 'sum((secret_amount * 0.73))';
+            const nodeRow = (role: ComposerChartNodeRole) => ({
+                queryUuid: 'node',
+                organizationUuid,
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                totalRowCount: 3,
+                warehouseExecutionTimeMs: 12,
+                agentIdentity: null,
+                columns: {
+                    [secretColumn]: {
+                        reference: secretColumn,
+                        type: DimensionType.NUMBER,
+                    },
+                },
+                requestParameters: {
+                    sql: `SELECT ${secretColumn} FROM orders`,
+                    composerChartSource: {
+                        chartUuid: 'chart',
+                        nodeId: 'in',
+                        role,
+                    },
+                },
+            });
+            const readerWith = (
+                rules: { subject: string; action: string }[],
+            ) => {
+                const reader = buildAccount();
+                reader.user.ability = new Ability<PossibleAbilities>(
+                    rules as ConstructorParameters<
+                        typeof Ability<PossibleAbilities>
+                    >[0],
+                );
+                return reader;
+            };
+            const viewer = () =>
+                readerWith([{ subject: 'Project', action: 'view' }]);
+
+            it('a viewer asking for an input node is refused by name', async () => {
+                const { service, mocks } = createService(
+                    createRegistryWithFakes().registry,
+                );
+                mocks.queryHistoryModel.get.mockResolvedValue(nodeRow('input'));
+                const error = await service
+                    .getSourceQueryStatuses(viewer(), projectUuid, ['node'])
+                    .then(
+                        () => null,
+                        (caught: unknown) => caught,
+                    );
+                expect(error).toBeInstanceOf(NotSupportedError);
+                expect((error as Error).message).not.toContain('secret_amount');
+            });
+
+            it.each([['terminal'], ['chartStage']] as const)(
+                'a viewer reads the columns of the %s node',
+                async (role) => {
+                    const { service, mocks } = createService(
+                        createRegistryWithFakes().registry,
+                    );
+                    mocks.queryHistoryModel.get.mockResolvedValue(
+                        nodeRow(role),
+                    );
+                    const result = await service.getSourceQueryStatuses(
+                        viewer(),
+                        projectUuid,
+                        ['node'],
+                    );
+                    expect(result.statuses[0].columns).toHaveProperty(
+                        secretColumn,
+                    );
+                },
+            );
+
+            it('SQL runner access reads an input node', async () => {
+                const { service, mocks } = createService(
+                    createRegistryWithFakes().registry,
+                );
+                mocks.queryHistoryModel.get.mockResolvedValue(nodeRow('input'));
+                const result = await service.getSourceQueryStatuses(
+                    readerWith([{ subject: 'SqlRunner', action: 'manage' }]),
+                    projectUuid,
+                    ['node'],
+                );
+                expect(result.statuses[0].columns).toHaveProperty(secretColumn);
+            });
+        });
 
         it('returns the standard status, row count and result columns per query uuid', async () => {
             const fakes = createRegistryWithFakes();

@@ -544,7 +544,11 @@ describe('QueryHistoryModel polling a failed query', () => {
         vi.spyOn(model, 'getByQueryUuid').mockResolvedValue(
             failed({
                 sql: 'SELECT SUM(missing_amount) OVER () FROM orders',
-                composerChartSource: { chartUuid: 'chart', nodeId: 'node' },
+                composerChartSource: {
+                    chartUuid: 'chart',
+                    nodeId: 'node',
+                    role: 'input',
+                },
             } as QueryHistory['requestParameters']),
         );
         await expect(
@@ -1172,7 +1176,11 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
             hidden: false,
         },
     };
-    const composerChartSource = { chartUuid: 'chart', nodeId: 'orders' };
+    const composerChartSource = {
+        chartUuid: 'chart',
+        nodeId: 'orders',
+        role: 'input' as const,
+    };
     const row = (
         overrides: Partial<DbQueryHistoryListRow>,
     ): DbQueryHistoryListRow =>
@@ -1222,6 +1230,7 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
             composerChartSource: {
                 chartUuid: 'chart',
                 nodeId: 'revenue_share',
+                role: 'terminal',
             },
         },
     } as unknown as Partial<DbQueryHistoryListRow>);
@@ -1322,6 +1331,7 @@ describe('mapQueryHistoryRowToListItem composer node SQL', () => {
             composerChartSource: {
                 chartUuid: 'chart',
                 nodeId: 'revenue_share',
+                role: 'terminal',
             },
         });
     });

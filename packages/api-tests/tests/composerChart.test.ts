@@ -558,9 +558,91 @@ describe('Composer chart run as a dashboard viewer', () => {
                 composerChartSource: {
                     chartUuid: revenueShareTile.chartUuid,
                     nodeId: 'orders',
+                    role: 'input',
                 },
             });
         }, 60_000);
+
+        describe("an input node's results stay the author's", () => {
+            // The DuckDB terminal reads the semantic node's results; only the
+            // terminal's columns are the viewer's to see
+            const runAndSplit = async (client: ApiClient) => {
+                const started = await runTile(client, revenueShareTile);
+                expect(started.status).toBe(200);
+                const { nodes, terminalNodeId, queryUuid } =
+                    started.body.results;
+                const input = nodes.find(
+                    ({ nodeId }) => nodeId !== terminalNodeId,
+                )!;
+                await pollQueryResults(client, queryUuid);
+                return {
+                    terminalQueryUuid: queryUuid,
+                    inputQueryUuid: input.queryUuid,
+                };
+            };
+            const queryUrl = (queryUuid: string) =>
+                `/api/v2/projects/${projectUuid}/query/${queryUuid}`;
+            const statusUrl = (queryUuid: string) =>
+                `/api/v2/projects/${projectUuid}/query-sources/queries/status?queryUuids=${queryUuid}`;
+
+            it('a viewer polling, reading the status of or downloading an input node is refused by name', async () => {
+                const { inputQueryUuid } = await runAndSplit(viewer);
+                const [results, status, download] = await Promise.all([
+                    viewer.get<ApiErrorBody>(queryUrl(inputQueryUuid), {
+                        failOnStatusCode: false,
+                    }),
+                    viewer.get<ApiErrorBody>(statusUrl(inputQueryUuid), {
+                        failOnStatusCode: false,
+                    }),
+                    viewer.post<ApiErrorBody>(
+                        `${queryUrl(inputQueryUuid)}/download`,
+                        { type: 'csv' },
+                        { failOnStatusCode: false },
+                    ),
+                ]);
+                for (const resp of [results, status, download]) {
+                    expect(resp.status).toBe(400);
+                    expect(resp.body.error.name).toBe('NotSupportedError');
+                    expect(resp.body.error.message).toContain('composer chart');
+                    expect(JSON.stringify(resp.body)).not.toContain(
+                        SEED_COMPOSER_CHART.revenueShare,
+                    );
+                    expect(JSON.stringify(resp.body)).not.toMatch(
+                        /\bselect\b/i,
+                    );
+                }
+            }, 60_000);
+
+            it('a viewer reads the terminal node and its status as before', async () => {
+                const { terminalQueryUuid } = await runAndSplit(viewer);
+                const [results, status] = await Promise.all([
+                    viewer.get<QueryResultsBody>(queryUrl(terminalQueryUuid)),
+                    viewer.get<
+                        Body<{
+                            statuses: { status: string; columns: object }[];
+                        }>
+                    >(statusUrl(terminalQueryUuid)),
+                ]);
+                expect(results.status).toBe(200);
+                expect(results.body.results.status).toBe('ready');
+                expect(status.status).toBe(200);
+                expect(status.body.results.statuses[0]).toMatchObject({
+                    status: 'ready',
+                });
+                expect(
+                    Object.keys(status.body.results.statuses[0].columns),
+                ).toContain('revenue_share');
+            }, 60_000);
+
+            it('a user with SQL runner access polls the input node', async () => {
+                const { inputQueryUuid } = await runAndSplit(admin);
+                const results = await admin.get<QueryResultsBody>(
+                    queryUrl(inputQueryUuid),
+                );
+                expect(results.status).toBe(200);
+                expect(results.body.results.status).toBe('ready');
+            }, 60_000);
+        });
 
         it('a user with SQL runner access sees every authored SQL string', async () => {
             const { duckdbRow, semanticRow } =

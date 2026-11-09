@@ -67,32 +67,73 @@ describe('ComposerChartQueryContext', () => {
     const context = ComposerChartQueryContext.fromChart(
         account as Account,
         chart,
+        null,
     );
 
-    test('lets each semantic-layer node of the version run and names the node it matched', () => {
+    test('lets each semantic-layer node of the version run and names the node it matched as an input', () => {
         expect(
             context.assertMetricQuery(
                 account as Account,
                 projectUuid,
                 metricQueryOfSemanticNode(ordersNode),
             ),
-        ).toEqual({ chartUuid: 'chart', nodeId: 'orders' });
+        ).toEqual({ chartUuid: 'chart', nodeId: 'orders', role: 'input' });
         expect(
             context.assertMetricQuery(
                 account as Account,
                 projectUuid,
                 metricQueryOfSemanticNode(paymentsNode),
             ),
-        ).toEqual({ chartUuid: 'chart', nodeId: 'payments' });
+        ).toEqual({ chartUuid: 'chart', nodeId: 'payments', role: 'input' });
     });
 
-    test('names a duckdb node of the version and refuses any other node id', () => {
+    test('names the terminal duckdb node of the version and refuses any other node id', () => {
         expect(context.nodeSource('joined')).toEqual({
             chartUuid: 'chart',
             nodeId: 'joined',
+            role: 'terminal',
         });
         expect(() => context.nodeSource('elsewhere')).toThrow(ForbiddenError);
         expect(() => context.nodeSource(undefined)).toThrow(ForbiddenError);
+    });
+
+    test('a semantic terminal node is terminal, not an input', () => {
+        const semanticTerminal = ComposerChartQueryContext.fromChart(
+            account as Account,
+            {
+                ...chart,
+                pipeline: {
+                    ...chart.pipeline,
+                    nodes: [ordersNode],
+                    terminalNodeId: 'orders',
+                },
+            },
+            null,
+        );
+        expect(
+            semanticTerminal.assertMetricQuery(
+                account as Account,
+                projectUuid,
+                metricQueryOfSemanticNode(ordersNode),
+            ),
+        ).toEqual({ chartUuid: 'chart', nodeId: 'orders', role: 'terminal' });
+    });
+
+    test('the chart stage the run appends is named apart from the pipeline nodes', () => {
+        const withStage = ComposerChartQueryContext.fromChart(
+            account as Account,
+            chart,
+            'chart_stage',
+        );
+        expect(withStage.nodeSource('chart_stage')).toEqual({
+            chartUuid: 'chart',
+            nodeId: 'chart_stage',
+            role: 'chartStage',
+        });
+        expect(withStage.nodeSource('joined')).toMatchObject({
+            role: 'terminal',
+        });
+        expect(() => context.nodeSource('chart_stage')).toThrow(ForbiddenError);
     });
 
     test.each([

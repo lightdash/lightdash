@@ -164,6 +164,7 @@ import {
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
+    type ComposerChartQuerySource,
     type ComposerSavedChartDAO,
     type CustomDimension,
     type DocumentQueryReference,
@@ -266,6 +267,7 @@ import {
 import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
+    assertCanReadComposerNodeResults,
     canViewComposerNodeSql,
     getVisibleQueryError,
     mapQueryHistoryRowToListItem,
@@ -1893,6 +1895,7 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** Every caller-facing read of one stored result passes here; the pipeline's own reference reads do not. */
     public async assertCanReadStoredResults(
         account: Account,
         projectUuid: string,
@@ -1901,6 +1904,11 @@ export class AsyncQueryService extends ProjectService {
         reader: QueryResultReader = buildResultReader(account),
         exportResults = false,
     ): Promise<void> {
+        this.assertCanReadComposerNodeResults(
+            account,
+            projectUuid,
+            queryHistory,
+        );
         await this.assertCanReadStoredResultsForQueries(
             account,
             projectUuid,
@@ -1911,6 +1919,23 @@ export class AsyncQueryService extends ProjectService {
             aiAccessOnly,
             false,
             exportResults,
+        );
+    }
+
+    private assertCanReadComposerNodeResults(
+        account: Account,
+        projectUuid: string,
+        queryHistory: Pick<
+            QueryHistory,
+            'organizationUuid' | 'requestParameters'
+        >,
+    ): void {
+        assertCanReadComposerNodeResults(
+            queryHistory.requestParameters?.composerChartSource,
+            canViewComposerNodeSql(this.createAuditedAbility(account), {
+                organizationUuid: queryHistory.organizationUuid,
+                projectUuid,
+            }),
         );
     }
 
@@ -9210,6 +9235,7 @@ export class AsyncQueryService extends ProjectService {
             composerChartQueryContext: ComposerChartQueryContext.fromChart(
                 account,
                 chart,
+                null,
             ),
             account,
             projectUuid,
@@ -11550,18 +11576,21 @@ export class AsyncQueryService extends ProjectService {
      * be finished — waiting for results happens in the background execution
      * phase (waitForQueryReferences).
      */
+    /** `composerChartSource` is the node being run when the reads are a composer chart's own pipeline. */
     private async authorizeQueryReferences({
         account,
         projectUuid,
         references,
         context,
         querySurface,
+        composerChartSource,
     }: {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
         context: QueryExecutionContext;
         querySurface?: QuerySurface;
+        composerChartSource: ComposerChartQuerySource | null;
     }): Promise<AgentIdentityClaim | null> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
@@ -11600,6 +11629,19 @@ export class AsyncQueryService extends ProjectService {
                     project,
                     queryHistory,
                 );
+                // A chart's own nodes read its inputs; anything else reads
+                // only what the viewer may poll
+                const sameChart =
+                    composerChartSource !== null &&
+                    queryHistory.requestParameters?.composerChartSource
+                        ?.chartUuid === composerChartSource.chartUuid;
+                if (!sameChart) {
+                    this.assertCanReadComposerNodeResults(
+                        account,
+                        projectUuid,
+                        queryHistory,
+                    );
+                }
                 return {
                     queryHistory,
                     agentProducedOnly: !isAiAccessQueryContext(
@@ -11993,6 +12035,7 @@ export class AsyncQueryService extends ProjectService {
             references,
             context,
             querySurface,
+            composerChartSource: null,
         });
 
         const queryTags: RunQueryTags = withAgentMarkerTag({
@@ -13404,6 +13447,7 @@ export class AsyncQueryService extends ProjectService {
                   references: normalizedReferences,
                   context,
                   querySurface,
+                  composerChartSource: composerChartSource ?? null,
               })
             : null;
 

@@ -26,6 +26,7 @@ import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resour
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
+    assertCanReadComposerNodeResults,
     canViewComposerNodeSql,
     getVisibleQueryError,
     type QueryHistoryModel,
@@ -634,6 +635,18 @@ export class QuerySourceService extends BaseService {
                     projectUuid,
                     account,
                 );
+                const canViewNodeSql = canViewComposerNodeSql(
+                    account.user.ability,
+                    {
+                        organizationUuid: queryHistory.organizationUuid,
+                        projectUuid,
+                    },
+                );
+                // READY columns name the author's expressions
+                assertCanReadComposerNodeResults(
+                    queryHistory.requestParameters?.composerChartSource,
+                    canViewNodeSql,
+                );
                 const connection =
                     connectionReader || isConnectionProducedQuery(queryHistory);
                 const check = connection ? this.getAsyncQueryService?.() : null;
@@ -663,10 +676,7 @@ export class QuerySourceService extends BaseService {
                             projectModel: this.projectModel,
                         }),
                         queryHistory.requestParameters?.composerChartSource,
-                        canViewComposerNodeSql(account.user.ability, {
-                            organizationUuid: queryHistory.organizationUuid,
-                            projectUuid,
-                        }),
+                        canViewNodeSql,
                     ),
                     totalRowCount: queryHistory.totalRowCount,
                     warehouseExecutionTimeMs:

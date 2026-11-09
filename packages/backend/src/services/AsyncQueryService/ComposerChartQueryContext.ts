@@ -3,6 +3,7 @@ import {
     metricQueryOfSemanticNode,
     QuerySourceType,
     type Account,
+    type ComposerChartNodeRole,
     type ComposerChartQuerySource,
     type ComposerSavedChartDAO,
     type MetricQuery,
@@ -23,22 +24,33 @@ export class ComposerChartQueryContext {
         private readonly accountUserUuid: string,
         readonly projectUuid: string,
         readonly chartUuid: string,
-        private readonly nodeIds: string[],
+        private readonly nodeRoles: Map<string, ComposerChartNodeRole>,
         private readonly semanticNodes: {
             nodeId: string;
             metricQuery: MetricQuery;
         }[],
     ) {}
 
+    /** `chartStageNodeId` names the series-split stage the run appends after the terminal node, when the chart has one. */
     static fromChart(
         account: Account,
         chart: Pick<ComposerSavedChartDAO, 'uuid' | 'projectUuid' | 'pipeline'>,
+        chartStageNodeId: string | null,
     ): ComposerChartQueryContext {
+        const nodeRoles = new Map<string, ComposerChartNodeRole>(
+            chart.pipeline.nodes.map(({ nodeId }) => [
+                nodeId,
+                nodeId === chart.pipeline.terminalNodeId ? 'terminal' : 'input',
+            ]),
+        );
+        if (chartStageNodeId !== null) {
+            nodeRoles.set(chartStageNodeId, 'chartStage');
+        }
         return new ComposerChartQueryContext(
             account.user.id,
             chart.projectUuid,
             chart.uuid,
-            chart.pipeline.nodes.map((node) => node.nodeId),
+            nodeRoles,
             chart.pipeline.nodes.filter(isSemanticNode).map((node) => ({
                 nodeId: node.nodeId,
                 metricQuery: metricQueryOfSemanticNode(node),
@@ -48,12 +60,14 @@ export class ComposerChartQueryContext {
 
     /** The provenance a history row records for a node of the bound version. */
     nodeSource(nodeId: string | undefined): ComposerChartQuerySource {
-        if (nodeId === undefined || !this.nodeIds.includes(nodeId)) {
+        const role =
+            nodeId === undefined ? undefined : this.nodeRoles.get(nodeId);
+        if (nodeId === undefined || role === undefined) {
             throw new ForbiddenError(
                 'Only a node of the composer chart can execute',
             );
         }
-        return { chartUuid: this.chartUuid, nodeId };
+        return { chartUuid: this.chartUuid, nodeId, role };
     }
 
     /** Only a semantic node of the bound version may run, by the account that opened the chart. */

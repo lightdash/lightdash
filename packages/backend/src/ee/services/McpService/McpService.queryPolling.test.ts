@@ -2214,6 +2214,7 @@ describe('MCP async query polling', () => {
                 composerChartSource: {
                     chartUuid: 'composer-chart',
                     nodeId: 'orders',
+                    role: 'input',
                 },
             },
         });
@@ -2233,6 +2234,36 @@ describe('MCP async query polling', () => {
         expect(asyncQueryService.getAsyncQueryResults).not.toHaveBeenCalled();
     });
 
+    it('refuses get_query_result over the terminal node too: no MCP reader shows a chart node', async () => {
+        const { asyncQueryService } = makeMcpService();
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce({
+            ...makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+            requestParameters: {
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                chartUuid: 'composer-chart',
+                query: makeQueryHistory(QueryHistoryStatus.READY).metricQuery,
+                composerChartSource: {
+                    chartUuid: 'composer-chart',
+                    nodeId: 'joined',
+                    role: 'terminal',
+                },
+            },
+        });
+
+        const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
+            { queryUuid },
+            extra,
+        );
+
+        expect(result).toMatchObject({ isError: true });
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+    });
+
     it('refuses render_chart over a composer chart node run with the run_metric_query context', async () => {
         const { asyncQueryService } = makeMcpService();
         asyncQueryService.getAsyncQueryHistory.mockResolvedValue({
@@ -2248,6 +2279,7 @@ describe('MCP async query polling', () => {
                 composerChartSource: {
                     chartUuid: 'composer-chart',
                     nodeId: 'orders',
+                    role: 'terminal',
                 },
             },
         });
