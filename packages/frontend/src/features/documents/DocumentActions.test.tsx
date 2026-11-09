@@ -636,6 +636,7 @@ describe('Document actions', () => {
         mocks.promotionDiff = {
             spaces: [],
             dashboards: [],
+            composerCharts: [],
             charts: [],
             documents: [
                 {

@@ -543,7 +543,7 @@ const SQL_CHART_CONDITION: JsonObject = {
     ],
 };
 
-// Mirrors `isComposerChartAsCode`: a stored pipeline marks a composer chart.
+// The JSON-schema form of `isComposerChartAsCode`: a stored pipeline marks a composer chart.
 const COMPOSER_CHART_CONDITION: JsonObject = { required: ['pipeline'] };
 
 export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {

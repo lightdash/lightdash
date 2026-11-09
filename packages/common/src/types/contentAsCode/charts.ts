@@ -154,9 +154,13 @@ export type ComposerChartAsCode = Pick<
 /** A saved chart as code, of either query kind; a chart file holds exactly one of `metricQuery` and `pipeline`. */
 export type SavedChartAsCode = ChartAsCode | ComposerChartAsCode;
 
+/** The file-level mark of a composer chart, readable before validation types the file; the JSON schema asks the same. */
+export const hasComposerPipeline = (file: object): boolean =>
+    'pipeline' in file;
+
 export const isComposerChartAsCode = (
     chart: SavedChartAsCode,
-): chart is ComposerChartAsCode => 'pipeline' in chart;
+): chart is ComposerChartAsCode => hasComposerPipeline(chart);
 
 // SQL Charts are stored separately from regular saved charts
 // They have SQL queries instead of metricQuery/tableName

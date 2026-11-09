@@ -1,7 +1,9 @@
 import {
+    COMPOSER_CHART_BRANCH,
     ContentAsCodeType,
     dashboardAsCodeSchema,
     getChartAsCodeBranchSchema,
+    hasComposerPipeline,
     isApiError,
     SpaceMemberRole,
     type ChartAsCode,
@@ -71,7 +73,7 @@ const validateChart = ajv.compile<ChartAsCode>(
     getChartAsCodeBranchSchema(ContentAsCodeType.CHART),
 );
 const validateComposerChart = ajv.compile<ComposerChartAsCode>(
-    getChartAsCodeBranchSchema('composer_chart'),
+    getChartAsCodeBranchSchema(COMPOSER_CHART_BRANCH),
 );
 const validateDashboard = ajv.compile<DashboardAsCode>(dashboardAsCodeSchema);
 
@@ -188,7 +190,7 @@ export const parseImportFile = async (file: File): Promise<ImportEntry> => {
             const validate =
                 type === 'dashboard'
                     ? validateDashboard
-                    : 'pipeline' in content
+                    : hasComposerPipeline(content)
                       ? validateComposerChart
                       : validateChart;
             if (!validate(content)) {

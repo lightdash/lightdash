@@ -1510,6 +1510,7 @@ describe('PromoteService promoting and mutating changes', () => {
         const changes: PromotionChanges = {
             spaces: [],
             dashboards: [],
+            composerCharts: [],
             charts: [
                 {
                     action: PromotionAction.UPDATE,
@@ -1570,6 +1571,7 @@ describe('PromoteService promoting and mutating changes', () => {
         const changes: PromotionChanges = {
             spaces: [],
             dashboards: [],
+            composerCharts: [],
             charts: [
                 {
                     action: PromotionAction.UPDATE,
@@ -1610,6 +1612,7 @@ describe('PromoteService promoting and mutating changes', () => {
         const changes: PromotionChanges = {
             spaces: [],
             dashboards: [],
+            composerCharts: [],
             charts: [
                 {
                     action: PromotionAction.UPDATE,
@@ -2486,6 +2489,7 @@ describe('PromoteService data app promotion', () => {
 
     const dataAppChanges = (): PromotionChanges => ({
         spaces: [],
+        composerCharts: [],
         charts: [],
         dashboards: [
             {
@@ -2556,6 +2560,7 @@ describe('PromoteService data app promotion', () => {
     test('returns changes unchanged and skips the app service when there are no DATA_APP tiles', async () => {
         const changesWithoutApps: PromotionChanges = {
             spaces: [],
+            composerCharts: [],
             charts: [],
             dashboards: [
                 {
@@ -2594,6 +2599,7 @@ describe('PromoteService data app promotion', () => {
     const vizChartChanges = (): PromotionChanges => ({
         spaces: [],
         dashboards: [],
+        composerCharts: [],
         charts: [
             {
                 action: PromotionAction.CREATE,
@@ -2730,6 +2736,7 @@ describe('agent content writes', () => {
                 expect(log).toHaveBeenCalledTimes(expectedClaim ? 1 : 0);
                 log.mockClear();
                 const dashboardChanges: PromotionChanges = {
+                    composerCharts: [],
                     charts: [],
                     spaces: [],
                     dashboards: [
@@ -2771,6 +2778,7 @@ describe('agent content writes', () => {
                 await service.upsertSqlCharts(
                     user,
                     {
+                        composerCharts: [],
                         charts: [],
                         dashboards: [],
                         spaces: [
@@ -2882,6 +2890,7 @@ describe('agent content writes', () => {
                 await service.upsertCharts(user, {
                     spaces: [],
                     dashboards: [],
+                    composerCharts: [],
                     charts: [
                         {
                             action: PromotionAction.UPDATE,
@@ -2920,6 +2929,7 @@ describe('agent content writes', () => {
                 log.mockClear();
                 await service.updateDashboard(user, {
                     spaces: [],
+                    composerCharts: [],
                     charts: [],
                     dashboards: [
                         {
@@ -2950,6 +2960,7 @@ describe('agent content writes', () => {
                 await service.upsertSqlCharts(
                     user,
                     {
+                        composerCharts: [],
                         charts: [],
                         dashboards: [],
                         spaces: [
@@ -3035,6 +3046,7 @@ describe('agent content writes', () => {
                 service.upsertCharts(user, {
                     spaces: [],
                     dashboards: [],
+                    composerCharts: [],
                     charts: [
                         {
                             action: PromotionAction.UPDATE,

@@ -269,6 +269,7 @@ describe('content version agent identity migration', () => {
                     updatedByUser: user,
                 };
                 const createChanges: PromotionChanges = {
+                    composerCharts: [],
                     charts: [
                         {
                             action: PromotionAction.CREATE,
@@ -380,6 +381,7 @@ describe('content version agent identity migration', () => {
                 const dashboardCreated = await service.getOrCreateDashboard(
                     user,
                     {
+                        composerCharts: [],
                         charts: [],
                         spaces: [],
                         dashboards: [
@@ -445,6 +447,7 @@ describe('content version agent identity migration', () => {
                             })
                             .returning('space_uuid');
                     const dashboardChanges: PromotionChanges = {
+                        composerCharts: [],
                         charts: [],
                         spaces: [],
                         dashboards: [
@@ -511,6 +514,7 @@ describe('content version agent identity migration', () => {
                     metadata: { version: 1 },
                 };
                 const sqlChanges: PromotionChanges = {
+                    composerCharts: [],
                     charts: [],
                     dashboards: [],
                     spaces: [
