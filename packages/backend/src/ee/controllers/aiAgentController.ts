@@ -1877,7 +1877,7 @@ export class AiAgentController extends BaseController {
             status: 'ok',
             results: await this.getAiAgentService().getThreadComposerNodeIds(
                 toSessionUser(req.account),
-                { ...args, projectUuid },
+                { ...args, projectUuid, runtimeOptions: null },
             ),
         };
     }
