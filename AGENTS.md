@@ -30,6 +30,7 @@ These live next to the code and load when Claude works there. Read the linked fi
 - **LIGHTDASH_SECRET-derived state** must register for rotation; see `packages/backend/AGENTS.md`.
 - **Slugs and uuid-or-slug params**: rules in `packages/backend/AGENTS.md`.
 - **Native warehouse types** that `DimensionType` collapses (e.g. BigQuery `DATETIME` vs `TIMESTAMP`): see `packages/warehouses/src/warehouseClients/AGENTS.md`.
+- **Query-history provenance**: rerun rows inherit the source marker at one seam, and `compiled_sql`/`fields` visibility is one shared predicate; see `packages/backend/src/services/AsyncQueryService/AGENTS.md` and `packages/backend/src/models/QueryHistoryModel/AGENTS.md`.
 
 ## Architecture
 

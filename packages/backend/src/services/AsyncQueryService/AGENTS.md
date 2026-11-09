@@ -123,15 +123,12 @@ The streaming callback runs synchronously on the main thread. For each batch of 
 
 For queries returning millions of rows, this blocks the event loop during processing, affecting other requests on the same server instance.
 
-**Execute Methods Available:**
+**Rerun family (history row → new history row):**
+`executeAsyncUnboundedRerunFromQueryHistory`, `executeAsyncCalculateTotalFromQueryHistory` (and its merge branch `executeAsyncCalculateMergeTotal`), `executeAsyncUnderlyingDataQuery`, `executeAsyncMergeQueryInternal`, and the export totals that `downloadAsyncQueryResults` and `scheduleDownloadAsyncQueryResults` run through `executeCalculateTotalAndGetResults` each read a source row and write a new one. Request-parameter provenance (`chartUuid`, `documentSource`, `underlyingDataSourceQueryUuid`, next `composerChartSource`) is a visibility marker, so a derived row carries it or the call refuses:
 
-- `executeAsyncMetricQuery` - Metric queries with dimensions/metrics
-- `executeAsyncSavedChartQuery` - Saved chart execution
-- `executeAsyncDashboardChartQuery` - Chart within dashboard context
-- `executeAsyncUnderlyingDataQuery` - Drill-down into raw data
-- `executeAsyncSqlQuery` - Raw SQL execution
-- `executeAsyncSqlChartQuery` - Saved SQL chart
-- `executeAsyncDashboardSqlChartQuery` - SQL chart in dashboard context
+- Check the source first with `assertCanReadStoredResults` and `assertSavedChartQuerySourceAccess`; a source the account cannot see refuses the rerun by name.
+- Inherit at one seam: pass the source as `sourceQueryHistory` to `runAsyncMetricQueryWithoutPermissionCheck`, which writes `references.source` so `getQuerySourceParameters` walks back to the marked ancestor. Compose and DuckDB legs name the source in their `references` map.
+- A new provenance kind extends `getQuerySourceParameters` and that seam; every method above reaches it through them, which is what keeps one fix from becoming one fix per rerun.
 
 **Query Status Values:**
 `PENDING`, `RUNNING`, `READY`, `ERROR`, or `CANCELLED`
