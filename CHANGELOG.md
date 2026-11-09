@@ -1,3 +1,10 @@
+## [3.182.1](https://github.com/lightdash/lightdash/compare/3.182.0...3.182.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **frontend:** apply splitter drags after panes change ([#32237](https://github.com/lightdash/lightdash/issues/32237)) ([2214b63](https://github.com/lightdash/lightdash/commit/2214b637fb0c07fb973348d274a649a8f9251fee))
+
 # [3.182.0](https://github.com/lightdash/lightdash/compare/3.181.3...3.182.0) (2026-11-09)
 
 
