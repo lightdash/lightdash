@@ -3,7 +3,7 @@ import {
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
 import { UnstyledButton } from '@mantine/core';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import {
     clearPreview,
@@ -14,22 +14,23 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
-import styles from './MemoryCitation.module.css';
+import styles from './NodeCitationLink.module.css';
 
 type Props = {
     nodeId: string;
-    /** Null while the answer streams or resolves: the marker is inert. */
-    citationNumber: number | null;
-    label: string | undefined;
+    figure: string;
+    nodeTitle: string | undefined;
+    children: ReactNode;
     message: AiAgentMessageAssistant;
     projectUuid: string;
     agentUuid: string;
 };
 
-export const NodeCitationMarker: FC<Props> = ({
+export const NodeCitationLink: FC<Props> = ({
     nodeId,
-    citationNumber,
-    label,
+    figure,
+    nodeTitle,
+    children,
     message,
     projectUuid,
     agentUuid,
@@ -62,18 +63,17 @@ export const NodeCitationMarker: FC<Props> = ({
     return (
         <UnstyledButton
             type="button"
-            className={styles.marker}
-            disabled={citationNumber === null}
+            className={styles.link}
             aria-pressed={isOpen}
             data-active={isOpen}
             aria-label={interpolateUiString(
-                getUiString('aiAgent.nodeCitation.marker'),
-                { label: label || citationNumber || '' },
+                getUiString('aiAgent.nodeCitation.open'),
+                { figure },
             )}
-            title={label}
+            title={nodeTitle ?? getUiString('aiAgent.nodeCitation.untitled')}
             onClick={handleClick}
         >
-            {citationNumber ?? '·'}
+            {children}
         </UnstyledButton>
     );
 };

@@ -301,9 +301,14 @@ export type ApiAiAgentNodeCitationPipelineResponse = {
     results: AiAgentNodeCitationPipeline;
 };
 
-export type ApiAiAgentThreadComposerNodeIdsResponse = {
+export type AiAgentThreadComposerNode = {
+    nodeId: QueryNodeId;
+    title: string | null;
+};
+
+export type ApiAiAgentThreadComposerNodesResponse = {
     status: 'ok';
-    results: QueryNodeId[];
+    results: AiAgentThreadComposerNode[];
 };
 
 /** Identity of a pinned composer pipeline node as prompt context. */

@@ -199,6 +199,7 @@ import {
     type AiAgentModelConfig,
     type AiAgentNodeCitationPipeline,
     type AiAgentSkill,
+    type AiAgentThreadComposerNode,
     type AiArtifact,
     type AiChartRuntimeOverrides,
     type AiClonedThreadCreatedFrom,
@@ -9338,18 +9339,18 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    async getEmbedThreadComposerNodeIds(
+    async getEmbedThreadComposerNodes(
         account: AnonymousAccount,
         projectUuid: string,
         args: { agentUuid: string; threadUuid: string },
-    ): Promise<string[]> {
+    ): Promise<AiAgentThreadComposerNode[]> {
         const { user, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             args.agentUuid,
         );
         await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
-        return this.getThreadComposerNodeIds(user, {
+        return this.getThreadComposerNodes(user, {
             ...args,
             projectUuid,
             runtimeOptions,
@@ -11029,7 +11030,7 @@ export class AiAgentService extends BaseService {
         return { organizationUuid };
     }
 
-    async getThreadComposerNodeIds(
+    async getThreadComposerNodes(
         user: SessionUser,
         {
             runtimeOptions,
@@ -11040,15 +11041,14 @@ export class AiAgentService extends BaseService {
             threadUuid: string;
             runtimeOptions: EmbedAiAgentRuntimeOptions | null;
         },
-    ): Promise<string[]> {
+    ): Promise<AiAgentThreadComposerNode[]> {
         await this.assertThreadReadable(user, args);
         const threadNodes = await this.aiAgentModel.listComposerQueryNodes(
             threadComposerQueryScope(args.threadUuid),
         );
         // A citation an embed viewer can't open must not resolve for them.
         return threadNodes
-            .map(({ nodeId }) => nodeId)
-            .filter((nodeId) => {
+            .filter(({ nodeId }) => {
                 if (!runtimeOptions) return true;
                 const pipeline = buildNodeCitationPipeline({
                     nodeId,
@@ -11058,7 +11058,8 @@ export class AiAgentService extends BaseService {
                     pipeline !== null &&
                     !nodeCitationReadsWarehouseSql(pipeline)
                 );
-            });
+            })
+            .map(({ nodeId, title }) => ({ nodeId, title: title ?? null }));
     }
 
     async getNodeCitationPipeline(

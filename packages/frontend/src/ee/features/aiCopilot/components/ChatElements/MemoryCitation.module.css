@@ -22,16 +22,10 @@
         background-color 120ms ease;
 }
 
-.marker:not(:disabled):hover,
-.marker[data-active='true'] {
+.marker:hover {
     border-color: var(--mantine-color-indigo-4);
     background: var(--mantine-color-indigo-0);
     color: var(--mantine-color-indigo-7);
-}
-
-.marker:disabled {
-    cursor: default;
-    opacity: 0.6;
 }
 
 .marker:focus-visible {

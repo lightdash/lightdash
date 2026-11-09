@@ -58,7 +58,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useUiString } from '../../../../providers/Embed/useUiStrings';
-import { useAiAgentThreadComposerNodeIds } from '../../hooks/useAiAgentNodeCitations';
+import { useAiAgentThreadComposerNodes } from '../../hooks/useAiAgentNodeCitations';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
@@ -487,7 +487,7 @@ const AssistantBubbleContent: FC<{
             : '';
 
     const messageContent = baseMessageContent + referencedArtifactsMarkdown;
-    const nodeCitationIds = useAiAgentThreadComposerNodeIds({
+    const resolvedNodes = useAiAgentThreadComposerNodes({
         projectUuid,
         agentUuid,
         threadUuid: message.threadUuid,
@@ -499,12 +499,14 @@ const AssistantBubbleContent: FC<{
             [
                 rehypeAiAgentContentLinks,
                 rehypeMemoryCitationIndices,
-                [rehypeNodeCitations, { resolvedNodeIds: nodeCitationIds }],
+                [rehypeNodeCitations, { resolvedNodes }],
             ] satisfies NonNullable<StreamdownProps['rehypePlugins']>,
-        [nodeCitationIds],
+        [resolvedNodes],
     );
     // Streamdown's memo ignores plugin changes, so remount once citations resolve.
-    const citationResolutionKey = nodeCitationIds?.join(',') ?? 'pending';
+    const citationResolutionKey = resolvedNodes
+        .map(({ nodeId }) => nodeId)
+        .join(',');
 
     // Writeback PR card metadata. The editDbtProject tool result instructs
     // the LLM not to print the PR URL inline (we surface it via a dedicated

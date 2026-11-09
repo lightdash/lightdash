@@ -126,9 +126,9 @@ _Avoid_: selected node, displayed node (which may be any node of the panel)
 
 **Node citation**:
 A reference in the agent's answer from a figure to the thread composer query
-node that produced it, shown to users as a numbered marker that opens that
-node's result and everything it reads. One that names no thread composer query
-node is not shown. Slack shows none.
+node that produced it, shown to users as a dotted underline on the figure that
+opens that node's result and everything it reads. One that names no thread
+composer query node shows as plain text, as it does in Slack.
 _Avoid_: query link, query node citation, chip (the web form only)
 
 **Snapshot**:

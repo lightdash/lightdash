@@ -238,31 +238,37 @@ describe('getNodeCitationVizQuery', () => {
     });
 });
 
-describe('getThreadComposerNodeIds', () => {
-    it('returns the ids of the thread composer query nodes', async () => {
+describe('getThreadComposerNodes', () => {
+    it('returns the id and title of the thread composer query nodes', async () => {
         const { service } = buildService({ threadNodes: [orders, net] });
 
         await expect(
-            service.getThreadComposerNodeIds(user, {
+            service.getThreadComposerNodes(user, {
                 projectUuid: 'project-uuid',
                 agentUuid: 'agent-uuid',
                 threadUuid: 'thread-uuid',
                 runtimeOptions: null,
             }),
-        ).resolves.toEqual(['orders', 'net']);
+        ).resolves.toEqual([
+            { nodeId: 'orders', title: null },
+            { nodeId: 'net', title: 'Net orders' },
+        ]);
     });
 
     it('omits nodes whose closure reads warehouse SQL for an embed viewer', async () => {
         const { service } = buildService();
 
         await expect(
-            service.getThreadComposerNodeIds(user, {
+            service.getThreadComposerNodes(user, {
                 projectUuid: 'project-uuid',
                 agentUuid: 'agent-uuid',
                 threadUuid: 'thread-uuid',
                 runtimeOptions: embedRuntimeOptions,
             }),
-        ).resolves.toEqual(['orders', 'net']);
+        ).resolves.toEqual([
+            { nodeId: 'orders', title: null },
+            { nodeId: 'net', title: 'Net orders' },
+        ]);
     });
 
     it('refuses a viewer without access to the thread', async () => {
@@ -271,7 +277,7 @@ describe('getThreadComposerNodeIds', () => {
         });
 
         await expect(
-            service.getThreadComposerNodeIds(user, {
+            service.getThreadComposerNodes(user, {
                 projectUuid: 'project-uuid',
                 agentUuid: 'agent-uuid',
                 threadUuid: 'thread-uuid',

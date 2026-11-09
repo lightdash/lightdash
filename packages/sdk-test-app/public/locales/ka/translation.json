@@ -365,7 +365,7 @@
         "aiAgent.modelSelector.agentDefault": "აგენტის ნაგულისხმევი",
         "aiAgent.composer.loadingResult": "შედეგები იტვირთება...",
         "aiAgent.composer.resultError": "ამ შედეგის ჩატვირთვა ვერ მოხერხდა",
-        "aiAgent.nodeCitation.marker": "მოთხოვნის შედეგის გახსნა: {label}",
+        "aiAgent.nodeCitation.open": "მოთხოვნის შედეგის გახსნა: {figure}",
         "aiAgent.nodeCitation.loading": "მოთხოვნა იტვირთება…",
         "aiAgent.nodeCitation.loadError": "ამ მოთხოვნის ჩატვირთვა ვერ მოხერხდა.",
         "aiAgent.nodeCitation.untitled": "მოთხოვნის შედეგი",

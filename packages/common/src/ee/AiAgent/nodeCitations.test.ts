@@ -24,12 +24,12 @@ describe('node citations', () => {
         expect(hasNodeCitations('[docs](https://example.com)')).toBe(false);
     });
 
-    it('strips the whole link, its label and the space before it', () => {
+    it('removes the link syntax and keeps the figure', () => {
         expect(
             stripNodeCitations(
-                'Revenue was $404 [completed revenue](#query-node-rev), 12 orders [count [all]](#query-node-orders).',
+                'Revenue was [**$404**](#query-node-rev), [12 [all]](#query-node-orders) orders.',
             ),
-        ).toBe('Revenue was $404, 12 orders.');
+        ).toBe('Revenue was **$404**, 12 [all] orders.');
     });
 
     it('leaves other links and code untouched', () => {

@@ -1,4 +1,7 @@
-import { type AiAgentMessageAssistant } from '@lightdash/common';
+import {
+    type AiAgentMessageAssistant,
+    type AiAgentThreadComposerNode,
+} from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
@@ -17,9 +20,14 @@ const message = {
     threadUuid: 'thread-1',
 } as AiAgentMessageAssistant;
 
+const threadNodes = [
+    { nodeId: 'revenue', title: 'Total revenue' },
+    { nodeId: 'orders', title: null },
+];
+
 const renderAnswer = (
     markdown: string,
-    resolvedNodeIds: readonly string[] | null = ['revenue', 'orders'],
+    resolvedNodes: readonly AiAgentThreadComposerNode[] = threadNodes,
 ) =>
     renderWithProviders(
         <Provider store={store}>
@@ -27,7 +35,7 @@ const renderAnswer = (
                 <AiMarkdown
                     rehypePlugins={[
                         rehypeAiAgentContentLinks,
-                        [rehypeNodeCitations, { resolvedNodeIds }],
+                        [rehypeNodeCitations, { resolvedNodes }],
                     ]}
                     components={{
                         a: ({ node, children, ...props }) => (
@@ -54,70 +62,75 @@ const renderAnswer = (
         </Provider>,
     );
 
-const markers = () =>
+const citations = () =>
     screen.queryAllByRole('button').map((button) => button.textContent);
 
-const openMarkerByLabel = (label: string) =>
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }));
+const openCitation = (figure: string) =>
+    fireEvent.click(
+        screen.getByRole('button', {
+            name: `Open query result ${figure}`,
+        }),
+    );
 
-describe('node citation markers', () => {
+describe('node citations in an answer', () => {
     beforeEach(() => {
         store.dispatch(clearPreview());
     });
 
-    it('numbers citations by first appearance and reuses a repeated node', () => {
-        renderAnswer(
-            'A $1 [Revenue](#query-node-revenue), B 2 [Orders](#query-node-orders), again $1 [Revenue](#query-node-revenue).',
-        );
-        expect(markers()).toEqual(['1', '2', '1']);
-    });
+    it('keeps the figure as the link text, with the node title as tooltip', () => {
+        renderAnswer('Revenue was [**$404**](#query-node-revenue) in total.');
 
-    it('replaces the label with the marker and keeps it as the tooltip', () => {
-        renderAnswer('A $1 [Total revenue](#query-node-revenue).');
-        const marker = screen.getByRole('button', {
-            name: 'Open query result Total revenue',
+        const citation = screen.getByRole('button', {
+            name: 'Open query result $404',
         });
-        expect(marker).toHaveAttribute('title', 'Total revenue');
-        expect(document.body).not.toHaveTextContent('Total revenue');
+        expect(citation).toHaveAttribute('title', 'Total revenue');
+        expect(
+            citation.querySelector('[data-streamdown="strong"]'),
+        ).toHaveTextContent('$404');
+        expect(document.body).toHaveTextContent('Revenue was $404 in total.');
     });
 
-    it('drops an unresolved citation without consuming a number', () => {
+    it('falls back to a generic tooltip for an untitled node', () => {
+        renderAnswer('[12](#query-node-orders) orders.');
+        expect(
+            screen.getByRole('button', { name: 'Open query result 12' }),
+        ).toHaveAttribute('title', 'Query result');
+    });
+
+    it('renders an unresolved citation as plain text', () => {
         renderAnswer(
-            'A [Gone](#query-node-unknown) then [Revenue](#query-node-revenue).',
+            'A [$9](#query-node-unknown) then [$1](#query-node-revenue).',
         );
-        expect(markers()).toEqual(['1']);
-        expect(document.body).not.toHaveTextContent('Gone');
+        expect(citations()).toEqual(['$1']);
+        expect(document.body).toHaveTextContent('A $9 then $1.');
     });
 
-    it('drops a citation with a malformed node id', () => {
-        renderAnswer('A [Bad](#query-node-1nope) end.');
-        expect(markers()).toEqual([]);
-        expect(document.body).toHaveTextContent('A end.');
+    it('renders a malformed citation as plain text', () => {
+        renderAnswer('A [$9](#query-node-1nope) end.');
+        expect(citations()).toEqual([]);
+        expect(document.body).toHaveTextContent('A $9 end.');
+    });
+
+    it('renders every citation as plain text before the nodes are read', () => {
+        renderAnswer('A [$1](#query-node-revenue).', []);
+        expect(citations()).toEqual([]);
+        expect(document.body).toHaveTextContent('A $1.');
     });
 
     it('ignores citation syntax inside code', () => {
         renderAnswer('`[Revenue](#query-node-revenue)`');
-        expect(markers()).toEqual([]);
+        expect(citations()).toEqual([]);
         expect(document.body).toHaveTextContent(
             '[Revenue](#query-node-revenue)',
         );
     });
 
-    it('shows inert, unnumbered markers while the answer is unresolved', () => {
-        renderAnswer('A [Unknown](#query-node-unknown).', null);
-        const marker = screen.getByRole('button', {
-            name: /Open query result/,
-        });
-        expect(marker).toBeDisabled();
-        expect(marker).toHaveTextContent('·');
-    });
-
     it('opens the cited node, closes on a second click, retargets on another', () => {
         renderAnswer(
-            'A [Revenue](#query-node-revenue), B [Orders](#query-node-orders).',
+            'A [$1](#query-node-revenue), B [$2](#query-node-orders).',
         );
 
-        openMarkerByLabel('Revenue');
+        openCitation('$1');
         expect(selectPreview(store.getState())).toEqual({
             type: 'queryPipeline',
             nodeId: 'revenue',
@@ -127,12 +140,12 @@ describe('node citation markers', () => {
             agentUuid: 'agent-1',
         });
 
-        openMarkerByLabel('Orders');
+        openCitation('$2');
         expect(selectPreview(store.getState())).toMatchObject({
             nodeId: 'orders',
         });
 
-        openMarkerByLabel('Orders');
+        openCitation('$2');
         expect(selectPreview(store.getState())).toBeNull();
     });
 });

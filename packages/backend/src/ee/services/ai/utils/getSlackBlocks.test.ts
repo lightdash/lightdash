@@ -172,9 +172,9 @@ describe('Slack AI agent blocks', () => {
         expect(JSON.stringify(blocks)).not.toContain('ld-mem-cite');
     });
 
-    it('strips node citations from Slack markdown, labels included', () => {
+    it('strips node citation syntax from Slack markdown and keeps the figure', () => {
         const blocks = getMarkdownBlocks(
-            'Revenue was $404 [completed revenue](#query-node-rev). See [docs](https://example.com).',
+            'Revenue was [$404](#query-node-rev). See [docs](https://example.com).',
         );
 
         expect(blocks).toEqual([

@@ -3,8 +3,9 @@ import {
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiAiAgentComposerArtifactVizQueryResponse,
     type ApiAiAgentNodeCitationPipelineResponse,
-    type ApiAiAgentThreadComposerNodeIdsResponse,
+    type ApiAiAgentThreadComposerNodesResponse,
     type ApiError,
+    type AiAgentThreadComposerNode,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
@@ -17,8 +18,10 @@ import {
     type NodeCitationRef,
 } from './aiAgentRouting';
 
-/** Node ids a finished message's citations resolve against; null until read, keyed per message. */
-export const useAiAgentThreadComposerNodeIds = ({
+const NO_NODES: readonly AiAgentThreadComposerNode[] = [];
+
+/** Nodes a finished message's citations resolve against, keyed per message. */
+export const useAiAgentThreadComposerNodes = ({
     projectUuid,
     agentUuid,
     threadUuid,
@@ -30,21 +33,21 @@ export const useAiAgentThreadComposerNodeIds = ({
     threadUuid: string;
     messageUuid: string;
     enabled: boolean;
-}): readonly string[] | null => {
+}): readonly AiAgentThreadComposerNode[] => {
     const lightdashApi = useLightdashApi();
     const query = useQuery<
-        ApiAiAgentThreadComposerNodeIdsResponse['results'],
+        ApiAiAgentThreadComposerNodesResponse['results'],
         ApiError
     >({
         queryKey: [
-            'aiAgentThreadComposerNodeIds',
+            'aiAgentThreadComposerNodes',
             projectUuid,
             agentUuid,
             threadUuid,
             messageUuid,
         ],
         queryFn: () =>
-            lightdashApi<ApiAiAgentThreadComposerNodeIdsResponse['results']>({
+            lightdashApi<ApiAiAgentThreadComposerNodesResponse['results']>({
                 url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads/${threadUuid}/nodes`,
                 method: 'GET',
                 body: undefined,
@@ -52,8 +55,8 @@ export const useAiAgentThreadComposerNodeIds = ({
         enabled,
         refetchOnWindowFocus: false,
     });
-    // A failed read keeps earlier results; with none, the citations can't be opened.
-    return query.data ?? (query.isError ? [] : null);
+    // A failed refetch keeps the last read; until a read succeeds citations stay plain text.
+    return query.data ?? NO_NODES;
 };
 
 export const useAiAgentNodeCitationPipeline = (ref: NodeCitationRef) => {

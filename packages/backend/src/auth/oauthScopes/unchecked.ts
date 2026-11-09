@@ -177,7 +177,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'AiAgentController.getVerifiedArtifacts': 'read',
     'AiAgentController.listAgentThreads': 'read',
     'AiAgentController.getAgentThread': 'read',
-    'AiAgentController.getAgentThreadComposerNodeIds': 'read',
+    'AiAgentController.getAgentThreadComposerNodes': 'read',
     'AiAgentController.getAgentThreadNodeCitationPipeline': 'read',
     'AiAgentController.getAgentThreadNodeCitationVizQuery': 'read',
     'AiAgentController.getAgentThreadNodeCitationQueryResults': 'read',

@@ -27,7 +27,7 @@ import {
     ApiAiAgentSqlApprovalRequest,
     ApiAiAgentSqlApprovalResponse,
     ApiAiAgentSummaryResponse,
-    ApiAiAgentThreadComposerNodeIdsResponse,
+    ApiAiAgentThreadComposerNodesResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadDataAppRestoreRequest,
@@ -1844,18 +1844,18 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation(
-            'AiAgentController.getAgentThreadComposerNodeIds',
+            'AiAgentController.getAgentThreadComposerNodes',
         ),
     ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads/{threadUuid}/nodes')
-    @OperationId('getAgentThreadComposerNodeIds')
-    async getAgentThreadComposerNodeIds(
+    @OperationId('getAgentThreadComposerNodes')
+    async getAgentThreadComposerNodes(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() agentUuid: UUID,
         @Path() threadUuid: UUID,
-    ): Promise<ApiAiAgentThreadComposerNodeIdsResponse> {
+    ): Promise<ApiAiAgentThreadComposerNodesResponse> {
         this.setStatus(200);
         const args = { agentUuid, threadUuid };
 
@@ -1864,7 +1864,7 @@ export class AiAgentController extends BaseController {
             return {
                 status: 'ok',
                 results:
-                    await this.getAiAgentService().getEmbedThreadComposerNodeIds(
+                    await this.getAiAgentService().getEmbedThreadComposerNodes(
                         req.account,
                         projectUuid,
                         args,
@@ -1875,7 +1875,7 @@ export class AiAgentController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getAiAgentService().getThreadComposerNodeIds(
+            results: await this.getAiAgentService().getThreadComposerNodes(
                 toSessionUser(req.account),
                 { ...args, projectUuid, runtimeOptions: null },
             ),

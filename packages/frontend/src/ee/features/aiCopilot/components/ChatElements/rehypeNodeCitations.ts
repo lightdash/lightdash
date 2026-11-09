@@ -1,3 +1,4 @@
+import { type AiAgentThreadComposerNode } from '@lightdash/common';
 import { type Element, type ElementContent, type Root } from 'hast';
 import { SKIP, visit } from 'unist-util-visit';
 
@@ -6,12 +7,17 @@ const textOf = (node: ElementContent): string => {
     return node.type === 'element' ? node.children.map(textOf).join('') : '';
 };
 
-/** Numbers citations by first appearance and drops unresolved ones; null shows them inert, unnumbered. */
+/** Marks citations of the given nodes; every other citation becomes its plain text. */
 export const rehypeNodeCitations =
-    ({ resolvedNodeIds }: { resolvedNodeIds: readonly string[] | null }) =>
+    ({
+        resolvedNodes,
+    }: {
+        resolvedNodes: readonly AiAgentThreadComposerNode[];
+    }) =>
     (tree: Root) => {
-        const resolved = resolvedNodeIds && new Set(resolvedNodeIds);
-        const numbers = new Map<string, number>();
+        const titles = new Map(
+            resolvedNodes.map(({ nodeId, title }) => [nodeId, title]),
+        );
 
         visit(tree, 'element', (node: Element, index, parent) => {
             if (
@@ -22,28 +28,17 @@ export const rehypeNodeCitations =
             }
 
             const nodeId = node.properties['data-node-id'];
-            if (
-                typeof nodeId !== 'string' ||
-                (resolved && !resolved.has(nodeId))
-            ) {
-                if (parent && index !== undefined) {
-                    const previous = parent.children[index - 1];
-                    if (previous?.type === 'text') {
-                        previous.value = previous.value.replace(/[ \t]+$/, '');
-                    }
-                    parent.children.splice(index, 1);
-                    return [SKIP, index];
-                }
+            if (typeof nodeId === 'string' && titles.has(nodeId)) {
+                node.properties.title = titles.get(nodeId) ?? undefined;
+                node.properties['data-citation-figure'] = node.children
+                    .map(textOf)
+                    .join('');
                 return undefined;
             }
 
-            node.properties.title = node.children.map(textOf).join('');
-            node.children = [];
-            // Streaming renders blocks separately, so numbers wait for the whole message.
-            if (resolved) {
-                const citationNumber = numbers.get(nodeId) ?? numbers.size + 1;
-                numbers.set(nodeId, citationNumber);
-                node.properties['data-citation-number'] = citationNumber;
+            if (parent && index !== undefined) {
+                parent.children.splice(index, 1, ...node.children);
+                return [SKIP, index + node.children.length];
             }
             return undefined;
         });

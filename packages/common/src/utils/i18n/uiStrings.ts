@@ -528,7 +528,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.lineage.focusHint':
         'Faded steps are not linked to {node}',
     'aiAgent.composer.lineage.clearFocus': 'Clear',
-    'aiAgent.nodeCitation.marker': 'Open query result {label}',
+    'aiAgent.nodeCitation.open': 'Open query result {figure}',
     'aiAgent.nodeCitation.loading': 'Loading query…',
     'aiAgent.nodeCitation.loadError': 'Could not load this query.',
     'aiAgent.nodeCitation.untitled': 'Query result',

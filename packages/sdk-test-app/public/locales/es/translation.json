@@ -365,7 +365,7 @@
         "aiAgent.modelSelector.agentDefault": "Predeterminado del agente",
         "aiAgent.composer.loadingResult": "Cargando resultados...",
         "aiAgent.composer.resultError": "No se pudo cargar este resultado",
-        "aiAgent.nodeCitation.marker": "Abrir el resultado de la consulta: {label}",
+        "aiAgent.nodeCitation.open": "Abrir el resultado de la consulta: {figure}",
         "aiAgent.nodeCitation.loading": "Cargando la consulta…",
         "aiAgent.nodeCitation.loadError": "No se pudo cargar esta consulta.",
         "aiAgent.nodeCitation.untitled": "Resultado de la consulta",
