@@ -1,9 +1,6 @@
 .link {
     display: inline;
-    padding: 0;
-    color: inherit;
     font: inherit;
-    cursor: pointer;
     text-decoration: underline dotted var(--mantine-color-ldGray-5);
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;

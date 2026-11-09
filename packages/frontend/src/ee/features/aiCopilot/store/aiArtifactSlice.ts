@@ -38,7 +38,7 @@ export interface DocumentPreviewData {
     agentUuid: string;
 }
 
-/** A cited node and what it reads, opened from a message's citation marker. */
+/** A cited node and what it reads, opened from a citation in a message. */
 export interface QueryPipelinePreviewData {
     nodeId: string;
     messageUuid: string;

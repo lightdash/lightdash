@@ -456,7 +456,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 <NodeCitationLink
                     nodeId={nodeId}
                     figure={figure}
-                    nodeTitle={title}
+                    nodeTitle={title ?? null}
                     message={message}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}

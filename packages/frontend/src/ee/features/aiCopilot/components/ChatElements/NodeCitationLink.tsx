@@ -19,7 +19,7 @@ import styles from './NodeCitationLink.module.css';
 type Props = {
     nodeId: string;
     figure: string;
-    nodeTitle: string | undefined;
+    nodeTitle: string | null;
     children: ReactNode;
     message: AiAgentMessageAssistant;
     projectUuid: string;

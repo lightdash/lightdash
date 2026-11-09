@@ -53,7 +53,7 @@ export const getQueryingComposerSection = ({
         ...(slackChannelId
             ? []
             : [
-                  '- Wrap each figure in your answer that comes from a node you did not visualize in this answer in a link to that node, as `[figure](#query-node-<nodeId>)` with the figure exactly as written and a node id from this thread, one link per node per sentence.',
+                  '- Cite each figure in your answer that comes from a node you did not visualize in this answer by wrapping it as `[figure](#query-node-<nodeId>)`, with the figure exactly as written and a node id from this thread, one citation per node per sentence.',
               ]),
         '',
         '## Field usage',

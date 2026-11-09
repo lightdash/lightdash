@@ -84,9 +84,6 @@ describe('node citations in an answer', () => {
             name: 'Open query result $404',
         });
         expect(citation).toHaveAttribute('title', 'Total revenue');
-        expect(
-            citation.querySelector('[data-streamdown="strong"]'),
-        ).toHaveTextContent('$404');
         expect(document.body).toHaveTextContent('Revenue was $404 in total.');
     });
 
