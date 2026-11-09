@@ -6,6 +6,7 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../testing/migratedDatabase';
+import { MobileAppLinkModel } from './MobileAppLinkModel';
 import {
     mobileSignInCodeChallenge,
     MobileSignInCodeModel,
@@ -389,5 +390,22 @@ describe('MobileSignInCodeModel (PostgreSQL)', () => {
             .update({ expires_at: database.raw(`NOW() - INTERVAL '2 hours'`) });
         expect(await model.deleteExpired()).toBe(1);
         expect(await row(fresh.code)).toBeDefined();
+    });
+
+    it('reads a rate counter without changing it', async () => {
+        const counters = new MobileAppLinkModel({ database });
+        const counter = {
+            keyHash: 'key-0000-test',
+            operation: 'mobile_sign_in.redeem.ip',
+            windowStartedAt: new Date('2026-11-09T12:00:00.000Z'),
+        };
+        expect(await counters.getRateCount(counter)).toBe(0);
+        await counters.incrementRateCounter(counter);
+        await counters.incrementRateCounter(counter);
+        expect(await counters.getRateCount(counter)).toBe(2);
+        expect(await counters.getRateCount(counter)).toBe(2);
+        expect(
+            await counters.getRateCount({ ...counter, keyHash: 'other' }),
+        ).toBe(0);
     });
 });

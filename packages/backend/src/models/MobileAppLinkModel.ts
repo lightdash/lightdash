@@ -131,6 +131,21 @@ export class MobileAppLinkModel {
         return row.request_count;
     }
 
+    async getRateCount(args: {
+        keyHash: string;
+        operation: string;
+        windowStartedAt: Date;
+    }): Promise<number> {
+        const row = await this.database(MobileAppLinkRateCountersTableName)
+            .where({
+                key_hash: args.keyHash,
+                operation: args.operation,
+                window_started_at: args.windowStartedAt,
+            })
+            .first('request_count');
+        return row?.request_count ?? 0;
+    }
+
     async deleteExpired(): Promise<{ links: number; rateCounters: number }> {
         const links = await this.database(MobileAppLinksTableName)
             .where(

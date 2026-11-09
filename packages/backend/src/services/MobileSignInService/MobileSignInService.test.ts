@@ -48,7 +48,9 @@ const createService = ({
         id: 'client-0000-test',
         redirectUris: ['com.lightdash.mobile://oauth/callback'],
     },
+    now = () => new Date('2026-11-09T12:00:18.000Z'),
 }: {
+    now?: () => Date;
     flagEnabled?: boolean;
     managed?: boolean;
     smtp?: boolean;
@@ -69,7 +71,24 @@ const createService = ({
     const getManagedSignIn = vi.fn(async () =>
         managed ? ({ provider: 'microsoft' } as never) : undefined,
     );
-    const incrementRateCounter = vi.fn(async () => (rateAllowed ? 1 : 1000));
+    const counts = new Map<string, number>();
+    const counterKey = (args: {
+        keyHash: string;
+        operation: string;
+        windowStartedAt: Date;
+    }) =>
+        `${args.keyHash}|${args.operation}|${args.windowStartedAt.toISOString()}`;
+    const incrementRateCounter = vi.fn(
+        async (args: Parameters<typeof counterKey>[0]) => {
+            if (!rateAllowed) return 1000;
+            const next = (counts.get(counterKey(args)) ?? 0) + 1;
+            counts.set(counterKey(args), next);
+            return next;
+        },
+    );
+    const getRateCount = vi.fn(async (args: Parameters<typeof counterKey>[0]) =>
+        rateAllowed ? (counts.get(counterKey(args)) ?? 0) : 1000,
+    );
     const track = vi.fn();
     const service = new MobileSignInService({
         analytics: { track },
@@ -79,8 +98,8 @@ const createService = ({
             trustProxy: true,
         },
         mobileSignInCodeModel,
-        mobileAppLinkModel: { incrementRateCounter },
-        now: () => new Date('2026-11-09T12:00:18.000Z'),
+        mobileAppLinkModel: { incrementRateCounter, getRateCount },
+        now,
         featureFlagModel: {
             get: vi.fn(async () => ({
                 id: 'mobile-settings',
@@ -666,5 +685,95 @@ describe('MobileSignInService.redeem', () => {
             error: 'access_denied',
             description: 'user_not_allowed',
         });
+    });
+});
+
+describe('MobileSignInService redeem rate limit', () => {
+    const redeemArgs = (index: number) => ({
+        code: `${String(index).padStart(2, '0')}${code.slice(2)}`,
+        clientId: 'client-0000-test',
+        codeVerifier: verifier,
+        matchNumber: '07',
+    });
+
+    it('does not count pending polls: four phones on one address poll for a minute', async () => {
+        let clock = new Date('2026-11-09T12:00:00.000Z').getTime();
+        const redeem = vi.fn(async () => ({
+            outcome: 'authorization_pending',
+        }));
+        const { service, incrementRateCounter } = createService({
+            model: { redeem },
+            now: () => new Date(clock),
+        });
+        const errors: string[] = [];
+        for (let tick = 0; tick < 30; tick += 1) {
+            for (let phone = 0; phone < 4; phone += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                const error = await service
+                    .redeem(redeemArgs(phone), { ip: '203.0.113.7' })
+                    .catch((caught: MobileSignInOAuthError) => caught);
+                errors.push((error as MobileSignInOAuthError).error);
+            }
+            clock += 2000;
+        }
+        expect(errors).toHaveLength(120);
+        expect(new Set(errors)).toEqual(new Set(['authorization_pending']));
+        expect(incrementRateCounter).not.toHaveBeenCalled();
+    });
+
+    it('does not count slow_down answers', async () => {
+        const { service, incrementRateCounter } = createService({
+            model: { redeem: vi.fn(async () => ({ outcome: 'slow_down' })) },
+        });
+        await expectOAuthError(
+            service.redeem(redeemArgs(0), { ip: '203.0.113.7' }),
+            { error: 'slow_down' },
+        );
+        expect(incrementRateCounter).not.toHaveBeenCalled();
+    });
+
+    it('refuses the 61st counted redeem from one address in a minute, before it touches a code', async () => {
+        const redeem = vi.fn(async () => ({
+            outcome: 'wrong_number',
+            declined: null,
+        }));
+        const { service } = createService({ model: { redeem } });
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await expectOAuthError(
+                service.redeem(redeemArgs(attempt % 30), {
+                    ip: '203.0.113.7',
+                }),
+                { error: 'invalid_grant', description: 'wrong_number' },
+            );
+        }
+        await expectOAuthError(
+            service.redeem(redeemArgs(31), { ip: '203.0.113.7' }),
+            { error: 'rate_limited', statusCode: 429, retryAfterSeconds: 42 },
+        );
+        expect(redeem).toHaveBeenCalledTimes(60);
+        await expectOAuthError(
+            service.redeem(redeemArgs(31), { ip: '198.51.100.9' }),
+            { error: 'invalid_grant', description: 'wrong_number' },
+        );
+    });
+
+    it('counts malformed requests and successful redeems', async () => {
+        const redeem = vi.fn(async () => ({
+            outcome: 'redeemed',
+            row: codeRow,
+        }));
+        const { service, incrementRateCounter } = createService({
+            model: { redeem },
+        });
+        await service.redeem(redeemArgs(0), { ip: '203.0.113.7' });
+        await expectOAuthError(
+            service.redeem(
+                { ...redeemArgs(1), matchNumber: '7' },
+                { ip: '203.0.113.7' },
+            ),
+            { error: 'invalid_request', description: 'match_number' },
+        );
+        expect(incrementRateCounter).toHaveBeenCalledTimes(2);
     });
 });

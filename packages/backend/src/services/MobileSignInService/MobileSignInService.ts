@@ -47,6 +47,10 @@ import { MobileSignInOAuthError } from './MobileSignInOAuthError';
 const CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 const MATCH_NUMBER_PATTERN = /^[0-9]{2}$/;
+const UNCOUNTED_REDEEM_ERRORS: MobileSignInOAuthError['error'][] = [
+    'authorization_pending',
+    'slow_down',
+];
 
 type RateLimit = {
     scope: string;
@@ -105,7 +109,10 @@ export type MobileSignInRedemption = {
 type MobileSignInServiceArguments = {
     lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'smtp' | 'trustProxy'>;
     mobileSignInCodeModel: MobileSignInCodeModel;
-    mobileAppLinkModel: Pick<MobileAppLinkModel, 'incrementRateCounter'>;
+    mobileAppLinkModel: Pick<
+        MobileAppLinkModel,
+        'incrementRateCounter' | 'getRateCount'
+    >;
     now?: () => Date;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
@@ -443,26 +450,55 @@ export class MobileSignInService extends BaseService {
         await this.mobileSignInCodeModel.deleteUnredeemedForUser(userUuid);
     }
 
-    private async consumeRate(
-        rateLimit: RateLimit,
-        key: string,
-    ): Promise<RateLimitResult> {
+    private rateWindow(rateLimit: RateLimit, key: string) {
         const windowMs = rateLimit.windowSeconds * 1000;
         const now = this.now().getTime();
         const windowStartedAt = Math.floor(now / windowMs) * windowMs;
-        const count = await this.mobileAppLinkModel.incrementRateCounter({
-            keyHash: hashMobileAppLinkKey(key),
-            operation: rateLimit.scope,
-            windowStartedAt: new Date(windowStartedAt),
-        });
-        if (count <= rateLimit.limit) return { allowed: true };
         return {
-            allowed: false,
+            counter: {
+                keyHash: hashMobileAppLinkKey(key),
+                operation: rateLimit.scope,
+                windowStartedAt: new Date(windowStartedAt),
+            },
             retryAfterSeconds: Math.max(
                 1,
                 Math.ceil((windowStartedAt + windowMs - now) / 1000),
             ),
         };
+    }
+
+    private async consumeRate(
+        rateLimit: RateLimit,
+        key: string,
+    ): Promise<RateLimitResult> {
+        const { counter, retryAfterSeconds } = this.rateWindow(rateLimit, key);
+        const count =
+            await this.mobileAppLinkModel.incrementRateCounter(counter);
+        return count <= rateLimit.limit
+            ? { allowed: true }
+            : { allowed: false, retryAfterSeconds };
+    }
+
+    private async assertUnderRedeemLimit(ip: string): Promise<void> {
+        const { counter, retryAfterSeconds } = this.rateWindow(
+            MOBILE_SIGN_IN_RATE_LIMITS.redeemPerIp,
+            ip,
+        );
+        const count = await this.mobileAppLinkModel.getRateCount(counter);
+        if (count >= MOBILE_SIGN_IN_RATE_LIMITS.redeemPerIp.limit) {
+            throw new MobileSignInOAuthError('rate_limited', {
+                statusCode: 429,
+                retryAfterSeconds,
+            });
+        }
+    }
+
+    private async countRedeem(ip: string): Promise<void> {
+        const { counter } = this.rateWindow(
+            MOBILE_SIGN_IN_RATE_LIMITS.redeemPerIp,
+            ip,
+        );
+        await this.mobileAppLinkModel.incrementRateCounter(counter);
     }
 
     private async consumeIpLimit(
@@ -579,10 +615,33 @@ export class MobileSignInService extends BaseService {
         },
         context: MobileSignInRequestContext,
     ): Promise<MobileSignInRedemption> {
-        await this.consumeIpLimit(
-            MOBILE_SIGN_IN_RATE_LIMITS.redeemPerIp,
-            context.ip,
-        );
+        const ip = context.ip ?? 'unknown';
+        await this.assertUnderRedeemLimit(ip);
+        let isCounted = true;
+        try {
+            return await this.redeemCode(args, context);
+        } catch (error) {
+            if (
+                error instanceof MobileSignInOAuthError &&
+                UNCOUNTED_REDEEM_ERRORS.includes(error.error)
+            ) {
+                isCounted = false;
+            }
+            throw error;
+        } finally {
+            if (isCounted) await this.countRedeem(ip);
+        }
+    }
+
+    private async redeemCode(
+        args: {
+            code: string;
+            clientId: string;
+            codeVerifier: unknown;
+            matchNumber: unknown;
+        },
+        context: MobileSignInRequestContext,
+    ): Promise<MobileSignInRedemption> {
         if (
             typeof args.codeVerifier !== 'string' ||
             !VERIFIER_PATTERN.test(args.codeVerifier)
