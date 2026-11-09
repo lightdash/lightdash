@@ -3,6 +3,7 @@ import {
     SEED_PROJECT,
     type ApiCreateDashboardResponse,
     type Dashboard,
+    type DashboardTab,
 } from '@lightdash/common';
 import {
     expect,
@@ -11,21 +12,49 @@ import {
     SEED_USERS,
     test,
     type Page,
+    type TrackedApi,
 } from '../../support/test';
 
 // Narrower than the 1200px grid breakpoint, so the dashboard renders with 30 columns.
 const NARROW_VIEWPORT = { width: 1150, height: 900 };
 
-const markdownTile = (title: string, x: number, w: number) => ({
+const markdownTile = (
+    title: string,
+    x: number,
+    w: number,
+    tabUuid: string | null,
+) => ({
     uuid: crypto.randomUUID(),
     type: DashboardTileTypes.MARKDOWN as const,
     x,
     y: 0,
     w,
     h: 6,
-    tabUuid: null,
+    tabUuid,
     properties: { title, content: `${title} content` },
 });
+
+const createDashboard = async (
+    api: TrackedApi,
+    name: string,
+    tabs: DashboardTab[],
+) => {
+    const tabUuid = tabs.at(0)?.uuid ?? null;
+    const response = await api.post(
+        `/api/v1/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+        {
+            data: {
+                name,
+                tiles: [
+                    markdownTile('Left tile', 0, 18, tabUuid),
+                    markdownTile('Right tile', 18, 18, tabUuid),
+                ],
+                tabs,
+            },
+        },
+    );
+    return json<ApiCreateDashboardResponse['results']>(response);
+};
 
 const tileSizes = (dashboard: Pick<Dashboard, 'tiles'>) =>
     dashboard.tiles.map(({ w, h }) => ({ w, h }));
@@ -50,31 +79,12 @@ test.describe('Dashboard editing in a narrow viewport', () => {
         await loginAs(api.raw, SEED_USERS.admin);
     });
 
-    test('keeps tile sizes when a dashboard is opened straight into edit mode', async ({
-        page,
-        api,
-    }) => {
-        const response = await api.post(
-            `/api/v1/projects/${SEED_PROJECT.project_uuid}/dashboards`,
-            {
-                data: {
-                    name: 'Narrow viewport layout',
-                    tiles: [
-                        markdownTile('Left tile', 0, 18),
-                        markdownTile('Right tile', 18, 18),
-                    ],
-                    tabs: [],
-                },
-            },
-        );
-        const created =
-            await json<ApiCreateDashboardResponse['results']>(response);
+    const expectDragToKeepTileSizes = async (
+        page: Page,
+        api: TrackedApi,
+        created: ApiCreateDashboardResponse['results'],
+    ) => {
         const originalSizes = tileSizes(created);
-
-        await page.setViewportSize(NARROW_VIEWPORT);
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/dashboards/${created.uuid}/edit`,
-        );
         const grid = page.locator('.react-grid-layout');
         await expect(
             grid.getByText('Left tile', { exact: true }),
@@ -110,5 +120,46 @@ test.describe('Dashboard editing in a narrow viewport', () => {
                     .evaluate((el) => el.getBoundingClientRect().width),
             )
             .toBeCloseTo(widthBeforeDrag, 0);
+    };
+
+    test('keeps tile sizes when a dashboard is opened straight into edit mode', async ({
+        page,
+        api,
+    }) => {
+        const created = await createDashboard(
+            api,
+            'Narrow viewport layout',
+            [],
+        );
+
+        await page.setViewportSize(NARROW_VIEWPORT);
+        await page.goto(
+            `/projects/${SEED_PROJECT.project_uuid}/dashboards/${created.uuid}/edit`,
+        );
+
+        await expectDragToKeepTileSizes(page, api, created);
+    });
+
+    test('keeps tile sizes when a dashboard with tabs is edited', async ({
+        page,
+        api,
+    }) => {
+        const created = await createDashboard(
+            api,
+            'Narrow viewport layout with tabs',
+            // A single tab renders as a dashboard without tabs
+            [
+                { uuid: crypto.randomUUID(), name: 'First tab', order: 0 },
+                { uuid: crypto.randomUUID(), name: 'Second tab', order: 1 },
+            ],
+        );
+
+        await page.setViewportSize(NARROW_VIEWPORT);
+        await page.goto(
+            `/projects/${SEED_PROJECT.project_uuid}/dashboards/${created.uuid}/view`,
+        );
+        await page.getByLabel('Edit dashboard').click();
+
+        await expectDragToKeepTileSizes(page, api, created);
     });
 });

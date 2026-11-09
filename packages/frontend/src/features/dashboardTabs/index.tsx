@@ -207,6 +207,13 @@ const TabGridPanel = memo<TabGridPanelProps>(
             return false;
         if (nextProps.isActive && prevProps.gridProps !== nextProps.gridProps)
             return false;
+        // Drop handlers close over the current breakpoint's column count
+        if (
+            nextProps.isActive &&
+            (prevProps.onDragStop !== nextProps.onDragStop ||
+                prevProps.onResizeStop !== nextProps.onResizeStop)
+        )
+            return false;
 
         // No meaningful changes — skip re-render
         return true;
