@@ -5,6 +5,7 @@ import {
     AiAccessRefusedError,
     applyNewChartDefaults,
     assertUnreachable,
+    ComposerChartNotSupportedError,
     computeAutopilotExcludedSpaceUuids,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
@@ -38,6 +39,7 @@ import {
     type MetricQuery,
     type RegisteredAccount,
     type SavedChart,
+    type SavedChartDAO,
     type SessionUser,
     type UnusedContentItem,
     type UpdateManagedAgentSettings,
@@ -813,6 +815,27 @@ export class ManagedAgentService extends BaseService {
         return { inheritsFromOrgOrProject, access };
     }
 
+    /** Autopilot repairs classic charts only; a composer chart is refused by name. */
+    private async getClassicChartOrRefuse(
+        chartUuid: string,
+    ): Promise<SavedChartDAO> {
+        const variant = await this.savedChartModel.getVariant(chartUuid);
+        switch (variant.queryType) {
+            case 'semantic':
+                return variant.chart;
+            case 'composer':
+                throw new ComposerChartNotSupportedError(
+                    variant.chart.uuid,
+                    variant.chart.name,
+                );
+            default:
+                return assertUnreachable(
+                    variant,
+                    'Unknown saved chart query type',
+                );
+        }
+    }
+
     private async canActorViewChart(
         actor: SessionUser,
         chart: {
@@ -1111,7 +1134,7 @@ export class ManagedAgentService extends BaseService {
         try {
             switch (targetType) {
                 case ManagedAgentTargetType.CHART: {
-                    const chart = await this.savedChartModel.get(
+                    const { chart } = await this.savedChartModel.getVariant(
                         targetUuid,
                         undefined,
                         { deleted: 'any' },
@@ -1174,7 +1197,7 @@ export class ManagedAgentService extends BaseService {
                     chartVisibilityCache,
                     chartUuid,
                     async () => {
-                        const chart = await this.savedChartModel.get(
+                        const { chart } = await this.savedChartModel.getVariant(
                             chartUuid,
                             undefined,
                             { deleted: 'any' },
@@ -1652,15 +1675,26 @@ export class ManagedAgentService extends BaseService {
                 'This fix was recorded before revert support — restore manually via the chart version history.',
             );
         }
-        const previousChart = await this.savedChartModel.get(
+        const previous = await this.savedChartModel.getVariant(
             action.targetUuid,
             metadata.previousVersionUuid,
         );
-        await this.savedChartModel.createVersion(
-            action.targetUuid,
-            previousChart,
-            user,
-        );
+        switch (previous.queryType) {
+            case 'semantic':
+                await this.savedChartModel.createVersion(
+                    action.targetUuid,
+                    previous.chart,
+                    user,
+                );
+                return;
+            case 'composer':
+                throw new ComposerChartNotSupportedError(
+                    previous.chart.uuid,
+                    previous.chart.name,
+                );
+            default:
+                assertUnreachable(previous, 'Unknown saved chart query type');
+        }
     }
 
     // --- Heartbeat ---
@@ -2739,7 +2773,7 @@ export class ManagedAgentService extends BaseService {
             await Promise.all(
                 items.map(async (item) => {
                     if (item.contentType === 'chart') {
-                        const chart = await this.savedChartModel.get(
+                        const { chart } = await this.savedChartModel.getVariant(
                             item.contentUuid,
                             undefined,
                             { deleted: 'any' },
@@ -3124,7 +3158,7 @@ chartConfig:
         input: AutopilotToolInput<'get_chart_details'>,
     ): Promise<string> {
         const chartUuid = input.chart_uuid;
-        const chart = await this.savedChartModel.get(chartUuid);
+        const chart = await this.getClassicChartOrRefuse(chartUuid);
         ManagedAgentService.assertProjectOwnership(
             chart.projectUuid,
             projectUuid,
@@ -3183,7 +3217,7 @@ chartConfig:
         }
 
         // Get the current chart and verify it belongs to this project
-        const chart = await this.savedChartModel.get(chartUuid);
+        const chart = await this.getClassicChartOrRefuse(chartUuid);
         ManagedAgentService.assertProjectOwnership(
             chart.projectUuid,
             projectUuid,
@@ -3547,7 +3581,7 @@ chartConfig:
         ) {
             try {
                 if (targetType === ManagedAgentTargetType.CHART) {
-                    await this.savedChartModel.get(targetUuid);
+                    await this.savedChartModel.getVariant(targetUuid);
                 } else {
                     await this.dashboardModel.getByIdOrSlug(targetUuid);
                 }
@@ -3581,7 +3615,8 @@ chartConfig:
             targetType === ManagedAgentTargetType.CHART
         ) {
             try {
-                const chart = await this.savedChartModel.get(targetUuid);
+                const { chart } =
+                    await this.savedChartModel.getVariant(targetUuid);
                 if (chart.slug?.startsWith('agent-')) {
                     return JSON.stringify({
                         error: `Chart "${targetName}" was created by the agent (slug: ${chart.slug}). Cannot flag own content as stale.`,
@@ -3882,7 +3917,7 @@ chartConfig:
             protectCutoff.getDate() - policy.protectRecentDays,
         );
 
-        const chart = await this.savedChartModel.get(chartUuid);
+        const { chart } = await this.savedChartModel.getVariant(chartUuid);
         ManagedAgentService.assertProjectOwnership(
             chart.projectUuid,
             projectUuid,
@@ -4150,10 +4185,16 @@ chartConfig:
         for (const [chartUuid, chartName] of toProcess) {
             abortSignal?.throwIfAborted();
             // eslint-disable-next-line no-await-in-loop
-            const chart = await this.savedChartModel.get(chartUuid);
+            const variant = await this.savedChartModel.getVariant(chartUuid);
             // Defense against stale validation rows: the chart must still
             // reference the deleted model
-            if (chart.tableName !== tableName) {
+            if (variant.queryType === 'composer') {
+                blocked.push({
+                    uuid: chartUuid,
+                    name: chartName,
+                    reason: 'Chart is a composer chart, which Autopilot does not manage yet',
+                });
+            } else if (variant.chart.tableName !== tableName) {
                 blocked.push({
                     uuid: chartUuid,
                     name: chartName,
@@ -4654,7 +4695,7 @@ chartConfig:
         switch (action.actionType) {
             case ManagedAgentActionType.SOFT_DELETED:
                 if (action.targetType === ManagedAgentTargetType.CHART) {
-                    const chart = await this.savedChartModel.get(
+                    const { chart } = await this.savedChartModel.getVariant(
                         action.targetUuid,
                         undefined,
                         { deleted: true },
@@ -4680,7 +4721,7 @@ chartConfig:
                         error: 'This model cannot delete content when reversing a creation in this run',
                     });
                 if (action.targetType === ManagedAgentTargetType.CHART) {
-                    const chart = await this.savedChartModel.get(
+                    const { chart } = await this.savedChartModel.getVariant(
                         action.targetUuid,
                         undefined,
                         { deleted: 'any' },

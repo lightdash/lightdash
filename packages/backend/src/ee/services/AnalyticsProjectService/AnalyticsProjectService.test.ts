@@ -14,6 +14,10 @@ import {
     user as baseUser,
     defaultProject,
 } from '../../../services/ProjectService/ProjectService.mock';
+import {
+    composerSavedChartVariant,
+    semanticSavedChartVariant,
+} from '../../../testing/composerSavedChartFixture';
 import { getAnalyticsContentHash } from './analyticsContentHash';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 
@@ -97,7 +101,7 @@ describe('AnalyticsProjectService', () => {
         coderService: { upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
-        savedChartModel: { get: getChart, find: findCharts },
+        savedChartModel: { getVariant: getChart, find: findCharts },
         spaceModel: { get: getSpace, find: findSpaces },
         projectModel: {
             getAllByOrganizationUuid,
@@ -975,7 +979,7 @@ describe('AnalyticsProjectService', () => {
     ])(
         'rejects a renamed or moved chart before writing any content: %j',
         async (existing) => {
-            getChart.mockResolvedValueOnce(existing);
+            getChart.mockResolvedValueOnce(semanticSavedChartVariant(existing));
             await expect(service.installSampleContent(user)).rejects.toThrow(
                 ConflictError,
             );
@@ -991,6 +995,18 @@ describe('AnalyticsProjectService', () => {
             );
         },
     );
+
+    it('accepts an existing composer chart that still belongs to its managed dashboard', async () => {
+        const [{ dashboard, charts }] = analyticsContentAsCode;
+        getChart.mockResolvedValueOnce(
+            composerSavedChartVariant({
+                slug: charts[0].slug,
+                dashboardSlug: dashboard.slug,
+            }),
+        );
+        await service.installSampleContent(user);
+        expect(upsertDashboard).toHaveBeenCalled();
+    });
 
     it('propagates lookup errors instead of treating them as missing content', async () => {
         getChart.mockRejectedValueOnce(new Error('database unavailable'));

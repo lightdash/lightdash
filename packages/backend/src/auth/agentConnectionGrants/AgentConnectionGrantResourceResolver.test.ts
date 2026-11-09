@@ -1,3 +1,7 @@
+import {
+    composerSavedChartVariant,
+    semanticSavedChartVariant,
+} from '../../testing/composerSavedChartFixture';
 import { AgentConnectionGrantResourceResolver } from './AgentConnectionGrantResourceResolver';
 
 const projectA = '11111111-1111-4111-8111-111111111111';
@@ -24,7 +28,11 @@ const setup = () => {
         },
         savedChartModel: {
             getSummary: vi.fn().mockResolvedValue({ projectUuid: projectB }),
-            get: vi.fn().mockResolvedValue({ projectUuid: projectA }),
+            getVariant: vi
+                .fn()
+                .mockResolvedValue(
+                    semanticSavedChartVariant({ projectUuid: projectA }),
+                ),
         },
         dashboardModel: {
             getSummaryByUuid: vi
@@ -104,4 +112,17 @@ it('resolves the stored deploy session project and owner', async () => {
     expect(deps.deploySessionModel.getSession).toHaveBeenCalledExactlyOnceWith(
         resourceUuid,
     );
+});
+it('resolves a composer saved chart slug to its project', async () => {
+    const { deps, resolver } = setup();
+    deps.savedChartModel.getVariant.mockResolvedValue(
+        composerSavedChartVariant({ projectUuid: projectA }),
+    );
+    expect(
+        await resolver.resolveResourceProjectUuid({
+            type: 'saved_chart',
+            uuid: 'slug',
+            projectUuid: projectA,
+        }),
+    ).toBe(projectA);
 });

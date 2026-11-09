@@ -762,7 +762,7 @@ export class SearchModel {
             description: string;
             chartType: ChartKind;
             viewsCount: number;
-            exploreName: string;
+            exploreName: string | null;
         };
 
         const chartsQuery = this.database
