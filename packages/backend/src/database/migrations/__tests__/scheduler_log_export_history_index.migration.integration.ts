@@ -68,13 +68,12 @@ describe('scheduler export history index (real schema)', () => {
                 [org, org],
             );
         }
-        await migrated.database('scheduler_log').insert({
-            job_id: 'at-cutoff',
-            task: exportTasks[0],
-            status: 'completed',
-            created_at: cutoff,
-            details: { organizationUuid },
-        });
+        await migrated.database.raw(
+            `INSERT INTO scheduler_log (job_id, task, status, created_at, details)
+             VALUES ('at-cutoff', ?, 'completed', ?::timestamp,
+                     jsonb_build_object('organizationUuid', ?::text))`,
+            [exportTasks[0], cutoff, organizationUuid],
+        );
         await migrated.database.raw('ANALYZE scheduler_log');
     });
 
