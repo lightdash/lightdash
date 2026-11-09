@@ -59,12 +59,16 @@ services:
             - TIMEOUT=180000
         ports:
             - '3001:3000'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
 
     prometheus:
         image: prom/prometheus:latest
         restart: always
         ports:
             - '9091:9090'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
         volumes:
             - ./dev-configs/prometheus.dev.yml:/etc/prometheus/prometheus.yml
         command:

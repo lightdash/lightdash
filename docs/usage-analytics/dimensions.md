@@ -158,7 +158,7 @@ Postgres and a dedicated MinIO bucket; it cleans up both.
 
 ```bash
 export INSTANCE_ID=<your-instance>
-eval "$(./scripts/dev-ports.sh env)"
+export LD_PG_PORT="$(grep '^PGPORT=' .env.development.local | cut -d= -f2)"
 USAGE_DIMENSIONS_SMOKE_PGPORT="$LD_PG_PORT" \
 USAGE_DIMENSIONS_SMOKE_ROWS=1000000 \
 pnpm exec dotenv -e .env.development.local -e .env.development -- \
