@@ -1009,6 +1009,109 @@ const registerContentAccessTests = (
         });
     });
 
+    it.each([
+        {
+            name: 'ignoring one in the file',
+            fileConfig: {
+                isDateZoomDisabled: true,
+                controlOrder: [{ kind: 'filter', id: 'from-file' }],
+            },
+            expectedConfig: { isDateZoomDisabled: true },
+        },
+        {
+            name: 'when the file has no config',
+            fileConfig: undefined,
+            expectedConfig: { isDateZoomDisabled: false },
+        },
+    ])(
+        'keeps the saved control order on upload, $name',
+        async ({ fileConfig, expectedConfig }) => {
+            const savedOrder = [{ kind: 'section', id: 'section-1' }];
+            const service = buildService();
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                { uuid: 'dashboard-uuid' } as AnyType,
+            ]);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                slug: 'dashboard',
+                name: 'Dashboard',
+                spaceUuid: SPACE_UUID,
+                filters: { dimensions: [], metrics: [], tableCalculations: [] },
+                config: { isDateZoomDisabled: false, controlOrder: savedOrder },
+            } as AnyType);
+            vi.mocked(
+                service.promoteService.getPromotedDashboard,
+            ).mockResolvedValue({
+                promotedDashboard: {
+                    dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+                    projectUuid: PROJECT_UUID,
+                    space: { name: 'Space' },
+                    spaceAccessContext: {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        access: [],
+                    },
+                },
+                upstreamDashboard: {
+                    dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+                    projectUuid: PROJECT_UUID,
+                    space: { name: 'Space' },
+                    spaceAccessContext: {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        access: [],
+                    },
+                },
+            } as AnyType);
+            vi.mocked(
+                service.promoteService.getPromotionDashboardChanges,
+            ).mockResolvedValue([
+                {
+                    dashboards: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { uuid: 'dashboard-uuid' },
+                        },
+                    ],
+                    charts: [],
+                    spaces: [],
+                },
+                [],
+            ] as AnyType);
+            const user = makeUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                {
+                    subject: 'Dashboard',
+                    action: 'update',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+                {
+                    subject: 'Dashboard',
+                    action: 'promote',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+            ]);
+
+            await expect(
+                service.upsertDashboard(
+                    user,
+                    PROJECT_UUID,
+                    dashboardAsCode.slug,
+                    {
+                        ...dashboardAsCode,
+                        config: fileConfig,
+                    } as unknown as DashboardAsCode,
+                ),
+            ).resolves.toMatchObject({
+                dashboards: [{ action: PromotionAction.UPDATE }],
+            });
+            expect(
+                vi.mocked(service.promoteService.getPromotedDashboard).mock
+                    .calls[0][1].config,
+            ).toEqual({ ...expectedConfig, controlOrder: savedOrder });
+        },
+    );
+
     it('keeps the saved dimension filter ids of the dashboard it overwrites', async () => {
         const service = buildService();
         const target = { fieldId: 'orders_status', tableName: 'orders' };

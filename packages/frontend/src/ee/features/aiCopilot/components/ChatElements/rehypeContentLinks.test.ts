@@ -40,6 +40,11 @@ describe('rehypeAiAgentContentLinks', () => {
         expect(processHref(href)).toEqual({ href });
     });
 
+    it('leaves a link that only contains the citation fragment alone', () => {
+        const href = 'https://example.com/page#query-node-revenue';
+        expect(processHref(href)).toEqual({ href });
+    });
+
     it('marks canonical dashboard links', () => {
         expect(
             processHref(

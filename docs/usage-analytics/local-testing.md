@@ -24,7 +24,7 @@ to the persisted project's org, even locally; legacy org/source-org overrides
 are ignored. For production testing, follow [live testing](live-testing.md).
 
 As a signed-in organization administrator, open **Organization settings →
-Lightdash analytics (Beta)** at `/generalSettings/lightdashAnalytics`. Click
+Lightdash analytics** at `/generalSettings/lightdashAnalytics`. Click
 **Create** to provision and open the project, or **Open** if it already exists.
 The page shows the project's creation time, not its model-sync version or data
 freshness. Deployment availability and org-admin backend restrictions still apply.

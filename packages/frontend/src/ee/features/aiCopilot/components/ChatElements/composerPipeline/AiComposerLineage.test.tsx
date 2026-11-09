@@ -66,6 +66,7 @@ const renderPanel = (props: {
     nodeStatuses?: Record<string, ComposerRunNodeStatus>;
     chatNodeIds?: Set<string>;
     onAddToChat?: ((node: PipelineNode) => void) | null;
+    initialFocusNodeId?: string | null;
 }) =>
     renderWithProviders(
         <AiComposerLineage
@@ -77,6 +78,7 @@ const renderPanel = (props: {
             renderNodeResult={(nodeId) => <div>rows of {nodeId}</div>}
             chatNodeIds={new Set()}
             onAddToChat={null}
+            initialFocusNodeId={null}
             {...props}
         />,
     );
@@ -174,6 +176,25 @@ describe('AiComposerLineage graph', () => {
         expect(
             screen.queryByText(/^Faded steps are not linked/),
         ).not.toBeInTheDocument();
+    });
+
+    it('scrolls to the initial focus node with only its results open', () => {
+        scrollTo.mockClear();
+        renderPanel({ initialFocusNodeId: 'joined' });
+
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('rows of joined')).toBeInTheDocument();
+        expect(screen.queryByText('rows of orders')).not.toBeInTheDocument();
+    });
+
+    it('waits for the initial focus node to have a result before scrolling', () => {
+        scrollTo.mockClear();
+        renderPanel({
+            initialFocusNodeId: 'joined',
+            displayableNodeIds: new Set(),
+        });
+
+        expect(scrollTo).not.toHaveBeenCalled();
     });
 
     it('keeps every step and scrolls to a node picked in the graph or a reference', () => {

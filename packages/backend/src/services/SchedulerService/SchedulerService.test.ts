@@ -1175,6 +1175,38 @@ describe('SchedulerService', () => {
                 );
             },
         );
+
+        test.each([true, false])(
+            'should track scheduler.updated with useCachedResults %s',
+            async (useCachedResults) => {
+                const trackSpy = vi.spyOn(analyticsMock, 'track');
+                const { updateService, updateSchedulerModel } =
+                    buildUpdateService();
+                updateSchedulerModel.updateScheduler.mockResolvedValueOnce({
+                    ...chartSchedulerInPrivateSpace,
+                    format: SchedulerFormat.GSHEETS,
+                    targets: [],
+                    enabled: false,
+                    useCachedResults,
+                });
+
+                await updateService.updateScheduler(
+                    actorWithGoogleSheets,
+                    chartSchedulerInPrivateSpace.schedulerUuid,
+                    gsheetsUpdate,
+                    { validateGoogleSheet: false },
+                );
+
+                expect(trackSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'scheduler.updated',
+                        properties: expect.objectContaining({
+                            useCachedResults,
+                        }),
+                    }),
+                );
+            },
+        );
     });
 
     describe('createAppScheduler', () => {

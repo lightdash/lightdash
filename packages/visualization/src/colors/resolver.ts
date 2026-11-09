@@ -7,19 +7,17 @@ import {
 } from '@lightdash/common';
 import {
     calculateKeyColorAssignment,
-    calculateSeriesColorAssignment,
     type ColorAssignmentOptions,
 } from './mappings';
 import {
     calculateFallbackSeriesColors,
     calculateSeriesLikeIdentifier,
     getDimensionValueColor,
-    isGroupedSeries,
     type SeriesLike,
 } from './series';
 
 export type SeriesColorResolver = {
-    /** A shared color for a series, from its own color, the chart metadata, a dimension value color, the shared mappings or the palette by order. */
+    /** A shared color for a series, from its own color, the chart metadata, a dimension value color or the palette by order. */
     getSeriesColor: (seriesLike: SeriesLike) => string;
     /** A shared color for a group value; pie, funnel, treemap and sankey use it. */
     getGroupColor: (groupPrefix: string, identifier: string) => string;
@@ -34,12 +32,6 @@ export type SeriesColorResolverOptions = ColorAssignmentOptions & {
      * from the chart config.
      */
     computedSeries?: Series[];
-    /**
-     * Whether grouped series take a shared, first-come color from the
-     * mappings instead of the palette color for their position. The web app
-     * leaves it off; `sharedSeriesColors` in the headless engine sets it.
-     */
-    calculateSeriesColor?: boolean;
 };
 
 /**
@@ -55,7 +47,6 @@ export const createSeriesColorResolver = ({
     chartConfig,
     itemsMap,
     computedSeries,
-    calculateSeriesColor = false,
 }: SeriesColorResolverOptions): SeriesColorResolver => {
     const assignment: ColorAssignmentOptions = {
         colorPalette,
@@ -118,16 +109,11 @@ export const createSeriesColorResolver = ({
             if (fixedColor) return fixedColor;
         }
 
-        /**
-         * If this series is grouped, figure out a shared color assignment from the series;
-         * otherwise, pick a series color from the palette based on its order.
-         */
-        return isGroupedSeries(seriesLike) && calculateSeriesColor
-            ? calculateSeriesColorAssignment(assignment, seriesLike)
-            : fallbackColors[
-                  // Note: we don't use getSeriesId since we may not be dealing with a Series type here
-                  calculateSeriesLikeIdentifier(seriesLike).join('|')
-              ];
+        // Pick a series color from the palette based on its order. We don't
+        // use getSeriesId since we may not be dealing with a Series type here.
+        return fallbackColors[
+            calculateSeriesLikeIdentifier(seriesLike).join('|')
+        ];
     };
 
     return { getSeriesColor, getGroupColor };

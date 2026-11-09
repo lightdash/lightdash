@@ -115,14 +115,21 @@ _Avoid_: output node, final node, sink
 The agent's act of making an artifact from a node so its result is shown to
 the user: a visualize call, on any node of the thread, from this turn or an
 earlier one. Results the agent does not present stay exploration, visible only
-in the pipeline card. Slack still presents with `<slack-table queryUuid>` in
-the final answer.
+in the pipeline card or through a node citation. Slack still presents with
+`<slack-table queryUuid>` in the final answer.
 _Avoid_: select (the Slack vocabulary), show, publish, render
 
 **Presented node**:
 A node the agent presented. Its result is what the composer artifact version
 displays by default.
 _Avoid_: selected node, displayed node (which may be any node of the panel)
+
+**Node citation**:
+A reference in the agent's answer from a figure to the thread composer query
+node that produced it, shown to users as a dotted underline on the figure that
+opens that node's result and everything it reads. One that names no thread
+composer query node shows as plain text, as it does in Slack.
+_Avoid_: query link, query node citation, chip (the web form only)
 
 **Snapshot**:
 The closed pipeline stored in an artifact version: the presented node and
@@ -213,7 +220,7 @@ card (that is the live tool-call card)
 The body of the "Ran query" tool-call row ("Ran composer queries" on calls
 recorded before the rename), shown for every
 submission: expanded while its run is in flight or has failed, collapsed once
-it completes. The only record of a submission the agent did not present.
+it completes. The only full record of a submission the agent did not present.
 _Avoid_: tool-call description, Lineage
 
 ## Boundaries

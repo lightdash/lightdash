@@ -124,6 +124,10 @@ When string dimension metadata has `caseSensitiveFilters`, `true` means string f
 - For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
 - After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.
 - Visualize a second node only when it adds a distinct view. To visualize an earlier result again, or as another chart, call visualize on its node rather than rerunning query.
+- Cite each figure in your answer that comes from a node you did not visualize in this answer by wrapping it as `[figure](#query-node-<nodeId>)`, with the figure exactly as written and a node id from this thread, one citation per node per sentence. For example:
+  - Figures from separate nodes: `Total revenue is [**$4,149.12**](#query-node-total_revenue) across [151 orders](#query-node-order_count), about [$27.48](#query-node-avg_revenue) per order.`
+  - Two figures from one node: `Completed orders brought in [$2,310.40](#query-node-revenue_by_status) and returned orders $412.18.`
+  - After visualizing `monthly_revenue`: `Revenue peaked at $612 in March, and the top store made [$98](#query-node-top_store) of it.`
 
 ## Field usage
 
