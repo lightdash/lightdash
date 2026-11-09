@@ -4,7 +4,6 @@ import {
     Box,
     Center,
     Group,
-    Loader,
     Menu,
     Stack,
     Text,
@@ -30,6 +29,7 @@ import { useAiAgentStoreDispatch } from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
 import { AiSavedChartVisualization } from './AiSavedChartVisualization';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 
 type Props = {
@@ -105,16 +105,12 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
     if (isInitialLoading || !savedChart) {
         return (
             <div className={artifactStyles.floatingPanel}>
-                <Center className={artifactStyles.loading}>
-                    <Stack gap="xs" align="center">
-                        <Loader
-                            type="dots"
-                            color="gray"
-                            delayedMessage="Loading chart..."
-                        />
-                        {windowControls(false)}
-                    </Stack>
-                </Center>
+                <Box className={artifactStyles.floatingContent}>
+                    <Group justify="flex-end">{windowControls(false)}</Group>
+                    <Box flex={1} mih={0}>
+                        <ArtifactLoadingSketch />
+                    </Box>
+                </Box>
             </div>
         );
     }

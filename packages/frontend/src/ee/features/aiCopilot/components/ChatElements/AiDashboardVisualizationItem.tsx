@@ -7,11 +7,11 @@ import {
     type DashboardV2Visualization,
 } from '@lightdash/common';
 import {
+    Box,
     Center,
     Flex,
     Group,
     HoverCard,
-    Loader,
     Paper,
     Stack,
     Text,
@@ -37,6 +37,7 @@ import { AiAccessCallout } from './AiAccessCallout';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import classes from './AiDashboardVisualizationItem.module.css';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 
 type Props = {
     visualization: DashboardV2Visualization;
@@ -237,17 +238,9 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                 <Stack gap="sm" h="100%" mih={0}>
                     <VisualizationHeaderSimple />
 
-                    {/* Loading State */}
-                    <Paper p="md" bg="ldGray.0" flex={1} mih={0}>
-                        <Center h="100%" mih={48}>
-                            <Stack gap="xs" align="center">
-                                <Loader type="dots" color="gray" />
-                                <Text size="sm" c="dimmed" ta="center">
-                                    Loading visualization...
-                                </Text>
-                            </Stack>
-                        </Center>
-                    </Paper>
+                    <Box flex={1} mih={0}>
+                        <ArtifactLoadingSketch />
+                    </Box>
                 </Stack>
             );
         }

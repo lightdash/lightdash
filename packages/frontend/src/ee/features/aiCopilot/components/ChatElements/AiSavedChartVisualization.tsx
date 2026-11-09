@@ -3,7 +3,7 @@ import {
     type EChartsSeries,
     type SavedChart,
 } from '@lightdash/common';
-import { Box, Center, Loader } from '@mantine/core';
+import { Box } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
@@ -22,6 +22,7 @@ import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEf
 import { useExplorerQueryManager } from '../../../../../hooks/useExplorerQueryManager';
 import { useResizeObserver } from '../../../../../hooks/useResizeObserver';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 
 type Props = {
     projectUuid: string;
@@ -138,15 +139,7 @@ export const AiSavedChartVisualization: FC<Props> = ({
     }, [savedChart, store]);
 
     if (!savedChart) {
-        return (
-            <Center h="100%">
-                <Loader
-                    type="dots"
-                    color="gray"
-                    delayedMessage="Loading chart..."
-                />
-            </Center>
-        );
+        return <ArtifactLoadingSketch />;
     }
 
     return (
