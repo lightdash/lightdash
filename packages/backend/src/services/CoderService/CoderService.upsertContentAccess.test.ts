@@ -4134,6 +4134,54 @@ describe('CoderService dashboard control order as code', () => {
         expect(result.config?.controlOrder).toEqual(orderWithLines);
     });
 
+    it('moves a stored order ref to a section renamed in a flag-off upload', async () => {
+        const file = download(savedDashboard(), true);
+        const result = await upload(
+            {
+                ...file,
+                config: {
+                    ...file.config!,
+                    controlSections: [
+                        { ...file.config!.controlSections![0], name: 'Dates' },
+                    ],
+                },
+            },
+            { enabled: false },
+        );
+        const sectionId = result.config!.controlSections![0].id;
+        expect(sectionId).not.toBe('section-id');
+        expect(result.config?.controlOrder).toEqual(
+            savedOrder.map((ref) =>
+                ref.id === 'section-id' ? { ...ref, id: sectionId } : ref,
+            ),
+        );
+    });
+
+    it('moves stored order refs to re-minted same-field filters in a flag-off upload', async () => {
+        const base = savedDashboard();
+        const [first, second] = base.filters.dimensions;
+        const saved = {
+            ...base,
+            filters: {
+                ...base.filters,
+                dimensions: [first, { ...second, target: status }],
+            },
+        } as DashboardDAO;
+        const result = await upload(download(saved, true), {
+            enabled: false,
+            saved,
+        });
+        const ids = result.filters.dimensions.map(({ id }) => id);
+        expect(ids).not.toContain('first-id');
+        expect(result.config?.controlOrder).toEqual(
+            savedOrder.map((ref) => {
+                if (ref.id === 'second-id') return { ...ref, id: ids[0] };
+                if (ref.id === 'first-id') return { ...ref, id: ids[1] };
+                return ref;
+            }),
+        );
+    });
+
     it('never swaps the ids of two filters on one field after a UI reorder', async () => {
         const sameField = savedDashboard();
         const [first, second] = sameField.filters.dimensions;

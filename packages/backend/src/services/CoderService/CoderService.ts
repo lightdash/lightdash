@@ -36,6 +36,7 @@ import {
     DashboardAsCodeInternalization,
     DashboardAsCodeUpsertResult,
     DashboardChartTileAsCode,
+    DashboardControlRefKind,
     DashboardDAO,
     DashboardDataAppTileAsCode,
     DashboardFilterRule,
@@ -196,6 +197,7 @@ import {
     getControlOrderWithIds,
     getFilterSlugsAsCode,
     getUploadedControlSlugs,
+    withReplacedIds,
 } from './controlOrder';
 import {
     getConfigWithDateZoomTileSlugs,
@@ -5915,7 +5917,27 @@ export class CoderService extends BaseService {
         }
         // Flag on, the file's order is declarative: absent resets to the default order
         const fileOrder = dashboardWithResolvedTabs.config?.controlOrder;
-        let controlOrder = existingDashboard?.config?.controlOrder;
+        let controlOrder = withReplacedIds(
+            existingDashboard?.config?.controlOrder,
+            {
+                [DashboardControlRefKind.FILTER]: [
+                    ...(existingDashboard?.filters.dimensions ?? []),
+                    ...(existingDashboard?.filters.metrics ?? []),
+                ].map(({ id }) => id),
+                [DashboardControlRefKind.SECTION]: (
+                    existingDashboard?.config?.controlSections ?? []
+                ).map(({ id }) => id),
+            },
+            {
+                [DashboardControlRefKind.FILTER]: [
+                    ...dashboardFilters.dimensions,
+                    ...dashboardFilters.metrics,
+                ].map(({ id }) => id),
+                [DashboardControlRefKind.SECTION]: (
+                    dashboardConfig?.controlSections ?? []
+                ).map(({ id }) => id),
+            },
+        );
         if (controlsEnabled) {
             controlOrder =
                 fileOrder === undefined
