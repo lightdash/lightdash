@@ -25,14 +25,16 @@ export const useMobileAppLink = () => {
     const lightdashApi = useLightdashApi();
     const isVisible = useDocumentVisibility() === 'visible';
 
-    const mint = useMutation<MobileAppLink, ApiError>(() =>
-        lightdashApi<MobileAppLink>({
-            url: '/user/mobile/app-links',
-            method: 'POST',
-            body: undefined,
-        }),
+    const [link, setLink] = useState<MobileAppLink | null>(null);
+    const mint = useMutation<MobileAppLink, ApiError>(
+        () =>
+            lightdashApi<MobileAppLink>({
+                url: '/user/mobile/app-links',
+                method: 'POST',
+                body: undefined,
+            }),
+        { onSuccess: setLink },
     );
-    const link = mint.data ?? null;
 
     const status = useQuery<MobileAppLinkStatus, ApiError>(
         ['mobile-app-link-status', link?.linkUuid],
@@ -76,7 +78,6 @@ export const useMobileAppLink = () => {
             expiresAtMs === null
                 ? null
                 : Math.max(0, Math.ceil((expiresAtMs - now) / 1000)),
-        isMinting: isMinting && link === null,
         mintError: mint.error ?? null,
         retry: () => {
             requestedFor.current = null;

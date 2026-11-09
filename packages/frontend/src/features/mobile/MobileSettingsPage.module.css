@@ -1,17 +1,34 @@
-.step[data-active='false'] {
-    background: var(--mantine-color-body);
-}
-
-.stepNumber {
+.stepBadge {
     display: inline-flex;
+    flex: none;
     align-items: center;
     justify-content: center;
     width: 22px;
     height: 22px;
     border-radius: 50%;
+    background: var(--mantine-color-default-hover);
     border: 1px solid var(--mantine-color-default-border);
     font-size: 12px;
     font-weight: 600;
+}
+
+.stepBadge[data-state='done'] {
+    background: var(--mantine-color-green-filled);
+    border-color: transparent;
+    color: var(--mantine-color-white);
+}
+
+.stepBadge[data-state='upcoming'] {
+    color: var(--mantine-color-dimmed);
+}
+
+.stepTitle:focus {
+    outline: none;
+}
+
+.stepTitle:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
 }
 
 .qrFrame {
@@ -29,14 +46,10 @@
 
 .details {
     flex: 1;
-    min-width: 0;
+    min-width: 200px;
 }
 
-.linkRow {
-    max-width: 100%;
-}
-
-.link {
+.host {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

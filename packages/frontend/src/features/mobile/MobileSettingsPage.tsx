@@ -1,7 +1,9 @@
+import { type ApiError, type MobileAppLink } from '@lightdash/common';
 import {
     Box,
     Button,
     Code,
+    CopyButton,
     Group,
     Loader,
     Stack,
@@ -9,14 +11,22 @@ import {
     Title,
     VisuallyHidden,
 } from '@mantine/core';
-import { IconCircleCheck } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconCircleCheck,
+    IconCopy,
+    IconQrcodeOff,
+} from '@tabler/icons-react';
 import {
     lazy,
     Suspense,
+    useEffect,
+    useRef,
     useState,
     type FC,
     type PropsWithChildren,
     type ReactNode,
+    type RefObject,
 } from 'react';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -29,12 +39,14 @@ import { useMobileAppLink } from './useMobileAppLink';
 
 const MobileAppQrCode = lazy(() => import('./MobileAppQrCode'));
 
+type StepState = 'upcoming' | 'current' | 'done';
+
 const getHost = (siteUrl: string | undefined) => {
-    if (!siteUrl) return null;
+    if (!siteUrl) return window.location.host;
     try {
         return new URL(siteUrl).host;
     } catch {
-        return null;
+        return window.location.host;
     }
 };
 
@@ -48,18 +60,33 @@ const StepCard: FC<
     PropsWithChildren<{
         step: number;
         title: string;
-        isActive: boolean;
+        state: StepState;
+        headingRef: RefObject<HTMLHeadingElement | null>;
         aside?: ReactNode;
     }>
-> = ({ step, title, isActive, aside, children }) => (
-    <SettingsCard withBorder data-active={isActive} className={classes.step}>
-        <Stack gap="sm">
+> = ({ step, title, state, headingRef, aside, children }) => (
+    <SettingsCard withBorder>
+        <Stack gap="md">
             <Group justify="space-between" wrap="nowrap">
                 <Group gap="sm" wrap="nowrap">
-                    <span className={classes.stepNumber} aria-hidden>
-                        {step}
+                    <span
+                        className={classes.stepBadge}
+                        data-state={state}
+                        aria-hidden
+                    >
+                        {state === 'done' ? (
+                            <MantineIcon icon={IconCheck} size={14} />
+                        ) : (
+                            step
+                        )}
                     </span>
-                    <Title order={5} c={isActive ? undefined : 'dimmed'}>
+                    <Title
+                        order={5}
+                        c={state === 'upcoming' ? 'dimmed' : undefined}
+                        ref={headingRef}
+                        tabIndex={-1}
+                        className={classes.stepTitle}
+                    >
                         {title}
                     </Title>
                 </Group>
@@ -70,13 +97,101 @@ const StepCard: FC<
     </SettingsCard>
 );
 
+const QrCodePanel: FC<{
+    link: MobileAppLink | null;
+    remainingSeconds: number | null;
+    mintError: ApiError | null;
+    onRetry: () => void;
+    onHasApp: () => void;
+}> = ({ link, remainingSeconds, mintError, onRetry, onHasApp }) => (
+    <Group align="flex-start" gap="lg">
+        <Box className={classes.qrFrame}>
+            {mintError ? (
+                <MantineIcon icon={IconQrcodeOff} size="xl" color="dimmed" />
+            ) : link ? (
+                <Suspense fallback={<Loader size="sm" />}>
+                    <MobileAppQrCode value={link.scanUrl} />
+                </Suspense>
+            ) : (
+                <Loader size="sm" aria-label={MOBILE_STRINGS.creatingCode} />
+            )}
+        </Box>
+        <Stack gap="md" className={classes.details}>
+            {mintError ? (
+                <Text size="sm">{MOBILE_STRINGS.couldNotCreateCode}</Text>
+            ) : (
+                link &&
+                remainingSeconds !== null && (
+                    <Stack gap={2}>
+                        <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
+                        <Text size="xs" c="dimmed">
+                            {MOBILE_STRINGS.expiresIn(
+                                formatCountdown(remainingSeconds),
+                            )}
+                        </Text>
+                    </Stack>
+                )
+            )}
+            <Group gap="xs">
+                {mintError ? (
+                    <Button size="xs" variant="default" onClick={onRetry}>
+                        {MOBILE_STRINGS.tryAgain}
+                    </Button>
+                ) : (
+                    link && (
+                        <CopyButton value={link.scanUrl}>
+                            {({ copied, copy }) => (
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={copied ? IconCheck : IconCopy}
+                                        />
+                                    }
+                                    onClick={copy}
+                                >
+                                    {copied
+                                        ? MOBILE_STRINGS.copied
+                                        : MOBILE_STRINGS.copyLink}
+                                </Button>
+                            )}
+                        </CopyButton>
+                    )
+                )}
+                <Button size="xs" variant="default" onClick={onHasApp}>
+                    {MOBILE_STRINGS.alreadyHaveApp}
+                </Button>
+            </Group>
+        </Stack>
+    </Group>
+);
+
 export const MobileSettingsPage: FC = () => {
     const { data: health } = useHealth();
     const host = getHost(health?.siteUrl);
-    const { link, isScanned, remainingSeconds, isMinting, mintError, retry } =
+    const { link, isScanned, remainingSeconds, mintError, retry } =
         useMobileAppLink();
     const [hasApp, setHasApp] = useState(false);
-    const isSignInOpen = isScanned || hasApp;
+    const isStepOneDone = isScanned || hasApp;
+
+    const stepOneHeading = useRef<HTMLHeadingElement>(null);
+    const stepTwoHeading = useRef<HTMLHeadingElement>(null);
+    const pendingFocus = useRef<RefObject<HTMLHeadingElement | null> | null>(
+        null,
+    );
+    useEffect(() => {
+        pendingFocus.current?.current?.focus();
+        pendingFocus.current = null;
+    }, [hasApp]);
+    const showSignIn = () => {
+        pendingFocus.current = stepTwoHeading;
+        setHasApp(true);
+    };
+    const showCode = () => {
+        pendingFocus.current = stepOneHeading;
+        setHasApp(false);
+    };
 
     return (
         <SettingsPage title={MOBILE_STRINGS.pageTitle}>
@@ -84,106 +199,63 @@ export const MobileSettingsPage: FC = () => {
                 <StepCard
                     step={1}
                     title={MOBILE_STRINGS.getAppTitle}
-                    isActive={!isSignInOpen}
+                    state={isStepOneDone ? 'done' : 'current'}
+                    headingRef={stepOneHeading}
                     aside={
                         isScanned ? (
-                            <Group gap={4} c="green.7" wrap="nowrap">
-                                <MantineIcon icon={IconCircleCheck} />
-                                <Text size="sm" fw={500}>
+                            <Group gap={6} wrap="nowrap">
+                                <MantineIcon
+                                    icon={IconCircleCheck}
+                                    color="green.7"
+                                />
+                                <Text size="sm" c="dimmed">
                                     {MOBILE_STRINGS.openedOnPhone}
                                 </Text>
                             </Group>
-                        ) : null
+                        ) : (
+                            hasApp && (
+                                <Button
+                                    size="xs"
+                                    variant="subtle"
+                                    onClick={showCode}
+                                >
+                                    {MOBILE_STRINGS.showCode}
+                                </Button>
+                            )
+                        )
                     }
                 >
-                    {!isScanned && (
-                        <Group align="flex-start" gap="lg" wrap="nowrap">
-                            <Box className={classes.qrFrame}>
-                                {link ? (
-                                    <Suspense fallback={<Loader size="sm" />}>
-                                        <MobileAppQrCode value={link.scanUrl} />
-                                    </Suspense>
-                                ) : (
-                                    <Loader
-                                        size="sm"
-                                        aria-label={MOBILE_STRINGS.creatingCode}
-                                    />
-                                )}
-                            </Box>
-                            <Stack gap="sm" className={classes.details}>
-                                {link && (
-                                    <Group
-                                        gap="xs"
-                                        wrap="nowrap"
-                                        className={classes.linkRow}
-                                    >
-                                        <Code className={classes.link}>
-                                            {link.scanUrl}
-                                        </Code>
-                                        <CopyActionIcon
-                                            value={link.scanUrl}
-                                            copyLabel={MOBILE_STRINGS.copyLink}
-                                            variant="default"
-                                        />
-                                    </Group>
-                                )}
-                                {mintError ? (
-                                    <Group gap="sm">
-                                        <Text size="sm" c="red.7">
-                                            {mintError.error.message}
-                                        </Text>
-                                        <Button
-                                            size="xs"
-                                            variant="default"
-                                            onClick={retry}
-                                        >
-                                            {MOBILE_STRINGS.tryAgain}
-                                        </Button>
-                                    </Group>
-                                ) : (
-                                    link &&
-                                    remainingSeconds !== null && (
-                                        <Stack gap={2}>
-                                            <Text size="sm">
-                                                {MOBILE_STRINGS.waitingForScan}
-                                            </Text>
-                                            <Text size="xs" c="dimmed">
-                                                {MOBILE_STRINGS.expiresIn(
-                                                    formatCountdown(
-                                                        remainingSeconds,
-                                                    ),
-                                                )}
-                                            </Text>
-                                        </Stack>
-                                    )
-                                )}
-                                {!isMinting && !hasApp && (
-                                    <Group>
-                                        <Button
-                                            size="xs"
-                                            variant="default"
-                                            onClick={() => setHasApp(true)}
-                                        >
-                                            {MOBILE_STRINGS.alreadyHaveApp}
-                                        </Button>
-                                    </Group>
-                                )}
-                            </Stack>
-                        </Group>
+                    {!isStepOneDone && (
+                        <QrCodePanel
+                            link={link}
+                            remainingSeconds={remainingSeconds}
+                            mintError={mintError}
+                            onRetry={retry}
+                            onHasApp={showSignIn}
+                        />
                     )}
                 </StepCard>
 
                 <StepCard
                     step={2}
                     title={MOBILE_STRINGS.signInTitle}
-                    isActive={isSignInOpen}
+                    state={isStepOneDone ? 'current' : 'upcoming'}
+                    headingRef={stepTwoHeading}
                 >
-                    {isSignInOpen && (
-                        <Text size="sm">
-                            {MOBILE_STRINGS.signInTo(
-                                host ?? MOBILE_STRINGS.thisInstance,
-                            )}
-                        </Text>
+                    {isStepOneDone && (
+                        <Group gap="xs" wrap="nowrap">
+                            <Text size="sm">{MOBILE_STRINGS.signInTo}</Text>
+                            <Code fz="sm" className={classes.host}>
+                                {host}
+                            </Code>
+                            <CopyActionIcon
+                                value={host}
+                                copyLabel={MOBILE_STRINGS.copyHost}
+                                copiedLabel={MOBILE_STRINGS.copied}
+                                variant="subtle"
+                                size="sm"
+                            />
+                        </Group>
                     )}
                 </StepCard>
 

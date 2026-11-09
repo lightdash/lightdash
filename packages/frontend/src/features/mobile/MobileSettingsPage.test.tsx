@@ -16,6 +16,7 @@ vi.mock('../../hooks/health/useHealth', () => ({
 vi.mock('./useMobileAppLink', () => ({ useMobileAppLink: vi.fn() }));
 
 const SCAN_URL = 'https://app.example.com/m/app/scan-id';
+const QR_NAME = 'QR code to install the Lightdash app';
 
 const mockLink = (overrides: Partial<ReturnType<typeof useMobileAppLink>>) =>
     vi.mocked(useMobileAppLink).mockReturnValue({
@@ -26,7 +27,6 @@ const mockLink = (overrides: Partial<ReturnType<typeof useMobileAppLink>>) =>
         },
         isScanned: false,
         remainingSeconds: 29 * 60 + 41,
-        isMinting: false,
         mintError: null,
         retry: vi.fn(),
         ...overrides,
@@ -35,23 +35,21 @@ const mockLink = (overrides: Partial<ReturnType<typeof useMobileAppLink>>) =>
 beforeEach(() => vi.mocked(useMobileAppLink).mockReset());
 
 describe('MobileSettingsPage', () => {
-    it('shows the QR code, its link and the time left while waiting', async () => {
+    it('shows the QR code with short labels while waiting', async () => {
         mockLink({});
         renderWithProviders(<MobileSettingsPage />);
 
         expect(
-            await screen.findByRole('img', {
-                name: 'QR code to install the Lightdash app',
-            }),
+            await screen.findByRole('img', { name: QR_NAME }),
         ).toBeInTheDocument();
-        expect(screen.getByText(SCAN_URL)).toBeVisible();
         expect(screen.getByText('Waiting for scan')).toBeVisible();
         expect(screen.getByText('Expires in 29:41')).toBeVisible();
-        expect(screen.queryByText(/^Sign in to/)).not.toBeInTheDocument();
-        expect(screen.queryByText(/Scan this/)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Copy link' })).toBeVisible();
+        expect(screen.queryByText(SCAN_URL)).not.toBeInTheDocument();
+        expect(screen.queryByText('Sign in to')).not.toBeInTheDocument();
     });
 
-    it('opens the sign-in step when the user already has the app', async () => {
+    it('moves to the sign-in step and back when the user already has the app', async () => {
         mockLink({});
         renderWithProviders(<MobileSettingsPage />);
 
@@ -59,7 +57,25 @@ describe('MobileSettingsPage', () => {
             screen.getByRole('button', { name: 'I already have the app' }),
         );
 
-        expect(screen.getByText('Sign in to app.example.com.')).toBeVisible();
+        expect(screen.getByText('Sign in to')).toBeVisible();
+        expect(screen.getByText('app.example.com')).toBeVisible();
+        expect(
+            screen.queryByRole('img', { name: QR_NAME }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { name: 'Sign in on your phone' }),
+        ).toHaveFocus();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Show code' }),
+        );
+
+        expect(
+            await screen.findByRole('img', { name: QR_NAME }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { name: 'Get the app' }),
+        ).toHaveFocus();
     });
 
     it('announces a scan and opens the sign-in step', () => {
@@ -69,15 +85,16 @@ describe('MobileSettingsPage', () => {
         expect(screen.getByRole('status')).toHaveTextContent(
             'Opened on a phone',
         );
-        expect(screen.getByText('Sign in to app.example.com.')).toBeVisible();
+        expect(screen.getByText('app.example.com')).toBeVisible();
         expect(
-            screen.queryByRole('img', {
-                name: 'QR code to install the Lightdash app',
-            }),
+            screen.queryByRole('img', { name: QR_NAME }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Show code' }),
         ).not.toBeInTheDocument();
     });
 
-    it('shows the server error with a retry button when a mint fails', async () => {
+    it('shows a short error with a retry button when a code cannot be created', async () => {
         const retry = vi.fn();
         mockLink({
             link: null,
@@ -95,9 +112,10 @@ describe('MobileSettingsPage', () => {
         });
         renderWithProviders(<MobileSettingsPage />);
 
+        expect(screen.getByText("Couldn't create the code")).toBeVisible();
         expect(
-            screen.getByText('Too many app links. Try again in an hour.'),
-        ).toBeVisible();
+            screen.queryByLabelText('Creating the code'),
+        ).not.toBeInTheDocument();
         await userEvent.click(
             screen.getByRole('button', { name: 'Try again' }),
         );
@@ -106,9 +124,15 @@ describe('MobileSettingsPage', () => {
 });
 
 describe('MobileAppLandingPage', () => {
-    it('links to both app stores', () => {
+    it('links to both app stores under a page heading', () => {
         renderWithProviders(<MobileAppLandingPage />);
 
+        expect(
+            screen.getByRole('heading', {
+                level: 1,
+                name: 'Get the Lightdash app',
+            }),
+        ).toBeVisible();
         expect(
             screen.getByRole('link', { name: 'Download on the App Store' }),
         ).toHaveAttribute('href', MOBILE_APP_STORE_URL);
