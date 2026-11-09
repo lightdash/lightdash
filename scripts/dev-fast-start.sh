@@ -519,6 +519,10 @@ if [ "$EE_MODE" = true ]; then
             pnpm -F backend exec knex seed:run --specific=01_embed.ts --knexfile src/knexfile.ts \
             || fail "ee-seed" "EE seed failed"
     fi
+    # DBs restored from an older EE base lack the agent.
+    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
+        pnpm -F backend exec knex seed:run --specific=02_ai_agent.ts --knexfile src/knexfile.ts \
+        || fail "ee-agent-seed" "EE agent seed failed"
     echo "OK: EE migration pass complete"
 
     # Seed the dedicated EE base for future EE instances (one-time). Captured here,
