@@ -249,7 +249,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
             onView(isPreviewing || isCurrent ? null : version.version);
 
         const node = (
-            <Box className={classes.entry} data-live={isCurrent || undefined}>
+            <Box className={classes.entry}>
                 <Group gap={7} wrap="nowrap" className={classes.meta}>
                     <VersionPill
                         version={version.version}
@@ -299,7 +299,6 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                             gap={4}
                             wrap="nowrap"
                             className={classes.actions}
-                            data-visible={isPreviewing || undefined}
                         >
                             {!isCurrent && (
                                 <Button
@@ -337,7 +336,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                 {promptText && (
                     <Text
                         fz="sm"
-                        fw={600}
+                        fw={500}
                         lineClamp={2}
                         className={classes.title}
                     >

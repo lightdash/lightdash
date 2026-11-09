@@ -33,33 +33,36 @@ const RecentAppSuggestion: FC<{
             title={`Continue building: ${displayName}`}
             onClick={() => onClick(app, position)}
         >
-            <span className={classes.row}>
-                <span className={classes.label}>{displayName}</span>
+            <Box component="span" className={classes.row}>
+                <Box component="span" className={classes.label}>
+                    {displayName}
+                </Box>
                 {isBuilding && (
-                    <span className={classes.status}>
+                    <Box component="span" className={classes.status}>
                         Building
                         {app.lastVersionNumber !== null
                             ? ` v${app.lastVersionNumber}`
                             : ''}
-                    </span>
+                    </Box>
                 )}
                 {!isBuilding && app.lastVersionStatus !== 'error' && (
-                    <span className={classes.status}>
+                    <Box component="span" className={classes.status}>
                         {app.lastVersionNumber !== null
                             ? `v${app.lastVersionNumber} · `
                             : ''}
                         {startedAgo}
-                    </span>
+                    </Box>
                 )}
                 {app.lastVersionStatus === 'error' && (
-                    <span
+                    <Box
+                        component="span"
                         className={`${classes.status} ${classes.errorStatus}`}
                     >
                         Build failed
-                    </span>
+                    </Box>
                 )}
                 {isBuilding && <Loader size={10} color="ldGray.6" />}
-            </span>
+            </Box>
         </Anchor>
     );
 };

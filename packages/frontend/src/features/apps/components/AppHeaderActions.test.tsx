@@ -119,7 +119,7 @@ const baseProps = {
     latestVersionStatus: 'ready' as const,
     onRefresh: vi.fn(),
     refreshAvailable: true,
-    network: { open: false, queryCount: 0, onToggle: vi.fn() },
+    network: { open: false, onToggle: vi.fn() },
     onDeleted: vi.fn(),
     onEdit: null,
     shareUrl: null,
@@ -227,7 +227,7 @@ describe('AppHeaderActions — Share', () => {
         defaultAbility.update([]);
     });
 
-    it('keeps the link in the share menu and deliveries in the overflow', async () => {
+    it('shows the link in the share menu without deliveries', async () => {
         const user = userEvent.setup();
         renderWithProviders(
             <AppHeaderActions

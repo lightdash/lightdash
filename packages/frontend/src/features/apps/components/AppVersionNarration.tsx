@@ -38,7 +38,7 @@ const BuildLogRow: FC<{
                 aria-expanded={open}
                 title={`${label} · ${timeAgo}`}
             >
-                <Group gap={8} wrap="nowrap">
+                <Group gap="xs" wrap="nowrap">
                     <Text size="xs" fw={500} className={classes.activityLabel}>
                         {label}
                     </Text>
@@ -82,7 +82,7 @@ const ActivityLogRow: FC<{ steps: string[] }> = ({ steps }) => {
                 onClick={() => setOpen((prev) => !prev)}
                 aria-expanded={open}
             >
-                <Group gap={8} wrap="nowrap">
+                <Group gap="xs" wrap="nowrap">
                     <Text size="xs" fw={500} className={classes.activityLabel}>
                         Activity
                     </Text>
@@ -108,7 +108,7 @@ const ActivityLogRow: FC<{ steps: string[] }> = ({ steps }) => {
     );
 };
 
-/** The shared Reasoning/Activity presentation for persisted builds. */
+/** The shared Reasoning/Activity presentation. */
 const AppVersionNarration: FC<Props> = ({
     narration,
     isLive,

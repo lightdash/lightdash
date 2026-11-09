@@ -387,8 +387,7 @@ const AppGenerate: FC = () => {
     } = useTrackedExternalRequests();
     // Parent-owned visibility so the X dismisses the panel completely and the
     // user re-opens it from the dots menu — same model as preview, for
-    // consistency. Defaults to visible because the builder is the technical
-    // workflow where seeing queries as they fire is the point.
+    // consistency. Starts hidden; selecting a lineage node opens it.
     const [networkPanelHidden, setNetworkPanelHidden] = useState(true);
     const handleLineageSelected = useCallback(
         (event: { queryUuid: string }) => {
@@ -3199,36 +3198,28 @@ const AppGenerate: FC = () => {
                                                         }
                                                     />
                                                 )}
-                                                {newAppLanding &&
-                                                    showThemePicker && (
-                                                        <Divider
-                                                            orientation="vertical"
-                                                            h={16}
-                                                            my="auto"
-                                                        />
-                                                    )}
-                                                {newAppLanding &&
-                                                    showThemePicker && (
-                                                        <ThemePicker
-                                                            compact
-                                                            value={
-                                                                currentThemeUuid
-                                                            }
-                                                            onChange={
-                                                                handleThemeChange
-                                                            }
-                                                            disabled={
-                                                                !newAppLanding &&
-                                                                isAgentWorking
-                                                            }
-                                                            fallbackLabel={
-                                                                currentThemeUuid &&
-                                                                displayThemeName
-                                                                    ? displayThemeName
-                                                                    : undefined
-                                                            }
-                                                        />
-                                                    )}
+                                                {newAppLanding && (
+                                                    <Divider
+                                                        orientation="vertical"
+                                                        h={16}
+                                                        my="auto"
+                                                    />
+                                                )}
+                                                {newAppLanding && (
+                                                    <ThemePicker
+                                                        compact
+                                                        value={currentThemeUuid}
+                                                        onChange={
+                                                            handleThemeChange
+                                                        }
+                                                        fallbackLabel={
+                                                            currentThemeUuid &&
+                                                            displayThemeName
+                                                                ? displayThemeName
+                                                                : undefined
+                                                        }
+                                                    />
+                                                )}
                                                 {newAppLanding &&
                                                     selectedTemplate !==
                                                         null && (
@@ -3504,8 +3495,6 @@ const AppGenerate: FC = () => {
                                             }
                                             network={{
                                                 open: !networkPanelHidden,
-                                                queryCount:
-                                                    trackedQueries.length,
                                                 onToggle: () =>
                                                     setNetworkPanelHidden(
                                                         (hidden) => !hidden,
