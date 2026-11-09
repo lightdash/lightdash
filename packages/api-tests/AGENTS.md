@@ -46,6 +46,10 @@ that race the one under test.
   seeded content) must
   be added to `serialFiles` in `vitest.config.ts`, where it runs alone after
   the parallel group.
+- Enable a feature flag through the org override (`POST
+  /api/v2/feature-flag/{flagId}`) in `beforeAll` and restore it (`DELETE`) in
+  `afterAll`, never via `LIGHTDASH_ENABLE_FEATURE_FLAGS`: ENV wins over
+  overrides (`docs/feature-flags.md`), so a test cannot turn it off.
 - Warehouse parity suites use `useSharedWarehouseProject(client, name)` from
   `helpers/shared-projects.ts` instead of creating their own remote project.
   Do not change a shared project's settings; create a dedicated project when
