@@ -44,7 +44,7 @@ import {
     type RegisteredAccount,
     type UpdateExternalConnection,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { groupBy, isEqual } from 'es-toolkit/compat';
 import { createHash, randomBytes } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -63,12 +63,14 @@ import type {
 } from '../../../services/QuerySourceService/api/ApiConnector';
 import {
     buildApiSourceExplores,
+    getApiSourceDefinitionHashes,
     getApiSourceExploreName,
     getApiSourceExploreNames,
     getApiSourceReservedExploreNames,
     getApiSourceWideDefinition,
     getLegacyLiveSourceName,
     getLiveSourceNameBase,
+    getLostApiSourceFieldIds,
     toScannedLiveSourceFields,
 } from '../../../services/QuerySourceService/api/apiSourceExplores';
 import { type ApiSourceScan } from '../../../services/QuerySourceService/api/ApiSourceIntegration';
@@ -191,6 +193,8 @@ type ExternalConnectionServiceArguments = {
         | 'deleteApiSourceExplores'
         | 'findExploreNamesTakenByOthers'
         | 'hasApiSourceExplores'
+        | 'listApiSourceExploreHashes'
+        | 'getApiSourceFieldIds'
     >;
     encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'liveSources' | 'auth'>;
@@ -1249,37 +1253,121 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
-    /** Rebuilds the source's explores from its stored scan and field edits, without calling the integration. */
+    /**
+     * Rebuilds the source's explores from its stored scan and field edits,
+     * without calling the integration. `keepFields` fails instead of removing
+     * a field the source has today, leaving its explores as they are.
+     */
     private async rebuildApiSourceExplores(
         connection: ExternalConnection,
         apiSource: ExternalConnectionApiSource,
+        { keepFields }: { keepFields: boolean } = { keepFields: false },
     ): Promise<void> {
         const { externalConnectionUuid, projectUuid } = connection;
-        const [sourceName, state] = await Promise.all([
-            this.resolveLiveSourceName(connection, apiSource),
-            this.externalConnectionModel.getLiveSourceFieldState(
-                externalConnectionUuid,
-            ),
-        ]);
-        const scannedFields = state.lastScan?.fields ?? [];
-        const explores = buildApiSourceExplores({
-            connectionUuid: externalConnectionUuid,
-            sourceName,
-            name: connection.name,
-            apiSource,
-            scannedFields,
-            edits:
-                state.fields ??
-                getInitialLiveSourceFieldEdits({
-                    scannedFields,
-                    isExistingSource: true,
-                }),
-        });
-        await this.projectModel.replaceApiSourceExplores(
-            projectUuid,
+        await this.externalConnectionModel.withLiveSourceBuildLock(
             externalConnectionUuid,
-            explores,
+            async () => {
+                const [sourceName, state] = await Promise.all([
+                    this.resolveLiveSourceName(connection, apiSource),
+                    this.externalConnectionModel.getLiveSourceFieldState(
+                        externalConnectionUuid,
+                    ),
+                ]);
+                const scannedFields = state.lastScan?.fields ?? [];
+                const edits =
+                    state.fields ??
+                    getInitialLiveSourceFieldEdits({
+                        scannedFields,
+                        isExistingSource: true,
+                    });
+                const explores = buildApiSourceExplores({
+                    connectionUuid: externalConnectionUuid,
+                    sourceName,
+                    name: connection.name,
+                    apiSource,
+                    scannedFields,
+                    edits,
+                });
+                if (keepFields) {
+                    const lost = getLostApiSourceFieldIds({
+                        storedFieldIds:
+                            await this.projectModel.getApiSourceFieldIds(
+                                projectUuid,
+                                externalConnectionUuid,
+                            ),
+                        rebuilt: explores,
+                        edits,
+                    });
+                    if (lost.length > 0) {
+                        throw new UnexpectedServerError(
+                            `Rebuilding would remove fields that charts can use: ${lost.join(', ')}`,
+                        );
+                    }
+                }
+                await this.projectModel.replaceApiSourceExplores(
+                    projectUuid,
+                    externalConnectionUuid,
+                    explores,
+                );
+            },
         );
+    }
+
+    /**
+     * Rebuilds every source whose explores no longer match the integration's
+     * code. Safe to repeat or overlap: a rebuilt source matches and is
+     * skipped, and each source is rebuilt on its own, so a failure only
+     * leaves that source's explores as they were until the next run.
+     */
+    async rebuildOutdatedApiSourceExplores(): Promise<{
+        rebuilt: number;
+        failed: number;
+    }> {
+        const sources = await this.externalConnectionModel.listLiveSourceRefs();
+        const stored = groupBy(
+            await this.projectModel.listApiSourceExploreHashes([
+                ...new Set(sources.map(({ projectUuid }) => projectUuid)),
+            ]),
+            'connectionUuid',
+        );
+        const counts = { rebuilt: 0, failed: 0 };
+        /* eslint-disable no-await-in-loop -- one at a time keeps a deploy's rebuilds off the connection pool */
+        for (const source of sources) {
+            const { externalConnectionUuid } = source;
+            try {
+                const hashes = (stored[externalConnectionUuid] ?? []).map(
+                    ({ definitionHash }) => definitionHash,
+                );
+                const isCurrent = isEqual(
+                    [...hashes].sort(),
+                    Object.values(
+                        getApiSourceDefinitionHashes(source.connector),
+                    ).sort(),
+                );
+                // A source with no explores was never built, so leave it to its own flow
+                if (hashes.length > 0 && !isCurrent) {
+                    const connection =
+                        await this.externalConnectionModel.findByUuid(
+                            externalConnectionUuid,
+                        );
+                    if (connection?.apiSource) {
+                        await this.rebuildApiSourceExplores(
+                            connection,
+                            connection.apiSource,
+                            { keepFields: true },
+                        );
+                        counts.rebuilt += 1;
+                    }
+                }
+            } catch (error) {
+                counts.failed += 1;
+                this.logger.error(
+                    `Could not rebuild live data source ${externalConnectionUuid}; its explores are unchanged: ${getErrorMessage(error)}`,
+                );
+            }
+        }
+        /* eslint-enable no-await-in-loop */
+        return counts;
     }
 
     /**

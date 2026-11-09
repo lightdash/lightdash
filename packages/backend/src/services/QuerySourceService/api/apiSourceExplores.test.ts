@@ -11,9 +11,11 @@ import {
 import {
     buildApiSourceExplores,
     compileApiSourceMetricQuery,
+    getApiSourceDefinitionHashes,
     getApiSourceExploreNames,
     getLegacyLiveSourceName,
     getLiveSourceNameBase,
+    getLostApiSourceFieldIds,
     toApiSourceResult,
     toPeriodStart,
     toScannedLiveSourceFields,
@@ -443,5 +445,99 @@ describe('toPeriodStart', () => {
         ['(other)', 'iso_week', '(other)'],
     ] as const)('reads %s as a %s starting %s', (value, format, expected) => {
         expect(toPeriodStart(value, format)).toBe(expected);
+    });
+});
+
+describe('definition hashes', () => {
+    const scan: ApiSourceScan = {};
+    const build = (sourceName: string, name: string) =>
+        buildApiSourceExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName,
+            name,
+            apiSource: {
+                connector: ApiConnectorType.SEARCH_CONSOLE,
+                siteUrl: 'sc-domain:example.com',
+            },
+            scannedFields: toScannedLiveSourceFields(
+                ApiConnectorType.SEARCH_CONSOLE,
+                scan,
+            ),
+            edits: {},
+        });
+
+    it.each(Object.values(ApiConnectorType))(
+        'hashes %s from code alone, the same for every source',
+        (connector) => {
+            const hashes = getApiSourceDefinitionHashes(connector);
+            expect(Object.values(hashes).length).toBeGreaterThan(0);
+            Object.values(hashes).forEach((hash) =>
+                expect(hash).toMatch(/^[0-9a-f]{64}$/),
+            );
+        },
+    );
+
+    it('stores the same hash whatever the prefix or label', () => {
+        const [first] = build('marketing', 'Marketing site');
+        const [second] = build('docs', 'Docs site');
+        expect(first.apiSource?.definitionHash).toBe(
+            second.apiSource?.definitionHash,
+        );
+        expect(first.apiSource?.definitionHash).toBe(
+            Object.values(
+                getApiSourceDefinitionHashes(ApiConnectorType.SEARCH_CONSOLE),
+            )[0],
+        );
+    });
+
+    it('stores the same hash when a field edit changes the explore', () => {
+        const apiSource = {
+            connector: ApiConnectorType.SEARCH_CONSOLE,
+            siteUrl: 'sc-domain:example.com',
+        } as const;
+        const [plain] = build('site', 'Site');
+        const [edited] = buildApiSourceExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'site',
+            name: 'Site',
+            apiSource,
+            scannedFields: [],
+            edits: { query: { label: 'Search term', lastEdit: null } },
+        });
+        expect(edited.apiSource?.definitionHash).toBe(
+            plain.apiSource?.definitionHash,
+        );
+    });
+});
+
+describe('getLostApiSourceFieldIds', () => {
+    const rebuilt = [
+        {
+            name: 'site_performance',
+            apiSource: { fields: { site_performance_clicks: {} } },
+        },
+    ] as unknown as Explore[];
+
+    it('reports a stored field the rebuild no longer has', () => {
+        expect(
+            getLostApiSourceFieldIds({
+                storedFieldIds: [
+                    'site_performance_clicks',
+                    'site_performance_custom',
+                ],
+                rebuilt,
+                edits: {},
+            }),
+        ).toEqual(['site_performance_custom']);
+    });
+
+    it('allows dropping a field an admin took out of use', () => {
+        expect(
+            getLostApiSourceFieldIds({
+                storedFieldIds: ['site_performance_custom'],
+                rebuilt,
+                edits: { custom: { inUse: false, lastEdit: null } },
+            }),
+        ).toEqual([]);
     });
 });

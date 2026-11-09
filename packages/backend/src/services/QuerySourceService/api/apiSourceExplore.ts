@@ -80,6 +80,7 @@ export const buildApiSourceExplore = ({
     connectionUuid,
     integration,
     baseVersion,
+    definitionHash,
     capabilities,
     warehouseSqlBuilder,
 }: {
@@ -89,6 +90,7 @@ export const buildApiSourceExplore = ({
     connectionUuid: string;
     integration: ApiConnectorType;
     baseVersion: number;
+    definitionHash?: string;
     capabilities: ApiConnectorCapabilities;
     warehouseSqlBuilder: WarehouseSqlBuilder;
 }): Explore => {
@@ -190,6 +192,7 @@ export const buildApiSourceExplore = ({
             connectionUuid,
             integration,
             baseVersion,
+            definitionHash,
             // Kept for readers of explores built before capabilities
             filterGroups: {
                 or: capabilities.filters.or,

@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     DimensionType,
     generateSlug,
+    getItemId,
     isDimension,
     SupportedDbtAdapter,
     UnexpectedServerError,
@@ -14,6 +15,8 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { createHash } from 'crypto';
+import { isPlainObject, memoize } from 'es-toolkit/compat';
 import {
     assertApiSourceQuery,
     buildApiSourceExplore,
@@ -140,6 +143,97 @@ export const toScannedLiveSourceFields = (
     ];
 };
 
+const buildDefinitionExplore = (
+    connector: ApiConnectorType,
+    args: Pick<
+        Parameters<typeof buildApiSourceExplore>[0],
+        | 'definition'
+        | 'exploreName'
+        | 'label'
+        | 'connectionUuid'
+        | 'definitionHash'
+    >,
+) => {
+    const { baseVersion, capabilities } = getApiSourceBaseLayer(connector);
+    return buildApiSourceExplore({
+        ...args,
+        integration: connector,
+        baseVersion,
+        capabilities,
+        warehouseSqlBuilder:
+            getApiSourceIntegration(connector).warehouseSqlBuilder ??
+            DEFAULT_SQL_BUILDER,
+    });
+};
+
+/** JSON with object keys sorted, so a hash can't depend on key order. */
+const toStableJson = (value: unknown): string =>
+    JSON.stringify(value, (_key, nested: unknown) =>
+        isPlainObject(nested)
+            ? Object.fromEntries(
+                  Object.entries(nested as object).sort(([left], [right]) =>
+                      left < right ? -1 : 1,
+                  ),
+              )
+            : nested,
+    );
+
+/**
+ * What the integration's code currently builds, by model name. Each hash
+ * comes from the explore built with placeholders for everything specific to
+ * one source (prefix, label, connection, scanned fields, field edits), so it
+ * changes when the code's output does, and nobody has to bump a version.
+ */
+export const getApiSourceDefinitionHashes = memoize(
+    (connector: ApiConnectorType): Record<string, string> =>
+        Object.fromEntries(
+            getApiSourceBaseLayer(connector).definitions.map((definition) => [
+                definition.name,
+                createHash('sha256')
+                    .update(
+                        toStableJson(
+                            buildDefinitionExplore(connector, {
+                                definition,
+                                exploreName: getApiSourceExploreName(
+                                    'source',
+                                    definition.name,
+                                ),
+                                label: 'source',
+                                connectionUuid: 'connection',
+                            }),
+                        ),
+                    )
+                    .digest('hex'),
+            ]),
+        ),
+);
+
+/**
+ * Field ids stored today that a rebuild would lose, which would break the
+ * charts on them. A field an admin took out of use isn't lost.
+ */
+export const getLostApiSourceFieldIds = ({
+    storedFieldIds,
+    rebuilt,
+    edits,
+}: {
+    storedFieldIds: string[];
+    rebuilt: Explore[];
+    edits: LiveSourceFieldEdits;
+}): string[] => {
+    const kept = new Set([
+        ...rebuilt.flatMap(({ apiSource }) =>
+            Object.keys(apiSource?.fields ?? {}),
+        ),
+        ...Object.entries(edits).flatMap(([name, edit]) =>
+            edit.inUse === false
+                ? [getItemId({ table: rebuilt[0].name, name })]
+                : [],
+        ),
+    ]);
+    return storedFieldIds.filter((fieldId) => !kept.has(fieldId));
+};
+
 /** The explores a live data source answers metric queries with. */
 export const buildApiSourceExplores = ({
     connectionUuid,
@@ -157,23 +251,17 @@ export const buildApiSourceExplores = ({
     edits: LiveSourceFieldEdits;
 }): Explore[] => {
     const {
-        baseVersion,
-        capabilities,
         definitions: [wide, ...others],
     } = getApiSourceBaseLayer(apiSource.connector);
+    const definitionHashes = getApiSourceDefinitionHashes(apiSource.connector);
     const build = (definition: ApiSourceExploreDefinition, isWide: boolean) =>
-        buildApiSourceExplore({
+        buildDefinitionExplore(apiSource.connector, {
             definition,
             exploreName: getApiSourceExploreName(sourceName, definition.name),
             // The wide model keeps the source's name; the others add theirs
             label: isWide ? label : `${label} ${definition.label}`,
             connectionUuid,
-            integration: apiSource.connector,
-            baseVersion,
-            capabilities,
-            warehouseSqlBuilder:
-                getApiSourceIntegration(apiSource.connector)
-                    .warehouseSqlBuilder ?? DEFAULT_SQL_BUILDER,
+            definitionHash: definitionHashes[definition.name],
         });
     return [
         build(

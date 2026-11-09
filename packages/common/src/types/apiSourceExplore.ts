@@ -87,6 +87,11 @@ export type ApiSourceExplore = {
     integration: ApiConnectorType;
     /** Version of the integration's semantic layer that built the explore. */
     baseVersion: number;
+    /**
+     * Hash of what the integration's code defines for this explore. Absent on
+     * explores built before hashes, which counts as out of date.
+     */
+    definitionHash?: string;
     filterGroups: {
         or: boolean;
         nested: boolean;
