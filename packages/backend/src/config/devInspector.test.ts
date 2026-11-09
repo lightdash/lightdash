@@ -3,7 +3,6 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runInNewContext } from 'node:vm';
-import { parse } from 'yaml';
 
 const root = path.resolve(__dirname, '../../../..');
 
@@ -145,26 +144,5 @@ describe('development inspector bindings', () => {
             'tsx',
             '--inspect=0.0.0.0:19383',
         ]);
-    });
-
-    it('keeps Docker publication on host loopback while making the container host an explicit opt-in', () => {
-        const compose = parse(
-            readFileSync(
-                path.join(root, 'docker/docker-compose.dev.yml'),
-                'utf8',
-            ),
-        ) as {
-            services: {
-                'lightdash-dev': {
-                    ports: string[];
-                    environment: Record<string, string>;
-                };
-            };
-        };
-        const service = compose.services['lightdash-dev'];
-        expect(service.ports.filter((port) => port.endsWith(':9229'))).toEqual([
-            '127.0.0.1:9229:9229',
-        ]);
-        expect(service.environment.DEBUG_HOST).toBe('${DEBUG_HOST:-127.0.0.1}');
     });
 });

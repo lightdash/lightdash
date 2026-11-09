@@ -182,18 +182,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
 # -----------------------------
-# Stage 1: stop here for dev environment
-# -----------------------------
-FROM base AS dev
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client \
-    && apt-get clean
-
-EXPOSE 3000
-EXPOSE 8080
-
-# -----------------------------
 # Stage 2: continue build for production environment
 # -----------------------------
 
