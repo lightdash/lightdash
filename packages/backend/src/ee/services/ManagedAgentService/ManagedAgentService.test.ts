@@ -995,9 +995,9 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             }),
         );
         await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
-        const [{ user, resolveKeyManagement, isEmbedViewer }] =
+        const [{ user: actor, resolveKeyManagement, isEmbedViewer }] =
             aiCreditService.assertAiCreditsAvailable.mock.calls[0];
-        expect(user.userUuid).toBe(USER_UUID);
+        expect(actor.userUuid).toBe(USER_UUID);
         expect(isEmbedViewer).toBe(false);
         await expect(resolveKeyManagement()).resolves.toBe('lightdash-managed');
         expect(doGenerate).not.toHaveBeenCalled();
