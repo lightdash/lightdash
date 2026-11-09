@@ -491,6 +491,7 @@ describe('bulk model rename discovery', () => {
             dashboards: [],
             alerts: [],
             dashboardSchedulers: [],
+            skippedCharts: [],
         };
         expect(
             await bulkService.previewRenameResources({
@@ -535,6 +536,9 @@ describe('bulk model rename discovery', () => {
         const renamed = result.charts.map((c) => c.uuid);
         expect(renamed).toContain('base-with-joined-only-fields');
         expect(renamed).not.toContain('joined-reference');
+        expect(result.skippedCharts).toEqual([
+            { uuid: 'joined-reference', name: 'joined-reference' },
+        ]);
         expect(bulkSavedChartModel.get).not.toHaveBeenCalledWith(
             'joined-reference',
         );
@@ -558,6 +562,7 @@ describe('bulk model rename discovery', () => {
             dashboards: [],
             alerts: [],
             dashboardSchedulers: [],
+            skippedCharts: [],
         });
     });
 
@@ -604,6 +609,7 @@ describe('bulk model rename discovery', () => {
                         name: dashboardScheduler.name,
                     },
                 ],
+                skippedCharts: [],
             };
             const preview = await bulkService.previewRenameResources({
                 ...payload,

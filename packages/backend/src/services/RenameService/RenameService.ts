@@ -1160,6 +1160,10 @@ export class RenameService extends BaseService {
                     uuid: d.schedulerUuid,
                     name: d.name,
                 })),
+                skippedCharts: composerCharts.map(({ uuid, name }) => ({
+                    uuid,
+                    name,
+                })),
             };
         } catch (error) {
             this.analytics.track({
