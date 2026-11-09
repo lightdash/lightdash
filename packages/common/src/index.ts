@@ -721,6 +721,8 @@ export const SEED_COMPOSER_CHART = {
     revenueShare: '[Composer] Revenue share by order status',
     /** Reads a dimension gated by the is_admin user attribute */
     customersByAge: '[Composer] Customers by age',
+    /** A permitted node ahead of the is_admin-gated one, joined by a DuckDB node */
+    revenueAndCustomers: '[Composer] Revenue and customers',
 };
 
 export type ArgumentsOf<F extends Function> = F extends (

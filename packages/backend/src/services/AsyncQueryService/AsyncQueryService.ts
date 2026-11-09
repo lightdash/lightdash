@@ -104,6 +104,7 @@ import {
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeQuery,
     MetricQuery,
+    metricQueryOfSemanticNode,
     MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
@@ -439,6 +440,7 @@ import {
     assertPivotWithinColumnLimit,
     getPivotColumnReferences,
 } from './composePivot';
+import { assertMetricQueryFieldsVisible } from './composerChartFieldAccess';
 import { ComposerChartQueryContext } from './ComposerChartQueryContext';
 import {
     setPhaseTimingAttributes,
@@ -9052,7 +9054,11 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    /** Run-time reshaping of the stored pipeline is refused by name; `pivotResults` is ignored since nothing is pivoted. */
+    /**
+     * Run-time reshaping of the stored pipeline is refused by name;
+     * `pivotResults` is ignored since nothing is pivoted. `schedulerFilters`
+     * only arrives from internal callers: HTTP has no such field and drops it.
+     */
     private static assertNoComposerChartRunOptions(
         options: Record<string, unknown>,
     ): void {
@@ -9064,6 +9070,50 @@ export class AsyncQueryService extends ProjectService {
                 `${given.join(', ')} cannot be applied to a composer chart`,
             );
         }
+    }
+
+    /**
+     * Every semantic node is checked against the viewer's attribute-filtered
+     * explore before any node is submitted, so a refusal leaves no node
+     * executed and no history row written.
+     */
+    private async assertComposerChartNodesVisible({
+        account,
+        chart,
+        userAttributeOverrides,
+    }: {
+        account: Account;
+        chart: ComposerSavedChartDAO;
+        userAttributeOverrides: UserAttributeValueMap | undefined;
+    }): Promise<void> {
+        const semanticNodes = chart.pipeline.nodes.filter(
+            (node) => node.sourceType === QuerySourceType.SEMANTIC_LAYER,
+        );
+        const exploreNames = [
+            ...new Set(semanticNodes.map((node) => node.exploreName)),
+        ];
+        const explores = Object.fromEntries(
+            await Promise.all(
+                exploreNames.map(async (exploreName) => {
+                    const { explore } =
+                        await this.getExploreWithUserAccessControls(
+                            account,
+                            chart.projectUuid,
+                            exploreName,
+                            chart.organizationUuid,
+                            true,
+                            userAttributeOverrides,
+                        );
+                    return [exploreName, explore] as const;
+                }),
+            ),
+        );
+        semanticNodes.forEach((node) => {
+            assertMetricQueryFieldsVisible(
+                metricQueryOfSemanticNode(node),
+                explores[node.exploreName],
+            );
+        });
     }
 
     // Semantic nodes carry the chart context so the metric-query path checks
@@ -9120,6 +9170,12 @@ export class AsyncQueryService extends ProjectService {
             ...(chart.parameters ?? {}),
             ...(parameters ?? {}),
         };
+
+        await this.assertComposerChartNodesVisible({
+            account,
+            chart,
+            userAttributeOverrides,
+        });
 
         const { queries } = await this.getQuerySourceService().submitQueries({
             composerChartQueryContext: ComposerChartQueryContext.fromChart(

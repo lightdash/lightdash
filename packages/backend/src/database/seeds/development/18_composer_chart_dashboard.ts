@@ -124,6 +124,55 @@ const customersByAge: SeedComposerChart = {
     },
 };
 
+// Mirrors the proof fixture: an attribute refusal on `customers` must leave
+// the already-permitted `orders` node unexecuted.
+const revenueAndCustomers: SeedComposerChart = {
+    name: SEED_COMPOSER_CHART.revenueAndCustomers,
+    chartKind: ChartKind.TABLE,
+    chartType: ChartType.TABLE,
+    chartConfig: {},
+    pipeline: {
+        schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
+        nodes: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'orders',
+                title: 'Revenue by order status',
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_total_order_amount'],
+                sorts: [{ fieldId: 'orders_status', descending: false }],
+                limit: 500,
+            },
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'customers',
+                title: 'Customers by age',
+                exploreName: 'customers',
+                dimensions: ['customers_age'],
+                metrics: ['customers_unique_customer_count'],
+                sorts: [{ fieldId: 'customers_age', descending: false }],
+                limit: 500,
+            },
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'joined',
+                title: 'Revenue and customers',
+                sql: [
+                    'SELECT o.orders_status, o.orders_total_order_amount, c.customers_age, c.customers_unique_customer_count',
+                    'FROM orders o',
+                    'INNER JOIN customers c ON c.customers_age % 5 = CASE o.orders_status',
+                    "  WHEN 'placed' THEN 0 WHEN 'completed' THEN 1 WHEN 'returned' THEN 2 WHEN 'return_pending' THEN 3 ELSE 4 END",
+                    'ORDER BY o.orders_status, c.customers_age',
+                ].join('\n'),
+                references: ['orders', 'customers'],
+                limit: 500,
+            },
+        ],
+        terminalNodeId: 'joined',
+    },
+};
+
 const insertComposerChart = async (
     knex: Knex,
     dashboardUuid: string,
@@ -191,7 +240,7 @@ export async function seed(knex: Knex): Promise<void> {
     );
 
     const chartUuids = await Promise.all(
-        [revenueShare, customersByAge].map((chart) =>
+        [revenueShare, customersByAge, revenueAndCustomers].map((chart) =>
             insertComposerChart(knex, dashboard.uuid, chart),
         ),
     );

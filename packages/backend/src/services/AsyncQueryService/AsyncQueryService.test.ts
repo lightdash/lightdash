@@ -9,6 +9,7 @@ import {
     AnyType,
     ApiConnectorType,
     assertUnreachable,
+    AuthorizationError,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -31473,6 +31474,253 @@ describe('composer chart runs and the internal materialization context', () => {
         ).rejects.toThrow(
             `context ${QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION} cannot run a composer chart`,
         );
+        expect(submitQueries).not.toHaveBeenCalled();
+    });
+});
+
+describe('composer chart runs check every node against the viewer explore before any node runs', () => {
+    const table = (
+        name: string,
+        dimensions: string[],
+        metrics: string[],
+    ): Explore['tables'][string] => ({
+        ...validExplore.tables.a,
+        name,
+        label: name,
+        dimensions: Object.fromEntries(
+            dimensions.map((dimension) => [
+                dimension,
+                {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    name: dimension,
+                    label: dimension,
+                    table: name,
+                    tablesReferences: [name],
+                },
+            ]),
+        ),
+        metrics: Object.fromEntries(
+            metrics.map((metric) => [
+                metric,
+                {
+                    ...validExplore.tables.a.metrics.met1,
+                    name: metric,
+                    label: metric,
+                    table: name,
+                    tablesReferences: [name],
+                },
+            ]),
+        ),
+    });
+    const exploreOf = (
+        name: string,
+        visible: Explore['tables'][string],
+        unfiltered: Explore['tables'][string] = visible,
+    ): Explore => ({
+        ...validExplore,
+        name,
+        label: name,
+        baseTable: name,
+        joinedTables: [],
+        tables: { [name]: visible },
+        unfilteredTables: { [name]: unfiltered },
+    });
+    const ordersExplore = exploreOf(
+        'orders',
+        table('orders', ['status'], ['total_order_amount']),
+    );
+    const customersExplore = exploreOf(
+        'customers',
+        table('customers', ['age'], ['unique_customer_count']),
+    );
+    // The viewer lacks the attribute `customers_age` requires
+    const customersExploreWithoutAge = exploreOf(
+        'customers',
+        table('customers', [], ['unique_customer_count']),
+        table('customers', ['age'], ['unique_customer_count']),
+    );
+    const chart = {
+        uuid: 'composer-chart',
+        name: 'Revenue and customers',
+        projectUuid,
+        organizationUuid: projectSummary.organizationUuid,
+        spaceUuid: 'space',
+        dashboardUuid: 'dashboard',
+        pipeline: {
+            schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
+            nodes: [
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    nodeId: 'orders',
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total_order_amount'],
+                    limit: 500,
+                },
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    nodeId: 'customers',
+                    exploreName: 'customers',
+                    dimensions: ['customers_age'],
+                    metrics: ['customers_unique_customer_count'],
+                    limit: 500,
+                },
+                {
+                    sourceType: QuerySourceType.DUCKDB,
+                    nodeId: 'joined',
+                    sql: 'SELECT * FROM orders, customers',
+                    references: ['orders', 'customers'],
+                    limit: 500,
+                },
+            ],
+            terminalNodeId: 'joined',
+        },
+        chartConfig: { type: ChartType.TABLE, config: {} },
+        pivotConfig: null,
+        parameters: null,
+    } as unknown as ComposerSavedChartDAO;
+
+    const buildService = (explores: Record<string, Explore>) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => ({
+                    queryType: 'composer' as const,
+                    chart,
+                })),
+            } as unknown as SavedChartModel,
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }: AnyType) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.ComposeSqlRunner,
+                })),
+            } as unknown as FeatureFlagModel,
+            spaceModel: {
+                getSpaceSummary: vi.fn(async () => ({
+                    uuid: chart.spaceUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid,
+                })),
+            } as unknown as SpaceModel,
+            analyticsModel: {
+                addChartViewEvent: vi.fn(async () => {}),
+            } as unknown as AnalyticsModel,
+        } as never);
+        const getExplore = vi
+            .spyOn(service, 'getExploreWithUserAccessControls')
+            .mockImplementation(
+                async (_account, _projectUuid, exploreName) => ({
+                    explore: explores[exploreName],
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                }),
+            );
+        const submitQueries = vi
+            .spyOn(QuerySourceService.prototype, 'submitQueries')
+            .mockResolvedValue({
+                queries: chart.pipeline.nodes.map(({ nodeId, sourceType }) => ({
+                    nodeId,
+                    sourceType,
+                    queryUuid: `${nodeId}-query`,
+                    cacheHit: false,
+                })),
+            });
+        return { service, getExplore, submitQueries };
+    };
+    // A dashboard viewer: may view the project and the chart, nothing more
+    const viewerAccount = () => {
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+        ]);
+        return account;
+    };
+    const dashboardArgs = () => ({
+        account: viewerAccount(),
+        projectUuid,
+        chartUuid: chart.uuid,
+        tileUuid: 'tile',
+        dashboardUuid: 'dashboard',
+        dashboardFilters: {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        },
+        dashboardSorts: [],
+        context: QueryExecutionContext.DASHBOARD,
+    });
+    const chartArgs = () => ({
+        account: viewerAccount(),
+        projectUuid,
+        chartUuid: chart.uuid,
+        context: QueryExecutionContext.CHART,
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    test('the dashboard path refuses a later hidden node before the permitted node is submitted', async () => {
+        const { service, getExplore, submitQueries } = buildService({
+            orders: ordersExplore,
+            customers: customersExploreWithoutAge,
+        });
+        await expect(
+            service.executeAsyncDashboardChartQuery(dashboardArgs()),
+        ).rejects.toThrow(AuthorizationError);
+        expect(submitQueries).not.toHaveBeenCalled();
+        expect(getExplore).toHaveBeenCalledTimes(2);
+    });
+
+    test('the saved-chart path refuses the same way', async () => {
+        const { service, submitQueries } = buildService({
+            orders: ordersExplore,
+            customers: customersExploreWithoutAge,
+        });
+        await expect(
+            service.executeAsyncSavedChartQuery(chartArgs()),
+        ).rejects.toThrow(
+            "You don't have authorization to access this explore",
+        );
+        expect(submitQueries).not.toHaveBeenCalled();
+    });
+
+    test('with every node field visible the whole pipeline is submitted once', async () => {
+        const { service, submitQueries } = buildService({
+            orders: ordersExplore,
+            customers: customersExplore,
+        });
+        const result =
+            await service.executeAsyncDashboardChartQuery(dashboardArgs());
+        expect(submitQueries).toHaveBeenCalledTimes(1);
+        expect(submitQueries.mock.calls[0][0].queries).toBe(
+            chart.pipeline.nodes,
+        );
+        expect(result).toMatchObject({
+            queryType: 'composer',
+            queryUuid: 'joined-query',
+            terminalNodeId: 'joined',
+        });
+    });
+
+    // HTTP has no `schedulerFilters` field on these routes, so only an
+    // internal caller can supply it; the service is where it is refused.
+    test('schedulerFilters supplied internally are refused by name before any explore is read', async () => {
+        const { service, getExplore, submitQueries } = buildService({
+            orders: ordersExplore,
+            customers: customersExplore,
+        });
+        await expect(
+            service.executeAsyncSavedChartQuery({
+                ...chartArgs(),
+                schedulerFilters: { dimensions: { id: 'g', and: [] } },
+            }),
+        ).rejects.toThrow(
+            'schedulerFilters cannot be applied to a composer chart',
+        );
+        expect(getExplore).not.toHaveBeenCalled();
         expect(submitQueries).not.toHaveBeenCalled();
     });
 });

@@ -79,7 +79,9 @@ describe('Composer chart run as a dashboard viewer', () => {
     let dashboardUuid: string;
     let revenueShareTile: Tile;
     let customersByAgeTile: Tile;
+    let revenueAndCustomersTile: Tile;
     let flagWasEnabled: boolean;
+    let historyFlagWasEnabled: boolean;
     let cacheWasEnabled: boolean;
 
     const pollQueryResults = async (
@@ -128,6 +130,18 @@ describe('Composer chart run as a dashboard viewer', () => {
             { chartUuid, context: QueryExecutionContext.CHART },
         );
 
+    const historyUrl = `/api/v2/projects/${projectUuid}/query/history?pageSize=100`;
+    type HistoryBody = Body<{ data: QueryHistoryListItem[] }>;
+
+    /** The caller's own history, newest first. */
+    const listHistory = async (
+        client: ApiClient,
+    ): Promise<QueryHistoryListItem[]> => {
+        const resp = await client.get<HistoryBody>(historyUrl);
+        expect(resp.status).toBe(200);
+        return resp.body.results.data;
+    };
+
     const runMetricQuery = (client: ApiClient, query: unknown) =>
         client.post<Body<ApiExecuteAsyncMetricQueryResults> & ApiErrorBody>(
             `/api/v2/projects/${projectUuid}/query/metric-query`,
@@ -147,6 +161,19 @@ describe('Composer chart run as a dashboard viewer', () => {
         if (!flagWasEnabled) {
             const enabled = await admin.post(
                 `/api/v2/feature-flag/${COMPOSE_FLAG}`,
+                { enabled: true },
+            );
+            expect(enabled.status).toBe(200);
+        }
+
+        const historyFlag = await admin.get<Body<FeatureFlag>>(
+            `/api/v2/feature-flag/${QUERY_HISTORY_FLAG}`,
+        );
+        expect(historyFlag.status).toBe(200);
+        historyFlagWasEnabled = historyFlag.body.results.enabled;
+        if (!historyFlagWasEnabled) {
+            const enabled = await admin.post(
+                `/api/v2/feature-flag/${QUERY_HISTORY_FLAG}`,
                 { enabled: true },
             );
             expect(enabled.status).toBe(200);
@@ -180,11 +207,19 @@ describe('Composer chart run as a dashboard viewer', () => {
         };
         revenueShareTile = tileFor(SEED_COMPOSER_CHART.revenueShare);
         customersByAgeTile = tileFor(SEED_COMPOSER_CHART.customersByAge);
+        revenueAndCustomersTile = tileFor(
+            SEED_COMPOSER_CHART.revenueAndCustomers,
+        );
     });
 
     afterAll(async () => {
         if (!flagWasEnabled) {
             await admin.post(`/api/v2/feature-flag/${COMPOSE_FLAG}`, {
+                enabled: false,
+            });
+        }
+        if (!historyFlagWasEnabled) {
+            await admin.post(`/api/v2/feature-flag/${QUERY_HISTORY_FLAG}`, {
                 enabled: false,
             });
         }
@@ -343,6 +378,36 @@ describe('Composer chart run as a dashboard viewer', () => {
             expect(started.body.error.name).toBe('AuthorizationError');
         });
 
+        it('refuses the whole run before any node executes: the permitted node leaves no history row', async () => {
+            const before = (await listHistory(viewer)).map(
+                ({ queryUuid }) => queryUuid,
+            );
+
+            const viaTile = await viewer.post<ApiErrorBody>(
+                `/api/v2/projects/${projectUuid}/query/dashboard-chart`,
+                tileRequest(revenueAndCustomersTile, { invalidateCache: true }),
+                { failOnStatusCode: false },
+            );
+            const viaChart = await viewer.post<ApiErrorBody>(
+                `/api/v2/projects/${projectUuid}/query/chart`,
+                {
+                    chartUuid: revenueAndCustomersTile.chartUuid,
+                    context: QueryExecutionContext.CHART,
+                    invalidateCache: true,
+                },
+                { failOnStatusCode: false },
+            );
+            for (const refused of [viaTile, viaChart]) {
+                expect(refused.status).toBe(401);
+                expect(refused.body.error.name).toBe('AuthorizationError');
+            }
+
+            const after = (await listHistory(viewer)).map(
+                ({ queryUuid }) => queryUuid,
+            );
+            expect(after).toEqual(before);
+        });
+
         it('runs once the viewer holds the attribute', async () => {
             const granted = await putAttribute([
                 ...isAdminAttribute.users.filter(
@@ -419,18 +484,13 @@ describe('Composer chart run as a dashboard viewer', () => {
     );
 
     describe('query history shows node SQL only with SQL runner access', () => {
-        let historyFlagWasEnabled: boolean;
         let classicQueryUuid: string;
-        const historyUrl = `/api/v2/projects/${projectUuid}/query/history?pageSize=100`;
-        type HistoryBody = Body<{ data: QueryHistoryListItem[] }>;
 
         const historyRows = async (
             client: ApiClient,
             queryUuids: string[],
         ): Promise<QueryHistoryListItem[]> => {
-            const resp = await client.get<HistoryBody>(historyUrl);
-            expect(resp.status).toBe(200);
-            const rows = resp.body.results.data.filter((row) =>
+            const rows = (await listHistory(client)).filter((row) =>
                 queryUuids.includes(row.queryUuid),
             );
             expect(rows.map(({ queryUuid }) => queryUuid).sort()).toEqual(
@@ -462,29 +522,6 @@ describe('Composer chart run as a dashboard viewer', () => {
             )!;
             return { duckdbRow, semanticRow };
         };
-
-        beforeAll(async () => {
-            const flag = await admin.get<Body<FeatureFlag>>(
-                `/api/v2/feature-flag/${QUERY_HISTORY_FLAG}`,
-            );
-            expect(flag.status).toBe(200);
-            historyFlagWasEnabled = flag.body.results.enabled;
-            if (!historyFlagWasEnabled) {
-                const enabled = await admin.post(
-                    `/api/v2/feature-flag/${QUERY_HISTORY_FLAG}`,
-                    { enabled: true },
-                );
-                expect(enabled.status).toBe(200);
-            }
-        });
-
-        afterAll(async () => {
-            if (!historyFlagWasEnabled) {
-                await admin.post(`/api/v2/feature-flag/${QUERY_HISTORY_FLAG}`, {
-                    enabled: false,
-                });
-            }
-        });
 
         it('a viewer sees the node rows without compiled SQL, node SQL or an SQL subline', async () => {
             const { duckdbRow, semanticRow } =
