@@ -41,6 +41,7 @@ import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { type ServiceRepository } from '../ServiceRepository';
 import { CoderService } from './CoderService';
+import { getControlOrderAsCode } from './controlOrder';
 
 const PROJECT_UUID = '11111111-1111-4111-8111-111111111111';
 const ORG_UUID = 'org-uuid';
@@ -4157,13 +4158,13 @@ describe('CoderService dashboard control order as code', () => {
             [...file.filters!.dimensions!, ...file.filters!.metrics!].map(
                 ({ slug }) => slug,
             ),
-        ).toEqual(['orders-status-1', 'orders-status-2', 'orders-total']);
+        ).toEqual(['orders-status', 'orders-city', 'orders-total']);
         expect(file.config?.controlOrder).toEqual([
-            { kind: 'filter', slug: 'orders-status-1' },
+            { kind: 'filter', slug: 'orders-status' },
             { kind: 'filter', slug: 'orders-total' },
             { kind: 'parameter', slug: 'region' },
             { kind: 'section', slug: 'calendar', newLine: true },
-            { kind: 'filter', slug: 'orders-status-2' },
+            { kind: 'filter', slug: 'orders-city' },
         ]);
     });
 
@@ -4223,8 +4224,8 @@ describe('CoderService dashboard control order as code', () => {
             expect(dashboards[0].config?.controlOrder).toEqual(
                 enabled
                     ? [
-                          { kind: 'filter', slug: 'orders-status-1' },
-                          { kind: 'filter', slug: 'orders-status-2' },
+                          { kind: 'filter', slug: 'orders-status' },
+                          { kind: 'filter', slug: 'orders-city' },
                           { kind: 'filter', slug: 'orders-total' },
                       ]
                     : undefined,
@@ -4243,8 +4244,8 @@ describe('CoderService dashboard control order as code', () => {
         expect(download(dashboard as DashboardDAO, true, true).config).toEqual({
             isDateZoomDisabled: false,
             controlOrder: [
-                { kind: 'filter', slug: 'orders-status-1' },
-                { kind: 'filter', slug: 'orders-status-2' },
+                { kind: 'filter', slug: 'orders-status' },
+                { kind: 'filter', slug: 'orders-city' },
                 { kind: 'filter', slug: 'orders-total' },
             ],
         });
@@ -4279,28 +4280,60 @@ describe('CoderService dashboard control order as code', () => {
         );
         expect(saved.tiles[0].properties.title).toBe('Renamed tile');
         expect(saved.config).not.toHaveProperty('controlOrder');
-        // The derived slugs the agent read are stored, so they stay stable
+        // The slugs the agent read only resolve refs in the file: ids are kept, slugs never stored
         expect(
             [...saved.filters.dimensions, ...saved.filters.metrics].map(
-                ({ id, slug }) => [id, slug],
+                (filter) => [filter.id, 'slug' in filter],
             ),
         ).toEqual([
-            ['first-id', 'orders-status-1'],
-            ['second-id', 'orders-status-2'],
-            ['metric-id', 'orders-total'],
+            ['first-id', false],
+            ['second-id', false],
+            ['metric-id', false],
         ]);
     });
 
-    const withCityFilter = (file: DashboardAsCode) => ({
+    it('stores no config when an agent edits a dashboard that had none', async () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, true, true);
+        const saved = await upload(file, {
+            saved: dashboard as DashboardDAO,
+        });
+        expect(saved.config).toBeUndefined();
+    });
+
+    it('stores a config when an agent reorders a dashboard that had none', async () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, true, true);
+        const saved = await upload(
+            {
+                ...file,
+                config: {
+                    ...file.config!,
+                    controlOrder: [...file.config!.controlOrder!].reverse(),
+                },
+            },
+            { saved: dashboard as DashboardDAO },
+        );
+        expect(saved.config).toEqual({
+            isDateZoomDisabled: false,
+            controlOrder: [
+                { kind: 'filter', id: 'metric-id' },
+                { kind: 'filter', id: 'second-id' },
+                { kind: 'filter', id: 'first-id' },
+            ],
+        });
+    });
+
+    const withCountryFilter = (file: DashboardAsCode) => ({
         ...file,
         filters: {
             ...file.filters,
             dimensions: [
                 ...file.filters!.dimensions!,
                 {
-                    slug: 'orders-city',
+                    slug: 'orders-country',
                     label: undefined,
-                    target: { fieldId: 'orders_city', tableName: 'orders' },
+                    target: { fieldId: 'orders_country', tableName: 'orders' },
                     operator: FilterOperator.EQUALS,
                     values: ['Lisbon'],
                 },
@@ -4340,7 +4373,7 @@ describe('CoderService dashboard control order as code', () => {
     it('stores no order when a member ref is listed away from its section', async () => {
         const file = download(withoutOrder(), true, true);
         const order = file.config!.controlOrder!;
-        const member = order.find(({ slug }) => slug === 'orders-status-2')!;
+        const member = order.find(({ slug }) => slug === 'orders-city')!;
         const saved = await upload(
             {
                 ...file,
@@ -4366,6 +4399,15 @@ describe('CoderService dashboard control order as code', () => {
             { saved: withoutOrder() as DashboardDAO },
         );
 
+    // The bar as a download writes it, with derived slugs
+    const barOf = (saved: AnyType) =>
+        getControlOrderAsCode({
+            controlOrder: saved.config!.controlOrder,
+            filters: saved.filters,
+            parameterControls: saved.config!.parameterControls!,
+            sections: saved.config!.controlSections!,
+        }).map(({ kind, slug, newLine }) => [kind, slug, newLine ?? false]);
+
     it('stores a partial list that puts a saved control first', async () => {
         const saved = await uploadNeverReordered(
             download(withoutOrder(), true),
@@ -4374,19 +4416,12 @@ describe('CoderService dashboard control order as code', () => {
         expect(saved.config?.controlOrder).toEqual([
             { kind: 'parameter', id: 'region-id' },
         ]);
-        expect(
-            reconcileDashboardControlOrder({
-                controlOrder: saved.config!.controlOrder,
-                filters: saved.filters,
-                parameterControls: saved.config!.parameterControls!,
-                sections: saved.config!.controlSections!,
-            }).map(({ kind, slug, newLine }) => [kind, slug, newLine]),
-        ).toEqual([
+        expect(barOf(saved)).toEqual([
             ['parameter', 'region', false],
-            ['filter', 'orders-status-1', false],
+            ['filter', 'orders-status', false],
             ['filter', 'orders-total', false],
             ['section', 'calendar', false],
-            ['filter', 'orders-status-2', false],
+            ['filter', 'orders-city', false],
         ]);
     });
 
@@ -4424,14 +4459,6 @@ describe('CoderService dashboard control order as code', () => {
         ]);
     });
 
-    const barOf = (saved: AnyType) =>
-        reconcileDashboardControlOrder({
-            controlOrder: saved.config!.controlOrder,
-            filters: saved.filters,
-            parameterControls: saved.config!.parameterControls!,
-            sections: saved.config!.controlSections!,
-        }).map(({ kind, slug, newLine }) => [kind, slug, newLine]);
-
     // The saved dashboard as the first upload left it
     const afterUpload = (result: AnyType) =>
         ({
@@ -4442,17 +4469,17 @@ describe('CoderService dashboard control order as code', () => {
 
     it('stores an order when an agent adds a filter without a ref, the filter trailing the bar', async () => {
         const saved = await upload(
-            withCityFilter(download(withoutOrder(), true, true)),
+            withCountryFilter(download(withoutOrder(), true, true)),
             { saved: withoutOrder() as DashboardDAO },
         );
         expect(saved.config?.controlOrder).toBeDefined();
         expect(barOf(saved)).toEqual([
-            ['filter', 'orders-status-1', false],
+            ['filter', 'orders-status', false],
             ['filter', 'orders-total', false],
             ['parameter', 'region', false],
             ['section', 'calendar', true],
-            ['filter', 'orders-status-2', false],
             ['filter', 'orders-city', false],
+            ['filter', 'orders-country', false],
         ]);
     });
 
@@ -4474,7 +4501,7 @@ describe('CoderService dashboard control order as code', () => {
         ],
         [
             'a filter added without a ref',
-            () => withCityFilter(download(withoutOrder(), true, true)),
+            () => withCountryFilter(download(withoutOrder(), true, true)),
         ],
     ])(
         'stores the same result when %s is uploaded twice',
@@ -4568,7 +4595,7 @@ describe('CoderService dashboard control order as code', () => {
     });
 
     it('stores no order when an agent adds a filter with a ref in its default place', async () => {
-        const file = withCityFilter(download(withoutOrder(), true, true));
+        const file = withCountryFilter(download(withoutOrder(), true, true));
         const [first, ...rest] = file.config!.controlOrder!;
         const saved = await upload(
             {
@@ -4579,7 +4606,7 @@ describe('CoderService dashboard control order as code', () => {
                         first,
                         {
                             kind: DashboardControlRefKind.FILTER,
-                            slug: 'orders-city',
+                            slug: 'orders-country',
                         },
                         ...rest,
                     ],

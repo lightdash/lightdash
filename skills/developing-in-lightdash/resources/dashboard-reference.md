@@ -442,7 +442,7 @@ When `config` is omitted, date zoom is enabled with all default granularities.
 
 ### Parameter controls
 
-When dashboard controls are enabled, `config.parameterControls` stores each control's value and its per-parameter tile rules. Use a unique, lowercase `slug`; downloads derive it from the label or first parameter key when none is saved. Uploads preserve the slug and match an existing control by slug, keeping its internal ID through label changes. Legacy files with `id` remain accepted. Duplicate slugs are rejected.
+When dashboard controls are enabled, `config.parameterControls` stores each control's value and its per-parameter tile rules. Each control has a `slug`, derived from its label (else its first parameter key) on every download and never saved; repeated slugs are all numbered (`-1`, `-2`). A slug only links references inside the same file. An upload keeps a control's internal ID only when no other control shares its unnumbered slug, on the saved dashboard or in the file, so relabelling a control gives it a new slug and ID. Legacy files with `id` remain accepted. Duplicate slugs are rejected.
 
 ```yaml
 config:
@@ -466,7 +466,7 @@ A key accepts `all`, `except`, or `only`; tile references are tile slugs. At mos
 
 ### Control order
 
-When dashboard controls are enabled, `config.controlOrder` sets the order of controls on the filter bar, mixing kinds. Each entry is `{ kind, slug, newLine? }`, where `kind` is `filter`, `parameter` or `section`, and `slug` is the control's `slug` in the same file: a dimension or metric filter's `slug`, a parameter control's `slug`, or a section's `slug` in `config.controlSections`. Filter slugs follow the parameter control rules: unique, lowercase, derived from the field when none is saved, kept on upload.
+When dashboard controls are enabled, `config.controlOrder` sets the order of controls on the filter bar, mixing kinds. Each entry is `{ kind, slug, newLine? }`, where `kind` is `filter`, `parameter` or `section`, and `slug` is the control's `slug` in the same file: a dimension or metric filter's `slug`, a parameter control's `slug`, or a section's `slug` in `config.controlSections`. Slugs are derived on every download: a filter's from its field id, a parameter control's from its label, a section's from its name; repeated ones are all numbered (`-1`, `-2`). They are never saved: they only link entries to controls in the same file, and renaming a section or parameter control gives it a new slug and ID.
 
 ```yaml
 config:
@@ -477,7 +477,7 @@ config:
     - { kind: filter, slug: orders-created-at-month }
 ```
 
-- Downloads include it, with a `slug` on every filter, once the dashboard has been reordered; a never-reordered dashboard downloads without it. An upload whose order renders the default bar stores no order.
+- Downloads include it, with a `slug` on every filter, once the dashboard has been reordered; a never-reordered dashboard downloads without it. An upload whose order renders the default bar stores no order, as long as none was stored before; once an order is stored, uploads store the list as given. AI agent edits follow the same rule.
 - Reorder by moving entries. Unknown or repeated slugs are rejected, and the error lists the valid ones.
 - A section's members come from each control's `sectionSlug`, not from the list. Entries only place sections among loose controls and order members inside a section.
 - Within one kind, that kind's own array wins: two filters keep the order of `filters.dimensions` (dimensions and metrics separately), parameter controls the order of `parameterControls`, sections the order of `controlSections`. The list decides how kinds interleave.

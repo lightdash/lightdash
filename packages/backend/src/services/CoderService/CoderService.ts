@@ -117,7 +117,7 @@ import {
     type ParameterDefinitions,
     type SpaceSummaryBase,
 } from '@lightdash/common';
-import { isEqual, isPlainObject, omit } from 'es-toolkit/compat';
+import { isEqual, isPlainObject, omit, omitBy } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -5955,13 +5955,7 @@ export class CoderService extends BaseService {
                                       dashboardWithDefaults.config
                                           ?.controlSections ?? [],
                               },
-                              {
-                                  filters: dashboardFilters,
-                                  parameterControls:
-                                      dashboardConfig?.parameterControls ?? [],
-                                  sections:
-                                      dashboardConfig?.controlSections ?? [],
-                              },
+                              sources,
                           ),
                       );
             // An order that renders the default bar isn't stored, so agent reads carrying the default order round-trip clean
@@ -5978,6 +5972,18 @@ export class CoderService extends BaseService {
                 ...(dashboardConfig ?? { isDateZoomDisabled: false }),
                 ...(controlOrder !== undefined && { controlOrder }),
             };
+        }
+        // Agent reads give a dashboard without a config the default one to carry the order; don't store it back
+        if (
+            existingDashboard &&
+            !existingDashboard.config &&
+            dashboardConfig &&
+            isEqual(
+                omitBy(dashboardConfig, (value) => value === undefined),
+                { isDateZoomDisabled: false },
+            )
+        ) {
+            dashboardConfig = undefined;
         }
         if (controlsEnabled && dashboardConfig?.parameterControls) {
             const tileSlugs = getTileSlugsByUuid(tilesWithUuids);
