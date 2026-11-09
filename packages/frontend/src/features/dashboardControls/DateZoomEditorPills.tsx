@@ -91,6 +91,8 @@ const DateZoomEditorPopover: FC<{ isOpen: boolean; children: ReactNode }> = ({
             closeOnEscape={false}
             closeOnClickOutside={false}
             withRoles={false}
+            // "Add date zoom" can sit past a narrow bar's edge; hiding would leave an invisible editor
+            hideDetached={false}
         >
             <Popover.Target>{children}</Popover.Target>
             {isShown && (
