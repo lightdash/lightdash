@@ -79,7 +79,7 @@ const DateZoomTileOverlay = memo<Props>(
         // As a parameter's unreachable tile: the veil only, the reason as its hint
         if (cardKind === 'none') {
             return (
-                <div
+                <Box
                     className={`${classes.overlay} ${classes.unfilterable} ${LOCKED_TILE_CLASS}`}
                     data-controls-overlay
                     title="This tile has no date to zoom"
@@ -114,7 +114,7 @@ const DateZoomTileOverlay = memo<Props>(
         const label = `${zoomName} on ${tileTitle}`;
 
         return (
-            <div
+            <Box
                 className={`${classes.overlay} ${LOCKED_TILE_CLASS}`}
                 data-controls-overlay
                 data-highlighted={highlight ?? undefined}
@@ -213,7 +213,7 @@ const DateZoomTileOverlay = memo<Props>(
                         </Stack>
                     )}
                 </Paper>
-            </div>
+            </Box>
         );
     },
     areTilePropsEqual,

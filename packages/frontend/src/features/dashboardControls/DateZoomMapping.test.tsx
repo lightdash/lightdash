@@ -127,9 +127,9 @@ const setup = (initial: DateZoomConfig = config) => {
         dateZoomGranularities: [DateGranularity.WEEK, DateGranularity.MONTH],
     });
     const user = userEvent.setup();
-    renderWithProviders(
+    const ui = (isViewer: boolean) => (
         <DashboardStoreTestProvider store={store}>
-            <DateZoomEditorProvider isViewer={false}>
+            <DateZoomEditorProvider isViewer={isViewer}>
                 <MappingSwap>
                     <DateZoomEditorPills />
                 </MappingSwap>
@@ -137,11 +137,13 @@ const setup = (initial: DateZoomConfig = config) => {
                 <DateZoomTileOverlays />
                 <DateZoomTilesBar />
             </DateZoomEditorProvider>
-        </DashboardStoreTestProvider>,
+        </DashboardStoreTestProvider>
     );
+    const { rerender } = renderWithProviders(ui(false));
+    const leaveEditMode = () => rerender(ui(true));
     const saved = () =>
         selectDateZoomConfig(store.getState(), EMPTY_DATE_ZOOM_CONFIG);
-    return { user, saved };
+    return { user, saved, leaveEditMode };
 };
 
 const card = (uuid: string) =>
@@ -323,5 +325,52 @@ describe('choosing the tiles a date zoom zooms', () => {
         expect(
             screen.getByRole('dialog', { name: 'Revenue zoom' }),
         ).toHaveTextContent('Zooms 2 of 5 tiles');
+    });
+
+    it('a zoom switched to after a Move shows the tile it lost', async () => {
+        const { user } = setup({
+            ...config,
+            tileTargets: {
+                ...config.tileTargets,
+                d: {
+                    controlUuid: 'orders',
+                    fieldId: 'd_order_date',
+                    tableName: 'orders',
+                },
+            },
+        });
+        await startMapping(user);
+        await pickField(user, 'b', 'Order date');
+        await user.click(
+            within(card('b')).getByRole('button', { name: 'Move' }),
+        );
+        await user.click(
+            within(row()).getByRole('button', { name: 'Back to date zoom' }),
+        );
+        // Switching over the unapplied Move: Apply on the question
+        await user.click(
+            document.querySelector<HTMLElement>(
+                '[data-date-zoom-pill="orders"]',
+            )!,
+        );
+        await user.click(
+            within(screen.getByRole('status').parentElement!).getByRole(
+                'button',
+                { name: 'Apply' },
+            ),
+        );
+        expect(
+            screen.getByRole('dialog', { name: 'Orders zoom' }),
+        ).toHaveTextContent('Zooms 1 of 5 tiles');
+    });
+
+    it('leaving edit mode drops a zoom whose tiles were all cleared', async () => {
+        const { user, saved, leaveEditMode } = setup();
+        await startMapping(user);
+        await user.click(
+            within(bar()).getByRole('button', { name: 'Clear 1' }),
+        );
+        leaveEditMode();
+        expect(saved()).toEqual(config);
     });
 });
