@@ -134,25 +134,35 @@ step "Ensure Python/dbt venv"
 # ~30-60s pip install on every new worktree. A worktree that already has a real
 # (non-symlink) venv is left untouched.
 SHARED_VENV="${HOME}/.lightdash/dev-venv"
-if test -f venv/bin/dbt && test -f venv/bin/dbt1.7; then
+# dbt-core 1.7 imports distutils, removed in Python 3.12, so this venv is pinned
+# to python3.11 and a venv that cannot import distutils is rebuilt.
+dbt17_venv_ok() {
+    test -x "$1/bin/dbt" && test -x "$1/bin/dbt1.7" \
+        && "$1/bin/python" -c 'import distutils' >/dev/null 2>&1
+}
+build_dbt17_venv() {
+    command -v python3.11 >/dev/null 2>&1 \
+        || fail "venv-python" "dbt-core 1.7 needs python3.11 (it imports distutils, removed in Python 3.12) but python3.11 is not installed; run 'brew install python@3.11' and re-run"
+    rm -rf "$1"
+    python3.11 -m venv "$1" || fail "venv" "python3.11 -m venv $1 failed"
+    "$1/bin/pip" install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0' >/dev/null 2>&1 \
+        || fail "venv" "pip install dbt 1.7 into $1 failed"
+    ln -sf dbt "$1/bin/dbt1.7"
+    dbt17_venv_ok "$1" || fail "venv" "$1 still cannot import distutils after rebuild"
+}
+if dbt17_venv_ok venv; then
     echo "SKIP: venv present"
-elif [ ! -e venv ]; then
-    if ! test -f "$SHARED_VENV/bin/dbt"; then
+elif [ ! -e venv ] || [ -L venv ]; then
+    if ! dbt17_venv_ok "$SHARED_VENV"; then
+        echo "Shared venv $SHARED_VENV is missing or cannot import distutils (dbt-core 1.7 needs Python 3.11) — rebuilding with python3.11"
         mkdir -p "$(dirname "$SHARED_VENV")"
-        python3 -m venv "$SHARED_VENV" || fail "venv" "python3 -m venv (shared cache) failed"
-        "$SHARED_VENV/bin/pip" install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0' >/dev/null 2>&1 \
-            || fail "venv" "pip install dbt into shared cache failed"
-        ln -sf dbt "$SHARED_VENV/bin/dbt1.7"
+        build_dbt17_venv "$SHARED_VENV"
     fi
-    ln -s "$SHARED_VENV" venv || fail "venv" "could not symlink venv -> $SHARED_VENV"
-    test -f venv/bin/dbt || fail "venv" "shared venv symlink is broken"
+    ln -sfn "$SHARED_VENV" venv || fail "venv" "could not symlink venv -> $SHARED_VENV"
     echo "OK: venv linked to shared cache ($SHARED_VENV)"
 else
-    # venv exists but is incomplete — rebuild in place (legacy path)
-    python3 -m venv venv || fail "venv" "python3 -m venv failed"
-    ./venv/bin/pip install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0' >/dev/null 2>&1 \
-        || fail "venv" "pip install dbt failed"
-    ln -sf dbt venv/bin/dbt1.7
+    echo "venv is incomplete or cannot import distutils (dbt-core 1.7 needs Python 3.11) — rebuilding in place with python3.11"
+    build_dbt17_venv venv
     echo "OK: venv ready"
 fi
 
