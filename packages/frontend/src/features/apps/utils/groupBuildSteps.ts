@@ -14,7 +14,6 @@ export type BuildStepGroup = {
     label: string;
     /** Distinct targets, e.g. model or file names. */
     targets: string[];
-    count: number;
 };
 
 const classify = (
@@ -112,7 +111,6 @@ export const groupBuildSteps = (
             kind: entry.kind,
             label: labelFor(entry.kind, Math.max(n, 1), live, entry.raw),
             targets: entry.targets,
-            count: entry.count,
         };
     });
     return {

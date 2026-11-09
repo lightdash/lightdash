@@ -41,7 +41,7 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
         data-tour-label="Every app starts from a template"
         data-tour-docs="data-apps.mdx#choosing-a-template:1"
     >
-        {PICKER_TEMPLATES.map((template, index) => {
+        {PICKER_TEMPLATES.map((template) => {
             const Icon = template.icon;
             const isSelected = selected === template.id;
             return (
@@ -51,7 +51,6 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                     type="button"
                     radius="md"
                     className={`${classes.card} ${isSelected ? classes.cardSelected : ''}`}
-                    data-pos={index}
                     data-blank={template.id === 'custom' || undefined}
                     aria-pressed={isSelected}
                     data-selected={isSelected ? 'true' : undefined}
@@ -87,7 +86,11 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                     </Box>
                     <Stack gap={4} className={classes.cardContent}>
                         <Group gap={6} wrap="nowrap">
-                            <Icon size={14} className={classes.cardIcon} />
+                            <MantineIcon
+                                icon={Icon}
+                                size={14}
+                                className={classes.cardIcon}
+                            />
                             <Text
                                 fw={600}
                                 size="sm"

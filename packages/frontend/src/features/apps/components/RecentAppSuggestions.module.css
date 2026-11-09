@@ -58,5 +58,5 @@
 }
 
 .errorStatus {
-    color: var(--mantine-color-red-7);
+    color: var(--mantine-color-red-text);
 }

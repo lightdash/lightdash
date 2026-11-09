@@ -480,7 +480,6 @@ export default function AppPreviewTest() {
                             previewVersion={version ?? null}
                             network={{
                                 open: !inspector.hidden,
-                                queryCount: inspector.readyQueryCount,
                                 onToggle: inspector.hidden
                                     ? inspector.show
                                     : inspector.hide,

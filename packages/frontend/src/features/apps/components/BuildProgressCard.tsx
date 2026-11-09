@@ -30,7 +30,7 @@ const BuildProgressCard: FC<Props> = ({
     const hasSteps = steps.length > 0 || narration.reasoning.length > 0;
 
     return (
-        <Box className={classes.progressCard} data-live="true">
+        <Box className={classes.progressCard}>
             <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
                 <Text
                     size="xs"

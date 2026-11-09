@@ -39,7 +39,7 @@ const BuildFailedCard: FC<Props> = ({
             data-kind={stopped ? 'stopped' : 'failed'}
             role="status"
         >
-            <Group gap={8} wrap="nowrap" align="flex-start">
+            <Group gap="xs" wrap="nowrap" align="flex-start">
                 <MantineIcon
                     icon={stopped ? IconHandStop : IconAlertTriangle}
                     size={16}
@@ -57,18 +57,12 @@ const BuildFailedCard: FC<Props> = ({
                 </Box>
             </Group>
             {(onRetry || onEditPrompt) && (
-                <Group gap={6} mt="sm" className={classes.failedActions}>
+                <Group gap="xs" mt="sm" className={classes.failedActions}>
                     {onRetry && (
                         <Button
                             size="xs"
-                            bg="foreground"
-                            c="background"
                             leftSection={
-                                <MantineIcon
-                                    icon={IconRefresh}
-                                    size={14}
-                                    color="background"
-                                />
+                                <MantineIcon icon={IconRefresh} size={14} />
                             }
                             onClick={onRetry}
                             disabled={disabled}

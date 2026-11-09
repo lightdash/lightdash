@@ -28,7 +28,7 @@ type Props = Pick<
     /** False until there is a preview to re-run; the button is hidden. */
     refreshAvailable: boolean;
     /** Queries/requests inspector, toggled from the overflow menu (the panel also closes itself). */
-    network: { open: boolean; queryCount: number; onToggle: () => void };
+    network: { open: boolean; onToggle: () => void };
     /** Prominent edit affordance matching the dashboard header's pencil
      *  button — "Continue building" in the viewer. Pass null on surfaces
      *  that ARE the edit surface (the builder). */

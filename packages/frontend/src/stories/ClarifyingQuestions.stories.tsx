@@ -77,7 +77,7 @@ type Story = StoryObj<typeof Harness>;
 /** How the round opens: the first question with its suggested answers. */
 export const Unanswered: Story = {};
 
-/** A suggested answer already picked. */
+/** An answer already entered. */
 export const PartiallyAnswered: Story = {
     args: { initialAnswers: ['Side by side', '', ''] },
 };

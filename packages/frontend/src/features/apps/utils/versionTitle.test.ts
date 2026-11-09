@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { splitVersionPrompt, versionTitle } from './versionTitle';
+import { splitVersionPrompt } from './versionTitle';
 
 describe('splitVersionPrompt', () => {
     it('skips filler openers and keeps them out of the rest', () => {
@@ -25,14 +25,5 @@ describe('splitVersionPrompt', () => {
             headline: 'Add a region filter to the page',
             rest: null,
         });
-    });
-});
-
-describe('versionTitle', () => {
-    it('strips markdown links and falls back to the version number', () => {
-        expect(versionTitle('Copy of [Pulse app](/apps/1) please', 2)).toBe(
-            'Copy of Pulse app please',
-        );
-        expect(versionTitle('', 3)).toBe('Version 3');
     });
 });

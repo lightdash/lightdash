@@ -1,5 +1,3 @@
-const VERSION_TITLE_MAX = 120;
-
 /** A prompt's headline sentence and the rest, links reduced to their text. */
 export const splitVersionPrompt = (
     prompt: string | undefined,
@@ -18,16 +16,4 @@ export const splitVersionPrompt = (
     const headline = sentences[index] ?? null;
     const rest = sentences.slice(index + 1).join(' ');
     return { headline, rest: rest === '' ? null : rest };
-};
-
-/** A version's checkpoint title: the headline sentence of its prompt. */
-export const versionTitle = (
-    prompt: string | undefined,
-    version: number,
-): string => {
-    const { headline } = splitVersionPrompt(prompt);
-    if (headline === null) return `Version ${version}`;
-    return headline.length > VERSION_TITLE_MAX
-        ? `${headline.slice(0, VERSION_TITLE_MAX).trimEnd()}…`
-        : headline;
 };

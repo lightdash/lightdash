@@ -141,7 +141,7 @@
 }
 
 .pill[data-tone='failed'] {
-    color: var(--mantine-color-red-7);
+    color: var(--mantine-color-red-text);
 }
 
 /* Quiet text actions: always visible, no borders to repeat down the list. */
@@ -179,8 +179,6 @@
     font-weight: 400;
     color: var(--mantine-color-ldGray-7);
 }
-
-/* The live version's prompt is the only 500 in the list. */
 
 /* Author under the prompt: an 18px initials avatar and the name. */
 .byline {
