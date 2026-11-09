@@ -1,9 +1,11 @@
+import { subject } from '@casl/ability';
 import {
     Account,
     AgentIdentityClaim,
     assertUnreachable,
     DuckdbExecutionSpec,
     ForbiddenError,
+    getCanonicalWarehouseSignInExpiredMessage,
     getContextsForTrigger,
     getQueryLanguage,
     getSemanticQuerySummary,
@@ -13,6 +15,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    NotSupportedError,
     QUERY_HISTORY_WINDOW_MINUTES,
     QUERY_HISTORY_WINDOWS_ORDERED,
     QUERY_TRIGGER_BY_CONTEXT,
@@ -31,6 +34,9 @@ import {
     sleep,
     SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
     type AgentConnectionGrantRef,
+    type ComposerChartQuerySource,
+    type MemberAbility,
+    type QueryHistoryListItemRequestParameters,
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
@@ -129,6 +135,58 @@ export type CachedResultsContent = {
     type: 'chart' | 'dashboard';
     /** Every value the content may be recorded under (uuid and slug) */
     identifiers: string[];
+};
+
+/** Composer node rows carry the chart author's SQL; only SQL runner access may read or search it. */
+export const canViewComposerNodeSql = (
+    ability: Pick<MemberAbility, 'can'>,
+    scope: { organizationUuid: string; projectUuid: string },
+): boolean => ability.can('manage', subject('SqlRunner', scope));
+
+export const HIDDEN_COMPOSER_NODE_ERROR =
+    'The query behind this chart node failed';
+
+export const INPUT_COMPOSER_NODE_RESULTS_ERROR =
+    'Results of an input node of a composer chart are not available';
+
+/**
+ * A viewer's result reads stop at the node the chart draws: an input node's
+ * columns are inferred from the author's SQL. A row written before roles
+ * existed reads as an input.
+ */
+export const canReadComposerNodeResults = (
+    composerChartSource: ComposerChartQuerySource | undefined,
+    canViewNodeSql: boolean,
+): boolean =>
+    !composerChartSource ||
+    canViewNodeSql ||
+    composerChartSource.role === 'terminal' ||
+    composerChartSource.role === 'chartStage';
+
+export const assertCanReadComposerNodeResults = (
+    composerChartSource: ComposerChartQuerySource | undefined,
+    canViewNodeSql: boolean,
+): void => {
+    if (!canReadComposerNodeResults(composerChartSource, canViewNodeSql)) {
+        throw new NotSupportedError(INPUT_COMPOSER_NODE_RESULTS_ERROR);
+    }
+};
+
+/**
+ * Warehouse diagnostics quote the statement that failed, so a hidden node's
+ * stored error is never returned; an expired sign-in is reported in its
+ * canonical server-written form so the client still offers a reconnect.
+ */
+export const getVisibleQueryError = (
+    error: string | null,
+    composerChartSource: ComposerChartQuerySource | undefined,
+    canViewNodeSql: boolean,
+): string | null => {
+    if (error === null || !composerChartSource || canViewNodeSql) return error;
+    return (
+        getCanonicalWarehouseSignInExpiredMessage(error) ??
+        HIDDEN_COMPOSER_NODE_ERROR
+    );
 };
 
 export class QueryHistoryModel {
@@ -1025,8 +1083,16 @@ export class QueryHistoryModel {
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED:
                     if (throwOnError) {
+                        // The message lands in derived rows and job logs read
+                        // by whoever consumes them; a hidden node's diagnostic
+                        // never leaves its row
                         throw new Error(
-                            queryHistory.error ?? 'Warehouse query failed',
+                            getVisibleQueryError(
+                                queryHistory.error,
+                                queryHistory.requestParameters
+                                    ?.composerChartSource,
+                                false,
+                            ) ?? 'Warehouse query failed',
                         );
                     }
                     return queryHistory;
@@ -1117,11 +1183,10 @@ export class QueryHistoryModel {
         projectUuid: string,
         userUuid: string,
         filters: QueryHistoryListFilters,
-        options: {
+        options: UserHistoryReader & {
             skipTrigger?: boolean;
             skipWindow?: boolean;
-            connection?: AgentConnectionGrantRef | null;
-        } = {},
+        },
     ) {
         const oldestWindowMinutes =
             QUERY_HISTORY_WINDOW_MINUTES[QueryHistoryWindow.LAST_30_DAYS];
@@ -1202,16 +1267,27 @@ export class QueryHistoryModel {
             const searchPattern = `%${escapedSearch}%`;
             void query.andWhere((builder) => {
                 void builder
-                    .whereILike(
-                        `${QueryHistoryTableName}.compiled_sql`,
-                        searchPattern,
-                    )
+                    .where((sqlMatch) => {
+                        // SQL hidden from this caller is not searchable either
+                        if (!options.canViewNodeSql) {
+                            void sqlMatch.whereRaw(
+                                `${QueryHistoryTableName}.request_parameters->'composerChartSource' is null`,
+                            );
+                        }
+                        void sqlMatch.andWhere((text) => {
+                            void text
+                                .whereILike(
+                                    `${QueryHistoryTableName}.compiled_sql`,
+                                    searchPattern,
+                                )
+                                .orWhereRaw(
+                                    `${QueryHistoryTableName}.fields::text ilike ?`,
+                                    [searchPattern],
+                                );
+                        });
+                    })
                     .orWhereRaw(
                         `${QueryHistoryTableName}.metric_query->>'exploreName' ilike ?`,
-                        [searchPattern],
-                    )
-                    .orWhereRaw(
-                        `${QueryHistoryTableName}.fields::text ilike ?`,
                         [searchPattern],
                     )
                     .orWhereILike(`${SavedChartsTableName}.name`, searchPattern)
@@ -1249,13 +1325,13 @@ export class QueryHistoryModel {
         userUuid: string,
         filters: QueryHistoryListFilters,
         paginateArgs: KnexPaginateArgs,
-        connection: AgentConnectionGrantRef | null = null,
+        reader: UserHistoryReader,
     ): Promise<KnexPaginatedData<DbQueryHistoryListRow[]>> {
         const query = this.buildUserHistoryQuery(
             projectUuid,
             userUuid,
             filters,
-            { connection },
+            reader,
         ).select<DbQueryHistoryListRow[]>(
             `${QueryHistoryTableName}.*`,
             `${SavedChartsTableName}.name as chart_name`,
@@ -1278,7 +1354,7 @@ export class QueryHistoryModel {
         projectUuid: string,
         userUuid: string,
         filters: QueryHistoryListFilters,
-        connection: AgentConnectionGrantRef | null = null,
+        reader: UserHistoryReader,
     ): Promise<{
         triggers: Record<QueryTrigger, number>;
         windows: Record<QueryHistoryWindow, number>;
@@ -1290,7 +1366,7 @@ export class QueryHistoryModel {
             projectUuid,
             userUuid,
             filters,
-            { skipTrigger: true, skipWindow: true, connection },
+            { ...reader, skipTrigger: true, skipWindow: true },
         )
             .select(`${QueryHistoryTableName}.context`)
             .count(`${QueryHistoryTableName}.query_uuid as count`)
@@ -1319,7 +1395,7 @@ export class QueryHistoryModel {
             projectUuid,
             userUuid,
             filters,
-            { skipWindow: true, connection },
+            { ...reader, skipWindow: true },
         ).select(
             this.database.raw(
                 `${windowSelects}, coalesce(sum(${QueryHistoryTableName}.warehouse_execution_time_ms) filter (where ${QueryHistoryTableName}.created_at > now() - (${sevenDayMinutes} * interval '1 minute')), 0) as "warehouseTimeMsLast7Days"`,
@@ -1626,6 +1702,12 @@ export class QueryHistoryModel {
     }
 }
 
+/** Who reads a user's history: the agent connection it is bound to, and whether composer node SQL is visible or searchable. */
+export type UserHistoryReader = {
+    connection: AgentConnectionGrantRef | null;
+    canViewNodeSql: boolean;
+};
+
 export type DbQueryHistoryListRow = DbQueryHistory & {
     chart_name: string | null;
     sql_chart_name: string | null;
@@ -1657,16 +1739,50 @@ export function isQueryHistoryCacheHit({
  */
 export function mapQueryHistoryRowToListItem(
     row: DbQueryHistoryListRow,
+    { canViewNodeSql }: { canViewNodeSql: boolean },
 ): QueryHistoryListItem {
     const language = getQueryLanguage(row.request_parameters);
     const exploreName = row.metric_query?.exploreName ?? null;
     const chartName = row.chart_name ?? row.sql_chart_name;
+    const chartUuid =
+        row.request_parameters && 'chartUuid' in row.request_parameters
+            ? row.request_parameters.chartUuid
+            : null;
+    const dashboardUuid =
+        row.request_parameters && 'dashboardUuid' in row.request_parameters
+            ? row.request_parameters.dashboardUuid
+            : null;
+    // A composer node's query is the chart author's, not the viewer's: the
+    // whole request and metric query are withheld, not individual SQL fields
+    const hiddenSource = canViewNodeSql
+        ? null
+        : (row.request_parameters?.composerChartSource ?? null);
+    const compiledSql = hiddenSource ? '' : row.compiled_sql;
+    const error = getVisibleQueryError(
+        row.error,
+        row.request_parameters?.composerChartSource,
+        canViewNodeSql,
+    );
+    const requestParameters: QueryHistoryListItemRequestParameters =
+        hiddenSource
+            ? {
+                  redacted: true,
+                  context: row.request_parameters.context ?? null,
+                  chartUuid,
+                  dashboardUuid,
+                  composerChartSource: hiddenSource,
+              }
+            : row.request_parameters;
+    const metricQuery =
+        language === QueryLanguage.SEMANTIC && !hiddenSource
+            ? row.metric_query
+            : null;
 
     let title: string;
     let subline: string;
     if (language === QueryLanguage.SQL) {
-        title = chartName ?? getSqlQueryTitle(row.compiled_sql) ?? 'SQL query';
-        subline = getSqlFirstLine(row.compiled_sql);
+        title = chartName ?? getSqlQueryTitle(compiledSql) ?? 'SQL query';
+        subline = getSqlFirstLine(compiledSql);
     } else {
         title = exploreName ?? chartName ?? 'Query';
         subline = getSemanticQuerySummary(row.metric_query, row.fields);
@@ -1679,8 +1795,8 @@ export function mapQueryHistoryRowToListItem(
             : `${tilePart}${row.dashboard_name}`;
     }
 
-    if (row.status === QueryHistoryStatus.ERROR && row.error) {
-        subline = row.error;
+    if (row.status === QueryHistoryStatus.ERROR && error) {
+        subline = error;
     }
 
     const cacheHit = isQueryHistoryCacheHit({
@@ -1698,26 +1814,19 @@ export function mapQueryHistoryRowToListItem(
         status: row.status,
         title,
         subline,
-        error: row.error,
+        error,
         exploreName,
-        metricQuery:
-            language === QueryLanguage.SEMANTIC ? row.metric_query : null,
-        requestParameters: row.request_parameters,
+        metricQuery,
+        requestParameters,
         chartName: row.chart_name,
-        chartUuid:
-            row.request_parameters && 'chartUuid' in row.request_parameters
-                ? row.request_parameters.chartUuid
-                : null,
+        chartUuid,
         savedSqlUuid:
             row.request_parameters && 'savedSqlUuid' in row.request_parameters
                 ? row.request_parameters.savedSqlUuid
                 : null,
         dashboardName: row.dashboard_name,
-        dashboardUuid:
-            row.request_parameters && 'dashboardUuid' in row.request_parameters
-                ? row.request_parameters.dashboardUuid
-                : null,
-        compiledSql: row.compiled_sql,
+        dashboardUuid,
+        compiledSql,
         totalRowCount: row.total_row_count,
         warehouseExecutionTimeMs: row.warehouse_execution_time_ms,
         cacheHit,

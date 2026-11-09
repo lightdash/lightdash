@@ -127,6 +127,14 @@ export type SharedSignInExpiry = {
     subjectBasis: SignInSubjectBasis | null;
 };
 
+/** Matches every message `getExpiredSharedSignInMessage` writes, whatever the provider or subject. */
+export const isExpiredSharedSignInMessage = (message: string): boolean =>
+    /\bsign-in\b.{0,60}\bhas expired\b/.test(message);
+
+/** The provider-agnostic form, for a reader who may not see the stored message. */
+export const EXPIRED_WAREHOUSE_SIGN_IN_MESSAGE =
+    "This project's warehouse sign-in has expired. Ask a project admin to reconnect it in Project settings → Connection settings.";
+
 export const getExpiredSharedSignInMessage = (
     expiry: Omit<SharedSignInExpiry, 'projectUuid'>,
     viewerUserUuid: string | null,

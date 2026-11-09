@@ -1,3 +1,4 @@
+import type { ComposerChartQuerySource } from '../composer/savedComposerPipeline';
 import { QueryExecutionContext } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { ApiSuccess } from './api/success';
@@ -141,6 +142,27 @@ export type QueryHistoryListFilters = {
 };
 
 /**
+ * What a caller without SQL runner access sees of a composer node run: the
+ * chart author's query is withheld whole, only provenance and identity remain.
+ */
+export type RedactedComposerNodeRequestParameters = {
+    redacted: true;
+    context: QueryExecutionContext | null;
+    chartUuid: string | null;
+    dashboardUuid: string | null;
+    composerChartSource: ComposerChartQuerySource;
+};
+
+export type QueryHistoryListItemRequestParameters =
+    | ExecuteAsyncQueryRequestParams
+    | RedactedComposerNodeRequestParameters;
+
+export const isRedactedComposerNodeRequestParameters = (
+    requestParameters: QueryHistoryListItemRequestParameters,
+): requestParameters is RedactedComposerNodeRequestParameters =>
+    'redacted' in requestParameters && requestParameters.redacted === true;
+
+/**
  * One row of the "My query history" list. Derived fields (trigger, language,
  * title, subline) are computed server-side from the persisted query so every
  * consumer renders the same anatomy.
@@ -161,8 +183,8 @@ export type QueryHistoryListItem = {
     exploreName: string | null;
     /** Present on semantic runs — lets the client rebuild an Explore URL. */
     metricQuery: MetricQuery | null;
-    /** The original execute request, replayed verbatim by "Re-run". */
-    requestParameters: ExecuteAsyncQueryRequestParams;
+    /** The original execute request, replayed verbatim by "Re-run"; redacted for a composer node the caller may not see the SQL of. */
+    requestParameters: QueryHistoryListItemRequestParameters;
     chartName: string | null;
     chartUuid: string | null;
     savedSqlUuid: string | null;

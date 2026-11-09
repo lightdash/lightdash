@@ -13,6 +13,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiSourcePayload,
     type CacheMetadata,
+    type ComposerChartQuerySource,
     type ConditionalFormattingConfig,
     type DashboardFilters,
     type DateZoom,
@@ -51,7 +52,7 @@ import type {
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
-import type { ComposerChartQueryContext } from './ComposerChartQueryContext';
+import type { ComposerChartNodeQueryContext } from './ComposerChartQueryContext';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -117,7 +118,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     documentQueryContext?: DocumentQueryContext;
     /** Proof the metric query is a node of a composer chart the account may view. */
-    composerChartQueryContext?: ComposerChartQueryContext;
+    composerChartQueryContext?: ComposerChartNodeQueryContext;
     metricQuery: MetricQuery;
     limit?: number | null | undefined;
     dataAppPreviewToken?: string;
@@ -499,6 +500,8 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
     /** The node's own pivot stage, composed by a supplied plan or over discovered columns. */
     pivotConfiguration?: PivotConfiguration;
     plan: DuckdbQueryPlan;
+    /** Set when the query is a node of a composer chart run as its viewer. */
+    composerChartSource?: ComposerChartQuerySource;
 };
 
 /** A query's references, bound: the CTEs to attach and the result files they read. */

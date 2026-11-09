@@ -12,6 +12,7 @@ import {
 import {
     getExpiredSharedSignInMessage,
     getPersonSignIn,
+    isExpiredSharedSignInMessage,
     PersonSignInProvider,
     resolveSignInSubject,
     SignInSubjectBasis,
@@ -61,6 +62,41 @@ const databricks = (
         authenticationType,
         refreshToken,
     }) as CreateDatabricksCredentials;
+
+describe('isExpiredSharedSignInMessage', () => {
+    const subjectBases = [
+        SignInSubjectBasis.RECORDED,
+        SignInSubjectBasis.PROJECT_CREATOR,
+        null,
+    ] as const;
+    it.each(
+        Object.values(PersonSignInProvider).flatMap((provider) =>
+            subjectBases.flatMap((subjectBasis) => [
+                { provider, subjectBasis, subjectName: 'Ada', viewer: 'ada' },
+                { provider, subjectBasis, subjectName: 'Ada', viewer: 'bob' },
+                { provider, subjectBasis, subjectName: null, viewer: 'bob' },
+                { provider, subjectBasis, subjectName: null, viewer: null },
+            ]),
+        ),
+    )(
+        'recognises every variant: %o',
+        ({ provider, subjectBasis, subjectName, viewer }) => {
+            const message = getExpiredSharedSignInMessage(
+                { provider, subjectBasis, subjectName, subjectUserUuid: 'ada' },
+                viewer,
+            );
+            expect(isExpiredSharedSignInMessage(message)).toBe(true);
+        },
+    );
+
+    it('does not match a warehouse diagnostic', () => {
+        expect(
+            isExpiredSharedSignInMessage(
+                'Binder Error: column "expired_at" not found in sign_ins',
+            ),
+        ).toBe(false);
+    });
+});
 
 describe('getPersonSignIn', () => {
     it('finds a Google sign-in saved at setup or by the CLI', () => {

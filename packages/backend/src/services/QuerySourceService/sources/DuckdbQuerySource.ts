@@ -134,6 +134,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         invalidateCache,
         pivotConfiguration,
         plan,
+        composerChartQueryContext,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
 
@@ -166,6 +167,14 @@ export class DuckdbQuerySource implements QuerySourceClient {
                 ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
                 : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
                       ...args,
+                      ...(composerChartQueryContext
+                          ? {
+                                composerChartSource:
+                                    composerChartQueryContext.nodeSource(
+                                        sourceQuery.nodeId,
+                                    ),
+                            }
+                          : {}),
                       plan: DuckdbQuerySource.resolvePlanReferences(
                           plan,
                           resolvedReferences,

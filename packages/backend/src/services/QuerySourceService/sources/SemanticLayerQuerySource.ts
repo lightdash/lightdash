@@ -152,7 +152,14 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
 
         const results = await this.asyncQueryService.executeAsyncMetricQuery({
             ...(documentQueryContext ? { documentQueryContext } : {}),
-            ...(composerChartQueryContext ? { composerChartQueryContext } : {}),
+            ...(composerChartQueryContext
+                ? {
+                      composerChartQueryContext:
+                          composerChartQueryContext.forSemanticNode(
+                              sourceQuery.nodeId,
+                          ),
+                  }
+                : {}),
             account,
             projectUuid,
             metricQuery,

@@ -105,6 +105,7 @@ import {
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeQuery,
     MetricQuery,
+    metricQueryOfSemanticNode,
     MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
@@ -164,6 +165,7 @@ import {
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
+    type ComposerChartQuerySource,
     type ComposerSavedChartDAO,
     type CustomDimension,
     type DocumentQueryReference,
@@ -266,9 +268,13 @@ import {
 import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
+    assertCanReadComposerNodeResults,
+    canViewComposerNodeSql,
+    getVisibleQueryError,
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
     type CachedResultsContent,
+    type UserHistoryReader,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
@@ -439,6 +445,7 @@ import {
     assertPivotWithinColumnLimit,
     getPivotColumnReferences,
 } from './composePivot';
+import { assertMetricQueryFieldsVisible } from './composerChartFieldAccess';
 import { ComposerChartQueryContext } from './ComposerChartQueryContext';
 import {
     setPhaseTimingAttributes,
@@ -1848,6 +1855,11 @@ export class AsyncQueryService extends ProjectService {
         const connection = grant
             ? { grantUuid: grant.grantUuid, revision: grant.revision }
             : null;
+        const canViewNodeSql = canViewComposerNodeSql(auditedAbility, {
+            organizationUuid,
+            projectUuid,
+        });
+        const reader: UserHistoryReader = { connection, canViewNodeSql };
         const userUuid = account.user.id;
         const [{ data: rows, pagination }, counts] = await Promise.all([
             this.queryHistoryModel.findUserHistory(
@@ -1855,20 +1867,22 @@ export class AsyncQueryService extends ProjectService {
                 userUuid,
                 filters,
                 paginateArgs,
-                connection,
+                reader,
             ),
             this.queryHistoryModel.getUserHistoryCounts(
                 projectUuid,
                 userUuid,
                 filters,
-                connection,
+                reader,
             ),
         ]);
 
         if (grant) await validateConnection();
 
         return {
-            data: rows.map(mapQueryHistoryRowToListItem),
+            data: rows.map((row) =>
+                mapQueryHistoryRowToListItem(row, { canViewNodeSql }),
+            ),
             pagination,
             counts: {
                 ...counts,
@@ -1882,6 +1896,7 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** Every caller-facing read of one stored result passes here; the pipeline's own reference reads do not. */
     public async assertCanReadStoredResults(
         account: Account,
         projectUuid: string,
@@ -1890,6 +1905,11 @@ export class AsyncQueryService extends ProjectService {
         reader: QueryResultReader = buildResultReader(account),
         exportResults = false,
     ): Promise<void> {
+        this.assertCanReadComposerNodeResults(
+            account,
+            projectUuid,
+            queryHistory,
+        );
         await this.assertCanReadStoredResultsForQueries(
             account,
             projectUuid,
@@ -1900,6 +1920,23 @@ export class AsyncQueryService extends ProjectService {
             aiAccessOnly,
             false,
             exportResults,
+        );
+    }
+
+    private assertCanReadComposerNodeResults(
+        account: Account,
+        projectUuid: string,
+        queryHistory: Pick<
+            QueryHistory,
+            'organizationUuid' | 'requestParameters'
+        >,
+    ): void {
+        assertCanReadComposerNodeResults(
+            queryHistory.requestParameters?.composerChartSource,
+            canViewComposerNodeSql(this.createAuditedAbility(account), {
+                organizationUuid: queryHistory.organizationUuid,
+                projectUuid,
+            }),
         );
     }
 
@@ -2636,12 +2673,19 @@ export class AsyncQueryService extends ProjectService {
             status === QueryHistoryStatus.ERROR ||
             status === QueryHistoryStatus.EXPIRED
         ) {
-            const error = await personaliseStoredSharedSignInError({
-                account,
-                projectUuid,
-                error: queryHistory.error,
-                projectModel: this.projectModel,
-            });
+            const error = getVisibleQueryError(
+                await personaliseStoredSharedSignInError({
+                    account,
+                    projectUuid,
+                    error: queryHistory.error,
+                    projectModel: this.projectModel,
+                }),
+                queryHistory.requestParameters?.composerChartSource,
+                canViewComposerNodeSql(this.createAuditedAbility(account), {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            );
             if (getAgentConnectionGrantRef(queryHistory.agentIdentity))
                 await this.assertCanReadStoredResults(
                     account,
@@ -3053,13 +3097,20 @@ export class AsyncQueryService extends ProjectService {
         args: DownloadAsyncQueryResultsArgs,
         pollingOptions?: PollingOptions,
     ) {
-        const { queryUuid, projectUuid, account } = args;
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { queryUuid, projectUuid, account, type } = args;
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
+        this.assertAnalyticsDownloadSupported(project, type);
         this.assertEmbedAiAgentCanDownload(
             account,
-            organizationUuid,
+            project.organizationUuid,
             projectUuid,
+        );
+        // Refused by name before waiting on a row the caller may not read
+        this.assertCanReadComposerNodeResults(
+            account,
+            projectUuid,
+            await this.queryHistoryModel.get(queryUuid, projectUuid, account),
         );
         await this.pollForQueryCompletion({
             account,
@@ -3400,7 +3451,17 @@ export class AsyncQueryService extends ProjectService {
                 throw new Error('Query was cancelled');
             case QueryHistoryStatus.EXPIRED:
             case QueryHistoryStatus.ERROR:
-                throw new Error(queryHistory.error ?? 'Warehouse query failed');
+                // The scheduler logs this message where the caller reads it
+                throw new Error(
+                    getVisibleQueryError(
+                        queryHistory.error,
+                        queryHistory.requestParameters?.composerChartSource,
+                        canViewComposerNodeSql(
+                            this.createAuditedAbility(account),
+                            { organizationUuid, projectUuid },
+                        ),
+                    ) ?? 'Warehouse query failed',
+                );
             case QueryHistoryStatus.PENDING:
             case QueryHistoryStatus.QUEUED:
             case QueryHistoryStatus.EXECUTING:
@@ -7943,14 +8004,24 @@ export class AsyncQueryService extends ProjectService {
                 sourceQueryHistory.requestParameters?.documentSource)
                 ? { source: sourceQueryHistory.queryUuid }
                 : sourceParameters.references;
+        // A rerun over a composer node row (totals) inherits the node's provenance
+        const composerChartSource = composerChartQueryContext
+            ? composerChartQueryContext.assertMetricQuery(
+                  account,
+                  projectUuid,
+                  inputMetricQuery,
+              )
+            : sourceQueryHistory?.requestParameters?.composerChartSource;
         const requestParameters: ExecuteAsyncQueryRequestParams = {
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
                 : {}),
-            // Result reads re-check chart access through this, as for saved charts
+            // Result reads re-check chart access through chartUuid, as for saved
+            // charts; history hides the node's SQL through composerChartSource
             ...(composerChartQueryContext
                 ? { chartUuid: composerChartQueryContext.chartUuid }
                 : {}),
+            ...(composerChartSource ? { composerChartSource } : {}),
             ...(references ? { references } : {}),
             context,
             query: effectiveMetricQuery,
@@ -8215,6 +8286,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // The totals response carries the source query and its fields, which
+        // for a composer node are the chart author's SQL
+        if (source.requestParameters?.composerChartSource) {
+            throw new NotSupportedError(
+                'Totals are not available for a composer chart node',
+            );
+        }
 
         // A merged result has no single metric query to collapse: its totals
         // are aggregated over the merged rows on the compose engine
@@ -9014,6 +9092,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         chart: ComposerSavedChartDAO,
         projectUuid: string,
+        context: QueryExecutionContext,
     ): void {
         if (isJwtUser(account)) {
             throw new ComposerChartNotAvailableInEmbedError(
@@ -9024,9 +9103,24 @@ export class AsyncQueryService extends ProjectService {
         if (chart.projectUuid !== projectUuid) {
             throw new ForbiddenError('Chart does not belong to project');
         }
+        // Materialization skips model required filters, and AI/MCP readers
+        // trust their contexts as proof a tool started the row; a chart-bound
+        // run carries neither
+        if (
+            context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION ||
+            isAiAccessQueryContext(context)
+        ) {
+            throw new ParameterError(
+                `context ${context} cannot run a composer chart`,
+            );
+        }
     }
 
-    /** Run-time reshaping of the stored pipeline is refused by name; `pivotResults` is ignored since nothing is pivoted. */
+    /**
+     * Run-time reshaping of the stored pipeline is refused by name;
+     * `pivotResults` is ignored since nothing is pivoted. `schedulerFilters`
+     * only arrives from internal callers: HTTP has no such field and drops it.
+     */
     private static assertNoComposerChartRunOptions(
         options: Record<string, unknown>,
     ): void {
@@ -9038,6 +9132,50 @@ export class AsyncQueryService extends ProjectService {
                 `${given.join(', ')} cannot be applied to a composer chart`,
             );
         }
+    }
+
+    /**
+     * Every semantic node is checked against the viewer's attribute-filtered
+     * explore before any node is submitted, so a refusal leaves no node
+     * executed and no history row written.
+     */
+    private async assertComposerChartNodesVisible({
+        account,
+        chart,
+        userAttributeOverrides,
+    }: {
+        account: Account;
+        chart: ComposerSavedChartDAO;
+        userAttributeOverrides: UserAttributeValueMap | undefined;
+    }): Promise<void> {
+        const semanticNodes = chart.pipeline.nodes.filter(
+            (node) => node.sourceType === QuerySourceType.SEMANTIC_LAYER,
+        );
+        const exploreNames = [
+            ...new Set(semanticNodes.map((node) => node.exploreName)),
+        ];
+        const explores = Object.fromEntries(
+            await Promise.all(
+                exploreNames.map(async (exploreName) => {
+                    const { explore } =
+                        await this.getExploreWithUserAccessControls(
+                            account,
+                            chart.projectUuid,
+                            exploreName,
+                            chart.organizationUuid,
+                            true,
+                            userAttributeOverrides,
+                        );
+                    return [exploreName, explore] as const;
+                }),
+            ),
+        );
+        semanticNodes.forEach((node) => {
+            assertMetricQueryFieldsVisible(
+                metricQueryOfSemanticNode(node),
+                explores[node.exploreName],
+            );
+        });
     }
 
     // Semantic nodes carry the chart context so the metric-query path checks
@@ -9097,11 +9235,18 @@ export class AsyncQueryService extends ProjectService {
             ...(parameters ?? {}),
         };
 
+        await this.assertComposerChartNodesVisible({
+            account,
+            chart,
+            userAttributeOverrides,
+        });
+
         const { queries: submissions } =
             await this.getQuerySourceService().submitQueries({
                 composerChartQueryContext: ComposerChartQueryContext.fromChart(
                     account,
                     chart,
+                    stage?.nodeId ?? null,
                 ),
                 account,
                 projectUuid,
@@ -9203,6 +9348,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             chart,
             projectUuid,
+            context,
         );
         AsyncQueryService.assertNoComposerChartRunOptions({
             limit,
@@ -9290,6 +9436,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             chart,
             projectUuid,
+            context,
         );
         // Dashboard filters, sorts and date zoom do not reach a composer
         // chart yet; a limit would reshape the stored pipeline.
@@ -10759,6 +10906,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // Composer tiles offer no underlying data yet; a rerun here would
+        // write the node's SQL to history without its provenance
+        if (source.requestParameters?.composerChartSource) {
+            throw new NotSupportedError(
+                'Underlying data is not available for a composer chart node',
+            );
+        }
 
         const {
             warehouseCredentials,
@@ -11466,18 +11620,21 @@ export class AsyncQueryService extends ProjectService {
      * be finished — waiting for results happens in the background execution
      * phase (waitForQueryReferences).
      */
+    /** `composerChartSource` is the node being run when the reads are a composer chart's own pipeline. */
     private async authorizeQueryReferences({
         account,
         projectUuid,
         references,
         context,
         querySurface,
+        composerChartSource,
     }: {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
         context: QueryExecutionContext;
         querySurface?: QuerySurface;
+        composerChartSource: ComposerChartQuerySource | null;
     }): Promise<AgentIdentityClaim | null> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
@@ -11516,6 +11673,19 @@ export class AsyncQueryService extends ProjectService {
                     project,
                     queryHistory,
                 );
+                // A chart's own nodes read its inputs; anything else reads
+                // only what the viewer may poll
+                const sameChart =
+                    composerChartSource !== null &&
+                    queryHistory.requestParameters?.composerChartSource
+                        ?.chartUuid === composerChartSource.chartUuid;
+                if (!sameChart) {
+                    this.assertCanReadComposerNodeResults(
+                        account,
+                        projectUuid,
+                        queryHistory,
+                    );
+                }
                 return {
                     queryHistory,
                     agentProducedOnly: !isAiAccessQueryContext(
@@ -11909,6 +12079,7 @@ export class AsyncQueryService extends ProjectService {
             references,
             context,
             querySurface,
+            composerChartSource: null,
         });
 
         const queryTags: RunQueryTags = withAgentMarkerTag({
@@ -13293,6 +13464,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         plan,
         invalidateCache,
+        composerChartSource,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
 
@@ -13319,6 +13491,7 @@ export class AsyncQueryService extends ProjectService {
                   references: normalizedReferences,
                   context,
                   querySurface,
+                  composerChartSource: composerChartSource ?? null,
               })
             : null;
 
@@ -13407,7 +13580,10 @@ export class AsyncQueryService extends ProjectService {
                 ...(agentIdentity ? { agentIdentity } : {}),
                 fields: resolved.fields,
                 compiledSql: resolved.sql,
-                requestParameters: resolved.requestParameters,
+                requestParameters: {
+                    ...resolved.requestParameters,
+                    ...(composerChartSource ? { composerChartSource } : {}),
+                },
                 usedParameters: resolved.usedParameters,
                 metricQuery: resolved.metricQuery,
                 cacheKey,
@@ -15694,6 +15870,13 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             queryUuid,
+        );
+        // Checked here, not only in the references pass: compile errors
+        // name the source's fields before the join is authorized
+        this.assertCanReadComposerNodeResults(
+            account,
+            projectUuid,
+            queryHistory,
         );
         if (!this.mergeSubmissionQueries.getStore()) {
             await this.assertCanReadStoredResults(
