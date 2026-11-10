@@ -3,6 +3,7 @@ import {
     ChartType,
     ComposerChartNotSupportedError,
     ContentAsCodeType,
+    FeatureFlags,
     NotFoundError,
     PossibleAbilities,
     PromotionAction,
@@ -317,9 +318,11 @@ const composerFile: ComposerChartAsCode = {
 const buildUploadService = ({
     existing = null,
     flagEnabled = true,
+    chartsFlagEnabled = true,
 }: {
     existing?: SavedChartVariant | null;
     flagEnabled?: boolean;
+    chartsFlagEnabled?: boolean;
 } = {}) => {
     const savedChartModel = {
         find: vi.fn(async () =>
@@ -392,7 +395,14 @@ const buildUploadService = ({
             ),
         },
         featureFlagModel: {
-            get: vi.fn(async () => ({ enabled: flagEnabled })),
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    enabled:
+                        featureFlagId === FeatureFlags.ComposerSqlRunnerCharts
+                            ? chartsFlagEnabled
+                            : flagEnabled,
+                }),
+            ),
         },
         projectService,
         contentVerificationModel: {
@@ -485,6 +495,24 @@ describe('content-as-code upload stores the terminal closure, as save does', () 
 });
 
 describe('content-as-code upload refuses what save refuses', () => {
+    it('refuses when the composer charts flag is off', async () => {
+        const { service, savedChartModel } = buildUploadService({
+            chartsFlagEnabled: false,
+        });
+        await expect(
+            service.upsertChart(
+                admin,
+                projectUuid,
+                composerFile.slug,
+                composerFile,
+                {
+                    syncEnabled: false,
+                },
+            ),
+        ).rejects.toThrow('Composer charts are not enabled');
+        expect(savedChartModel.createComposerChart).not.toHaveBeenCalled();
+    });
+
     it('refuses when the compose flag is off', async () => {
         const { service, savedChartModel } = buildUploadService({
             flagEnabled: false,

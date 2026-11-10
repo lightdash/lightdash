@@ -259,7 +259,7 @@
             "requiredStop": false,
             "impact": {
                 "kind": "no-external-callers",
-                "featureFlag": "compose-sql-runner",
+                "featureFlag": "composer-sql-runner-charts",
                 "covers": {
                     "rest": [
                         "POST /api/v1/projects/{projectUuid}/charts/{slug}/code",

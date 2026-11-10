@@ -24,6 +24,8 @@ import { login } from '../helpers/auth';
 // stored pipeline, upload writes it back through the composer save path.
 const projectUuid = SEED_PROJECT.project_uuid;
 const COMPOSE_FLAG = 'compose-sql-runner';
+const CHARTS_FLAG = 'composer-sql-runner-charts';
+const REQUIRED_FLAGS = [COMPOSE_FLAG, CHARTS_FLAG];
 const seedChartSlug = generateSlug(SEED_COMPOSER_CHART.revenueShare);
 const seedChartSlugs = Object.values(SEED_COMPOSER_CHART).map(generateSlug);
 const uploadedSlug = 'api-test-composer-chart-as-code';
@@ -39,14 +41,13 @@ const isChartTileAsCode = (
 
 describe('Composer charts as code', () => {
     let admin: ApiClient;
-    let flagWasEnabled: boolean;
+    const flagsToRestore: string[] = [];
     let seedChart: ComposerChartAsCode;
 
-    const setFlag = async (enabled: boolean) => {
-        const response = await admin.post(
-            `/api/v2/feature-flag/${COMPOSE_FLAG}`,
-            { enabled },
-        );
+    const setFlag = async (flagId: string, enabled: boolean) => {
+        const response = await admin.post(`/api/v2/feature-flag/${flagId}`, {
+            enabled,
+        });
         expect(response.status).toBe(200);
     };
 
@@ -67,12 +68,17 @@ describe('Composer charts as code', () => {
 
     beforeAll(async () => {
         admin = await login();
-        const flag = await admin.get<Body<FeatureFlag>>(
-            `/api/v2/feature-flag/${COMPOSE_FLAG}`,
+        await Promise.all(
+            REQUIRED_FLAGS.map(async (flagId) => {
+                const flag = await admin.get<Body<FeatureFlag>>(
+                    `/api/v2/feature-flag/${flagId}`,
+                );
+                expect(flag.status).toBe(200);
+                if (flag.body.results.enabled) return;
+                flagsToRestore.push(flagId);
+                await setFlag(flagId, true);
+            }),
         );
-        expect(flag.status).toBe(200);
-        flagWasEnabled = flag.body.results.enabled;
-        if (!flagWasEnabled) await setFlag(true);
 
         const { charts } = await downloadChart(seedChartSlug);
         expect(charts).toHaveLength(1);
@@ -86,7 +92,9 @@ describe('Composer charts as code', () => {
     });
 
     afterAll(async () => {
-        if (!flagWasEnabled) await setFlag(false);
+        await Promise.all(
+            flagsToRestore.map((flagId) => setFlag(flagId, false)),
+        );
     });
 
     it('downloads a composer chart as its stored pipeline, not a metric query', () => {
@@ -297,17 +305,23 @@ describe('Composer charts as code', () => {
         ).toEqual(composerTiles.map((tile) => tile.properties.chartSlug));
     });
 
-    it('refuses a composer chart upload while the compose flag is off', async () => {
-        await setFlag(false);
-        try {
-            const response = await uploadChart(uploadedSlug, {
-                ...seedChart,
-                slug: uploadedSlug,
-            });
-            expect(response.status).toBe(403);
-            expect(response.body.error.message).toContain('not enabled');
-        } finally {
-            await setFlag(true);
-        }
-    });
+    it.each([
+        ['the compose flag', COMPOSE_FLAG],
+        ['the composer charts flag', CHARTS_FLAG],
+    ])(
+        'refuses a composer chart upload while %s is off',
+        async (_name, flagId) => {
+            await setFlag(flagId, false);
+            try {
+                const response = await uploadChart(uploadedSlug, {
+                    ...seedChart,
+                    slug: uploadedSlug,
+                });
+                expect(response.status).toBe(403);
+                expect(response.body.error.message).toContain('not enabled');
+            } finally {
+                await setFlag(flagId, true);
+            }
+        },
+    );
 });

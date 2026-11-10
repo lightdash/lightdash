@@ -5097,6 +5097,16 @@ export class CoderService extends BaseService {
         if (!composeEnabled) {
             throw new ForbiddenError('Multi-source queries are not enabled');
         }
+        const { enabled: chartsEnabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: project.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ComposerSqlRunnerCharts,
+        });
+        if (!chartsEnabled) {
+            throw new ForbiddenError('Composer charts are not enabled');
+        }
         const versionData = CoderService.parseComposerChartFile(chartAsCode);
         await this.assertComposerPipelineAuthoring({
             account: options.account ?? fromSession(user),
