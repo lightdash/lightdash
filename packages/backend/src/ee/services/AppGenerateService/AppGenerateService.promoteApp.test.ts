@@ -337,6 +337,7 @@ async function buildScenario() {
             unverify: async () => undefined,
         } as never,
         featureFlagModel: { get: async () => ({ enabled: true }) } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {
             findInOrganization: async () => null,
         } as never,

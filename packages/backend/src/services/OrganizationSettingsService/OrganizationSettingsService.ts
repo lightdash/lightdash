@@ -129,6 +129,14 @@ export class OrganizationSettingsService extends BaseService {
                 `Maximum query rows cannot exceed ${queryLimitCap}.`,
             );
         }
+        if (
+            data.dataAppCustomDependenciesEnabled !== undefined &&
+            typeof data.dataAppCustomDependenciesEnabled !== 'boolean'
+        ) {
+            throw new ParameterError(
+                'Custom data app dependencies must be turned on or off.',
+            );
+        }
         if (data.corsAllowedDomains !== undefined) {
             const corsError = validateCorsAllowedDomains(
                 data.corsAllowedDomains ?? [],

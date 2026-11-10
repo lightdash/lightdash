@@ -263,6 +263,7 @@ function buildService(overrides: {
         userModel: {} as never,
         appModel: fullAppModel as never,
         featureFlagModel: featureFlagModel as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: fullProjectModel as never,

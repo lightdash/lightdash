@@ -111,6 +111,12 @@ export type OrganizationSettings = {
      * Always resolved to an effective boolean in API responses.
      */
     dataAppCapturesEnabled: boolean | null;
+    /**
+     * Whether data app uploads may declare custom npm dependencies. Off by
+     * default; only org admins can change it. Uploaders also need the
+     * `manage:DataAppDependency` permission.
+     */
+    dataAppCustomDependenciesEnabled: boolean;
 };
 
 export const DEFAULT_INVITE_LINK_EXPIRATION_DAYS = 3;
@@ -325,6 +331,8 @@ const resolveEffectiveOrganizationSettingsFields = (
     queryLimit: raw.queryLimit ?? instanceDefaults.queryLimit,
     csvCellsLimit: raw.csvCellsLimit ?? instanceDefaults.csvCellsLimit,
     corsAllowedDomains: raw.corsAllowedDomains ?? [],
+    dataAppCustomDependenciesEnabled:
+        raw.dataAppCustomDependenciesEnabled ?? false,
 });
 
 /**

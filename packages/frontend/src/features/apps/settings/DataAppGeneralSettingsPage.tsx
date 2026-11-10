@@ -1,6 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
     Button,
+    Code,
     Divider,
     Group,
     Loader,
@@ -173,6 +174,49 @@ export const DataAppGeneralSettingsPage: FC = () => {
                                         </SettingRow>
                                     </>
                                 )}
+                            </Stack>
+                        </SettingsCard>
+                    </SettingsSection>
+                    <SettingsSection
+                        label="Custom dependencies"
+                        description="Custom dependencies are npm packages added to a data app's build. They run in the browser of everyone who views the app."
+                    >
+                        <SettingsCard>
+                            <Stack gap="md">
+                                <SettingRow
+                                    title="Allow custom dependencies"
+                                    description={
+                                        <>
+                                            Uploading an app with custom
+                                            dependencies also needs the{' '}
+                                            <Code>
+                                                manage:DataAppDependency
+                                            </Code>{' '}
+                                            permission, which administrators
+                                            have by default. Turning this off
+                                            blocks new uploads; apps that
+                                            already use custom dependencies keep
+                                            building.
+                                        </>
+                                    }
+                                    control={
+                                        <Switch
+                                            size="md"
+                                            aria-label="Allow custom dependencies in data apps"
+                                            checked={
+                                                settings.dataAppCustomDependenciesEnabled
+                                            }
+                                            disabled={isUpdating}
+                                            onChange={(event) =>
+                                                updateSettings({
+                                                    dataAppCustomDependenciesEnabled:
+                                                        event.currentTarget
+                                                            .checked,
+                                                })
+                                            }
+                                        />
+                                    }
+                                />
                             </Stack>
                         </SettingsCard>
                     </SettingsSection>

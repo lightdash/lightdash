@@ -56,6 +56,7 @@ describe('OrganizationSettingsModel', () => {
                 corsAllowedDomains: null,
                 dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 
@@ -84,6 +85,7 @@ describe('OrganizationSettingsModel', () => {
                 corsAllowedDomains: null,
                 dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 
@@ -109,6 +111,7 @@ describe('OrganizationSettingsModel', () => {
                 corsAllowedDomains: null,
                 dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 
@@ -136,6 +139,7 @@ describe('OrganizationSettingsModel', () => {
                 corsAllowedDomains: null,
                 dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 
@@ -165,6 +169,7 @@ describe('OrganizationSettingsModel', () => {
                 ],
                 dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 
@@ -253,6 +258,7 @@ describe('OrganizationSettingsModel', () => {
                 corsAllowedDomains: null,
                 dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 

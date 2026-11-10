@@ -200,6 +200,7 @@ const buildService = ({
                 };
             },
         } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {

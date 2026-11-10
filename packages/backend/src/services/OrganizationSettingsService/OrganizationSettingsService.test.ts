@@ -274,3 +274,58 @@ describe('OrganizationSettingsService — data app captures', () => {
         expect(settings.dataAppAutomaticThumbnailsEnabled).toBe(false);
     });
 });
+
+describe('OrganizationSettingsService — custom data app dependencies', () => {
+    it('is off by default', async () => {
+        const organizationSettingsModel = {
+            get: vi.fn(async () => ({})),
+        } as unknown as OrganizationSettingsModel;
+        const service = new OrganizationSettingsService({
+            lightdashConfig: lightdashConfigMock,
+            organizationSettingsModel,
+        });
+
+        const settings = await service.getOrganizationSettings(account);
+
+        expect(settings.dataAppCustomDependenciesEnabled).toBe(false);
+    });
+
+    it('saves an admin turning it on', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        await service.updateOrganizationSettings(account, {
+            dataAppCustomDependenciesEnabled: true,
+        });
+        expect(organizationSettingsModel.update).toHaveBeenCalledWith(
+            'org-uuid',
+            { dataAppCustomDependenciesEnabled: true },
+        );
+    });
+
+    it('rejects a value that is not a boolean', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        await expect(
+            service.updateOrganizationSettings(account, {
+                dataAppCustomDependenciesEnabled:
+                    null as unknown as UpdateOrganizationSettings['dataAppCustomDependenciesEnabled'],
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a member without manage:Organization', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        const member = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([]),
+            },
+        } as unknown as RegisteredAccount;
+        await expect(
+            service.updateOrganizationSettings(member, {
+                dataAppCustomDependenciesEnabled: true,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+    });
+});

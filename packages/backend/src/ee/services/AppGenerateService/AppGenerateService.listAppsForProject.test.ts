@@ -108,6 +108,7 @@ const buildService = (
         featureFlagModel: featureFlagModelWith({
             [FeatureFlags.EnableDataApps]: gates.dataAppsEnabled,
         }) as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {

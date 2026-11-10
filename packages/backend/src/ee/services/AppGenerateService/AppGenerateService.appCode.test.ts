@@ -195,10 +195,15 @@ function buildService(
     };
 
     const featureFlagModel = featureFlagModelWith({
-        [FeatureFlags.EnableDataAppCustomDependencies]:
-            opts.customDependenciesOrgEnabled ?? true,
         [FeatureFlags.EnableDataApps]: opts.dataAppsEnabled ?? true,
     });
+
+    const organizationSettingsModel = {
+        get: vi.fn().mockResolvedValue({
+            dataAppCustomDependenciesEnabled:
+                opts.customDependenciesOrgEnabled ?? true,
+        }),
+    };
 
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({
@@ -249,6 +254,7 @@ function buildService(
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: {} as never,
+        organizationSettingsModel: organizationSettingsModel as never,
         pinnedListModel: {} as never,
         projectModel: projectModel as never,
         projectParametersModel: {} as never,
@@ -318,6 +324,7 @@ function buildService(
         appModel,
         schedulerClient,
         analytics,
+        organizationSettingsModel,
         externalConnectionModel,
         coderService,
         spaceModel,
@@ -1567,10 +1574,11 @@ describe('AppGenerateService.importAppCode', () => {
         expect(appModel.updateApp).not.toHaveBeenCalled();
     });
 
-    it('rejects custom deps when the org flag is off', async () => {
-        const { service, appModel, analytics } = buildService({
-            customDependenciesOrgEnabled: false,
-        });
+    it('rejects custom deps when the org setting is off', async () => {
+        const { service, appModel, analytics, organizationSettingsModel } =
+            buildService({
+                customDependenciesOrgEnabled: false,
+            });
 
         appModel.findApp.mockResolvedValue(undefined);
 
@@ -1583,6 +1591,10 @@ describe('AppGenerateService.importAppCode', () => {
             } as ImportAppCodeRequestBody),
         ).rejects.toThrow('not enabled for your organization');
 
+        // Read from the project's organization, not the user session's.
+        expect(organizationSettingsModel.get).toHaveBeenCalledWith(
+            PROJECT_ORG_UUID,
+        );
         expect(analytics.track).toHaveBeenCalledWith({
             event: 'data_app.upload_rejected',
             userId: USER_UUID,
@@ -1636,7 +1648,7 @@ describe('AppGenerateService.importAppCode', () => {
         expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
     });
 
-    it('accepts custom deps when the org flag allows them', async () => {
+    it('accepts custom deps when the org setting allows them', async () => {
         const { service, appModel, schedulerClient, analytics } = buildService({
             customDependenciesOrgEnabled: true,
         });
@@ -1663,6 +1675,21 @@ describe('AppGenerateService.importAppCode', () => {
                 lockfileHash: expect.any(String),
             }),
         });
+    });
+
+    it('does not read the org setting for a template-only upload', async () => {
+        const { service, appModel, organizationSettingsModel } = buildService({
+            customDependenciesOrgEnabled: false,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: { ...makeCode(), dependencies: makeDeps() },
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(organizationSettingsModel.get).not.toHaveBeenCalled();
     });
 
     it('stores server-owned build dependencies instead of uploaded devDependencies', async () => {

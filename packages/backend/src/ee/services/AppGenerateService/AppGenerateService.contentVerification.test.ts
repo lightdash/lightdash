@@ -136,6 +136,7 @@ const buildService = (
         featureFlagModel: {
             get: vi.fn(async () => ({ enabled: true })),
         } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {

@@ -600,6 +600,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagModel: models.getFeatureFlagModel(),
                     organizationDesignModel:
                         models.getOrganizationDesignModel(),
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                     pinnedListModel: models.getPinnedListModel(),
                     projectModel: models.getProjectModel(),
                     projectParametersModel: models.getProjectParametersModel(),

@@ -10,7 +10,9 @@ type SettingsQuery = {
     data:
         | Pick<
               OrganizationSettings,
-              'dataAppAutomaticThumbnailsEnabled' | 'dataAppCapturesEnabled'
+              | 'dataAppAutomaticThumbnailsEnabled'
+              | 'dataAppCapturesEnabled'
+              | 'dataAppCustomDependenciesEnabled'
           >
         | undefined;
     isInitialLoading: boolean;
@@ -20,6 +22,13 @@ type SettingsQuery = {
 
 const LABEL = 'Automatically capture thumbnails for data app versions';
 const CAPTURES_LABEL = 'Allow screenshots and attachments in data app builds';
+const CUSTOM_DEPENDENCIES_LABEL = 'Allow custom dependencies in data apps';
+
+const DEFAULT_SETTINGS = {
+    dataAppAutomaticThumbnailsEnabled: true,
+    dataAppCapturesEnabled: true,
+    dataAppCustomDependenciesEnabled: false,
+};
 
 const {
     automaticThumbnailsFlag,
@@ -34,6 +43,7 @@ const {
             data: {
                 dataAppAutomaticThumbnailsEnabled: true,
                 dataAppCapturesEnabled: true,
+                dataAppCustomDependenciesEnabled: false,
             },
             isInitialLoading: false,
             isError: false,
@@ -89,10 +99,7 @@ const renderPage = () =>
 describe('DataAppGeneralSettingsPage', () => {
     beforeEach(() => {
         settingsQuery.current = {
-            data: {
-                dataAppAutomaticThumbnailsEnabled: true,
-                dataAppCapturesEnabled: true,
-            },
+            data: DEFAULT_SETTINGS,
             isInitialLoading: false,
             isError: false,
             error: undefined,
@@ -154,8 +161,8 @@ describe('DataAppGeneralSettingsPage', () => {
     it('turns automatic capture back on when the checkbox is ticked', async () => {
         const user = userEvent.setup();
         settingsQuery.current.data = {
+            ...DEFAULT_SETTINGS,
             dataAppAutomaticThumbnailsEnabled: false,
-            dataAppCapturesEnabled: true,
         };
         renderPage();
 
@@ -213,6 +220,7 @@ describe('DataAppGeneralSettingsPage', () => {
 
         it('locks automatic thumbnails off while captures are off', () => {
             settingsQuery.current.data = {
+                ...DEFAULT_SETTINGS,
                 dataAppCapturesEnabled: false,
                 // The API resolves this to false while captures are off.
                 dataAppAutomaticThumbnailsEnabled: false,
@@ -235,6 +243,7 @@ describe('DataAppGeneralSettingsPage', () => {
         it('cannot be turned on when the instance env has captures off', () => {
             health.capturesEnabledOnInstance = false;
             settingsQuery.current.data = {
+                ...DEFAULT_SETTINGS,
                 dataAppCapturesEnabled: false,
                 dataAppAutomaticThumbnailsEnabled: false,
             };
@@ -248,6 +257,43 @@ describe('DataAppGeneralSettingsPage', () => {
                     'Screenshots and attachments are disabled on this instance',
                 ),
             ).toBeInTheDocument();
+        });
+    });
+
+    describe('custom dependencies', () => {
+        it('is off by default and can be turned on', async () => {
+            const user = userEvent.setup();
+            renderPage();
+
+            const toggle = screen.getByRole('switch', {
+                name: CUSTOM_DEPENDENCIES_LABEL,
+            });
+            expect(toggle).not.toBeChecked();
+            expect(
+                screen.getByText('manage:DataAppDependency'),
+            ).toBeInTheDocument();
+            await user.click(toggle);
+
+            expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
+                dataAppCustomDependenciesEnabled: true,
+            });
+        });
+
+        it('turns off when unticked', async () => {
+            const user = userEvent.setup();
+            settingsQuery.current.data = {
+                ...DEFAULT_SETTINGS,
+                dataAppCustomDependenciesEnabled: true,
+            };
+            renderPage();
+
+            await user.click(
+                screen.getByRole('switch', { name: CUSTOM_DEPENDENCIES_LABEL }),
+            );
+
+            expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
+                dataAppCustomDependenciesEnabled: false,
+            });
         });
     });
 

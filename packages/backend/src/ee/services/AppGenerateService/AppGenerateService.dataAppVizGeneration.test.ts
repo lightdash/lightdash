@@ -77,6 +77,7 @@ function buildService(
         featureFlagModel: featureFlagModelWith({
             [FeatureFlags.EnableDataApps]: overrides.dataAppsEnabled ?? true,
         }) as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {
             getDefault: vi.fn().mockResolvedValue(null),
         } as never,

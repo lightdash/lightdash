@@ -180,6 +180,7 @@ function buildService(
         featureFlagModel: (gates
             ? featureFlagModelWith(gates.featureFlags)
             : { get: vi.fn().mockResolvedValue({ enabled: true }) }) as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {
