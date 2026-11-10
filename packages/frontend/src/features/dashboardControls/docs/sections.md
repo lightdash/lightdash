@@ -42,7 +42,11 @@ _group_ (that is `requiredGroupId`).
 ## Bar layout
 
 - No stored order: "Add filter", unsectioned pills, one capsule per section
-  on its own line unless `inline`, then "New section" (edit mode).
+  on its own line unless `inline`, then "New section" (edit mode). A new
+  section after the first is added `inline`.
+- "New section" and a new section's name input end the last line once a
+  section exists, where the new section lands; the first is named on the
+  line below the filters.
 - Stored order: one `.orderLine` per line. "Add filter" is first on line one,
   kinds are mixed, and a capsule holds its members in order. Unsaved pills
   ("needs value", temporary and the viewer's own) end the last line.
