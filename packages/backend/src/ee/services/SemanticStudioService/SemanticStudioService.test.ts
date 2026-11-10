@@ -572,7 +572,12 @@ describe('SemanticStudioService', () => {
             ).toEqual([]);
         });
 
-        const ORDERS_BREAK = { name: 'Orders by customer', error: 'no field' };
+        const ORDERS_BREAK = {
+            name: 'Orders by customer',
+            error: 'no field',
+            chartUuid: 'chart-uuid',
+            dashboardUuid: null,
+        };
         const breaksWithoutCustomerId = (
             explores: (Explore | ExploreError)[],
         ) => [
@@ -583,7 +588,15 @@ describe('SemanticStudioService', () => {
                     explore.tables.orders &&
                     !explore.tables.orders.dimensions.customer_id,
             )
-                ? [validationError(ORDERS_BREAK.name, ORDERS_BREAK.error)]
+                ? [
+                      {
+                          ...validationError(
+                              ORDERS_BREAK.name,
+                              ORDERS_BREAK.error,
+                          ),
+                          chartUuid: ORDERS_BREAK.chartUuid,
+                      },
+                  ]
                 : []),
         ];
         const dropCustomerId = draftModel(null, {

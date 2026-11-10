@@ -343,7 +343,14 @@ describe('Project model documents on PostgreSQL', () => {
         await model.startDraftImpactCheck({ ...owner, draftHash: 'first' });
         await model.startDraftImpactCheck({ ...owner, draftHash: 'second' });
         const breaks = {
-            draft: [{ name: 'Orders by customer', error: 'no field' }],
+            draft: [
+                {
+                    name: 'Orders by customer',
+                    error: 'no field',
+                    chartUuid: null,
+                    dashboardUuid: null,
+                },
+            ],
             models: {},
         };
         await model.finishDraftImpactCheck({

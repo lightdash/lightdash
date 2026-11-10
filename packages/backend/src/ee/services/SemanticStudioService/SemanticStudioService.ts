@@ -4,6 +4,8 @@ import {
     ExploreType,
     FeatureFlags,
     ForbiddenError,
+    isChartValidationError,
+    isDashboardValidationError,
     isExploreError,
     NotFoundError,
     ParameterError,
@@ -592,9 +594,21 @@ export class SemanticStudioService extends BaseService {
                 ({ name, error }) => `${name}|${error}`,
             ),
         );
-        return drafted.flatMap(({ name, error }) =>
-            name !== undefined && !brokenAlready.has(`${name}|${error}`)
-                ? [{ name, error }]
+        return drafted.flatMap((broken) =>
+            broken.name !== undefined &&
+            !brokenAlready.has(`${broken.name}|${broken.error}`)
+                ? [
+                      {
+                          name: broken.name,
+                          error: broken.error,
+                          chartUuid: isChartValidationError(broken)
+                              ? (broken.chartUuid ?? null)
+                              : null,
+                          dashboardUuid: isDashboardValidationError(broken)
+                              ? (broken.dashboardUuid ?? null)
+                              : null,
+                      },
+                  ]
                 : [],
         );
     }

@@ -1695,6 +1695,13 @@ export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
                     'Your tables and metrics come from the connected project. They show up here after it refreshes.',
             };
         }
+        if (canEdit && !hasAgent) {
+            return {
+                title: 'Build your semantic layer',
+                description:
+                    'An agent reads your warehouse and drafts tables and metrics for you to review. Create one to start.',
+            };
+        }
         return {
             title: 'Build your semantic layer',
             description:

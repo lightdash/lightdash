@@ -1,6 +1,7 @@
 /** The person's draft of the semantic layer: its review page, and the check before it goes live. */
 import { type SemanticLayerDraft } from '@lightdash/common';
 import {
+    Anchor,
     Badge,
     Box,
     Button,
@@ -128,13 +129,40 @@ const DraftImpact: FC<{ projectUuid: string; model: string | null }> = ({
             </Callout>
         );
     }
-    const breaks = impact.data?.breaks ?? [];
+    const breaks = uniqBy(
+        impact.data?.breaks ?? [],
+        ({ name, error }) => `${name}|${error}`,
+    );
+    if (breaks.length === 0) return null;
     return (
-        <MessageList
+        <Callout
             variant="warning"
             title={`This breaks ${breaks.length === 1 ? '1 saved chart or dashboard' : `${breaks.length} saved charts or dashboards`}`}
-            messages={breaks.map(({ name, error }) => `${name}: ${error}`)}
-        />
+        >
+            <Stack gap={4}>
+                {breaks.map(({ name, error, chartUuid, dashboardUuid }) => {
+                    const path = chartUuid
+                        ? `saved/${chartUuid}`
+                        : dashboardUuid && `dashboards/${dashboardUuid}`;
+                    return (
+                        <Text key={`${name}|${error}`} fz="xs">
+                            {path ? (
+                                <Anchor
+                                    href={`/projects/${projectUuid}/${path}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    {name}
+                                </Anchor>
+                            ) : (
+                                name
+                            )}
+                            : {error}
+                        </Text>
+                    );
+                })}
+            </Stack>
+        </Callout>
     );
 };
 
