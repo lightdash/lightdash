@@ -203,6 +203,8 @@ const buildService = ({
     };
     const service = new CoderService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        // Tests stub the flag read on the prototype
+        featureFlagModel: Object.create(FeatureFlagModel.prototype) as AnyType,
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,

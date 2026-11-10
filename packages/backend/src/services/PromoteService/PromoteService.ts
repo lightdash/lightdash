@@ -1147,7 +1147,11 @@ export class PromoteService extends BaseService {
             ...createdCharts,
         ];
         const getChartByOldUuid = (oldUuid: string) => {
-            const chart = allCharts.find((c) => c.oldUuid === oldUuid);
+            const chart =
+                allCharts.find((c) => c.oldUuid === oldUuid) ??
+                promotionChanges.composerCharts.find(
+                    (c) => c.data.oldUuid === oldUuid,
+                )?.data;
             if (chart === undefined)
                 throw new UnexpectedServerError(
                     `Missing chart with old uuid "${oldUuid}" to promote`,
@@ -2112,6 +2116,7 @@ export class PromoteService extends BaseService {
             skippedCharts: [],
             spaces: spaceChanges,
             dashboards: [],
+            composerCharts: [],
             charts: [],
         });
         return PromoteService.getSpaceByPath(result.spaces, path).uuid;
@@ -2494,6 +2499,7 @@ export class PromoteService extends BaseService {
                     skippedCharts: [],
                     spaces: [spaceChange],
                     dashboards: [],
+                    composerCharts: [],
                     charts: [],
                 },
                 sqlChartChange,
@@ -2511,6 +2517,7 @@ export class PromoteService extends BaseService {
                 skippedCharts: [],
                 spaces: [spaceChange, ...spaceChanges],
                 dashboards: [],
+                composerCharts: [],
                 charts: [],
             },
             sqlChartChange,
@@ -2614,6 +2621,7 @@ export class PromoteService extends BaseService {
             return {
                 spaces: [spaceChange],
                 dashboards: [],
+                composerCharts: [],
                 charts: [chartChange],
                 skippedCharts: [],
             };
@@ -2628,6 +2636,7 @@ export class PromoteService extends BaseService {
         return {
             spaces: [spaceChange, ...spaceChanges],
             dashboards: [],
+            composerCharts: [],
             charts: [chartChange],
             skippedCharts: [],
         };
@@ -2638,6 +2647,11 @@ export class PromoteService extends BaseService {
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
         includeOrphanChartsWithinDashboard?: boolean,
+        // Promotion drops composer tiles and names them; a same-project
+        // content-as-code upload keeps them, since their charts already exist
+        { composerTiles }: { composerTiles: 'drop' | 'keep' } = {
+            composerTiles: 'drop',
+        },
     ): Promise<
         [
             PromotionChanges,
@@ -2698,6 +2712,30 @@ export class PromoteService extends BaseService {
                 includeOrphanChartsWithinDashboard,
             ),
         );
+        // Kept composer charts already live in the dashboard being written
+        const keptComposerCharts: PromotionChanges['composerCharts'] =
+            composerTiles === 'keep'
+                ? await Promise.all(
+                      skippedCharts.map(async ({ uuid }) => {
+                          const variant =
+                              await this.savedChartModel.getVariant(uuid);
+                          if (variant.queryType !== 'composer') {
+                              throw new UnexpectedServerError(
+                                  `Chart "${uuid}" is not a composer chart`,
+                              );
+                          }
+                          return {
+                              action: PromotionAction.NO_CHANGES,
+                              data: {
+                                  ...variant.chart,
+                                  oldUuid: uuid,
+                                  spaceSlug: promotedDashboard.space.slug,
+                                  spacePath: promotedDashboard.space.path,
+                              },
+                          };
+                      }),
+                  )
+                : [];
         const sqlChartPromises = savedSqlUuids.map((savedSqlUuid) =>
             this.getPromoteSqlCharts(user, upstreamProjectUuid, savedSqlUuid),
         );
@@ -2771,14 +2809,19 @@ export class PromoteService extends BaseService {
         // The promoted dashboard carries no tile for a skipped composer chart
         const promotableDashboard = {
             ...promotedDashboard.dashboard,
-            tiles: promotedDashboard.dashboard.tiles.filter(
-                (tile) =>
-                    !(
-                        isDashboardChartTileType(tile) &&
-                        tile.properties.savedChartUuid &&
-                        composerChartUuids.has(tile.properties.savedChartUuid)
-                    ),
-            ),
+            tiles:
+                composerTiles === 'keep'
+                    ? promotedDashboard.dashboard.tiles
+                    : promotedDashboard.dashboard.tiles.filter(
+                          (tile) =>
+                              !(
+                                  isDashboardChartTileType(tile) &&
+                                  tile.properties.savedChartUuid &&
+                                  composerChartUuids.has(
+                                      tile.properties.savedChartUuid,
+                                  )
+                              ),
+                      ),
         };
         const dashboardChanges: PromotionChanges['dashboards'] = [
             upstreamDashboard,
@@ -2835,7 +2878,8 @@ export class PromoteService extends BaseService {
                 spaces: spaceChanges,
                 dashboards: dashboardChanges,
                 charts: chartChanges,
-                skippedCharts,
+                composerCharts: keptComposerCharts,
+                skippedCharts: composerTiles === 'keep' ? [] : skippedCharts,
             },
             charts, // For permission checks
             sqlCharts, // For permission checks
@@ -3133,6 +3177,7 @@ export class PromoteService extends BaseService {
         return {
             spaces: PromoteService.sortSpaceChanges(spaceChanges),
             dashboards: [],
+            composerCharts: [],
             charts: [],
             skippedCharts: [],
             dataApps: dataAppChanges.map(({ uuid, name, action }) => ({

@@ -308,6 +308,7 @@ describe('CoderService', () => {
             agentActionLogModel: {
                 insert: vi.fn().mockResolvedValue(undefined),
             },
+            featureFlagModel: {} as AnyType,
             directAccessService: {} as AnyType,
             savedChartModel: {
                 get: vi.fn().mockResolvedValue(publishedChart),
@@ -1496,6 +1497,7 @@ describe('CoderService', () => {
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
+                featureFlagModel: {} as AnyType,
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1590,6 +1592,7 @@ describe('CoderService', () => {
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
+                featureFlagModel: {} as AnyType,
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1663,6 +1666,7 @@ describe('CoderService', () => {
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
+                featureFlagModel: {} as AnyType,
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1731,6 +1735,7 @@ describe('CoderService', () => {
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
+                featureFlagModel: {} as AnyType,
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1859,6 +1864,7 @@ describe('CoderService', () => {
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
+                featureFlagModel: {} as AnyType,
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1937,6 +1943,7 @@ describe('CoderService', () => {
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
+                featureFlagModel: {} as AnyType,
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -2464,6 +2471,7 @@ describe('CoderService', () => {
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
+                featureFlagModel: {} as AnyType,
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {} as AnyType,

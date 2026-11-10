@@ -1,7 +1,11 @@
 import type { ApiSuccess } from './api/success';
 import { type DashboardDAO } from './dashboard';
 import type { Document } from './document';
-import { type SavedChartDAO, type SkippedChart } from './savedCharts';
+import {
+    type ComposerSavedChartDAO,
+    type SavedChartDAO,
+    type SkippedChart,
+} from './savedCharts';
 import { type SpaceSummaryBase } from './space';
 
 export enum PromotionAction {
@@ -18,6 +22,13 @@ export type PromotedDashboard = DashboardDAO & {
     spacePath: string;
 };
 export type PromotedChart = SavedChartDAO & {
+    spaceSlug: string;
+    spacePath: string;
+    oldUuid: string;
+};
+
+/** A composer chart written by a content-as-code upload; promotion does not carry pipelines yet. */
+export type PromotedComposerChart = ComposerSavedChartDAO & {
     spaceSlug: string;
     spacePath: string;
     oldUuid: string;
@@ -56,6 +67,11 @@ export type PromotionChanges = {
     charts: {
         action: PromotionAction;
         data: PromotedChart;
+    }[];
+    /** Composer charts a content-as-code upload wrote; listed apart from charts, which promotion writes as classic versions. */
+    composerCharts: {
+        action: PromotionAction;
+        data: PromotedComposerChart;
     }[];
     sqlCharts?: {
         action: PromotionAction;

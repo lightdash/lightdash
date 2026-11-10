@@ -3,6 +3,7 @@ import { ContentAsCodeType } from '../types/contentAsCode/core';
 import { CustomFormatType, TableCalculationTemplateType } from '../types/field';
 import {
     chartAsCodeSchema,
+    COMPOSER_CHART_BRANCH,
     getChartAsCodeBranchSchema,
 } from './chartAsCodeSchema';
 
@@ -42,6 +43,47 @@ const validSqlChart = {
         type: 'table',
         columns: {},
         display: {},
+    },
+};
+
+const validComposerChart = {
+    name: 'Revenue share by status',
+    description: 'Share of revenue per order status',
+    slug: 'revenue-share-by-status',
+    spaceSlug: 'sales',
+    dashboardSlug: 'revenue-dashboard',
+    contentType: 'chart',
+    version: 1,
+    pipeline: {
+        schemaVersion: 1,
+        nodes: [
+            {
+                sourceType: 'semanticLayer',
+                nodeId: 'orders',
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_total_order_amount'],
+                limit: 500,
+            },
+            {
+                sourceType: 'duckdb',
+                nodeId: 'share',
+                sql: 'SELECT orders_status, orders_total_order_amount / SUM(orders_total_order_amount) OVER () AS revenue_share FROM orders',
+                references: ['orders'],
+                limit: 100,
+            },
+        ],
+        terminalNodeId: 'share',
+    },
+    chartConfig: {
+        type: 'cartesian',
+        config: {
+            layout: {
+                xField: 'composer_result_orders_status',
+                yField: ['composer_result_revenue_share'],
+            },
+            eChartsConfig: { series: [] },
+        },
     },
 };
 
@@ -153,9 +195,36 @@ describe('chartAsCodeSchema', () => {
         expect(paths).toEqual(['/tableName']);
     });
 
+    test('accepts a composer chart', () => {
+        expect(validate(validComposerChart)).toBe(true);
+    });
+
+    test('a composer chart lives in a dashboard and carries no metric query', () => {
+        const { dashboardSlug, ...withoutDashboard } = validComposerChart;
+        expect(validate(withoutDashboard)).toBe(false);
+        const paths = errorPaths(validate.errors).filter((path) => path !== '');
+        expect(paths).toEqual(['/dashboardSlug']);
+        expect(validate({ ...validComposerChart, dashboardSlug: null })).toBe(
+            false,
+        );
+        expect(
+            validate({
+                ...validComposerChart,
+                tableName: validChart.tableName,
+                metricQuery: validChart.metricQuery,
+            }),
+        ).toBe(false);
+    });
+
+    test('rejects a chart file with neither a pipeline nor a metric query', () => {
+        const { pipeline, ...neither } = validComposerChart;
+        expect(validate(neither)).toBe(false);
+    });
+
     test('keeps chart config definitions addressable under $defs', () => {
         expect(chartAsCodeSchema.$defs).toHaveProperty('PieChartConfig');
         expect(chartAsCodeSchema.$defs).toHaveProperty('ChartAsCode');
+        expect(chartAsCodeSchema.$defs).toHaveProperty('ComposerChartAsCode');
         expect(chartAsCodeSchema.$defs).toHaveProperty('SqlChartAsCode');
     });
 });
@@ -172,6 +241,19 @@ describe('getChartAsCodeBranchSchema', () => {
     test('validates semantic layer charts only', () => {
         expect(validateChart(validChart)).toBe(true);
         expect(validateChart(validSqlChart)).toBe(false);
+        expect(validateChart(validComposerChart)).toBe(false);
+    });
+
+    test('validates composer charts only, with errors scoped to the missing field', () => {
+        const validateComposerChart = ajv.compile(
+            getChartAsCodeBranchSchema(COMPOSER_CHART_BRANCH),
+        );
+        expect(validateComposerChart(validComposerChart)).toBe(true);
+        expect(validateComposerChart(validChart)).toBe(false);
+
+        const { pipeline, ...composerChart } = validComposerChart;
+        expect(validateComposerChart(composerChart)).toBe(false);
+        expect(errorPaths(validateComposerChart.errors)).toEqual(['/pipeline']);
     });
 
     test('validates SQL charts only, with errors scoped to the missing field', () => {

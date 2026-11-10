@@ -9,7 +9,9 @@
                 "firstPartyOnly": "No client could ever call run_composer_queries because the MCP server never registered it; it existed only in the generated schema file.",
                 "covers": {
                     "rest": [],
-                    "mcp": ["run_composer_queries"]
+                    "mcp": [
+                        "run_composer_queries"
+                    ]
                 }
             }
         },
@@ -164,7 +166,9 @@
                 "kind": "no-external-callers",
                 "firstPartyOnly": "The AI Credits organization settings page is the only client of this operation. During a rolling update an old tab on that page shows the app error state until refresh, and nothing is written or lost.",
                 "covers": {
-                    "rest": ["GET /api/v1/org/ai-credits/usage/daily"],
+                    "rest": [
+                        "GET /api/v1/org/ai-credits/usage/daily"
+                    ],
                     "mcp": []
                 }
             }
@@ -249,6 +253,21 @@
         "data-app-custom-dependencies-flag-removed": {
             "reason": "The EnableDataAppCustomDependencies member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading. Whether an organization may upload custom data app dependencies is now the dataAppCustomDependenciesEnabled organization setting, which a migration seeds from the flag, so self-hosters who listed enable-data-app-custom-dependencies in LIGHTDASH_ENABLE_FEATURE_FLAGS keep access and later changes are made by an org admin in the data apps settings.",
             "requiredStop": false
+        },
+        "chart-as-code-upload-accepts-composer-chart-files": {
+            "reason": "Chart-as-code upload bodies now accept a composer chart file (a pipeline instead of a metricQuery) beside the classic chart file. Every body the CLI and API accepted before is still accepted unchanged; the OpenAPI schema widens to a union, which generated clients see as a loosened request type.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "compose-sql-runner",
+                "covers": {
+                    "rest": [
+                        "POST /api/v1/projects/{projectUuid}/charts/{slug}/code",
+                        "POST /api/v1/projects/{projectUuid}/code/charts/{slug}"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

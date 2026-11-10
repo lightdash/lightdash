@@ -55,6 +55,9 @@ export enum ChartType {
     DATA_APP_VIZ = 'data_app_viz',
 }
 
+export const isChartType = (value: unknown): value is ChartType =>
+    Object.values(ChartType).some((chartType) => chartType === value);
+
 export enum ComparisonFormatTypes {
     RAW = 'raw',
     PERCENTAGE = 'percentage',

@@ -20,6 +20,7 @@ type SwaggerDoc = {
 const SCHEMA_REF_PREFIX = '#/components/schemas/';
 const DEFS_REF_PREFIX = '#/$defs/';
 const CHART_SCHEMA_NAME = 'ChartAsCode';
+const COMPOSER_CHART_SCHEMA_NAME = 'ComposerChartAsCode';
 const SQL_CHART_SCHEMA_NAME = 'SqlChartAsCode';
 
 export const getRepoRoot = (): string =>
@@ -332,6 +333,8 @@ const sortKeysDeep = (value: JsonValue): JsonValue => {
     return Object.fromEntries(sortedEntries);
 };
 
+const SLUG_SCHEMA: JsonObject = { type: 'string', pattern: '^[a-z0-9-]+$' };
+
 const overlayCompatibilityRules = (schema: JsonObject): JsonObject => {
     const root = { ...schema };
     const rootProperties = toObject(root.properties);
@@ -345,20 +348,19 @@ const overlayCompatibilityRules = (schema: JsonObject): JsonObject => {
 
     if (rootProperties.dashboardSlug) {
         const existing = toObject(rootProperties.dashboardSlug);
-        rootProperties.dashboardSlug = {
-            ...(existing.description
-                ? { description: existing.description }
-                : {}),
-            oneOf: [
-                {
-                    type: 'string',
-                    pattern: '^[a-z0-9-]+$',
-                },
-                {
-                    type: 'null',
-                },
-            ],
-        };
+        const description: JsonObject = existing.description
+            ? { description: existing.description }
+            : {};
+        // A composer chart always lives in a dashboard, so its slug is required
+        const required = Array.isArray(root.required)
+            ? root.required.map(String)
+            : [];
+        rootProperties.dashboardSlug = required.includes('dashboardSlug')
+            ? { ...description, ...SLUG_SCHEMA }
+            : {
+                  ...description,
+                  oneOf: [SLUG_SCHEMA, { type: 'null' }],
+              };
     }
 
     root.properties = rootProperties;
@@ -488,9 +490,10 @@ const collectTransitiveRefs = (
 
 const buildSemanticChartRoot = (
     components: Record<string, JsonObject>,
+    schemaName: string,
 ): { swaggerRoot: JsonObject; root: JsonObject } => {
     const swaggerRoot = resolveTopLevelAllOf(
-        getComponent(components, CHART_SCHEMA_NAME),
+        getComponent(components, schemaName),
         components,
     );
     const rootWithDescriptions = recoverNestedDescriptions(
@@ -540,17 +543,24 @@ const SQL_CHART_CONDITION: JsonObject = {
     ],
 };
 
+// The JSON-schema form of `isComposerChartAsCode`: a stored pipeline marks a composer chart.
+const COMPOSER_CHART_CONDITION: JsonObject = { required: ['pipeline'] };
+
 export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
     const components = swagger.components?.schemas;
     if (!components) {
         throw new Error('Missing `components.schemas` in swagger document');
     }
 
-    const chart = buildSemanticChartRoot(components);
+    const chart = buildSemanticChartRoot(components, CHART_SCHEMA_NAME);
+    const composerChart = buildSemanticChartRoot(
+        components,
+        COMPOSER_CHART_SCHEMA_NAME,
+    );
     const sqlChart = buildSqlChartRoot(components);
 
     const defs = collectTransitiveRefs(
-        [chart.swaggerRoot, sqlChart.swaggerRoot],
+        [chart.swaggerRoot, composerChart.swaggerRoot, sqlChart.swaggerRoot],
         components,
     ).reduce<Record<string, JsonObject>>((acc, schemaName) => {
         acc[schemaName] = convertOpenApiToDraft07(
@@ -558,31 +568,45 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
         ) as JsonObject;
         return acc;
     }, {});
-    [CHART_SCHEMA_NAME, SQL_CHART_SCHEMA_NAME].forEach((schemaName) => {
+    [
+        CHART_SCHEMA_NAME,
+        COMPOSER_CHART_SCHEMA_NAME,
+        SQL_CHART_SCHEMA_NAME,
+    ].forEach((schemaName) => {
         if (defs[schemaName]) {
             throw new Error(`$defs already contains ${schemaName}`);
         }
     });
 
     // if/then/else rather than oneOf: validators report errors from the
-    // matching chart shape only, instead of both shapes at once.
+    // matching chart shape only, instead of all shapes at once.
     return {
         $schema: 'http://json-schema.org/draft-07/schema#',
         $id: 'https://schemas.lightdash.com/lightdash/chart-as-code.json',
         title: 'Lightdash Chart as Code',
         description:
-            'Schema for defining Lightdash charts (semantic layer charts and SQL charts) in YAML format for version control',
+            'Schema for defining Lightdash charts (semantic layer charts, composer charts and SQL charts) in YAML format for version control',
         type: 'object',
         if: SQL_CHART_CONDITION,
         // oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
         then: { $ref: `${DEFS_REF_PREFIX}${SQL_CHART_SCHEMA_NAME}` },
-        else: { $ref: `${DEFS_REF_PREFIX}${CHART_SCHEMA_NAME}` },
+        else: {
+            if: COMPOSER_CHART_CONDITION,
+            // oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
+            then: { $ref: `${DEFS_REF_PREFIX}${COMPOSER_CHART_SCHEMA_NAME}` },
+            else: { $ref: `${DEFS_REF_PREFIX}${CHART_SCHEMA_NAME}` },
+        },
         $defs: {
             ...defs,
             [CHART_SCHEMA_NAME]: {
                 ...chart.root,
                 description:
                     'A semantic layer chart: queries an explore with tableName and metricQuery',
+            },
+            [COMPOSER_CHART_SCHEMA_NAME]: {
+                ...composerChart.root,
+                description:
+                    'A composer chart: draws the stored pipeline, owned by a dashboard',
             },
             [SQL_CHART_SCHEMA_NAME]: {
                 ...sqlChart.root,

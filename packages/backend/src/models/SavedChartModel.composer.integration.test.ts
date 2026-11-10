@@ -321,6 +321,46 @@ describe('Composer chart rows on the real schema', () => {
                     .first('description'),
             ).resolves.toEqual({ description: null });
         });
+
+        test('createComposerChartVersion clears a stored description when given null', async () => {
+            const created = await model.createComposerChart(
+                fixture.projectUuid,
+                fixture.userUuid,
+                {
+                    name: 'described',
+                    description: 'Revenue by status',
+                    dashboardUuid: await createDashboard(),
+                    pipeline,
+                    chartConfig,
+                    pivotConfig: undefined,
+                    slug: `described-${randomUUID()}`,
+                },
+            );
+            expect(created.description).toBe('Revenue by status');
+            const updated = await model.createComposerChartVersion(
+                created.uuid,
+                fixture.userUuid,
+                {
+                    name: 'described',
+                    description: null,
+                    pipeline,
+                    chartConfig,
+                    pivotConfig: undefined,
+                },
+            );
+            expect(updated.description).toBeNull();
+            await expect(
+                database('saved_queries_versions')
+                    .whereIn(
+                        'saved_query_id',
+                        database('saved_queries')
+                            .select('saved_query_id')
+                            .where('saved_query_uuid', created.uuid),
+                    )
+                    .count('* as versions')
+                    .first(),
+            ).resolves.toEqual({ versions: '2' });
+        });
     });
 
     describe('finding composer rows in bulk', () => {

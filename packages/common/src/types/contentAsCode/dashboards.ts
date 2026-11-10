@@ -67,6 +67,8 @@ export type DashboardChartTileAsCode = DashboardTileAsCodeBase & {
         chartSlug: string | null;
         /** Read-only and stripped on upload: absent on exports and uploads, set on AI content reads, null when the chart is not found in this project. */
         chartQuery?: DashboardTileChartQuery | null;
+        /** Set by download on a tile whose chart is a composer chart; derived from the chart on upload, so a file cannot change it. */
+        queryType?: 'composer';
     };
 };
 

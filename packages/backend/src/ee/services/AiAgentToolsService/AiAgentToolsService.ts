@@ -35,6 +35,7 @@ import {
     getItemMap,
     getLtreePathFromContentAsCodePath,
     getValidAiQueryLimit,
+    isComposerChartAsCode,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     isDimension,
@@ -79,6 +80,7 @@ import {
     type McpListCustomChartTypesOutput,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
+    type SavedChartAsCode,
     type SchedulerAiAugmentation,
     type SqlChart,
     type SqlChartAsCode,
@@ -2191,7 +2193,7 @@ export class AiAgentToolsService extends BaseService {
     private validateContentAsCode(
         type: ContentAsCodeType,
         content: unknown,
-    ): asserts content is DashboardAsCode | ChartAsCode | SqlChartAsCode {
+    ): asserts content is DashboardAsCode | SavedChartAsCode | SqlChartAsCode {
         this.aiAgentContentValidation.validateContent(type, content);
     }
 
@@ -3275,6 +3277,11 @@ export class AiAgentToolsService extends BaseService {
                     context.account,
                     { projectUuid: context.projectUuid },
                 );
+                // Agent content tools edit classic charts; get() refuses
+                // composer rows before this, so this only narrows the type.
+                if (isComposerChartAsCode(chart)) {
+                    throw new ComposerChartNotSupportedError(savedChart.uuid);
+                }
                 return {
                     type: 'chart',
                     content: chart,

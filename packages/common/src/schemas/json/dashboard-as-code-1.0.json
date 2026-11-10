@@ -352,6 +352,11 @@
                         "hideTitle": {
                             "type": "boolean"
                         },
+                        "queryType": {
+                            "description": "Set by download on a tile whose chart is a composer chart; derived from the chart on upload, so a file cannot change it.",
+                            "enum": ["composer"],
+                            "type": "string"
+                        },
                         "title": {
                             "type": "string"
                         }
