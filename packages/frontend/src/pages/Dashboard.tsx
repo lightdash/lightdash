@@ -894,29 +894,38 @@ const Dashboard: FC = () => {
                     ],
                     [
                         hasDateZoomDisabledChanged,
-                        settingChange('date-zoom-disabled', 'Date zoom'),
+                        settingChange(
+                            'date-zoom-disabled',
+                            'Date zoom for viewers',
+                        ),
                     ],
                     [
                         hasAddFilterDisabledChanged,
-                        settingChange('add-filter-disabled', 'Viewer filters'),
+                        settingChange(
+                            'add-filter-disabled',
+                            'Add filter for viewers',
+                        ),
                     ],
                     [
                         hasRequiredFiltersNoteChanged,
                         settingChange(
                             'required-filters-note',
-                            'Required filters note',
+                            'Filter rules note for viewers',
                         ),
                     ],
                     [
                         haveDateZoomGranularitiesChanged,
                         settingChange(
                             'date-zoom-granularities',
-                            'Date zoom options',
+                            'Date zoom granularities',
                         ),
                     ],
                     [
                         hasDefaultDateZoomGranularityChanged,
-                        settingChange('default-date-zoom', 'Default date zoom'),
+                        settingChange(
+                            'default-date-zoom',
+                            'Default date zoom granularity',
+                        ),
                     ],
                     [
                         hasDateZoomConfigChanged,
@@ -924,13 +933,16 @@ const Dashboard: FC = () => {
                     ],
                     [
                         haveControlSectionsChanged,
-                        settingChange('control-sections', 'Filter sections'),
+                        settingChange(
+                            'control-sections',
+                            'Filter bar sections',
+                        ),
                     ],
                     [
                         hasControlOrderChanged,
                         settingChange(
                             'control-order',
-                            'Filter order',
+                            'Filter bar order',
                             'reordered',
                         ),
                     ],

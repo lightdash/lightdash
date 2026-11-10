@@ -9,7 +9,6 @@ import {
     Button,
     Group,
     Popover,
-    ScrollArea,
     Stack,
     Text,
     ThemeIcon,
@@ -18,6 +17,8 @@ import {
     IconArrowsMove,
     IconArrowsSort,
     IconChevronDown,
+    IconEye,
+    IconEyeOff,
     IconMinus,
     IconPencil,
     IconPlus,
@@ -68,6 +69,10 @@ const markOf = (kind: PendingChangeKind): { icon: Icon; color: string } => {
             return { icon: IconPencil, color: 'gray' };
         case 'reordered':
             return { icon: IconArrowsSort, color: 'gray' };
+        case 'hidden':
+            return { icon: IconEyeOff, color: 'gray' };
+        case 'shown':
+            return { icon: IconEye, color: 'gray' };
         default:
             return assertUnreachable(kind, 'Unknown change kind');
     }
@@ -80,6 +85,23 @@ const rankOf = (kind: PendingChangeKind) => {
     return index === -1 ? KIND_ORDER.length : index;
 };
 
+const KIND_VERBS: Record<PendingChangeKind, string> = {
+    added: 'added',
+    removed: 'removed',
+    moved: 'moved',
+    renamed: 'renamed',
+    edited: 'changed',
+    reordered: 'reordered',
+    hidden: 'hidden',
+    shown: 'shown',
+};
+
+// A reorder row already names what was reordered
+const tagOf = ({ area, kind }: PendingChange) =>
+    kind === 'reordered'
+        ? 'Reordered'
+        : `${AREA_NAMES[area]} ${KIND_VERBS[kind]}`;
+
 const ChangeRow: FC<{ change: PendingChange }> = ({ change }) => {
     const mark = markOf(change.kind);
     return (
@@ -87,19 +109,11 @@ const ChangeRow: FC<{ change: PendingChange }> = ({ change }) => {
             <ThemeIcon size="sm" variant="light" color={mark.color}>
                 <MantineIcon icon={mark.icon} size={14} />
             </ThemeIcon>
-            <TruncatedText
-                maxWidth="100%"
-                fz="xs"
-                fw={500}
-                flex={1}
-                className={
-                    change.kind === 'removed' ? classes.removed : undefined
-                }
-            >
+            <TruncatedText maxWidth="100%" fz="xs" fw={500} flex={1} miw={0}>
                 {change.label}
             </TruncatedText>
             <Text fz="xs" c="dimmed" flex="0 0 auto">
-                {AREA_NAMES[change.area]}
+                {tagOf(change)}
             </Text>
         </Group>
     );
@@ -205,20 +219,18 @@ export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
                         : `${changes.length} changes`}
                 </Button>
             </Popover.Target>
-            <Popover.Dropdown p="xs" w={300}>
+            <Popover.Dropdown p="xs" w={360}>
                 <Text fz="xs" fw={500} c="dimmed" mb="xs">
                     Unsaved changes
                 </Text>
-                <ScrollArea.Autosize mah={320} type="auto">
-                    <Stack gap="xs">
-                        {changes.map((change) => (
-                            <ChangeRow
-                                key={`${change.area}:${change.kind}:${change.id}`}
-                                change={change}
-                            />
-                        ))}
-                    </Stack>
-                </ScrollArea.Autosize>
+                <Stack gap="xs" className={classes.list}>
+                    {changes.map((change) => (
+                        <ChangeRow
+                            key={`${change.area}:${change.kind}:${change.id}`}
+                            change={change}
+                        />
+                    ))}
+                </Stack>
             </Popover.Dropdown>
         </Popover>
     );

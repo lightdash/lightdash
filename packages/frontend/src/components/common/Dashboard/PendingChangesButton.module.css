@@ -1,6 +1,6 @@
-/* Darker than the -text token so small text stays readable on white */
-.removed {
-    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4));
+.list {
+    max-height: 320px;
+    overflow-y: auto;
 }
 
 .dot {

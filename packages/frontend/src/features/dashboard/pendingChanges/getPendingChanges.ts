@@ -24,13 +24,15 @@ export type PendingChangeKind =
     | 'moved'
     | 'renamed'
     | 'edited'
-    | 'reordered';
+    | 'reordered'
+    | 'hidden'
+    | 'shown';
 
 export type PendingChange = {
     area: PendingChangeArea;
     kind: PendingChangeKind;
     id: string;
-    /** What changed, as the list shows it */
+    /** The item that changed, as the list names it */
     label: string;
 };
 
@@ -97,10 +99,16 @@ const getTileLabel = (tile: Tile): string => {
         return properties.chartName;
     }
     if ('text' in properties && properties.text) return properties.text;
+    if ('content' in properties) {
+        const firstLine = properties.content
+            .split('\n')
+            .map((line) => line.replace(/^[#>*\-\s]+/, '').trim())
+            .find((line) => line !== '');
+        if (firstLine !== undefined) return firstLine;
+    }
     return tileTypeName(tile.type);
 };
 
-// The grid pushes other tiles aside, so every placement change is one entry
 const getTileChanges = (
     saved: Dashboard['tiles'],
     draft: Dashboard['tiles'],
@@ -135,22 +143,16 @@ const getTileChanges = (
         .map(({ after }) =>
             change('tile', 'edited', after.uuid, getTileLabel(after)),
         );
-    const placed = diff.kept.filter(
+    // One drag makes the grid push other tiles aside, so a count would
+    // not match what the editor did
+    const hasPlacementChange = diff.kept.some(
         ({ before, after }) =>
             before.tabUuid === after.tabUuid &&
             !isSameTilePlacement(before, after),
-    ).length;
-    const layout =
-        placed === 0
-            ? []
-            : [
-                  change(
-                      'layout',
-                      'moved',
-                      'layout',
-                      placed === 1 ? '1 tile' : `${placed} tiles`,
-                  ),
-              ];
+    );
+    const layout = !hasPlacementChange
+        ? []
+        : [change('layout', 'edited', 'layout', 'Tiles moved or resized')];
 
     return [...layout, ...added, ...removed, ...movedToTab, ...edited];
 };
@@ -187,9 +189,9 @@ const getTabChanges = (
         .map(({ after }) =>
             change(
                 'tab',
-                'edited',
-                `${after.uuid}:hidden`,
-                `${after.name} ${after.hidden === true ? 'hidden' : 'shown'}`,
+                after.hidden === true ? 'hidden' : 'shown',
+                after.uuid,
+                after.name,
             ),
         );
     const reordered = isEqual(

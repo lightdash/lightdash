@@ -65,7 +65,7 @@ describe('getPendingChanges', () => {
     });
 
     describe('tiles', () => {
-        it('counts every placement change as one layout change', () => {
+        it('reports moves and resizes as one layout change', () => {
             expect(
                 changesOf({
                     tiles: [tile('a', { y: 3 }), tile('b', { x: 6, w: 4 })],
@@ -73,10 +73,28 @@ describe('getPendingChanges', () => {
             ).toEqual([
                 {
                     area: 'layout',
-                    kind: 'moved',
-                    label: '2 tiles',
+                    kind: 'edited',
+                    label: 'Tiles moved or resized',
                 },
             ]);
+        });
+
+        it('names an untitled markdown tile by its first line of text', () => {
+            const note: DashboardMarkdownTile = {
+                uuid: 'n',
+                type: DashboardTileTypes.MARKDOWN,
+                x: 0,
+                y: 9,
+                w: 6,
+                h: 3,
+                tabUuid: undefined,
+                properties: { title: '', content: '\n## Board pack\nMore' },
+            };
+            expect(
+                changesOf({ tiles: [...snapshot().tiles, note] }).map(
+                    ({ label }) => label,
+                ),
+            ).toEqual(['Board pack']);
         });
 
         it('lists added and removed tiles by name', () => {
@@ -197,7 +215,7 @@ describe('getPendingChanges', () => {
         });
 
         it('lists a tab that was hidden or shown again', () => {
-            const labelsOf = (saved: boolean, draft: boolean) =>
+            const kindsOf = (saved: boolean, draft: boolean) =>
                 getPendingChanges(
                     snapshot({
                         tabs: [{ ...tabs[0], hidden: saved }, tabs[1]],
@@ -206,9 +224,9 @@ describe('getPendingChanges', () => {
                         tabs: [{ ...tabs[0], hidden: draft }, tabs[1]],
                     }),
                     labels,
-                ).map(({ label }) => label);
-            expect(labelsOf(false, true)).toEqual(['Overview hidden']);
-            expect(labelsOf(true, false)).toEqual(['Overview shown']);
+                ).map(({ kind, label }) => `${label} ${kind}`);
+            expect(kindsOf(false, true)).toEqual(['Overview hidden']);
+            expect(kindsOf(true, false)).toEqual(['Overview shown']);
         });
 
         it('reads a tab with no hidden setting as shown', () => {
