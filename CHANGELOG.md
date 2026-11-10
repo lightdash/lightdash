@@ -1,3 +1,11 @@
+## [3.197.1](https://github.com/lightdash/lightdash/compare/3.197.0...3.197.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ai:** trim oversized MCP tool output instead of dropping it ([#32312](https://github.com/lightdash/lightdash/issues/32312)) ([ba30a48](https://github.com/lightdash/lightdash/commit/ba30a48c05259d76539e1d2a1995854a237f6b22))
+* **spaces:** move only the selected space when spaces share a path ([#32261](https://github.com/lightdash/lightdash/issues/32261)) ([d1c806b](https://github.com/lightdash/lightdash/commit/d1c806bb7a05edb94ebd2facea289af6b62f8bb7))
+
 # [3.197.0](https://github.com/lightdash/lightdash/compare/3.196.0...3.197.0) (2026-11-10)
 
 
