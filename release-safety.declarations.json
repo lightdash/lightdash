@@ -250,13 +250,20 @@
             "reason": "The EnableDataAppCustomDependencies member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading. Whether an organization may upload custom data app dependencies is now the dataAppCustomDependenciesEnabled organization setting, which a migration seeds from the flag, so self-hosters who listed enable-data-app-custom-dependencies in LIGHTDASH_ENABLE_FEATURE_FLAGS keep access and later changes are made by an org admin in the data apps settings.",
             "requiredStop": false
         },
-        "data-app-automatic-thumbnails-flag-removed": {
-            "reason": "The EnableDataAppAutomaticThumbnails member is removed from the exported FeatureFlags enum, and automatic data app thumbnail capture is removed with it. TypeScript consumers referencing this flag must remove it when upgrading. Self-hosters who listed enable-data-app-automatic-thumbnails in LIGHTDASH_ENABLE_FEATURE_FLAGS stop getting automatic thumbnails; manual thumbnails are unaffected.",
-            "requiredStop": false
-        },
         "org-settings-data-app-automatic-thumbnails-removed": {
-            "reason": "GET and PATCH /api/v1/org/settings no longer return dataAppAutomaticThumbnailsEnabled, and PATCH ignores it, because automatic data app thumbnails are removed. API clients that read the field must stop reading it. During a rolling update an old settings page reads the missing field as on and its toggle has no effect; it showed only behind a flag that was off by default. The database column stays until a later release.",
-            "requiredStop": false
+            "reason": "GET and PATCH /api/v1/org/settings no longer return dataAppAutomaticThumbnailsEnabled, and PATCH ignores it if sent, because automatic data app thumbnails are removed. The field only controlled a capture gated by a feature flag that was off by default, and only the data apps settings page read or wrote it. During a rolling update an old settings tab reads the missing field as on and its toggle has no effect until refresh; nothing else on the page changes.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The data apps General settings page in the Lightdash web app is the only client that reads or writes dataAppAutomaticThumbnailsEnabled; it showed the control only behind the enable-data-app-automatic-thumbnails flag. Every other field of these operations is unchanged.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/org/settings",
+                        "PATCH /api/v1/org/settings"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }
