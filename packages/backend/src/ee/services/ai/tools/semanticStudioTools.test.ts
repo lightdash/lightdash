@@ -2,6 +2,7 @@ import {
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
 } from '@lightdash/common';
+import { findNewModelAdvice } from '../../SemanticStudioService/draftLint';
 import type { ProposeSemanticLayerChangeFn } from '../types/aiAgentDependencies';
 import {
     getProposeSemanticLayerChange,
@@ -130,5 +131,36 @@ describe('getReadSemanticModel', () => {
 
     it('names the models when the name is unknown', async () => {
         expect((await read(null)).result).toContain('orders, customers');
+    });
+});
+
+describe('findNewModelAdvice', () => {
+    const base = `type: model
+name: orders
+sql_from: public.orders
+dimensions:
+  - name: id
+    type: number
+    sql: \${TABLE}.id
+metrics:
+  total:
+    type: sum
+    sql: \${TABLE}.id
+`;
+
+    it('names a missing primary key and metrics without a description', () => {
+        expect(findNewModelAdvice('orders', base)).toEqual([
+            'no primary_key: set it to the columns that identify one row; it is checked on the warehouse',
+            'no description on total: say in one sentence what each measures',
+        ]);
+    });
+
+    it('has nothing to say about a model that has both', () => {
+        expect(
+            findNewModelAdvice(
+                'orders',
+                `${base}    description: Sum of ids\nprimary_key: id\n`,
+            ),
+        ).toEqual([]);
     });
 });

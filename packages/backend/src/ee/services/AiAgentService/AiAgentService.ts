@@ -1604,7 +1604,7 @@ export class AiAgentService extends BaseService {
                     key = `preview_environment:${item.previewProjectUuid}`;
                     break;
                 case 'semantic_model':
-                    key = `semantic_model:${item.modelName}:${item.fieldName ?? ''}`;
+                    key = `semantic_model:${item.modelName}`;
                     break;
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
@@ -17591,8 +17591,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     canCreateScheduledDeliveries,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
-                        agentSettings.enableSqlAutoApproval ||
-                        isSemanticStudioThread,
+                        agentSettings.enableSqlAutoApproval,
                     autoApproveSqlUserUuid: options.autoApproveSql
                         ? user.userUuid
                         : null,

@@ -5,19 +5,17 @@ import {
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { findNewModelAdvice } from '../../SemanticStudioService/draftLint';
 import type {
     ProposeSemanticLayerChangeFn,
     ReadSemanticModelFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 
-const renderProposedModel = ({
-    model,
-    status,
-    changes,
-    refusals,
-    error,
-}: SemanticLayerDraftItemResult): string =>
+const renderProposedModel = (
+    { model, status, changes, refusals, error }: SemanticLayerDraftItemResult,
+    advice: string[],
+): string =>
     [
         `${model}: ${status}`,
         ...(changes.length > 0
@@ -31,6 +29,7 @@ const renderProposedModel = ({
               ]
             : []),
         ...(error ? [`  error: ${error}`] : []),
+        ...advice.map((line) => `  advice: ${line}`),
     ].join('\n');
 
 export const getProposeSemanticLayerChange = ({
@@ -46,7 +45,23 @@ export const getProposeSemanticLayerChange = ({
                     await proposeSemanticLayerChange(models);
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
-                        ...results.map(renderProposedModel),
+                        ...results.map((result) => {
+                            const created = diffs.find(
+                                ({ model, contentBefore }) =>
+                                    model === result.model &&
+                                    contentBefore === null,
+                            );
+                            return renderProposedModel(
+                                result,
+                                result.status === 'ready' &&
+                                    created?.contentAfter
+                                    ? findNewModelAdvice(
+                                          result.model,
+                                          created.contentAfter,
+                                      )
+                                    : [],
+                            );
+                        }),
                         draftChangeUuid
                             ? "This joined the person's draft and they see its diff. Nothing is live until they apply the draft."
                             : 'Nothing joined the draft.',

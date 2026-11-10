@@ -71,6 +71,9 @@
 
 .railHeader {
     flex: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
     padding: var(--mantine-spacing-xs);
 }
 

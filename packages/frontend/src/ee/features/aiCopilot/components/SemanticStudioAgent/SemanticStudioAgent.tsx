@@ -117,8 +117,8 @@ const STARTERS = [
         prompt: 'Look through my warehouse and tell me what is worth modelling first.',
     },
     {
-        label: 'Model my main table',
-        prompt: 'Find the table the rest of my warehouse hangs off and model it.',
+        label: 'Model a table',
+        prompt: 'Pick the table most worth modelling first and model it.',
     },
     {
         label: 'Suggest my first metrics',

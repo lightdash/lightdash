@@ -14,7 +14,7 @@ const SEMANTIC_LAYER_FRAGMENT_GUIDE = [
 export const TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION = [
     "Add a change to the person's draft of this project's semantic layer. It builds on what is already in the draft, every check runs against the warehouse, and nothing goes live until they apply the draft.",
     ...SEMANTIC_LAYER_FRAGMENT_GUIDE,
-    'Because a person reviews the draft, a fragment may also redefine an existing field: give only the keys that change, and null removes a key. `remove` lists paths to delete, written dimensions.<name>, dimensions.<name>.metrics.<name>, dimensions.<name>.additional_dimensions.<name>, metrics.<name> or joins.<name>; `removeModel` deletes the whole model. Who can see a model or field (hidden, tags, required_attributes, any_attributes, sql_filter) cannot be changed and comes back under `refusals`.',
+    'Because a person reviews the draft, a fragment may also redefine an existing field: give only the keys that change, and null removes a key. `remove` lists paths to delete, written dimensions.<name>, dimensions.<name>.metrics.<name>, dimensions.<name>.additional_dimensions.<name>, metrics.<name> or joins.<name>; `removeModel` deletes the whole model. A field can be hidden with `hidden: true`. Showing a hidden field again, and who can see a model or field (tags, required_attributes, any_attributes, sql_filter), cannot be changed and comes back under `refusals`.',
     'A `ready` model passed its checks and joined the draft; `unchanged` means the entry changes nothing; `failed` carries the error to fix before proposing again, and that entry stays out of the draft.',
 ].join(' ');
 
