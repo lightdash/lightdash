@@ -5,6 +5,7 @@ import {
     IconAppWindow,
     IconBolt,
     IconBook2,
+    IconBroadcast,
     IconBrain,
     IconBrowser,
     IconBrush,
@@ -16,6 +17,7 @@ import {
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconDeviceMobile,
     IconEyeCheck,
     IconFileExport,
     IconFolders,
@@ -52,6 +54,11 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { MOBILE_STRINGS } from '../../features/mobile/mobileStrings';
+import {
+    getSemanticStudioExternalSourcesUrl,
+    getSemanticStudioLiveSourcesUrl,
+} from '../../features/semanticStudio/urls';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
@@ -79,8 +86,6 @@ export const useSettingsNavigation = (
         health,
         allowPasswordAuthentication,
         hasSocialLogin,
-        isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -100,8 +105,10 @@ export const useSettingsNavigation = (
         dataAppAnalysisFlag,
         dashboardAnalysisFlag,
         isChartStudioAvailable,
+        isApiQuerySourcesEnabled,
         externalSourcesFlag,
-        isResultsCacheEnabled,
+        isMobileSettingsEnabled,
+        isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
@@ -203,6 +210,17 @@ export const useSettingsNavigation = (
             });
         }
 
+        if (isMobileSettingsEnabled) {
+            yourSettings.push({
+                label: MOBILE_STRINGS.navLabel,
+                to: '/generalSettings/mobile',
+                icon: IconDeviceMobile,
+                keywords: ['phone', 'app', 'ios', 'android', 'iphone'],
+                children: [],
+                exact: true,
+            });
+        }
+
         const organizationItems: SettingsNavigationItem[] = [];
 
         if (ability?.can('manage', 'Organization')) {
@@ -254,7 +272,7 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (isProLimitsEnabled && ability?.can('manage', 'Organization')) {
+        if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
                 label: 'Limits',
                 to: '/generalSettings/limits',
@@ -278,9 +296,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('update', 'OrganizationMemberProfile')) {
             organizationItems.push({
-                label: isGroupManagementEnabled
-                    ? 'Users & groups'
-                    : 'User management',
+                label: 'Users & groups',
                 to: '/generalSettings/userManagement',
                 icon: IconUserPlus,
                 keywords: ['members', 'invite', 'teams', 'groups'],
@@ -298,9 +314,7 @@ export const useSettingsNavigation = (
             )
         ) {
             organizationItems.push({
-                label: isGroupManagementEnabled
-                    ? 'User & group attributes'
-                    : 'User attributes',
+                label: 'User & group attributes',
                 to: '/generalSettings/userAttributes',
                 icon: IconUserShield,
                 keywords: ['attributes', 'access control'],
@@ -547,7 +561,6 @@ export const useSettingsNavigation = (
                 label: 'Lightdash analytics',
                 to: '/generalSettings/lightdashAnalytics',
                 icon: IconReportAnalytics,
-                isBeta: true,
                 keywords: ['usage', 'analytics', 'tokens', 'queries'],
                 children: [],
                 exact: true,
@@ -1004,7 +1017,7 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (isResultsCacheEnabled) {
+            if (isResultsCacheAvailable) {
                 projectItems.push({
                     label: 'Results caching',
                     to: `${base}/caching`,
@@ -1096,13 +1109,26 @@ export const useSettingsNavigation = (
                     }),
                 )
             ) {
+                // Managed on the Semantic Layer page; still listed here so
+                // people who look for it in settings find their way.
                 projectItems.push({
                     label: 'External sources',
-                    to: `${base}/externalSources`,
+                    to: getSemanticStudioExternalSourcesUrl(
+                        project.projectUuid,
+                    ),
                     icon: IconDatabaseExport,
-                    keywords: ['csv', 'upload', 'files', 'google sheets'],
+                    keywords: [
+                        'csv',
+                        'upload',
+                        'files',
+                        'google sheets',
+                        'spreadsheet',
+                        'sources',
+                        'semantic layer',
+                    ],
                     children: [],
                     exact: true,
+                    movedTo: 'Semantic Layer',
                 });
             }
 
@@ -1137,16 +1163,15 @@ export const useSettingsNavigation = (
                 exact: true,
             });
 
-            if (
-                isDataAppsEnabled &&
-                ability?.can(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid: project.projectUuid,
-                    }),
-                )
-            ) {
+            const canManageProjectConnections = ability?.can(
+                'manage',
+                subject('ExternalConnection', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
+
+            if (isDataAppsEnabled && canManageProjectConnections) {
                 projectItems.push({
                     label: 'Data app connections',
                     to: `${base}/dataAppConnections`,
@@ -1154,6 +1179,30 @@ export const useSettingsNavigation = (
                     keywords: ['external', 'api', 'http', 'fetch', 'apps'],
                     children: [],
                     exact: true,
+                });
+            }
+
+            if (isApiQuerySourcesEnabled && canManageProjectConnections) {
+                // Managed on the Semantic Layer page; still listed here so
+                // people who look for it in settings find their way.
+                projectItems.push({
+                    label: 'Live data sources',
+                    to: getSemanticStudioLiveSourcesUrl(project.projectUuid),
+                    icon: IconBroadcast,
+                    keywords: [
+                        'posthog',
+                        'google analytics',
+                        'search console',
+                        'integration',
+                        'api',
+                        'saas',
+                        'live',
+                        'sources',
+                        'semantic layer',
+                    ],
+                    children: [],
+                    exact: true,
+                    movedTo: 'Semantic Layer',
                 });
             }
 
@@ -1359,8 +1408,6 @@ export const useSettingsNavigation = (
         health,
         allowPasswordAuthentication,
         hasSocialLogin,
-        isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -1380,8 +1427,10 @@ export const useSettingsNavigation = (
         isDataAppAnalysisEnabled,
         isDashboardAnalysisEnabled,
         isChartStudioAvailable,
+        isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,
-        isResultsCacheEnabled,
+        isMobileSettingsEnabled,
+        isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,

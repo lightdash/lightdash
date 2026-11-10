@@ -279,9 +279,9 @@ in `legacy` mode. Saving with limits on activates `managed` mode; resetting
 restores `legacy` and clears the organization capability list. Disabling the flag preserves the
 saved policy and makes the permission service return `off` without new checks.
 
-Managed policy resolution unions system-role matrix grants with custom-role
-capability scopes, then intersects them with `allowedCapabilities` when it is
-not null. Null preserves existing grants until the first save. New policy
+Managed policy resolution gives built-in roles every capability, adds
+custom-role capability scopes, then intersects the result with
+`allowedCapabilities` when it is not null. Null preserves existing grants until the first save. New policy
 defaults contain all eleven capabilities. An empty saved list refuses agent
 turns on every covered surface. Custom roles keep their own scopes. MCP owns
 Agents over MCP and Allow content changes via MCP; neither setting limits
@@ -324,12 +324,11 @@ reads as `[]` and admits nobody. It applies with capability limits off and on,
 on MCP tools and resource reads, in-app and Slack agents, OAuth REST, and query
 sources. Slack requires a verified sender when the restriction is active.
 
-A valid deployment licence and the organization-level `UserGroupsEnabled` flag
-allow new group restrictions. Saved restrictions still apply when groups later
+A valid deployment licence allows new group restrictions. Saved restrictions still apply when groups later
 become unavailable. Clearing a restriction is always allowed. Personal-access-token
 and service-account calls keep their existing exemptions. With `agent-identity`
 off, group admission adds no checks or reads. A PUT can set
-`mode: 'legacy'` to save group admission and preserve the dormant role matrix.
+`mode: 'legacy'` to save group admission.
 Reset keeps groups and clears the capability list. Old people and project lists
 are ignored and omitted from GET, PUT and reset. An old browser save succeeds
 and drops those choices. The page uses the final policy API for Same as the
@@ -408,12 +407,20 @@ apply. Compile, test-and-compile, preview projects and scheduler workers use the
 same policy. Console changes apply to the next policy resolution. The generic
 ENV lists use the precedence above and need an API and worker restart.
 
-When enabled, local dbt compilation refuses authentication modes that depend on
-the server's cloud identity. Use an explicit key or a person's sign-in instead.
-The dbt child process also stops inheriting the cloud credential variables in
-`CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in the machine
-allowlist. Project environment variables and target-injected credentials remain
-available. The server environment does not change.
+When enabled, local dbt compilation refuses ambient authentication modes.
+Use an explicit key, a person's sign-in or BigQuery workload identity federation
+instead. The dbt child process also stops inheriting the cloud credential
+variables in `CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in
+the machine allowlist. Project environment variables and target-injected
+credentials remain available. The server environment does not change.
+
+BigQuery workload identity federation counts as explicit credentials because its
+provider is configured per project and its federated principal is scoped by the
+customer's workload identity pool. The dbt child receives a generated
+`external_account` file through `GOOGLE_APPLICATION_CREDENTIALS`, without a
+service account key or inherited Application Default Credentials (ADC). Its
+subject token still comes from the server's Google identity, so
+`bigquery-workload-identity-auth` must stay off on shared instances.
 
 Disabling the flag restores the existing profile and child-environment behaviour.
 It does not change credential selection, revoke credentials or stop work already

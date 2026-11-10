@@ -39,6 +39,11 @@ export type SettingsNavigationItem = {
     pageSections?: SettingsPageSection[];
     children: SettingsNavigationItem[];
     exact?: boolean;
+    /**
+     * The page moved out of settings to the page named here; `to` leads
+     * there, and the entry is marked so it isn't mistaken for a settings page.
+     */
+    movedTo?: string;
     onClick?: () => void;
     /** `data-tour-nav` for scope walkthroughs; hints are declared in SettingsNavigation. */
     tourNav?: string;
@@ -67,9 +72,8 @@ export type SettingsContext = {
     project: Project | undefined;
     showImpersonationPanel: boolean | undefined;
     isCustomRolesEnabled: boolean | undefined;
-    isProLimitsEnabled: boolean;
     canAccessAnalyticsSettings: boolean;
-    isAnalyticsProjectFlagLoading: boolean;
+    isAnalyticsProjectLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
     // Org admin and a contract in force.
     canAccessAiCredits: boolean;
@@ -90,14 +94,16 @@ export type SettingsContext = {
     dataAppAnalysisFlag: FeatureFlag | undefined;
     dashboardAnalysisFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    isApiQuerySourcesEnabled: boolean;
     // Chart Studio uses org themes, so it opens Themes without data apps.
     isChartStudioAvailable: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
-    isResultsCacheEnabled: boolean;
+    isMobileSettingsEnabled: boolean;
+    isMobileSettingsFlagLoading: boolean;
+    isResultsCacheAvailable: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
-    isGroupManagementEnabled: boolean;
     isAgentIdentityEnabled: boolean;
     isAgentIdentityFlagLoading: boolean;
     isGitProject: boolean;

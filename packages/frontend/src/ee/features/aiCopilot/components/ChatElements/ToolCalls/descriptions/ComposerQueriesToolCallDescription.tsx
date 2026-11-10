@@ -10,9 +10,11 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconApi,
     IconBrandPython,
     IconChevronRight,
     IconDatabase,
@@ -24,12 +26,19 @@ import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import {
+    useApiSourceExploreConnectionUuid,
+    useLiveSourceExplore,
+} from '../../../../../../../features/externalConnections/liveSources/apiSourceExplore';
+import { getLiveSource } from '../../../../../../../features/externalConnections/liveSources/liveSourceCatalog';
+import { LiveSourceIcon } from '../../../../../../../features/externalConnections/liveSources/LiveSourceIcon';
+import { useLiveSourceConnection } from '../../../../../../../features/externalConnections/liveSources/useLiveSourceConnection';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
 import {
     useComposerNodeStatusLabel,
     type ComposerQueryNodeStatus,
 } from '../../composerNodeStatus';
-import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
+import shimmerStyles from '../../shimmer.module.css';
 import {
     SqlApprovalActions,
     type SqlApprovalTarget,
@@ -47,16 +56,26 @@ type ComposerQueriesToolCallDescriptionProps = {
     approval?: SqlApprovalTarget;
 };
 
-const isActiveStatus = (nodeStatus: ComposerQueryNodeStatus | undefined) =>
-    nodeStatus?.status === 'running' ||
-    nodeStatus?.status === 'awaiting_approval';
-
 const referenceAliases = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.keys(items);
 
 // Reads of nodes from earlier versions have no title in this submission
 const referenceTargets = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.values(items);
+
+// Streaming args can land before their inputs, so an empty list says nothing.
+const readsDetail = (inputs: string[]) => {
+    const named = inputs.filter((input) => input.length > 0);
+    return named.length > 0 ? `Reads ${named.join(', ')}` : '';
+};
+
+// One look for every query on a live data source, through its explore or an
+// api node from an older thread.
+const LIVE_SOURCE_PRESENTATION = {
+    icon: IconApi,
+    badge: 'Live data source',
+    detail: '',
+} as const;
 
 const getNodePresentation = (
     node: ToolComposerQueryNode,
@@ -67,20 +86,20 @@ const getNodePresentation = (
             return {
                 icon: IconSitemap,
                 badge: 'Semantic layer',
-                detail: `${node.exploreName} · ${node.dimensions.length} dimension${node.dimensions.length === 1 ? '' : 's'} · ${node.metrics.length} metric${node.metrics.length === 1 ? '' : 's'}`,
+                detail: '',
             } as const;
         case QuerySourceType.SQL:
             return {
                 icon: IconDatabase,
                 badge: 'Warehouse SQL',
-                detail: 'Project warehouse',
+                detail: '',
             } as const;
         case QuerySourceType.EXTERNAL: {
             const tables = referenceAliases(node.tables);
             return {
                 icon: IconFileSpreadsheet,
                 badge: 'External data',
-                detail: `Reads ${tables.join(', ')}`,
+                detail: readsDetail(tables),
             } as const;
         }
         case QuerySourceType.DUCKDB: {
@@ -90,7 +109,7 @@ const getNodePresentation = (
             return {
                 icon: IconGitMerge,
                 badge: 'DuckDB compose',
-                detail: `Reads ${references.join(', ')}`,
+                detail: readsDetail(references),
             } as const;
         }
         case QuerySourceType.PYTHON: {
@@ -100,10 +119,35 @@ const getNodePresentation = (
             return {
                 icon: IconBrandPython,
                 badge: 'Python',
-                detail: `Reads ${references.join(', ')}`,
+                detail: readsDetail(references),
             } as const;
         }
+        case QuerySourceType.API:
+            return LIVE_SOURCE_PRESENTATION;
     }
+};
+
+/** A live data source explore reads by its label, e.g. "Events". */
+const NodeExploreFields: FC<{ exploreName: string; fieldIds: string[] }> = ({
+    exploreName,
+    fieldIds,
+}) => {
+    const liveSource = useLiveSourceExplore(exploreName);
+    const prefix = `${exploreName}_`;
+    return (
+        <Group gap={4} wrap="wrap">
+            <Text size="xs" c="dimmed">
+                {liveSource?.label ?? exploreName}
+            </Text>
+            {fieldIds.map((fieldId) => (
+                <ToolCallChip key={fieldId} ff="monospace">
+                    {fieldId.startsWith(prefix)
+                        ? fieldId.slice(prefix.length)
+                        : fieldId}
+                </ToolCallChip>
+            ))}
+        </Group>
+    );
 };
 
 const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
@@ -111,21 +155,39 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
 
     if (node.sourceType === QuerySourceType.SEMANTIC_LAYER) {
         return (
-            <Group gap={4} wrap="wrap">
-                <Text size="xs" c="dimmed">
-                    {node.exploreName}
-                </Text>
-                {[...node.dimensions, ...node.metrics].map((fieldId) => (
-                    <ToolCallChip key={fieldId}>{fieldId}</ToolCallChip>
-                ))}
-            </Group>
+            <NodeExploreFields
+                exploreName={node.exploreName}
+                fieldIds={[...node.dimensions, ...node.metrics]}
+            />
         );
     }
     if (node.sourceType === QuerySourceType.PYTHON) {
         if (!canViewSql || !node.code) return null;
         return (
             <Box className={sqlBlockStyles.code}>
-                <CodeBlock code={node.code} language="python" />
+                <CodeBlock
+                    code={node.code}
+                    language="python"
+                    classNames={{
+                        codeHighlight: sqlBlockStyles.codeHighlight,
+                        code: sqlBlockStyles.codeInner,
+                    }}
+                />
+            </Box>
+        );
+    }
+    if (node.sourceType === QuerySourceType.API) {
+        if (!canViewSql || !node.payload.query) return null;
+        return (
+            <Box className={sqlBlockStyles.code}>
+                <CodeBlock
+                    code={node.payload.query}
+                    language="sql"
+                    classNames={{
+                        codeHighlight: sqlBlockStyles.codeHighlight,
+                        code: sqlBlockStyles.codeInner,
+                    }}
+                />
             </Box>
         );
     }
@@ -149,10 +211,22 @@ const ComposerQueryNode: FC<{
     nodeStatus?: ComposerQueryNodeStatus;
     approval?: SqlApprovalTarget;
 }> = ({ node, titlesByNodeId, nodeStatus, approval }) => {
-    const presentation = getNodePresentation(node, titlesByNodeId);
-    const active = isActiveStatus(nodeStatus);
-    // Only active nodes open by default; a user toggle wins until the status changes.
-    const defaultOpen = active;
+    const exploreConnectionUuid = useApiSourceExploreConnectionUuid(
+        node.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? node.exploreName
+            : null,
+    );
+    const liveSourceConnectionUuid =
+        node.sourceType === QuerySourceType.API
+            ? node.connectionUuid
+            : exploreConnectionUuid;
+    const liveSource = useLiveSourceConnection(liveSourceConnectionUuid);
+    const presentation = liveSourceConnectionUuid
+        ? LIVE_SOURCE_PRESENTATION
+        : getNodePresentation(node, titlesByNodeId);
+    // Only nodes awaiting approval open by default; a user toggle wins until
+    // the status changes.
+    const defaultOpen = nodeStatus?.status === 'awaiting_approval';
     const [userToggle, setUserToggle] = useState<{
         status: ComposerQueryNodeStatus['status'] | undefined;
         open: boolean;
@@ -163,9 +237,9 @@ const ComposerQueryNode: FC<{
         setUserToggle({ status: nodeStatus?.status, open: value });
     const open = userOpen ?? defaultOpen;
     const statusLabel = useComposerNodeStatusLabel();
-    // Trailing status word on the row; success reads from the check mark alone.
+    // Queued, running and done read from the title; only approval gets words.
     const statusText =
-        nodeStatus && nodeStatus.status !== 'success'
+        nodeStatus?.status === 'awaiting_approval'
             ? statusLabel(nodeStatus.status).toLowerCase()
             : null;
     const showApproval =
@@ -187,29 +261,65 @@ const ComposerQueryNode: FC<{
                     gap={8}
                     align="center"
                     wrap="nowrap"
-                    className={rowStyles.head}
+                    className={styles.head}
                 >
-                    {nodeStatus ? (
-                        <NodeStatusIndicator status={nodeStatus.status} />
-                    ) : null}
-                    <MantineIcon
-                        icon={presentation.icon}
-                        size={13}
-                        stroke={1.6}
-                        className={rowStyles.icon}
-                        data-status={active ? 'running' : undefined}
-                    />
-                    <Text size="xs" className={rowStyles.label} truncate>
-                        {node.title ?? node.nodeId}
-                    </Text>
-                    <ToolCallChip>{presentation.badge}</ToolCallChip>
+                    {liveSourceConnectionUuid ? (
+                        <Tooltip
+                            label={
+                                liveSource
+                                    ? getLiveSource(liveSource.connector).label
+                                    : null
+                            }
+                            disabled={!liveSource}
+                        >
+                            <Box
+                                component="span"
+                                display="inline-flex"
+                                role="img"
+                                aria-label={
+                                    nodeStatus
+                                        ? statusLabel(nodeStatus.status)
+                                        : liveSource
+                                          ? getLiveSource(liveSource.connector)
+                                                .label
+                                          : presentation.badge
+                                }
+                            >
+                                <LiveSourceIcon
+                                    connector={liveSource?.connector ?? null}
+                                    size={13}
+                                />
+                            </Box>
+                        </Tooltip>
+                    ) : (
+                        <MantineIcon
+                            icon={presentation.icon}
+                            size={13}
+                            stroke={1.6}
+                            className={styles.icon}
+                            data-status={nodeStatus?.status}
+                            role={nodeStatus ? 'img' : undefined}
+                            aria-label={
+                                nodeStatus
+                                    ? statusLabel(nodeStatus.status)
+                                    : undefined
+                            }
+                        />
+                    )}
                     <Text
                         size="xs"
-                        c="dimmed"
                         truncate
-                        className={styles.detail}
+                        className={clsx(
+                            styles.title,
+                            nodeStatus?.status === 'running' &&
+                                shimmerStyles.shimmer,
+                        )}
+                        data-status={nodeStatus?.status}
                     >
-                        {presentation.detail}
+                        {node.title ?? node.nodeId}
+                    </Text>
+                    <Text size="xs" truncate className={styles.suffix}>
+                        {liveSource?.name ?? presentation.badge}
                     </Text>
                     {statusText ? (
                         <Text
@@ -233,6 +343,11 @@ const ComposerQueryNode: FC<{
             </UnstyledButton>
             <Collapse expanded={open} transitionDuration={200}>
                 <Stack gap={6} className={styles.body}>
+                    {presentation.detail ? (
+                        <Text size="xs" c="dimmed">
+                            {presentation.detail}
+                        </Text>
+                    ) : null}
                     <NodeBody node={node} />
                     {showApproval ? (
                         <SqlApprovalActions {...approval} review={null} />

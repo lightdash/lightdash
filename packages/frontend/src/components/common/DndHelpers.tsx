@@ -13,19 +13,15 @@ export const DraggableItem: FC<{
         disabled,
     });
 
-    const style = transform
-        ? ({
-              position: 'relative',
-              zIndex: 1,
-              transform: `translate(${transform.x}px, ${transform.y}px)`,
-              opacity: 0.8,
-          } as const)
-        : undefined;
-
     return (
         <Box
             ref={setNodeRef}
-            style={style}
+            className={classes.draggable}
+            data-dragging={transform ? true : undefined}
+            style={{
+                '--drag-x': transform ? `${transform.x}px` : undefined,
+                '--drag-y': transform ? `${transform.y}px` : undefined,
+            }}
             {...(disabled ? {} : listeners)}
             {...(disabled ? {} : attributes)}
         >
@@ -41,13 +37,14 @@ export const DroppableArea: FC<{
 }> = ({ id, children, orderedKeys }) => {
     const { active, isOver, over, setNodeRef } = useDroppable({ id });
 
-    // A thin line in the gap on the side the dragged item would land
+    // A thin line in the gap on the side the dragged item would land; none
+    // for an item from outside this list (another group, a section capsule)
     let side: 'before' | 'after' | null = null;
     if (isOver && active && over && active.id !== over.id) {
         const oldIndex = orderedKeys.indexOf(String(active.id));
         const newIndex = orderedKeys.indexOf(String(over.id));
-        if (newIndex < oldIndex) side = 'before';
-        else if (newIndex > oldIndex) side = 'after';
+        if (oldIndex !== -1 && newIndex < oldIndex) side = 'before';
+        else if (oldIndex !== -1 && newIndex > oldIndex) side = 'after';
     }
 
     return (

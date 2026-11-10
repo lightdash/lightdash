@@ -417,7 +417,12 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             />
                         )}
                         {showResultsTotal && (
-                            <Flex justify="flex-end" pt="xxs" align="center">
+                            <Flex
+                                justify="flex-end"
+                                pt="xxs"
+                                px={isDashboard ? 'xs' : 0}
+                                align="center"
+                            >
                                 <ResultCount
                                     count={pivotTableData.data.rowsCount}
                                 />

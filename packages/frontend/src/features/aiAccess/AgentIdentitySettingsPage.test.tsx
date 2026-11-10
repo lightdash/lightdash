@@ -1,13 +1,10 @@
 import {
     type OrganizationAgentIdentityOverview,
-    AgentCapability,
     WarehouseTypes,
     type OrganizationAgentIdentitySnowflakeSetup,
     type OrganizationAgentIdentitySnowflakeVerify,
-    OrganizationMemberRole,
     type ApiResponse,
     type AgentCapabilityPolicyOverview,
-    type AgentSystemRoleMatrix,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -72,20 +69,12 @@ vi.mock('../../hooks/settings/useSettingsContext', () => ({
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
-const matrix = Object.fromEntries(
-    Object.values(OrganizationMemberRole).map((role) => [
-        role,
-        Object.values(AgentCapability),
-    ]),
-) as AgentSystemRoleMatrix;
 const policy: AgentCapabilityPolicyOverview = {
     mode: 'legacy',
     version: 1,
     allowedCapabilities: null,
     allowedGroupUuids: null,
     groupsAvailable: true,
-    systemRoleMatrix: matrix,
-    defaults: matrix,
 };
 const api = mockedLightdashApi;
 const renderPage = (
@@ -438,7 +427,9 @@ describe('Agents page loading boundary', () => {
         renderPage();
         await screen.findByText('Permissions');
         expect(screen.getByText('Organization settings')).toBeInTheDocument();
-        expect(screen.getAllByText('Agents')).toHaveLength(2);
+        expect(
+            screen.getByRole('heading', { level: 4, name: 'Agents' }),
+        ).toBeInTheDocument();
         expect(
             screen.getByText(
                 'Who agents run as, and what they may do. Agents are Ask AI, the Slack agent, MCP clients and the CLI.',

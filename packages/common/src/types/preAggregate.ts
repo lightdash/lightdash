@@ -249,11 +249,19 @@ export const preAggregateMissReasonLabels: Record<
 
 export const PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD = 1_000_000;
 
+export const PRE_AGGREGATE_FIELD_COUNT_WARNING_THRESHOLD = 100;
+
 export type PreAggregateMaterializationWarning =
     | {
           type: 'row_count_exceeded';
           message: string;
           rowCount: number;
+          threshold: number;
+      }
+    | {
+          type: 'field_count_exceeded';
+          message: string;
+          fieldCount: number;
           threshold: number;
       }
     | {
@@ -269,13 +277,26 @@ export const computePreAggregateWarnings = (
     options: {
         rowCountThreshold?: number;
         materializationMaxRows?: number | null;
+        fieldCount?: number;
+        fieldCountThreshold?: number;
     } = {},
 ): PreAggregateMaterializationWarning[] => {
     const {
         rowCountThreshold = PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
         materializationMaxRows = null,
+        fieldCount = 0,
+        fieldCountThreshold = PRE_AGGREGATE_FIELD_COUNT_WARNING_THRESHOLD,
     } = options;
     const warnings: PreAggregateMaterializationWarning[] = [];
+
+    if (fieldCount > fieldCountThreshold) {
+        warnings.push({
+            type: 'field_count_exceeded',
+            message: `This pre-aggregate has ${fieldCount.toLocaleString()} dimensions and metrics, above the recommended ${fieldCountThreshold.toLocaleString()}. Wide pre-aggregates can be too large to build. Keep only the fields your charts use, or split it into smaller pre-aggregates.`,
+            fieldCount,
+            threshold: fieldCountThreshold,
+        });
+    }
 
     const rowCount = materialization?.rowCount;
     if (

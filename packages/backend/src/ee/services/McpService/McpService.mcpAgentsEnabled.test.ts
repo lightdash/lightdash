@@ -1,9 +1,6 @@
 import { AgentCapability, OrganizationMemberRole } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import { McpService, McpToolName } from './McpService';
 
 type RegisteredToolCallback = (
@@ -133,6 +130,7 @@ const makeMcpService = ({
     };
 
     const aiOrganizationSettingsService = {
+        getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
         isMcpAgentsEnabled: vi.fn().mockResolvedValue(mcpAgentsEnabled),
     };
 
@@ -195,9 +193,6 @@ describe.each(['off', 'legacy', 'managed'] as const)(
                 allowedCapabilities: Object.values(AgentCapability),
                 storedAllowedGroupUuids: null,
                 hasExistingAllowedGroup: null,
-                systemRoleMatrix: agentSystemRoleMatrix(
-                    Object.values(AgentCapability),
-                ),
             };
             permissions = new AgentPermissionService({
                 featureFlagModel: {

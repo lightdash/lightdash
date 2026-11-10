@@ -22,6 +22,7 @@ egress and no credentials.
 
 Preinstalled libraries: pandas, numpy, scipy, pyarrow, scikit-learn, polars
 (pinned in `e2b.Dockerfile`). `run()` must still return a pandas DataFrame.
+When bumping a pin, update `PYTHON_SANDBOX_LIBRARIES` in `packages/common/src/ee/AiAgent/schemas/tools/toolComposerQueryArgs.ts`; a backend test fails until they match.
 
 Publishing: `post-release.yml` builds `lightdash-python-runner:<version>` in both
 E2B regions on every release where this directory changed, and retags `:latest`

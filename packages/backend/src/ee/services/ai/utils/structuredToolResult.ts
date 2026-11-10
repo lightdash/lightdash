@@ -25,6 +25,7 @@ interface ToolErrorWithRefusal extends ToolErrorStructuredContent {
 
 interface ToolErrorMetadata extends Record<string, unknown> {
     status: 'error';
+    requiresSnowflakeReauthentication?: true;
     refusal?: AiAccessRefusal;
 }
 

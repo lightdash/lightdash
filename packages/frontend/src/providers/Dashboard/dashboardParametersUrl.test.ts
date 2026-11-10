@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     getDashboardParameterOverrides,
+    getPickedParameterOverrides,
     parseDashboardParametersUrl,
     reconcileDashboardParameters,
     toDashboardParameters,
@@ -52,6 +53,24 @@ describe('dashboard parameter URL helpers', () => {
                 },
             ),
         ).toEqual({ region: 'EU' });
+    });
+
+    it('serializes a pick equal to the saved mirror when controls are active', () => {
+        const picks = { week_start: 'monday', region: null };
+        expect(getPickedParameterOverrides(picks)).toEqual({
+            week_start: 'monday',
+        });
+        expect(
+            getDashboardParameterOverrides(
+                { week_start: 'monday' },
+                {
+                    week_start: {
+                        parameterName: 'week_start',
+                        value: 'monday',
+                    },
+                },
+            ),
+        ).toEqual({});
     });
 
     it('preserves runtime overrides in view mode', () => {

@@ -3,6 +3,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
+import classes from './AiComposerResultError.module.css';
 
 // A run or a node result that failed: what failed, in the chart area.
 export const AiComposerResultError: FC<{
@@ -24,7 +25,7 @@ export const AiComposerResultError: FC<{
                             size="xs"
                             c="dimmed"
                             ta="center"
-                            style={{ overflowWrap: 'anywhere' }}
+                            className={classes.message}
                         >
                             {message}
                         </Text>

@@ -19,13 +19,14 @@ import {
     NotFoundError,
     parseVizConfig,
     SlackPrompt,
+    stripNodeCitations,
     type ChartConfig,
     type ComposerBigNumber,
     type DataAppVizField,
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
-import { partition } from 'lodash';
+import { partition } from 'es-toolkit/compat';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { stripMemoryCitations } from './memoryCitation';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
@@ -179,6 +180,10 @@ export const getTextBlocks = (
         },
     }));
 
+/** Slack renders neither memory nor node citations. */
+export const stripCitationsForSlack = (text: string): string =>
+    stripNodeCitations(stripMemoryCitations(text));
+
 /**
  * Converts standard markdown into Slack `markdown` blocks. Unlike `mrkdwn`
  * inside a section block, the markdown block natively renders GitHub-flavoured
@@ -187,7 +192,7 @@ export const getTextBlocks = (
  * Pass the agent's raw markdown response here — no slackifyMarkdown needed.
  */
 export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
-    chunkSlackText(stripMemoryCitations(text)).map(
+    chunkSlackText(stripCitationsForSlack(text)).map(
         (chunk) =>
             ({
                 type: 'markdown',

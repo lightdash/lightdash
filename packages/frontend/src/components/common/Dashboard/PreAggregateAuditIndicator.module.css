@@ -7,7 +7,7 @@
 }
 
 .tileRow:hover {
-    background: var(--mantine-color-ldGray-0);
+    background: var(--mantine-color-default-hover);
 }
 
 :global([data-mantine-color-scheme='dark']) .tileRow:hover {
@@ -63,9 +63,6 @@
 .tabBlock {
     border-left: 2px solid var(--mantine-color-ldGray-2);
     transition: border-color 0.15s ease;
-    @mixin dark {
-        border-left-color: var(--mantine-color-ldDark-4);
-    }
 }
 
 .tabBlock[data-active] {
@@ -81,7 +78,7 @@
 }
 
 .tabLabel:hover {
-    background: var(--mantine-color-ldGray-0);
+    background: var(--mantine-color-default-hover);
 }
 
 .tabLabel[data-active] {

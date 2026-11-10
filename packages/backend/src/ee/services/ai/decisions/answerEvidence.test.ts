@@ -119,9 +119,12 @@ describe('answer evidence', () => {
             execution,
         });
         const runSqlJob = vi.fn().mockResolvedValue(input);
-        const runComposerQueries = vi
-            .fn()
-            .mockResolvedValue({ terminal: input });
+        const runComposerQueries = vi.fn().mockResolvedValue({
+            status: 'success',
+            submissions: [],
+            terminal: input,
+            nodeStatuses: [],
+        });
         const dependencies = {
             runAsyncQuery,
             runSavedChartQuery,
@@ -143,6 +146,8 @@ describe('answer evidence', () => {
         await wrapped.runComposerQueries({
             queries: [],
             terminalNodeId: 'terminal',
+            otherUnreadNodeIds: [],
+            sampleNodeIds: [],
         });
         expect(runAsyncQuery).toHaveBeenCalledExactlyOnceWith(query, [], {
             region: 'EMEA',
@@ -159,6 +164,8 @@ describe('answer evidence', () => {
         expect(runComposerQueries).toHaveBeenCalledExactlyOnceWith({
             queries: [],
             terminalNodeId: 'terminal',
+            otherUnreadNodeIds: [],
+            sampleNodeIds: [],
         });
         expect(evidence.snapshot()).toHaveLength(4);
         expect(evidence.snapshot()[0].scope).toContain('EMEA');
@@ -167,6 +174,41 @@ describe('answer evidence', () => {
             JSON.stringify(execution),
         );
         expect(evidence.snapshot()[3].complete).toBe(false);
+    });
+
+    it('records the rows of every unread node a composer query returns', async () => {
+        const runComposerQueries = vi.fn().mockResolvedValue({
+            status: 'success',
+            submissions: [
+                { nodeId: 'total', queryUuid: 'total-query' },
+                { nodeId: 'helper', queryUuid: 'helper-query' },
+            ],
+            terminal: input,
+            nodeStatuses: [
+                {
+                    nodeId: 'total',
+                    rowCount: 1,
+                    sample: [{ revenue: '220' }],
+                },
+                { nodeId: 'helper', rowCount: 5, sample: [{ revenue: '1' }] },
+            ],
+        });
+        const evidence = new AnswerEvidence();
+        await withAnswerEvidence(
+            { runComposerQueries } as unknown as AiAgentDependencies,
+            evidence,
+            100,
+        ).runComposerQueries({
+            queries: [],
+            terminalNodeId: 'terminal',
+            otherUnreadNodeIds: ['total'],
+            sampleNodeIds: ['total', 'helper'],
+        });
+
+        expect(evidence.snapshot().map(({ queryUuid }) => queryUuid)).toEqual([
+            'query-uuid',
+            'total-query',
+        ]);
     });
 
     it('preserves query failures and records no evidence', async () => {

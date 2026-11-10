@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     ForbiddenError,
     MAX_INVITE_LINK_EXPIRATION_DAYS,
     OrganizationSettings,
@@ -12,7 +11,6 @@ import {
     type RegisteredAccount,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { BaseService } from '../BaseService';
 import { invalidateCorsPolicyCache } from './CorsPolicy';
@@ -21,7 +19,6 @@ import { getOrganizationSettingsInstanceDefaults } from './getInstanceDefaults';
 type OrganizationSettingsServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationSettingsModel: OrganizationSettingsModel;
-    featureFlagModel: FeatureFlagModel;
 };
 
 /**
@@ -36,45 +33,13 @@ export class OrganizationSettingsService extends BaseService {
 
     private readonly organizationSettingsModel: OrganizationSettingsModel;
 
-    private readonly featureFlagModel: FeatureFlagModel;
-
     constructor({
         lightdashConfig,
         organizationSettingsModel,
-        featureFlagModel,
     }: OrganizationSettingsServiceArguments) {
         super({ serviceName: 'OrganizationSettingsService' });
         this.lightdashConfig = lightdashConfig;
         this.organizationSettingsModel = organizationSettingsModel;
-        this.featureFlagModel = featureFlagModel;
-    }
-
-    /**
-     * The export limits (query rows / CSV cells) are a Pro capability gated by
-     * the `pro-limits` flag. The panel is hidden without it, but the update API
-     * must enforce it too so the gate can't be bypassed via a direct call.
-     */
-    private async assertCanManageLimits(
-        account: RegisteredAccount,
-        data: UpdateOrganizationSettings,
-    ): Promise<void> {
-        const touchesLimits =
-            data.queryLimit !== undefined || data.csvCellsLimit !== undefined;
-        if (!touchesLimits) {
-            return;
-        }
-        const flag = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.userUuid,
-                organizationUuid: account.organization?.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ProLimits,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError(
-                'Organization limits are not enabled for this organization.',
-            );
-        }
     }
 
     private assertCanManageOrganization(account: RegisteredAccount): string {
@@ -185,12 +150,24 @@ export class OrganizationSettingsService extends BaseService {
         );
     }
 
+    /** For the Postgres wire endpoint: any org member may connect once an admin enables it. */
+    async isSemanticLayerPgwireEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const raw = await this.organizationSettingsModel.get(organizationUuid);
+        const { semanticLayerPgwireEnabled } =
+            resolveEffectiveOrganizationSettings(
+                raw,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            );
+        return semanticLayerPgwireEnabled === true;
+    }
+
     async updateOrganizationSettings(
         account: RegisteredAccount,
         data: UpdateOrganizationSettings,
     ): Promise<OrganizationSettings> {
         const organizationUuid = this.assertCanManageOrganization(account);
-        await this.assertCanManageLimits(account, data);
         this.assertValidPatch(data);
         const raw = await this.organizationSettingsModel.update(
             organizationUuid,

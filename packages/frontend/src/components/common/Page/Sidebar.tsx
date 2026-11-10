@@ -174,6 +174,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                 withBorder={false}
                                 radius={0}
                                 className={classes.sidebarPaper}
+                                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                 style={style}
                                 data-position={position}
                                 data-no-padding={noSidebarPadding}

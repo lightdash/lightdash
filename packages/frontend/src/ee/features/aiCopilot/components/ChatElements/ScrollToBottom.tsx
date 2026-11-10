@@ -1,4 +1,4 @@
-import { rem } from '@mantine/core';
+import { Box } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -18,6 +18,7 @@ const SCROLL_TO_BOTTOM_THRESHOLD = {
 };
 // Short panels, like small embed iframes, use a smaller threshold.
 const MAX_THRESHOLD_VIEWPORT_RATIO = 0.2;
+const STICK_TO_BOTTOM_PX = 8;
 
 type ScrollToBottomOptions = {
     behavior?: 'auto' | 'smooth';
@@ -99,10 +100,15 @@ const ThreadScrollToBottom = ({
                     return;
                 }
                 const anchorRect = anchor.getBoundingClientRect();
-                // Centre the element; one taller than the panel aligns to the top.
+                // Centre in the area above the sticky composer; taller ones align to the top.
+                const visibleHeight =
+                    viewport.clientHeight -
+                    (parseFloat(
+                        getComputedStyle(viewport).scrollPaddingBottom,
+                    ) || 0);
                 const centreOffset = Math.max(
                     0,
-                    (viewport.clientHeight - anchorRect.height) / 2,
+                    (visibleHeight - anchorRect.height) / 2,
                 );
                 viewport.scrollTop +=
                     anchorRect.top -
@@ -120,6 +126,37 @@ const ThreadScrollToBottom = ({
         scrollAreaRef,
         scrollToBottom,
     ]);
+
+    // Late layout (suggestion chips, expanding step groups) must not push the
+    // last answer under the sticky composer while the reader is at the bottom.
+    useEffect(() => {
+        const viewport = scrollAreaRef.current;
+        const content = viewport?.firstElementChild;
+        if (!viewport || !content) return undefined;
+        let pinned = returnMessageId === null;
+        let lastTop = viewport.scrollTop;
+        const onScroll = () => {
+            const distance =
+                viewport.scrollHeight -
+                viewport.scrollTop -
+                viewport.clientHeight;
+            if (distance < STICK_TO_BOTTOM_PX) pinned = true;
+            else if (viewport.scrollTop < lastTop) pinned = false;
+            lastTop = viewport.scrollTop;
+        };
+        const observer = new ResizeObserver(() => {
+            if (!pinned) return;
+            viewport.scrollTop = viewport.scrollHeight;
+        });
+        viewport.addEventListener('scroll', onScroll, { passive: true });
+        // The viewport itself too: a shorter panel must keep the last answer visible.
+        observer.observe(viewport);
+        for (const child of content.children) observer.observe(child);
+        return () => {
+            viewport.removeEventListener('scroll', onScroll);
+            observer.disconnect();
+        };
+    }, [scrollAreaRef, threadUuid, returnMessageId]);
 
     useEffect(() => {
         if (!searchParams.has(CHAT_MESSAGE_PARAM)) return;
@@ -218,10 +255,10 @@ const ThreadScrollToBottom = ({
     }, [lastMessageViz, scrollToBottom]);
 
     return (
-        <div
+        <Box
             ref={messagesEndRef}
             data-testid="thread-scroll-to-bottom"
-            style={{ marginTop: rem(-30) }}
+            mt={-30}
         />
     );
 };

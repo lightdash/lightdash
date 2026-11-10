@@ -350,7 +350,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                     color="ldGray.5"
                                 />
                                 <Stack gap={2}>
-                                    <Text fz="xs" fw={600} c="ldGray.7">
+                                    <Text fz="xs" fw={600} c="dimmed">
                                         {blockedReasonLabel}
                                     </Text>
                                     {blockedReasonDescription && (

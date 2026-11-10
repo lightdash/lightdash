@@ -10,6 +10,7 @@ import {
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { usePreAggregateCacheEnabled } from '../hooks/usePreAggregateCacheEnabled';
 import { formatTileMissReason } from './common/Dashboard/PreAggregateAuditIndicator.utils';
+import classes from './PreAggregateStatusBadge.module.css';
 
 const PreAggregateStatusBadge: FC = memo(() => {
     const preAggregateCheck = useExplorerSelector(selectPreAggregateCheck);
@@ -96,7 +97,7 @@ const PreAggregateStatusBadge: FC = memo(() => {
                 pos="absolute"
                 top={-6}
                 right={-6}
-                style={{ zIndex: 1 }}
+                className={classes.statusIcon}
             >
                 <Icon size={10} />
             </ThemeIcon>

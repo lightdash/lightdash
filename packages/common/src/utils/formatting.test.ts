@@ -3810,7 +3810,7 @@ describe('isUnambiguousTemporalString', () => {
     );
 });
 
-// Converter gap fixes (docs/composer-viz-plan/01-design.md §2): the format
+// Converter gap fixes: the format
 // expression produced for a CustomFormat must render identically to the
 // structured applyCustomFormat path, or return null when no ECMA-376 form
 // exists (the formatOptions escape hatch).
@@ -4130,7 +4130,7 @@ describe('getFormatExpression year-number guard', () => {
     });
 });
 
-// Blast-radius pins (docs/composer-viz-plan/01-design.md §2): existing
+// Blast-radius pins: existing
 // consumers of the converter whose output changes with the gap fixes.
 describe('converter gap fixes blast radius', () => {
     describe('getFieldFormatOverrideProps', () => {

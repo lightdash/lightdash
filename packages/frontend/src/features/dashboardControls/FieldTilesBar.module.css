@@ -25,12 +25,12 @@
 }
 
 .bar {
-    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
-    --controls-duration-arrive: 0.28s;
-
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
-    animation: barEnter var(--controls-duration-arrive)
-        var(--controls-ease-arrive);
+}
+
+/* Slides up for a new chip selection only, never on a tab switch */
+.bar[data-arrive] {
+    animation: barEnter var(--ld-motion-duration) var(--ld-motion-easing);
 }
 
 /* The tile cards' edge, so the bar reads as one of them */
@@ -54,7 +54,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .bar {
+    .bar[data-arrive] {
         animation: none;
     }
 }

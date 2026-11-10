@@ -53,8 +53,8 @@ import {
     getVisibleDataAppClaudeModels,
     isChartTypeIcon,
     isDashboardChartTileType,
-    isDataAppAutoAnalysis,
     isExploreError,
+    isExploreIncludedInTableSelection,
     isExternalFetchDocumentContext,
     isSemverVersion,
     isValidDataAppSlug,
@@ -64,7 +64,6 @@ import {
     MAX_APP_VIZ_BUILD_SAMPLE_FIELDS,
     MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MissingConfigError,
-    normalizeDataAppAutoAnalysis,
     NotFoundError,
     ParameterError,
     ProjectType,
@@ -110,7 +109,6 @@ import {
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityFilters,
-    type DataAppAutoAnalysis,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCode,
@@ -143,6 +141,7 @@ import {
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalFetchRequest,
+    type FieldUrl,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
@@ -166,8 +165,8 @@ import {
     type UpgradeCandidateFeature,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
@@ -216,10 +215,7 @@ import {
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
-import {
-    FeatureFlagModel,
-    type FeatureFlagLogicArgs,
-} from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -305,10 +301,6 @@ import {
     promptHistoryToMarkdown,
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
-import {
-    assertChartTypesEnabled,
-    chartTypesEnabledFor,
-} from './chartTypeFeatureGate';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -669,6 +661,9 @@ type RenderedModel = {
     // Field refs of model filters left out because their value is not a list.
     skippedFilterRefs: string[];
     hasSqlFilter: boolean;
+    // Visible fields carrying `urls` link patterns; drives the index marker
+    // and the generation-prompt reminder.
+    urlFields: string[];
 };
 
 /**
@@ -788,6 +783,16 @@ export const APP_STATE_PROMPT_BLOCK =
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
+
+// Library chart types a new project starts with; ones that need data a new project rarely has are left out
+const STARTER_CHART_TYPE_SLUGS: readonly string[] = [
+    'big-number-with-sparkline-trend',
+    'customizable-cartesian-chart',
+    'heatmap',
+    'sortable-pivot-table',
+    'radar-chart',
+    'boxplot',
+];
 
 type ImportAppCodeResult = {
     appUuid: string;
@@ -1764,15 +1769,12 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
     }
 
-    /** Library installs uninstall and restore wherever chart types are usable, even without Chart Studio. */
+    /** Library installs uninstall and restore anywhere, even without Chart Studio. */
     private async assertCanRemoveAppGate(
         user: SessionUser,
         app: Pick<DbApp, 'registry_slug' | 'template'>,
     ): Promise<void> {
-        if (app.registry_slug !== null) {
-            await this.assertChartTypesUsable(user);
-            return;
-        }
+        if (app.registry_slug !== null) return;
         await this.assertAppsEnabled(user, app.template);
     }
 
@@ -1804,24 +1806,6 @@ export class AppGenerateService extends BaseService {
     private async assertAnyAppsEnabled(user: SessionUser): Promise<void> {
         if (this.isChartStudioAvailable()) return;
         await this.assertDataAppsEnabled(user);
-    }
-
-    async chartTypesEnabledFor(user: SessionUser): Promise<boolean> {
-        return chartTypesEnabledFor(
-            this.featureFlagModel,
-            this.isChartStudioAvailable(),
-            user,
-        );
-    }
-
-    private async assertChartTypesUsable(
-        user: FeatureFlagLogicArgs['user'],
-    ): Promise<void> {
-        await assertChartTypesEnabled(
-            this.featureFlagModel,
-            this.isChartStudioAvailable(),
-            user,
-        );
     }
 
     /**
@@ -1870,22 +1854,6 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * The library surface — browsing, installing, registry assets — follows
-     * the `ChartTypeRegistry` flag alone, independent of data apps.
-     */
-    private async assertChartTypeLibraryEnabled(
-        user: SessionUser,
-    ): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.ChartTypeRegistry,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('The chart type library is not enabled');
-        }
-    }
-
-    /**
      * Chart types are offered to whoever can build a chart in an explore:
      * picking, configuring, and previewing a renderer is part of chart
      * building, not app access. Registry-installed chart types are space-less,
@@ -1910,9 +1878,6 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string | null,
     ): Promise<boolean> {
-        if (!(await this.chartTypesEnabledFor(user))) {
-            return false;
-        }
         const auditedAbility = this.createAuditedAbility(user);
         if (projectUuid === null) {
             return auditedAbility.can('manage', 'Explore');
@@ -2117,6 +2082,7 @@ export class AppGenerateService extends BaseService {
         const connections = await this.externalConnectionModel.list(
             projectUuid,
             organizationUuid,
+            { kind: 'data_app' },
         );
         return connections.filter((connection) =>
             ability.can('view', getExternalConnectionSubject(connection)),
@@ -2742,7 +2708,6 @@ export class AppGenerateService extends BaseService {
     ) {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
-            await this.assertChartTypesUsable(user);
             this.assertCanUseChartTypes(user, {
                 organizationUuid: app.organization_uuid,
                 projectUuid,
@@ -3930,17 +3895,24 @@ export class AppGenerateService extends BaseService {
         let dimensionCount = 0;
         let metricCount = 0;
         let totalBytes = 0;
+        let urlModels: { model: string; fields: string[] }[] = [];
         if (!isDataAppViz) {
             // Source the synthetic schema from the compiled explore cache (not
             // the flattened catalog summary) so it carries joins, real field
             // types, and parameters. A chart type receives host rows instead.
-            const [exploresByUuid, chartUsageByTable] = await Promise.all([
-                this.projectModel.getAllExploresFromCache(projectUuid),
-                this.catalogModel.getChartUsageByTable(projectUuid),
-            ]);
-            const explores = Object.values(exploresByUuid).filter(
-                (explore): explore is Explore => !isExploreError(explore),
-            );
+            const [exploresByUuid, chartUsageByTable, { tableSelection }] =
+                await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.catalogModel.getChartUsageByTable(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+            const explores = Object.values(exploresByUuid)
+                .filter(
+                    (explore): explore is Explore => !isExploreError(explore),
+                )
+                .filter((explore) =>
+                    isExploreIncludedInTableSelection(explore, tableSelection),
+                );
             const catalog = AppGenerateService.exploresToModelFiles(
                 explores,
                 chartUsageByTable,
@@ -3950,6 +3922,7 @@ export class AppGenerateService extends BaseService {
             dimensionCount = catalog.dimensionCount;
             metricCount = catalog.metricCount;
             totalBytes = catalog.totalBytes;
+            urlModels = catalog.urlModels;
             if (catalog.skippedFilters.length > 0) {
                 this.logger.warn(
                     `App ${appUuid}: left ${catalog.skippedFilters.length} model filter(s) out of the catalog because their value is not a list: ${catalog.skippedFilters.join(', ')}`,
@@ -3980,6 +3953,16 @@ export class AppGenerateService extends BaseService {
 
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
+
+        // Doc-level guidance alone is unreliably followed, so fields with
+        // `urls` link patterns also get a per-run reminder in the prompt.
+        if (urlModels.length > 0) {
+            const listing = urlModels
+                .map(({ model, fields }) => `${model}: ${fields.join(', ')}`)
+                .join('; ')
+                .slice(0, 2_000);
+            finalPrompt = `[Field links: these fields declare \`urls\` link patterns in their model YAML — ${listing}. Wherever the app displays one of their values (including via a join), render it as a link built from the pattern, styled visibly as a link. See "Field links — urls" in the skill.]\n\n${finalPrompt}`;
+        }
         if (chartReferences && chartReferences.length > 0) {
             const referenceBlock = await this.writeChartReferences(
                 sandbox,
@@ -4454,9 +4437,7 @@ export class AppGenerateService extends BaseService {
                     : '\n\nNo CSS, font, or image files were copied for this theme.';
             const omittedFontNote =
                 designCopy.omittedRestrictedFonts.length > 0
-                    ? `\n\n${omittedThemeFontGuidance(
-                          designCopy.omittedRestrictedFonts,
-                      )}`
+                    ? `\n\n${omittedThemeFontGuidance(designCopy.omittedRestrictedFonts)}`
                     : '';
 
             sections.push(
@@ -10301,7 +10282,6 @@ export class AppGenerateService extends BaseService {
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
         verification: ContentVerificationInfo | null;
-        autoAnalysis: DataAppAutoAnalysis;
     }> {
         // Resolve to the real uuid before any query — the raw arg may be a
         // slug and must never reach a uuid-typed filter.
@@ -10316,7 +10296,6 @@ export class AppGenerateService extends BaseService {
             name,
             description,
             icon,
-            autoAnalysis,
             addAnalysisDismissedAt,
             createdByUserUuid,
             organizationUuid,
@@ -10466,7 +10445,6 @@ export class AppGenerateService extends BaseService {
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
             verification,
-            autoAnalysis: normalizeDataAppAutoAnalysis(autoAnalysis),
         };
     }
 
@@ -10559,7 +10537,6 @@ export class AppGenerateService extends BaseService {
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
-        await this.assertChartTypesUsable(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
@@ -10586,9 +10563,8 @@ export class AppGenerateService extends BaseService {
 
     /**
      * The catalog of installable chart types from the configured chart
-     * registry, merged with this project's install state. Gated behind the
-     * `ChartTypeRegistry` flag; the library is offered to whoever can build
-     * a chart in an explore, same as `listDataAppVisualizations`.
+     * registry, merged with this project's install state. Offered to whoever
+     * can build a chart in an explore, same as `listDataAppVisualizations`.
      */
     async listRegistryChartTypes(
         user: SessionUser,
@@ -10597,7 +10573,6 @@ export class AppGenerateService extends BaseService {
         registryEnabled: boolean;
         charts: RegistryChartTypeListItem[];
     }> {
-        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
@@ -10670,7 +10645,6 @@ export class AppGenerateService extends BaseService {
         action: 'installed' | 'upgraded' | 'unchanged';
         upgradedChartCount: number;
     }> {
-        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -10696,6 +10670,57 @@ export class AppGenerateService extends BaseService {
             entry,
             options,
         );
+    }
+
+    /**
+     * Installs the starter chart types a new project gets during onboarding.
+     * Skips what is already installed, so repeat calls are cheap; one failed
+     * install doesn't stop the rest. Returns the slugs it installed.
+     */
+    async installStarterChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ installedSlugs: string[] }> {
+        if (!this.chartRegistryClient.isEnabled()) {
+            return { installedSlugs: [] };
+        }
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to install chart types',
+        );
+        const [index, installed] = await Promise.all([
+            this.chartRegistryClient.getIndex(),
+            this.appModel.listRegistryInstalledApps(projectUuid),
+        ]);
+        const installedSlugs = new Set(installed.map((a) => a.registry_slug));
+        const entries = index.charts.filter(
+            (entry) =>
+                STARTER_CHART_TYPE_SLUGS.includes(entry.slug) &&
+                !installedSlugs.has(entry.slug) &&
+                !AppGenerateService.isRegistryEntryIncompatible(entry),
+        );
+        const newSlugs: string[] = [];
+        // Sequential: each install downloads and copies a bundle
+        for (const entry of entries) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.installRegistryEntry(
+                    user,
+                    projectUuid,
+                    organizationUuid,
+                    entry,
+                    {},
+                );
+                newSlugs.push(entry.slug);
+            } catch (e) {
+                this.logger.warn(
+                    `Starter chart type "${entry.slug}" failed to install in project ${projectUuid}: ${getErrorMessage(e)}`,
+                );
+            }
+        }
+        return { installedSlugs: newSlugs };
     }
 
     /** Digest mismatches keep their own error; transport failures get a library-facing one. */
@@ -10757,7 +10782,6 @@ export class AppGenerateService extends BaseService {
         }
         const provenance = parsedProvenance.data;
         const { slug, version } = provenance;
-        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -11157,16 +11181,13 @@ export class AppGenerateService extends BaseService {
     /**
      * Thin pass-through to the chart registry's index-listed images
      * (thumbnails/screenshots). No ability check beyond route auth — these
-     * are catalog metadata, not project data — but gated the same way as
-     * `listRegistryChartTypes`: the `ChartTypeRegistry` flag, before falling
-     * back to the registry client's own enabled check
-     * (`chartRegistryClient.getAsset` throws when it isn't).
+     * are catalog metadata, not project data — beyond the registry client's
+     * own enabled check (`chartRegistryClient.getAsset` throws when it isn't).
      */
     async getRegistryAsset(
         user: SessionUser,
         path: string,
     ): Promise<{ buffer: Buffer; contentType: string } | undefined> {
-        await this.assertChartTypeLibraryEnabled(user);
         if (!this.chartRegistryClient.isEnabled()) {
             return undefined;
         }
@@ -11208,7 +11229,6 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizUpgradeImpact> {
-        await this.assertChartTypeLibraryEnabled(user);
         await this.assertDataAppAbility(
             user,
             'create',
@@ -11242,7 +11262,6 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version?: number,
     ): Promise<DataAppViz> {
-        await this.assertChartTypesUsable(user);
         const dataAppViz = await this.appModel.findVisualizationApp(
             dataAppVizUuid,
             projectUuid,
@@ -11286,8 +11305,6 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await this.assertChartTypesUsable(user);
-
         this.assertCanUseChartTypes(user, {
             organizationUuid: dataAppViz.organization_uuid,
             projectUuid: dataAppViz.project_uuid,
@@ -11313,8 +11330,6 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             dataAppVizUuid,
         );
-
-        await this.assertChartTypesUsable(user);
 
         await this.savedChartService.hasAccess(
             'view',
@@ -11395,11 +11410,6 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             dataAppVizUuid,
         );
-
-        await this.assertChartTypesUsable({
-            userUuid: account.user.userUuid,
-            organizationUuid: account.organization.organizationUuid,
-        });
 
         const content = await this.documentService.getChart(
             account,
@@ -11826,14 +11836,12 @@ export class AppGenerateService extends BaseService {
             name?: string;
             description?: string;
             icon?: ChartTypeIcon | null;
-            autoAnalysis?: DataAppAutoAnalysis;
         },
     ): Promise<{
         appUuid: string;
         name: string;
         description: string;
         icon: ChartTypeIcon | null;
-        autoAnalysis: DataAppAutoAnalysis;
     }> {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertAppsEnabled(user, app.template);
@@ -11854,7 +11862,6 @@ export class AppGenerateService extends BaseService {
             name: string;
             description: string;
             icon: string | null;
-            auto_analysis: DataAppAutoAnalysis;
         }> = {};
         if (update.name !== undefined) {
             const trimmedName = update.name.trim();
@@ -11890,18 +11897,10 @@ export class AppGenerateService extends BaseService {
             }
             fieldsToUpdate.icon = update.icon;
         }
-        if (update.autoAnalysis !== undefined) {
-            if (!isDataAppAutoAnalysis(update.autoAnalysis)) {
-                throw new ParameterError(
-                    `Invalid auto analysis value: ${String(update.autoAnalysis)}`,
-                );
-            }
-            fieldsToUpdate.auto_analysis = update.autoAnalysis;
-        }
 
         if (Object.keys(fieldsToUpdate).length === 0) {
             throw new ParameterError(
-                'At least one of name, description, icon or autoAnalysis must be provided',
+                'At least one of name, description or icon must be provided',
             );
         }
 
@@ -11921,9 +11920,6 @@ export class AppGenerateService extends BaseService {
             name: updatedApp.name,
             description: updatedApp.description,
             icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
-            autoAnalysis: normalizeDataAppAutoAnalysis(
-                updatedApp.auto_analysis,
-            ),
         };
     }
 
@@ -12685,6 +12681,26 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Field link patterns (`urls`), verbatim: `${value.raw}` and
+     * `${row.<model>.<field>.raw}` placeholders are the template's own syntax,
+     * not something to resolve here. The index header explains them.
+     */
+    private static renderFieldUrlsYaml(
+        urls: FieldUrl[] | undefined,
+        indent: string,
+    ): string[] {
+        if (!urls || urls.length === 0) return [];
+        const lines: string[] = [`${indent}urls:`];
+        for (const { label, url } of urls) {
+            lines.push(
+                `${indent}  - label: ${AppGenerateService.yamlQuote(label)}`,
+                `${indent}    url: ${AppGenerateService.yamlQuote(url)}`,
+            );
+        }
+        return lines;
+    }
+
+    /**
      * Render one compiled table as a dbt-style model, carrying real
      * metric/dimension types, join relationships (`meta.joins`), AI hints,
      * model-level parameters, and model-level filters (`sql_filter`,
@@ -12764,6 +12780,12 @@ export class AppGenerateService extends BaseService {
                             );
                         }
                     }
+                    headerLines.push(
+                        ...AppGenerateService.renderFieldUrlsYaml(
+                            m.urls,
+                            '          ',
+                        ),
+                    );
                 }
             }
             if (joins.length > 0) {
@@ -12841,6 +12863,12 @@ export class AppGenerateService extends BaseService {
             block.push(`        meta:`);
             block.push(`          dimension:`);
             block.push(`            type: ${d.type}`);
+            block.push(
+                ...AppGenerateService.renderFieldUrlsYaml(
+                    d.urls,
+                    '            ',
+                ),
+            );
             return block;
         });
 
@@ -12856,6 +12884,9 @@ export class AppGenerateService extends BaseService {
             defaultFilterCount: defaultFilters.length,
             skippedFilterRefs,
             hasSqlFilter: sqlFilter !== null,
+            urlFields: [...metrics, ...dimensions]
+                .filter((f) => f.urls && f.urls.length > 0)
+                .map((f) => f.name),
         };
     }
 
@@ -13074,6 +13105,7 @@ export class AppGenerateService extends BaseService {
         metricCount: number;
         totalBytes: number;
         skippedFilters: string[];
+        urlModels: { model: string; fields: string[] }[];
     } {
         const models = AppGenerateService.exploresToRenderedModels(explores);
         const filenames = AppGenerateService.modelFilenames(models);
@@ -13108,8 +13140,14 @@ export class AppGenerateService extends BaseService {
             'A `filters=` marker means the model declares model-level filters',
             '(required/default/sql_filter) that affect every query against it —',
             'read that model file before querying it.',
+            "A `urls=N` marker means N of the model's fields declare `urls:` —",
+            'link patterns whose values MUST render as links: `${value.raw}` is',
+            "the cell's raw value; `${row.<model>.<field>.raw}` references",
+            'another field in the same row (include that field in the query).',
+            'Check the marked model file before displaying any of its fields,',
+            'including fields queried through a join.',
             '',
-            'name  file  dims/metrics  joins  [filters]  description',
+            'name  file  dims/metrics  joins  [filters]  [urls]  description',
             '',
         ].join('\n');
 
@@ -13132,12 +13170,16 @@ export class AppGenerateService extends BaseService {
                 filterParts.length > 0
                     ? `  filters=${filterParts.join(',')}`
                     : '';
+            const urls =
+                model.urlFields.length > 0
+                    ? `  urls=${model.urlFields.length}`
+                    : '';
             const description = model.description
                 ? `  ${model.description
                       .replace(/\s+/g, ' ')
                       .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
                 : '';
-            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${description}`;
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${urls}${description}`;
         };
 
         const compactLine = (entry: (typeof ranked)[number]): string =>
@@ -13186,6 +13228,9 @@ export class AppGenerateService extends BaseService {
             skippedFilters: models.flatMap((m) =>
                 m.skippedFilterRefs.map((fieldRef) => `${m.name}.${fieldRef}`),
             ),
+            urlModels: models
+                .filter((m) => m.urlFields.length > 0)
+                .map((m) => ({ model: m.name, fields: m.urlFields })),
         };
     }
 
@@ -13498,6 +13543,12 @@ export class AppGenerateService extends BaseService {
         spaceSlug: string | undefined,
     ): Promise<string | undefined> {
         if (spaceSlug === undefined) return undefined;
+        // A UUID would otherwise become a new private root space named after it.
+        if (isValidUuid(spaceSlug)) {
+            throw new ParameterError(
+                await this.describeUuidSpaceSlug(user, projectUuid, spaceSlug),
+            );
+        }
         const { space } = await this.coderService.getOrCreateSpace(
             projectUuid,
             spaceSlug,
@@ -13508,6 +13559,28 @@ export class AppGenerateService extends BaseService {
             true,
         );
         return space.uuid;
+    }
+
+    private async describeUuidSpaceSlug(
+        user: SessionUser,
+        projectUuid: string,
+        spaceUuid: string,
+    ): Promise<string> {
+        const base = `Manifest spaceSlug "${spaceUuid}" is a space UUID, but spaceSlug expects a space path like "parent/child" (as written by lightdash download).`;
+        try {
+            const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+                projectUuid,
+            });
+            // Only name the path to someone who can already see the space.
+            if (
+                await this.spacePermissionService.can('view', user, spaceUuid)
+            ) {
+                return `${base} Use spaceSlug: ${getContentAsCodePathFromLtreePath(space.path)}`;
+            }
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) throw error;
+        }
+        return base;
     }
 
     // First half of the as-code download, without downloading the source.
@@ -13579,6 +13652,47 @@ export class AppGenerateService extends BaseService {
             resources: readyVersion.resources,
             dataReferences,
         };
+    }
+
+    /**
+     * Rename a data app's slug in place (lightdash slug-update --type app).
+     * The old slug becomes a historical alias, so existing links and stale
+     * as-code checkouts keep resolving. Slug-shape validation and conflict
+     * handling live in AppModel.renameSlug.
+     */
+    async renameAppSlug(
+        user: SessionUser,
+        projectUuid: string,
+        { from, to }: { from: string; to: string },
+    ): Promise<void> {
+        if (!isValidDataAppSlug(to)) {
+            throw new ParameterError(
+                `Invalid data app slug "${to}". Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters.`,
+            );
+        }
+        const app = await this.appModel.findAppBySlug(projectUuid, from);
+        if (!app) {
+            throw new NotFoundError(`Data app slug "${from}" not found`);
+        }
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanManageApp(
+            user,
+            app,
+            `You don't have access to rename data app "${from}"`,
+        );
+        // Registry-managed apps mirror library content; their slug is the
+        // install identity and must not drift.
+        if (app.registry_slug !== null) {
+            throw new ForbiddenError(
+                `"${app.slug}" is an official chart type and its slug cannot be renamed.`,
+            );
+        }
+        await this.appModel.renameSlug({
+            projectUuid,
+            appUuid: app.app_id,
+            from,
+            to,
+        });
     }
 
     /** Any version the caller can view is reportable; no session affinity. */
@@ -13884,13 +13998,15 @@ export class AppGenerateService extends BaseService {
 
         const { semanticLayer, semanticLayerFiles } = await (async () => {
             try {
-                const exploresByUuid =
-                    await this.projectModel.getAllExploresFromCache(
-                        projectUuid,
+                const [exploresByUuid, { tableSelection }] = await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+                const explores = Object.values(exploresByUuid)
+                    .filter((e): e is Explore => !isExploreError(e))
+                    .filter((e) =>
+                        isExploreIncludedInTableSelection(e, tableSelection),
                     );
-                const explores = Object.values(exploresByUuid).filter(
-                    (e): e is Explore => !isExploreError(e),
-                );
                 // Chart usage only orders the index — degrade the ranking, not
                 // the whole semantic layer, when it is unavailable.
                 const chartUsageByTable = await (async () => {
@@ -14217,9 +14333,7 @@ export class AppGenerateService extends BaseService {
                       user,
                       organizationUuid,
                       access: code.manifest.access,
-                      contentLabel: `App ${
-                          code.manifest.slug ?? code.manifest.name
-                      }`,
+                      contentLabel: `App ${code.manifest.slug ?? code.manifest.name}`,
                   })
                 : null;
 

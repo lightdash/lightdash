@@ -71,7 +71,7 @@ describe.each([
     });
 
     it('keeps the pipeline card when the run failed', () => {
-        renderRow({ status: 'error', toolResults: [result('error')] });
+        renderRow({ status: 'done', toolResults: [result('error')] });
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
     });
 
@@ -103,3 +103,20 @@ describe.each([
         );
     });
 });
+
+describe.each(['findCustomChartTypes', 'visualize'] as const)(
+    'ToolCallRow for %s',
+    (toolName) => {
+        it('renders no expand button when there is nothing to show', () => {
+            renderWithProviders(
+                <ToolCallRow
+                    toolName={toolName}
+                    toolCalls={[
+                        { toolCallId: 'call-1', toolName, toolArgs: {} },
+                    ]}
+                />,
+            );
+            expect(screen.queryByRole('button')).not.toBeInTheDocument();
+        });
+    },
+);

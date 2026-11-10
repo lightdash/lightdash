@@ -51,7 +51,7 @@ const viewAgentTourProps = {
     'data-tour-label': 'Open the agent dropdown',
     'data-tour-title': 'Explore an AI agent',
     'data-tour-docs':
-        'agents/effective-analytics-with-agents.mdx#think-specialized-not-general:1',
+        'agents/effective-analytics-with-agents.mdx#think-specialized-not-general:p2',
     'data-tour-interactive': 'true',
     'data-tour-via': '[data-tour-nav="ask-ai"]',
     'data-tour-then':
@@ -239,7 +239,7 @@ export const AgentSelector = ({
                             data-tour-look="1"
                             data-tour-after='[data-tour-anchor="agent-selector"]'
                             data-tour-label="Every agent starts from this dropdown"
-                            data-tour-docs="agents/set-up-agents.mdx#create-a-new-agent:1"
+                            data-tour-docs="agents/set-up-agents.mdx#create-an-agent:li2"
                         >
                             <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
                                 <Center w={22} h={22}>

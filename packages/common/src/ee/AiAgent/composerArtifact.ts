@@ -170,6 +170,7 @@ const nodeDefinition = (node: SourceQuery): string => {
             });
         case QuerySourceType.SQL:
         case QuerySourceType.EXTERNAL:
+        case QuerySourceType.API:
             return stableJson(node);
         default:
             return assertUnreachable(node, 'Unknown composer node');
@@ -181,15 +182,22 @@ export const isSameComposerNodeDefinition = (
     b: SourceQuery,
 ): boolean => nodeDefinition(a) === nodeDefinition(b);
 
+/** What owns reusable nodes, as named to the model: an agent thread or an MCP composer session. */
+export type ComposerNodeScopeName = 'thread' | 'session';
+
 export const getComposerNodeConflictMessage = (
     existing: ThreadComposerQueryNode,
+    scopeName: ComposerNodeScopeName = 'thread',
 ): string =>
-    `Node id "${existing.nodeId}" already names a different node in this thread ("${existing.title ?? existing.nodeId}"). To reuse it, read "${existing.nodeId}" without resubmitting it; to define a new node, give it a different node id.`;
+    `Node id "${existing.nodeId}" already names a different node in this ${scopeName} ("${existing.title ?? existing.nodeId}"). To reuse it, read "${existing.nodeId}" without resubmitting it; to define a new node, give it a different node id.`;
 
-const describeNodes = (nodes: ThreadComposerQueryNode[]): string =>
+const describeNodes = (
+    nodes: ThreadComposerQueryNode[],
+    scopeName: ComposerNodeScopeName,
+): string =>
     nodes.length === 0
-        ? 'No nodes have been defined earlier in this thread.'
-        : `Nodes defined earlier in this thread: ${nodes
+        ? `No nodes have been defined earlier in this ${scopeName}.`
+        : `Nodes defined earlier in this ${scopeName}: ${nodes
               .map((node) => `${node.nodeId} ("${node.title ?? node.nodeId}")`)
               .join(', ')}.`;
 
@@ -221,9 +229,11 @@ const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
 export const buildComposerArtifactPipeline = ({
     queries,
     threadNodes: threadNodeList,
+    scopeName = 'thread',
 }: {
     queries: SourceQuery[];
     threadNodes: ThreadComposerQueryNode[];
+    scopeName?: ComposerNodeScopeName;
 }): ComposerPipelineNode[] => {
     const threadNodes = new Map<QueryNodeId, ThreadComposerQueryNode>(
         threadNodeList.map((node) => [node.nodeId, node]),
@@ -235,7 +245,9 @@ export const buildComposerArtifactPipeline = ({
     submittedNodes.forEach((node, nodeId) => {
         const existing = threadNodes.get(nodeId);
         if (existing && !isSameComposerNodeDefinition(existing, node)) {
-            throw new ParameterError(getComposerNodeConflictMessage(existing));
+            throw new ParameterError(
+                getComposerNodeConflictMessage(existing, scopeName),
+            );
         }
     });
     queries.forEach((node) =>
@@ -246,7 +258,7 @@ export const buildComposerArtifactPipeline = ({
                     !threadNodes.has(reference)
                 ) {
                     throw new ParameterError(
-                        `Node "${node.nodeId}" reads "${reference}", which is not a node of this submission or of an earlier call in this thread. ${describeNodes(threadNodeList)}`,
+                        `Node "${node.nodeId}" reads "${reference}", which is not a node of this submission or of an earlier call in this ${scopeName}. ${describeNodes(threadNodeList, scopeName)}`,
                     );
                 }
             },
@@ -276,18 +288,27 @@ export const buildComposerArtifactPipeline = ({
     return pipeline;
 };
 
-/** A successful `query` call of a turn, presented by its terminal node. */
-export type AiAgentMessageQueryPipeline = {
-    queryUuid: string;
-    title: string;
-    terminalNodeId: QueryNodeId;
-    /** Every node the call ran, reused ones included, in dependency order. */
+/** A node citation's preview: the cited node, which is terminal, and everything it reads. */
+export type AiAgentNodeCitationPipeline = {
+    nodeId: QueryNodeId;
+    title: string | null;
+    /** In dependency order, the cited node last. */
     nodes: ComposerPipelineNode[];
 };
 
-export type ApiAiAgentMessageQueryPipelinesResponse = {
+export type ApiAiAgentNodeCitationPipelineResponse = {
     status: 'ok';
-    results: AiAgentMessageQueryPipeline[];
+    results: AiAgentNodeCitationPipeline;
+};
+
+export type AiAgentThreadComposerNode = {
+    nodeId: QueryNodeId;
+    title: string | null;
+};
+
+export type ApiAiAgentThreadComposerNodesResponse = {
+    status: 'ok';
+    results: AiAgentThreadComposerNode[];
 };
 
 /** Identity of a pinned composer pipeline node as prompt context. */

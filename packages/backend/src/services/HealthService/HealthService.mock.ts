@@ -7,6 +7,7 @@ import {
 
 export const BaseResponse: HealthState = {
     healthy: true,
+    hasManagedAnalytics: false,
     requiresMigration: false,
     migrationWarnings: undefined,
     license: {
@@ -23,6 +24,7 @@ export const BaseResponse: HealthState = {
     },
     isAuthenticated: false,
     requiresOrgRegistration: false,
+    instanceBrand: null,
     localDbtEnabled: true,
     defaultProject: undefined,
     siteUrl: 'https://test.lightdash.cloud',
@@ -38,6 +40,9 @@ export const BaseResponse: HealthState = {
     hasGitlab: false,
     hasJira: true,
     hasLinear: true,
+    hasPostHogOAuth: false,
+    hasLinkedInAdsOAuth: false,
+    hasGoogleLiveSources: false,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {
@@ -112,6 +117,7 @@ export const BaseResponse: HealthState = {
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
+        maxConcurrentTileQueries: null,
         disableSentryTracking: false,
     },
     rudder: {
@@ -133,11 +139,10 @@ export const BaseResponse: HealthState = {
         overrideColorPaletteName: undefined,
     },
     hasBrandfetch: false,
-    isOrganizationWarehouseCredentialsEnabled: false,
     isAthenaWarehouseIamRoleAuthEnabled: false,
     isSaveCredentialsFormEnabled: false,
     isCustomRolesEnabled: false,
-    embedding: { enabled: false, events: undefined },
+    embedding: { events: undefined },
     ai: {
         analyticsProjectUuid: undefined,
         analyticsDashboardUuid: undefined,

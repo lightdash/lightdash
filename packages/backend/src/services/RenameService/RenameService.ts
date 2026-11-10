@@ -93,6 +93,9 @@ export class RenameService extends BaseService {
         chartUuid: string;
     }) {
         const chart = await this.savedChartModel.get(chartUuid);
+        if (chart.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Chart ${chartUuid} not found`);
+        }
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -370,8 +373,10 @@ export class RenameService extends BaseService {
         dashboardUuid: string;
         tableName?: string;
     }) {
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -495,8 +500,10 @@ export class RenameService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         // Derive the table name from the dashboard's filters
         let tableName: string;

@@ -113,50 +113,44 @@ function expandSingleSet(
         }
     }
 
-    // Apply exclusions defined in this set to the expanded fields
-    return applyExclusionsAndDeduplicate(expandedFields, exclusions);
+    // Apply exclusions defined in this set (expanding excluded sets) to the expanded fields
+    const expandedExclusions = new Set(
+        [...exclusions].flatMap((exclusion) =>
+            exclusion.endsWith('*')
+                ? // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                  expandSetReference(exclusion, currentTable, depth + 1)
+                : [exclusion],
+        ),
+    );
+    return applyExclusionsAndDeduplicate(expandedFields, expandedExclusions);
 }
 
 /**
- * Expands all set references from the inclusions list
+ * Expands a set reference (ending with *) into the fields of that set
  */
-function expandSetReferences(
-    inclusions: string[],
+function expandSetReference(
+    setReference: string,
     currentTable: SetExpansionTable,
+    depth = 1,
 ): string[] {
-    const expandedFields: string[] = [];
+    const setName = setReference.substring(0, setReference.length - 1);
 
-    for (const inclusion of inclusions) {
-        if (inclusion.endsWith('*')) {
-            // This is a set reference
-            const setName = inclusion.substring(0, inclusion.length - 1);
-
-            // Check if set exists
-            if (!currentTable.sets || !currentTable.sets[setName]) {
-                const availableSets = currentTable.sets
-                    ? Object.keys(currentTable.sets).join(', ')
-                    : 'none';
-                throw new CompileError(
-                    `Set "${setName}" not found in table "${currentTable.name}". Available sets: ${availableSets}`,
-                );
-            }
-
-            const setDefinition = currentTable.sets[setName];
-
-            // Expand the set
-            const setFields = expandSingleSet(
-                setName,
-                setDefinition,
-                currentTable,
-            );
-            expandedFields.push(...setFields);
-        } else {
-            // Regular field reference
-            expandedFields.push(inclusion);
-        }
+    // Check if set exists
+    if (!currentTable.sets || !currentTable.sets[setName]) {
+        const availableSets = currentTable.sets
+            ? Object.keys(currentTable.sets).join(', ')
+            : 'none';
+        throw new CompileError(
+            `Set "${setName}" not found in table "${currentTable.name}". Available sets: ${availableSets}`,
+        );
     }
 
-    return expandedFields;
+    return expandSingleSet(
+        setName,
+        currentTable.sets[setName],
+        currentTable,
+        depth,
+    );
 }
 
 export type LenientSetExpansionResult = {
@@ -176,24 +170,27 @@ export function expandFieldsWithSetsLenient(
     const { inclusions, exclusions } = separateInclusionsAndExclusions(fields);
     const setExpansionErrors: string[] = [];
 
-    const expandedFields = inclusions.flatMap((inclusion) => {
-        if (!inclusion.endsWith('*')) {
-            return [inclusion];
+    const expandLeniently = (field: string): string[] => {
+        if (!field.endsWith('*')) {
+            return [field];
         }
         try {
-            return expandSetReferences([inclusion], currentTable);
+            return expandSetReference(field, currentTable);
         } catch (e) {
             setExpansionErrors.push(
                 e instanceof Error
                     ? e.message
-                    : `Failed to expand set reference "${inclusion}".`,
+                    : `Failed to expand set reference "${field}".`,
             );
             return [];
         }
-    });
+    };
 
     return {
-        fields: applyExclusionsAndDeduplicate(expandedFields, exclusions),
+        fields: applyExclusionsAndDeduplicate(
+            inclusions.flatMap(expandLeniently),
+            new Set([...exclusions].flatMap(expandLeniently)),
+        ),
         setExpansionErrors,
     };
 }
@@ -218,4 +215,33 @@ export function expandFieldsWithSets(
         throw new CompileError(setExpansionErrors[0]);
     }
     return expandedFields;
+}
+
+export type JoinFieldSelection = {
+    mode: 'include' | 'exclude';
+    fields: string[];
+};
+
+/**
+ * Expands a join's `fields` list. A list made up only of exclusions
+ * (e.g. ['-email', '-pii_fields*']) selects every field of the joined
+ * table except the excluded ones.
+ */
+export function expandJoinFields(
+    fields: string[],
+    currentTable: SetExpansionTable,
+): JoinFieldSelection {
+    if (fields.length > 0 && fields.every((field) => field.startsWith('-'))) {
+        return {
+            mode: 'exclude',
+            fields: expandFieldsWithSets(
+                fields.map((field) => field.substring(1)),
+                currentTable,
+            ),
+        };
+    }
+    return {
+        mode: 'include',
+        fields: expandFieldsWithSets(fields, currentTable),
+    };
 }

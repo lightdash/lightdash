@@ -145,7 +145,7 @@ export type QueryHistory = {
         resultMessageQuery?: {
             agentUuid: string;
             promptUuid: string;
-            queryUuid: string;
+            nodeId: string;
         };
         resultEntitlementFingerprint?: string | null;
         resultEffectiveParameters?: ParametersValuesMap;

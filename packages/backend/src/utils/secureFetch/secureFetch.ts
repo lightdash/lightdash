@@ -205,95 +205,109 @@ export async function secureFetch(
     const effectiveTimeout = Math.min(options.timeoutMs, MAX_TIMEOUT_MS);
     const timer = setTimeout(() => controller.abort(), effectiveTimeout);
 
-    let response: import('node-fetch').Response;
+    // The timeout covers the whole exchange, including the body. Aborting on
+    // exit closes the connection when a response is rejected before it is read.
     try {
-        response = await fetch(rawUrl, {
-            method: options.method,
-            body: options.body,
-            headers: { 'User-Agent': DEFAULT_USER_AGENT, ...options.headers },
-            agent,
-            redirect: 'manual',
-            signal: controller.signal as never,
-            size: options.maxResponseBytes,
-        });
-    } catch (error) {
-        if (
-            controller.signal.aborted ||
-            (error instanceof FetchError && error.type === 'aborted')
-        ) {
-            throw new SecureFetchError('timeout', 'Request timed out');
+        let response: import('node-fetch').Response;
+        try {
+            response = await fetch(rawUrl, {
+                method: options.method,
+                body: options.body,
+                headers: {
+                    'User-Agent': DEFAULT_USER_AGENT,
+                    ...options.headers,
+                },
+                agent,
+                redirect: 'manual',
+                signal: controller.signal as never,
+                size: options.maxResponseBytes,
+            });
+        } catch (error) {
+            if (
+                controller.signal.aborted ||
+                (error instanceof FetchError && error.type === 'aborted')
+            ) {
+                throw new SecureFetchError('timeout', 'Request timed out');
+            }
+            if (error instanceof FetchError) {
+                throw new SecureFetchError(
+                    'request_failed',
+                    `Request failed: ${error.message}`,
+                );
+            }
+            throw new SecureFetchError('request_failed', 'Request failed');
         }
-        if (error instanceof FetchError) {
+
+        // Validation only covered the initial URL; any redirect target is
+        // unvalidated, so the chain ends here.
+        if (response.status >= 300 && response.status < 400) {
             throw new SecureFetchError(
-                'request_failed',
-                `Request failed: ${error.message}`,
+                'redirect',
+                'Redirects are not allowed for security reasons',
             );
         }
-        throw new SecureFetchError('request_failed', 'Request failed');
-    } finally {
-        clearTimeout(timer);
-    }
-
-    // Validation only covered the initial URL; any redirect target is
-    // unvalidated, so the chain ends here.
-    if (response.status >= 300 && response.status < 400) {
-        throw new SecureFetchError(
-            'redirect',
-            'Redirects are not allowed for security reasons',
-        );
-    }
-    const contentLength = response.headers.get('content-length');
-    if (
-        contentLength &&
-        Number.parseInt(contentLength, 10) > options.maxResponseBytes
-    ) {
-        throw new SecureFetchError(
-            'too_large',
-            `Response too large (max ${options.maxResponseBytes} bytes)`,
-        );
-    }
-
-    const contentType = normalizeContentType(
-        response.headers.get('content-type') ?? '',
-    );
-    // Empty allowlist = no content-type restriction (explicit opt-out; the proxy
-    // always passes a non-empty list). Enforced only on success responses: error
-    // bodies are often text/html (gateway 502 pages) and must survive.
-    if (
-        response.ok &&
-        !isAllowedContentType(contentType, options.allowedContentTypes)
-    ) {
-        throw new SecureFetchError(
-            'disallowed_content_type',
-            `Disallowed content-type: ${contentType || '(none)'}`,
-        );
-    }
-
-    let bodyText: string;
-    try {
-        bodyText = await response.text();
-    } catch (error) {
-        // node-fetch's `size` option throws FetchError type 'max-size' when the
-        // streamed body exceeds the limit.
-        if (error instanceof FetchError && error.type === 'max-size') {
+        const contentLength = response.headers.get('content-length');
+        if (
+            contentLength &&
+            Number.parseInt(contentLength, 10) > options.maxResponseBytes
+        ) {
             throw new SecureFetchError(
                 'too_large',
                 `Response too large (max ${options.maxResponseBytes} bytes)`,
             );
         }
-        throw new SecureFetchError('request_failed', 'Failed to read response');
+
+        const contentType = normalizeContentType(
+            response.headers.get('content-type') ?? '',
+        );
+        // Empty allowlist = no content-type restriction (explicit opt-out; the proxy
+        // always passes a non-empty list). Enforced only on success responses: error
+        // bodies are often text/html (gateway 502 pages) and must survive.
+        if (
+            response.ok &&
+            !isAllowedContentType(contentType, options.allowedContentTypes)
+        ) {
+            throw new SecureFetchError(
+                'disallowed_content_type',
+                `Disallowed content-type: ${contentType || '(none)'}`,
+            );
+        }
+
+        let bodyText: string;
+        try {
+            bodyText = await response.text();
+        } catch (error) {
+            // node-fetch's `size` option throws FetchError type 'max-size' when the
+            // streamed body exceeds the limit.
+            if (error instanceof FetchError && error.type === 'max-size') {
+                throw new SecureFetchError(
+                    'too_large',
+                    `Response too large (max ${options.maxResponseBytes} bytes)`,
+                );
+            }
+            if (controller.signal.aborted) {
+                throw new SecureFetchError('timeout', 'Request timed out');
+            }
+            throw new SecureFetchError(
+                'request_failed',
+                'Failed to read response',
+            );
+        }
+
+        const headers = Object.create(null) as Record<string, string>;
+        response.headers.forEach((value, name) => {
+            headers[name.toLowerCase()] = value;
+        });
+
+        return {
+            status: response.status,
+            contentType,
+            headers,
+            bodyText,
+            truncated: false,
+        };
+    } finally {
+        clearTimeout(timer);
+        controller.abort();
     }
-
-    const headers = Object.create(null) as Record<string, string>;
-    response.headers.forEach((value, name) => {
-        headers[name.toLowerCase()] = value;
-    });
-
-    return {
-        status: response.status,
-        contentType,
-        headers,
-        bodyText,
-        truncated: false,
-    };
 }

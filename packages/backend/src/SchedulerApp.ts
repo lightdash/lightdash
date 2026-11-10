@@ -101,6 +101,7 @@ const schedulerWorkerFactory = (context: {
         agentActionLogModel: context.models.getAgentActionLogModel(),
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
         usageHistoryModel: context.models.getUsageHistoryModel(),
+        usageProcessingModel: context.models.getUsageProcessingModel(),
         featureFlagModel: context.models.getFeatureFlagModel(),
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
@@ -135,8 +136,10 @@ const schedulerWorkerFactory = (context: {
             context.models.getOrganizationSettingsModel(),
         emailWhitelabelService:
             context.serviceRepository.getEmailWhitelabelService(),
+        mobileAppLinkModel: context.models.getMobileAppLinkModel(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        mobileSignInCodeModel: context.models.getMobileSignInCodeModel(),
         agentConnectionApprovalRequestModel:
             context.models.getAgentConnectionApprovalRequestModel(),
         aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),

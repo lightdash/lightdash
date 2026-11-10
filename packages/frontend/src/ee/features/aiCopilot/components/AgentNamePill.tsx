@@ -27,7 +27,7 @@ export const AgentNamePill: FC<AgentNamePillProps> = ({
             <Text
                 fz={isPill ? 'sm' : 'xs'}
                 fw={isPill ? 500 : 400}
-                c="ldGray.7"
+                c="dimmed"
                 truncate
                 maw={220}
             >

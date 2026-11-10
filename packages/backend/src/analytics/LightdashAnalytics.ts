@@ -9,6 +9,7 @@ import {
     AiAgentSkillVersionSource,
     AiCreditAllowanceAlertThreshold,
     AnyType,
+    ApiConnectorType,
     CacheMetadata,
     CartesianSeriesType,
     ChartKind,
@@ -26,8 +27,11 @@ import {
     LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
+    LiveSourceRefusalCode,
+    LiveSourceUpstreamErrorCode,
     MergeJoinType,
     MergeQueryErrorKind,
+    MobileAppPlatform,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     PinnedItem,
@@ -77,6 +81,7 @@ import {
     type PersistentDownloadFileAccessMode,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
+    type ResultsCacheStatsDays,
     type SemanticQueryUsage,
     type SqlApprovalToolName,
     type WarehousePhaseTimings,
@@ -93,9 +98,9 @@ import { type ExternalConnectionEvent } from '../ee/analytics';
 import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
-import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import type { ApiQueryOutcome } from '../services/QuerySourceService/api/apiQueryOutcome';
 import { VERSION } from '../version';
 import {
     isAiUsageEvent,
@@ -141,12 +146,19 @@ type Group = {
 type TrackSimpleEvent = BaseTrack & {
     event:
         | 'password.updated'
-        | 'invite_link.created'
         | 'invite_link.all_revoked'
         | 'password_reset_link.created'
         | 'password_reset_link.used'
         | 'personal_access_token.deleted'
         | 'personal_access_token.rotated';
+};
+
+type InviteLinkCreatedEvent = BaseTrack & {
+    event: 'invite_link.created';
+    properties: {
+        organizationId: string;
+        purpose: InviteLinkPurpose;
+    };
 };
 
 type PersonalAccessTokenEvent = BaseTrack & {
@@ -304,6 +316,8 @@ type SetupInviteAcceptedEvent = BaseTrack & {
         organizationId: string;
         invitePurpose: InviteLinkPurpose.Setup;
         onboardingFlow: OnboardingFlow;
+        /** Null for links created before the inviter was stored */
+        invitedByUserId: string | null;
     };
 };
 
@@ -324,6 +338,27 @@ type UserWarehouseCredentialsDeleteEvent = BaseTrack & {
     };
 };
 
+type MobileAppLinkCreatedEvent = BaseTrack & {
+    event: 'mobile_app_link.created';
+    properties: {
+        userId: string;
+        organizationId: string;
+        linkUuid: string;
+    };
+};
+
+type MobileAppLinkOpenedEvent = BaseTrack & {
+    event: 'mobile_app_link.opened';
+    properties: {
+        userId: string;
+        organizationId: string;
+        linkUuid: string;
+        platform: MobileAppPlatform;
+        secondsSinceCreated: number;
+        isFirstScan: boolean;
+    };
+};
+
 type WarehouseConnectEvent = BaseTrack & {
     event:
         | 'warehouse_connect_code.created'
@@ -338,13 +373,46 @@ type WarehouseConnectEvent = BaseTrack & {
     };
 };
 
+type MobileSignInCodeEvent = BaseTrack & {
+    event:
+        | 'mobile_sign_in_code.created'
+        | 'mobile_sign_in_code.claimed'
+        | 'mobile_sign_in_code.approved'
+        | 'mobile_sign_in_code.declined'
+        | 'mobile_sign_in_code.redeemed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        codeUuid: string;
+        reason: 'show' | 'auto_refresh' | null;
+        platform: string | null;
+        declinedBy: 'web' | 'failed_redeems' | null;
+    };
+};
+
+export type ConnectionTestStage = 'warehouse' | 'dbt';
+
+export type ConnectionTestErrorCategory =
+    | 'authentication'
+    | 'network'
+    | 'permission'
+    | 'not_found'
+    | 'timeout'
+    | 'dbt'
+    | 'unknown';
+
 type WarehouseConnectionTestedEvent = BaseTrack & {
     event: 'warehouse_connection.tested';
     userId: string;
     properties: {
+        organizationId: string | null;
+        projectId: string | null;
         warehouseType: WarehouseTypes;
+        authenticationType: string | null;
         result: 'success' | 'failure';
+        stage: ConnectionTestStage;
         errorType?: string;
+        errorCategory: ConnectionTestErrorCategory | null;
         context: 'project_create' | 'project_update';
         method: RequestMethod;
         onboardingFlow: OnboardingFlow;
@@ -611,6 +679,7 @@ export type MetricQueryExecutionProperties = {
     tableCalculationsNumberFormatCount: number;
     tableCalculationCustomFormatCount: number;
     filtersCount: number;
+    convertTimezoneOptOutFiltersCount: number;
     sortsCount: number;
     additionalMetricsCount: number;
     additionalMetricsFilterCount: number;
@@ -635,6 +704,8 @@ type PaginatedMetricQueryExecutionProperties =
     MetricQueryExecutionProperties & {
         queryId: string;
         warehouseType: WarehouseTypes;
+        resolvedQueryTimezone: string | null;
+        dataTimezone: string | null;
     };
 
 type SqlExecutionProperties = {
@@ -672,7 +743,8 @@ type QueryExecutionSource =
     | 'pre_aggregate_duckdb'
     | 'pre_aggregate_warehouse'
     | 'external_source_duckdb'
-    | 'composer_duckdb';
+    | 'composer_duckdb'
+    | 'live_source';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -747,6 +819,48 @@ export type QueryCompletedEvent = BaseTrack & {
         warehousePhaseTimings: WarehousePhaseTimings | null;
         totalRowCount: number | null;
         columnsCount: number | null;
+        // Set only when executionSource is 'live_source'.
+        apiConnector?: ApiConnectorType;
+        apiQueryOutcome?: ApiQueryOutcome;
+        /** Set only when a live_source query failed. */
+        liveSourceErrorCode?: LiveSourceUpstreamErrorCode;
+        truncated?: boolean;
+    };
+};
+
+/** One reason Lightdash refused a live data source query before calling its API. */
+export type LiveSourceQueryRefusedEvent = BaseTrack & {
+    event: 'live_source.query_refused';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        externalConnectionUuid: string;
+        integration: ApiConnectorType;
+        exploreName: string;
+        code: LiveSourceRefusalCode;
+        fieldId: string | null;
+        querySurface: QuerySurface | null;
+        context: QueryExecutionContext;
+    };
+};
+
+/** One composer batch; counts say which sources a question combined. */
+export type QuerySourcesSubmittedEvent = BaseTrack & {
+    event: 'query_sources.submitted';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        context: QueryExecutionContext;
+        aiAgentId: string | null;
+        threadId: string | null;
+        promptId: string | null;
+        nodeCount: number;
+        semanticLayerNodeCount: number;
+        sqlNodeCount: number;
+        duckdbNodeCount: number;
+        externalNodeCount: number;
+        pythonNodeCount: number;
+        apiNodeCount: number;
     };
 };
 
@@ -849,6 +963,57 @@ type ResultsCacheDeleteEvent = BaseTrack & {
     };
 };
 
+type ResultsCacheInvalidatedEvent = BaseTrack & {
+    event: 'results_cache.invalidated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        scope: 'project' | 'chart' | 'dashboard' | 'explores';
+        contentUuid: string | null;
+        trigger?: 'schedule';
+        exploreNames?: string[];
+    };
+};
+
+type ResultsCacheToggledEvent = BaseTrack & {
+    event: 'results_cache.toggled';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+    };
+};
+
+type ResultsCacheTtlUpdatedEvent = BaseTrack & {
+    event: 'results_cache.ttl_updated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        // null means the project uses the instance default TTL
+        ttlSeconds: number | null;
+        previousTtlSeconds: number | null;
+    };
+};
+
+type ResultsCacheStatsViewedEvent = BaseTrack & {
+    event: 'results_cache.stats_viewed';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        days: ResultsCacheStatsDays;
+    };
+};
+
+type ResultsCacheClearScheduleUpdatedEvent = BaseTrack & {
+    event: 'results_cache.clear_schedule_updated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        cron: string;
+    };
+};
+
 /** The one engine merges run on; kept as a property so the event shape holds. */
 export type MergeEngine = 'compose';
 export type MergeSourceKind = 'metric' | 'result';
@@ -892,6 +1057,59 @@ export type MergeQueryRefusedEvent = BaseTrack & {
         refusalCount: number;
         /** Set when the refusal arrived as the merged query's error, as the row cap does. */
         queryId: string | null;
+    };
+};
+
+export type PgWireAuthMethod = 'service_account' | 'personal_access_token';
+
+export type PgWireAuthenticationFailureReason =
+    | 'missing_password'
+    | 'invalid_token'
+    | 'scim_only_token'
+    | 'disabled_for_organization'
+    | 'database_not_found'
+    | 'database_ambiguous'
+    | 'project_inaccessible';
+
+/** `metadata` covers session statements and catalog lookups answered in memory. */
+export type PgWireStatementKind = 'explore' | 'schema_probe' | 'metadata';
+
+export type PgWireConnectedEvent = BaseTrack & {
+    event: 'pgwire.connected';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        authMethod: PgWireAuthMethod;
+        applicationName: string | null;
+        exploreCount: number;
+    };
+};
+
+export type PgWireAuthenticationFailedEvent = BaseTrack & {
+    event: 'pgwire.authentication_failed';
+    properties: {
+        /** Known only once the token resolved to an account. */
+        organizationId: string | null;
+        authMethod: PgWireAuthMethod | null;
+        reason: PgWireAuthenticationFailureReason;
+        applicationName: string | null;
+    };
+};
+
+export type PgWireQueryExecutedEvent = BaseTrack & {
+    event: 'pgwire.query_executed';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        /** Null when the statement failed before it was classified. */
+        statementKind: PgWireStatementKind | null;
+        exploreName: string | null;
+        status: 'success' | 'error';
+        /** SQLSTATE returned to the client. */
+        errorCode: string | null;
+        rowCount: number | null;
+        durationMs: number;
+        applicationName: string | null;
     };
 };
 
@@ -1252,7 +1470,7 @@ export type ConditionalFormattingRuleSavedEvent = BaseTrack & {
 };
 
 export type ProjectEvent = BaseTrack & {
-    event: 'project.updated' | 'project.created';
+    event: 'project.updated';
     userId: string;
     properties: {
         projectName: string;
@@ -1270,16 +1488,12 @@ export type ProjectEvent = BaseTrack & {
     };
 };
 
-type OnboardingHomepageProvisionedEvent = BaseTrack & {
-    event: 'onboarding_homepage.provisioned';
+export type ProjectCreatedEvent = BaseTrack & {
+    event: 'project.created';
     userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        homepageUuid: string;
-        onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
+    properties: ProjectEvent['properties'] & {
+        provisioningSource: 'playground' | 'training' | 'analytics' | null;
+        isFirstProject: boolean;
     };
 };
 
@@ -1306,57 +1520,6 @@ type HomepagePublishedEvent = BaseTrack & {
         openingBlockType: string | null;
     };
 };
-
-export type OnboardingHomepageSkippedReason =
-    | 'new_onboarding_flag_disabled'
-    | 'homepage_builder_flag_disabled'
-    | 'not_first_project'
-    | 'homepage_already_exists';
-
-type OnboardingHomepageSkippedEvent = BaseTrack & {
-    event: 'onboarding_homepage.skipped';
-    userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
-        reason: OnboardingHomepageSkippedReason;
-    };
-};
-
-type OnboardingHomepageFailedEvent = BaseTrack & {
-    event: 'onboarding_homepage.failed';
-    userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
-        errorType: string;
-    };
-};
-
-type OnboardingOrgFlagsProvisionedEvent = BaseTrack & {
-    event: 'onboarding_org_flags.provisioned';
-    userId: string;
-    properties: {
-        organizationId: string;
-        onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
-    };
-};
-
-export type HomepageBuilderEnablement =
-    | EnsureOrganizationOverrideOutcome
-    | 'failed';
-
-export type CodingAgentOnboardingEnablement =
-    | EnsureOrganizationOverrideOutcome
-    | 'failed';
 
 type PlaygroundProjectProvisionedEvent = BaseTrack & {
     event: 'playground_project.provisioned';
@@ -1538,6 +1701,9 @@ type UpdatedDashboardEvent = BaseTrack & {
         sectionsCount: number;
         sectionedFiltersCount: number;
         collapsedByDefaultSectionsCount: number;
+        parameterControlsCount: number;
+        parameterControlsWithNonAllTargetsCount: number;
+        filtersWithCustomTileTargetsCount: number;
     };
 };
 
@@ -1567,6 +1733,9 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         sectionsCount: number;
         sectionedFiltersCount: number;
         collapsedByDefaultSectionsCount: number;
+        parameterControlsCount: number;
+        parameterControlsWithNonAllTargetsCount: number;
+        filtersWithCustomTileTargetsCount: number;
     };
 };
 
@@ -2027,6 +2196,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         includeLinks: boolean;
         plainTextEmail: boolean;
         isThresholdAlert: boolean;
+        useCachedResults: boolean;
     };
 };
 export type SchedulerTimezoneUpdateEvent = BaseTrack & {
@@ -2095,6 +2265,8 @@ export type SchedulerJobEvent = BaseTrack & {
         groupId: string | undefined;
         sendNow?: boolean;
         isThresholdAlert?: boolean;
+        // Absent where the scheduler is not loaded, e.g. scheduler_job.deleted
+        useCachedResults?: boolean;
         error?: string;
         // App csv/xlsx deliveries only: shape of what the capture render
         // produced and how much of it reached recipients.
@@ -2380,7 +2552,11 @@ export type DataAppAnalysisCompletedEvent = BaseTrack & {
         appUuid: string | null;
         dashboardUuid: string | null;
         appVersion: number | null;
-        operation: 'detect' | 'prompt' | 'investigate';
+        operation:
+            | 'detect'
+            | 'prompt'
+            | 'investigate'
+            | 'investigate_instruction';
         outcome: DataAppAnalysisOutcome;
         sourceCount: number | null;
         truncated: boolean | null;
@@ -4791,6 +4967,7 @@ type TypedEvent =
     | AgentIdentityServiceAccountTestedEvent
     | AgentIdentityServiceAccountDeletedEvent
     | TrackSimpleEvent
+    | InviteLinkCreatedEvent
     | CreateUserEvent
     | UpdateUserEvent
     | HearAboutUsSubmittedEvent
@@ -4806,6 +4983,7 @@ type TypedEvent =
     | QueryReadyEvent
     | QueryErrorEvent
     | QueryCompletedEvent
+    | QuerySourcesSubmittedEvent
     | PreAggregateQueryEvent
     | MaterializationEvent
     | QueryPageEvent
@@ -4813,6 +4991,11 @@ type TypedEvent =
     | ResultsCacheWriteEvent
     | ResultsCacheReadEvent
     | ResultsCacheDeleteEvent
+    | ResultsCacheInvalidatedEvent
+    | ResultsCacheClearScheduleUpdatedEvent
+    | ResultsCacheToggledEvent
+    | ResultsCacheTtlUpdatedEvent
+    | ResultsCacheStatsViewedEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | SavedChartExploreChangedEvent
@@ -4831,12 +5014,9 @@ type TypedEvent =
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
-    | OnboardingHomepageProvisionedEvent
-    | OnboardingHomepageSkippedEvent
-    | OnboardingHomepageFailedEvent
+    | ProjectCreatedEvent
     | OrganizationHomepageSettingsUpdatedEvent
     | HomepagePublishedEvent
-    | OnboardingOrgFlagsProvisionedEvent
     | PlaygroundProjectProvisionedEvent
     | PlaygroundProjectSkippedEvent
     | PlaygroundProjectFailedEvent
@@ -4859,7 +5039,10 @@ type TypedEvent =
     | EmailWhitelabelDomainCreatedEvent
     | UserWarehouseCredentialsEvent
     | UserWarehouseCredentialsDeleteEvent
+    | MobileAppLinkCreatedEvent
+    | MobileAppLinkOpenedEvent
     | WarehouseConnectEvent
+    | MobileSignInCodeEvent
     | WarehouseConnectionTestedEvent
     | WarehouseConnectionChangedEvent
     | WarehouseConnectionTestCompletedEvent
@@ -4944,6 +5127,9 @@ type TypedEvent =
     | SubtotalQueryEvent
     | MergeQueryExecutedEvent
     | MergeQueryRefusedEvent
+    | PgWireConnectedEvent
+    | PgWireAuthenticationFailedEvent
+    | PgWireQueryExecutedEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
     | AiAgentThreadDeletedEvent

@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     QueryExecutionContext,
     QueryHistoryStatus,
+    ResultsCacheMissReason,
     type QueryHistory,
 } from '@lightdash/common';
 import { Readable } from 'stream';
@@ -13,7 +14,7 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { ICacheService } from '../CacheService/ICacheService';
-import type { CacheHitCacheResult } from '../CacheService/types';
+import type { CacheLookupResult } from '../CacheService/types';
 import {
     projectSummary,
     sessionAccount,
@@ -95,6 +96,7 @@ const buildHarness = ({
             async ({ queryUuid }: { queryUuid: string }) => rows.get(queryUuid),
         ),
         recordResultProducer: vi.fn(),
+        recordCacheOutcome: vi.fn(),
         update: vi.fn(
             async (
                 queryUuid: string,
@@ -156,12 +158,11 @@ const buildHarness = ({
         ),
     };
     const cacheService: ICacheService = {
-        isResultsCacheEnabled: vi.fn(async () => true),
-        findCachedResultsFile: vi.fn(
+        lookupCachedResultsFile: vi.fn(
             async (
                 _projectUuid: string,
                 cacheKey: string,
-            ): Promise<CacheHitCacheResult | null> => {
+            ): Promise<CacheLookupResult> => {
                 const hit = [...rows.values()]
                     .filter(
                         (row) =>
@@ -169,9 +170,14 @@ const buildHarness = ({
                             row.status === QueryHistoryStatus.READY,
                     )
                     .at(-1);
-                if (!hit?.resultsFileName) return null;
+                if (!hit?.resultsFileName)
+                    return {
+                        cacheHit: false,
+                        missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                    };
                 return {
                     cacheHit: true,
+                    cacheGeneration: 0,
                     queryUuid: hit.queryUuid,
                     resultProducer: null,
                     cacheKey,
@@ -273,7 +279,7 @@ const buildHarness = ({
         return rows.get(queryUuid)!;
     };
 
-    return { submit, sandbox, uploads, rows, service };
+    return { submit, sandbox, uploads, rows, service, queryHistoryModel };
 };
 
 describe('python transformations and the results cache', () => {
@@ -357,14 +363,54 @@ describe('python transformations and the results cache', () => {
         expect(ttlMs).toBeLessThan(3600 * 1000 + 5000);
     });
 
+    test('records the cache outcome on a miss and not on a hit', async () => {
+        const { submit, queryHistoryModel } = await buildHarness();
+
+        const first = await submit({ invalidateCache: true });
+        await submit();
+
+        expect(queryHistoryModel.recordCacheOutcome).toHaveBeenCalledTimes(1);
+        expect(queryHistoryModel.recordCacheOutcome).toHaveBeenCalledWith(
+            first.queryUuid,
+            projectUuid,
+            {
+                missReason: ResultsCacheMissReason.NO_CACHED_RESULT,
+                refreshRequested: true,
+            },
+        );
+    });
+
+    test('records a bypassed outcome when agent identity is on', async () => {
+        const { submit, queryHistoryModel } = await buildHarness({
+            flags: { [FeatureFlags.AgentIdentity]: true },
+        });
+
+        const row = await submit();
+
+        expect(queryHistoryModel.recordCacheOutcome).toHaveBeenCalledWith(
+            row.queryUuid,
+            projectUuid,
+            {
+                missReason: ResultsCacheMissReason.BYPASSED,
+                refreshRequested: false,
+            },
+        );
+    });
+
     describe('bypasses the results cache like SQL transformations', () => {
         test('when the submitter invalidates the cache', async () => {
-            const { submit, sandbox } = await buildHarness();
+            const { submit, sandbox, queryHistoryModel } = await buildHarness();
 
             await submit();
-            await submit({ invalidateCache: true });
+            const refreshed = await submit({ invalidateCache: true });
 
             expect(sandbox.run).toHaveBeenCalledTimes(2);
+            expect(
+                queryHistoryModel.recordCacheOutcome,
+            ).toHaveBeenLastCalledWith(refreshed.queryUuid, projectUuid, {
+                missReason: null,
+                refreshRequested: true,
+            });
         });
 
         test('for agent queries when the AI skip results cache flag is on', async () => {

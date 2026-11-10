@@ -39,6 +39,7 @@ import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterGroupForm from './FilterGroupForm';
 import { getFilterOperatorOptions } from './FilterInputs/utils';
+import classes from './Filters.module.css';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 import useFiltersContext from './useFiltersContext';
 
@@ -117,13 +118,7 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
     addFieldRule,
 }) => {
     return (
-        <Box
-            pos="relative"
-            style={{
-                zIndex: 2,
-                backgroundColor: 'var(--mantine-color-body)',
-            }}
-        >
+        <Box pos="relative" className={classes.raised}>
             {!isOpen ? (
                 <Group align="center" justify="space-between" flex={1}>
                     <Button
@@ -312,7 +307,7 @@ const FiltersFormComponent: FC<Props> = ({
                             h="100%"
                             top={0}
                             left={18}
-                            style={{ zIndex: 1 }}
+                            className={classes.groupLine}
                         />
 
                         {rootFilterGroup && (
@@ -338,10 +333,7 @@ const FiltersFormComponent: FC<Props> = ({
                             px="xs"
                             h={30}
                             wrap="nowrap"
-                            style={{
-                                border: '1px solid var(--mantine-color-yellow-6)',
-                                borderRadius: 'var(--mantine-radius-sm)',
-                            }}
+                            className={classes.invalidRule}
                         >
                             <MantineIcon
                                 icon={IconAlertTriangle}

@@ -40,6 +40,7 @@ import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
 import { timeFrameConfigs } from './utils/timeFrames';
+import { validateUserName } from './utils/userName';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
@@ -76,19 +77,21 @@ export * from './compiler/filtersCompiler';
 export * from './compiler/joinInflation';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
+export * from './compiler/queryParameterReferences';
 export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './compiler/writebackColumn';
+export * from './parameters/dashboardParameterControls';
 export * from './parameters/dashboardTileParameters';
 export * from './parameters/parameterDefaults';
 export * from './parameters/parameterOptions';
 export * from './parameters/reservedParameters';
+export * from './constants/mobileApp';
 export * from './constants/screenshot';
 export * from './constants/sessionStorageKeys';
 export * from './constants/spaces';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
-export * from './dbt/findDbtNodeCycle';
 export * from './dbt/manifest';
 export * from './dbt/metricFlow';
 export * from './dbt/projectMergedManifest';
@@ -137,6 +140,8 @@ export * from './types/api/sort';
 export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/apiSourceExplore';
+export * from './types/liveSourceErrors';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
@@ -186,6 +191,8 @@ export * from './types/managedSignIn';
 export * from './types/mergeQuery';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
+export * from './types/mobileAppLink';
+export * from './types/mobileSignIn';
 export * from './types/notifications';
 export * from './types/oauth';
 export * from './types/openIdIdentity';
@@ -219,6 +226,7 @@ export {
     DbtProjectType,
     DbtVersionOptionLatest,
     usesAwsWebIdentity,
+    usesBigqueryWorkloadIdentity,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
     DucklakeCatalogType,
@@ -254,6 +262,7 @@ export {
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     supportsOptionalUserCredentials,
+    USER_CREATABLE_PROJECT_TYPES,
     allowsOptionalUserCredentials,
     WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
@@ -380,12 +389,14 @@ export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/awsWebIdentity';
+export * from './types/bigqueryWorkloadIdentity';
 export * from './types/sshTunnel';
 export * from './types/table';
 export * from './types/tags';
 export * from './types/timeFrames';
 export * from './types/timezone';
 export * from './types/user';
+export { validateUserName } from './utils/userName';
 export * from './types/userAvatars';
 export * from './types/userAttributes';
 export * from './types/userOnboarding';
@@ -403,9 +414,12 @@ export * from './types/yamlSchema';
 export * from './utils/accessors';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
+export * from './utils/apiSourceQuery';
+export * from './utils/liveSourceIntegrations';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
 export * from './utils/awsWebIdentity';
+export * from './utils/bigqueryWorkloadIdentity';
 export * from './utils/bigqueryKeyfile';
 export * from './utils/charts';
 export * from './utils/cellUrls';
@@ -418,6 +432,7 @@ export * from './utils/convertCustomDimensionsToYaml';
 export * from './utils/convertCustomMetricsToYaml';
 export * from './utils/customDimensions';
 export * from './utils/dashboard';
+export * from './utils/dashboardControls';
 export * from './utils/dbt';
 export * from './utils/dependencyGraph';
 export * from './utils/egressIps';
@@ -433,11 +448,13 @@ export * from './utils/i18n/dashboardAsCode';
 export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
 export * from './utils/i18n/uiStrings';
+export * from './utils/isoDateTime';
 export * from './utils/item';
 export * from './utils/mergeQueryItems';
 export * from './utils/mergeTotals';
 export * from './utils/queryHistoryList';
 export * from './utils/resultColumns';
+export * from './utils/resultsCacheClearSchedule';
 export * from './utils/learnSandbox';
 export * from './utils/learnYamlKeyTypos';
 export * from './utils/loadLightdashProjectConfig';
@@ -446,6 +463,7 @@ export * from './utils/metricsExplorer';
 export * from './utils/normalizeCellRawForFilter';
 export * from './utils/oauth';
 export * from './utils/organization';
+export * from './utils/portableSlugs';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';
@@ -459,6 +477,7 @@ export * from './utils/sqlDialect';
 export * from './utils/subtotals';
 export * from './utils/dateZoom';
 export * from './utils/tableCalculationFunctions';
+export * from './utils/tableSelection';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
@@ -498,8 +517,6 @@ export const validateEmail = (email: string): boolean => {
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 };
-
-export const validateUserName = (name: string): boolean => !/[<>]/u.test(name);
 
 export const getUserNameSchema = () =>
     z.string().trim().min(1, { message: 'Required' }).refine(validateUserName, {
@@ -723,6 +740,8 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
+    firstName: getUserNameSchema().optional(),
+    lastName: getUserNameSchema().optional(),
     jobTitle: z.string().min(0),
     // Only collected from the person creating the organization; invited
     // members skip it (their onboarding omits this field from the schema).
@@ -1296,3 +1315,5 @@ export * from './types/releaseHighlights';
 export { getDeferredExploreName } from './dbt/qualifiedName';
 
 export * from './utils/exploreName';
+
+export * from './dbt/validateDbtText';

@@ -1,0 +1,9 @@
+.scrollContainer {
+    height: 100vh;
+    overflow-y: auto;
+}
+
+/* Contains child margins so the measured height matches what renders */
+.content {
+    display: flow-root;
+}

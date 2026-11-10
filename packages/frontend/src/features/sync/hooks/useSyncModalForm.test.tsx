@@ -69,6 +69,7 @@ const formValues: SyncModalFormValues = {
         tabName: '',
     },
     saveInNewTab: false,
+    useCachedResults: false,
 };
 
 describe('useSyncModalForm', () => {

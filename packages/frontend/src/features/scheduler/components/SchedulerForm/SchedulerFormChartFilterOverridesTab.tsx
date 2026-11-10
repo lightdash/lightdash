@@ -62,7 +62,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
             itemsMap ? undefined : savedChart.tableName,
             savedChart.projectUuid,
         );
-    const { startOfWeek } = useExploreWarehouseConnection(
+    const { startOfWeek, warehouseType } = useExploreWarehouseConnection(
         savedChart.tableName,
         savedChart.projectUuid,
     );
@@ -179,6 +179,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
             projectUuid={project.projectUuid}
             itemsMap={fieldsMap}
             startOfWeek={startOfWeek ?? undefined}
+            warehouseType={warehouseType}
         >
             {readOnly && hasRules ? (
                 <Stack mb="sm">

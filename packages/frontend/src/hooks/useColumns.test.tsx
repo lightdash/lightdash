@@ -11,6 +11,7 @@ import { MantineProvider } from '@mantine/core';
 import { type CellContext } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
+import barClasses from './TableCellBar.module.css';
 import {
     formatCellContent,
     formatResultsTableCell,
@@ -158,9 +159,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const { container } = renderWithMantine(result as React.ReactElement);
 
         // Should have a bar element (div with grid display)
-        const gridContainer = container.querySelector(
-            'div[style*="grid-template-columns"]',
-        );
+        const gridContainer = container.querySelector(`.${barClasses.layout}`);
         expect(gridContainer).toBeTruthy();
 
         // Should have a bar element (the colored box)
@@ -441,9 +440,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const { container } = renderWithMantine(result as React.ReactElement);
 
         // Should have the grid container but no colored bar for zero
-        const gridContainer = container.querySelector(
-            'div[style*="grid-template-columns"]',
-        );
+        const gridContainer = container.querySelector(`.${barClasses.layout}`);
         expect(gridContainer).toBeTruthy();
 
         // Should not have a bar element with width % for zero
@@ -624,9 +621,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const { container } = renderWithMantine(result as React.ReactElement);
 
         // Should have the grid container
-        const gridContainer = container.querySelector(
-            'div[style*="grid-template-columns"]',
-        );
+        const gridContainer = container.querySelector(`.${barClasses.layout}`);
         expect(gridContainer).toBeTruthy();
 
         // Should have a bar element (even if very small, it should be 0.1% width)
@@ -668,9 +663,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         // An invisible sizer reserves space for the column's widest label
         const sizer = screen.getByText('1,700');
         expect(sizer).toBeInTheDocument();
-        expect(sizer.getAttribute('style') || '').toContain(
-            'visibility: hidden',
-        );
+        expect(sizer).toHaveClass(barClasses.sizer);
         expect(sizer).toHaveAttribute('aria-hidden', 'true');
     });
 

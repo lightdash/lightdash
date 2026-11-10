@@ -6,15 +6,14 @@
         cursor: pointer;
 
         &:hover {
-            background-color: var(--mantine-color-ldGray-0);
+            background-color: var(--mantine-color-default-hover);
         }
 
         &:is([data-selected='true']) {
-            background-color: var(--mantine-color-blue-0);
-
-            @mixin dark {
-                background-color: var(--mantine-color-blue-9);
-            }
+            background-color: light-dark(
+                var(--mantine-color-blue-0),
+                var(--mantine-color-blue-9)
+            );
         }
     }
 

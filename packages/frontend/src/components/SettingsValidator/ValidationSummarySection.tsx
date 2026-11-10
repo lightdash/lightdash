@@ -74,7 +74,7 @@ export const ValidationSummarySection: FC<Props> = ({
 
     return (
         <Stack gap="xs">
-            <Text fz="xs" fw={600} c="ldGray.7">
+            <Text fz="xs" fw={600} c="dimmed">
                 {summary.totalErrors} error
                 {summary.totalErrors === 1 ? '' : 's'} across{' '}
                 {summary.totalAffectedItems} item

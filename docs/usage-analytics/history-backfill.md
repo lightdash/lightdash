@@ -9,6 +9,10 @@ past event, a database backup restore, or an import of warehouse result rows.
 The import has three destinations: **Query Events**, **AI Usage**, and
 **Historical Activity**. The first two supplement existing event datasets. The
 third exposes retained database facts whose meaning differs from live events.
+Settings labels this import **Additional historical records**. Captured raw
+events are processed separately: recent activity first, followed automatically
+by all older retained events in background batches. Completing this database
+import does not mean captured-event processing has finished.
 This document describes the backfill implementation in
 [PR #31585](https://github.com/lightdash/lightdash/pull/31585); availability in an
 installation depends on the deployed version and Analytics configuration.
@@ -163,9 +167,17 @@ worker slot cannot run both jobs concurrently.
 
 DB exports use 1,000-row keyset pages and read-only transactions with 10-second
 statement/one-second lock timeouts. Connections are released between pages.
+Query history walks the full retained range in hourly, half-open time windows,
+using the existing creation-time index. Empty windows advance to the next hour;
+dense windows retain timestamp/UUID pagination. A statement timeout narrows the
+remaining window before retrying, down to a one-millisecond range. The exact
+cutoff and PostgreSQL microsecond cursor remain unchanged. This adds no index or
+startup migration, but trades more small queries for bounded scans.
 Sources run serially; temp files are cleaned up. Storage limits fail closed.
 Jobs have one execution attempt; failures require a manual retry rather than
 automatically repeating the import or waiting for the nightly schedule.
+Worker errors identify the dataset and whether reading the database, checking
+storage, reconciling history, publishing history or publishing completion failed.
 
 Each source atomically publishes queryable Parquet at
 `events/compacted/org_id=<org>/history=<stream>/history.parquet`. No additional

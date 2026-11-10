@@ -4,6 +4,7 @@ import {
     type AnonymousAccount,
     type SessionUser,
 } from '@lightdash/common';
+import { type EmbedThreadScope } from '../../models/AiAgentModel';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -19,6 +20,7 @@ const OTHER_SOURCE_SPACE_UUID = 'source-space-2';
 const SECOND_WRITE_SPACE_UUID = 'write-space-2';
 const THREAD_UUID = 'thread-1';
 const EMBED_ACTOR_UUID = 'embed-write-user-1';
+const EXTERNAL_USER_ID = 'viewer-1';
 
 const user = {
     userUuid: EMBED_ACTOR_UUID,
@@ -48,7 +50,10 @@ type WriteActions = {
     sourceSpaceUuids?: string[];
 };
 
-const buildEmbedAccount = (writeActions: WriteActions): AnonymousAccount =>
+const buildEmbedAccount = (
+    writeActions: WriteActions,
+    externalId?: string,
+): AnonymousAccount =>
     ({
         isJwtUser: () => true,
         authentication: {
@@ -56,6 +61,7 @@ const buildEmbedAccount = (writeActions: WriteActions): AnonymousAccount =>
             data: {
                 content: { type: 'aiAgent', agentUuid: AGENT_UUID },
                 writeActions,
+                ...(externalId ? { user: { externalId } } : {}),
             },
         },
         user: { type: 'anonymous' },
@@ -72,11 +78,15 @@ const buildService = (agent: AiAgent) => {
             uuid: THREAD_UUID,
             createdFrom: 'web_app',
             user: { uuid: EMBED_ACTOR_UUID },
+            threadContext: null,
         })),
-        isWebAppThreadInEmbedSpaces: vi.fn(
-            async (_: string, spaces: string[]) =>
-                spaces.includes(WRITE_SPACE_UUID),
+        isWebAppThreadInEmbedScope: vi.fn(
+            async (_: string, scope: EmbedThreadScope) =>
+                scope.type === 'writeSpaces'
+                    ? scope.writeSpaceUuids.includes(WRITE_SPACE_UUID)
+                    : scope.externalUserId === EXTERNAL_USER_ID,
         ),
+        createWebAppThread: vi.fn(async () => THREAD_UUID),
         createWebAppPrompt: vi.fn(async () => 'prompt-1'),
         findThreadMessage: vi.fn(async () => ({ uuid: 'prompt-1' })),
         findThreadModelConfig: vi.fn(async () => null),
@@ -97,6 +107,8 @@ const buildService = (agent: AiAgent) => {
 
     const internals = service as unknown as Record<
         | 'getIsCopilotEnabled'
+        | 'checkAgentAccess'
+        | 'resolvePromptModelConfig'
         | 'assertDataAppThreadContinuable'
         | 'checkAgentThreadAccess'
         | 'validatePromptContextAccess'
@@ -107,6 +119,8 @@ const buildService = (agent: AiAgent) => {
     >;
     vi.spyOn(service, 'getAgent').mockResolvedValue(agent);
     vi.spyOn(internals, 'getIsCopilotEnabled').mockResolvedValue(true);
+    vi.spyOn(internals, 'checkAgentAccess').mockResolvedValue(true);
+    vi.spyOn(internals, 'resolvePromptModelConfig').mockResolvedValue(null);
     vi.spyOn(internals, 'assertDataAppThreadContinuable').mockResolvedValue(
         undefined,
     );
@@ -223,10 +237,13 @@ describe('embedded agent thread spaces', () => {
         );
         expect(aiAgentModel.findThreads).toHaveBeenCalledWith(
             expect.objectContaining({
-                embedWriteSpaceUuids: [
-                    WRITE_SPACE_UUID,
-                    SECOND_WRITE_SPACE_UUID,
-                ],
+                embedThreadScope: {
+                    type: 'writeSpaces',
+                    writeSpaceUuids: [
+                        WRITE_SPACE_UUID,
+                        SECOND_WRITE_SPACE_UUID,
+                    ],
+                },
             }),
         );
     });
@@ -240,9 +257,12 @@ describe('embedded agent thread spaces', () => {
             THREAD_UUID,
             { prompt: 'How many orders last week?' },
         );
-        expect(aiAgentModel.isWebAppThreadInEmbedSpaces).toHaveBeenCalledWith(
+        expect(aiAgentModel.isWebAppThreadInEmbedScope).toHaveBeenCalledWith(
             THREAD_UUID,
-            [WRITE_SPACE_UUID, SECOND_WRITE_SPACE_UUID],
+            {
+                type: 'writeSpaces',
+                writeSpaceUuids: [WRITE_SPACE_UUID, SECOND_WRITE_SPACE_UUID],
+            },
         );
     });
 
@@ -262,6 +282,164 @@ describe('embedded agent thread spaces', () => {
         await expect(
             service.getEmbedAgentDetails(
                 buildEmbedAccount(writeActions),
+                PROJECT_UUID,
+                AGENT_UUID,
+            ),
+        ).rejects.toThrow('AI agent is not available in the embedded space');
+    });
+});
+
+describe('read-only embedded agent tokens', () => {
+    const readOnlyActions = {
+        sourceSpaceUuids: [SOURCE_SPACE_UUID, OTHER_SOURCE_SPACE_UUID],
+    };
+
+    const getRuntimeOptions = async (account: AnonymousAccount) => {
+        const { service } = buildService(buildAgent([]));
+        const internals = service as unknown as {
+            getEmbedAgent: (
+                embedAccount: AnonymousAccount,
+                projectUuid: string,
+                agentUuid: string,
+            ) => Promise<{
+                runtimeOptions: {
+                    writeSpaceUuids: string[];
+                    spaceAccess: string[];
+                    readOnlySpaceUuids: string[];
+                    threadScope: EmbedThreadScope;
+                };
+            }>;
+        };
+        const { runtimeOptions } = await internals.getEmbedAgent(
+            account,
+            PROJECT_UUID,
+            AGENT_UUID,
+        );
+        return runtimeOptions;
+    };
+
+    it('reads only the source spaces and scopes threads to the viewer', async () => {
+        await expect(
+            getRuntimeOptions(
+                buildEmbedAccount(readOnlyActions, EXTERNAL_USER_ID),
+            ),
+        ).resolves.toEqual(
+            expect.objectContaining({
+                writeSpaceUuids: [],
+                spaceAccess: [SOURCE_SPACE_UUID, OTHER_SOURCE_SPACE_UUID],
+                readOnlySpaceUuids: [
+                    SOURCE_SPACE_UUID,
+                    OTHER_SOURCE_SPACE_UUID,
+                ],
+                threadScope: {
+                    type: 'externalUser',
+                    externalUserId: EXTERNAL_USER_ID,
+                },
+            }),
+        );
+    });
+
+    it('refuses a read-only token without a viewer id', async () => {
+        await expect(
+            getRuntimeOptions(buildEmbedAccount(readOnlyActions)),
+        ).rejects.toThrow(
+            'Embed tokens without write spaces must include user.externalId',
+        );
+    });
+
+    it('lists only the viewer threads', async () => {
+        const { service, aiAgentModel } = buildService(buildAgent([]));
+        await service.listEmbedAgentThreads(
+            buildEmbedAccount(readOnlyActions, EXTERNAL_USER_ID),
+            PROJECT_UUID,
+            AGENT_UUID,
+        );
+        expect(aiAgentModel.findThreads).toHaveBeenCalledWith(
+            expect.objectContaining({
+                embedThreadScope: {
+                    type: 'externalUser',
+                    externalUserId: EXTERNAL_USER_ID,
+                },
+            }),
+        );
+    });
+
+    it('continues a thread only for the same viewer', async () => {
+        const { service, aiAgentModel } = buildService(buildAgent([]));
+        await service.createEmbedAgentThreadMessage(
+            buildEmbedAccount(readOnlyActions, EXTERNAL_USER_ID),
+            PROJECT_UUID,
+            AGENT_UUID,
+            THREAD_UUID,
+            { prompt: 'Why did sales drop last month?' },
+        );
+        expect(aiAgentModel.isWebAppThreadInEmbedScope).toHaveBeenCalledWith(
+            THREAD_UUID,
+            { type: 'externalUser', externalUserId: EXTERNAL_USER_ID },
+        );
+
+        await expect(
+            service.createEmbedAgentThreadMessage(
+                buildEmbedAccount(readOnlyActions, 'viewer-2'),
+                PROJECT_UUID,
+                AGENT_UUID,
+                THREAD_UUID,
+                { prompt: 'Why did sales drop last month?' },
+            ),
+        ).rejects.toThrow('AI agent thread is outside the embedded space');
+    });
+
+    it('stores new threads against the viewer without spaces', async () => {
+        const { service, aiAgentModel } = buildService(buildAgent([]));
+        await service.createEmbedAgentThread(
+            buildEmbedAccount(readOnlyActions, EXTERNAL_USER_ID),
+            PROJECT_UUID,
+            AGENT_UUID,
+            { prompt: 'Why did sales drop last month?' },
+        );
+        expect(aiAgentModel.createWebAppThread).toHaveBeenCalledWith(
+            expect.objectContaining({
+                embedSpaceUuids: [],
+                embedExternalUserId: EXTERNAL_USER_ID,
+            }),
+        );
+    });
+
+    it('also records the viewer on threads owned by write spaces', async () => {
+        const { service, aiAgentModel } = buildService(buildAgent([]));
+        await service.createEmbedAgentThread(
+            buildEmbedAccount(
+                { writeSpaceUuids: [WRITE_SPACE_UUID] },
+                EXTERNAL_USER_ID,
+            ),
+            PROJECT_UUID,
+            AGENT_UUID,
+            { prompt: 'Why did sales drop last month?' },
+        );
+        expect(aiAgentModel.createWebAppThread).toHaveBeenCalledWith(
+            expect.objectContaining({
+                embedSpaceUuids: [WRITE_SPACE_UUID],
+                embedExternalUserId: EXTERNAL_USER_ID,
+            }),
+        );
+    });
+
+    it('allows an agent limited to a source space', async () => {
+        const { service } = buildService(buildAgent([OTHER_SOURCE_SPACE_UUID]));
+        await expect(
+            service.getEmbedAgentDetails(
+                buildEmbedAccount(readOnlyActions, EXTERNAL_USER_ID),
+                PROJECT_UUID,
+                AGENT_UUID,
+            ),
+        ).resolves.toMatchObject({ uuid: AGENT_UUID });
+    });
+
+    it('refuses an agent limited to none of the source spaces', async () => {
+        const { service } = buildService(buildAgent([WRITE_SPACE_UUID]));
+        await expect(
+            service.getEmbedAgentDetails(
+                buildEmbedAccount(readOnlyActions, EXTERNAL_USER_ID),
                 PROJECT_UUID,
                 AGENT_UUID,
             ),

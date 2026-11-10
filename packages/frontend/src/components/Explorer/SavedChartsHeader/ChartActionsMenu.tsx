@@ -89,7 +89,12 @@ import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
 import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartThatBelongsToDashboardModal';
 import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
+import {
+    ClearCachedResultsMenuItem,
+    ClearCachedResultsModal,
+} from '../../ProjectResultsCache/ClearCachedResultsMenuItem';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
+import classes from './SavedChartsHeader.module.css';
 
 const ChangeChartExploreModal = lazy(
     () => import('../../common/modal/ChangeChartExploreModal'),
@@ -181,6 +186,8 @@ const ChartActionsMenu: FC<Props> = ({
 
     const [isMovingChart, setIsMovingChart] = useState(false);
     const [isDeleteModalOpen, deleteModalHandlers] = useDisclosure();
+    const [isClearCacheModalOpen, clearCacheModalHandlers] =
+        useDisclosure(false);
     const [isScheduledDeliveriesModalOpen, scheduledDeliveriesModalHandlers] =
         useDisclosure(schedulerDeepLink?.modal === 'scheduledDeliveries');
     const [isThresholdAlertsModalOpen, thresholdAlertsModalHandlers] =
@@ -323,7 +330,7 @@ const ChartActionsMenu: FC<Props> = ({
             >
                 <Menu.Dropdown
                     mah="calc(100dvh - 24px)"
-                    style={{ overflowY: 'auto' }}
+                    className={classes.scrollableDropdown}
                 >
                     {children}
                     <AskAiAgentMenuItem
@@ -410,6 +417,10 @@ const ChartActionsMenu: FC<Props> = ({
                             Version history
                         </Menu.Item>
                     )}
+                    <ClearCachedResultsMenuItem
+                        projectUuid={savedChart.projectUuid}
+                        onClick={clearCacheModalHandlers.open}
+                    />
                     {/* A new explore re-initialises the page; the editor is keyed by its explore */}
                     {canChangeExplore && (
                         <Menu.Item
@@ -613,6 +624,13 @@ const ChartActionsMenu: FC<Props> = ({
                     uuid={savedChart.uuid}
                     dashboardTileType={DashboardTileTypes.SAVED_CHART}
                     onClose={addToDashboardModalHandlers.close}
+                />
+            )}
+            {isClearCacheModalOpen && (
+                <ClearCachedResultsModal
+                    opened={isClearCacheModalOpen}
+                    onClose={clearCacheModalHandlers.close}
+                    content={{ type: 'chart', uuid: savedChart.uuid }}
                 />
             )}
             {isDeleteModalOpen && (

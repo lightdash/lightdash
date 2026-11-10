@@ -1,24 +1,19 @@
 import { FeatureFlags } from '@lightdash/common';
-import {
-    Anchor,
-    Button,
-    Card,
-    Stack,
-    Text,
-    useMantineTheme,
-} from '@mantine/core';
+import { Anchor, Button, Card, Stack, Text } from '@mantine/core';
 import {
     IconCircleCheckFilled,
     IconConfetti,
     IconMail,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
+import { useTrackOnboardingScreen } from '../components/common/useTrackOnboardingScreen';
+import { useOnboardingNavigate } from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
@@ -33,7 +28,6 @@ const VerificationSuccess: FC<{
     onClose: () => void;
     onContinue: () => void;
 }> = ({ isOpen, onClose, onContinue }) => {
-    const theme = useMantineTheme();
     return (
         <MantineModal
             size="sm"
@@ -49,9 +43,7 @@ const VerificationSuccess: FC<{
                     className={classes.successIcon}
                     icon={IconCircleCheckFilled}
                     size={42}
-                    style={{
-                        color: theme.colors.green[6],
-                    }}
+                    color="green.6"
                 />
                 <Stack gap="two">
                     <Text ta="center" fz="md" fw={500}>
@@ -78,7 +70,7 @@ const VerifyEmailPage: FC = () => {
             window.location.href = '/register';
         },
     });
-    const navigate = useNavigate();
+    const onboardingNavigate = useOnboardingNavigate();
     const [searchParams] = useSearchParams();
     const redirectParam = searchParams.get('redirect');
     const redirectTo =
@@ -88,14 +80,21 @@ const VerifyEmailPage: FC = () => {
     );
     const isEmailOnlySignup = emailOnlySignupFlag.data?.enabled ?? false;
     const isVerifiedEmailOnlySignup = isEmailOnlySignup && !!data?.isVerified;
+    useTrackOnboardingScreen(
+        isEmailOnlySignup &&
+            !!health.data?.isAuthenticated &&
+            data?.isVerified === false
+            ? 'verify_email'
+            : null,
+    );
 
     const continueAfterVerification = useCallback(() => {
         if (redirectTo === null) {
-            void navigate('/');
+            onboardingNavigate('/');
             return;
         }
         window.location.href = redirectTo;
-    }, [navigate, redirectTo]);
+    }, [onboardingNavigate, redirectTo]);
 
     useEffect(() => {
         if (isVerifiedEmailOnlySignup && redirectTo !== null) {

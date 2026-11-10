@@ -46,10 +46,6 @@ import {
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
 } from '../../../../../features/dashboard/store';
-import {
-    CONTROLS_RAIL_LAYOUT,
-    ControlSidebar,
-} from '../../../../../features/dashboardControls/ControlSidebar';
 import { ControlsSidebarProvider } from '../../../../../features/dashboardControls/ControlsSidebarProvider';
 import { FieldTilesBar } from '../../../../../features/dashboardControls/FieldTilesBar';
 import { type RailContractClassNames } from '../../../../../features/dashboardControls/railContractClasses';
@@ -77,6 +73,7 @@ import useDashboardTileStatusContext from '../../../../../providers/Dashboard/us
 import { type EmbedExploreOptions } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { LightdashEventType } from '../../events/types';
+import { useEmbedContentHeightEvent } from '../../hooks/useEmbedContentHeightEvent';
 import { useEmbedDashboardTabChange } from '../../hooks/useEmbedDashboardTabChange';
 import { embedContractClass } from '../../styles/embedClassContract';
 import {
@@ -84,7 +81,12 @@ import {
     restoreFilterLabelOverrides,
 } from '../filterLabelOverrides';
 import { useEmbedDashboard, useEmbedSavedParameters } from '../hooks';
+import {
+    type ChartSaveDestination,
+    type EmbedChartSaveDashboard,
+} from '../types';
 import { canUseEmbeddedChartBuilder } from '../utils';
+import classes from './EmbedDashboard.module.css';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
@@ -98,6 +100,8 @@ const RAIL_CONTRACT_CLASSES: RailContractClassNames = {
     rail: embedContractClass('ld-dashboard-filter-rail'),
     addFilterDropdown: embedContractClass('ld-dashboard-add-filter-dropdown'),
     filterDropdown: embedContractClass('ld-dashboard-filter-dropdown'),
+    parameter: embedContractClass('ld-dashboard-parameter'),
+    parameterDropdown: embedContractClass('ld-dashboard-parameter-dropdown'),
 };
 
 const EMBED_EDIT_TILE_TYPES = [
@@ -174,8 +178,6 @@ const EmbedDashboardGrid: FC<{
     canEditChart?: (chart: SavedChart) => boolean;
     onExplore?: (options: EmbedExploreOptions) => void;
     useDashboardEditorTileQueries: boolean;
-    // The filter rail sits left of the grid (default false)
-    isControlsEnabled?: boolean;
 }> = ({
     filteredTiles,
     layouts,
@@ -195,27 +197,15 @@ const EmbedDashboardGrid: FC<{
     canEditChart,
     onExplore,
     useDashboardEditorTileQueries,
-    isControlsEnabled = false,
 }) => (
-    <Group
-        grow
-        pt="sm"
-        px="xs"
-        className={isControlsEnabled ? CONTROLS_RAIL_LAYOUT : undefined}
-    >
-        {isControlsEnabled && <ControlSidebar />}
+    <Group grow pt="sm" px="xs">
         {isTabEmpty ? (
-            <div
-                style={{
-                    marginTop: '40px',
-                    textAlign: 'center',
-                }}
-            >
+            <Box mt="3xl" ta="center">
                 <SuboptimalState
                     title="Tab is empty"
                     description="This tab has no tiles"
                 />
-            </div>
+            </Box>
         ) : (
             <div className={tabStyles.tabGridContainer}>
                 {filteredTiles.map((tile) => (
@@ -382,11 +372,13 @@ const EmbedDashboard: FC<{
     initialDashboard?: EmbedDashboardType;
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
+    chartSaveDestinations?: ChartSaveDestination[];
 }> = ({
     containerStyles,
     initialDashboard,
     isEditMode: controlledIsEditMode,
     onEditModeChange,
+    chartSaveDestinations,
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardSelector(selectActiveTab);
@@ -424,6 +416,10 @@ const EmbedDashboard: FC<{
         writeActions,
     } = useEmbed();
     const { pathname, search } = useLocation();
+    const [contentElement, setContentElement] = useState<HTMLDivElement | null>(
+        null,
+    );
+    useEmbedContentHeightEvent(contentElement);
     // Server-side PDF export render: tiles only, seeded with the viewer's state.
     const [isMinimal] = useState(
         () =>
@@ -730,6 +726,30 @@ const EmbedDashboard: FC<{
         (chart: SavedChart) => writeSpaceUuids.includes(chart.spaceUuid),
         [writeSpaceUuids],
     );
+    const dashboardUuid = dashboard?.uuid;
+    const dashboardName = dashboard?.name;
+    // Hosts usually pass an inline array, so memoize on its contents
+    const offersSpaceDestination =
+        chartSaveDestinations?.includes('space') ?? false;
+    const offersDashboardDestination =
+        !chartSaveDestinations?.length ||
+        chartSaveDestinations.includes('dashboard');
+    const chartSaveDashboard = useMemo<
+        EmbedChartSaveDashboard | undefined
+    >(() => {
+        if (dashboardUuid === undefined || dashboardName === undefined) {
+            return undefined;
+        }
+        const destinations: ChartSaveDestination[] = [];
+        if (offersDashboardDestination) destinations.push('dashboard');
+        if (offersSpaceDestination) destinations.push('space');
+        return { uuid: dashboardUuid, name: dashboardName, destinations };
+    }, [
+        dashboardUuid,
+        dashboardName,
+        offersDashboardDestination,
+        offersSpaceDestination,
+    ]);
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
     const [chartToEdit, setChartToEdit] = useState<SavedChart>();
     const hasDashboardNameChanged =
@@ -817,6 +837,7 @@ const EmbedDashboard: FC<{
                         uuid: uuid4(),
                         type: DashboardTileTypes.SAVED_CHART,
                         properties: {
+                            belongsToDashboard: chart.dashboardUuid !== null,
                             savedChartUuid: chart.uuid,
                             chartName: chart.name,
                             // BigNumber charts default to hidden title for cleaner appearance
@@ -1005,14 +1026,14 @@ const EmbedDashboard: FC<{
 
     if (!projectUuid) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Missing project UUID" />
-            </div>
+            </Box>
         );
     }
     if (dashboardError) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     title="Error loading dashboard"
                     icon={IconUnlink}
@@ -1022,15 +1043,15 @@ const EmbedDashboard: FC<{
                             : dashboardError.error.message
                     }
                 />
-            </div>
+            </Box>
         );
     }
 
     if (!dashboard) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading..." loading />
-            </div>
+            </Box>
         );
     }
 
@@ -1151,7 +1172,6 @@ const EmbedDashboard: FC<{
                 canEditChart={canEditChart}
                 onExplore={onExplore}
                 useDashboardEditorTileQueries={canWriteDashboard}
-                isControlsEnabled={isControlsEnabled}
             />
         </>
     );
@@ -1188,7 +1208,6 @@ const EmbedDashboard: FC<{
                             onDeleteTile={handleDeleteTile}
                             onEditTile={handleEditTile}
                             useDashboardEditorTileQueries={false}
-                            isControlsEnabled={false}
                         />
                     ))
                 )}
@@ -1203,106 +1222,109 @@ const EmbedDashboard: FC<{
         <div
             // Used by EmbedDashboardExportPdf to temporarily set height:auto for multipage PDF printing
             id="embed-scroll-container"
-            style={
-                containerStyles ?? {
-                    height: '100vh',
-                    overflowY: 'auto',
-                }
-            }
+            className={containerStyles ? undefined : classes.scrollContainer}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+            style={containerStyles}
         >
-            <ControlsSidebarProvider
-                // No route says the mode in an embed
-                isEditMode={canWriteDashboard && isEditMode}
-                canAddFilters={canAddDashboardFiltersInEmbed(
-                    dashboard.dashboardFiltersInteractivity,
-                )}
-                contractClasses={RAIL_CONTRACT_CLASSES}
-            >
-                {currentDashboardTiles.length === 0 ? (
-                    <>
-                        <EmbedDashboardHeader
-                            dashboard={dashboard}
-                            projectUuid={projectUuid}
-                            activeTiles={filteredTiles}
-                            isEditMode={canWriteDashboard && isEditMode}
-                            // No grid, so no rail: the shipped filters
-                            isControlsEnabled={false}
-                        />
-                        {renderDashboardEditToolbar()}
-                        <Box mt="lg">
-                            <SuboptimalState
-                                title="Empty dashboard"
-                                description="This dashboard has no tiles"
+            <div ref={setContentElement} className={classes.content}>
+                <ControlsSidebarProvider
+                    // No route says the mode in an embed
+                    isEditMode={canWriteDashboard && isEditMode}
+                    canAddFilters={canAddDashboardFiltersInEmbed(
+                        dashboard.dashboardFiltersInteractivity,
+                    )}
+                    contractClasses={RAIL_CONTRACT_CLASSES}
+                >
+                    {currentDashboardTiles.length === 0 ? (
+                        <>
+                            <EmbedDashboardHeader
+                                dashboard={dashboard}
+                                projectUuid={projectUuid}
+                                activeTiles={filteredTiles}
+                                isEditMode={canWriteDashboard && isEditMode}
+                                // No grid, so no rail: the shipped filters
+                                isControlsEnabled={false}
                             />
-                        </Box>
-                    </>
-                ) : tabsEnabled ? (
-                    <Tabs
-                        value={activeTab?.uuid}
-                        onChange={handleTabChange}
-                        classNames={{
-                            list: tabStyles.list,
-                            tab: tabStyles.tab,
-                        }}
-                    >
-                        <EmbedDashboardHeader
-                            dashboard={dashboard}
-                            projectUuid={projectUuid}
-                            activeTiles={filteredTiles}
-                            isEditMode={canWriteDashboard && isEditMode}
-                            isControlsEnabled={isControlsEnabled}
-                            tabs={
-                                <Tabs.List px="lg">
-                                    {visibleTabs.map((tab) => (
-                                        <Tabs.Tab
-                                            key={tab.uuid}
-                                            value={tab.uuid}
-                                            // A stylesheet may lift the cap; unset, it is a share of the viewport
-                                            maw={`var(--dashboard-tab-max-width, ${
-                                                100 / (visibleTabs.length || 1)
-                                            }vw)`}
-                                        >
-                                            {translatedTabNames.get(tab.uuid)}
-                                        </Tabs.Tab>
-                                    ))}
-                                </Tabs.List>
-                            }
+                            {renderDashboardEditToolbar()}
+                            <Box mt="lg">
+                                <SuboptimalState
+                                    title="Empty dashboard"
+                                    description="This dashboard has no tiles"
+                                />
+                            </Box>
+                        </>
+                    ) : tabsEnabled ? (
+                        <Tabs
+                            value={activeTab?.uuid}
+                            onChange={handleTabChange}
+                            classNames={{
+                                list: tabStyles.list,
+                                tab: tabStyles.tab,
+                            }}
+                        >
+                            <EmbedDashboardHeader
+                                dashboard={dashboard}
+                                projectUuid={projectUuid}
+                                activeTiles={filteredTiles}
+                                isEditMode={canWriteDashboard && isEditMode}
+                                isControlsEnabled={isControlsEnabled}
+                                tabs={
+                                    <Tabs.List px="lg">
+                                        {visibleTabs.map((tab) => (
+                                            <Tabs.Tab
+                                                key={tab.uuid}
+                                                value={tab.uuid}
+                                                // A stylesheet may lift the cap; unset, it is a share of the viewport
+                                                maw={`var(--dashboard-tab-max-width, ${
+                                                    100 /
+                                                    (visibleTabs.length || 1)
+                                                }vw)`}
+                                            >
+                                                {translatedTabNames.get(
+                                                    tab.uuid,
+                                                )}
+                                            </Tabs.Tab>
+                                        ))}
+                                    </Tabs.List>
+                                }
+                            />
+                            {renderDashboardEditToolbar()}
+                            {renderGridWithGuidedSetup({ isTabEmpty })}
+                        </Tabs>
+                    ) : (
+                        <>
+                            <EmbedDashboardHeader
+                                dashboard={dashboard}
+                                projectUuid={projectUuid}
+                                activeTiles={filteredTiles}
+                                isEditMode={canWriteDashboard && isEditMode}
+                                isControlsEnabled={isControlsEnabled}
+                            />
+                            {renderDashboardEditToolbar()}
+                            {renderGridWithGuidedSetup()}
+                        </>
+                    )}
+                    {canUseChartBuilder && chartSaveDashboard && (
+                        <EmbedDashboardChartEditorModal
+                            opened={isNewChartOpen || chartToEdit !== undefined}
+                            onClose={() => {
+                                setIsNewChartOpen(false);
+                                setChartToEdit(undefined);
+                            }}
+                            onChartSaved={handleChartEditorSaved}
+                            chartSaveDashboard={chartSaveDashboard}
+                            editChart={chartToEdit}
                         />
-                        {renderDashboardEditToolbar()}
-                        {renderGridWithGuidedSetup({ isTabEmpty })}
-                    </Tabs>
-                ) : (
-                    <>
-                        <EmbedDashboardHeader
-                            dashboard={dashboard}
-                            projectUuid={projectUuid}
-                            activeTiles={filteredTiles}
-                            isEditMode={canWriteDashboard && isEditMode}
-                            isControlsEnabled={isControlsEnabled}
-                        />
-                        {renderDashboardEditToolbar()}
-                        {renderGridWithGuidedSetup()}
-                    </>
-                )}
-                {canUseChartBuilder && (
-                    <EmbedDashboardChartEditorModal
-                        opened={isNewChartOpen || chartToEdit !== undefined}
-                        onClose={() => {
-                            setIsNewChartOpen(false);
-                            setChartToEdit(undefined);
-                        }}
-                        onChartSaved={handleChartEditorSaved}
-                        editChart={chartToEdit}
-                    />
-                )}
-                {isControlsEnabled && (
-                    <>
-                        <TileOverlays />
-                        <TabCounts />
-                        <FieldTilesBar />
-                    </>
-                )}
-            </ControlsSidebarProvider>
+                    )}
+                    {isControlsEnabled && (
+                        <>
+                            <TileOverlays />
+                            <TabCounts />
+                            <FieldTilesBar />
+                        </>
+                    )}
+                </ControlsSidebarProvider>
+            </div>
         </div>
     );
 };

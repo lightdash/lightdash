@@ -1,4 +1,4 @@
-import { CallSettings } from 'ai';
+import { LanguageModelCallOptions, type RequestOptions } from 'ai';
 import { ProviderOptionsMap } from './types';
 
 export type ModelPresetProvider = 'openai' | 'anthropic' | 'google' | 'bedrock';
@@ -13,6 +13,9 @@ export type ReasoningStyle = 'budget' | 'adaptive';
 export type ReasoningEffort = 'medium' | 'xhigh';
 export const XHIGH_THINKING_BUDGET_TOKENS = 16_000;
 export const XHIGH_MAX_OUTPUT_TOKENS = 24_000;
+// Default explicit cap. Without one, budget-style thinking falls back to
+// `budget + 4096` and other Bedrock requests omit the output cap entirely.
+export const BEDROCK_MAX_OUTPUT_TOKENS = 24_000;
 
 export type ModelPreset<P extends SelectableModelProvider> = {
     name: string;
@@ -32,8 +35,10 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     deprecated?: boolean;
     // Name of the same-provider preset that replaces a deprecated one
     supersededBy?: string;
-    callOptions: CallSettings;
+    callOptions: LanguageModelCallOptions & Omit<RequestOptions, 'timeout'>;
     providerOptions: ProviderOptionsMap[P] | undefined;
+    // Merged in for latency-bound calls that opt into minimal reasoning
+    minimalReasoningProviderOptions?: ProviderOptionsMap[P];
 } & (
     | { custom?: false; contextWindowTokens: number }
     // Instance-configured models may have an unknown context window.
@@ -87,6 +92,8 @@ export const MODEL_PRESETS: {
                 // strictJsonSchema: provider default is true
                 parallelToolCalls: false,
             },
+            // Low effort still reasons past a 5 s budget on field mapping
+            minimalReasoningProviderOptions: { reasoningEffort: 'none' },
         },
         {
             name: 'gpt-6-sol',
@@ -368,6 +375,12 @@ export const MODEL_PRESETS: {
             reasoningStyle: 'adaptive',
             callOptions: {},
             providerOptions: undefined,
+            // Thinks by default and spends short caps on thinking; low-effort
+            // adaptive thinking still did on field mapping
+            minimalReasoningProviderOptions: {
+                thinking: { type: 'disabled' },
+                effort: 'low',
+            },
         },
         {
             name: 'claude-haiku-4-5',

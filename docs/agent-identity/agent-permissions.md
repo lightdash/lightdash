@@ -40,18 +40,44 @@ New restrictions need groups to be available. A saved restriction still applies
 if groups later become unavailable. An admin can always clear it with `null`.
 Personal-access-token and service-account calls keep their existing exemptions.
 The policy API accepts group admission in either mode. A PUT with
-`mode: 'legacy'` preserves the stored role matrix and clears the capability
-list. Omitting `mode` means managed. Reset keeps the group restriction.
+`mode: 'legacy'` clears the capability list. Omitting `mode` means managed.
+Reset keeps the group restriction. The API returns no per-role matrix. A PUT
+that still sends `systemRoleMatrix` gets no error; the server ignores it.
 GET, PUT and reset omit the old people and project choices. Old browser tabs
 can still save them, but the server ignores them and clears the old columns.
 The Agents page uses the capability-policy API for Same as the person,
 Read and query, and Custom.
 
+## Personal CLI admission by surface
+
+A browser login for `lightdash-cli` with no agent connection grant is a person
+using a tool, like a personal access token (PAT), on REST. Its session has a
+fixed eight-hour deadline. Refresh does not extend it. The client id is public;
+this is an admission rule, not proof of a private client.
+
+| Surface | Personal CLI browser login | PAT |
+| --- | --- | --- |
+| REST | Skips agent group admission and managed capability checks. OAuth scopes and human-only admin guards still apply. | Keeps the existing agent policy exemption and role checks. |
+| MCP, including agent tools and resource reads | Refused: browser login requests `read write`, but MCP requires `mcp:read` or `mcp:write`. | Admitted subject to MCP settings, resource access and role checks; keeps the existing agent policy exemption. |
+| `lightdash agent connect` and `agent revoke --human` | Refused. Log in with `lightdash login <url> --token <personal access token>` first. | Admitted subject to the existing person and organization checks. |
+
+The REST exemption does not change MCP policy. If a CLI OAuth token has MCP
+scopes through another flow, MCP treats it as OAuth and applies agent admission
+and managed capability checks. PATs remain exempt, including MCP tool effects
+and new queued repo-edit jobs. Old jobs without a saved caller rule keep the
+conservative policy described below. Grant-bound CLI tokens keep agent
+admission, capability and grant checks.
+
+The REST rule is in `controllers/authentication/middlewares.ts`. Browser login
+requests its scopes in `packages/cli/src/handlers/oauthLogin.ts`.
+`McpService.canAccessMcp` checks MCP scopes, and `auth/agentPermissions/caller.ts`
+sets MCP agent policy applicability for tools, effects and queued repo-edit jobs.
+
 ## The 11 capabilities
 
 Refusals and settings use the plain name. Never show the key to people.
 
-| Key | Short name (matrix) | Plain name | Allows |
+| Key | Short name | Plain name | Allows |
 | ---------------- | ------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `read_discover` | Read | Read and discover | Find and read projects, data models, content, context and existing query results. |
 | `query` | Query | Query data | Run queries through data models and run saved semantic content. |
@@ -144,25 +170,26 @@ With every capability ticked, limits on still keeps three safeguards that
 unmapped operations, and a verified sender on Slack.
 
 A managed save accepts an empty list but rejects explicit `null`. An omitted
-list keeps the saved list or uses all eleven if no list is stored. Each role
-row is intersected with the saved list and ordered by the capability enum.
-Legacy saves and reset set the list to `null`. Reset keeps the dormant role
-matrix and group restriction. A stale version rejects the entire save.
+list keeps the saved list or uses all eleven if no list is stored.
+Legacy saves and reset set the list to `null`. Reset keeps the group
+restriction. A stale version rejects the entire save. Rows saved by the
+earlier per-role editor stay in the database, but no check reads them.
 
 The Agents page offers three choices. Same as the person stores `legacy`
 with a null capability list. Read and query stores `managed` with Read and
-discover, Query data, Export results and Raw SQL in the list and every role row.
-Custom stores `managed` with the selected list and role rows. It starts with
+discover, Query data, Export results and Raw SQL in the list.
+Custom stores `managed` with the selected list. It starts with
 all eleven capabilities on; an organization that already saved a Custom list
 gets that list back. Capability and group changes require review.
 Raw SQL follows warehouse permissions; this preset is not a read-only SQL guard.
 
 ## How checks combine
 
-Within a person's roles, capabilities add up (union). The system role matrix,
-the person's custom roles and their group roles each add capabilities. A role
-that leaves a capability out does not take it away from another role. The
-organization list then intersects that union. A capability excluded by the
+Within a person's roles, capabilities add up (union). A built-in organization
+or project role gives every capability. The person's custom roles and their
+group roles each add the capabilities in their scopes. A role that leaves a
+capability out does not take it away from another role. The organization list
+then intersects that union. A capability excluded by the
 list points to the organization setting. A missing role grant within the list
 keeps the role remedy, including the custom-role link when available.
 

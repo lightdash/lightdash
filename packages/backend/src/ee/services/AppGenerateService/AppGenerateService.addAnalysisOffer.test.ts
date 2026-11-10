@@ -150,7 +150,6 @@ const buildService = ({
             viewsCount: 0,
             pinnedListUuid: null,
             pinnedListOrder: null,
-            autoAnalysis: 'inherit',
             addAnalysisDismissedAt,
             currentThread: {
                 app_thread_uuid: 'thread-1',

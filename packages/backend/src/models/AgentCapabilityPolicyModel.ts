@@ -1,38 +1,22 @@
 import {
     AGENT_CAPABILITY_LIMIT_DEFAULTS,
-    OrganizationMemberRole,
     ParameterError,
     type AgentCapability,
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicySave,
-    type AgentSystemRoleMatrix,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
     AgentCapabilityPoliciesTableName,
-    AgentSystemRoleCapabilitiesTableName,
     type DbAgentCapabilityPolicy,
-    type DbAgentSystemRoleCapability,
 } from '../database/entities/agentCapabilityPolicies';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationTableName } from '../database/entities/organizations';
 
-const emptyMatrix = (): AgentSystemRoleMatrix => ({
-    [OrganizationMemberRole.MEMBER]: [],
-    [OrganizationMemberRole.VIEWER]: [],
-    [OrganizationMemberRole.INTERACTIVE_VIEWER]: [],
-    [OrganizationMemberRole.EDITOR]: [],
-    [OrganizationMemberRole.DEVELOPER]: [],
-    [OrganizationMemberRole.ADMIN]: [],
-});
-
-interface PolicyWithCapability extends Pick<
+type StoredPolicy = Pick<
     DbAgentCapabilityPolicy,
     'mode' | 'version' | 'allowed_capabilities' | 'allowed_group_uuids'
-> {
-    system_role: DbAgentSystemRoleCapability['system_role'] | null;
-    capability: DbAgentSystemRoleCapability['capability'] | null;
-}
+>;
 
 export interface AgentEnforcementPolicy {
     mode: 'legacy' | 'managed';
@@ -40,7 +24,6 @@ export interface AgentEnforcementPolicy {
     allowedCapabilities: AgentCapability[] | null;
     storedAllowedGroupUuids: string[] | null;
     hasExistingAllowedGroup: boolean | null;
-    systemRoleMatrix: AgentSystemRoleMatrix;
 }
 
 export class AgentCapabilityPolicyModel {
@@ -70,31 +53,17 @@ export class AgentCapabilityPolicyModel {
         organizationUuid: string,
         database: Knex = this.database,
     ): Promise<AgentCapabilityPolicy> {
-        const rows = await database(AgentCapabilityPoliciesTableName)
-            .leftJoin(
-                AgentSystemRoleCapabilitiesTableName,
-                `${AgentCapabilityPoliciesTableName}.organization_uuid`,
-                `${AgentSystemRoleCapabilitiesTableName}.organization_uuid`,
-            )
+        const [policy] = await database(AgentCapabilityPoliciesTableName)
             .where(
                 `${AgentCapabilityPoliciesTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .select<PolicyWithCapability[]>(
+            .select<StoredPolicy[]>(
                 `${AgentCapabilityPoliciesTableName}.mode`,
                 `${AgentCapabilityPoliciesTableName}.version`,
                 `${AgentCapabilityPoliciesTableName}.allowed_capabilities`,
                 `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
-                `${AgentSystemRoleCapabilitiesTableName}.system_role`,
-                `${AgentSystemRoleCapabilitiesTableName}.capability`,
             );
-        const systemRoleMatrix = emptyMatrix();
-        const [policy] = rows;
-        for (const row of rows) {
-            if (row.system_role && row.capability) {
-                systemRoleMatrix[row.system_role].push(row.capability);
-            }
-        }
         const storedGroups = policy?.allowed_group_uuids ?? null;
         const groups = storedGroups?.length
             ? await this.getAllowedGroups(
@@ -110,25 +79,19 @@ export class AgentCapabilityPolicyModel {
             mode: policy?.mode ?? 'legacy',
             version: policy?.version ?? 0,
             allowedCapabilities: policy?.allowed_capabilities ?? null,
-            systemRoleMatrix,
         };
     }
 
     async getForEnforcement(
         organizationUuid: string,
     ): Promise<AgentEnforcementPolicy> {
-        const rows = await this.database(AgentCapabilityPoliciesTableName)
-            .leftJoin(
-                AgentSystemRoleCapabilitiesTableName,
-                `${AgentCapabilityPoliciesTableName}.organization_uuid`,
-                `${AgentSystemRoleCapabilitiesTableName}.organization_uuid`,
-            )
+        const [policy] = await this.database(AgentCapabilityPoliciesTableName)
             .where(
                 `${AgentCapabilityPoliciesTableName}.organization_uuid`,
                 organizationUuid,
             )
             .select<
-                (PolicyWithCapability & {
+                (StoredPolicy & {
                     has_existing_allowed_group: boolean | null;
                 })[]
             >(
@@ -136,8 +99,6 @@ export class AgentCapabilityPolicyModel {
                 `${AgentCapabilityPoliciesTableName}.version`,
                 `${AgentCapabilityPoliciesTableName}.allowed_capabilities`,
                 `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
-                `${AgentSystemRoleCapabilitiesTableName}.system_role`,
-                `${AgentSystemRoleCapabilitiesTableName}.capability`,
                 this.database.raw(
                     `CASE WHEN ?? IS NULL THEN NULL ELSE EXISTS (
                         SELECT 1 FROM ?? JOIN ?? ON ?? = ??
@@ -157,20 +118,12 @@ export class AgentCapabilityPolicyModel {
                     ],
                 ),
             );
-        const systemRoleMatrix = emptyMatrix();
-        const [policy] = rows;
-        for (const row of rows) {
-            if (row.system_role && row.capability) {
-                systemRoleMatrix[row.system_role].push(row.capability);
-            }
-        }
         return {
             mode: policy?.mode ?? 'legacy',
             version: policy?.version ?? 0,
             allowedCapabilities: policy?.allowed_capabilities ?? null,
             storedAllowedGroupUuids: policy?.allowed_group_uuids ?? null,
             hasExistingAllowedGroup: policy?.has_existing_allowed_group ?? null,
-            systemRoleMatrix,
         };
     }
 
@@ -180,7 +133,6 @@ export class AgentCapabilityPolicyModel {
         version,
         allowedCapabilities,
         allowedGroupUuids,
-        systemRoleMatrix,
         updatedByUserUuid,
     }: AgentCapabilityPolicySave): Promise<AgentCapabilityPolicy> {
         return this.database.transaction(async (transaction) => {
@@ -262,36 +214,11 @@ export class AgentCapabilityPolicyModel {
             }
             if (mode === 'legacy')
                 return this.get(organizationUuid, transaction);
-            await transaction(AgentSystemRoleCapabilitiesTableName)
-                .where('organization_uuid', organizationUuid)
-                .delete();
-            const normalizedMatrix = emptyMatrix();
-            for (const role of Object.values(OrganizationMemberRole)) {
-                normalizedMatrix[role] = AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
-                    (capability) =>
-                        systemRoleMatrix[role].includes(capability) &&
-                        policy.allowed_capabilities?.includes(capability),
-                );
-            }
-            const grants = Object.values(OrganizationMemberRole).flatMap(
-                (role) =>
-                    normalizedMatrix[role].map((capability) => ({
-                        organization_uuid: organizationUuid,
-                        system_role: role,
-                        capability,
-                    })),
-            );
-            if (grants.length > 0) {
-                await transaction(AgentSystemRoleCapabilitiesTableName).insert(
-                    grants,
-                );
-            }
             return {
                 mode: policy.mode,
                 version: policy.version,
                 allowedCapabilities: policy.allowed_capabilities,
                 allowedGroupUuids: policy.allowed_group_uuids,
-                systemRoleMatrix: normalizedMatrix,
             };
         });
     }

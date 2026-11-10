@@ -43,24 +43,18 @@ const DashboardAnalysisAdapterBridge = () => {
     const clearCacheAndFetch = useDashboardTileStatusContext(
         (c) => c.clearCacheAndFetch,
     );
-    const {
-        invalidateDashboardRelatedQueries,
-        invalidateDashboardResultsQueries,
-        removeDashboardResultsQueries,
-    } = useDashboardRefresh();
-    // Same sequence as the refresh button: invalidateCache is sticky once
-    // true, so clearCacheAndFetch alone would clear the registry without
-    // refetching anything and the analysis would wait forever.
+    const { invalidateDashboardRelatedQueries, removeDashboardResultsQueries } =
+        useDashboardRefresh();
+    // Same sequence as the refresh button: clearCacheAndFetch bumps the tile
+    // query keys, so every tile re-runs past the results cache.
     const onSourcesExpired = useCallback(() => {
         removeDashboardResultsQueries();
         clearCacheAndFetch();
         void invalidateDashboardRelatedQueries();
-        void invalidateDashboardResultsQueries();
     }, [
         removeDashboardResultsQueries,
         clearCacheAndFetch,
         invalidateDashboardRelatedQueries,
-        invalidateDashboardResultsQueries,
     ]);
     const dashboardStore = useDashboardStore();
 
@@ -84,7 +78,6 @@ const DashboardAnalysisAdapterBridge = () => {
         availability,
         // Dashboards analyse on demand; the core still looks up stored
         // analyses of the current view for free.
-        autoAnalyse: false,
         onNeedsAgent,
         onSourcesExpired,
     });

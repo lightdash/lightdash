@@ -1,4 +1,5 @@
 import {
+    AGENT_CAPABILITY_SCOPES,
     AgentCapability,
     DeploySessionStatus,
     ProjectMemberRole,
@@ -12,7 +13,6 @@ import {
 } from '../../../testing/migratedDatabase';
 import {
     connectionFixture,
-    matrix,
     seedConnectionClient,
 } from './agentConnectionFixture.mock';
 import {
@@ -55,9 +55,7 @@ it.each(['another connection', 'person session'] as const)(
             .database('project_memberships')
             .where('user_id', f.user.user_id)
             .update({ role: ProjectMemberRole.DEVELOPER });
-        await f.savePolicy({
-            systemRoleMatrix: { ...matrix([]), developer: capabilities },
-        });
+        await f.savePolicy({ allowedCapabilities: capabilities });
         const first = await f.createConnection(capabilities);
         const second = await f.createConnection(capabilities);
         const firstHeaders = { authorization: `Bearer ${first.accessToken}` };
@@ -110,9 +108,7 @@ it.each(['another connection', 'person session'] as const)(
             migrated.database,
             f.organizationUuid,
         );
-        await f.savePolicy({
-            systemRoleMatrix: { ...matrix([]), developer: capabilities },
-        });
+        await f.savePolicy({ allowedCapabilities: capabilities });
         const [project] = await f
             .database('projects')
             .where('project_uuid', f.projectUuid);
@@ -240,9 +236,7 @@ it.each([
             .database('project_memberships')
             .where('user_id', f.user.user_id)
             .update({ role: ProjectMemberRole.DEVELOPER });
-        await f.savePolicy({
-            systemRoleMatrix: { ...matrix([]), developer: capabilities },
-        });
+        await f.savePolicy({ allowedCapabilities: capabilities });
         const connection = await f.createConnection(capabilities, [
             f.projectUuid,
             secondProjectUuid,
@@ -713,18 +707,24 @@ it('keeps the part 1 SQL order and HTTP answers with exactly one project summary
     } finally {
         trace.stop();
     }
-    expect(mainDeploySql).toHaveLength(78);
-    expect(mainDeploySql[52]).toMatch(/^select .* from "projects" /);
-    expect(mainDeploySql[52]).not.toMatch(
-        /dbt_connection|encrypted_credentials|warehouse_credentials/,
-    );
-    expect(mainDeploySql[51]).toBe(
-        'select * from "deploy_sessions" where "deploy_session_uuid" = $1 limit $2',
-    );
-    expect(mainDeploySql[53]).toBe(
+    const finalizeStatusWrite = mainDeploySql.indexOf(
         'update "deploy_sessions" set "status" = $1 where "deploy_session_uuid" = $2',
     );
-    expect(mainDeploySql[54]).toBe(mainDeploySql[9]);
+    const credentialRead = mainDeploySql.find((statement) =>
+        /^select .*encrypted_credentials.* from "projects" /.test(statement),
+    );
+    expect(finalizeStatusWrite).toBeGreaterThan(0);
+    expect(credentialRead).toBeDefined();
+    expect(mainDeploySql[finalizeStatusWrite - 2]).toBe(
+        'select * from "deploy_sessions" where "deploy_session_uuid" = $1 limit $2',
+    );
+    expect(mainDeploySql[finalizeStatusWrite - 1]).toMatch(
+        /^select .* from "projects" /,
+    );
+    expect(mainDeploySql[finalizeStatusWrite - 1]).not.toMatch(
+        /dbt_connection|encrypted_credentials|warehouse_credentials/,
+    );
+    expect(mainDeploySql[finalizeStatusWrite + 1]).toBe(credentialRead);
     expect(trace.statements).toEqual(mainDeploySql);
 });
 
@@ -876,9 +876,50 @@ it('refuses a connection finalize when its person loses the deploy role without 
     const f = await deployFixture(migrated.database, server);
     await enableConnectionFlag(f.database, f.organizationUuid);
     const capabilities = [AgentCapability.DeployUpload];
-    await f.savePolicy({
-        systemRoleMatrix: { ...matrix([]), developer: capabilities },
-    });
+    const customRole = async (
+        level: 'organization' | 'project',
+        name: string,
+        scopes: string[],
+    ): Promise<string> => {
+        const [role] = await f
+            .database('roles')
+            .insert({
+                name,
+                description: null,
+                level,
+                organization_uuid: f.organizationUuid,
+                created_by: f.userUuid,
+            })
+            .returning('*');
+        if (scopes.length > 0)
+            await f.database('scoped_roles').insert(
+                scopes.map((scope_name) => ({
+                    role_uuid: role.role_uuid,
+                    scope_name,
+                    granted_by: f.userUuid,
+                })),
+            );
+        return role.role_uuid;
+    };
+    await f
+        .database('organization_memberships')
+        .where('user_id', f.user.user_id)
+        .update({
+            role_uuid: await customRole('organization', 'Organization', []),
+        });
+    await f
+        .database('project_memberships')
+        .where('user_id', f.user.user_id)
+        .update({
+            role_uuid: await customRole(
+                'project',
+                'Agent deployer',
+                capabilities.map(
+                    (capability) => AGENT_CAPABILITY_SCOPES[capability],
+                ),
+            ),
+        });
+    await f.savePolicy({ allowedCapabilities: capabilities });
     const connection = await f.createConnection(capabilities);
     const headers = { authorization: `Bearer ${connection.accessToken}` };
     const started = await httpRequest(
@@ -894,7 +935,10 @@ it('refuses a connection finalize when its person loses the deploy role without 
     await f
         .database('project_memberships')
         .where('user_id', f.user.user_id)
-        .update({ role: ProjectMemberRole.VIEWER });
+        .update({
+            role: ProjectMemberRole.VIEWER,
+            role_uuid: await customRole('project', 'Project viewer', []),
+        });
     const before = await deployRows(f.database);
     const visibleBefore = await databaseRows(f.database);
     const queuedBefore = [...server.queued];

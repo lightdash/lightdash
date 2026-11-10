@@ -1,6 +1,7 @@
 import { TextInput, Popover } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { type FC, type ReactNode } from 'react';
+import classes from './InvalidDateInput.module.css';
 
 type Props = {
     value: string;
@@ -31,7 +32,13 @@ const InvalidDateInput: FC<Props> = ({
     };
 
     return (
-        <Popover {...popoverProps} opened={opened} onClose={closePopover}>
+        <Popover
+            {...popoverProps}
+            opened={opened}
+            onChange={(isOpened) => {
+                if (!isOpened) closePopover();
+            }}
+        >
             <Popover.Target>
                 <TextInput
                     w="100%"
@@ -41,8 +48,11 @@ const InvalidDateInput: FC<Props> = ({
                     error="Invalid date"
                     disabled={disabled}
                     readOnly
-                    styles={{ input: { cursor: 'pointer' } }}
+                    classNames={{ input: classes.input }}
                     onClick={openPopover}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Escape' && opened) closePopover();
+                    }}
                 />
             </Popover.Target>
             <Popover.Dropdown>

@@ -1,3 +1,4 @@
+import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
@@ -19,20 +20,20 @@ const EmbedChartPage: FC<{
 
     if (!embedToken) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     icon={IconUnlink}
                     title="This embed link is not valid"
                 />
-            </div>
+            </Box>
         );
     }
 
     if (!chartUuid) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Missing chart ID" icon={IconUnlink} />
-            </div>
+            </Box>
         );
     }
 

@@ -9,6 +9,7 @@ import {
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
+    hasNodeCitations,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -36,9 +37,17 @@ import {
     IconThumbUp,
     IconThumbUpFilled,
 } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import { clsx } from 'clsx';
+import {
+    memo,
+    useCallback,
+    useMemo,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { Link } from 'react-router';
-import { type CustomRendererProps } from 'streamdown';
+import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -48,6 +57,8 @@ import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { useUiString } from '../../../../providers/Embed/useUiStrings';
+import { useAiAgentThreadComposerNodes } from '../../hooks/useAiAgentNodeCitations';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
@@ -74,7 +85,13 @@ import { AiAccessCallout } from './AiAccessCallout';
 import { getAiAccessRefusal } from './aiAccessRefusal';
 import { AiArtifactInline } from './AiArtifactInline';
 import AiDocumentCards from './AiDocumentCards';
-import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
+import { AiSnowflakeReauthenticationCallout } from './AiSnowflakeReauthenticationCallout';
+import {
+    AiArtifactButton,
+    AiArtifactPendingCard,
+} from './ArtifactButton/AiArtifactButton';
+import { isArtifactRevision } from './ArtifactButton/artifactCardMeta';
+import { getPendingArtifactType } from './ArtifactButton/pendingArtifact';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import {
     AiDataAppBuildCard,
@@ -94,6 +111,8 @@ import {
 import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
+import { rehypeNodeCitations } from './rehypeNodeCitations';
+import { requiresSnowflakeReauthentication } from './requiresSnowflakeReauthentication';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
@@ -102,10 +121,17 @@ import {
     type LiveActivityToolGroup,
 } from './ToolCalls/LiveActivityCard';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
+import { StepFailureSummary } from './ToolCalls/StepFailureSummary';
+import { getMessageFinalStepFailure } from './ToolCalls/utils/getFinalStepFailure';
+import { getRunSqlLinkStateFromArgs } from './ToolCalls/utils/runSqlLinkState';
 import {
     getPendingApprovalIds,
     requiresSqlApproval,
 } from './ToolCalls/utils/sqlApprovalPending';
+import {
+    getSummaryPhase,
+    type SummaryPhase,
+} from './ToolCalls/utils/summaryPhase';
 import {
     appendToolCallToActivityGroup,
     canAppendToolCallToActivityGroup,
@@ -158,6 +184,16 @@ const segmentStreamParts = (parts: StreamPart[]): StreamSegment[] => {
     return segments;
 };
 
+const summaryPhaseOf = (
+    message: AiAgentMessageAssistant,
+    parts: StreamPart[],
+): SummaryPhase =>
+    getSummaryPhase({
+        hasArtifacts: !!message.artifacts?.length,
+        segments: segmentStreamParts(parts),
+        toolResults: message.toolResults,
+    });
+
 const groupPersistedToolCalls = (
     calls: ToolCallSummary[],
 ): ToolCallActivityGroup[] => groupToolCallSummaries(calls);
@@ -201,22 +237,6 @@ const getRunSqlTimeoutErrorMessage = (
     return hasRunSqlTimeout
         ? 'SQL approval timed out before the query could run. Approve the SQL prompt or retry when ready.'
         : null;
-};
-
-const getRunSqlLinkStateFromArgs = (
-    toolArgs: unknown,
-): SqlRunnerLinkState | null => {
-    if (!toolArgs || typeof toolArgs !== 'object' || !('sql' in toolArgs)) {
-        return null;
-    }
-
-    const { sql, limit } = toolArgs as { sql?: unknown; limit?: unknown };
-
-    if (typeof sql !== 'string') {
-        return null;
-    }
-
-    return typeof limit === 'number' ? { sql, limit } : { sql };
 };
 
 const getLatestSuccessfulRunSqlLinkState = ({
@@ -335,15 +355,20 @@ const AssistantBubbleContent: FC<{
     projectUuid: string;
     agentUuid: string;
     isLastMessage: boolean;
+    canRetry: boolean;
     mcpServers?: AiMcpServer[];
     onDashboardLinkClick?: (url: string) => void;
+    /** Artifact cards (or their pending stand-in), shown before the answer. */
+    artifactSlot: ReactNode;
 }> = ({
     message,
     projectUuid,
     agentUuid,
     isLastMessage,
+    canRetry,
     mcpServers,
     onDashboardLinkClick,
+    artifactSlot,
 }) => {
     const threadStreamingState = useAiAgentThreadStreamQuery(
         message.threadUuid,
@@ -364,6 +389,22 @@ const AssistantBubbleContent: FC<{
     const isPending =
         message.status === 'pending' &&
         streamingState?.connection.status !== 'refused';
+    // After a reload mid-summary, every step has landed and only the answer is left.
+    const isWritingSummary =
+        isPending &&
+        (message.artifacts?.length ?? 0) > 0 &&
+        message.toolCalls.every((toolCall) =>
+            message.toolResults.some(
+                (result) => result.toolCallId === toolCall.toolCallId,
+            ),
+        );
+    const writingSummaryLabel = useUiString('aiAgent.activity.writingSummary');
+    // A reloaded turn with steps already shows "Working" on its activity card.
+    const hasPersistedActivity = message.toolCalls.some(
+        (toolCall) =>
+            !isHiddenToolName(toolCall.toolName) &&
+            toolCall.parentToolCallId === null,
+    );
     const hasError = message.status === 'error';
     const isRecovering = streamingState?.connection.status === 'recovering';
     const streamingError =
@@ -424,7 +465,7 @@ const AssistantBubbleContent: FC<{
         ? 'No response'
         : displayErrorTitle;
     const noticeMessage = isBenignEmptyResponse
-        ? 'The agent finished without a response. You can try again.'
+        ? `The agent finished without a response.${canRetry ? ' You can try again.' : ''}`
         : displayErrorMessage;
 
     const baseMessageContent =
@@ -446,6 +487,26 @@ const AssistantBubbleContent: FC<{
             : '';
 
     const messageContent = baseMessageContent + referencedArtifactsMarkdown;
+    const resolvedNodes = useAiAgentThreadComposerNodes({
+        projectUuid,
+        agentUuid,
+        threadUuid: message.threadUuid,
+        messageUuid: message.uuid,
+        enabled: !isStreaming && !isPending && hasNodeCitations(messageContent),
+    });
+    const answerRehypePlugins = useMemo(
+        () =>
+            [
+                rehypeAiAgentContentLinks,
+                rehypeMemoryCitationIndices,
+                [rehypeNodeCitations, { resolvedNodes }],
+            ] satisfies NonNullable<StreamdownProps['rehypePlugins']>,
+        [resolvedNodes],
+    );
+    // Streamdown's memo ignores plugin changes, so remount once citations resolve.
+    const citationResolutionKey = resolvedNodes
+        .map(({ nodeId }) => nodeId)
+        .join(',');
 
     // Writeback PR card metadata. The editDbtProject tool result instructs
     // the LLM not to print the PR URL inline (we surface it via a dedicated
@@ -516,11 +577,21 @@ const AssistantBubbleContent: FC<{
         ...message.toolResults.map(getAiAccessRefusal),
     ].find((refusal) => refusal !== null);
 
+    const showSnowflakeReauthentication =
+        (streamingState?.parts ?? []).some(
+            (part) =>
+                part.type === 'toolCall' &&
+                requiresSnowflakeReauthentication(part.toolResult),
+        ) || message.toolResults.some(requiresSnowflakeReauthentication);
+
     const showAccessRefusal =
         agentIdentityFlag?.enabled === true && !!aiAccessRefusal;
 
     return (
         <>
+            {showSnowflakeReauthentication && (
+                <AiSnowflakeReauthenticationCallout />
+            )}
             {showAccessRefusal && aiAccessRefusal && (
                 <AiAccessCallout
                     projectUuid={projectUuid}
@@ -548,7 +619,7 @@ const AssistantBubbleContent: FC<{
                         </Group>
                         {/* Retry re-runs the thread's latest prompt, so only
                             offer it on the message it would actually re-run */}
-                        {isLastMessage && (
+                        {canRetry && isLastMessage && (
                             <Button
                                 size="xs"
                                 variant="default"
@@ -613,24 +684,15 @@ const AssistantBubbleContent: FC<{
                             s.kind === 'text',
                     );
                     const latestTextSeg = textSegments[textSegments.length - 1];
-                    // bridges the gap between artifact landing and closing text.
-                    const showFinishingUp =
-                        isStreaming &&
-                        !!message.artifacts?.length &&
-                        segments[segments.length - 1]?.kind !== 'text';
                     const finalAnswerMd = latestTextSeg ? (
                         <AiMarkdown
                             isStreaming={isStreaming}
                             allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
-                            className={
-                                isStreaming
-                                    ? styles.streamingNarration
-                                    : undefined
-                            }
-                            rehypePlugins={[
-                                rehypeAiAgentContentLinks,
-                                rehypeMemoryCitationIndices,
-                            ]}
+                            className={clsx(
+                                styles.answerMarkdown,
+                                isStreaming && styles.streamingNarration,
+                            )}
+                            rehypePlugins={answerRehypePlugins}
                             plugins={markdownPlugins}
                             components={{
                                 ...MEMORY_CITATION_COMPONENTS,
@@ -667,8 +729,8 @@ const AssistantBubbleContent: FC<{
                     ) : null;
                     return (
                         <Stack
-                            gap={4}
-                            pt="xs"
+                            // Same rhythm as the finished turn, so nothing shifts when it settles.
+                            gap="xs"
                             // Walkthrough: the reply is still being worked
                             // on while this is live. See scripts/scope-tours.
                             data-tour-anchor={
@@ -682,7 +744,17 @@ const AssistantBubbleContent: FC<{
                              *  card's body, auto-expanded. */}
                             <LiveActivityCard
                                 toolGroups={liveToolGroups}
-                                isLive={isStreaming}
+                                // Once only the summary is left the card stays settled while it streams.
+                                isLive={
+                                    isStreaming &&
+                                    !(
+                                        streamingState &&
+                                        summaryPhaseOf(
+                                            message,
+                                            streamingState.parts,
+                                        ) !== 'working'
+                                    )
+                                }
                                 reasoning={{
                                     texts: toReasoningTexts(
                                         message.reasoning,
@@ -706,6 +778,7 @@ const AssistantBubbleContent: FC<{
                                         [],
                                 }}
                             />
+                            {artifactSlot}
                             {latestTextSeg ? (
                                 <Box
                                     className={styles.streamPart}
@@ -714,24 +787,11 @@ const AssistantBubbleContent: FC<{
                                     data-tour-scope="create:AiAgentThread"
                                     data-tour-result="1"
                                     data-tour-label="Read the answer"
-                                    data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
+                                    data-tour-docs="agents.mdx#intro:2"
                                 >
                                     {finalAnswerMd}
                                 </Box>
                             ) : null}
-                            {/* Progress events ("Starting sandbox", "Cloning
-                                project", …) render inside the
-                                LiveActivityCard above as nested steps under
-                                the active tool — see renderInlineLiveStepProgress
-                                in that component. Here we just keep the
-                                "Finishing up" pulse for the brief gap
-                                between an artifact landing and the closing
-                                text. */}
-                            {showFinishingUp && (
-                                <Box className={styles.streamPart} pl={7}>
-                                    <TypingDots label="Finishing up" />
-                                </Box>
-                            )}
                         </Stack>
                     );
                 }
@@ -754,11 +814,24 @@ const AssistantBubbleContent: FC<{
                     pendingToolCallIds: getPendingPersistedApprovalIds(message),
                     decidedToolCallIds: [],
                 };
+                const finalStepFailure =
+                    isStreaming || isPending
+                        ? null
+                        : getMessageFinalStepFailure(message);
+                const hasAnswerText = messageContent.length > 0;
+                const failureSummary = finalStepFailure ? (
+                    <StepFailureSummary
+                        failure={finalStepFailure}
+                        projectUuid={projectUuid}
+                    />
+                ) : null;
                 return (
                     <>
                         <LiveActivityCard
                             toolGroups={persistedToolGroups}
-                            isLive={isStreaming || isPending}
+                            isLive={
+                                (isStreaming || isPending) && !isWritingSummary
+                            }
                             toolResults={message.toolResults}
                             toolCalls={message.toolCalls}
                             mcpServers={mcpServers}
@@ -773,22 +846,26 @@ const AssistantBubbleContent: FC<{
                                 isLive: isStreaming,
                             }}
                         />
-                        {messageContent.length > 0 ? (
+                        {/* With prose, the failure detail sits after it, next to the recovery actions. */}
+                        {!hasAnswerText && failureSummary}
+                        {artifactSlot}
+                        {hasAnswerText ? (
                             <Box
                                 // Walkthrough: the answer in words (persisted).
                                 // See scripts/scope-tours.
                                 data-tour-scope="create:AiAgentThread"
                                 data-tour-result="1"
                                 data-tour-label="Read the answer"
-                                data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
+                                data-tour-docs="agents.mdx#intro:2"
                             >
                                 <AiMarkdown
-                                    className={styles.persistedAnswer}
+                                    key={citationResolutionKey}
+                                    className={clsx(
+                                        styles.answerMarkdown,
+                                        styles.persistedAnswer,
+                                    )}
                                     allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
-                                    rehypePlugins={[
-                                        rehypeAiAgentContentLinks,
-                                        rehypeMemoryCitationIndices,
-                                    ]}
+                                    rehypePlugins={answerRehypePlugins}
                                     plugins={markdownPlugins}
                                     components={{
                                         ...MEMORY_CITATION_COMPONENTS,
@@ -825,6 +902,7 @@ const AssistantBubbleContent: FC<{
                                 </AiMarkdown>
                             </Box>
                         ) : null}
+                        {hasAnswerText && failureSummary}
                     </>
                 );
             })()}
@@ -839,10 +917,18 @@ const AssistantBubbleContent: FC<{
                 (streamingState?.parts?.length ?? 0) === 0 && (
                     <Box
                         className={styles.streamPart}
-                        pl={7}
                         data-tour-anchor="ai-working"
+                        display={
+                            isWritingSummary || !hasPersistedActivity
+                                ? undefined
+                                : 'none'
+                        }
                     >
-                        <TypingDots />
+                        <TypingDots
+                            activity={
+                                isWritingSummary ? writingSummaryLabel : null
+                            }
+                        />
                     </Box>
                 )}
             <AiDocumentCards
@@ -882,6 +968,7 @@ type Props = {
     /** The hidden user turn this reply answers, if any (same prompt uuid). */
     hiddenSibling: AiAgentMessageUser | null;
     isLastMessage: boolean;
+    canRetry: boolean;
     isActive?: boolean;
     debug?: boolean;
     projectUuid: string;
@@ -898,6 +985,7 @@ export const AssistantBubble: FC<Props> = memo(
         message,
         hiddenSibling,
         isLastMessage,
+        canRetry,
         isActive = false,
         debug = false,
         projectUuid,
@@ -910,6 +998,9 @@ export const AssistantBubble: FC<Props> = memo(
     }) => {
         const artifact = useAiAgentStoreSelector(selectArtifactPreview);
         const dispatch = useAiAgentStoreDispatch();
+        const writingSummaryLabel = useUiString(
+            'aiAgent.activity.writingSummary',
+        );
 
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
@@ -1039,16 +1130,99 @@ export const AssistantBubble: FC<Props> = memo(
             threadStreamingState?.messageUuid === message.uuid &&
             threadStreamingState.connection.status === 'refused';
         const isPending = message.status === 'pending' && !isRefused;
-        const isLoading =
-            useAiAgentThreadMessageStreaming(
-                message.threadUuid,
-                message.uuid,
-            ) || isPending;
+        const isStreaming = useAiAgentThreadMessageStreaming(
+            message.threadUuid,
+            message.uuid,
+        );
+        const isLoading = isStreaming || isPending;
+        const showWritingSummary =
+            isStreaming &&
+            threadStreamingState?.messageUuid === message.uuid &&
+            summaryPhaseOf(message, threadStreamingState.parts) ===
+                'awaitingSummary';
 
         // status flips to 'idle' only at stream end; artifacts land earlier.
         const isArtifactAvailable = !!(
             message.artifacts && message.artifacts.length > 0
         );
+
+        const pendingArtifactType =
+            isStreaming && threadStreamingState?.messageUuid === message.uuid
+                ? getPendingArtifactType(
+                      threadStreamingState.parts,
+                      isArtifactAvailable,
+                  )
+                : null;
+        // Cards lead the answer, so they sit where the pending stand-in held their place.
+        const artifactSlot: ReactNode = isArtifactAvailable ? (
+            <Stack gap="xs">
+                {renderArtifactsInline
+                    ? // Render artifacts inline directly
+                      message.artifacts!.map((messageArtifact) => (
+                          <AiArtifactInline
+                              key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
+                              artifact={messageArtifact}
+                              message={message}
+                              projectUuid={projectUuid}
+                              agentUuid={agentUuid}
+                          />
+                      ))
+                    : // Render artifact buttons that open modals
+                      message.artifacts!.map((messageArtifact) => (
+                          <Box
+                              key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
+                              // Walkthrough: the chart the agent built
+                              // opens in the side panel from here.
+                              // See scripts/scope-tours.
+                              data-tour-scope="create:AiAgentThread"
+                              data-tour-result="2"
+                              data-tour-label="The chart the agent built"
+                              data-tour-docs="agents/use-ai-agents.mdx#query-and-visualizations-constraints:p4"
+                          >
+                              <AiArtifactButton
+                                  onClick={() => {
+                                      const isThisArtifactOpen =
+                                          artifact?.artifactUuid ===
+                                              messageArtifact.artifactUuid &&
+                                          artifact?.versionUuid ===
+                                              messageArtifact.versionUuid;
+                                      if (isThisArtifactOpen) {
+                                          dispatch(clearPreview());
+                                          return;
+                                      }
+                                      dispatch(
+                                          setPreview({
+                                              type: 'artifact',
+                                              artifactUuid:
+                                                  messageArtifact.artifactUuid,
+                                              versionUuid:
+                                                  messageArtifact.versionUuid,
+                                              messageUuid: message.uuid,
+                                              threadUuid: message.threadUuid,
+                                              projectUuid: projectUuid,
+                                              agentUuid: agentUuid,
+                                          }),
+                                      );
+                                  }}
+                                  isArtifactOpen={
+                                      artifact?.artifactUuid ===
+                                          messageArtifact.artifactUuid &&
+                                      artifact?.versionUuid ===
+                                          messageArtifact.versionUuid
+                                  }
+                                  artifact={messageArtifact}
+                                  isRevision={isArtifactRevision({
+                                      versionNumber:
+                                          messageArtifact.versionNumber,
+                                      jevDecision: message.jevDecision,
+                                  })}
+                              />
+                          </Box>
+                      ))}
+            </Stack>
+        ) : pendingArtifactType ? (
+            <AiArtifactPendingCard artifactType={pendingArtifactType} />
+        ) : null;
 
         // A restore turn is deterministic (no LLM): the card is the whole
         // reply, its message included, so nothing else renders for it.
@@ -1073,10 +1247,7 @@ export const AssistantBubble: FC<Props> = memo(
                 w="100%"
                 gap="xs"
                 bg={isActive ? 'ldGray.0' : 'transparent'}
-                style={{
-                    overflow: 'unset',
-                    borderStartStartRadius: '0px',
-                }}
+                className={styles.assistantMessage}
                 data-message-id={`assistant-${message.uuid}`}
                 // Walkthrough result marker for create:AiAgentThread: the
                 // agent's answer is where sending a question lands, so no
@@ -1085,9 +1256,9 @@ export const AssistantBubble: FC<Props> = memo(
                 data-tour-step="1"
                 data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
                 data-tour-label="Ask the agent a question"
-                data-tour-docs="agents.mdx#intro:1"
+                data-tour-docs="agents.mdx#intro:2"
                 data-tour-return="none"
-                data-tour-resultdocs="agents.mdx#intro:3"
+                data-tour-resultdocs="agents/data-access.mdx#user-attributes-and-permissions"
                 data-tour-busy='[data-tour-anchor="ai-working"]'
             >
                 <AssistantBubbleContent
@@ -1095,72 +1266,16 @@ export const AssistantBubble: FC<Props> = memo(
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     isLastMessage={isLastMessage}
+                    canRetry={canRetry}
                     mcpServers={mcpServers}
                     onDashboardLinkClick={onDashboardLinkClick}
+                    artifactSlot={artifactSlot}
                 />
 
-                {isArtifactAvailable && projectUuid && agentUuid && (
-                    <Stack gap="xs">
-                        {renderArtifactsInline
-                            ? // Render artifacts inline directly
-                              message.artifacts!.map((messageArtifact) => (
-                                  <AiArtifactInline
-                                      key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
-                                      artifact={messageArtifact}
-                                      message={message}
-                                      projectUuid={projectUuid}
-                                      agentUuid={agentUuid}
-                                  />
-                              ))
-                            : // Render artifact buttons that open modals
-                              message.artifacts!.map((messageArtifact) => (
-                                  <Box
-                                      key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
-                                      // Walkthrough: the chart the agent built
-                                      // opens in the side panel from here.
-                                      // See scripts/scope-tours.
-                                      data-tour-scope="create:AiAgentThread"
-                                      data-tour-result="2"
-                                      data-tour-label="The chart the agent built"
-                                      data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:li2"
-                                  >
-                                      <AiArtifactButton
-                                          onClick={() => {
-                                              const isThisArtifactOpen =
-                                                  artifact?.artifactUuid ===
-                                                      messageArtifact.artifactUuid &&
-                                                  artifact?.versionUuid ===
-                                                      messageArtifact.versionUuid;
-                                              if (isThisArtifactOpen) {
-                                                  dispatch(clearPreview());
-                                                  return;
-                                              }
-                                              dispatch(
-                                                  setPreview({
-                                                      type: 'artifact',
-                                                      artifactUuid:
-                                                          messageArtifact.artifactUuid,
-                                                      versionUuid:
-                                                          messageArtifact.versionUuid,
-                                                      messageUuid: message.uuid,
-                                                      threadUuid:
-                                                          message.threadUuid,
-                                                      projectUuid: projectUuid,
-                                                      agentUuid: agentUuid,
-                                                  }),
-                                              );
-                                          }}
-                                          isArtifactOpen={
-                                              artifact?.artifactUuid ===
-                                                  messageArtifact.artifactUuid &&
-                                              artifact?.versionUuid ===
-                                                  messageArtifact.versionUuid
-                                          }
-                                          artifact={messageArtifact}
-                                      />
-                                  </Box>
-                              ))}
-                    </Stack>
+                {showWritingSummary && (
+                    <Box className={styles.streamPart}>
+                        <TypingDots activity={writingSummaryLabel} />
+                    </Box>
                 )}
                 {!popoverOpened && downVoted && message.humanFeedback && (
                     <Paper p="xs" mt="xs" radius="md">
@@ -1184,6 +1299,9 @@ export const AssistantBubble: FC<Props> = memo(
                 {isLoading ? null : (
                     <Group
                         gap={0}
+                        className={styles.messageActions}
+                        // Earlier answers reveal their actions on hover or focus.
+                        data-persistent={isLastMessage || hasRating}
                         // Walkthrough: rating the answer feeds the Issues loop.
                         // See scripts/scope-tours.
                         data-tour-scope="create:AiAgentThread"

@@ -17,7 +17,7 @@ import {
     queryConfigBaseSchema,
     toolRunQueryArgsSchemaV4,
 } from '../tools/toolRunQueryArgs';
-import { FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE } from './examples';
+import { FILTER_EXPRESSION_STRING_VALUES_EXAMPLE } from './examples';
 import {
     aggregationCustomMetricExpressionSchema,
     customMetricsExpressionSchema,
@@ -298,21 +298,19 @@ describe('filter expression input schemas', () => {
         ).not.toContain('toDate');
     });
 
-    it('documents string quoting with one canonical punctuated example', () => {
+    it('documents string quoting with one canonical string-values example', () => {
         for (const description of [
             FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
             FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
         ]) {
-            expect(description).toContain('Bare scalars work.');
             expect(description).toContain(
-                'Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses)',
+                'Double-quote every string-field value; an unquoted value stops at the first space or punctuation.',
             );
-            expect(description).toContain('when unsure');
             expect(description).toContain(
-                'Quoted commas/braces literal; backslash escapes.',
+                'Inside quotes, escape `"` and `\\` with a backslash.',
             );
             expect(
-                description.split(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE),
+                description.split(FILTER_EXPRESSION_STRING_VALUES_EXAMPLE),
             ).toHaveLength(2);
         }
     });
@@ -350,7 +348,7 @@ describe('filter expression input schemas', () => {
         );
     });
 
-    it('requires a strict, separately nullable category shape', () => {
+    it('requires a strict shape whose omitted categories default to null', () => {
         expect(
             filterExpressionsSchema.safeParse({
                 dimensions: 'orders_status equals=completed',
@@ -359,11 +357,14 @@ describe('filter expression input schemas', () => {
             }).success,
         ).toBe(true);
         expect(
-            filterExpressionsSchema.safeParse({
-                dimensions: null,
-                metrics: null,
-            }).success,
-        ).toBe(false);
+            filterExpressionsSchema.parse({
+                dimensions: 'orders_status equals=completed',
+            }),
+        ).toEqual({
+            dimensions: 'orders_status equals=completed',
+            metrics: null,
+            tableCalculations: null,
+        });
         expect(
             filterExpressionsSchema.safeParse({
                 dimensions: null,

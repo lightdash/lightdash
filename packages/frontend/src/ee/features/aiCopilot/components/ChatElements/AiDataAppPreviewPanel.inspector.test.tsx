@@ -125,23 +125,23 @@ describe('AiDataAppPreviewPanel inspector', () => {
 
     it('surfaces the query inspector once the app issues a query', () => {
         renderWithProviders(panel(true));
-        expect(screen.queryByText(/Queries \(/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/^Queries \d/)).not.toBeInTheDocument();
 
         act(() => latestIframeProps().onQueryEvent?.(readyQuery('r1')));
 
-        expect(screen.getByText('Queries (1)')).toBeInTheDocument();
+        expect(screen.getByText('Queries 1')).toBeInTheDocument();
     });
 
     it('clears the log when a new version lands', () => {
         const { rerender } = renderWithProviders(panel(true));
         act(() => latestIframeProps().onQueryEvent?.(readyQuery('r1')));
-        expect(screen.getByText('Queries (1)')).toBeInTheDocument();
+        expect(screen.getByText('Queries 1')).toBeInTheDocument();
 
         landNewVersion(rerender, 4);
 
-        expect(screen.queryByText(/Queries \(/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/^Queries \d/)).not.toBeInTheDocument();
         act(() => latestIframeProps().onQueryEvent?.(readyQuery('r2')));
-        expect(screen.getByText('Queries (1)')).toBeInTheDocument();
+        expect(screen.getByText('Queries 1')).toBeInTheDocument();
     });
 
     it('keeps the log across versions when Persist is on', () => {
@@ -152,21 +152,23 @@ describe('AiDataAppPreviewPanel inspector', () => {
         landNewVersion(rerender, 4);
         act(() => latestIframeProps().onQueryEvent?.(readyQuery('r2')));
 
-        expect(screen.getByText('Queries (2)')).toBeInTheDocument();
+        expect(screen.getByText('Queries 2')).toBeInTheDocument();
     });
 
     it('re-opens a dismissed inspector from the menu', async () => {
         const user = userEvent.setup();
         renderWithProviders(panel(true));
         act(() => latestIframeProps().onQueryEvent?.(readyQuery('r1')));
-        expect(screen.getByText('Queries (1)')).toBeInTheDocument();
+        expect(screen.getByText('Queries 1')).toBeInTheDocument();
 
+        // The collapsed bar only expands; closing lives on the open panel.
+        await user.click(screen.getByLabelText('Show network activity'));
         await user.click(screen.getByLabelText('Close inspector panel'));
-        expect(screen.queryByText('Queries (1)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Queries 1')).not.toBeInTheDocument();
 
         await user.click(screen.getByLabelText('More options'));
         await user.click(await screen.findByText('Show network'));
-        expect(screen.getByText('Queries (1)')).toBeInTheDocument();
+        expect(screen.getByText('Queries 1')).toBeInTheDocument();
 
         await user.click(screen.getByLabelText('More options'));
         expect(await screen.findByText('Hide network')).toBeInTheDocument();
@@ -175,11 +177,11 @@ describe('AiDataAppPreviewPanel inspector', () => {
     it('shows the inspector from the menu before the first query', async () => {
         const user = userEvent.setup();
         renderWithProviders(panel(true));
-        expect(screen.queryByText(/Queries \(/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/^Queries \d/)).not.toBeInTheDocument();
 
         await user.click(screen.getByLabelText('More options'));
         await user.click(await screen.findByText('Show network'));
-        expect(screen.getByText('Queries (0)')).toBeInTheDocument();
+        expect(screen.getByText('Queries 0')).toBeInTheDocument();
     });
 
     it('leaves the launcher preview without inspector wiring', () => {

@@ -1007,6 +1007,30 @@ export class CatalogController extends BaseController {
     }
 
     /**
+     * Get the tables that have metrics visible in the metrics catalog, for the tables filter dropdown
+     * @summary List metrics catalog tables
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/tables')
+    @OperationId('getMetricTables')
+    async getMetricTables(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: string[] }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricTables(req.account!, projectUuid);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
      * Get distinct metric owners for filter dropdown
      * @summary List metric owners
      */

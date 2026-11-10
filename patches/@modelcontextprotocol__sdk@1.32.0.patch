@@ -1,0 +1,120 @@
+diff --git a/dist/cjs/client/auth.js b/dist/cjs/client/auth.js
+index 4c87a15f58e385da47145658ea1d82f5d4f82285..bf9b55f10a511bc7f300ca099a0b735fea02c704 100644
+--- a/dist/cjs/client/auth.js
++++ b/dist/cjs/client/auth.js
+@@ -577,8 +577,9 @@ async function fetchWithCorsRetry(url, headers, fetchFn = fetch) {
+  * Constructs the well-known path for auth-related metadata discovery
+  */
+ function buildWellKnownPath(wellKnownPrefix, pathname = '', options = {}) {
+-    // Strip trailing slash from pathname to avoid double slashes
+-    if (pathname.endsWith('/')) {
++    // Strip trailing slash from pathname to avoid double slashes. RFC 9728
++    // keeps a trailing slash that follows a path, so callers may preserve it.
++    if (pathname.endsWith('/') && !(options.preserveTrailingSlash && pathname !== '/')) {
+         pathname = pathname.slice(0, -1);
+     }
+     return options.prependPathname ? `${pathname}/.well-known/${wellKnownPrefix}` : `/.well-known/${wellKnownPrefix}${pathname}`;
+@@ -610,11 +611,25 @@ async function discoverMetadataWithFallback(serverUrl, wellKnownType, fetchFn, o
+     }
+     else {
+         // Try path-aware discovery first
+-        const wellKnownPath = buildWellKnownPath(wellKnownType, issuer.pathname);
++        const wellKnownPath = buildWellKnownPath(wellKnownType, issuer.pathname, {
++            preserveTrailingSlash: wellKnownType === 'oauth-protected-resource'
++        });
+         url = new URL(wellKnownPath, opts?.metadataServerUrl ?? issuer);
+         url.search = issuer.search;
+     }
+     let response = await tryMetadataDiscovery(url, protocolVersion, fetchFn);
++    // Servers that publish protected resource metadata without the trailing
++    // slash keep working: retry the slash-stripped path before the root.
++    if (!opts?.metadataUrl &&
++        wellKnownType === 'oauth-protected-resource' &&
++        issuer.pathname !== '/' &&
++        issuer.pathname.endsWith('/') &&
++        shouldAttemptFallback(response, issuer.pathname)) {
++        await response?.body?.cancel();
++        const strippedUrl = new URL(buildWellKnownPath(wellKnownType, issuer.pathname), opts?.metadataServerUrl ?? issuer);
++        strippedUrl.search = issuer.search;
++        response = await tryMetadataDiscovery(strippedUrl, protocolVersion, fetchFn);
++    }
+     // If path-aware discovery fails with 404 and we're not already at root, try fallback to root discovery
+     if (!opts?.metadataUrl && shouldAttemptFallback(response, issuer.pathname)) {
+         const rootUrl = new URL(`/.well-known/${wellKnownType}`, issuer);
+diff --git a/dist/cjs/shared/auth-utils.js b/dist/cjs/shared/auth-utils.js
+index f2fe617344051e0b7a5ff4543af4bf435523092d..e9a78e027e590822151d16f60355b54e4d4f1abf 100644
+--- a/dist/cjs/shared/auth-utils.js
++++ b/dist/cjs/shared/auth-utils.js
+@@ -31,10 +31,8 @@ function checkResourceAllowed({ requestedResource, configuredResource }) {
+     if (requested.origin !== configured.origin) {
+         return false;
+     }
+-    // Handle cases like requested=/foo and configured=/foo/
+-    if (requested.pathname.length < configured.pathname.length) {
+-        return false;
+-    }
++    // A single trailing slash is not a different resource: requested=/foo
++    // matches configured=/foo/ once both paths are normalised below.
+     // Check if the requested path starts with the configured path
+     // Ensure both paths end with / for proper comparison
+     // This ensures that if we have paths like "/api" and "/api/users",
+diff --git a/dist/esm/client/auth.js b/dist/esm/client/auth.js
+index 9b184c011ffa092078a7ed951be21a2bd99d5f89..49289cdcf8669e632ebccaaaded9e2d3dbf5a024 100644
+--- a/dist/esm/client/auth.js
++++ b/dist/esm/client/auth.js
+@@ -552,8 +552,9 @@ async function fetchWithCorsRetry(url, headers, fetchFn = fetch) {
+  * Constructs the well-known path for auth-related metadata discovery
+  */
+ function buildWellKnownPath(wellKnownPrefix, pathname = '', options = {}) {
+-    // Strip trailing slash from pathname to avoid double slashes
+-    if (pathname.endsWith('/')) {
++    // Strip trailing slash from pathname to avoid double slashes. RFC 9728
++    // keeps a trailing slash that follows a path, so callers may preserve it.
++    if (pathname.endsWith('/') && !(options.preserveTrailingSlash && pathname !== '/')) {
+         pathname = pathname.slice(0, -1);
+     }
+     return options.prependPathname ? `${pathname}/.well-known/${wellKnownPrefix}` : `/.well-known/${wellKnownPrefix}${pathname}`;
+@@ -585,11 +586,25 @@ async function discoverMetadataWithFallback(serverUrl, wellKnownType, fetchFn, o
+     }
+     else {
+         // Try path-aware discovery first
+-        const wellKnownPath = buildWellKnownPath(wellKnownType, issuer.pathname);
++        const wellKnownPath = buildWellKnownPath(wellKnownType, issuer.pathname, {
++            preserveTrailingSlash: wellKnownType === 'oauth-protected-resource'
++        });
+         url = new URL(wellKnownPath, opts?.metadataServerUrl ?? issuer);
+         url.search = issuer.search;
+     }
+     let response = await tryMetadataDiscovery(url, protocolVersion, fetchFn);
++    // Servers that publish protected resource metadata without the trailing
++    // slash keep working: retry the slash-stripped path before the root.
++    if (!opts?.metadataUrl &&
++        wellKnownType === 'oauth-protected-resource' &&
++        issuer.pathname !== '/' &&
++        issuer.pathname.endsWith('/') &&
++        shouldAttemptFallback(response, issuer.pathname)) {
++        await response?.body?.cancel();
++        const strippedUrl = new URL(buildWellKnownPath(wellKnownType, issuer.pathname), opts?.metadataServerUrl ?? issuer);
++        strippedUrl.search = issuer.search;
++        response = await tryMetadataDiscovery(strippedUrl, protocolVersion, fetchFn);
++    }
+     // If path-aware discovery fails with 404 and we're not already at root, try fallback to root discovery
+     if (!opts?.metadataUrl && shouldAttemptFallback(response, issuer.pathname)) {
+         const rootUrl = new URL(`/.well-known/${wellKnownType}`, issuer);
+diff --git a/dist/esm/shared/auth-utils.js b/dist/esm/shared/auth-utils.js
+index 1883885e406491c6142127fd8d7a00f2d5d229a3..59044c55394b23d3f3abf6ddcc05d0471fb85a79 100644
+--- a/dist/esm/shared/auth-utils.js
++++ b/dist/esm/shared/auth-utils.js
+@@ -27,10 +27,8 @@ export function checkResourceAllowed({ requestedResource, configuredResource })
+     if (requested.origin !== configured.origin) {
+         return false;
+     }
+-    // Handle cases like requested=/foo and configured=/foo/
+-    if (requested.pathname.length < configured.pathname.length) {
+-        return false;
+-    }
++    // A single trailing slash is not a different resource: requested=/foo
++    // matches configured=/foo/ once both paths are normalised below.
+     // Check if the requested path starts with the configured path
+     // Ensure both paths end with / for proper comparison
+     // This ensures that if we have paths like "/api" and "/api/users",

@@ -5,6 +5,7 @@ import {
     AppVersionsTableName,
     type DbApp,
 } from '../database/entities/apps';
+import { AppSlugMappingsTableName } from '../database/entities/appSlugMappings';
 import { DashboardTileDataAppsTableName } from '../database/entities/dashboards';
 import {
     SavedChartsTableName,
@@ -25,7 +26,6 @@ const appRow: DbApp = {
     sandbox_id: null,
     template: null,
     icon: null,
-    auto_analysis: 'inherit',
     add_analysis_dismissed_at: null,
     design_uuid: null,
     upstream_app_uuid: null,
@@ -119,6 +119,8 @@ describe('AppModel.setMetadataIfUnset', () => {
 
     beforeEach(() => {
         tracker.on.select('pg_advisory_xact_lock').response({});
+        // Slug generation also probes historical aliases left by renames.
+        tracker.on.select(AppSlugMappingsTableName).response([]);
     });
 
     afterEach(() => {

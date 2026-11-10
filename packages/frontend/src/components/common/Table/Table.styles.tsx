@@ -1,9 +1,6 @@
 import { type ConditionalFormattingTextStyle } from '@lightdash/common';
-import {
-    forwardRef,
-    type ComponentPropsWithoutRef,
-    type CSSProperties,
-} from 'react';
+import { Box, type MantineStyleProps } from '@mantine/core';
+import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import {
     FROZEN_COLUMN_BACKGROUND,
     FROZEN_COLUMN_BORDER_COLOR,
@@ -13,7 +10,10 @@ import {
 import classes from './Table.module.css';
 import trStyles from './Tr.module.css';
 
-type CssVariables = CSSProperties & Record<`--${string}`, string | number>;
+export type CellStyleProps = Pick<
+    MantineStyleProps,
+    'w' | 'miw' | 'maw' | 'left' | 'bg'
+>;
 
 interface TableScrollableWrapperProps extends ComponentPropsWithoutRef<'div'> {
     $isDashboard?: boolean;
@@ -50,12 +50,11 @@ export const TableContainer = forwardRef<HTMLDivElement, TableContainerProps>(
             $padding = 0,
             $tableFont = 'Inter, sans-serif',
             className,
-            style,
             ...props
         },
         ref,
     ) => (
-        <div
+        <Box
             ref={ref}
             className={[
                 classes.tableContainer,
@@ -64,13 +63,10 @@ export const TableContainer = forwardRef<HTMLDivElement, TableContainerProps>(
             ]
                 .filter(Boolean)
                 .join(' ')}
-            style={
-                {
-                    '--table-font': $tableFont,
-                    '--table-padding': `${$padding}px`,
-                    ...style,
-                } as CssVariables
-            }
+            __vars={{
+                '--table-font': $tableFont,
+                '--table-padding': `${$padding}px`,
+            }}
             {...props}
         />
     ),
@@ -82,18 +78,16 @@ interface TableProps extends ComponentPropsWithoutRef<'table'> {
 }
 
 export const Table = forwardRef<HTMLTableElement, TableProps>(
-    ({ $showFooter: _showFooter, className, style, ...props }, ref) => (
-        <table
+    ({ $showFooter: _showFooter, className, ...props }, ref) => (
+        <Box
+            component="table"
             ref={ref}
             className={[classes.table, className].filter(Boolean).join(' ')}
-            style={
-                {
-                    '--frozen-column-background': FROZEN_COLUMN_BACKGROUND,
-                    '--frozen-column-border-color': FROZEN_COLUMN_BORDER_COLOR,
-                    '--frozen-column-border-width': FROZEN_COLUMN_BORDER_WIDTH,
-                    ...style,
-                } as CssVariables
-            }
+            __vars={{
+                '--frozen-column-background': FROZEN_COLUMN_BACKGROUND,
+                '--frozen-column-border-color': FROZEN_COLUMN_BORDER_COLOR,
+                '--frozen-column-border-width': FROZEN_COLUMN_BORDER_WIDTH,
+            }}
             {...props}
         />
     ),
@@ -128,7 +122,7 @@ export const Tr = forwardRef<HTMLTableRowElement, TrProps>(
 );
 Tr.displayName = 'Tr';
 
-interface TdProps extends ComponentPropsWithoutRef<'td'> {
+interface TdProps extends ComponentPropsWithoutRef<'td'>, CellStyleProps {
     $isNaN: boolean;
     $rowIndex: number;
     $isSelected: boolean;
@@ -161,12 +155,12 @@ export const Td = forwardRef<HTMLTableCellElement, TdProps>(
             $hasNewlines: _hasNewlines,
             $hasUrls,
             className,
-            style,
             ...props
         },
         ref,
     ) => (
-        <td
+        <Box
+            component="td"
             ref={ref}
             className={[classes.td, className].filter(Boolean).join(' ')}
             data-nan={$isNaN || undefined}
@@ -182,27 +176,26 @@ export const Td = forwardRef<HTMLTableCellElement, TdProps>(
             data-bold={$textStyle?.bold || undefined}
             data-italic={$textStyle?.italic || undefined}
             data-underline={$textStyle?.underline || undefined}
-            style={
-                {
-                    '--table-row-height': `${ROW_HEIGHT_PX}px`,
-                    '--cell-background-color': $backgroundColor,
-                    '--cell-font-color': $fontColor,
-                    ...style,
-                } as CssVariables
-            }
+            __vars={{
+                '--table-row-height': `${ROW_HEIGHT_PX}px`,
+                '--cell-background-color': $backgroundColor,
+                '--cell-font-color': $fontColor,
+            }}
             {...props}
         />
     ),
 );
 Td.displayName = 'Td';
 
-interface FooterCellProps extends ComponentPropsWithoutRef<'th'> {
+interface FooterCellProps
+    extends ComponentPropsWithoutRef<'th'>, CellStyleProps {
     $isNaN: boolean;
 }
 
 export const FooterCell = forwardRef<HTMLTableCellElement, FooterCellProps>(
     ({ $isNaN, className, ...props }, ref) => (
-        <th
+        <Box
+            component="th"
             ref={ref}
             className={[classes.footerCell, className]
                 .filter(Boolean)
@@ -216,9 +209,10 @@ FooterCell.displayName = 'FooterCell';
 
 export const Th = forwardRef<
     HTMLTableCellElement,
-    ComponentPropsWithoutRef<'th'>
+    ComponentPropsWithoutRef<'th'> & CellStyleProps
 >(({ className, ...props }, ref) => (
-    <th
+    <Box
+        component="th"
         ref={ref}
         className={[classes.th, className].filter(Boolean).join(' ')}
         {...props}
@@ -265,18 +259,13 @@ interface TableHeaderLabelContainerProps extends ComponentPropsWithoutRef<'div'>
 export const TableHeaderLabelContainer = forwardRef<
     HTMLDivElement,
     TableHeaderLabelContainerProps
->(({ color, className, style, ...props }, ref) => (
-    <div
+>(({ color, className, ...props }, ref) => (
+    <Box
         ref={ref}
         className={[classes.tableHeaderLabelContainer, className]
             .filter(Boolean)
             .join(' ')}
-        style={
-            {
-                '--table-header-label-color': color,
-                ...style,
-            } as CssVariables
-        }
+        __vars={{ '--table-header-label-color': color }}
         {...props}
     />
 ));

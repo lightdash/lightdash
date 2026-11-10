@@ -4,6 +4,7 @@ import {
     buildAgentIdentityClaim,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
+    getBigqueryWorkloadIdentityTokenAudience,
     getIntrinsicUserAttributeRegex,
     getParsedReference,
     getReferencedDimension,
@@ -11,6 +12,7 @@ import {
     getUserAttributeRegex,
     InlineErrorType,
     lightdashVariablePattern,
+    normalizeWarehouseCredentials,
     parameterRegex,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
@@ -1194,6 +1196,54 @@ describe('warehouse result identity fingerprints', () => {
             }),
         ).not.toBe(identity);
         expect(identity).not.toContain('secret');
+    });
+    test('BigQuery federation cache identity includes the provider and effective audience', () => {
+        const provider =
+            'projects/123/locations/global/workloadIdentityPools/pool-id/providers/provider-id';
+        const credentials: CreateWarehouseCredentials =
+            withNewWarehouseCredentialVersion({
+                type: WarehouseTypes.BIGQUERY,
+                project: 'project',
+                dataset: 'dataset',
+                keyfileContents: {},
+                authenticationType:
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                workloadIdentityProvider: provider,
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+            });
+        const identity = getWarehouseIdentityFingerprint(credentials);
+        expect(identity).not.toBeNull();
+        expect(
+            getWarehouseIdentityFingerprint({
+                ...credentials,
+                workloadIdentityProvider: provider.replace('123', '456'),
+            }),
+        ).not.toBe(identity);
+        expect(
+            getWarehouseIdentityFingerprint({
+                ...credentials,
+                workloadIdentityAudience: 'custom-audience',
+            }),
+        ).not.toBe(identity);
+        expect(
+            getWarehouseIdentityFingerprint({
+                ...credentials,
+                workloadIdentityAudience:
+                    getBigqueryWorkloadIdentityTokenAudience(credentials),
+            }),
+        ).toBe(identity);
+        expect(
+            getWarehouseIdentityFingerprint(
+                normalizeWarehouseCredentials({
+                    ...credentials,
+                    workloadIdentityAudience: '',
+                }),
+            ),
+        ).toBe(identity);
     });
 
     test('entitlement fingerprints include current user and intrinsic attributes in stable key order', () => {

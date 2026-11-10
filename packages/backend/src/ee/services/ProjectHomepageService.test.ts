@@ -127,7 +127,7 @@ const makeViewerUser = (): SessionUser => ({
 });
 
 const makeService = ({
-    flagEnabled = true,
+    homepageEnabled = true,
     documentService = { filterViewableUuids: vi.fn().mockResolvedValue([]) },
     projectHomepageModel = {},
     groupsModel = {},
@@ -138,7 +138,7 @@ const makeService = ({
     slackInstalled = true,
     schedulerClient = {},
 }: {
-    flagEnabled?: boolean;
+    homepageEnabled?: boolean;
     documentService?: ProjectHomepageServiceArguments['documentService'];
     projectHomepageModel?: Partial<
         ProjectHomepageServiceArguments['projectHomepageModel']
@@ -161,12 +161,6 @@ const makeService = ({
             getRecentlyViewed: vi.fn().mockResolvedValue([]),
         },
         analytics: { track: vi.fn() },
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({
-                id: 'homepage-builder',
-                enabled: flagEnabled,
-            }),
-        },
         projectHomepageModel: {
             getCodeReferences: vi.fn().mockResolvedValue([]),
             getCodeGroups: vi.fn().mockResolvedValue([]),
@@ -192,7 +186,15 @@ const makeService = ({
             deleteAnnouncement: vi.fn().mockResolvedValue(undefined),
             publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([]),
             publishPendingAnnouncements: vi.fn().mockResolvedValue([]),
-            findOrgHomepageSettings: vi.fn().mockResolvedValue(null),
+            findOrgHomepageSettings: vi.fn().mockResolvedValue(
+                homepageEnabled
+                    ? null
+                    : {
+                          organizationUuid: ORGANIZATION_UUID,
+                          enabled: false,
+                          opening: null,
+                      },
+            ),
             upsertOrgHomepageSettings: vi.fn(),
             swapHeroBlocks: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
@@ -627,7 +629,7 @@ describe('ProjectHomepageService', () => {
 
         it('rejects disabled features, missing code permissions, and access to another project', async () => {
             await expect(
-                makeService({ flagEnabled: false }).downloadHomepagesAsCode(
+                makeService({ homepageEnabled: false }).downloadHomepagesAsCode(
                     codeUser(),
                     PROJECT_UUID,
                 ),
@@ -689,39 +691,30 @@ describe('ProjectHomepageService', () => {
             expect(upsertAsCode).not.toHaveBeenCalled();
         });
     });
-    it('getResolvedHomepage throws ForbiddenError when flag is disabled', async () => {
-        const service = makeService({ flagEnabled: false });
+    it('getResolvedHomepage throws ForbiddenError when the org switched back to classic', async () => {
+        const service = makeService({ homepageEnabled: false });
 
         await expect(
             service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('org settings opt-in enables the homepage even when the flag is off', async () => {
-        const service = makeService({
-            flagEnabled: false,
-            projectHomepageModel: {
-                findOrgHomepageSettings: vi.fn().mockResolvedValue({
-                    organizationUuid: ORGANIZATION_UUID,
-                    enabled: true,
-                    opening: 'content-first',
-                }),
-            },
-        });
+    it('homepage is enabled by default when the org has no settings row', async () => {
+        const service = makeService();
 
         await expect(
             service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).resolves.toBeNull();
     });
 
-    it('getOrgHomepageSettings returns defaults when the org never opted in', async () => {
+    it('getOrgHomepageSettings defaults to enabled with auto opening', async () => {
         const service = makeService();
 
         await expect(
             service.getOrgHomepageSettings(makeViewerUser()),
         ).resolves.toEqual({
             organizationUuid: ORGANIZATION_UUID,
-            enabled: false,
+            enabled: true,
             opening: null,
         });
     });

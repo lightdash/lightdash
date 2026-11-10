@@ -39,6 +39,7 @@ import {
     ParametersValuesMap,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryStatus,
     ReadContentType,
     ResultColumns,
     SavedChart,
@@ -47,6 +48,7 @@ import {
     SourceQuery,
     SourceQuerySubmission,
     SqlChartAsCode,
+    TablePartitioning,
     ThreadComposerQueryNode,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
@@ -530,7 +532,8 @@ export type RunAsyncQueryFn = (
 export type RunSavedChartQueryFn = (args: {
     chartUuid: string;
     dashboardSlug: string | null;
-    limit: number | null;
+    /** The chart's saved limit; clamped to the AI max. */
+    limit: number;
     onQueryPrepared?: (
         execution: Pick<
             ApiExecuteAsyncMetricQueryResults,
@@ -561,12 +564,11 @@ export type SqlChartSummary = {
 /** A saved SQL chart the agent may view; checks view and agent space access, like readContent. */
 export type GetSqlChartFn = (slug: string) => Promise<SqlChartSummary>;
 
-/** Runs a saved SQL chart, on its own or as a dashboard tile with the dashboard's filters. */
+/** Runs a saved SQL chart at its saved limit (clamped to the AI max), on its own or as a dashboard tile with the dashboard's filters. */
 export type RunSqlChartQueryFn = (args: {
     chartSlug: string;
     dashboardSlug: string | null;
-    limit: number;
-}) => Promise<SqlQueryRows & { sqlChart: SqlChartSummary }>;
+}) => Promise<SqlQueryRows & { sqlChart: SqlChartSummary; limit: number }>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 
@@ -695,7 +697,7 @@ export type ListThreadComposerQueryNodesFn = (
     threadUuid: string,
 ) => Promise<ThreadComposerQueryNode[]>;
 
-/** Null when the node never ran as the terminal of a query. */
+/** Null when the node was registered without node columns. */
 export type GetThreadComposerNodeColumnsFn = (args: {
     threadUuid: string;
     nodeId: string;
@@ -756,28 +758,74 @@ export type ComposerNodeStatusUpdate = {
     errorMessage: string | null;
 };
 
+/** How one node did in a run, read from its query history row. */
+export type ComposerNodeStatus = {
+    nodeId: string;
+    state: QueryHistoryStatus;
+    error: string | null;
+    /** Null until the node's query is ready. */
+    rowCount: number | null;
+    /** Result columns; null until the node's query is ready. */
+    columns: ResultColumns | null;
+    /** First rows of a node asked to be sampled; null otherwise or when the read fails. */
+    sample: Record<string, AnyType>[] | null;
+};
+
+/** Every submitted node's status, read once after the terminal node settles. */
+export type ComposerRunOutcome =
+    | {
+          status: 'success';
+          submissions: SourceQuerySubmission[];
+          terminal: {
+              queryUuid: string;
+              columns: ResultColumns;
+              /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
+              rows: Record<string, AnyType>[];
+              rowCount: number;
+          };
+          nodeStatuses: ComposerNodeStatus[];
+      }
+    | {
+          status: 'failure';
+          error: string;
+          nodeStatuses: ComposerNodeStatus[];
+      };
+
 /**
  * Submits a composer query (multi-source pipeline) and waits for the terminal
- * node's results. Submissions carry the pinned nodeId → queryUuid mapping for
+ * node and the other unread nodes to settle. Submissions carry the pinned nodeId → queryUuid mapping for
  * every node; the terminal snapshot is the first page of the terminal node's
  * results, capped at that node's limit. `onNodeStatus` receives per-node
  * lifecycle transitions (running on submission, then success/error) while the
- * pipeline executes.
+ * pipeline executes. Throws only when submission fails before any query id exists.
  */
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Nodes the run also waits for; when sampled, their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows read by that wait. */
+    otherUnreadNodeIds: string[];
+    /** Nodes whose node sample is read through the terminal rows' reader once the terminal settles. */
+    sampleNodeIds: string[];
     onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
-}) => Promise<{
+}) => Promise<ComposerRunOutcome>;
+
+/** Terminal or another unread node still running at the deadline; statuses are read once then. */
+export type ComposerRunningOutcome = {
+    status: 'running';
     submissions: SourceQuerySubmission[];
-    terminal: {
-        queryUuid: string;
-        columns: ResultColumns;
-        /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
-        rows: Record<string, AnyType>[];
-        rowCount: number;
-    };
-}>;
+    nodeStatuses: ComposerNodeStatus[];
+};
+
+/** RunComposerQueriesFn that returns running once deadlineMs passes instead of failing. */
+export type RunComposerQueriesUntilDeadlineFn = (args: {
+    queries: SourceQuery[];
+    terminalNodeId: string;
+    /** Nodes the run also waits for; when sampled, their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows read by that wait. */
+    otherUnreadNodeIds: string[];
+    /** Ready nodes to read a node sample of, also when the terminal is still running. */
+    sampleNodeIds: string[];
+    deadlineMs: number;
+}) => Promise<ComposerRunOutcome | ComposerRunningOutcome>;
 
 export type ListWarehouseTablesFn = (
     context?: QueryExecutionContext,
@@ -788,9 +836,11 @@ export type DescribeWarehouseTableFn = (args: {
     schema?: string;
     database?: string;
 }) => Promise<{
-    columns: Array<{ name: string; type: string }>;
+    columns: Array<{ name: string; type: string; nativeType: string | null }>;
     resolvedSchema: string | null;
     resolvedDatabase: string | null;
+    partitioning: TablePartitioning | null;
+    warehouseType: WarehouseTypes;
 }>;
 
 export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;

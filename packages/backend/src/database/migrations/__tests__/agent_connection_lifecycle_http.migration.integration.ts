@@ -11,7 +11,6 @@ import {
 } from '../../../testing/migratedDatabase';
 import {
     connectionFixture,
-    matrix,
     seedConnectionClient,
 } from './agentConnectionFixture.mock';
 import {
@@ -474,12 +473,7 @@ it.each(['session', 'pat'] as const)(
             .database('project_memberships')
             .where('user_id', f.user.user_id)
             .update({ role: ProjectMemberRole.DEVELOPER });
-        await f.savePolicy({
-            systemRoleMatrix: {
-                ...matrix(capabilities),
-                developer: capabilities,
-            },
-        });
+        await f.savePolicy({ allowedCapabilities: capabilities });
         const connection = await f.createConnection(capabilities);
         const cookie = await sessionCookie(
             f.database,

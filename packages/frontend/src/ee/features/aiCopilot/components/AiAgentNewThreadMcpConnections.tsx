@@ -1,18 +1,28 @@
 import {
     GITHUB_MCP_SERVER_NAME,
+    interpolateUiString,
     type AiMcpCredentialScope,
     type AiMcpServer,
 } from '@lightdash/common';
-import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Paper,
+    Popover,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconBrandGithub,
     IconCircleCheck,
-    IconInfoCircle,
     IconSparkles,
 } from '@tabler/icons-react';
-import { useCallback, useId, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../providers/Embed/useUiStrings';
 import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
     useAgentAiMcpServers,
@@ -40,30 +50,6 @@ const needsPersonalOauthConnection = (
     mcpServer.authType === 'oauth' &&
     (mcpServer.connectionStatus !== 'connected' ||
         mcpServer.credentialScope === 'shared');
-
-const getConnectionActionLabel = (
-    mcpServer: Pick<
-        AiMcpServer,
-        'name' | 'connectionStatus' | 'credentialScope'
-    >,
-) => {
-    if (
-        mcpServer.connectionStatus === 'connected' &&
-        mcpServer.credentialScope === 'shared'
-    ) {
-        return 'Sign in';
-    }
-
-    if (mcpServer.connectionStatus === 'error') {
-        return 'Sign in';
-    }
-
-    return 'Sign in';
-};
-
-const getMultiAppConnectionActionLabel = (
-    mcpServer: Pick<AiMcpServer, 'name'>,
-) => `Sign in to ${mcpServer.name}`;
 
 const getConnectionNote = (
     mcpServer: Pick<AiMcpServer, 'connectionStatus' | 'credentialScope'>,
@@ -125,18 +111,38 @@ const getConnectionIconColor = (
     return 'gray' as const;
 };
 
+type AppRow = {
+    key: string;
+    name: string;
+    icon: ReactNode;
+    action: { label: string; loading: boolean; onClick: () => void };
+};
+
 type Props = {
     projectUuid: string;
     agentUuid: string;
     onSuggestedPrompt?: (prompt: string) => void;
 };
 
-export const AiAgentNewThreadMcpConnections: FC<Props> = ({
+/** `tray` tucks the row under the composer card; `standalone` is a centered line. */
+export const AiAgentNewThreadMcpConnections: FC<
+    Props & { placement: 'tray' | 'standalone' }
+> = ({ placement, ...props }) =>
+    placement === 'tray' ? (
+        <Box className={styles.tray}>
+            <McpConnections {...props} />
+        </Box>
+    ) : (
+        <McpConnections {...props} />
+    );
+
+const McpConnections: FC<Props> = ({
     projectUuid,
     agentUuid,
     onSuggestedPrompt,
 }) => {
-    const sectionTitleId = useId();
+    const getUiString = useUiStrings();
+    const [isAppsPopoverOpen, appsPopoverHandlers] = useDisclosure(false);
     const [justConnectedGithub, setJustConnectedGithub] = useState(false);
     const {
         data: mcpServers,
@@ -344,97 +350,149 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
     const sectionSummary = isGithubOnly
         ? GITHUB_MCP_VALUE_SUMMARY
         : getConnectionSummary(appNames);
+    const isConnectingGithub =
+        isConnectingGithubMcp || isConnectingGithubMcpApp || isAttachingGithub;
 
-    const githubConnectButton = canOneClickConnectGithub ? (
-        <Button
-            key="github-connect"
-            size="compact-xs"
-            variant="subtle"
-            color="gray"
-            leftSection={<MantineIcon icon={IconBrandGithub} />}
-            loading={
-                isConnectingGithubMcp ||
-                isConnectingGithubMcpApp ||
-                isAttachingGithub
-            }
-            onClick={
-                canGithubAppConnect
-                    ? () => void handleConnectGithubMcpApp()
-                    : githubConfirmModalHandlers.open
-            }
-        >
-            GitHub
-        </Button>
-    ) : null;
-
-    const isSingleApp = appNames.length === 1;
+    const appRows: AppRow[] = [
+        ...mcpServersNeedingConnection.map((mcpServer): AppRow => {
+            return {
+                key: mcpServer.uuid,
+                name: mcpServer.name,
+                icon: (
+                    <AiMcpServerIcon
+                        color={getConnectionIconColor(mcpServer)}
+                        name={mcpServer.name}
+                        size={18}
+                        src={mcpServer.iconUrl}
+                    />
+                ),
+                action: {
+                    label: getUiString('aiAgent.mcpApps.signIn'),
+                    loading:
+                        isStartingMcpOAuthConnection &&
+                        startingMcpOAuthConnection?.mcpServerUuid ===
+                            mcpServer.uuid,
+                    onClick: () => void handleStartConnection(mcpServer.uuid),
+                },
+            };
+        }),
+        ...(canOneClickConnectGithub
+            ? [
+                  {
+                      key: 'github-connect',
+                      name: GITHUB_MCP_SERVER_NAME,
+                      icon: <MantineIcon icon={IconBrandGithub} size={18} />,
+                      action: {
+                          label: getUiString('aiAgent.mcpApps.connect'),
+                          loading: isConnectingGithub,
+                          onClick: canGithubAppConnect
+                              ? () => void handleConnectGithubMcpApp()
+                              : () => {
+                                    appsPopoverHandlers.close();
+                                    githubConfirmModalHandlers.open();
+                                },
+                      },
+                  },
+              ]
+            : []),
+    ];
+    const availableLabel = interpolateUiString(
+        getUiString(
+            appRows.length === 1
+                ? 'aiAgent.mcpApps.available.singular'
+                : 'aiAgent.mcpApps.available.plural',
+        ),
+        { count: appRows.length },
+    );
 
     return (
         <Box
             className={styles.connectionStrip}
             component="section"
-            aria-labelledby={sectionTitleId}
-            aria-busy={isStartingMcpOAuthConnection}
+            aria-label={availableLabel}
+            aria-busy={isStartingMcpOAuthConnection || isConnectingGithub}
         >
-            <Group align="flex-start" gap="sm" wrap="nowrap">
-                <MantineIcon
-                    icon={IconInfoCircle}
-                    size={14}
-                    color="ldGray.5"
-                    className={styles.connectionIcon}
-                />
-                <Stack gap="xs" flex={1} miw={0}>
-                    <Stack gap={2}>
-                        <Text id={sectionTitleId} size="xs" c="dimmed">
-                            {sectionSummary}
+            <Popover
+                opened={isAppsPopoverOpen}
+                onChange={(opened) =>
+                    opened
+                        ? appsPopoverHandlers.open()
+                        : appsPopoverHandlers.close()
+                }
+                position="top"
+                width={320}
+                trapFocus
+                returnFocus
+                withinPortal
+            >
+                <Popover.Target>
+                    <UnstyledButton
+                        className={styles.connectionLine}
+                        aria-haspopup="dialog"
+                        aria-expanded={isAppsPopoverOpen}
+                        onClick={appsPopoverHandlers.toggle}
+                    >
+                        <Group gap={4} wrap="nowrap" aria-hidden>
+                            {appRows.map((row) => (
+                                <Box key={row.key} className={styles.lineIcon}>
+                                    {row.icon}
+                                </Box>
+                            ))}
+                        </Group>
+                        <Text component="span" fz="sm" c="dimmed">
+                            {availableLabel}
                         </Text>
-                        {connectionNote && (
-                            <Text size="xs" c="ldGray.5">
-                                {connectionNote}
+                    </UnstyledButton>
+                </Popover.Target>
+                <Popover.Dropdown p="xs">
+                    <Stack gap="xs">
+                        <Stack gap={2} px={6} pt={2}>
+                            <Text size="xs" c="dimmed">
+                                {sectionSummary}
                             </Text>
-                        )}
-                    </Stack>
-                    <Group gap="xs" wrap="wrap">
-                        {mcpServersNeedingConnection.map((mcpServer) => {
-                            const isConnecting =
-                                isStartingMcpOAuthConnection &&
-                                startingMcpOAuthConnection?.mcpServerUuid ===
-                                    mcpServer.uuid;
-                            const iconColor = getConnectionIconColor(mcpServer);
-
-                            return (
-                                <Button
-                                    key={mcpServer.uuid}
-                                    size="compact-xs"
-                                    variant="subtle"
-                                    color="gray"
-                                    leftSection={
-                                        <AiMcpServerIcon
-                                            color={iconColor}
-                                            name={mcpServer.name}
-                                            size={16}
-                                            src={mcpServer.iconUrl}
-                                        />
-                                    }
-                                    loading={isConnecting}
-                                    onClick={() =>
-                                        void handleStartConnection(
-                                            mcpServer.uuid,
-                                        )
-                                    }
+                            {connectionNote && (
+                                <Text size="xs" c="dimmed">
+                                    {connectionNote}
+                                </Text>
+                            )}
+                        </Stack>
+                        <Stack gap={2}>
+                            {appRows.map((row) => (
+                                <Group
+                                    key={row.key}
+                                    gap="xs"
+                                    wrap="nowrap"
+                                    className={styles.appRow}
                                 >
-                                    {isSingleApp
-                                        ? getConnectionActionLabel(mcpServer)
-                                        : getMultiAppConnectionActionLabel(
-                                              mcpServer,
-                                          )}
-                                </Button>
-                            );
-                        })}
-                        {githubConnectButton}
-                    </Group>
-                </Stack>
-            </Group>
+                                    <Box className={styles.lineIcon}>
+                                        {row.icon}
+                                    </Box>
+                                    <Text fz="sm" flex={1} miw={0} truncate>
+                                        {row.name}
+                                    </Text>
+                                    <Button
+                                        size="compact-xs"
+                                        variant="default"
+                                        loading={row.action.loading}
+                                        onClick={row.action.onClick}
+                                        aria-label={interpolateUiString(
+                                            getUiString(
+                                                'aiAgent.mcpApps.actionFor',
+                                            ),
+                                            {
+                                                action: row.action.label,
+                                                app: row.name,
+                                            },
+                                        )}
+                                    >
+                                        {row.action.label}
+                                    </Button>
+                                </Group>
+                            ))}
+                        </Stack>
+                    </Stack>
+                </Popover.Dropdown>
+            </Popover>
             <GithubMcpConnectModal
                 opened={isGithubConfirmModalOpen}
                 onClose={githubConfirmModalHandlers.close}

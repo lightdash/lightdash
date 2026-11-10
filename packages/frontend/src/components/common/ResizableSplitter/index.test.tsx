@@ -7,8 +7,8 @@ import {
     screen,
     waitFor,
 } from '@testing-library/react';
-import { createRef } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { createRef, useLayoutEffect, useRef, type RefObject } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ResizableSplitter from './index';
 
 const Layout = ({
@@ -38,11 +38,39 @@ const Layout = ({
     </MantineProvider>
 );
 
+const PreviewLayout = ({
+    preview,
+    splitterRef,
+}: {
+    preview: boolean;
+    splitterRef?: RefObject<UseSplitterReturnValue | null>;
+}) => (
+    <MantineProvider>
+        <ResizableSplitter splitterRef={splitterRef}>
+            <ResizableSplitter.Pane id="sidebar" defaultSize={40} collapsible>
+                Sidebar
+            </ResizableSplitter.Pane>
+            <ResizableSplitter.Pane id="chat" defaultSize={40}>
+                Chat
+            </ResizableSplitter.Pane>
+            {preview && (
+                <ResizableSplitter.Pane id="preview" defaultSize={20}>
+                    Preview
+                </ResizableSplitter.Pane>
+            )}
+        </ResizableSplitter>
+    </MantineProvider>
+);
+
 const separator = () =>
     screen.getByRole('separator', { name: 'Resize panels' });
 
 describe('ResizableSplitter', () => {
     beforeEach(() => localStorage.clear());
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+    });
 
     it('restores resized layouts after conditional panes close and reopen without remounting editor content', () => {
         const { rerender } = render(<Layout />);
@@ -100,6 +128,42 @@ describe('ResizableSplitter', () => {
         fireEvent.keyDown(separator(), { key: 'ArrowRight', shiftKey: true });
         expect(separator()).toHaveAttribute('aria-valuenow', '60');
         expect(separator()).toHaveAttribute('aria-disabled', 'true');
+    });
+
+    it('applies pointer drags made after a pane opens', () => {
+        vi.stubGlobal('PointerEvent', MouseEvent);
+        vi.spyOn(
+            HTMLElement.prototype,
+            'getBoundingClientRect',
+        ).mockReturnValue(new DOMRect(0, 0, 1000, 500));
+        const { rerender } = render(<PreviewLayout preview={false} />);
+        rerender(<PreviewLayout preview />);
+
+        const handle = screen.getAllByRole('separator')[0];
+        handle.setPointerCapture = vi.fn();
+        fireEvent.pointerDown(handle, { button: 0, clientX: 400 });
+        fireEvent.pointerUp(document, { clientX: 500 });
+
+        expect(handle).toHaveAttribute('aria-valuenow', '50');
+    });
+
+    it('applies a collapse made from a parent layout effect when panes change', () => {
+        const CollapsesOnPreview = ({ preview }: { preview: boolean }) => {
+            const splitterRef = useRef<UseSplitterReturnValue>(null);
+            useLayoutEffect(() => {
+                if (preview) splitterRef.current?.collapse(0);
+            }, [preview]);
+            return (
+                <PreviewLayout preview={preview} splitterRef={splitterRef} />
+            );
+        };
+        const { rerender } = render(<CollapsesOnPreview preview={false} />);
+        rerender(<CollapsesOnPreview preview />);
+
+        expect(screen.getAllByRole('separator')[0]).toHaveAttribute(
+            'aria-valuenow',
+            '0',
+        );
     });
 
     it('restores the previous size after imperative collapse and expand', () => {

@@ -18,21 +18,26 @@ import {
     useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import classes from './AppIframePreview.module.css';
 import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
     useAppSdkBridge,
     type ElementSelectedEvent,
+    type AppStateEvent,
     type ExternalRequestEvent,
     type QueryEvent,
     type SdkManifest,
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
 import { useAppViewOutcomes } from './hooks/useAppViewOutcomes';
+import { useIframePdfExport } from './hooks/useIframePdfExport';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
 import { withColorSchemeParam } from './utils/appIframeUrl';
 
 export type AppIframePreviewHandle = {
     captureScreenshot: () => Promise<File>;
+    /** Runs the app's registered Download PDF builder; rejects if none. */
+    exportPdf: () => Promise<Blob>;
 };
 
 type Props = {
@@ -60,6 +65,8 @@ type Props = {
      *  tab. Left undefined by hosts that don't surface the inspector (embed,
      *  dashboard tiles). */
     onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
+    /** Reports app-state reads/writes for the same inspector tab. */
+    onAppStateEvent?: (event: AppStateEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     /** When true, the iframe-side inspector overlay is active and clicks
      *  are intercepted to produce element-selected events. */
@@ -76,6 +83,8 @@ type Props = {
      *  resumed sandboxes never announce, so the Screenshot button stays
      *  hidden for them. */
     onScreenshotAvailabilityChange?: (available: boolean) => void;
+    /** Fires when the app registers a PDF export via `registerPdfExport`. */
+    onPdfExportAvailabilityChange?: (available: boolean) => void;
     /** Called when the user presses Esc to leave inspect mode. The handler
      *  lives on the parent's window because that's where focus actually
      *  sits during inspect mode (the toolbar button before any click; the
@@ -168,6 +177,7 @@ type Props = {
     onInsightAction?: (action: DataAppInsightAction) => void;
     onInsightsInUse?: () => void;
     onInsightInstructionsChange?: (instructions: string | null) => void;
+    onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
 
@@ -203,10 +213,12 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             identityKey,
             onQueryEvent,
             onExternalRequestEvent,
+            onAppStateEvent,
             onElementSelected,
             inspectorEnabled,
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
+            onPdfExportAvailabilityChange,
             onInspectorCancelled,
             lineageEnabled,
             onLineageAvailabilityChange,
@@ -238,6 +250,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
         },
         ref,
@@ -327,6 +340,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         const handleScreenshotAnnounce = useCallback(() => {
             onScreenshotAvailabilityChange?.(true);
         }, [onScreenshotAvailabilityChange]);
+        const handlePdfExportAnnounce = useCallback(() => {
+            onPdfExportAvailabilityChange?.(true);
+        }, [onPdfExportAvailabilityChange]);
         const handleLineageAnnounce = useCallback(() => {
             onLineageAvailabilityChange?.(true);
         }, [onLineageAvailabilityChange]);
@@ -361,6 +377,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onElementSelected,
             onInspectorAvailable: handleInspectorAnnounce,
             onScreenshotAvailable: handleScreenshotAnnounce,
+            onPdfExportAvailable: handlePdfExportAnnounce,
             dashboardFilters,
             invalidateCache,
             deliveryCapture,
@@ -370,6 +387,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageAvailable: handleLineageAnnounce,
             onLineageSelected,
             onExternalRequestEvent,
+            onAppStateEvent,
             dataAppVizContext,
             dataAppVizMode,
             chartContext,
@@ -389,12 +407,15 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
+        const { exportPdf } = useIframePdfExport(iframeRef);
 
-        useImperativeHandle(ref, () => ({ captureScreenshot }), [
+        useImperativeHandle(ref, () => ({ captureScreenshot, exportPdf }), [
             captureScreenshot,
+            exportPdf,
         ]);
 
         // Reset availability to false when the served bundle changes (new app or
@@ -408,11 +429,13 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         useEffect(() => {
             onInspectorAvailabilityChange?.(false);
             onScreenshotAvailabilityChange?.(false);
+            onPdfExportAvailabilityChange?.(false);
             onLineageAvailabilityChange?.(false);
         }, [
             identityKey,
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
+            onPdfExportAvailabilityChange,
             onLineageAvailabilityChange,
         ]);
 
@@ -472,15 +495,10 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 data-tour-docs="data-apps.mdx#choosing-a-template:li1"
                 ref={iframeRef}
                 src={effectiveSrc}
-                style={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    colorScheme,
-                    // Keep the host surface visible until the app applies its theme.
-                    visibility:
-                        loadedSrc === effectiveSrc ? 'visible' : 'hidden',
-                }}
+                className={classes.frame}
+                data-color-scheme={colorScheme}
+                // Keep the host surface visible until the app applies its theme.
+                data-loading={loadedSrc !== effectiveSrc || undefined}
                 title="App preview"
                 sandbox="allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""

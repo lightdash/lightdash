@@ -4,7 +4,8 @@ import {
     type ComposerRunQueryChart,
     type ResultRow,
 } from '@lightdash/common';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC, type RefObject } from 'react';
+import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
@@ -21,6 +22,7 @@ type Props = {
     flush?: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
+    setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
 };
 
 // A composer result drawn through the Lightdash visualization, read-only.
@@ -32,6 +34,7 @@ export const AiComposerRunQueryChart: FC<Props> = ({
     flush = false,
     onScreenshotReady,
     onScreenshotError,
+    setEchartsRef,
 }) => {
     const { data: palette } = useProjectColorPalette(projectUuid);
     const colorPalette = palette?.colors ?? ECHARTS_DEFAULT_COLORS;
@@ -74,6 +77,7 @@ export const AiComposerRunQueryChart: FC<Props> = ({
                 colorPalette={colorPalette}
                 isLoading={results.isFetchingRows}
                 unsavedMetricQuery={metricQuery}
+                setEchartsRef={setEchartsRef}
             >
                 <LightdashVisualization
                     className="sentry-block ph-no-capture"

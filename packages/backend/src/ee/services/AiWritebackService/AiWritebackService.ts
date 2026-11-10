@@ -2051,6 +2051,7 @@ export class AiWritebackService extends BaseService {
         user: SessionUser,
         aiWritebackRunUuid: string,
     ): Promise<{
+        projectUuid: string;
         status: AiWritebackRunStatus;
         prUrl: string | null;
         errorMessage: string | null;
@@ -2063,6 +2064,7 @@ export class AiWritebackService extends BaseService {
             aiWritebackRunUuid,
         );
         return {
+            projectUuid: runRow.project_uuid,
             status: runRow.status,
             prUrl: runRow.pr_url,
             errorMessage: runRow.error_message,

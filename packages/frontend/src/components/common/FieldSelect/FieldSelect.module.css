@@ -5,3 +5,7 @@
 .optionIcon {
     flex-shrink: 0;
 }
+
+.optionLabel {
+    word-break: normal;
+}

@@ -191,6 +191,8 @@ export type DuckdbParquetSource = {
     }[];
     /** Exact server-signed GET URLs; never combine with bucket credentials. */
     signedUrls?: boolean;
+    /** Sign buffered object URLs only when private staging cannot be used. */
+    getSignedUrls?: (urls: readonly string[]) => Promise<readonly string[]>;
     httpAuth?: { bearerToken: string };
     s3Config?: DuckdbS3SessionConfig;
 };
@@ -1261,7 +1263,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const references =
             await DuckdbWarehouseClient.getParquetQueryTables(querySql);
         const referencedTables = references ? new Set(references) : undefined;
+        const sourceStart = performance.now();
         const resolved = await this.parquetConfig!.resolveSource(references);
+        const sourceResolutionMs = performance.now() - sourceStart;
         const source = {
             ...resolved,
             tables: resolved.tables.map((table) => ({
@@ -1298,6 +1302,39 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 'Signed Parquet sources cannot carry bucket credentials',
             );
         }
+        if (source.getSignedUrls && !source.signedUrls) {
+            throw new ParameterError(
+                'Deferred Parquet signing requires a signed source',
+            );
+        }
+        const validateUrl = (url: string, allowBuffered: boolean) => {
+            const parsed = new URL(url);
+            const buffered =
+                allowBuffered &&
+                source.getSignedUrls &&
+                source.fileBuffers?.has(url) &&
+                !parsed.search;
+            if (
+                parsed.href !== url ||
+                !url.startsWith(source.scope) ||
+                !parsed.pathname.endsWith('.parquet') ||
+                (!source.signedUrls && parsed.search) ||
+                (source.signedUrls &&
+                    ((!buffered &&
+                        !parsed.searchParams.has('X-Amz-Signature') &&
+                        !parsed.searchParams.has('X-Goog-Signature')) ||
+                        !/^[a-zA-Z0-9_./=%-]+$/.test(parsed.pathname) ||
+                        /%(?!3D)/i.test(parsed.pathname))) ||
+                parsed.hash ||
+                /[*?[\]{}]/.test(parsed.pathname) ||
+                (!source.signedUrls && parsed.pathname.includes('%'))
+            ) {
+                throw new ParameterError(
+                    'Parquet file is outside the trusted source prefix',
+                );
+            }
+            return parsed;
+        };
         const names = new Set<string>();
         const validateColumns = (columns: DuckdbParquetColumns) => {
             if (
@@ -1368,27 +1405,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 );
             }
             names.add(name);
-            urls.forEach((url) => {
-                const parsed = new URL(url);
-                if (
-                    parsed.href !== url ||
-                    !url.startsWith(source.scope) ||
-                    !parsed.pathname.endsWith('.parquet') ||
-                    (!source.signedUrls && parsed.search) ||
-                    (source.signedUrls &&
-                        ((!parsed.searchParams.has('X-Amz-Signature') &&
-                            !parsed.searchParams.has('X-Goog-Signature')) ||
-                            !/^[a-zA-Z0-9_./=%-]+$/.test(parsed.pathname) ||
-                            /%(?!3D)/i.test(parsed.pathname))) ||
-                    parsed.hash ||
-                    /[*?[\]{}]/.test(parsed.pathname) ||
-                    (!source.signedUrls && parsed.pathname.includes('%'))
-                ) {
-                    throw new ParameterError(
-                        'Parquet file is outside the trusted source prefix',
-                    );
-                }
-            });
+            urls.forEach((url) => validateUrl(url, true));
         });
         if (source.httpAuth) {
             if (scope.protocol !== 'https:') {
@@ -1427,6 +1444,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         await db.run('SET parquet_metadata_cache = true;');
         // Only validated manifest URLs can supply bytes. Each query owns a
         // private directory; never allow the shared cache or another query's paths.
+        const stagingStart = performance.now();
+        let stagedFiles = 0;
         if (source.signedUrls && source.fileBuffers && parquetDirectory) {
             let stagedBytes = 0;
             for (const table of source.tables) {
@@ -1465,13 +1484,55 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                             localPaths.push(localPath);
                         }
                         table.urls = localPaths;
+                        stagedFiles += localPaths.length;
                     } catch {
                         // Keep the entire table remote if temporary storage is unavailable.
                     }
                 }
             }
         }
+        const stagingMs = performance.now() - stagingStart;
+        if (source.getSignedUrls) {
+            for (const table of source.tables) {
+                const unsignedUrls = table.urls.filter(
+                    (url) =>
+                        url.startsWith(source.scope) && !new URL(url).search,
+                );
+                if (unsignedUrls.length > 0) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const signedUrls = await source.getSignedUrls(unsignedUrls);
+                    if (signedUrls.length !== unsignedUrls.length) {
+                        throw new ParameterError(
+                            'Invalid signed Parquet manifest',
+                        );
+                    }
+                    const replacements = new Map<string, string>();
+                    unsignedUrls.forEach((url, index) => {
+                        const signed = validateUrl(signedUrls[index], false);
+                        const original = new URL(url);
+                        if (
+                            signed.origin !== original.origin ||
+                            signed.pathname !== original.pathname
+                        ) {
+                            throw new ParameterError(
+                                'Signed Parquet URL must match the requested object',
+                            );
+                        }
+                        replacements.set(url, signed.href);
+                    });
+                    table.urls = table.urls.map(
+                        (url) => replacements.get(url) ?? url,
+                    );
+                }
+            }
+        }
         const files = source.tables.flatMap(({ urls }) => urls);
+        this.logger?.info('DuckDB Parquet source prepared', {
+            sourceResolutionMs,
+            stagingMs,
+            fileCount: files.length,
+            stagedFiles,
+        });
         await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
         await db.run('SET enable_external_access = false;');
         // Only bind the dependencies resolved in the isolated parser above.

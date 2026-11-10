@@ -2,6 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import Ajv from 'ajv';
 import { randomUUID } from 'crypto';
 import { type Response } from 'node-fetch';
+import { CLI_VERSION } from '../env';
 import { createAgentConnectionFetch } from './apiUrl';
 import { validateSlot, type AgentConnectionSlot, type SlotKey } from './schema';
 import { publicConnectionReport } from './statusResponse';
@@ -274,13 +275,15 @@ export class AgentTokenProvider {
                             body,
                             redirect: 'error',
                             signal: AbortSignal.timeout(15_000),
-                            headers:
-                                proxyAuthorization === null
+                            headers: {
+                                'User-Agent': `lightdash-cli/${CLI_VERSION}`,
+                                ...(proxyAuthorization === null
                                     ? {}
                                     : {
                                           'Proxy-Authorization':
                                               proxyAuthorization,
-                                      },
+                                      }),
+                            },
                         },
                     );
                     if (!response.ok) throw reconnectError();

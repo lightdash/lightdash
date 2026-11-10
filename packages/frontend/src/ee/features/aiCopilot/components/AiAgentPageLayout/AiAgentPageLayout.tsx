@@ -46,6 +46,7 @@ import { AiDocumentPreviewPanel } from '../ChatElements/AiDocumentPreviewPanel';
 import { AiQueryPipelinePreviewPanel } from '../ChatElements/AiQueryPipelinePreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
+import { ArtifactFocusContext, useArtifactFocusMode } from './artifactFocus';
 import {
     PREVIEW_PANE_MAX,
     PREVIEW_PANE_MIN,
@@ -139,6 +140,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         { close: closeMobileSidebar, toggle: toggleMobileSidebar },
     ] = useDisclosure(false);
     const { pathname } = useLocation();
+    const artifactFocus = useArtifactFocusMode(isMobile ? null : preview);
 
     // Navigating from a thread link inside the drawer should dismiss it
     useEffect(() => {
@@ -177,6 +179,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 isEmbed && styles.workspaceEmbed,
                 isSdk && styles.workspaceSdk,
             )}
+            data-artifact-focused={artifactFocus.isFocused || undefined}
         >
             <ResizableSplitter
                 orientation="horizontal"
@@ -190,12 +193,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     if (index === 0 && Sidebar && !isMobile)
                         setIsAgentSidebarCollapsed?.(collapsed);
                 }}
-                style={{ flex: 1, minWidth: 0 }}
+                flex={1}
+                miw={0}
             >
                 {Sidebar && !isMobile && (
                     <ResizableSplitter.Pane
                         id="sidebar"
-                        defaultSize="280px"
+                        defaultSize="300px"
                         min="170px"
                         max={40}
                         collapsible
@@ -321,9 +325,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         max={PREVIEW_PANE_MAX}
                     >
                         <ErrorBoundary>
-                            <Box className={styles.floatingArtifactWrap}>
-                                {renderPreviewPanel(preview)}
-                            </Box>
+                            <ArtifactFocusContext.Provider
+                                value={artifactFocus}
+                            >
+                                <Box className={styles.floatingArtifactWrap}>
+                                    {renderPreviewPanel(preview)}
+                                </Box>
+                            </ArtifactFocusContext.Provider>
                         </ErrorBoundary>
                     </ResizableSplitter.Pane>
                 )}
@@ -375,18 +383,12 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     withCloseButton={false}
                     classNames={{
                         inner: isSdk ? styles.sdkDrawerInner : undefined,
+                        body: styles.previewDrawerBody,
                     }}
                     transitionProps={{
                         transition: 'slide-up',
                         duration: 200,
                         timingFunction: 'ease-out',
-                    }}
-                    styles={{
-                        body: {
-                            padding: 0,
-                            paddingBottom: 'var(--mantine-spacing-lg)',
-                            height: '100%',
-                        },
                     }}
                 >
                     {preview && renderPreviewPanel(preview)}

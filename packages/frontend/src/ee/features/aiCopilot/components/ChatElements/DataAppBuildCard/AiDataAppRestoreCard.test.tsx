@@ -65,7 +65,6 @@ const app: ApiGetAppResponse['results'] = {
     addAnalysisDismissed: false,
     icon: null,
     verification: null,
-    autoAnalysis: 'inherit',
 };
 
 const item: DataAppRestoreContextItem = {

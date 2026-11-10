@@ -1,5 +1,5 @@
 import { QueryHistoryStatus } from '@lightdash/common';
-import { canReuseQueryResult } from './queryResultReuse';
+import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
 
 const now = Date.parse('2026-01-12T12:00:00Z');
 const source = {
@@ -54,5 +54,31 @@ describe('presentation result reuse', () => {
                 parameters: { region: 9 },
             }),
         ).toBe(false);
+    });
+});
+
+describe('live source result reuse', () => {
+    const apiResult = {
+        status: QueryHistoryStatus.READY,
+        resultsFileName: 'rows.jsonl',
+        resultsCreatedAt: new Date(now - 30_000),
+        resultsExpiresAt: new Date(now + 60_000),
+    };
+
+    it('reuses ready rows fetched within the last minute', () => {
+        expect(canReuseApiResult(apiResult, now)).toBe(true);
+        expect(
+            canReuseApiResult({ ...apiResult, resultsExpiresAt: null }, now),
+        ).toBe(true);
+    });
+    it.each([
+        { status: QueryHistoryStatus.PENDING },
+        { status: QueryHistoryStatus.ERROR },
+        { resultsFileName: null },
+        { resultsCreatedAt: null },
+        { resultsCreatedAt: new Date(now - 61_000) },
+        { resultsExpiresAt: new Date(now) },
+    ])('fetches again for missing, failed or stale rows: %j', (change) => {
+        expect(canReuseApiResult({ ...apiResult, ...change }, now)).toBe(false);
     });
 });

@@ -1,4 +1,8 @@
-import { type QueryHistory, type QueryResultProducer } from '@lightdash/common';
+import {
+    ResultsCacheMissReason,
+    type QueryHistory,
+    type QueryResultProducer,
+} from '@lightdash/common';
 import { DbQueryHistory } from '../../database/entities/queryHistory';
 
 export enum ResultsCacheStatus {
@@ -11,6 +15,7 @@ export type CacheHitCacheResult = {
     queryHistory?: QueryHistory;
     resultProducer: QueryResultProducer | null;
     cacheKey: string;
+    cacheGeneration: number;
     cacheHit: true;
     totalRowCount: number;
     fileName: string;
@@ -27,6 +32,24 @@ export type MissCacheResult = {
     cacheHit: false;
     updatedAt: undefined;
     expiresAt: undefined;
+    // null: a valid result existed but a refresh was forced
+    missReason: ResultsCacheMissReason | null;
 };
 
+export type CacheLookupMiss = {
+    cacheHit: false;
+    missReason: ResultsCacheMissReason;
+};
+
+export type CacheLookupResult = CacheHitCacheResult | CacheLookupMiss;
+
 export type CreateCacheResult = CacheHitCacheResult | MissCacheResult;
+
+export const cacheMiss = (
+    missReason: ResultsCacheMissReason | null,
+): MissCacheResult => ({
+    cacheHit: false,
+    updatedAt: undefined,
+    expiresAt: undefined,
+    missReason,
+});

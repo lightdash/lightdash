@@ -38,6 +38,27 @@ export const parameterValueSchema = z.union([
     z.array(z.number()),
 ]);
 
+const queryDimensionsSchema = z
+    .array(getFieldIdSchema({ additionalDescription: null }))
+    .describe(
+        'The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels. For a date, pick the field at the grain the user asked for (`order_date_month`, not `order_date`, for "by month").',
+    )
+    .meta({ id: 'QueryDimensions' });
+
+const queryMetricsSchema = z
+    .array(getFieldIdSchema({ additionalDescription: null }))
+    .describe(
+        'The field ids of the metrics to be calculated. They will be grouped by the dimensions.',
+    )
+    .meta({ id: 'QueryMetrics' });
+
+const querySortsSchema = z
+    .array(sortFieldSchema)
+    .describe(
+        'Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. `order_date_month_num`) while displaying another (`order_date_month_name`), select both as dimensions.',
+    )
+    .meta({ id: 'QuerySorts' });
+
 // Query configuration schema - what data to fetch
 export const queryConfigBaseSchema = z.object({
     exploreName: z
@@ -45,21 +66,9 @@ export const queryConfigBaseSchema = z.object({
         .describe(
             'The name of the explore containing the metrics and dimensions used for the chart.',
         ),
-    dimensions: z
-        .array(getFieldIdSchema({ additionalDescription: null }))
-        .describe(
-            'The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels. For a date, pick the field at the grain the user asked for (`order_date_month`, not `order_date`, for "by month").',
-        ),
-    metrics: z
-        .array(getFieldIdSchema({ additionalDescription: null }))
-        .describe(
-            'The field ids of the metrics to be calculated. They will be grouped by the dimensions.',
-        ),
-    sorts: z
-        .array(sortFieldSchema)
-        .describe(
-            'Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. `order_date_month_num`) while displaying another (`order_date_month_name`), select both as dimensions.',
-        ),
+    dimensions: queryDimensionsSchema,
+    metrics: queryMetricsSchema,
+    sorts: querySortsSchema,
     limit: z.coerce
         .number()
         .nullable()

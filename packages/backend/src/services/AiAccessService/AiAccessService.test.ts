@@ -1080,7 +1080,6 @@ describe('AiAccessService', () => {
                         mode: mode === 'managed' ? 'managed' : 'legacy',
                         version: 1,
                         allowedCapabilities: null,
-                        systemRoleMatrix: {} as never,
                     });
                 const oauth = fromOauth(toSessionUser(admin), {
                     accessToken: 'token',
@@ -2255,6 +2254,15 @@ describe('AiAccessService', () => {
             isRegisteredUser: true,
             isServiceAccount: false,
         });
+    });
+    test('needs no identity in a project without a warehouse', async () => {
+        const { service, projects } = setup();
+        projects.getWarehouseCredentialsForBinding.mockRejectedValue(
+            new NotFoundError('No warehouse'),
+        );
+        expect(
+            await service.getMyAccess(viewer, 'project', null),
+        ).toMatchObject({ enabled: false, refusal: null, identity: null });
     });
     test('loads extra connection credentials in the project scope', async () => {
         const { service, connections, projects } = setup();

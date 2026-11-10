@@ -1,0 +1,7 @@
+.inviteHint {
+    word-break: keep-all;
+}
+
+.userSelect {
+    flex-grow: 1;
+}

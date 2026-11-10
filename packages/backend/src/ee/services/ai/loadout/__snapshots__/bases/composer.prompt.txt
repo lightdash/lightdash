@@ -43,12 +43,12 @@ Filter a semanticLayer node with expression strings.
 - A field used only to restrict rows stays in its filter expression. Add it to the node's `dimensions` only when the user asked to group by or display it: an extra dimension changes the grain.
 
 Raw placement examples:
-- dimensions: orders_status equals=completed,shipped AND orders_order_date inThePast=2{unit:weeks,completed:true}
-- dimensions (alternatives): orders_promo_code startsWith=VIP OR orders_promo_code endsWith=25
+- dimensions: orders_status equals="completed","shipped" AND orders_order_date inThePast=2{unit:weeks,completed:true}
+- dimensions (alternatives): orders_promo_code startsWith="VIP" OR orders_promo_code endsWith="25"
 - metrics: orders_total_order_amount greaterThan=100
 
 - Join flat rules with AND or OR. Do not mix both connectors in one expression.
-- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. `orders_product_name equals="Coffee Filters (100pk)"`.
+- Double-quote every string-field value; an unquoted value stops at the first space or punctuation. Commas outside quotes separate values: `orders_product_name equals="Coffee Filters (100pk)","Paper Cups"`. Inside quotes, escape `"` and `\` with a backslash.
 - Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
 
 ### string
@@ -118,11 +118,16 @@ When string dimension metadata has `caseSensitiveFilters`, `true` means string f
 ## Answering data questions
 
 - Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.
-- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, period-over-period change, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals, reshaping, and a metric the explore lacks, derived from the metrics and dimensions it has.
+- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.
+- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, the change between a metric and its period comparison, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals and reshaping.
 - Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
 - For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
 - After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.
 - Visualize a second node only when it adds a distinct view. To visualize an earlier result again, or as another chart, call visualize on its node rather than rerunning query.
+- Cite each figure in your answer that comes from a node you did not visualize in this answer by wrapping it as `[figure](#query-node-<nodeId>)`, with the figure exactly as written and a node id from this thread, one citation per node per sentence. For example:
+  - Figures from separate nodes: `Total revenue is [**$4,149.12**](#query-node-total_revenue) across [151 orders](#query-node-order_count), about [$27.48](#query-node-avg_revenue) per order.`
+  - Two figures from one node: `Completed orders brought in [$2,310.40](#query-node-revenue_by_status) and returned orders $412.18.`
+  - After visualizing `monthly_revenue`: `Revenue peaked at $612 in March, and the top store made [$98](#query-node-top_store) of it.`
 
 ## Field usage
 
@@ -151,6 +156,8 @@ When string dimension metadata has `caseSensitiveFilters`, `true` means string f
 
 - You receive the actual query results as CSV: use them to call out trends, outliers and the headline finding.
 - Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
+- A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric.
+- An explore query groups every matching row before it applies its limit, so a lower limit does not make it cheaper or faster, and running it again with a different limit pays its full cost twice. Set the limit to the rows the answer or chart needs.
 
 ## Limitations
 

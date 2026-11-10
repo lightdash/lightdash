@@ -21,6 +21,7 @@ export default function mockHealthResponse(
         localDbtEnabled: true,
         isAuthenticated: true,
         requiresOrgRegistration: false,
+        instanceBrand: null,
         latest: {
             version: '0.0.0',
         },
@@ -64,6 +65,7 @@ export default function mockHealthResponse(
         dashboard: {
             maxTilesPerTab: 50,
             maxTabsPerDashboard: 20,
+            maxConcurrentTileQueries: null,
             disableSentryTracking: false,
         },
         pivotTable: {
@@ -117,6 +119,9 @@ export default function mockHealthResponse(
         hasGitlab: false,
         hasJira: false,
         hasLinear: false,
+        hasPostHogOAuth: false,
+        hasLinkedInAdsOAuth: false,
+        hasGoogleLiveSources: false,
         hasCacheAutocompleResults: false,
         hasMicrosoftTeams: false,
         appearance: {
@@ -124,12 +129,10 @@ export default function mockHealthResponse(
             overrideColorPaletteName: undefined,
         },
         hasBrandfetch: false,
-        isOrganizationWarehouseCredentialsEnabled: false,
         isAthenaWarehouseIamRoleAuthEnabled: false,
         isSaveCredentialsFormEnabled: false,
         isCustomRolesEnabled: false,
         embedding: {
-            enabled: false,
             events: undefined,
         },
         ai: {

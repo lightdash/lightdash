@@ -1,12 +1,4 @@
 import {
-    DragDropContext,
-    Draggable,
-    Droppable,
-    type DraggableProvidedDragHandleProps,
-    type DraggableStateSnapshot,
-    type DropResult,
-} from '@hello-pangea/dnd';
-import {
     CartesianSeriesType,
     formatItemValue,
     getItemId,
@@ -21,13 +13,17 @@ import {
 } from '@lightdash/common';
 import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
-import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
+import {
+    SortableItem,
+    SortableList,
+    type SortableHandleProps,
+} from '../../../common/Sortable/Sortable';
 import { useVisualizationInputs } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
+import seriesClasses from './Series.module.css';
 import {
     SeriesDepthControl,
     type SeriesDrawOrderControl,
@@ -64,24 +60,12 @@ const getFormatterValue = (
     return formatItemValue(item, value, true, undefined, timezone);
 };
 
-type DraggablePortalHandlerProps = {
-    snapshot: DraggableStateSnapshot;
-};
-
-const DraggablePortalHandler: FC<
-    React.PropsWithChildren<DraggablePortalHandlerProps>
-> = ({ children, snapshot }) => {
-    const portalTarget = usePortalTarget();
-    if (snapshot.isDragging) return createPortal(children, portalTarget);
-    return <>{children}</>;
-};
-
 type GroupedSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
     seriesGroup: Series[];
     item: Field | TableCalculation | CustomDimension;
     items: Array<Field | TableCalculation | CustomDimension>;
-    dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    dragHandleProps?: SortableHandleProps | null;
     isDragDisabled?: boolean;
     drawOrder?: SeriesDrawOrderControl;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
@@ -129,27 +113,24 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     const chartValue = isChartTypeTheSameForAllSeries ? chartType : 'mixed';
     const fieldKey = getItemId(item);
 
-    const onDragEnd = useCallback(
-        (result: DropResult) => {
+    const seriesGroupIds = seriesGroup.map(getSeriesId);
+
+    const onReorder = useCallback(
+        (from: number, to: number) => {
+            const draggableId = getSeriesId(seriesGroup[from]);
             const allSerieIds = series.map(getSeriesId);
-            const serie = series.find(
-                (s) => getSeriesId(s) === result.draggableId,
-            );
+            const serie = series.find((s) => getSeriesId(s) === draggableId);
             if (!serie) return;
-            if (!result.destination) return;
-            if (result.destination.index === result.source.index) return;
 
             const previousGroupedItem =
-                result.destination.index < seriesGroup.length
-                    ? seriesGroup[result.destination.index]
-                    : undefined;
+                to < seriesGroup.length ? seriesGroup[to] : undefined;
             const destinationIndex =
                 previousGroupedItem !== undefined
                     ? allSerieIds.indexOf(getSeriesId(previousGroupedItem))
                     : 0;
 
             const sortedSeries = series.filter(
-                (s) => getSeriesId(s) !== result.draggableId,
+                (s) => getSeriesId(s) !== draggableId,
             );
             sortedSeries.splice(destinationIndex, 0, serie);
 
@@ -312,131 +293,86 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         </Group>
                     )}
                 </Stack>
-                <Box
-                    bg="ldGray.1"
-                    p="xxs"
-                    ml="md"
-                    py="xs"
-                    style={{ borderRadius: 'var(--mantine-radius-sm)' }}
-                >
-                    <DragDropContext onDragEnd={onDragEnd}>
-                        <Droppable droppableId="grouped-series-sort-fields">
-                            {(dropProps) => (
-                                <div
-                                    {...dropProps.droppableProps}
-                                    ref={dropProps.innerRef}
-                                >
-                                    {seriesGroup.map((singleSeries, i) => {
-                                        const pivotLabel =
-                                            singleSeries.encode.yRef.pivotValues!.reduce(
-                                                (acc, { field, value }) => {
-                                                    const formattedValue =
-                                                        getFormatterValue(
-                                                            value,
-                                                            field,
-                                                            items,
-                                                            resolvedTimezone,
-                                                        );
-                                                    return acc
-                                                        ? `${acc} - ${formattedValue}`
-                                                        : formattedValue;
-                                                },
-                                                '',
-                                            );
-                                        return (
-                                            <Draggable
-                                                key={getSeriesId(singleSeries)}
-                                                draggableId={getSeriesId(
-                                                    singleSeries,
-                                                )}
-                                                index={i}
-                                                isDragDisabled={isDragDisabled}
+                <Box ml="md" className={seriesClasses.seriesList}>
+                    <SortableList items={seriesGroupIds} onReorder={onReorder}>
+                        <div>
+                            {seriesGroup.map((singleSeries) => {
+                                const pivotLabel =
+                                    singleSeries.encode.yRef.pivotValues!.reduce(
+                                        (acc, { field, value }) => {
+                                            const formattedValue =
+                                                getFormatterValue(
+                                                    value,
+                                                    field,
+                                                    items,
+                                                    resolvedTimezone,
+                                                );
+                                            return acc
+                                                ? `${acc} - ${formattedValue}`
+                                                : formattedValue;
+                                        },
+                                        '',
+                                    );
+                                const seriesId = getSeriesId(singleSeries);
+                                return (
+                                    <SortableItem
+                                        key={seriesId}
+                                        id={seriesId}
+                                        disabled={isDragDisabled}
+                                    >
+                                        {(sortable) => (
+                                            <Box
+                                                ref={sortable.ref}
+                                                className={sortable.className}
+                                                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+                                                style={sortable.style}
+                                                mb="xxs"
                                             >
-                                                {(
-                                                    {
-                                                        draggableProps,
-                                                        dragHandleProps:
-                                                            groupedDragHandleProps,
-                                                        innerRef,
-                                                    },
-                                                    snapshot,
-                                                ) => (
-                                                    <DraggablePortalHandler
-                                                        snapshot={snapshot}
-                                                    >
-                                                        <div
-                                                            ref={innerRef}
-                                                            {...draggableProps}
-                                                        >
-                                                            <Box
-                                                                mb="xxs"
-                                                                key={getSeriesId(
-                                                                    singleSeries,
-                                                                )}
-                                                            >
-                                                                <SingleSeriesConfiguration
-                                                                    dragHandleProps={
-                                                                        groupedDragHandleProps
-                                                                    }
-                                                                    isDragDisabled={
-                                                                        isDragDisabled
-                                                                    }
-                                                                    isCollapsable
-                                                                    layout={
-                                                                        layout
-                                                                    }
-                                                                    series={
-                                                                        singleSeries
-                                                                    }
-                                                                    seriesLabel={
-                                                                        layout?.yField &&
-                                                                        layout
-                                                                            .yField
-                                                                            .length >
-                                                                            1
-                                                                            ? `[${pivotLabel}] ${getItemLabelWithoutTableName(
-                                                                                  item,
-                                                                              )}`
-                                                                            : pivotLabel
-                                                                    }
-                                                                    updateSingleSeries={
-                                                                        updateSingleSeries
-                                                                    }
-                                                                    getSingleSeries={
-                                                                        getSingleSeries
-                                                                    }
-                                                                    isGrouped
-                                                                    isOpen={
-                                                                        openSeriesId ===
-                                                                        getSeriesId(
-                                                                            singleSeries,
-                                                                        )
-                                                                    }
-                                                                    toggleIsOpen={() =>
-                                                                        setOpenSeriesId(
-                                                                            openSeriesId ===
-                                                                                getSeriesId(
-                                                                                    singleSeries,
-                                                                                )
-                                                                                ? undefined
-                                                                                : getSeriesId(
-                                                                                      singleSeries,
-                                                                                  ),
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </Box>
-                                                        </div>
-                                                    </DraggablePortalHandler>
-                                                )}
-                                            </Draggable>
-                                        );
-                                    })}
-                                    {dropProps.placeholder}
-                                </div>
-                            )}
-                        </Droppable>
-                    </DragDropContext>
+                                                <SingleSeriesConfiguration
+                                                    dragHandleProps={
+                                                        sortable.handleProps
+                                                    }
+                                                    isDragDisabled={
+                                                        isDragDisabled
+                                                    }
+                                                    isCollapsable
+                                                    layout={layout}
+                                                    series={singleSeries}
+                                                    seriesLabel={
+                                                        layout?.yField &&
+                                                        layout.yField.length > 1
+                                                            ? `[${pivotLabel}] ${getItemLabelWithoutTableName(
+                                                                  item,
+                                                              )}`
+                                                            : pivotLabel
+                                                    }
+                                                    updateSingleSeries={
+                                                        updateSingleSeries
+                                                    }
+                                                    getSingleSeries={
+                                                        getSingleSeries
+                                                    }
+                                                    isGrouped
+                                                    isOpen={
+                                                        openSeriesId ===
+                                                        seriesId
+                                                    }
+                                                    toggleIsOpen={() =>
+                                                        setOpenSeriesId(
+                                                            openSeriesId ===
+                                                                seriesId
+                                                                ? undefined
+                                                                : seriesId,
+                                                        )
+                                                    }
+                                                />
+                                            </Box>
+                                        )}
+                                    </SortableItem>
+                                );
+                            })}
+                        </div>
+                    </SortableList>
                 </Box>
             </Config.Section>
         </Config>

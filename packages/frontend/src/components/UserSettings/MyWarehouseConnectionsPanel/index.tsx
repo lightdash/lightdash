@@ -2,13 +2,17 @@ import {
     UserWarehouseCredentialPurpose,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
-import { Anchor, Button, Text } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
-import { SettingsPage } from '../../common/Settings/SettingsPage';
+import {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageDocumentationLink,
+} from '../../common/Settings/SettingsPage';
 import { CreateCredentialsModal } from './CreateCredentialsModal';
 import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
@@ -27,58 +31,39 @@ export const MyWarehouseConnectionsPanel = () => {
         setWarehouseCredentialsToBeDeleted,
     ] = useState<UserWarehouseCredentials | undefined>(undefined);
 
-    const personalConnectionsCallout = (
-        <Text c="dimmed" fz="xs">
-            These credentials are only used for projects that require user
-            credentials -{' '}
-            <Anchor
-                role="button"
-                href="https://docs.lightdash.com/references/personal-warehouse-connections"
-                target="_blank"
-                rel="noreferrer"
-                fz="xs"
-            >
-                learn more
-            </Anchor>
-            .
-        </Text>
-    );
-
     return (
         <SettingsPage
             title="My warehouse connections"
-            description="Manage your personal warehouse credentials."
+            description="Manage your personal warehouse credentials. They're only used for projects that require user credentials."
             actions={
-                <Button
-                    size="xs"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setIsCreatingCredentials(true)}
-                >
-                    Add credentials
-                </Button>
+                <SettingsPageActions>
+                    <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/personal-warehouse-connections" />
+                    <Button
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={() => setIsCreatingCredentials(true)}
+                    >
+                        Add credentials
+                    </Button>
+                </SettingsPageActions>
             }
         >
             {defaultCredentials && defaultCredentials.length > 0 ? (
-                <>
-                    {personalConnectionsCallout}
-                    <CredentialsTable
-                        credentials={defaultCredentials}
-                        setWarehouseCredentialsToBeDeleted={
-                            setWarehouseCredentialsToBeDeleted
-                        }
-                        setWarehouseCredentialsToBeEdited={
-                            setWarehouseCredentialsToBeEdited
-                        }
-                    />
-                </>
+                <CredentialsTable
+                    credentials={defaultCredentials}
+                    setWarehouseCredentialsToBeDeleted={
+                        setWarehouseCredentialsToBeDeleted
+                    }
+                    setWarehouseCredentialsToBeEdited={
+                        setWarehouseCredentialsToBeEdited
+                    }
+                />
             ) : (
                 <SettingsEmptyState
                     icon={IconDatabaseCog}
                     title="No warehouse connections"
                     description="Add personal credentials for projects that require them."
-                >
-                    {personalConnectionsCallout}
-                </SettingsEmptyState>
+                />
             )}
 
             {!!warehouseCredentialsToBeEdited && (

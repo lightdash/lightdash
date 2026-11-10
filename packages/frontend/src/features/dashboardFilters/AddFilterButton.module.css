@@ -1,0 +1,30 @@
+.dashed {
+    border-style: dashed;
+}
+
+.attachedLeft {
+    border-right-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.attachedRight {
+    border-left: 0;
+    border-style: dashed;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    border-start-end-radius: 100px;
+    border-end-end-radius: 100px;
+}
+
+/* Keep the joined outline the same color when either half is highlighted. */
+[data-filter-actions]
+    .splitBorder[data-variant='default']:is(:hover, [aria-expanded='true']):not(
+        [data-disabled],
+        :disabled
+    ) {
+    border-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-4)
+    );
+}

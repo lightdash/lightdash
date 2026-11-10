@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ChartKind,
     getComposerVizPanelOptions,
@@ -10,18 +11,37 @@ import {
     type ComposerVizKind,
     type ComposerVizPanelOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Stack, Tooltip } from '@mantine/core';
-import { useDebouncedCallback } from '@mantine/hooks';
-import { IconArrowLeft, IconX } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Group,
+    Menu,
+    SegmentedControl,
+    Stack,
+} from '@mantine/core';
+import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
+import { IconDots, IconTableExport } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC, type RefObject } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import TruncatedText from '../../../../../components/common/TruncatedText';
+import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
+import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
+import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
+import useApp from '../../../../../providers/App/useApp';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import styles from './AiArtifactPanel.module.css';
+import {
+    AiChartImageExportMenuItem,
+    AiChartImageExportModal,
+} from './AiChartImageExport';
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
 import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
-import { AiComposerPipelinePanel } from './composerPipeline/AiComposerPipelinePanel';
+import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
+import { ArtifactPanelHeading } from './ArtifactPanelHeading';
+import { AiComposerLineage } from './composerPipeline/AiComposerLineage';
 import {
     AiComposerVizConfigPanel,
     type AiComposerVizConfigPanelMode,
@@ -43,6 +63,8 @@ type Props = {
     source: ComposerPanelSource;
     title: string;
     description: string | null;
+    /** The turn edited the previous result rather than building a new one. */
+    isRevision: boolean;
     config: AiComposerChartArtifactConfig;
     /** The run started on open; null while it starts or when it failed. */
     run: ApiAiAgentComposerArtifactVizQuery | null;
@@ -55,16 +77,20 @@ type Props = {
     chatNodeIds: ReadonlySet<string>;
     /** Null when this pipeline can't be pinned to the chat. */
     onAddToChat: ((node: { nodeId: string; title: string }) => void) | null;
+    initialView: ArtifactView;
 };
 
-// Composer artifact: the displayed node result, the viz config panel under it,
-// the pipeline panel at the bottom. Keyed per version so a new version resets it.
+type ArtifactView = 'chart' | 'lineage';
+
+// Composer artifact: the result as a chart, or its lineage (graph and steps).
+// Keyed per version so a new version resets it.
 export const AiComposerArtifactPanel: FC<Props> = ({
     projectUuid,
     agentUuid,
     source,
     title,
     description,
+    isRevision,
     config,
     run,
     runError,
@@ -73,11 +99,30 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     onClose,
     chatNodeIds,
     onAddToChat,
+    initialView,
 }) => {
-    const [displayedNodeId, setDisplayedNodeId] = useState(
-        config.terminalNodeId,
+    const getUiString = useUiStrings();
+    const { user } = useApp();
+    const ability = useAbilityContext();
+    const isEmbed = useIsEmbedded();
+    const [view, setView] = useState<ArtifactView>(initialView);
+    const [imageExportRef, setImageExportRef] =
+        useState<RefObject<EChartsReact | null>>();
+    const [
+        exportImageModalOpened,
+        { open: openExportImageModal, close: closeExportImageModal },
+    ] = useDisclosure(false);
+    const [
+        downloadModalOpened,
+        { open: openDownloadModal, close: closeDownloadModal },
+    ] = useDisclosure(false);
+    const canExportData = user.data?.ability?.can(
+        'manage',
+        subject('ExportCsv', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
     );
-    const isTerminalDisplayed = displayedNodeId === config.terminalNodeId;
     const nodeQueryUuids = run?.nodeQueryUuids ?? null;
     const displayableNodeIds = useMemo(
         () => new Set(Object.keys(nodeQueryUuids ?? {})),
@@ -89,11 +134,12 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     });
     const displayedNode = useMemo(
         () =>
-            config.queries.find((query) => query.nodeId === displayedNodeId) ??
-            null,
-        [config.queries, displayedNodeId],
+            config.queries.find(
+                (query) => query.nodeId === config.terminalNodeId,
+            ) ?? null,
+        [config.queries, config.terminalNodeId],
     );
-    const queryUuid = nodeQueryUuids?.[displayedNodeId];
+    const queryUuid = nodeQueryUuids?.[config.terminalNodeId];
 
     const results = useComposerNodeResults({
         projectUuid,
@@ -102,16 +148,16 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         queryUuid,
     });
     const { columns, rows, isLoading } = useArtifactResultRows(results);
+    const columnOrder = useMemo(
+        () => columns.map((column) => column.reference),
+        [columns],
+    );
     const storedVizConfig =
-        isTerminalDisplayed && config.schemaVersion === 1
-            ? (config.vizConfig ?? null)
-            : null;
+        config.schemaVersion === 1 ? (config.vizConfig ?? null) : null;
     // v2 draws the presented node through the runQuery chart builders; nothing to edit.
     // Tables draw like every other node's table.
     const runQueryVizConfig =
-        config.schemaVersion === 2 &&
-        isTerminalDisplayed &&
-        config.vizConfig?.type !== 'table'
+        config.schemaVersion === 2 && config.vizConfig?.type !== 'table'
             ? config.vizConfig
             : null;
     const metadata = useMemo(
@@ -123,18 +169,16 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         [columns, storedVizConfig],
     );
 
-    // Edits on screen: the terminal node's are written back, other nodes' are ephemeral.
-    const [editedValues, setEditedValues] = useState<
-        Record<string, AllVizChartConfig>
-    >({});
-    // The last chart viz config per node, restored when leaving the table.
-    const [rememberedCharts, setRememberedCharts] = useState<
-        Record<string, AllVizChartConfig>
-    >({});
+    const [editedValue, setEditedValue] = useState<AllVizChartConfig | null>(
+        null,
+    );
+    // The last chart viz config, restored when leaving the table.
+    const [rememberedChart, setRememberedChart] =
+        useState<AllVizChartConfig | null>(null);
     const isResultReady = !isLoading && !results.error && !runError;
     const value = isResultReady
-        ? (editedValues[displayedNodeId] ?? derivedValue)
-        : (editedValues[displayedNodeId] ?? storedVizConfig ?? derivedValue);
+        ? (editedValue ?? derivedValue)
+        : (editedValue ?? storedVizConfig ?? derivedValue);
     const options = useMemo(
         (): ComposerVizPanelOptions =>
             getComposerVizPanelOptions(value, columns, rows),
@@ -145,28 +189,19 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         (next: AllVizChartConfig) => onSaveVizConfig?.(next),
         { delay: SAVE_DELAY_MS, flushOnUnmount: true },
     );
-    const isWritable = isTerminalDisplayed && onSaveVizConfig !== null;
+    const isWritable = onSaveVizConfig !== null;
     const setValue = (next: AllVizChartConfig) => {
-        setEditedValues((current) => ({
-            ...current,
-            [displayedNodeId]: next,
-        }));
+        setEditedValue(next);
         if (isWritable) saveSoon(next);
     };
     const changeKind = (kind: ComposerVizKind) => {
-        const remembered = rememberedCharts[displayedNodeId] ?? null;
-        if (value.type !== ChartKind.TABLE) {
-            setRememberedCharts((current) => ({
-                ...current,
-                [displayedNodeId]: value,
-            }));
-        }
+        if (value.type !== ChartKind.TABLE) setRememberedChart(value);
         setValue(
             switchComposerVizKind(value, kind, {
                 columns,
                 rows,
                 node: displayedNode,
-                remembered,
+                remembered: rememberedChart,
             }),
         );
     };
@@ -175,136 +210,205 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const hasVizConfigPanel = false;
     const panelMode = ((): AiComposerVizConfigPanelMode => {
         if (!isResultReady || options.kinds.length <= 1) return 'static';
-        return isTerminalDisplayed ? 'expandable' : 'switcher';
+        return 'expandable';
     })();
     const fieldsDisabledReason = isWritable ? null : READ_ONLY_REASON;
-    // Only one of Chart and Queries is open at a time.
     const [isChartOpen, setIsChartOpen] = useState(false);
-    const [isPipelineOpen, setIsPipelineOpen] = useState(false);
 
-    const displayedTitle = isTerminalDisplayed
-        ? title
-        : (displayedNode?.title ?? displayedNodeId);
-    const displayedDescription = isTerminalDisplayed
-        ? description
-        : (displayedNode?.description ?? null);
+    const drawsRunQueryChart =
+        source.kind === 'artifact' &&
+        !!runQueryVizConfig &&
+        !runError &&
+        !results.error;
+    const isRunQueryChart = drawsRunQueryChart && !!queryUuid;
+    // Until the run hands back a query, the table path below would flash its own loader.
+    const isAwaitingRunQueryChart = drawsRunQueryChart && !queryUuid;
+    // The ref is only set for chart types that export as an image.
+    const canExportImage =
+        view === 'chart' &&
+        isRunQueryChart &&
+        !isEmbed &&
+        !!canExportData &&
+        !!imageExportRef;
+    const canDownloadResults = isEmbed
+        ? ability.can('view', 'EmbedCsvExport')
+        : !!canExportData;
+    // Downloads the displayed node's result as run, like an embedded classic artifact
+    const downloadQueryUuid = isResultReady ? (queryUuid ?? null) : null;
 
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
-            {!isTerminalDisplayed && (
-                <Tooltip label="Back to result" position="bottom">
-                    <ActionIcon
-                        size="sm"
-                        onClick={() =>
-                            setDisplayedNodeId(config.terminalNodeId)
-                        }
-                        aria-label="Back to result"
-                    >
-                        <MantineIcon icon={IconArrowLeft} />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-            <Stack gap={0} flex={1} miw={0}>
-                <TruncatedText fz="sm" fw={600} maxWidth="100%">
-                    {displayedTitle}
-                </TruncatedText>
-                {displayedDescription && (
-                    <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
-                        {displayedDescription}
-                    </TruncatedText>
+            <ArtifactPanelHeading
+                title={title}
+                description={description ?? null}
+                marker={isRevision ? { kind: 'revision' } : null}
+                descriptionDisplay="expandable"
+            />
+            <Group gap={4} className={styles.headRight}>
+                <SegmentedControl
+                    mr={4}
+                    classNames={{
+                        root: styles.viewToggle,
+                        label: styles.viewToggleLabel,
+                    }}
+                    value={view}
+                    onChange={(next) =>
+                        setView(next === 'lineage' ? 'lineage' : 'chart')
+                    }
+                    data={[
+                        {
+                            label: getUiString('aiAgent.composer.view.chart'),
+                            value: 'chart',
+                        },
+                        {
+                            label: getUiString('aiAgent.composer.view.lineage'),
+                            value: 'lineage',
+                        },
+                    ]}
+                />
+                {(canExportImage || canDownloadResults) && (
+                    <Menu withArrow position="bottom-end">
+                        <Menu.Target>
+                            <ActionIcon
+                                size="sm"
+                                aria-label={getUiString(
+                                    'aiAgent.composer.actions.quickActions',
+                                )}
+                            >
+                                <MantineIcon icon={IconDots} size="lg" />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Label>
+                                {getUiString(
+                                    'aiAgent.composer.actions.quickActions',
+                                )}
+                            </Menu.Label>
+                            {canExportImage && (
+                                <AiChartImageExportMenuItem
+                                    onClick={openExportImageModal}
+                                />
+                            )}
+                            {canDownloadResults && (
+                                <Menu.Item
+                                    disabled={!downloadQueryUuid}
+                                    onClick={openDownloadModal}
+                                    leftSection={
+                                        <MantineIcon icon={IconTableExport} />
+                                    }
+                                >
+                                    {getUiString(
+                                        'aiAgent.composer.actions.downloadResults',
+                                    )}
+                                </Menu.Item>
+                            )}
+                        </Menu.Dropdown>
+                    </Menu>
                 )}
-            </Stack>
-            {onClose && (
-                <Group gap={2} className={styles.headRight}>
-                    <ActionIcon size="sm" onClick={onClose} aria-label="Close">
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Group>
-            )}
+                <ArtifactWindowControls onClose={onClose} separated />
+            </Group>
         </Box>
     );
 
-    const visualization =
-        source.kind === 'artifact' &&
-        runQueryVizConfig &&
-        queryUuid &&
-        !runError &&
-        !results.error ? (
-            <AiComposerRunQueryVisualization
-                projectUuid={projectUuid}
-                agentUuid={agentUuid}
-                artifactUuid={source.artifactUuid}
-                versionUuid={source.versionUuid}
-                nodeResults={results}
-                chartStage={run?.chartStage ?? null}
-                vizConfig={runQueryVizConfig}
-                metadata={metadata}
-                headerContent={head}
-            />
-        ) : (
-            <AiComposerArtifactVisualization
-                projectUuid={projectUuid}
-                results={results}
-                queryUuid={queryUuid ?? null}
-                runError={runError}
-                onRerun={onRerun}
-                vizConfig={value}
-                headerContent={head}
-            />
-        );
+    const visualization = isAwaitingRunQueryChart ? (
+        <ArtifactLoadingSketch />
+    ) : isRunQueryChart ? (
+        <AiComposerRunQueryVisualization
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            artifactUuid={source.artifactUuid}
+            versionUuid={source.versionUuid}
+            nodeResults={results}
+            chartStage={run?.chartStage ?? null}
+            vizConfig={runQueryVizConfig}
+            metadata={metadata}
+            headerContent={null}
+            setImageExportRef={setImageExportRef}
+        />
+    ) : (
+        <AiComposerArtifactVisualization
+            projectUuid={projectUuid}
+            results={results}
+            queryUuid={queryUuid ?? null}
+            runError={runError}
+            onRerun={onRerun}
+            vizConfig={value}
+            headerContent={null}
+        />
+    );
+
+    const lineage = (
+        <AiComposerLineage
+            projectUuid={projectUuid}
+            queries={config.queries}
+            terminalNodeId={config.terminalNodeId}
+            displayableNodeIds={displayableNodeIds}
+            nodeStatuses={nodeStatuses}
+            initialFocusNodeId={
+                initialView === 'lineage' ? config.terminalNodeId : null
+            }
+            renderNodeResult={(nodeId) => {
+                const nodeQueryUuid = nodeQueryUuids?.[nodeId];
+                return nodeQueryUuid ? (
+                    <AiComposerNodeResult
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        source={source}
+                        queryUuid={nodeQueryUuid}
+                    />
+                ) : null;
+            }}
+            chatNodeIds={chatNodeIds}
+            onAddToChat={onAddToChat}
+        />
+    );
+
+    const chart = hasVizConfigPanel ? (
+        <AiComposerVizConfigPanel
+            value={value}
+            columns={columns}
+            options={options}
+            onChange={setValue}
+            onKindChange={changeKind}
+            mode={panelMode}
+            expanded={isChartOpen}
+            onExpandedChange={setIsChartOpen}
+            fieldsDisabledReason={fieldsDisabledReason}
+        >
+            {visualization}
+        </AiComposerVizConfigPanel>
+    ) : (
+        visualization
+    );
 
     return (
         <Box className={styles.floatingPanel}>
             <Box className={clsx(styles.floatingContent, styles.flushContent)}>
-                <AiComposerPipelinePanel
-                    projectUuid={projectUuid}
-                    queries={config.queries}
-                    terminalNodeId={config.terminalNodeId}
-                    displayedNodeId={displayedNodeId}
-                    displayableNodeIds={displayableNodeIds}
-                    onDisplayNode={setDisplayedNodeId}
-                    nodeStatuses={nodeStatuses}
-                    renderNodeResult={(nodeId) => {
-                        const nodeQueryUuid = nodeQueryUuids?.[nodeId];
-                        return nodeQueryUuid ? (
-                            <AiComposerNodeResult
-                                projectUuid={projectUuid}
-                                agentUuid={agentUuid}
-                                source={source}
-                                queryUuid={nodeQueryUuid}
-                            />
-                        ) : null;
-                    }}
-                    chatNodeIds={chatNodeIds}
-                    onAddToChat={onAddToChat}
-                    expanded={isPipelineOpen}
-                    onExpandedChange={(open) => {
-                        setIsPipelineOpen(open);
-                        if (open) setIsChartOpen(false);
-                    }}
-                >
-                    {hasVizConfigPanel ? (
-                        <AiComposerVizConfigPanel
-                            value={value}
-                            columns={columns}
-                            options={options}
-                            onChange={setValue}
-                            onKindChange={changeKind}
-                            mode={panelMode}
-                            expanded={isChartOpen}
-                            onExpandedChange={(open) => {
-                                setIsChartOpen(open);
-                                if (open) setIsPipelineOpen(false);
-                            }}
-                            fieldsDisabledReason={fieldsDisabledReason}
-                        >
-                            {visualization}
-                        </AiComposerVizConfigPanel>
-                    ) : (
-                        visualization
-                    )}
-                </AiComposerPipelinePanel>
+                <Stack gap="md" h="100%" mih={0}>
+                    {head}
+                    <Box flex={1} mih={0}>
+                        {view === 'lineage' ? lineage : chart}
+                    </Box>
+                </Stack>
             </Box>
+            <AiChartImageExportModal
+                chartRef={imageExportRef}
+                chartName={title}
+                opened={exportImageModalOpened}
+                onClose={closeExportImageModal}
+            />
+            {downloadQueryUuid && (
+                <ExportDataModal
+                    isOpen={downloadModalOpened}
+                    onClose={closeDownloadModal}
+                    projectUuid={projectUuid}
+                    totalResults={results.totalResults}
+                    getDownloadQueryUuid={async () => downloadQueryUuid}
+                    columnOrder={columnOrder}
+                    chartName={title}
+                    hideLimitSelection
+                />
+            )}
         </Box>
     );
 };

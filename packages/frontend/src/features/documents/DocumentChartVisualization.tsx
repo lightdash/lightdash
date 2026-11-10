@@ -167,6 +167,9 @@ const DocumentChartVisualization = ({
                 >
                     <VisualizationProvider
                         minimal
+                        // Documents render outside the Explorer, so there is
+                        // no explorer store for pivot tables to read
+                        hasExplorerStore={false}
                         chartConfig={chartConfig}
                         initialPivotDimensions={chart.pivotConfig?.columns}
                         initialPivotRows={chart.pivotConfig?.rows}

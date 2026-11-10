@@ -632,6 +632,7 @@ export class DbtMetadataApiClient implements DbtClient {
             return <DbtRpcGetManifestResults>{
                 manifest: {
                     nodes: dbtModelNodes,
+                    lightdash_model_inventory_complete: false,
                     metadata: {
                         adapter_type: results.environment.adapterType,
                         generated_at: results.environment.applied.lastUpdatedAt,

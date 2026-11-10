@@ -8,6 +8,7 @@ import {
     IconMarkdown,
     IconMessageChatbot,
     IconRocket,
+    IconSchool,
     IconSpeakerphone,
     IconStar,
     type Icon,
@@ -24,6 +25,7 @@ import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { CtaBlockBuild, CtaBlockView } from './CtaBlock';
 import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
 import { GreetingBlockBuild, GreetingBlockView } from './GreetingBlock';
+import { LearnBlockBuild, LearnBlockView } from './LearnBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
 import { MetricsBlockBuild, MetricsBlockView } from './MetricsBlock';
 import { getDefaultQuickActions } from './quickActionDefaults';
@@ -193,6 +195,22 @@ export const blockLibrary: BlockDefinition[] = [
         }),
         View: RecentBlockView,
         Build: RecentBlockBuild,
+    },
+    {
+        type: 'learn',
+        label: 'Learn',
+        description:
+            'Each viewer’s next Learn module and their progress, with a button to start it.',
+        icon: IconSchool,
+        singleton: true,
+        personal: true,
+        create: () => ({
+            id: uuidv4(),
+            type: 'learn',
+            config: { title: 'Keep learning' },
+        }),
+        View: LearnBlockView,
+        Build: LearnBlockBuild,
     },
     {
         type: 'markdown',

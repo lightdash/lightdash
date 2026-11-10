@@ -8,13 +8,18 @@ import {
     type DashboardFilters,
     type DashboardTile,
 } from '@lightdash/common';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useQuery } from '@tanstack/react-query';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDashboardTestStore } from '../../../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
+import { dashboardTileStatusActions } from '../../dashboard/store';
 import FilterConfiguration from './index';
 
 vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
@@ -220,6 +225,67 @@ describe('FilterConfiguration', () => {
             );
         },
     );
+
+    it('searches SQL columns as they arrive and shows more are loading', async () => {
+        const country = { reference: 'country', type: DimensionType.STRING };
+        const total = { reference: 'total', type: DimensionType.NUMBER };
+        const store = createDashboardTestStore({
+            dashboardFilters,
+            sqlChartTilesMetadata: { 'sql-1': { columns: [country, total] } },
+        });
+        seedDashboardEditState(store, {
+            dashboardTiles: ['sql-1', 'sql-2'].map(
+                (uuid) =>
+                    ({
+                        uuid,
+                        type: DashboardTileTypes.SQL_CHART,
+                        properties: { savedSqlUuid: `chart-${uuid}` },
+                    }) as DashboardTile,
+            ),
+        });
+        // A mounted SQL chart tile whose results query has not returned
+        const RunningTile = () => {
+            useQuery(
+                ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                () => new Promise<null>(() => {}),
+            );
+            return null;
+        };
+        renderWithAppProviders(
+            <DashboardStoreTestProvider store={store}>
+                <RunningTile />
+                <FilterConfiguration
+                    isEditMode
+                    isCreatingNew
+                    tiles={[]}
+                    tabs={[]}
+                    fields={[]}
+                    availableTileFilters={{}}
+                    onSave={vi.fn()}
+                />
+            </DashboardStoreTestProvider>,
+        );
+
+        const input = screen.getByPlaceholderText('Search column...');
+        await waitFor(() => expect(input).toHaveAttribute('aria-busy', 'true'));
+        await userEvent.type(input, 'tot');
+        act(() => {
+            store.dispatch(
+                dashboardTileStatusActions.updateSqlChartTilesMetadata({
+                    tileUuid: 'sql-2',
+                    metadata: { columns: [country] },
+                }),
+            );
+        });
+        expect(input).toHaveValue('tot');
+        expect(
+            screen
+                .getAllByRole('option', { hidden: true })
+                .map((option) => option.textContent),
+        ).toEqual(['total']);
+        // sql-2 has its columns now, even before its query settles
+        expect(input).toHaveAttribute('aria-busy', 'false');
+    });
 
     it('applies a null-only selection and returns to Any Value when it is removed', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });

@@ -58,6 +58,16 @@ describe('retained database content activity for Analytics history', () => {
         tracker = getTracker();
         tracker.reset();
         tracker.on.any(/^SET /i).response([]);
+        for (const table of ['saved_queries', 'dashboards']) {
+            tracker.on
+                .select((query) => query.sql.includes(`from "${table}" as "c"`))
+                .responseOnce([
+                    { content_id: '00000000-0000-0000-0000-000000000004' },
+                ]);
+            tracker.on
+                .select((query) => query.sql.includes(`from "${table}" as "c"`))
+                .response([]);
+        }
         model = new UsageLegacyHistoryModel(database);
     });
 
@@ -70,7 +80,9 @@ describe('retained database content activity for Analytics history', () => {
         emptySources();
         const untrustedOrg = "organization' OR true --";
         expect(await collect(untrustedOrg)).toEqual([]);
-        expect(tracker.history.select).toHaveLength(sourceDefinitions.length);
+        expect(tracker.history.select).toHaveLength(
+            sourceDefinitions.length + 4,
+        );
         for (const { sql: rawSql, bindings } of tracker.history.select) {
             const sql = normalizeSql(rawSql);
             expect(sql).toContain(
@@ -138,7 +150,9 @@ describe('retained database content activity for Analytics history', () => {
         expect(JSON.stringify(rows)).not.toMatch(
             /private|secret|compiled_sql|content_name|"prompt"/,
         );
-        const { sql, bindings } = tracker.history.select[0];
+        const { sql, bindings } = tracker.history.select.find(
+            ({ sql: query }) => query.includes('from "analytics_chart_views"'),
+        )!;
         expect(sql).toContain(
             'to_char("h"."timestamp", \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\') as event_ts',
         );
@@ -199,4 +213,108 @@ describe('retained database content activity for Analytics history', () => {
             ),
         ).toBe(true);
     });
+    it.each([
+        [
+            'analytics_chart_views',
+            'saved_queries',
+            'chart_uuid',
+            'saved_query_uuid',
+            'analytics_chart_view_uuid',
+        ],
+        [
+            'analytics_dashboard_views',
+            'dashboards',
+            'dashboard_uuid',
+            'dashboard_uuid',
+            'analytics_dashboard_view_uuid',
+        ],
+    ])(
+        'pages %s by content and precise timestamp, resetting the cursor for each content',
+        async (table, contentTable, contentColumn, contentKey, viewKey) => {
+            tracker.reset();
+            tracker.on.any(/^SET /i).response([]);
+            const firstContent = '00000000-0000-0000-0000-000000000004';
+            const secondContent = '00000000-0000-0000-0000-000000000005';
+            const contentQuery = ({ sql }: { sql: string }) =>
+                sql.includes(`from "${contentTable}" as "c"`);
+            tracker.on
+                .select(contentQuery)
+                .responseOnce([
+                    { content_id: firstContent },
+                    { content_id: secondContent },
+                ]);
+            tracker.on.select(contentQuery).response([]);
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(
+                        `from "${contentTable === 'saved_queries' ? 'dashboards' : 'saved_queries'}" as "c"`,
+                    ),
+                )
+                .response([]);
+            emptySources(table);
+            const first = storedRow({
+                source_id: '00000000-0000-0000-0000-000000001000',
+                event_ts: '2026-09-01T15:04:05.123456Z',
+            });
+            const fullPage = Array.from({ length: 1000 }, (_, index) =>
+                storedRow({
+                    source_id: `00000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}`,
+                }),
+            );
+            const tied = storedRow({
+                source_id: '00000000-0000-0000-0000-000000001001',
+                event_ts: first.event_ts,
+            });
+            const later = storedRow({
+                source_id: '00000000-0000-0000-0000-000000000000',
+                event_ts: '2026-09-01T15:04:05.123457Z',
+            });
+            tracker.on.select(matches(table)).responseOnce(fullPage);
+            tracker.on.select(matches(table)).responseOnce([tied, later]);
+            tracker.on.select(matches(table)).responseOnce([]);
+            tracker.on.select(matches(table)).responseOnce([
+                storedRow({
+                    content_id: secondContent,
+                    source_id: '00000000-0000-0000-0000-000000001002',
+                }),
+            ]);
+            tracker.on.select(matches(table)).response([]);
+            const rows = await collect();
+            expect(rows.map(({ event_ts }) => event_ts)).toEqual([
+                ...fullPage.map(({ event_ts }) => event_ts),
+                tied.event_ts,
+                later.event_ts,
+                first.event_ts,
+            ]);
+            expect(new Set(rows.map(({ record_id }) => record_id)).size).toBe(
+                rows.length,
+            );
+            const pages = tracker.history.select.filter(matches(table));
+            expect(pages).toHaveLength(5);
+            for (const { sql, bindings } of pages) {
+                expect(normalizeSql(sql)).toContain(
+                    `"h"."${contentColumn}" = ?`,
+                );
+                expect(sql).toContain(
+                    `order by "h"."timestamp" asc, "h"."${viewKey}" asc`,
+                );
+                expect(bindings).toContain(1000);
+            }
+            expect(pages[0].bindings).toContain(firstContent);
+            expect(normalizeSql(pages[1].sql)).toContain(
+                `("h"."timestamp", "h"."${viewKey}") > (?, ?)`,
+            );
+            expect(pages[1].bindings).toContain(first.event_ts);
+            expect(pages[1].bindings).toContain(first.source_id);
+            expect(pages[2].bindings).toContain(later.event_ts);
+            expect(pages[2].bindings).toContain(later.source_id);
+            expect(pages[3].bindings).toContain(secondContent);
+            expect(normalizeSql(pages[3].sql)).not.toContain(') > (?, ?)');
+            const contentPages = tracker.history.select.filter(contentQuery);
+            expect(normalizeSql(contentPages[1].sql)).toContain(
+                `"c"."${contentKey}" > ?`,
+            );
+            expect(contentPages[1].bindings).toContain(secondContent);
+        },
+    );
 });

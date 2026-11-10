@@ -21,9 +21,8 @@ const settingsContext = (
     project: undefined,
     showImpersonationPanel: false,
     isCustomRolesEnabled: false,
-    isProLimitsEnabled: false,
     canAccessAnalyticsSettings: false,
-    isAnalyticsProjectFlagLoading: false,
+    isAnalyticsProjectLoading: false,
     isOrganizationRoadmapEnabled: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,
@@ -40,13 +39,15 @@ const settingsContext = (
     dataAppAnalysisFlag: undefined,
     dashboardAnalysisFlag: undefined,
     isDataAppsFlagLoading: false,
+    isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
     externalSourcesFlag: undefined,
-    isResultsCacheEnabled: false,
+    isMobileSettingsEnabled: false,
+    isMobileSettingsFlagLoading: false,
+    isResultsCacheAvailable: false,
     embeddingEnabled: undefined,
     allowPasswordAuthentication: false,
     hasSocialLogin: false,
-    isGroupManagementEnabled: false,
     isAgentIdentityEnabled: false,
     isAgentIdentityFlagLoading: false,
     isGitProject: false,
@@ -160,6 +161,40 @@ describe('Agents settings navigation', () => {
             'Identity',
             'Permissions',
         ]);
+    });
+});
+
+describe('Mobile settings navigation', () => {
+    const yourSettingsLabels = (isMobileSettingsEnabled: boolean) => {
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    user: {
+                        ability: new Ability([
+                            {
+                                action: 'manage',
+                                subject: 'PersonalAccessToken',
+                            },
+                        ]),
+                    } as unknown as SettingsContext['user'],
+                    isMobileSettingsEnabled,
+                }),
+            ),
+        );
+        return result.current
+            .find((section) => section.id === 'your-settings')
+            ?.items.map(({ label }) => label);
+    };
+
+    it('shows Mobile after Personal access tokens when the flag is on', () => {
+        expect(yourSettingsLabels(true)?.slice(-2)).toEqual([
+            'Personal access tokens',
+            'Mobile',
+        ]);
+    });
+
+    it('hides Mobile when the flag is off', () => {
+        expect(yourSettingsLabels(false)).not.toContain('Mobile');
     });
 });
 
@@ -450,6 +485,103 @@ describe('Agent identity settings navigation', () => {
             );
             expect(items[index - 1].label).toBe('Tables configuration');
         } else expect(index).toBe(-1);
+    });
+});
+
+describe('Project connections settings navigation', () => {
+    const projectItems = (overrides: Partial<SettingsContext>) => {
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    organization: {
+                        organizationUuid: 'org',
+                        name: 'Organization',
+                    },
+                    project: {
+                        projectUuid: 'project',
+                        organizationUuid: 'org',
+                        name: 'Project',
+                    } as Project,
+                    user: {
+                        ability: new Ability([
+                            {
+                                action: 'manage',
+                                subject: 'ExternalConnection',
+                                conditions: {
+                                    organizationUuid: 'org',
+                                    projectUuid: 'project',
+                                },
+                            },
+                        ]),
+                    } as SettingsContext['user'],
+                    projectSettingsAccess: {
+                        type: 'full',
+                        defaultPage: 'settings',
+                    },
+                    ...overrides,
+                }),
+            ),
+        );
+        return result.current.find(({ id }) => id === 'current-project')!.items;
+    };
+    const projectLabels = (overrides: Partial<SettingsContext>) =>
+        projectItems(overrides).map(({ label }) => label);
+
+    it('links Live data sources to the Semantic Layer page, marked as moved', () => {
+        const item = projectItems({ isApiQuerySourcesEnabled: true }).find(
+            ({ label }) => label === 'Live data sources',
+        );
+        expect(item).toMatchObject({
+            to: '/projects/project/semantic-layer/kinds/live',
+            movedTo: 'Semantic Layer',
+        });
+        expect(item?.keywords).toEqual(
+            expect.arrayContaining(['posthog', 'semantic layer']),
+        );
+    });
+
+    it('links External sources to the Semantic Layer page, marked as moved', () => {
+        const item = projectItems({
+            externalSourcesFlag: { id: 'external-sources', enabled: true },
+            health: {
+                softDelete: { enabled: false },
+                preAggregates: { enabled: false },
+                externalSources: { engineAvailable: true },
+            } as SettingsContext['health'],
+            user: {
+                ability: new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'ExternalSource',
+                        conditions: {
+                            organizationUuid: 'org',
+                            projectUuid: 'project',
+                        },
+                    },
+                ]),
+            } as SettingsContext['user'],
+        }).find(({ label }) => label === 'External sources');
+        expect(item).toMatchObject({
+            to: '/projects/project/semantic-layer/kinds/files',
+            movedTo: 'Semantic Layer',
+        });
+        expect(item?.keywords).toEqual(
+            expect.arrayContaining(['csv', 'semantic layer']),
+        );
+    });
+
+    it('shows Live data sources without Data app connections when only live sources are enabled', () => {
+        const labels = projectLabels({ isApiQuerySourcesEnabled: true });
+        expect(labels).toContain('Live data sources');
+        expect(labels).not.toContain('Data app connections');
+    });
+
+    it('shows Data app connections without Live data sources when only data apps are enabled', () => {
+        const labels = projectLabels({
+            dataAppsFlag: { id: 'enable-data-apps', enabled: true },
+        });
+        expect(labels).toContain('Data app connections');
+        expect(labels).not.toContain('Live data sources');
     });
 });
 

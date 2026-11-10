@@ -94,6 +94,10 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     value={openItems}
                     onChange={handleAccordionChange}
                     className={accordionClasses.containedList}
+                    classNames={{
+                        control: accordionClasses.containedControl,
+                        label: accordionClasses.containedLabel,
+                    }}
                 >
                     {referenceLines.map((line, index) => (
                         <ReferenceLine

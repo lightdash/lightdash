@@ -1,11 +1,13 @@
 import {
+    FeatureFlags,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
     type AiRouter,
 } from '@lightdash/common';
 import { Anchor, Skeleton, Text } from '@mantine/core';
-import { IconArrowUpRight } from '@tabler/icons-react';
+import { useLocalStorage } from '@mantine/hooks';
+import { IconArrowUpRight, IconChartBar } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     useCallback,
@@ -17,6 +19,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -47,6 +50,8 @@ type Props = {
     projectUuid: string | null;
     preview?: boolean;
     hideSuggestions?: boolean;
+    // Bumped to drop a starter chart question into the composer
+    prefillRequest?: number;
 };
 
 type ProjectAgent = NonNullable<
@@ -278,7 +283,10 @@ const useHomepageSuggestionChips = ({
         track,
     ]);
 
-    return { chips, isLoading: suggestionsQuery.isLoading };
+    return {
+        chips,
+        isLoading: suggestionsQuery.isLoading,
+    };
 };
 
 const inputHoldClass = (projectUuid: string | null) =>
@@ -288,19 +296,6 @@ const composerPlaceholder = (selection: ComposerSelection): string =>
     selection && selection !== 'auto'
         ? `Ask ${selection.name}…`
         : 'Ask anything about your data…';
-
-// The composer's footprint on a surface that is still deciding whether it can
-// show a composer at all. Lives here so the reserved height is stated once,
-// next to the composer it stands in for.
-export const DayOneAskInputPlaceholder: FC<
-    Pick<Props, 'projectUuid' | 'hideSuggestions'>
-> = ({ projectUuid, hideSuggestions }) => (
-    <div className={classes.composer}>
-        <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
-        {!projectUuid && <Skeleton h={17} w={260} mt={10} mx="auto" />}
-        {!hideSuggestions && <div className={classes.pillRow} />}
-    </div>
-);
 
 // The chips come from an LLM generation, so on a cold view they land a second
 // or two after the composer. The row reserves one chip-line of height while
@@ -315,7 +310,7 @@ const SuggestionPills: FC<{
 }> = ({ chips, loading, onPick }) => {
     if (!loading && chips.length === 0) return null;
     return (
-        <div className={classes.pillRow}>
+        <div className={classes.pillRow} data-tour="home-suggestions">
             {chips.map((chip, index) => (
                 <button
                     key={chip.label}
@@ -335,6 +330,9 @@ const SuggestionPills: FC<{
     );
 };
 
+const isChartChip = (chip: AgentSuggestion) =>
+    chip.kind === 'prompt' && chip.tool === 'generateVisualization';
+
 // The exact composer used on real agent threads — reused here so day-0's ask
 // experience looks and feels identical, not a lookalike. Selecting a
 // different agent from the built-in AgentSelector navigates to that agent's
@@ -347,6 +345,7 @@ const DayOneAskInputInner: FC<Props> = ({
     projectUuid,
     preview = false,
     hideSuggestions,
+    prefillRequest = 0,
 }) => {
     const navigate = useNavigate();
     const { track } = useTracking();
@@ -372,12 +371,41 @@ const DayOneAskInputInner: FC<Props> = ({
         selectedAgent,
         createAgentThread,
     });
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
+    const [composerValue, setComposerValue] = useState('');
+    const [hasAsked, setHasAsked] = useLocalStorage({
+        key: 'ld.home.hasAsked',
+        defaultValue: false,
+        getInitialValueInEffect: false,
+    });
     const suggestions = useHomepageSuggestionChips({
         projectUuid,
         referenceAgent,
         enableSqlMode: suggestionsSqlMode,
         hideSuggestions,
     });
+
+    const prefill =
+        prefillRequest > 0
+            ? (suggestions.chips.find(isChartChip)?.label ?? 'Make a chart of ')
+            : undefined;
+
+    const trackAskSubmitted = (
+        source: 'typed' | 'guide_prefill' | 'starter_chip',
+        prefillEdited: boolean,
+    ) =>
+        track({
+            name: EventName.HOMEPAGE_ASK_SUBMITTED,
+            properties: {
+                organizationId: user.data?.organizationUuid ?? null,
+                projectId: projectUuid,
+                mode: activeSelection === 'auto' ? 'auto' : 'agent',
+                hasProject: !!projectUuid,
+                source,
+                prefillEdited,
+            },
+        });
 
     const submitPrompt = (
         prompt: string,
@@ -426,13 +454,11 @@ const DayOneAskInputInner: FC<Props> = ({
     }) => {
         const prompt = message.trim();
         if (!prompt) return;
-        track({
-            name: EventName.HOMEPAGE_ASK_SUBMITTED,
-            properties: {
-                mode: activeSelection === 'auto' ? 'auto' : 'agent',
-                hasProject: !!projectUuid,
-            },
-        });
+        trackAskSubmitted(
+            prefill === undefined ? 'typed' : 'guide_prefill',
+            prefill !== undefined && prompt !== prefill.trim(),
+        );
+        setHasAsked(true);
         submitPrompt(prompt, toolHints, context, optimisticContext);
     };
 
@@ -458,8 +484,18 @@ const DayOneAskInputInner: FC<Props> = ({
             void navigate(chip.url);
             return;
         }
+        trackAskSubmitted('starter_chip', false);
+        setHasAsked(true);
         submitPrompt(chip.label, [chip.tool]);
     };
+
+    // Before the first question, a chart prompt sits inside the empty composer as the way in
+    const starterIndex =
+        !isNewOnboarding || hasAsked || composerValue.trim() !== ''
+            ? -1
+            : suggestions.chips.findIndex(isChartChip);
+    const starterChip =
+        starterIndex >= 0 ? suggestions.chips[starterIndex] : null;
 
     if (hasNoAgents) {
         return (
@@ -485,12 +521,29 @@ const DayOneAskInputInner: FC<Props> = ({
                 <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
             ) : (
                 <AgentChatInput
+                    key={prefillRequest}
+                    defaultValue={prefill}
                     projectUuid={projectUuid ?? undefined}
                     agentUuid={selectedAgent?.uuid}
                     agents={agents}
                     selectedAgent={composerSelection}
                     placeholder={composerPlaceholder(activeSelection)}
                     onSubmit={handleSubmit}
+                    onValueChange={setComposerValue}
+                    toolbarStart={
+                        starterChip && (
+                            <button
+                                type="button"
+                                className={classes.starter}
+                                onClick={() =>
+                                    handleChipPick(starterChip, starterIndex)
+                                }
+                            >
+                                <MantineIcon icon={IconChartBar} size={12} />
+                                Try “{starterChip.label}”
+                            </button>
+                        )
+                    }
                     onStartDeepResearch={onStartDeepResearch}
                     {...composerSqlModeProps}
                     loading={isCreatingThread}

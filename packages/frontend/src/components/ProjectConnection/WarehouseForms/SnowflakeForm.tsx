@@ -52,6 +52,7 @@ import {
     useSnowflakeCliSsoMode,
 } from './SnowflakeCliSsoModeContext';
 import SnowflakeCliSsoPanel from './SnowflakeCliSsoPanel';
+import { useFieldHint } from './useFieldHint';
 import {
     CLI_SSO_LABEL,
     EXTERNAL_BROWSER_LABEL,
@@ -68,6 +69,7 @@ export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const fieldHint = useFieldHint();
     const form = useFormContext();
     const isCliSsoMode = useSnowflakeCliSsoMode();
     if (isCliSsoMode) {
@@ -77,7 +79,7 @@ export const SnowflakeSchemaInput: FC<{
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description={description ?? 'This is the schema name.'}
+            description={description ?? fieldHint('This is the schema name.')}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -140,6 +142,7 @@ const RequireUserCredentialsField: FC<{ disabled: boolean }> = ({
 const SnowflakeForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const fieldHint = useFieldHint();
     const [isOpen, toggleOpen] = useToggle(false);
     const {
         savedProject,
@@ -334,7 +337,7 @@ const SnowflakeForm: FC<{
                     disabled={
                         disabled || (isCliSsoMode && cliSsoCredentials !== null)
                     }
-                    labelProps={{ style: { marginTop: '8px' } }}
+                    labelProps={{ mt: 'xs' }}
                 />
 
                 <Group gap="sm">
@@ -414,7 +417,9 @@ const SnowflakeForm: FC<{
                                     <TextInput
                                         name="warehouse.user"
                                         label="User"
-                                        description="This is the database user name."
+                                        description={fieldHint(
+                                            'This is the database user name.',
+                                        )}
                                         required={requireSecrets}
                                         {...form.getInputProps(
                                             'warehouse.user',
@@ -557,7 +562,9 @@ const SnowflakeForm: FC<{
                                 <PasswordInput
                                     name="warehouse.password"
                                     label="Password"
-                                    description="This is the database user password."
+                                    description={fieldHint(
+                                        'This is the database user password.',
+                                    )}
                                     required={requireSecrets}
                                     placeholder={
                                         disabled || !requireSecrets
@@ -575,7 +582,9 @@ const SnowflakeForm: FC<{
                         <TextInput
                             name="warehouse.database"
                             label="Database"
-                            description="This is the database name."
+                            description={fieldHint(
+                                'This is the database name.',
+                            )}
                             required
                             {...form.getInputProps('warehouse.database')}
                             disabled={disabled}
@@ -583,7 +592,9 @@ const SnowflakeForm: FC<{
                         <TextInput
                             name="warehouse.warehouse"
                             label="Warehouse"
-                            description="This is the warehouse name."
+                            description={fieldHint(
+                                'This is the warehouse name.',
+                            )}
                             required
                             {...form.getInputProps('warehouse.warehouse')}
                             disabled={disabled}

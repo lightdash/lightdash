@@ -1,5 +1,6 @@
 import { type SessionUser } from '@lightdash/common';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
+import { type EmbedThreadScope } from '../../models/AiAgentModel';
 import { type AiAgentDependencies } from '../ai/types/aiAgent';
 import { AiAgentService } from './AiAgentService';
 
@@ -82,8 +83,10 @@ const setup = (runtimeOptions?: EmbedAiAgentRuntimeOptions) => {
             agentUuid: 'agent',
         }),
         getThread: vi.fn().mockResolvedValue({ user: { uuid: 'user' } }),
-        isWebAppThreadInEmbedSpaces: vi.fn(
-            async (_: string, spaces: string[]) => spaces.includes('space'),
+        isWebAppThreadInEmbedScope: vi.fn(
+            async (_: string, scope: EmbedThreadScope) =>
+                scope.type === 'writeSpaces' &&
+                scope.writeSpaceUuids.includes('space'),
         ),
     };
     const getExplore = vi.fn().mockResolvedValue(validExplore);
@@ -161,6 +164,10 @@ describe('artifact export access', () => {
         const { access, getExplore } = setup({
             writeSpaceUuids: ['other-space'],
             externalUserId: null,
+            threadScope: {
+                type: 'writeSpaces',
+                writeSpaceUuids: ['other-space'],
+            },
             spaceAccess: ['other-space'],
             readOnlySpaceUuids: [],
             userAttributeOverrides: {},

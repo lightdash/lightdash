@@ -297,6 +297,7 @@ jobs:
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           install: false
 
       - name: Read packageManager
@@ -312,13 +313,13 @@ jobs:
           path: |
             node_modules
             packages/*/node_modules
-          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ steps.package-manager.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-node-modules-cli-binaries-v3-${{ steps.package-manager.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        # Force reinstall so pnpm includes optional DuckDB native bindings
-        # needed to build both macOS pkg targets from a single runner.
-        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --config.production=false --force --network-concurrency=16
+        # Install both macOS architectures explicitly; --force no longer
+        # overrides optional dependency platform filtering.
+        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --config.production=false --cpu arm64,x64 --force --network-concurrency=16
 
       - name: Cache common build
         id: cache-common
@@ -449,6 +450,7 @@ jobs:
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           install: false
 
       - name: Read packageManager
@@ -751,19 +753,6 @@ jobs:
             source_tag_env: E2B_PYTHON_TEMPLATE_SOURCE_TAG
             additional_watch_paths: ''
             install_root_deps: false
-          - display_name: agent onboarding E2B template
-            directory: sandboxes/agent-onboarding
-            name: lightdash-agent-onboarding
-            name_env: E2B_AGENT_ONBOARDING_TEMPLATE_NAME
-            tag_env: E2B_AGENT_ONBOARDING_TEMPLATE_TAG
-            extra_tags_env: E2B_AGENT_ONBOARDING_TEMPLATE_EXTRA_TAGS
-            source_tag_env: E2B_AGENT_ONBOARDING_TEMPLATE_SOURCE_TAG
-            additional_watch_paths: |
-              packages/cli
-              packages/common
-              packages/warehouses
-              skills
-            install_root_deps: false
     uses: ./.github/workflows/publish-e2b-template.yml
     with:
       release_tag: ${{ github.event.release.tag_name }}
@@ -844,6 +833,7 @@ jobs:
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           cache-dependency-path: pnpm-lock.yaml
           install: false
 

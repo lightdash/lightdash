@@ -59,6 +59,7 @@ import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import {
     selectCustomDimensions,
     selectMetricQuery,
@@ -78,7 +79,6 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { resolveNewCalculationEditMode } from '../../../utils/mixedWarehouseConnections';
-import { useAiAccessGate } from '../../aiAccess/useAiAccessGate';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
 import { FormulaForm, type FormulaFormHandle } from './FormulaForm/FormulaForm';
@@ -204,9 +204,9 @@ const TableCalculationModal: FC<Props> = ({
         warehouseType !== null &&
         (SUPPORTED_DIALECTS as readonly string[]).includes(warehouseType);
 
-    const { disabled: accessDisabled } = useAiAccessGate(projectUuid);
-    const isAmbientAiEnabled =
-        !accessDisabled && health?.ai?.isAmbientAiEnabled === true;
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid, {
+        enabled: health?.ai?.isAmbientAiEnabled === true,
+    });
     const { data: customRolesFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.CustomRoles,
     );
@@ -700,12 +700,8 @@ const TableCalculationModal: FC<Props> = ({
             }
             modalRootProps={{
                 closeOnClickOutside: false,
-                styles: isExpanded
-                    ? {
-                          content: {
-                              minWidth: '90vw',
-                          },
-                      }
+                classNames: isExpanded
+                    ? { content: classes.expandedContent }
                     : undefined,
             }}
         >
@@ -739,10 +735,9 @@ const TableCalculationModal: FC<Props> = ({
                                                 <Text
                                                     size="xs"
                                                     c="red.7"
-                                                    style={{
-                                                        wordBreak: 'break-word',
-                                                        whiteSpace: 'pre-wrap',
-                                                    }}
+                                                    className={
+                                                        classes.parseError
+                                                    }
                                                 >
                                                     {formulaParseError}
                                                 </Text>
@@ -815,11 +810,11 @@ const TableCalculationModal: FC<Props> = ({
                                         !form.values.sql ||
                                         form.values.sql.trim().length === 0
                                     }
-                                    style={{
-                                        visibility: showConversionPreview
-                                            ? 'hidden'
-                                            : 'visible',
-                                    }}
+                                    className={
+                                        showConversionPreview
+                                            ? classes.hidden
+                                            : undefined
+                                    }
                                 >
                                     Convert to formula
                                 </Button>
@@ -881,7 +876,7 @@ const TableCalculationModal: FC<Props> = ({
                                         pos="absolute"
                                         top={8}
                                         right={8}
-                                        style={{ zIndex: 5 }}
+                                        className={classes.floatingActions}
                                     >
                                         <Popover
                                             position="bottom-end"

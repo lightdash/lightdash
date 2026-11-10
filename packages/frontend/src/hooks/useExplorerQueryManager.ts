@@ -1,4 +1,8 @@
-import { getMissingRequiredParameters, type FieldId } from '@lightdash/common';
+import {
+    getMissingRequiredParameters,
+    type FieldId,
+    type QueryExecutionContext,
+} from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
@@ -33,6 +37,7 @@ import {
     getMetricQueryEstimateBody,
     useQueryCostEstimateSettings,
 } from './useQueryCostEstimate';
+import useSearchParams from './useSearchParams';
 
 type ExplorerQueryManagerArgs = {
     projectUuid?: string;
@@ -65,6 +70,8 @@ export const useExplorerQueryManager = ({
     const tableName = useExplorerSelector(selectTableName);
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const minimal = useExplorerSelector(selectIsMinimal);
+    const useCachedResultsParam = useSearchParams('useCachedResults');
+    const useCachedResults = minimal && useCachedResultsParam === 'true';
     const parameterDefinitions = useExplorerSelector(
         selectParameterDefinitions,
     );
@@ -94,9 +101,13 @@ export const useExplorerQueryManager = ({
         params.savedQueryUuid;
     const projectUuid =
         explicitProjectUuid || embed?.projectUuid || routeProjectUuid!;
+    const contextParam =
+        useSearchParams<QueryExecutionContext>('context') || undefined;
     const viewModeQueryArgs = useMemo(() => {
-        return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
-    }, [savedQueryUuid]);
+        return savedQueryUuid
+            ? { chartUuid: savedQueryUuid, context: contextParam }
+            : undefined;
+    }, [savedQueryUuid, contextParam]);
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
@@ -206,6 +217,7 @@ export const useExplorerQueryManager = ({
                 dateZoomGranularity,
                 minimal,
                 usePreAggregateCache: preAggCacheEnabled,
+                useCachedResults,
                 customSqlProvenanceChartUuid,
                 savedChart: chartConfigForQuery,
             }),
@@ -221,6 +233,7 @@ export const useExplorerQueryManager = ({
             dateZoomGranularity,
             minimal,
             preAggCacheEnabled,
+            useCachedResults,
             customSqlProvenanceChartUuid,
             chartConfigForQuery,
         ],

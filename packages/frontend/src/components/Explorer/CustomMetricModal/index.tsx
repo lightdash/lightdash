@@ -134,7 +134,7 @@ export const CustomMetricModal = memo(() => {
                 : undefined,
         [mergeSource, mergeSourceId, tableName],
     );
-    const { projectUuid, fieldsMap, startOfWeek } =
+    const { projectUuid, fieldsMap, startOfWeek, warehouseType } =
         useDataForFiltersProvider(mergeQueryContext);
 
     const dimensionsMap = useMemo(
@@ -804,12 +804,7 @@ export const CustomMetricModal = memo(() => {
                                                 ? `(${customMetricFiltersWithIds.length}) `
                                                 : ' '}
                                         </Text>
-                                        <Text
-                                            span
-                                            fz="xs"
-                                            c="ldGray.5"
-                                            fw={400}
-                                        >
+                                        <Text span fz="xs" c="dimmed" fw={400}>
                                             (optional)
                                         </Text>
                                     </Text>
@@ -821,6 +816,7 @@ export const CustomMetricModal = memo(() => {
                                         projectUuid={projectUuid}
                                         itemsMap={dimensionsMap}
                                         startOfWeek={startOfWeek ?? undefined}
+                                        warehouseType={warehouseType}
                                         popoverProps={{
                                             withinPortal: true,
                                         }}

@@ -22,6 +22,10 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import {
+    NOT_ON_LIVE_SOURCES,
+    useIsRefusedOnLiveSource,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -60,6 +64,10 @@ const ResultsCard: FC = memo(() => {
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
     const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
+    const isTableCalculationRefused = useIsRefusedOnLiveSource(
+        tableName,
+        'tableCalculations',
+    );
     const sorts = useExplorerSelector(selectSorts);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const parameters = useExplorerSelector(selectParameters);
@@ -231,7 +239,15 @@ const ResultsCard: FC = memo(() => {
                                     projectUuid,
                                 })}
                             >
-                                {isEditMode && <AddTableCalculationButton />}
+                                {isEditMode && (
+                                    <AddTableCalculationButton
+                                        disabledReason={
+                                            isTableCalculationRefused
+                                                ? NOT_ON_LIVE_SOURCES
+                                                : undefined
+                                        }
+                                    />
+                                )}
                             </Can>
                         )}
 

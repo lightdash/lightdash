@@ -1,7 +1,7 @@
 import {
-    AuthorizationError,
     ContentType,
     generateSlug,
+    isValidDataAppSlug,
     LightdashError,
     MAX_CONTENT_SLUG_LENGTH,
     ParameterError,
@@ -11,7 +11,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { parseDocument, type Document } from 'yaml';
 import { getConfig } from '../config';
-import { refuseAgentConnection } from '../credentials';
+import { refuseAgentConnection, resolveCredential } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { getDownloadFolder } from './contentAsCodePaths';
@@ -19,12 +19,18 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { METADATA_FILENAME, readMetadataFile } from './metadataFile';
 import { logSelectedProject, selectProject } from './selectProject';
 
+type SlugUpdateResourceType =
+    | ContentType.CHART
+    | ContentType.DASHBOARD
+    | ContentType.DATA_APP;
+
 type SlugUpdateOptions = {
     verbose: boolean;
     project?: string;
     path?: string;
     dryRun: boolean;
-    type: ContentType.CHART | ContentType.DASHBOARD;
+    // The CLI flag value: 'app' is the user-facing spelling of DATA_APP.
+    type: ContentType.CHART | ContentType.DASHBOARD | 'app';
     from: string;
     to: string;
 };
@@ -32,6 +38,9 @@ type SlugUpdateOptions = {
 type LocalSlugUpdatePlan = {
     fileUpdates: Array<{ filePath: string; content: string }>;
     fileMoves: Array<{ source: string; target: string }>;
+    // Data-app bundles are whole folders named after the slug, so a rename
+    // moves the directory instead of a single file.
+    directoryMoves: Array<{ source: string; target: string }>;
     metadata:
         | {
               root: string;
@@ -62,7 +71,11 @@ const getYamlFiles = async (root: string): Promise<string[]> => {
                     (entry.name.endsWith('.yml') ||
                         entry.name.endsWith('.yaml')) &&
                     !entry.name.endsWith('.language.map.yml') &&
-                    !entry.name.endsWith('.language.map.yaml'),
+                    !entry.name.endsWith('.language.map.yaml') &&
+                    // App bundles can hold installed deps and lockfiles;
+                    // neither carries renameable content references.
+                    entry.name !== 'pnpm-lock.yaml' &&
+                    !entry.parentPath.split(path.sep).includes('node_modules'),
             )
             .map((entry) => path.join(entry.parentPath, entry.name));
     } catch (error) {
@@ -109,10 +122,12 @@ type ContentDocument = {
     metricQuery?: unknown;
     tiles?: Array<{
         type?: unknown;
-        properties?: { chartSlug?: unknown };
+        properties?: { chartSlug?: unknown; appSlug?: unknown };
     }>;
     resource?: { type?: unknown; slug?: unknown };
 };
+
+const APP_MANIFEST_FILENAME = 'lightdash-app.yml';
 
 // Comment-only or scalar YAML (e.g. chart-type context files) parses to null or a primitive
 const isYamlMapping = (value: unknown): value is Record<string, unknown> =>
@@ -140,11 +155,12 @@ export const planLocalSlugUpdate = async (
     customPath: string | undefined,
     from: string,
     to: string,
-    resourceType: ContentType.CHART | ContentType.DASHBOARD = ContentType.CHART,
+    resourceType: SlugUpdateResourceType = ContentType.CHART,
 ): Promise<LocalSlugUpdatePlan> => {
     const root = getDownloadFolder(customPath);
     const fileUpdates: LocalSlugUpdatePlan['fileUpdates'] = [];
     const fileMoves: LocalSlugUpdatePlan['fileMoves'] = [];
+    const directoryMoves: LocalSlugUpdatePlan['directoryMoves'] = [];
     let referencesUpdated = 0;
     const languageMapKey =
         resourceType === ContentType.CHART ? 'chart' : 'dashboard';
@@ -152,7 +168,19 @@ export const planLocalSlugUpdate = async (
     if (!from) {
         throw new ParameterError('The source slug must not be empty');
     }
-    if (!to || to.length > MAX_CONTENT_SLUG_LENGTH || generateSlug(to) !== to) {
+    if (resourceType === ContentType.DATA_APP) {
+        // App slugs follow the server's own shape check, which allows more
+        // than generateSlug emits (e.g. consecutive hyphens).
+        if (!isValidDataAppSlug(to)) {
+            throw new ParameterError(
+                `Invalid data app slug "${to}". Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters.`,
+            );
+        }
+    } else if (
+        !to ||
+        to.length > MAX_CONTENT_SLUG_LENGTH ||
+        generateSlug(to) !== to
+    ) {
         throw new ParameterError(
             `The target slug must contain between 1 and ${MAX_CONTENT_SLUG_LENGTH} lowercase letters, numbers, or hyphen-separated words`,
         );
@@ -162,6 +190,7 @@ export const planLocalSlugUpdate = async (
         return {
             fileUpdates,
             fileMoves,
+            directoryMoves,
             metadata: undefined,
             referencesUpdated,
         };
@@ -178,6 +207,49 @@ export const planLocalSlugUpdate = async (
 
     for (const { filePath, document, parsed } of contentDocuments) {
         let changed = false;
+
+        if (resourceType === ContentType.DATA_APP) {
+            if (
+                path.basename(filePath) === APP_MANIFEST_FILENAME &&
+                parsed.slug === from
+            ) {
+                document.set('slug', to);
+                referencesUpdated += 1;
+                changed = true;
+
+                // Bundles download to a folder named after the slug; keep the
+                // folder in step so the next download matches it.
+                const bundleDir = path.dirname(filePath);
+                if (path.basename(bundleDir) === from) {
+                    directoryMoves.push({
+                        source: bundleDir,
+                        target: path.join(path.dirname(bundleDir), to),
+                    });
+                }
+            }
+
+            if (Array.isArray(parsed.tiles)) {
+                for (const [index, tile] of parsed.tiles.entries()) {
+                    if (
+                        tile.type === 'data_app' &&
+                        tile.properties?.appSlug === from
+                    ) {
+                        document.setIn(
+                            ['tiles', index, 'properties', 'appSlug'],
+                            to,
+                        );
+                        referencesUpdated += 1;
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed) {
+                fileUpdates.push({ filePath, content: document.toString() });
+            }
+            // eslint-disable-next-line no-continue
+            continue;
+        }
 
         const isChart =
             parsed.contentType === ContentType.CHART ||
@@ -303,28 +375,32 @@ export const planLocalSlugUpdate = async (
         }
     }
 
-    const metadata = await readMetadataFile(root);
     let updatedMetadata: LocalSlugUpdatePlan['metadata'];
-    const metadataSlugs =
-        resourceType === ContentType.CHART
-            ? metadata.charts
-            : metadata.dashboards;
-    if (from in metadataSlugs) {
-        if (to !== from && to in metadataSlugs) {
-            throw new ParameterError(
-                `Cannot update local metadata because ${resourceType} slug "${to}" already exists`,
-            );
+    // The local metadata file only tracks charts and dashboards.
+    if (resourceType !== ContentType.DATA_APP) {
+        const metadata = await readMetadataFile(root);
+        const metadataSlugs =
+            resourceType === ContentType.CHART
+                ? metadata.charts
+                : metadata.dashboards;
+        if (from in metadataSlugs) {
+            if (to !== from && to in metadataSlugs) {
+                throw new ParameterError(
+                    `Cannot update local metadata because ${resourceType} slug "${to}" already exists`,
+                );
+            }
+            const slugs = { ...metadataSlugs };
+            slugs[to] = slugs[from];
+            delete slugs[from];
+            updatedMetadata = { root, resourceType, slugs };
         }
-        const slugs = { ...metadataSlugs };
-        slugs[to] = slugs[from];
-        delete slugs[from];
-        updatedMetadata = { root, resourceType, slugs };
     }
 
-    await assertMovesAreSafe(fileMoves);
+    await assertMovesAreSafe([...fileMoves, ...directoryMoves]);
     return {
         fileUpdates,
         fileMoves,
+        directoryMoves,
         metadata: updatedMetadata,
         referencesUpdated,
     };
@@ -342,6 +418,10 @@ export const getLocalSlugUpdateFileChanges = (
         ...plan.fileMoves.map(({ source, target }) => ({
             source: relative(source),
             target: relative(target),
+        })),
+        ...plan.directoryMoves.map(({ source, target }) => ({
+            source: `${relative(source)}${path.sep}`,
+            target: `${relative(target)}${path.sep}`,
         })),
         ...plan.fileUpdates
             .filter(({ filePath }) => !movedSources.has(filePath))
@@ -425,6 +505,15 @@ export const applyLocalSlugUpdate = async (
     const snapshots = await captureFiles(affectedPaths);
     const stagedMoves: string[] = [];
 
+    const appliedDirectoryMoves: Array<{ source: string; target: string }> = [];
+    const undoDirectoryMoves = async () => {
+        for (const move of [...appliedDirectoryMoves].reverse()) {
+            // eslint-disable-next-line no-await-in-loop
+            await fs.rename(move.target, move.source);
+        }
+        appliedDirectoryMoves.length = 0;
+    };
+
     try {
         await Promise.all(
             plan.fileUpdates.map(({ filePath, content }) =>
@@ -441,6 +530,14 @@ export const applyLocalSlugUpdate = async (
         for (const [index, move] of plan.fileMoves.entries()) {
             // eslint-disable-next-line no-await-in-loop
             await fs.rename(stagedMoves[index], move.target);
+        }
+
+        // Directory renames (data-app bundle folders) go last so every file
+        // write above targets the original paths.
+        for (const move of plan.directoryMoves) {
+            // eslint-disable-next-line no-await-in-loop
+            await fs.rename(move.source, move.target);
+            appliedDirectoryMoves.push(move);
         }
 
         if (plan.metadata && metadataPath) {
@@ -460,6 +557,9 @@ export const applyLocalSlugUpdate = async (
             );
         }
     } catch (error) {
+        // Directory moves roll back first so restored files land inside
+        // folders at their original paths.
+        await undoDirectoryMoves();
         await Promise.all(
             stagedMoves.map((temporary) => fs.rm(temporary, { force: true })),
         );
@@ -467,7 +567,10 @@ export const applyLocalSlugUpdate = async (
         throw error;
     }
 
-    return () => restoreFiles(snapshots);
+    return async () => {
+        await undoDirectoryMoves();
+        await restoreFiles(snapshots);
+    };
 };
 
 export const requestSlugUpdate = async (
@@ -499,7 +602,7 @@ export const executeSlugUpdate = async (
     customPath: string | undefined,
     from: string,
     to: string,
-    resourceType: ContentType.CHART | ContentType.DASHBOARD = ContentType.CHART,
+    resourceType: SlugUpdateResourceType = ContentType.CHART,
 ): Promise<LocalSlugUpdatePlan> => {
     const localPlan = await planLocalSlugUpdate(
         customPath,
@@ -532,12 +635,14 @@ export const slugUpdateHandler = async (
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
+    const resourceType: SlugUpdateResourceType =
+        options.type === 'app' ? ContentType.DATA_APP : options.type;
+    const resourceLabel = options.type === 'app' ? 'data app' : options.type;
+
     const config = await getConfig();
-    if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
+    if (!config.context?.serverUrl)
+        throw new Error("Not logged in. Run 'lightdash login --help'");
 
     const selection = await selectProject(config, options.project);
     if (!selection) {
@@ -549,8 +654,8 @@ export const slugUpdateHandler = async (
         selection,
         config,
         options.dryRun
-            ? `Previewing ${options.type} slug update in`
-            : `Updating ${options.type} slug in`,
+            ? `Previewing ${resourceLabel} slug update in`
+            : `Updating ${resourceLabel} slug in`,
     );
 
     if (options.dryRun) {
@@ -558,11 +663,11 @@ export const slugUpdateHandler = async (
             options.path,
             options.from,
             options.to,
-            options.type,
+            resourceType,
         );
         console.info(
             styles.success(
-                `Would update ${options.type} slug "${options.from}" -> "${options.to}".`,
+                `Would update ${resourceLabel} slug "${options.from}" -> "${options.to}".`,
             ),
         );
         logLocalSlugUpdateFileChanges(localPlan, options.path, true);
@@ -575,12 +680,12 @@ export const slugUpdateHandler = async (
         options.path,
         options.from,
         options.to,
-        options.type,
+        resourceType,
     );
 
     console.info(
         styles.success(
-            `Updated ${options.type} slug "${options.from}" -> "${options.to}".`,
+            `Updated ${resourceLabel} slug "${options.from}" -> "${options.to}".`,
         ),
     );
     logLocalSlugUpdateFileChanges(localPlan, options.path, false);

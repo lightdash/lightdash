@@ -783,6 +783,10 @@ export class PreAggregateModel {
                         materializationMaxRows:
                             row.materialization_metric_query?.resolvedMaxRows ??
                             null,
+                        fieldCount:
+                            (row.pre_aggregate_definition.dimensions?.length ??
+                                0) +
+                            (row.pre_aggregate_definition.metrics?.length ?? 0),
                     }),
                     materialization,
                 };

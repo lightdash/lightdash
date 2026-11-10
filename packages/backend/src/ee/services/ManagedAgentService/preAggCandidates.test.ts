@@ -2,6 +2,7 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    PRE_AGGREGATE_FIELD_COUNT_WARNING_THRESHOLD,
     SupportedDbtAdapter,
     TimeFrames,
     type CompiledDimension,
@@ -233,5 +234,39 @@ describe('buildPreAggCandidateSuggestion', () => {
         );
         expect(suggestion.suggestedYaml).not.toBeNull();
         expect(suggestion.coveredQueryCount).toBe(0);
+    });
+
+    it('returns no suggestion when the observed queries need too many fields', () => {
+        const wideDimensions = Array.from(
+            { length: PRE_AGGREGATE_FIELD_COUNT_WARNING_THRESHOLD + 1 },
+            (_, i) => makeDimension({ name: `attribute_${i}` }),
+        );
+        const wideExplore: Explore = {
+            ...explore,
+            tables: {
+                orders: makeTable('orders', wideDimensions, [totalAmount]),
+            },
+        };
+
+        const suggestion = buildPreAggCandidateSuggestion({
+            explore: wideExplore,
+            shapes: [
+                {
+                    dimensionFieldIds: wideDimensions.map(
+                        (dimension) => `orders_${dimension.name}`,
+                    ),
+                    metricFieldIds: ['orders_total_order_amount'],
+                    filterFieldIds: [],
+                    hasCustomFields: false,
+                    queryCount: 30,
+                },
+            ],
+        });
+
+        expect(suggestion.suggestedYaml).toBeNull();
+        expect(suggestion.noSuggestionReason).toBe(
+            `too_many_fields_for_one_pre_aggregate: ${PRE_AGGREGATE_FIELD_COUNT_WARNING_THRESHOLD + 2} dimensions and metrics, above the recommended ${PRE_AGGREGATE_FIELD_COUNT_WARNING_THRESHOLD}`,
+        );
+        expect(suggestion.coverableQueryCount).toBe(30);
     });
 });

@@ -128,6 +128,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
+import { validate as isValidUuid } from 'uuid';
 import { z } from 'zod';
 import type { AiThreadOrigin } from '../../analytics/aiUsage';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -138,6 +139,7 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../../database/entities/apps';
+import { ContentAsCodeSnapshotsTableName } from '../../database/entities/contentAsCodeSnapshots';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -167,6 +169,7 @@ import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
+import { AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE } from '../../models/ContentAsCodeSnapshotModel';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -272,7 +275,9 @@ import {
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 import {
+    COMPOSER_SESSION_SCOPE_TYPE,
     ComposerQueryNodesTableName,
+    ComposerSessionsTableName,
     THREAD_COMPOSER_QUERY_SCOPE_TYPE,
     threadComposerQueryScope,
     type ComposerQueryNodeScope,
@@ -302,6 +307,11 @@ const sqlApprovalToolCallSql = (alias: string): string =>
     ).join(', ')}) AND ${alias}.tool_args @> '${JSON.stringify({
         queries: [{ sourceType: QuerySourceType.SQL }],
     })}'::jsonb))`;
+
+/** Which embedded threads a token can see: by its write spaces, or by its viewer when it has none. */
+export type EmbedThreadScope =
+    | { type: 'writeSpaces'; writeSpaceUuids: string[] }
+    | { type: 'externalUser'; externalUserId: string };
 
 export type AiPromptResponseState = {
     respondedAt: string | null;
@@ -3026,6 +3036,31 @@ export class AiAgentModel {
         return this.getUserAccess(agentUuid, { trx });
     }
 
+    /** Undefined when the agent is not in the project; empty when it is not space-restricted. */
+    async findSpaceAccess(
+        agentUuid: AiAgent['uuid'],
+        projectUuid: string,
+    ): Promise<NonNullable<AiAgent['spaceAccess']> | undefined> {
+        const row: { space_uuids: string[] } | undefined = await this.database(
+            AiAgentTableName,
+        )
+            .leftJoin(
+                AiAgentSpaceAccessTableName,
+                `${AiAgentSpaceAccessTableName}.ai_agent_uuid`,
+                `${AiAgentTableName}.ai_agent_uuid`,
+            )
+            .where(`${AiAgentTableName}.ai_agent_uuid`, agentUuid)
+            .andWhere(`${AiAgentTableName}.project_uuid`, projectUuid)
+            .groupBy(`${AiAgentTableName}.ai_agent_uuid`)
+            .select(
+                this.database.raw(
+                    `COALESCE(array_agg(${AiAgentSpaceAccessTableName}.space_uuid::text) FILTER (WHERE ${AiAgentSpaceAccessTableName}.space_uuid IS NOT NULL), '{}') AS space_uuids`,
+                ),
+            )
+            .first();
+        return row?.space_uuids;
+    }
+
     private async getSpaceAccess(
         agentUuid: AiAgent['uuid'],
         { trx = this.database }: { trx?: Knex } = {},
@@ -3310,10 +3345,23 @@ export class AiAgentModel {
         organizationUuid: string;
         agentUuid: string;
     }): Promise<void> {
-        await this.database(AiAgentTableName)
-            .where('ai_agent_uuid', agentUuid)
-            .where('organization_uuid', organizationUuid)
-            .delete();
+        await this.database.transaction(async (trx) => {
+            const [deleted] = await trx(AiAgentTableName)
+                .where('ai_agent_uuid', agentUuid)
+                .where('organization_uuid', organizationUuid)
+                .delete()
+                .returning(['slug', 'project_uuid']);
+            if (!deleted) return;
+            // Knowledge document stamps key on the slug; a later agent with the
+            // same slug must not inherit them.
+            await trx(ContentAsCodeSnapshotsTableName)
+                .where({
+                    project_uuid: deleted.project_uuid,
+                    content_type: AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+                })
+                .whereLike('slug', `${deleted.slug}/%`)
+                .delete();
+        });
     }
 
     // Threads without a prompt are only listed when created bound or with context.
@@ -3772,14 +3820,14 @@ export class AiAgentModel {
         threadUuid,
         userUuid,
         createdFrom,
-        embedWriteSpaceUuids,
+        embedThreadScope,
     }: {
         organizationUuid: string;
         agentUuid: string;
         threadUuid?: string;
         userUuid?: string;
         createdFrom?: AiThreadCreatedFrom[];
-        embedWriteSpaceUuids?: string[];
+        embedThreadScope?: EmbedThreadScope;
     }): Promise<
         AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
     > {
@@ -3807,9 +3855,9 @@ export class AiAgentModel {
             void query.andWhere(`${UserTableName}.user_uuid`, userUuid);
         }
 
-        if (embedWriteSpaceUuids) {
+        if (embedThreadScope) {
             void query.andWhere(
-                this.embedThreadSpacesWithin(embedWriteSpaceUuids),
+                this.embedThreadScopeCondition(embedThreadScope),
             );
         }
 
@@ -7144,6 +7192,7 @@ export class AiAgentModel {
                 embed_space_uuids: data.embedSpaceUuids?.length
                     ? data.embedSpaceUuids
                     : null,
+                embed_external_user_id: data.embedExternalUserId ?? null,
             });
 
             return row.ai_thread_uuid;
@@ -7162,6 +7211,7 @@ export class AiAgentModel {
             .select({
                 createdFrom: `${AiThreadTableName}.created_from`,
                 embedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
+                embedExternalUserId: `${AiWebAppThreadTableName}.embed_external_user_id`,
             })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first();
@@ -7269,23 +7319,34 @@ export class AiAgentModel {
         return { threadBinding, threadContext: row.thread_context };
     }
 
-    // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
-    private embedThreadSpacesWithin(writeSpaceUuids: string[]) {
-        const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
-        return this.database.raw(
-            `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
-            [writeSpaceUuids],
-        );
+    private embedThreadScopeCondition(scope: EmbedThreadScope) {
+        switch (scope.type) {
+            case 'writeSpaces': {
+                // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
+                const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
+                return this.database.raw(
+                    `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
+                    [scope.writeSpaceUuids],
+                );
+            }
+            case 'externalUser':
+                return this.database.raw(
+                    `(${AiWebAppThreadTableName}.embed_space_uuid IS NULL AND ${AiWebAppThreadTableName}.embed_space_uuids IS NULL AND ${AiWebAppThreadTableName}.embed_external_user_id = ?)`,
+                    [scope.externalUserId],
+                );
+            default:
+                return assertUnreachable(scope, 'Unknown embed thread scope');
+        }
     }
 
-    async isWebAppThreadInEmbedSpaces(
+    async isWebAppThreadInEmbedScope(
         threadUuid: string,
-        writeSpaceUuids: string[],
+        scope: EmbedThreadScope,
     ): Promise<boolean> {
         const row = await this.database(AiWebAppThreadTableName)
             .select('ai_thread_uuid')
             .where('ai_thread_uuid', threadUuid)
-            .andWhere(this.embedThreadSpacesWithin(writeSpaceUuids))
+            .andWhere(this.embedThreadScopeCondition(scope))
             .first();
 
         return row !== undefined;
@@ -10097,11 +10158,55 @@ export class AiAgentModel {
                     !isSameComposerNodeDefinition(row.definition, node)
                 ) {
                     throw new ParameterError(
-                        getComposerNodeConflictMessage(row.definition),
+                        getComposerNodeConflictMessage(
+                            row.definition,
+                            scope.scopeType === COMPOSER_SESSION_SCOPE_TYPE
+                                ? 'session'
+                                : 'thread',
+                        ),
                     );
                 }
             });
         });
+    }
+
+    async createComposerSession(owner: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<string> {
+        const [row] = await this.database(ComposerSessionsTableName)
+            .insert({
+                user_uuid: owner.userUuid,
+                organization_uuid: owner.organizationUuid,
+                project_uuid: owner.projectUuid,
+            })
+            .returning('composer_session_uuid');
+        return row.composer_session_uuid;
+    }
+
+    /** Bumps last_used_at; false when the session is unknown or not this owner's in this project. */
+    async useComposerSession({
+        sessionUuid,
+        userUuid,
+        organizationUuid,
+        projectUuid,
+    }: {
+        sessionUuid: string;
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<boolean> {
+        if (!isValidUuid(sessionUuid)) return false;
+        const updated = await this.database(ComposerSessionsTableName)
+            .where({
+                composer_session_uuid: sessionUuid,
+                user_uuid: userUuid,
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+            })
+            .update({ last_used_at: this.database.fn.now() });
+        return updated > 0;
     }
 
     async findArtifactVersionsByPromptUuid(

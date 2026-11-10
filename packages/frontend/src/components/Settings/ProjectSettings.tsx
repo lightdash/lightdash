@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Stack, Text, Title } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import * as Sentry from '@sentry/react';
 import {
     useMemo,
@@ -22,11 +22,12 @@ import { useContentReviewAvailability } from '../../ee/features/contentReview/ho
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
 import { ProjectAgentIdentityPage } from '../../features/aiAccess/ProjectAgentIdentityPage';
 import ContentReviewPage from '../../features/contentAsCode/components/ContentReviewPage';
-import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import ScopeTourHost from '../../features/scopeTours/ScopeTourHost';
 import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
+import { ExternalSourcesRedirect } from '../../features/semanticStudio/ExternalSourcesRedirect';
+import { LiveDataSourcesRedirect } from '../../features/semanticStudio/LiveDataSourcesRedirect';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import {
     type LimitedProjectSettingsPage,
@@ -87,9 +88,8 @@ const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
 );
 
 const ProjectSettings: FC<{
-    externalSourcesEnabled: boolean;
     projectSettingsAccess: Exclude<ProjectSettingsAccess, { type: 'none' }>;
-}> = ({ externalSourcesEnabled, projectSettingsAccess }) => {
+}> = ({ projectSettingsAccess }) => {
     const projectUuid = useProjectUuid();
     const location = useLocation();
 
@@ -122,8 +122,6 @@ const ProjectSettings: FC<{
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
-        useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
     const { data: agentIdentityFlag, isLoading: isAgentIdentityFlagLoading } =
         useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const canManageAgentIdentity =
@@ -137,10 +135,9 @@ const ProjectSettings: FC<{
             }),
         ) ??
             false);
-    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
+    const isResultsCacheAvailable = health.data?.license?.valid === true;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    const canManageExternalConnections =
-        isDataAppsEnabled &&
+    const canManageProjectConnections =
         !!project &&
         (user.data?.ability.can(
             'manage',
@@ -150,18 +147,8 @@ const ProjectSettings: FC<{
             }),
         ) ??
             false);
-
-    const canManageExternalSources =
-        externalSourcesEnabled &&
-        !!project &&
-        (user.data?.ability.can(
-            'manage',
-            subject('ExternalSource', {
-                organizationUuid: project.organizationUuid,
-                projectUuid: project.projectUuid,
-            }),
-        ) ??
-            false);
+    const canManageExternalConnections =
+        isDataAppsEnabled && canManageProjectConnections;
 
     const contentReviewAvailability = useContentReviewAvailability();
     const canViewContentReviewSettings =
@@ -286,23 +273,6 @@ const ProjectSettings: FC<{
                     </ProjectSettingsPage>
                 ),
             },
-            ...(canManageExternalSources
-                ? [
-                      {
-                          path: `/externalSources`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="External sources"
-                                  description="Upload files to query them alongside your warehouse."
-                              >
-                                  <ExternalSourcesSettingsPanel
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
             {
                 path: `/usageAnalytics`,
                 element: (
@@ -505,14 +475,14 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
-            ...(isResultsCacheEnabled
+            ...(isResultsCacheAvailable
                 ? [
                       {
                           path: `/caching`,
                           element: (
                               <ProjectSettingsPage
                                   title="Results caching"
-                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                                  description="Load charts and dashboards from recent query results."
                               >
                                   <ProjectResultsCache
                                       projectUuid={projectUuid}
@@ -614,6 +584,16 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
+            // Live data sources moved to the Semantic Layer page; old links
+            // and sign-in callbacks land there.
+            {
+                path: `/liveDataSources/*`,
+                element: <LiveDataSourcesRedirect projectUuid={projectUuid} />,
+            },
+            {
+                path: `/externalSources/*`,
+                element: <ExternalSourcesRedirect projectUuid={projectUuid} />,
+            },
         ];
         if (project?.provisioningSource === 'analytics') {
             return [
@@ -647,12 +627,11 @@ const ProjectSettings: FC<{
         isSoftDeleteEnabled,
         isPgWireEnabled,
         isGitProject,
-        isResultsCacheEnabled,
+        isResultsCacheAvailable,
         user.data?.ability,
         canManageExternalConnections,
         canManageAgentIdentity,
         project,
-        canManageExternalSources,
         canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
         canManageOrgAiAgent,
@@ -679,12 +658,6 @@ const ProjectSettings: FC<{
             '/generalSettings/projectManagement/:projectUuid/agentIdentity',
             location.pathname,
         );
-    const isAwaitingCachingRoute =
-        isResultsCacheFlagLoading &&
-        !!matchPath(
-            '/generalSettings/projectManagement/:projectUuid/caching',
-            location.pathname,
-        );
     const isAwaitingReviewRequestsRoute =
         contentReviewAvailability.isLoading &&
         !!matchPath(
@@ -697,14 +670,13 @@ const ProjectSettings: FC<{
         !project ||
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
-        isAwaitingCachingRoute ||
         isAwaitingAgentIdentityRoute ||
         isAwaitingReviewRequestsRoute
     ) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading project" loading />
-            </div>
+            </Box>
         );
     }
 

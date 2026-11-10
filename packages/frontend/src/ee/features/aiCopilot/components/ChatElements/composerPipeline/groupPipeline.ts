@@ -17,6 +17,12 @@ export type PipelineNode = {
     query: SourceQuery;
 };
 
+/** A node and the nodes it directly reads or feeds. */
+export type NodeLineage = {
+    nodeId: string;
+    relatedIds: ReadonlySet<string>;
+};
+
 export type PipelineLayerKind = 'sources' | 'transformations' | 'result';
 
 export type PipelineLayer = {
@@ -24,6 +30,8 @@ export type PipelineLayer = {
     kind: PipelineLayerKind;
     nodes: PipelineNode[];
 };
+
+export const LIVE_DATA_SOURCE_LABEL = 'Live data source';
 
 /** User-facing node type: where a source reads from, or the transformation engine. */
 export const nodeTypeLabelOf = (query: SourceQuery): string => {
@@ -36,6 +44,8 @@ export const nodeTypeLabelOf = (query: SourceQuery): string => {
             return 'External data';
         case QuerySourceType.PYTHON:
             return 'Python';
+        case QuerySourceType.API:
+            return LIVE_DATA_SOURCE_LABEL;
         case QuerySourceType.DUCKDB:
             return 'DuckDB';
         default:

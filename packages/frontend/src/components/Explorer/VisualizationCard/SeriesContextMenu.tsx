@@ -15,6 +15,7 @@ import {
     useEffect,
     useMemo,
     useState,
+    type CSSProperties,
     type FC,
 } from 'react';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
@@ -32,6 +33,7 @@ import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
+import classes from './SeriesContextMenu.module.css';
 
 export const SeriesContextMenu: FC<{
     echartsSeriesClickEvent: EchartsSeriesClickEvent | undefined;
@@ -172,7 +174,6 @@ export const SeriesContextMenu: FC<{
             onClose={onClose}
             closeOnItemClick
             closeOnEscape
-            radius={0}
             position="right-start"
             offset={{
                 mainAxis: 0,
@@ -183,10 +184,13 @@ export const SeriesContextMenu: FC<{
                 <Menu.Target>
                     <div
                         onContextMenu={handleCancelContextMenu}
-                        style={{
-                            position: 'absolute',
-                            ...contextMenuTargetOffset,
-                        }}
+                        className={classes.contextMenuTarget}
+                        style={
+                            {
+                                '--menu-left': `${contextMenuTargetOffset?.left ?? 0}px`,
+                                '--menu-top': `${contextMenuTargetOffset?.top ?? 0}px`,
+                            } as CSSProperties
+                        }
                     />
                 </Menu.Target>
             </Portal>

@@ -1,6 +1,5 @@
 import {
     Badge,
-    Box,
     Button,
     Checkbox,
     Divider,
@@ -13,7 +12,6 @@ import {
     Switch,
     Text,
     TextInput,
-    Title,
 } from '@mantine/core';
 import { IconExternalLink, IconTrash } from '@tabler/icons-react';
 import { useMemo, useState, type FormEvent } from 'react';
@@ -24,6 +22,7 @@ import {
     useLinearTeams,
 } from '../../../../../../components/common/LinearIntegration/hooks/useLinearIntegration';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import useApp from '../../../../../../providers/App/useApp';
 import linearSvg from '../../../../../../svgs/linear.svg';
@@ -183,60 +182,63 @@ export const LinearReviewSettings = () => {
 
     return (
         <>
-            <Divider mx="calc(var(--mantine-spacing-md) * -1)" />
-            <Group
-                justify="space-between"
-                wrap="nowrap"
-                align="flex-start"
-                gap="md"
+            <Divider />
+            <SettingRow
+                title="Linear issues"
+                titlePrefix={
+                    <LinearLogo compact={hasLinear && !requiresReconnect} />
+                }
+                titleAddon={
+                    hasLinear && (
+                        <Badge
+                            size="sm"
+                            color={requiresReconnect ? 'yellow' : 'green'}
+                        >
+                            {requiresReconnect
+                                ? 'Reconnect required'
+                                : 'Connected'}
+                        </Badge>
+                    )
+                }
+                description={
+                    hasLinear && !requiresReconnect
+                        ? 'New findings create a Linear issue automatically. Existing open findings can be exported below. Each issue links both ways; status is not synced.'
+                        : 'Send review findings to Linear as issues. Each issue links both ways. Status is not synced.'
+                }
+                control={
+                    <>
+                        {installationLoading && <Loader size="sm" />}
+                        {canLoadLinear &&
+                            (routingQuery.isInitialLoading ? (
+                                <Loader size="sm" />
+                            ) : (
+                                <Switch
+                                    size="md"
+                                    aria-label="Create Linear issues for AI review findings"
+                                    checked={!!routing?.enabled}
+                                    disabled={
+                                        !canEdit ||
+                                        isUpdating ||
+                                        !canEnableExport
+                                    }
+                                    onChange={(event) =>
+                                        saveRouting({
+                                            enabled:
+                                                event.currentTarget.checked,
+                                        })
+                                    }
+                                />
+                            ))}
+                    </>
+                }
             >
-                <Box maw={620}>
-                    <Group gap="xs" mb={4}>
-                        <LinearLogo compact={hasLinear && !requiresReconnect} />
-                        <Title order={6}>Linear issues</Title>
-                        {hasLinear && (
-                            <Badge
-                                size="sm"
-                                color={requiresReconnect ? 'yellow' : 'green'}
-                            >
-                                {requiresReconnect
-                                    ? 'Reconnect required'
-                                    : 'Connected'}
-                            </Badge>
-                        )}
-                    </Group>
-                    <Text c="dimmed" fz="xs">
-                        {hasLinear && !requiresReconnect
-                            ? 'New findings create a Linear issue automatically. Existing open findings can be exported below. Each issue links both ways; status is not synced.'
-                            : 'Send review findings to Linear as issues. Each issue links both ways. Status is not synced.'}
+                {hasLinear && !requiresReconnect && (
+                    <Text c="dimmed" fz="xs" mt="xxs">
+                        Connected to {installation.organizationName} (
+                        {installation.organizationUrlKey}).
                     </Text>
-                    {hasLinear && !requiresReconnect && (
-                        <Text c="dimmed" fz="xs" mt={4}>
-                            Connected to {installation.organizationName} (
-                            {installation.organizationUrlKey}).
-                        </Text>
-                    )}
-                </Box>
-                {installationLoading && <Loader size="sm" />}
-                {canLoadLinear &&
-                    (routingQuery.isInitialLoading ? (
-                        <Loader size="sm" />
-                    ) : (
-                        <Switch
-                            size="md"
-                            aria-label="Create Linear issues for AI review findings"
-                            checked={!!routing?.enabled}
-                            disabled={
-                                !canEdit || isUpdating || !canEnableExport
-                            }
-                            onChange={(event) =>
-                                saveRouting({
-                                    enabled: event.currentTarget.checked,
-                                })
-                            }
-                        />
-                    ))}
-            </Group>
+                )}
+            </SettingRow>
 
             {!hasLinear && !installationLoading && (
                 <Paper variant="dotted" p="md" radius="md">

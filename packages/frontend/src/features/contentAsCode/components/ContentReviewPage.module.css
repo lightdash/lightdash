@@ -8,10 +8,7 @@
 }
 
 .row:hover {
-    background-color: light-dark(
-        var(--mantine-color-gray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-default-hover);
 }
 
 .row:active {
@@ -25,4 +22,21 @@
 
 .diffPanel {
     overflow: hidden;
+}
+
+/* Pierre's <Virtualizer> IS the scroll viewport its virtualizer tracks */
+.diffViewport {
+    --diffs-font-size: 11px;
+    --diffs-line-height: 17px;
+    max-height: 62vh;
+    overflow: auto;
+}
+
+.diffViewport,
+.diffColorScheme {
+    color-scheme: light;
+
+    @mixin dark {
+        color-scheme: dark;
+    }
 }

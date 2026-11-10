@@ -18,6 +18,7 @@ import {
     DimensionType,
     DuckdbConnectionType,
     ExploreType,
+    FeatureFlags,
     FieldType,
     MetricType,
     NotFoundError,
@@ -27,13 +28,14 @@ import {
     ServiceAccountScope,
     SpaceMemberRole,
     USER_MANAGED_EXPLORE_TYPES,
+    WarehouseConnectionError,
     WarehouseTypes,
 } from '@lightdash/common';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
+import { isEqual } from 'es-toolkit/compat';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
-import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
@@ -58,6 +60,7 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import { newExploreCacheReadContext } from '../../logging/exploreCacheReadMetrics';
 import {
+    LIVE_SOURCE_ONLY_CREDENTIALS,
     ProjectModel,
     reduceExploreTableSummaryRows,
     toExploreTableSummaryRecord,
@@ -116,6 +119,62 @@ describe('ProjectModel', () => {
         tracker.reset();
         vi.restoreAllMocks();
     });
+    test('uses Console organization flags for BigQuery federation and rechecks changes', async () => {
+        let enabled = false;
+        tracker.on.select('feature_flags').response([
+            {
+                flag_id: FeatureFlags.BigqueryWorkloadIdentityAuth,
+                default_enabled: false,
+            },
+        ]);
+        tracker.on
+            .select('feature_flag_overrides')
+            .response((query) =>
+                query.bindings.includes('enabled-org') ? [{ enabled }] : [],
+            );
+        const productionModel = new ProjectModel({
+            database,
+            encryptionUtil: encryptionUtilMock,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                enabledFeatureFlags: new Set(),
+                disabledFeatureFlags: new Set(),
+                previewFeatureFlags: { enabled: false },
+            },
+            googleIdentityTokenSource: { getIdToken: vi.fn() },
+        });
+        const federated: CreateBigqueryCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'project',
+            dataset: 'dataset',
+            keyfileContents: {},
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            workloadIdentityProvider:
+                'projects/123/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+        };
+        const resolve = (org = 'enabled-org') =>
+            productionModel.getWarehouseClientIdentityOptions(federated, org);
+        await expect(resolve()).rejects.toThrow(WarehouseConnectionError);
+        enabled = true;
+        await expect(resolve()).resolves.toMatchObject({
+            bigqueryExternalAccount: { type: 'external_account' },
+        });
+        await expect(resolve('other-org')).rejects.toThrow(
+            WarehouseConnectionError,
+        );
+        enabled = false;
+        await expect(resolve()).rejects.toThrow(WarehouseConnectionError);
+        enabled = true;
+        await expect(resolve()).resolves.toMatchObject({
+            bigqueryExternalAccount: { type: 'external_account' },
+        });
+    });
     test('should get project with no sensitive properties', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
@@ -124,6 +183,32 @@ describe('ProjectModel', () => {
         const project = await model.get(projectUuid);
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
+    });
+    test('rejects a legacy organization link instead of using stale project credentials', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    ...projectMock,
+                    organization_warehouse_credentials_uuid: 'retired',
+                },
+            ]);
+        await expect(model.getWithSensitiveFields(projectUuid)).rejects.toThrow(
+            'Organization warehouse credentials are no longer supported',
+        );
+    });
+    test('rejects a legacy organization link in the query credential loader', async () => {
+        tracker.on.select(/warehouse_credentials/).response([
+            {
+                ...projectMock,
+                organization_warehouse_credentials_uuid: 'retired',
+            },
+        ]);
+        await expect(
+            model.getWarehouseCredentialsForProjectUncached(projectUuid),
+        ).rejects.toThrow(
+            'Organization warehouse credentials are no longer supported',
+        );
     });
     test('the project GET strips the stored identity version at the model loader', async () => {
         let stored: CreateWarehouseCredentials;
@@ -345,6 +430,43 @@ describe('ProjectModel', () => {
         expect(result).toEqual(expectedTablesConfiguration);
         expect(tracker.history.select).toHaveLength(1);
     });
+    describe('live source explores without a warehouse', () => {
+        beforeEach(() => {
+            vi.spyOn(model, 'resolveWarehouseCredentialRead').mockResolvedValue(
+                { kind: 'original' },
+            );
+            vi.spyOn(
+                model,
+                'getWarehouseCredentialsForProject',
+            ).mockRejectedValue(new NotFoundError('No warehouse'));
+        });
+
+        test('shapes the query without a warehouse connection', async () => {
+            vi.spyOn(model, 'getExploreFromCache').mockResolvedValue({
+                ...exploreWithMetricFilters,
+                type: ExploreType.API_SOURCE,
+            });
+            await expect(
+                model.getWarehouseCredentialsForBinding(projectUuid, {
+                    kind: 'explore',
+                    exploreName: 'posthog_events',
+                }),
+            ).resolves.toBe(LIVE_SOURCE_ONLY_CREDENTIALS);
+        });
+
+        test('still fails for a warehouse explore', async () => {
+            vi.spyOn(model, 'getExploreFromCache').mockResolvedValue(
+                exploreWithMetricFilters,
+            );
+            await expect(
+                model.getWarehouseCredentialsForBinding(projectUuid, {
+                    kind: 'explore',
+                    exploreName: 'orders',
+                }),
+            ).rejects.toBeInstanceOf(NotFoundError);
+        });
+    });
+
     describe('getCachedExploreStorageBytes', () => {
         test('returns the matched explore count and stored bytes together', async () => {
             tracker.on
@@ -2015,6 +2137,11 @@ describe('ProjectModel', () => {
                     name: 'external',
                     type: ExploreType.EXTERNAL_SOURCE,
                 },
+                {
+                    ...incoming,
+                    name: 'posthog_events',
+                    type: ExploreType.API_SOURCE,
+                },
             ];
             tracker.on
                 .select(({ sql }) => sql.includes('"cached_explores"'))
@@ -2042,6 +2169,50 @@ describe('ProjectModel', () => {
                 projectUuid,
                 'deleted',
             ]);
+        });
+
+        test('a full dbt refresh keeps live data source explores', async () => {
+            const incoming = { ...exploresWithSameName[0], name: 'orders' };
+            const liveExplore = {
+                ...incoming,
+                name: 'posthog_events',
+                type: ExploreType.API_SOURCE,
+            };
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ explore: liveExplore }]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response([
+                    { cached_explore_uuid: 'orders-uuid' },
+                    { cached_explore_uuid: 'posthog-uuid' },
+                ]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response(0);
+
+            await model.saveExploresToCache(projectUuid, [incoming], true);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].sql).toContain('not in');
+            expect(tracker.history.delete[0].bindings).toEqual(
+                expect.arrayContaining(['orders', 'posthog_events']),
+            );
+            const savedNames = tracker.history.insert
+                .filter(
+                    ({ sql }) =>
+                        sql.includes('"cached_explore"') &&
+                        !sql.includes('"cached_explores"'),
+                )
+                .flatMap(({ bindings }) => bindings)
+                .filter((binding) => binding === 'posthog_events');
+            expect(savedNames.length).toBeGreaterThan(0);
         });
 
         test('preserves cached explores when the payload is not explicitly complete', async () => {
@@ -2594,7 +2765,7 @@ describe('ProjectModel', () => {
                 ...exploreWithMetricFilters,
                 name: 'managed_append',
                 label: 'append',
-                type: ExploreType.VIRTUAL,
+                type: ExploreType.API_SOURCE,
             };
             const incomingOverride = {
                 ...exploreWithMetricFilters,
@@ -2830,6 +3001,29 @@ describe('ProjectModel', () => {
     });
 
     describe('mergeMissingWarehouseSecrets', () => {
+        test('never carries an old BigQuery key into workload identity federation', () => {
+            const federated: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'project',
+                dataset: 'dataset',
+                authenticationType:
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                keyfileContents: {},
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+            };
+            const previous = {
+                ...federated,
+                authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+                keyfileContents: { private_key: 'old-secret' },
+            };
+            expect(
+                ProjectModel.mergeMissingWarehouseSecrets(federated, previous),
+            ).toEqual(federated);
+        });
         test('should merge secrets when key is missing', async () => {
             const result = ProjectModel.mergeMissingWarehouseSecrets(
                 IncompletePostgresCredentialsWithoutSecrets as CreatePostgresCredentials,
@@ -3633,6 +3827,85 @@ describe('ProjectModel', () => {
                 sql.includes(OrganizationMembershipCustomRolesTableName),
             );
             expect(extrasClear).toBeDefined();
+        });
+    });
+
+    describe('getResultsCacheState', () => {
+        const projectRow = (resultsCacheEnabled: boolean) => ({
+            results_cache_enabled: resultsCacheEnabled,
+            results_cache_ttl_seconds: null,
+            results_cache_generation: 3,
+            results_cache_invalidated_at: null,
+            results_cache_clear_cron: null,
+            results_cache_clear_next_run_at: null,
+            scheduler_timezone: 'UTC',
+        });
+        const modelWithEnv = (cacheEnabled: boolean | null) =>
+            new ProjectModel({
+                database,
+                encryptionUtil: encryptionUtilMock,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    results: {
+                        ...lightdashConfigMock.results,
+                        cacheEnabled,
+                        cacheStateTimeSeconds: 600,
+                    },
+                },
+            });
+
+        test.each([
+            { env: null, project: false, expected: false },
+            { env: null, project: true, expected: true },
+            { env: true, project: false, expected: true },
+            { env: false, project: true, expected: false },
+        ])(
+            'env $env and project $project resolve to $expected',
+            async ({ env, project, expected }) => {
+                tracker.on
+                    .select(ProjectTableName)
+                    .response(projectRow(project));
+
+                await expect(
+                    modelWithEnv(env).getResultsCacheState('project-uuid'),
+                ).resolves.toEqual({
+                    enabled: expected,
+                    cacheGeneration: 3,
+                    ttlSeconds: 600,
+                });
+                expect(tracker.history.select).toHaveLength(1);
+            },
+        );
+    });
+
+    describe('updateResultsCacheSettings', () => {
+        test('clears the cache when caching is turned on or off', async () => {
+            tracker.on.update(ProjectTableName).response(1);
+
+            await model.updateResultsCacheSettings('project-uuid', {
+                cacheEnabled: true,
+            });
+
+            const [update] = tracker.history.update;
+            expect(update.sql).toMatch(
+                /CASE WHEN results_cache_enabled IS DISTINCT FROM \$\d+ THEN results_cache_generation \+ 1/,
+            );
+            expect(update.sql).toMatch(
+                /CASE WHEN results_cache_enabled IS DISTINCT FROM \$\d+ THEN NOW\(\) ELSE results_cache_invalidated_at END/,
+            );
+            expect(update.bindings).toContain(true);
+        });
+
+        test('keeps the cache generation when only the TTL changes', async () => {
+            tracker.on.update(ProjectTableName).response(1);
+
+            await model.updateResultsCacheSettings('project-uuid', {
+                cacheTtlSeconds: 600,
+            });
+
+            expect(tracker.history.update[0].sql).not.toContain(
+                'results_cache_generation',
+            );
         });
     });
 });

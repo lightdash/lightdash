@@ -14,6 +14,7 @@ import {
     ApiDashboardAsCodeUpsertResponse,
     ApiDataTimezonePreview,
     ApiErrorPayload,
+    ApiExploresResultsCacheInvalidationResponse,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
     ApiGoogleSheetsSyncAsCodeListResponse,
@@ -23,7 +24,11 @@ import {
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
+    ApiResultsCacheInvalidationResponse,
     ApiResultsCacheProjectSettingsResponse,
+    ApiResultsCacheStatsResponse,
+    ApiResultsCacheStatusResponse,
+    ApiResultsCacheTtlProjectionsResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSpaceSummaryListResponse,
@@ -70,6 +75,8 @@ import {
     type ApiGetTagsResponse,
     type ApiRefreshBody,
     type ApiRefreshResults,
+    type ApiReplaceProjectContextBody,
+    type ApiReplaceProjectContextResults,
     type ApiSuccess,
     type ApiTableGroupsResults,
     type ApiUpdateDashboardsResponse,
@@ -83,6 +90,7 @@ import {
     type CreateDashboardWithCharts,
     type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
+    type InvalidateExploresResultsCache,
     type MergeQuery,
     type MergeQueryColumns,
     type MergeQueryError,
@@ -97,6 +105,7 @@ import {
     type UpdatePreviewExpirationProjectSettings,
     type UpdatePreviewExpiresAt,
     type UpdateQueryTimezoneSettings,
+    type UpdateResultsCacheClearSchedule,
     type UpdateResultsCacheProjectSettings,
     type UpdateSchedulerSettings,
     type UUID,
@@ -130,6 +139,7 @@ import { assertAgentConnectionGrantOperation } from '../auth/agentConnectionGran
 import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import type { DbTagUpdate } from '../database/entities/tags';
 import Logger from '../logging/logger';
+import { parseResultsCacheStatsDays } from '../services/ResultsCacheStats/resultsCacheStats';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -139,6 +149,14 @@ import {
 import { BaseController } from './baseController';
 
 const isPositiveIntegerString = (value: string): boolean => /^\d+$/.test(value);
+
+// Body coercion turns a null boolean into false, so reject it before validation runs
+const rejectNullCacheEnabled: express.RequestHandler = (req, _res, next) => {
+    if (req.body?.cacheEnabled === null) {
+        throw new ParameterError('cacheEnabled must be true or false');
+    }
+    next();
+};
 
 @Route('/api/v1/projects')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -1075,6 +1093,43 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         };
     }
 
+    /**
+     * Replace the project's AI agent context with the contents of
+     * `lightdash.project_context.yml`. Sent by the CLI on deploy/preview so
+     * projects without a Git connection get the same context a server-side
+     * compile would ingest. The CLI only calls this when the file exists, so
+     * removing the file leaves the stored entries unchanged; send an empty
+     * `entries: []` file to clear them. Requires the organization's "Review AI
+     * agent turns" setting; when it is off the entries are left unchanged.
+     * @summary Replace project AI context
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('{projectUuid}/project-context')
+    @OperationId('replaceProjectContext')
+    async replaceProjectContext(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+        @Body() body: ApiReplaceProjectContextBody,
+    ): Promise<ApiSuccess<ApiReplaceProjectContextResults>> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getProjectService()
+            .replaceProjectContextFromFile({
+                user: toSessionUser(req.account),
+                projectUuid,
+                fileContents: body.yaml,
+            });
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/colorPalette')
@@ -1473,8 +1528,30 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
-     * Get the results cache TTL for a project. A null TTL means the
-     * instance-wide default applies.
+     * Whether query results are cached for a project. Readable by anyone who
+     * can view the project.
+     * @summary Get results cache status
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/results-cache-config/status')
+    @OperationId('getProjectResultsCacheStatus')
+    async getProjectResultsCacheStatus(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheStatusResponse> {
+        const results = await this.services
+            .getProjectService()
+            .getProjectResultsCacheStatus(req.account!, projectUuid);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get the results cache settings for a project: whether caching is
+     * enabled and its TTL. A null TTL means the instance-wide default applies.
      * @summary Get results cache settings
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -1499,7 +1576,8 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
-     * Update the results cache TTL for a project. Pass null to fall back to
+     * Enable or disable results caching for a project, or update its TTL.
+     * Omitted fields keep their current value. Pass a null TTL to fall back to
      * the instance-wide default.
      * @summary Update results cache settings
      */
@@ -1507,6 +1585,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        rejectNullCacheEnabled,
     ])
     @SuccessResponse('200', 'Updated')
     @Patch('{projectUuid}/results-cache-config')
@@ -1527,6 +1606,175 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         return {
             status: 'ok',
             results: settings,
+        };
+    }
+
+    /**
+     * Set a recurring schedule that invalidates every cached query result in
+     * the project. Schedules run daily or weekly at one or more
+     * hours, on the hour, in the project's scheduler timezone. Requires project admin access.
+     * @summary Update results cache clear schedule
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Put('{projectUuid}/results-cache-config/clear-schedule')
+    @OperationId('updateProjectResultsCacheClearSchedule')
+    async updateProjectResultsCacheClearSchedule(
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateResultsCacheClearSchedule,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .updateProjectResultsCacheClearSchedule(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Invalidate every cached query result in the project. The next run of
+     * each chart, dashboard tile or API query executes against the warehouse
+     * and repopulates the cache. Query history and existing result files are
+     * kept. Requires project admin access.
+     *
+     * Call this from a data pipeline once a dbt run or load finishes, e.g.
+     * `curl -X POST -H "Authorization: ApiKey $LIGHTDASH_API_KEY"
+     * "$LIGHTDASH_URL/api/v1/projects/$PROJECT_UUID/results-cache/invalidate"`
+     * @summary Invalidate results cache
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Invalidated')
+    @Post('{projectUuid}/results-cache/invalidate')
+    @OperationId('invalidateProjectResultsCache')
+    async invalidateProjectResultsCache(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheInvalidationResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getProjectService()
+            .invalidateProjectResultsCache(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Hit rate, warehouse time saved and recommendations for the project's
+     * results cache over the last 7 or 30 days. Requires project admin access.
+     * @summary Get results cache stats
+     * @param days Number of days to include: 7 (default) or 30
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/results-cache/stats')
+    @OperationId('getProjectResultsCacheStats')
+    async getProjectResultsCacheStats(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+        @Query() days?: number,
+    ): Promise<ApiResultsCacheStatsResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getAsyncQueryService()
+            .getResultsCacheStats(
+                req.account,
+                projectUuid,
+                parseResultsCacheStatsDays(days),
+            );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Estimated hit rate for the next longer cache durations, replayed from
+     * the queries in the selected period (last 7 or 30 days). Requires
+     * project admin access.
+     * @summary Get results cache TTL projections
+     * @param days Number of days to replay: 7 (default) or 30
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/results-cache/ttl-projections')
+    @OperationId('getProjectResultsCacheTtlProjections')
+    async getProjectResultsCacheTtlProjections(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+        @Query() days?: number,
+    ): Promise<ApiResultsCacheTtlProjectionsResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getAsyncQueryService()
+            .getResultsCacheTtlProjections(
+                req.account,
+                projectUuid,
+                parseResultsCacheStatsDays(days),
+            );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Invalidate the cached query results of the listed explores. The next run
+     * of each query against them executes against the warehouse, and results
+     * from other explores stay cached. Queries that share a cache key are
+     * invalidated too. Query history and existing result files are kept.
+     * Requires project admin access.
+     *
+     * Only the listed explores are cleared by default. Set
+     * includeJoinedExplores to also clear every explore that reads the base
+     * table of a listed explore, for example by joining it. The response lists
+     * every explore that was cleared. Pre-aggregates are not rebuilt: refresh
+     * them as well, or queries routed to them keep returning the same data.
+     *
+     * Call this from a data pipeline once a load finishes, e.g.
+     * `curl -X POST -H "Authorization: ApiKey $LIGHTDASH_API_KEY"
+     * -H "Content-Type: application/json"
+     * -d '{"exploreNames":["orders","payments"]}'
+     * "$LIGHTDASH_URL/api/v1/projects/$PROJECT_UUID/results-cache/invalidate/explores"`
+     * @summary Invalidate explores results cache
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Invalidated')
+    @Post('{projectUuid}/results-cache/invalidate/explores')
+    @OperationId('invalidateExploresResultsCache')
+    async invalidateExploresResultsCache(
+        @Path() projectUuid: UUID,
+        @Body() body: InvalidateExploresResultsCache,
+        @Request() req: express.Request,
+    ): Promise<ApiExploresResultsCacheInvalidationResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getAsyncQueryService()
+            .invalidateExploresResultsCache(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return {
+            status: 'ok',
+            results,
         };
     }
 

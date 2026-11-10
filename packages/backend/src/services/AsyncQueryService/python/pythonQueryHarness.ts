@@ -1,4 +1,5 @@
 import {
+    convertItemTypeToDimensionType,
     DimensionType,
     FieldType,
     ParameterError,
@@ -234,12 +235,23 @@ export const pythonResultToFields = (meta: PythonResultMeta): ItemsMap =>
 /** Column types of a referenced result, as the harness reads them. */
 export const resultColumnsToPythonInput = (
     columns: ResultColumns,
+    itemsMap: ItemsMap,
 ): Record<string, PythonColumnType> =>
     Object.fromEntries(
-        Object.values(columns).map((column) => [
-            column.reference,
-            toPythonColumnType(column.type),
-        ]),
+        Object.values(columns).map((column) => {
+            const item = itemsMap[column.reference];
+            // Truncating a date can return a warehouse timestamp (Postgres DATE_TRUNC).
+            const isTruncatedDate =
+                column.type === DimensionType.TIMESTAMP &&
+                item !== undefined &&
+                convertItemTypeToDimensionType(item) === DimensionType.DATE;
+            return [
+                column.reference,
+                toPythonColumnType(
+                    isTruncatedDate ? DimensionType.DATE : column.type,
+                ),
+            ];
+        }),
     );
 
 /**
@@ -255,6 +267,7 @@ import time
 STARTED = time.perf_counter()
 
 import importlib.util
+import inspect
 import json
 import math
 import re
@@ -294,20 +307,26 @@ def load_input(name, spec):
                 lambda value: pd.NA if pd.isna(value) else bool(value)
             ).astype("boolean")
         elif kind in ("date", "timestamp"):
-            frame[column] = pd.to_datetime(frame[column], errors="coerce", utc=(kind == "timestamp"))
+            parsed = pd.to_datetime(frame[column], errors="coerce", utc=True).dt.tz_localize(None)
+            if kind == "date":
+                parsed = parsed.dt.normalize()
+            frame[column] = parsed
         else:
             frame[column] = frame[column].astype("string")
     return frame
 
 
-def column_type(series):
+def column_type(series, is_timestamp_input):
     dtype = series.dtype
     if pd.api.types.is_bool_dtype(dtype):
         return "boolean"
     if pd.api.types.is_numeric_dtype(dtype):
         return "number"
     if pd.api.types.is_datetime64_any_dtype(dtype):
-        return "timestamp"
+        if is_timestamp_input or getattr(dtype, "tz", None) is not None:
+            return "timestamp"
+        non_null = series.dropna()
+        return "date" if bool((non_null == non_null.dt.normalize()).all()) else "timestamp"
     return "string"
 
 
@@ -319,6 +338,7 @@ def to_json_value(value, kind):
     if value is pd.NaT:
         return None
     if isinstance(value, (pd.Timestamp,)):
+        value = value.tz_localize("UTC") if value.tzinfo is None else value.tz_convert("UTC")
         return value.isoformat()
     if isinstance(value, np.generic):
         value = value.item()
@@ -354,11 +374,15 @@ def main():
     if not callable(run):
         fail("Python code must define run(inputs, params)")
 
+    arity = len(inspect.signature(run).parameters)
+    if arity == 0 or arity > 2:
+        fail("run() must take (inputs, params) or (inputs)")
+
     timed("loadCodeMs", started)
 
     started = time.perf_counter()
     try:
-        result = run(inputs, meta.get("params", {}))
+        result = run(inputs) if arity == 1 else run(inputs, meta.get("params", {}))
     except Exception:
         fail("run() raised:\\n" + traceback.format_exc())
     timed("runMs", started)
@@ -372,9 +396,14 @@ def main():
 
     result = result.reset_index(drop=True)
     names = [str(column) for column in result.columns]
-    for name in names:
-        if not COLUMN_NAME.match(name):
-            fail(f"Column name {name!r} is not a valid identifier")
+    invalid = [name for name in names if not COLUMN_NAME.match(name)]
+    if invalid:
+        fail(
+            f"Invalid column names: {', '.join(repr(name) for name in invalid)}. "
+            f"Column names must match {COLUMN_NAME.pattern}. "
+            "Rename them to snake_case (e.g. 'Live loans' -> live_loans); "
+            "set display labels in the visualization config instead."
+        )
     if len(set(names)) != len(names):
         fail("Returned DataFrame has duplicate column names")
     result.columns = names
@@ -384,7 +413,13 @@ def main():
     if truncated:
         result = result.iloc[:limit]
 
-    kinds = {name: column_type(result[name]) for name in names}
+    timestamp_inputs = {
+        column
+        for spec in meta["inputs"].values()
+        for column, kind in spec["columns"].items()
+        if kind == "timestamp"
+    }
+    kinds = {name: column_type(result[name], name in timestamp_inputs) for name in names}
     records = result.to_dict(orient="records")
     with open(f"{OUT_DIR}/result.jsonl", "w", encoding="utf-8") as handle:
         for record in records:

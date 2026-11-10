@@ -86,18 +86,10 @@
     &::before {
         border-bottom: 0;
     }
-    @mixin dark {
-        background-color: var(
-            --ld-embed-header-surface-color,
-            var(--mantine-color-background-0)
-        );
-    }
-    @mixin light {
-        background-color: var(
-            --ld-embed-header-surface-color,
-            var(--mantine-color-white)
-        );
-    }
+    background-color: var(
+        --ld-embed-header-surface-color,
+        var(--mantine-color-body)
+    );
 
     align-items: center;
 
@@ -157,6 +149,58 @@
     user-select: none;
 }
 
+/* Fit to screen jumping to another snap target: the tiles and the grid spring
+   there together. A damped spring (stiffness 200, damping 18) sampled over
+   the duration; browsers without linear() get a back-out bezier */
+.gridSnapping {
+    --snap-duration: 700ms;
+    --snap-easing: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+    @supports (transition-timing-function: linear(0, 1)) {
+        --snap-easing: linear(
+            0,
+            0.054,
+            0.182,
+            0.345,
+            0.515,
+            0.671,
+            0.804,
+            0.908,
+            0.983,
+            1.033,
+            1.061,
+            1.074,
+            1.074,
+            1.067,
+            1.056,
+            1.043,
+            1.031,
+            1.02,
+            1.011,
+            1.004,
+            0.999,
+            0.996,
+            0.995,
+            0.994,
+            0.995,
+            0.995,
+            0.996,
+            0.997,
+            1
+        );
+    }
+
+    & :global(.react-grid-layout) {
+        transition: height var(--snap-duration) var(--snap-easing);
+    }
+
+    & :global(.react-grid-item) {
+        transition-property: top, height, left, width;
+        transition-duration: var(--snap-duration);
+        transition-timing-function: var(--snap-easing);
+    }
+}
+
 .gridLines {
     & :global(.react-grid-layout) {
         background-image:
@@ -192,4 +236,20 @@
 .filtersBar {
     padding: var(--mantine-spacing-xs) 0;
     background-color: var(--ld-color-page);
+}
+
+.tabPane {
+    position: relative;
+}
+
+.tabPaneHidden {
+    position: absolute;
+    width: 100%;
+    pointer-events: none;
+    content-visibility: hidden;
+    contain-intrinsic-size: auto 1px auto 1px;
+}
+
+.tabSection {
+    flex-shrink: 0;
 }

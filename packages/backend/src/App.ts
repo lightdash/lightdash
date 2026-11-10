@@ -96,6 +96,7 @@ import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import { createAppPreviewRouter } from './routers/appPreviewRouter';
+import { createMobileAppRedirectHandler } from './routers/mobileApp';
 import {
     createAndroidAssetLinksHandler,
     createAppleAppSiteAssociationHandler,
@@ -150,6 +151,7 @@ const schedulerWorkerFactory = (context: {
         agentActionLogModel: context.models.getAgentActionLogModel(),
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
         usageHistoryModel: context.models.getUsageHistoryModel(),
+        usageProcessingModel: context.models.getUsageProcessingModel(),
         featureFlagModel: context.models.getFeatureFlagModel(),
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
@@ -184,8 +186,10 @@ const schedulerWorkerFactory = (context: {
             context.models.getOrganizationSettingsModel(),
         emailWhitelabelService:
             context.serviceRepository.getEmailWhitelabelService(),
+        mobileAppLinkModel: context.models.getMobileAppLinkModel(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        mobileSignInCodeModel: context.models.getMobileSignInCodeModel(),
         agentConnectionApprovalRequestModel:
             context.models.getAgentConnectionApprovalRequestModel(),
         aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
@@ -223,6 +227,7 @@ export type AppArguments = {
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
     pgWireServerFactory?: (
         serviceRepository: ServiceRepository,
+        analytics: LightdashAnalytics,
     ) => PgWireServerInstance;
     beforeShutdown?: (serviceRepository: ServiceRepository) => Promise<void>;
 };
@@ -242,9 +247,7 @@ export default class App {
 
     private pgWireServer: PgWireServerInstance | undefined;
 
-    private readonly pgWireServerFactory:
-        | ((serviceRepository: ServiceRepository) => PgWireServerInstance)
-        | undefined;
+    private readonly pgWireServerFactory: AppArguments['pgWireServerFactory'];
 
     private readonly beforeShutdown:
         | ((serviceRepository: ServiceRepository) => Promise<void>)
@@ -433,6 +436,7 @@ export default class App {
         if (pgWirePort && this.pgWireServerFactory) {
             this.pgWireServer = this.pgWireServerFactory(
                 this.serviceRepository,
+                this.analytics,
             );
             await this.pgWireServer.listen(pgWirePort);
             Logger.info(
@@ -969,6 +973,15 @@ export default class App {
             '/.well-known/assetlinks.json',
             createAndroidAssetLinksHandler(
                 this.lightdashConfig.mobileAppAssociation,
+            ),
+        );
+        // Outside the app-link paths so a scan always reaches the server.
+        expressApp.get(
+            '/m/app/:scanId',
+            createMobileAppRedirectHandler(
+                this.serviceRepository.getMobileAppService(),
+                this.lightdashConfig.mobileAppStores,
+                this.lightdashConfig.trustProxy,
             ),
         );
 

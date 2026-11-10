@@ -45,6 +45,8 @@ type SavedSqlChartDashboardCommonArgs = SavedSqlChartBaseArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
+    /** Keys the app's per-tile resolution leaves to the chart; set with the controls on */
+    excludedParameterKeys?: string[];
 };
 
 type SavedSqlChartRegisteredDashboardArgs = SavedSqlChartDashboardCommonArgs & {
@@ -52,6 +54,8 @@ type SavedSqlChartRegisteredDashboardArgs = SavedSqlChartDashboardCommonArgs & {
     isEmbed?: false;
     /** Skips the results cache, set by the dashboard refresh */
     invalidateCache?: boolean;
+    /** Bumped by every dashboard refresh so each one refetches */
+    refreshCounter?: number;
 };
 
 // Embed callers don't pass dashboardUuid — the JWT carries it server-side.
@@ -167,6 +171,7 @@ export const useSavedSqlChartResults = (
                             dashboardFilters: args.dashboardFilters,
                             dashboardSorts: args.dashboardSorts,
                             parameters,
+                            excludedParameterKeys: args.excludedParameterKeys,
                         },
                     );
                 } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
@@ -181,6 +186,7 @@ export const useSavedSqlChartResults = (
                             savedSqlUuid,
                             context: args.context as QueryExecutionContext,
                             parameters,
+                            excludedParameterKeys: args.excludedParameterKeys,
                             invalidateCache: args.invalidateCache,
                         },
                     );
@@ -292,6 +298,8 @@ export const useSavedSqlChartResults = (
                                 dashboardSorts: args.dashboardSorts,
                                 limit: limit ?? MAX_SAFE_INTEGER,
                                 parameters,
+                                excludedParameterKeys:
+                                    args.excludedParameterKeys,
                             },
                         );
                 } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
@@ -307,6 +315,7 @@ export const useSavedSqlChartResults = (
                             context: args.context as QueryExecutionContext,
                             limit: limit ?? MAX_SAFE_INTEGER,
                             parameters,
+                            excludedParameterKeys: args.excludedParameterKeys,
                         },
                     );
                 } else {

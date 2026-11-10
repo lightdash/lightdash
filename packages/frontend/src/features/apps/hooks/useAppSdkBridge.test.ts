@@ -31,6 +31,7 @@ import {
     mapAppStateApiError,
     resolveAppStateRequest,
     useAppSdkBridge,
+    type AppStateEvent,
     type ExternalRequestEvent,
     type QueryEvent,
 } from './useAppSdkBridge';
@@ -768,6 +769,133 @@ describe('useAppSdkBridge', () => {
                 expect.objectContaining({ method: 'POST' }),
             ),
         );
+    });
+
+    describe('space-charts virtual route', () => {
+        const SPACE_CHARTS_PATH = '/__sdk/space-charts';
+        const postSpaceCharts = (body: unknown) =>
+            dispatchFetchMessage({
+                type: 'lightdash:sdk:fetch',
+                id: POST_ID,
+                method: 'POST',
+                path: SPACE_CHARTS_PATH,
+                body,
+            });
+        // The space-charts handler checks `res.ok` (unlike the SDK fetch
+        // pipeline, which reads the envelope's `status`).
+        const mockSpacesFetchOk = (json: Record<string, unknown>) =>
+            (fetch as Mock).mockResolvedValueOnce({
+                ok: true,
+                json: async () => json,
+                status: 200,
+            } as Response);
+
+        it('resolves a slug and answers only the trimmed chart list', async () => {
+            renderBridge(() => undefined);
+            const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+            mockSpacesFetchOk({
+                status: 'ok',
+                results: [{ uuid: 'space-1', slug: 'sales', access: ['x'] }],
+            });
+            mockSpacesFetchOk({
+                status: 'ok',
+                results: {
+                    uuid: 'space-1',
+                    name: 'Sales',
+                    slug: 'sales',
+                    access: [{ userUuid: 'secret' }],
+                    queries: [
+                        {
+                            uuid: 'chart-1',
+                            name: 'Revenue',
+                            description: null,
+                            chartKind: 'line',
+                            slug: 'revenue',
+                            updatedAt: '2026-10-29T00:00:00.000Z',
+                            updatedByUser: { userUuid: 'secret' },
+                        },
+                    ],
+                },
+            });
+
+            postSpaceCharts({ space: 'sales' });
+
+            await vi.waitFor(() =>
+                expect(postMessageSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: POST_ID,
+                        result: {
+                            space: {
+                                uuid: 'space-1',
+                                name: 'Sales',
+                                slug: 'sales',
+                            },
+                            charts: [
+                                {
+                                    uuid: 'chart-1',
+                                    name: 'Revenue',
+                                    description: null,
+                                    chartKind: 'line',
+                                    slug: 'revenue',
+                                    updatedAt: '2026-10-29T00:00:00.000Z',
+                                },
+                            ],
+                        },
+                    }),
+                    '*',
+                ),
+            );
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/projects/${PROJECT_UUID}/spaces`,
+                expect.objectContaining({ method: 'GET' }),
+            );
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/projects/${PROJECT_UUID}/spaces/space-1`,
+                expect.objectContaining({ method: 'GET' }),
+            );
+        });
+
+        it('answers uniformly empty for an unknown or inaccessible space', async () => {
+            renderBridge(() => undefined);
+            const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+            mockSpacesFetchOk({ status: 'ok', results: [] });
+            postSpaceCharts({ space: 'not-mine' });
+
+            await vi.waitFor(() =>
+                expect(postMessageSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: POST_ID,
+                        result: { space: null, charts: [] },
+                    }),
+                    '*',
+                ),
+            );
+            // Only the (viewer-scoped) list was consulted; no probe fetch.
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('rejects a malformed request without fetching', async () => {
+            renderBridge(() => undefined);
+            const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+            postSpaceCharts({ space: '  ' });
+
+            await vi.waitFor(() =>
+                expect(postMessageSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: POST_ID,
+                        error: 'Invalid space-charts request.',
+                    }),
+                    '*',
+                ),
+            );
+            expect(fetch).not.toHaveBeenCalled();
+        });
     });
 
     it.each([false, true])(
@@ -1953,7 +2081,11 @@ describe('color scheme push', () => {
         postSpy.mockClear();
         result.current.handleIframeLoad();
         expect(postSpy.mock.calls.map(([message]) => message)).toEqual([
-            { type: 'lightdash:sdk:ready', appUuid: APP_UUID },
+            {
+                type: 'lightdash:sdk:ready',
+                appUuid: APP_UUID,
+                spaceCharts: true,
+            },
             { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
             // No insights supplied: the host says so instead of staying silent.
             {
@@ -2068,6 +2200,7 @@ describe('delivery-render flag on the ready handshake', () => {
             type: 'lightdash:sdk:ready',
             deliveryRender: true,
             appUuid: APP_UUID,
+            spaceCharts: true,
         });
     });
 
@@ -2081,6 +2214,7 @@ describe('delivery-render flag on the ready handshake', () => {
         expect(postSpy.mock.calls[0][0]).toEqual({
             type: 'lightdash:sdk:ready',
             appUuid: APP_UUID,
+            spaceCharts: true,
         });
     });
 });
@@ -3077,5 +3211,119 @@ describe('app-state branch', () => {
                 error: { code: 'unavailable', message: 'offline' },
             }),
         );
+    });
+
+    describe('inspector events', () => {
+        function renderBridgeWithAppStateEvents() {
+            const events: AppStateEvent[] = [];
+            const iframeRef = {
+                current: {
+                    contentWindow: window,
+                } as unknown as HTMLIFrameElement,
+            } as RefObject<HTMLIFrameElement | null>;
+            renderHook(() =>
+                useAppSdkBridge({
+                    colorScheme: 'light',
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
+                    onAppStateEvent: (event) => events.push(event),
+                }),
+            );
+            return events;
+        }
+
+        it('emits pending then ready with op, key, scope and value size', async () => {
+            const events = renderBridgeWithAppStateEvents();
+            mockFetchOk({ status: 'ok', results: {} });
+
+            postAppState({
+                op: 'set-shared',
+                key: 'targets',
+                value: { q1: 1 },
+                expectedVersion: null,
+            });
+
+            await vi.waitFor(() => expect(events).toHaveLength(2));
+            expect(events[0]).toMatchObject({
+                id: POST_ID,
+                op: 'set-shared',
+                key: 'targets',
+                scope: 'shared',
+                valueSize: JSON.stringify({ q1: 1 }).length,
+                status: 'pending',
+                durationMs: null,
+                errorCode: null,
+                error: null,
+            });
+            expect(events[1]).toMatchObject({
+                id: POST_ID,
+                status: 'ready',
+                errorCode: null,
+            });
+            expect(events[1].durationMs).not.toBeNull();
+        });
+
+        it('sizes values in UTF-8 bytes, matching the backend limit', async () => {
+            const events = renderBridgeWithAppStateEvents();
+            mockFetchOk({ status: 'ok', results: {} });
+
+            postAppState({
+                op: 'set-user',
+                key: 'note',
+                value: '日本語',
+            });
+
+            await vi.waitFor(() => expect(events).toHaveLength(2));
+            // '"日本語"' is 5 chars but 11 UTF-8 bytes
+            expect(events[0].valueSize).toBe(11);
+        });
+
+        it('emits a terminal error carrying the SDK error code', async () => {
+            const events = renderBridgeWithAppStateEvents();
+            mockFetchNonOk(
+                {
+                    status: 'error',
+                    error: { message: 'stale', data: { current: 1 } },
+                },
+                409,
+            );
+
+            postAppState({
+                op: 'set-shared',
+                key: 'targets',
+                value: 1,
+                expectedVersion: 3,
+            });
+
+            await vi.waitFor(() => expect(events).toHaveLength(2));
+            expect(events[1]).toMatchObject({
+                status: 'error',
+                errorCode: 'conflict',
+                error: 'stale',
+            });
+        });
+
+        it('reports an invalid op without a fetch, with user scope and no value size', async () => {
+            const events = renderBridgeWithAppStateEvents();
+
+            postAppState({ op: 'delete-user', key: undefined });
+
+            await vi.waitFor(() => expect(events).toHaveLength(2));
+            expect(events[0]).toMatchObject({
+                op: 'delete-user',
+                key: null,
+                scope: 'user',
+                valueSize: null,
+                status: 'pending',
+            });
+            expect(events[1]).toMatchObject({
+                status: 'error',
+                errorCode: 'invalid',
+            });
+            expect(fetch).not.toHaveBeenCalled();
+        });
     });
 });

@@ -9,12 +9,16 @@ import { promises as fs } from 'fs';
 import inquirer from 'inquirer';
 import * as path from 'path';
 import { getConfig } from '../../config';
-import { refuseAgentConnection } from '../../credentials';
+import {
+    humanCredential,
+    refuseAgentConnection,
+    resolveCredential,
+} from '../../credentials';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { checkLightdashVersion } from '../dbt/apiClient';
 import { resolveProjectFlag } from '../resolveProjectFlag';
-import { getAuthHeader } from '../utils';
+import { getCredentialAuthHeader } from '../utils';
 import { readManifestFromDir } from './appCodeFiles';
 import { startPreviewProxy, type CompiledQueryLogEntry } from './previewProxy';
 
@@ -490,17 +494,21 @@ export const appsPreviewHandler = async (
 
     const config = await getConfig();
     const serverUrl = options.url ?? config.context?.serverUrl;
-    // getConfig() already folds LIGHTDASH_API_KEY into context.apiKey, so the
-    // env-var path is safe. The only exposure is an explicit --token on the
-    // command line (visible in shell history / `ps aux`) — warn rather than
-    // block, since --token is a supported CI path.
-    const apiKey = options.token ?? config.context?.apiKey;
-    if (!serverUrl || !apiKey) {
+    if (!serverUrl) {
         throw new AuthorizationError(
             `Not logged in or missing server URL. Run 'lightdash login <url>' first, or set LIGHTDASH_URL and LIGHTDASH_API_KEY.`,
         );
     }
-    const authorization = getAuthHeader(apiKey);
+    const resolveAuthorization = async (): Promise<string> =>
+        getCredentialAuthHeader(
+            options.token
+                ? humanCredential(options.token)
+                : await resolveCredential({
+                      ...config,
+                      context: { ...config.context, serverUrl },
+                  }),
+        );
+    const authorization = await resolveAuthorization();
     const proxyAuthorization = config.context?.proxyAuthorization;
     if (options.token) {
         GlobalState.log(
@@ -533,11 +541,11 @@ export const appsPreviewHandler = async (
     if (!options.url && !options.token) {
         await checkLightdashVersion();
     }
-    const preflight = (apiPath: string) =>
+    const preflight = async (apiPath: string) =>
         preflightPreviewRequest({
             apiPath,
             serverUrl,
-            authorization,
+            authorization: await resolveAuthorization(),
             proxyAuthorization,
         });
     if (!(await preflight('/api/v1/user'))) {
@@ -557,7 +565,7 @@ export const appsPreviewHandler = async (
         manifest,
         projectUuid: target.projectUuid,
         serverUrl,
-        authorization,
+        authorization: await resolveAuthorization(),
         proxyAuthorization,
     });
 
@@ -575,6 +583,7 @@ export const appsPreviewHandler = async (
     const proxy = await startPreviewProxy({
         upstreamUrl: serverUrl,
         authorization,
+        resolveAuthorization,
         proxyAuthorization,
         projectUuid: target.projectUuid,
         nonce: proxyNonce,

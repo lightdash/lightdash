@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/warehouses",
-  "version": "3.75.2",
+  "version": "3.195.0",
   "description": "Warehouse connectors for Lightdash",
   "license": "MIT",
   "repository": {
@@ -13,7 +13,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+    "linter": "OXLINT_TSGOLINT_PATH=node_modules/.bin/tsrs-lint oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
     "fix-lint": "pnpm run linter ./src --fix",
@@ -45,13 +45,13 @@
     "trino-client": "0.2.9"
   },
   "devDependencies": {
-    "oxlint": "1.75.0",
-    "oxlint-tsgolint": "7.0.2001",
     "@types/node-fetch": "2.6.13",
     "@types/pg": "8.11.10",
     "@types/pg-cursor": "2.7.0",
     "@types/ssh2": "1.11.15",
     "copyfiles": "2.4.1",
+    "oxlint": "1.75.0",
+    "tsrs": "0.21.0-ts7.1.0-beta",
     "typescript": "7.0.2",
     "vitest": "4.1.11"
   }

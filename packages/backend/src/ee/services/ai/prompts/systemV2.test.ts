@@ -486,6 +486,19 @@ describe('getSystemPromptV2 composer queries', () => {
         expect(content).not.toContain('<slack-chart');
     });
 
+    test('teaches node citations in web chat only', () => {
+        const prompt = (slackChannelId: string | null) =>
+            promptText({
+                availableExplores: [],
+                promptSections: composerSections(),
+                slackChannelId,
+                enableDataAccess: true,
+            });
+
+        expect(prompt(null)).toContain('#query-node-<nodeId>');
+        expect(prompt('channel')).not.toContain('#query-node-');
+    });
+
     test.each([
         [true, true],
         [false, false],
@@ -502,7 +515,7 @@ describe('getSystemPromptV2 composer queries', () => {
 
             expect(
                 content.includes(
-                    'Use a semanticLayer node when an explore covers the question',
+                    'use a `sql` node only when the user points you at a raw table',
                 ),
             ).toBe(scoped);
             expect(content).not.toContain('**When to use it:**');
@@ -759,10 +772,13 @@ describe('getSystemPromptV2 Deep Research context', () => {
         expect(content).not.toContain('`editContent` it');
     });
 
-    test('lets content tools update a published report in place', () => {
+    test('lets Document tools update a published report in place', () => {
         const content = promptText({
             availableExplores: [],
-            promptSections: new Set<PromptSection>(['contentTools']),
+            promptSections: new Set<PromptSection>([
+                'contentTools',
+                'documents',
+            ]),
             deepResearchRuns: [
                 {
                     uuid: 'run-1',
@@ -787,6 +803,29 @@ describe('getSystemPromptV2 Deep Research context', () => {
             'You cannot update a published report here',
         );
     });
+
+    test('does not offer report updates when only charts can be saved', () => {
+        const content = promptText({
+            availableExplores: [],
+            promptSections: new Set<PromptSection>(['contentTools']),
+            deepResearchRuns: [
+                {
+                    uuid: 'run-1',
+                    question: 'Why did revenue fall?',
+                    status: 'completed',
+                    phase: null,
+                    activity: null,
+                    progressCurrent: null,
+                    progressTotal: null,
+                    startedAt: '2026-07-29T10:00:00.000Z',
+                    elapsedSeconds: 600,
+                    hasReport: true,
+                },
+            ],
+        });
+
+        expect(content).toContain('You cannot update a published report here');
+    });
 });
 
 describe('getSystemPromptV2 requesting user', () => {
@@ -800,6 +839,7 @@ describe('getSystemPromptV2 requesting user', () => {
                     OrganizationMemberRole.VIEWER,
                 ),
                 groups: ['Finance', 'Ops'],
+                isServiceAccount: false,
             },
         });
         expect(content).toContain('## Who you are talking to');
@@ -820,6 +860,7 @@ describe('getSystemPromptV2 requesting user', () => {
                     OrganizationMemberRole.DEVELOPER,
                 ),
                 groups: [],
+                isServiceAccount: false,
             },
         });
         expect(content).toContain('organization role: Developer');
@@ -837,6 +878,7 @@ describe('getSystemPromptV2 requesting user', () => {
                 name: 'Sam Service',
                 role: null,
                 groups: [],
+                isServiceAccount: false,
             },
         });
         expect(content).toContain('Sam Service');
@@ -855,6 +897,7 @@ describe('getSystemPromptV2 requesting user', () => {
                     scopes: ['view:Dashboard', 'manage:SqlRunner'],
                 }),
                 groups: [],
+                isServiceAccount: false,
             },
         });
         expect(technical).toContain('organization role: Analytics Engineer');
@@ -870,6 +913,7 @@ describe('getSystemPromptV2 requesting user', () => {
                     scopes: ['view:Dashboard', 'manage:Explore'],
                 }),
                 groups: [],
+                isServiceAccount: false,
             },
         });
         expect(business).toContain('organization role: Finance Viewer');
@@ -892,7 +936,12 @@ describe('getSystemPromptV2 requesting user', () => {
         const content = promptText({
             availableExplores: [],
             promptSections: new Set<PromptSection>(['requestingUser']),
-            requestingUser: { name: '', role: null, groups: [] },
+            requestingUser: {
+                name: '',
+                role: null,
+                groups: [],
+                isServiceAccount: false,
+            },
         });
         expect(content).toContain('## Who you are talking to');
         expect(content).toContain("You don't know the user's name yet.");

@@ -90,13 +90,6 @@ const renderSettings = (
         queryClient.setQueryData(['feature-flag', id], { id, enabled: false });
     });
     if (isAnalyticsProject) {
-        queryClient.setQueryData(
-            ['feature-flag', FeatureFlags.AnalyticsProject],
-            {
-                id: FeatureFlags.AnalyticsProject,
-                enabled: true,
-            },
-        );
         queryClient.setQueryData(['analytics-project'], { project: null });
     }
     if (agentIdentityEnabled === null) {
@@ -149,6 +142,7 @@ const renderSettings = (
         </QueryClientProvider>,
         {
             health: {
+                hasManagedAnalytics: isAnalyticsProject,
                 softDelete: { enabled: isSoftDeleteEnabled, retentionDays: 30 },
                 dataApps: {
                     previewOrigin: null,
@@ -611,6 +605,28 @@ describe('Agent identity settings routes', () => {
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('link', { name: 'Warehouse credentials' }),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('Mobile settings route', () => {
+    let viewport: ReturnType<typeof mockViewport>;
+    beforeEach(() => {
+        localStorage.clear();
+        viewport = mockViewport(1280);
+    });
+    afterEach(() => viewport.restore());
+
+    it('does not open the Mobile page when mobile-settings is off', async () => {
+        renderSettings('', [viewProject], true, '/generalSettings/mobile');
+        expect(
+            await screen.findByRole('heading', { name: 'Profile' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: 'Mobile' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Mobile' }),
         ).not.toBeInTheDocument();
     });
 });

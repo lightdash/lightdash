@@ -23,8 +23,8 @@ import {
     SpaceContentBase,
     SummaryContent,
 } from '@lightdash/common';
+import { intersection } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { intersection } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession } from '../../auth/account';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';

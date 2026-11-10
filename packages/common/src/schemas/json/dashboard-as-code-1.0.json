@@ -397,24 +397,41 @@
             "required": ["w", "h", "y", "x", "type", "properties"],
             "type": "object"
         },
-        "DashboardConfig": {
+        "DashboardConfigAsCode": {
             "properties": {
-                "controlSections": {
-                    "description": "Named sets of controls, in display order. Controls point at a section\nby id; controls with no section render first, unsectioned.",
+                "controlOrder": {
+                    "description": "The order of filters, parameter controls and sections on the bar. Absent: the default order.",
                     "items": {
-                        "$ref": "#/$defs/DashboardControlSection"
+                        "$ref": "#/$defs/DashboardControlRefAsCode"
+                    },
+                    "type": "array"
+                },
+                "controlSections": {
+                    "items": {
+                        "$ref": "#/$defs/DashboardControlSectionAsCode"
                     },
                     "type": "array"
                 },
                 "customMetrics": {
-                    "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere.",
                     "items": {
                         "$ref": "#/$defs/AdditionalMetric"
                     },
                     "type": "array"
                 },
                 "dateZoomConfig": {
-                    "$ref": "#/$defs/DateZoomConfig"
+                    "properties": {
+                        "controls": {
+                            "items": {
+                                "$ref": "#/$defs/DateZoomControlAsCode"
+                            },
+                            "type": "array"
+                        },
+                        "tileTargets": {
+                            "$ref": "#/$defs/Record_string.DateZoomTileTarget_"
+                        }
+                    },
+                    "required": ["tileTargets", "controls"],
+                    "type": "object"
                 },
                 "dateZoomGranularities": {
                     "items": {
@@ -445,6 +462,12 @@
                 "isDateZoomDisabled": {
                     "type": "boolean"
                 },
+                "parameterControls": {
+                    "items": {
+                        "$ref": "#/$defs/DashboardParameterControlAsCode"
+                    },
+                    "type": "array"
+                },
                 "parameterOrder": {
                     "items": {
                         "type": "string"
@@ -455,7 +478,13 @@
                     "additionalProperties": {
                         "type": "string"
                     },
-                    "description": "Parameter name to section id. Parameters have no saved object of their own.",
+                    "properties": {},
+                    "type": "object"
+                },
+                "parameterSectionSlugs": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
                     "properties": {},
                     "type": "object"
                 },
@@ -466,28 +495,55 @@
                     "type": "array"
                 },
                 "requiredFiltersNote": {
-                    "description": "Editor-authored note shown to viewers while filter rules are unmet",
                     "type": "string"
                 }
             },
             "required": ["isDateZoomDisabled"],
             "type": "object"
         },
-        "DashboardControlSection": {
+        "DashboardControlRefAsCode": {
+            "description": "A control in `controlOrder`, by its slug in the same file",
             "properties": {
-                "collapsed": {
-                    "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section",
+                "kind": {
+                    "$ref": "#/$defs/DashboardControlRefKind"
+                },
+                "newLine": {
+                    "description": "Starts a new bar line; absent, it shares the line of the entry before it. On a section member it passes to the next loose entry in the list",
                     "type": "boolean"
                 },
-                "id": {
-                    "description": "uuid, stable across dashboard versions",
-                    "type": "string"
-                },
-                "name": {
+                "slug": {
+                    "description": "Slug of a filter, parameter control or section in this file",
                     "type": "string"
                 }
             },
-            "required": ["name", "id"],
+            "required": ["slug", "kind"],
+            "type": "object"
+        },
+        "DashboardControlRefKind": {
+            "description": "Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds\nmay be added, so consumers must ignore a kind they don't know. Request\nvalidation rejects unknown values, so a new kind ships in a release before\nanything writes it.",
+            "enum": ["filter", "parameter", "dateZoom", "section"],
+            "type": "string"
+        },
+        "DashboardControlSectionAsCode": {
+            "properties": {
+                "collapsed": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "description": "Legacy section identifier accepted on upload.",
+                    "type": "string"
+                },
+                "inline": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            },
+            "required": ["name"],
             "type": "object"
         },
         "DashboardDataAppTileAsCode": {
@@ -610,6 +666,25 @@
                         },
                         "tileTargets": {
                             "$ref": "#/$defs/DashboardTileTargets"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
+        "DashboardFilterRuleAsCode": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/DashboardFilterRule"
+                },
+                {
+                    "properties": {
+                        "sectionSlug": {
+                            "type": "string"
+                        },
+                        "slug": {
+                            "description": "Resolves `controlOrder` refs in this file; derived on download, never stored",
+                            "type": "string"
                         }
                     },
                     "type": "object"
@@ -800,8 +875,86 @@
             "required": ["w", "h", "y", "x", "type", "properties"],
             "type": "object"
         },
+        "DashboardParameterControlAsCode": {
+            "properties": {
+                "hidden": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "description": "Legacy project-local identifier accepted on upload.",
+                    "type": "string"
+                },
+                "label": {
+                    "type": ["string", "null"]
+                },
+                "parameters": {
+                    "$ref": "#/$defs/Record_string.DashboardParameterTarget_"
+                },
+                "sectionId": {
+                    "type": "string"
+                },
+                "sectionSlug": {
+                    "type": "string"
+                },
+                "slug": {
+                    "description": "Portable control identifier; matching an existing slug preserves its id.",
+                    "type": "string"
+                },
+                "value": {
+                    "anyOf": [
+                        {
+                            "allOf": [
+                                {
+                                    "$ref": "#/$defs/ParameterValue"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "valueType": {
+                    "$ref": "#/$defs/Required_Pick_LightdashProjectParameter.type-or-multiple__"
+                }
+            },
+            "required": ["parameters", "valueType", "value", "label"],
+            "type": "object"
+        },
         "DashboardParameters": {
             "$ref": "#/$defs/Record_string.DashboardParameterValue_"
+        },
+        "DashboardParameterTarget_string_": {
+            "anyOf": [
+                {
+                    "properties": {
+                        "only": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["only"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "except": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["except"],
+                    "type": "object"
+                },
+                {
+                    "enum": ["all"],
+                    "type": "string"
+                }
+            ]
         },
         "DashboardParameterValue": {
             "properties": {
@@ -1058,22 +1211,7 @@
             ],
             "type": "string"
         },
-        "DateZoomConfig": {
-            "properties": {
-                "controls": {
-                    "items": {
-                        "$ref": "#/$defs/DateZoomControl"
-                    },
-                    "type": "array"
-                },
-                "tileTargets": {
-                    "$ref": "#/$defs/Record_string.DateZoomTileTarget_"
-                }
-            },
-            "required": ["tileTargets", "controls"],
-            "type": "object"
-        },
-        "DateZoomControl": {
+        "DateZoomControlAsCode": {
             "properties": {
                 "granularity": {
                     "anyOf": [
@@ -1092,7 +1230,9 @@
                     "type": "string"
                 },
                 "sectionId": {
-                    "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
+                    "type": "string"
+                },
+                "sectionSlug": {
                     "type": "string"
                 },
                 "uuid": {
@@ -1298,8 +1438,8 @@
             ],
             "type": "string"
         },
-        "Omit_DashboardFilterRule.id_": {
-            "$ref": "#/$defs/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__",
+        "Omit_DashboardFilterRuleAsCode.id_": {
+            "$ref": "#/$defs/Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__",
             "description": "Construct a type with the properties of T except for those in type K."
         },
         "ParameterValue": {
@@ -1354,7 +1494,7 @@
             "required": ["title"],
             "type": "object"
         },
-        "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
+        "Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
                 "caseSensitive": {
@@ -1395,11 +1535,18 @@
                     "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
                     "type": "string"
                 },
+                "sectionSlug": {
+                    "type": "string"
+                },
                 "settings": {
                     "description": "Additional settings for date/time filters"
                 },
                 "singleValue": {
                     "type": "boolean"
+                },
+                "slug": {
+                    "description": "Resolves `controlOrder` refs in this file; derived on download, never stored",
+                    "type": "string"
                 },
                 "target": {
                     "$ref": "#/$defs/DashboardFieldTarget",
@@ -1433,6 +1580,14 @@
             "required": ["chartName"],
             "type": "object"
         },
+        "Record_string.DashboardParameterTarget_": {
+            "additionalProperties": {
+                "$ref": "#/$defs/DashboardParameterTarget_string_"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
         "Record_string.DashboardParameterValue_": {
             "additionalProperties": {
                 "$ref": "#/$defs/DashboardParameterValue"
@@ -1447,6 +1602,20 @@
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
+            "type": "object"
+        },
+        "Required_Pick_LightdashProjectParameter.type-or-multiple__": {
+            "description": "Make all properties in T required",
+            "properties": {
+                "multiple": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "enum": ["string", "number", "date"],
+                    "type": "string"
+                }
+            },
+            "required": ["type", "multiple"],
             "type": "object"
         },
         "SpaceMemberRole": {
@@ -1484,14 +1653,14 @@
     "$id": "https://schemas.lightdash.com/lightdash/dashboard-as-code.json",
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
-    "description": "From T, pick a set of properties whose keys are in the union K",
+    "description": "Schema for defining Lightdash dashboards in YAML format for version control",
     "properties": {
         "access": {
             "$ref": "#/$defs/ContentAsCodeDirectAccess",
             "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
         },
         "config": {
-            "$ref": "#/$defs/DashboardConfig"
+            "$ref": "#/$defs/DashboardConfigAsCode"
         },
         "contentType": {
             "$ref": "#/$defs/ContentAsCodeType.DASHBOARD"
@@ -1507,19 +1676,19 @@
             "properties": {
                 "dimensions": {
                     "items": {
-                        "$ref": "#/$defs/Omit_DashboardFilterRule.id_"
+                        "$ref": "#/$defs/Omit_DashboardFilterRuleAsCode.id_"
                     },
                     "type": "array"
                 },
                 "metrics": {
                     "items": {
-                        "$ref": "#/$defs/DashboardFilterRule"
+                        "$ref": "#/$defs/DashboardFilterRuleAsCode"
                     },
                     "type": "array"
                 },
                 "tableCalculations": {
                     "items": {
-                        "$ref": "#/$defs/DashboardFilterRule"
+                        "$ref": "#/$defs/DashboardFilterRuleAsCode"
                     },
                     "type": "array"
                 }

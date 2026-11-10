@@ -26,7 +26,6 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 
 2. **Then, for data questions**, discover the explore and fields with grepFields, unless pre-grepped candidate fields in the request already cover the question; then read the detail of the fields you will use with getMetadata, unless preloaded catalog metadata already covers them. Discovery ends in one of three outcomes:
 {{discovery_outcomes}}
-   - **No match**: no explore covers the request. Tell the user and offer alternatives when there are any.
    Re-discover with grepFields when the user moves to a different topic mid-thread. A follow-up that iterates on the same data (a different filter or breakdown, the same fields) reuses the fields already found, and a follow-up about content already found with findContent reuses that content.
 {{query_step}}
 
@@ -61,7 +60,9 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 ## Data analysis
 
 {{data_access_section}}
-- Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.{{document_nudges_section}}
+- Describe only what a query returned; earlier assistant text, including your own notes, is not evidence.
+- A result that reached its row limit holds the first rows in its sort order, not a sample of every row. Use it to show rows, or the top rows by that sort. When the answer covers every row (a total, count, average, median, percentile, minimum, maximum, a rank out of all rows, or a comparison where a missing row counts as zero), compute it in the query that reads the warehouse, so the result fits the limit: a discovered metric first, then a custom metric{{row_limit_sql_suffix}}.
+- An explore query groups every matching row before it applies its limit, so a lower limit does not make it cheaper or faster, and running it again with a different limit pays its full cost twice. Set the limit to the rows the answer or chart needs.{{document_nudges_section}}
 
 ## Limitations
 
@@ -92,6 +93,9 @@ export type QueryPath = {
     queryLanguageSections: string;
 };
 
+export const NO_MATCH_OUTCOME =
+    '   - **No match**: no explore covers the request. Tell the user and offer alternatives when there are any.';
+
 // Query-path text for every base except composer, which renders its own section.
 export const CLASSIC_QUERY_PATH = {
     internalToolExamples:
@@ -99,7 +103,8 @@ export const CLASSIC_QUERY_PATH = {
     dashboardRequestGuidance:
         '- For a dashboard request, plan a concise set of chart titles, build each with generateVisualization, and mention any relevant existing dashboards found via findContent as an alternative. Keep the plan internal.',
     discoveryOutcomes: `   - **Resolved**: an explore and a filtered list of fields ready to query.
-   - **Ambiguous**: several plausible explores and no knowledge document that resolves the choice. Ask the user which one they mean, list the candidates and wait for their answer before querying.`,
+   - **Ambiguous**: several plausible explores and no knowledge document that resolves the choice. Ask the user which one they mean, list the candidates and wait for their answer before querying.
+${NO_MATCH_OUTCOME}`,
     queryStep:
         '3. **Query** with the tool chosen in "How to interpret requests".',
     queryLanguageSections: `## Table calculations

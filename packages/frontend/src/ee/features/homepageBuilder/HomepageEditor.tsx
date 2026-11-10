@@ -55,7 +55,7 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { Fragment, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -467,7 +467,7 @@ const BlockCard: FC<BlockCardProps> = ({
     });
     const { Build } = definition;
     return (
-        <div
+        <Box
             ref={setNodeRef}
             className={classes.blockChrome}
             data-block-chrome
@@ -480,8 +480,8 @@ const BlockCard: FC<BlockCardProps> = ({
                 if (event.key === 'Tab') onSelect();
             }}
             style={{
-                transform: CSS.Translate.toString(transform),
-                transition,
+                '--block-drag-transform': CSS.Translate.toString(transform),
+                '--block-drag-transition': transition,
             }}
         >
             <Group gap={2} className={classes.blockActions} wrap="nowrap">
@@ -528,7 +528,7 @@ const BlockCard: FC<BlockCardProps> = ({
                 itemSpan={itemSpan}
                 standalone={standalone}
             />
-        </div>
+        </Box>
     );
 };
 

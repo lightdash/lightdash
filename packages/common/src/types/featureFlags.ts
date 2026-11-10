@@ -5,8 +5,6 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
-    /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
-    CrossSourceDbtRefs = 'cross-source-dbt-refs',
     DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and
@@ -19,31 +17,15 @@ export enum FeatureFlags {
     /** Extra warehouse connections of a different type to the project's original connection. */
     MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Backend-provisioned usage analytics projects. */
-    AnalyticsProject = 'analytics-project',
-    /* Show user groups */
-    UserGroupsEnabled = 'user-groups-enabled',
-
     /* Gate new timezone features: warehouse session timezone, timezone-aware
        DATE_TRUNC, per-viewer (user-profile) timezone resolution, result
        formatting, etc. Temporary — remove once stable. */
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
-     * Enable the dynamic calculation of series color, when not manually set on the chart config.
-     * This aims to make the colors more consistent, depending on the groups, but this could cause the opposite effect.
-     * For more details, see https://github.com/lightdash/lightdash/issues/13831
-     */
-    CalculateSeriesColor = 'calculate-series-color',
-
-    /**
      * Enable the ability to show the warehouse execution time and total time in the chart tile.
      */
     ShowExecutionTime = 'show-execution-time',
-
-    /**
-     * Enable the ability to create custom visualizations with AI
-     */
-    AiCustomViz = 'ai-custom-viz',
 
     /**
      * Enable admin user impersonation. When disabled, impersonation
@@ -140,14 +122,6 @@ export enum FeatureFlags {
     SsoOrganizationSettings = 'sso-organization-settings',
 
     /**
-     * Enable query results caching. DB value (user/org override or flag
-     * default) takes precedence; falls back to the RESULTS_CACHE_ENABLED env
-     * var when no DB row is set. Lets shared-instance customers (eu1/app)
-     * opt in per-org without a redeploy.
-     */
-    ResultsCacheEnabled = 'results-cache-enabled',
-
-    /**
      * Show a persistent trial warning banner for an organization on shared
      * instances. This does not block product access.
      */
@@ -159,19 +133,6 @@ export enum FeatureFlags {
      * product action (query execution). Off by default; enable per-org.
      */
     OrganizationTrialBlock = 'organization-trial-block',
-
-    /**
-     * Gate the org-level export Limits settings panel (per-org query max rows
-     * and CSV cells limit). Backend enforcement of any stored overrides is
-     * always on; this flag only controls who can see/configure the panel.
-     */
-    ProLimits = 'pro-limits',
-
-    /**
-     * Show the coding-agent project onboarding flow. This gates only the UI;
-     * the CLI, APIs, and installed skills remain available independently.
-     */
-    CodingAgentOnboarding = 'coding-agent-onboarding',
 
     /**
      * Allow storing long-lived GitHub personal access tokens as GitHub MCP
@@ -224,13 +185,12 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
-     * Enable the multi-source query endpoints
-     * (/api/v2/projects/{projectUuid}/query-sources/*): source discovery,
-     * schema scans, source-query submission and batch status. Off by
-     * default; on in preview/dev environments via
-     * PREVIEW_ENABLED_FEATURE_FLAGS.
+     * Enable api query sources: queries sent live to an external API (HogQL
+     * to PostHog) through a project connection, and the Live data sources
+     * project settings page. Off by default; enable per org. Also on wherever
+     * NewOnboarding is on, unless a user or org override turns it off.
      */
-    MultiSourceQuery = 'multi-source-query',
+    ApiQuerySources = 'api-query-sources',
 
     /**
      * Enable the "My query history" page
@@ -267,17 +227,6 @@ export enum FeatureFlags {
     AiDisableThreadDeletion = 'ai-disable-thread-deletion',
 
     /**
-     * Enables the chart type library — browsing and installing official
-     * chart types from the configured chart registry — and, as an either/or
-     * gate with Chart Studio availability and `EnableDataApps`, usage of
-     * installed chart types (picking, configuring, rendering). Authoring,
-     * editing, and forking chart types follow Chart Studio availability
-     * (a valid licence and a configured sandbox provider), not this flag.
-     * Default: off.
-     */
-    ChartTypeRegistry = 'chart-type-registry',
-
-    /**
      * Custom metrics created while building a chart inside a dashboard are
      * kept on the dashboard and offered when building later charts there.
      * Off by default.
@@ -310,6 +259,21 @@ export enum FeatureFlags {
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
     /**
+     * Organization-scoped: the Mobile page under Your settings, with links to
+     * install and sign in to the mobile apps. Off by default.
+     */
+    MobileSettings = 'mobile-settings',
+    /**
+     * Organization-scoped: the sign-in step on the Mobile page and its
+     * endpoints. Off by default until an app release supports QR sign-in.
+     */
+    MobileQrSignIn = 'mobile-qr-sign-in',
+    /**
+     * Organization-scoped, off by default: BigQuery workload identity federation.
+     * Only enable on instances whose pods run as their own Google service account.
+     */
+    BigqueryWorkloadIdentityAuth = 'bigquery-workload-identity-auth',
+    /**
      * Organization-scoped: org admins can bring their own AI provider keys,
      * restrict model visibility, and route those keys through a custom base
      * URL (an OpenAI/Anthropic/Gemini-compatible gateway). Off by default;
@@ -317,6 +281,12 @@ export enum FeatureFlags {
      * providers are used. Enable it for an org BEFORE it stores a key.
      */
     OrgAiCustomProviders = 'org-ai-custom-providers',
+    /**
+     * Experiment, off by default: dashboards always fit the screen in view
+     * mode, and the fit to screen toggle is removed. Enabled for internal
+     * instances only while we gather feedback.
+     */
+    DashboardFitToScreenDefault = 'dashboard-fit-to-screen-default',
 }
 
 export type FeatureFlag = {

@@ -1,39 +1,106 @@
 import Dagre from '@dagrejs/dagre';
+import { type SourceQuery } from '@lightdash/common';
 import type { Edge, Node } from '@xyflow/react';
-import { nodeTypeLabelOf, type PipelineLayer } from './groupPipeline';
+import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
+import {
+    type NodeLineage,
+    type PipelineLayer,
+    type PipelineNode,
+} from './groupPipeline';
 
 type PipelineFlowNodeData = {
     title: string;
-    typeLabel: string;
+    query: SourceQuery;
     isTerminal: boolean;
-    isDisplayed: boolean;
-    isDisplayable: boolean;
+    /** Another node is focused and this one is outside its lineage. */
+    isDimmed: boolean;
+    /** Its place in the lineage the notebook draws. */
+    lineageRole: 'hovered' | 'related' | null;
+    status: ComposerRunNodeStatus | null;
 };
 
 export type PipelineFlowNode = Node<PipelineFlowNodeData, 'pipeline'>;
 
-const RANK_GAP = 56;
-const NODE_GAP = 12;
+/** Global so the flow's stylesheet can target it; edges take no CSS module class. */
+const EDGE_ACTIVE_CLASS = 'lineage-edge-active';
+
+const RANK_GAP = 36;
+const NODE_GAP = 16;
+
+const walk = (
+    startId: string,
+    next: (nodeId: string) => readonly string[],
+): Set<string> => {
+    const seen = new Set<string>();
+    const stack = [...next(startId)];
+    while (stack.length > 0) {
+        const id = stack.pop()!;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        stack.push(...next(id));
+    }
+    return seen;
+};
+
+/** Every node the given one reads, directly or through other nodes. */
+const getUpstreamNodeIds = (
+    pipelineNodes: readonly PipelineNode[],
+    nodeId: string,
+): Set<string> => {
+    const readsById = new Map(
+        pipelineNodes.map((node) => [node.nodeId, node.readNodeIds]),
+    );
+    return walk(nodeId, (id) => readsById.get(id) ?? []);
+};
+
+/** The focused node plus every node upstream and downstream of it. */
+const getLineageNodeIds = (
+    pipelineNodes: readonly PipelineNode[],
+    focusedNodeId: string,
+): Set<string> => {
+    const ancestors = getUpstreamNodeIds(pipelineNodes, focusedNodeId);
+    const descendants = walk(focusedNodeId, (id) =>
+        pipelineNodes
+            .filter((node) => node.readNodeIds.includes(id))
+            .map((node) => node.nodeId),
+    );
+    return new Set([focusedNodeId, ...ancestors, ...descendants]);
+};
 
 /** One flow node per pipeline node, one edge per read (read node -> reader). */
 export const toPipelineFlow = (
     layers: PipelineLayer[],
     display: {
-        displayedNodeId: string;
-        displayableNodeIds: ReadonlySet<string>;
+        /** Hovered, else selected; everything outside its lineage dims. */
+        focusedNodeId: string | null;
+        /** Mirrored from the notebook; its nodes never dim. */
+        notebookLineage: NodeLineage | null;
+        nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
     },
 ): { nodes: PipelineFlowNode[]; edges: Edge[] } => {
     const pipelineNodes = layers.flatMap((layer) => layer.nodes);
+    const { focusedNodeId, notebookLineage } = display;
+    const lineageRoleOf = (nodeId: string) => {
+        if (notebookLineage?.nodeId === nodeId) return 'hovered';
+        return notebookLineage?.relatedIds.has(nodeId) ? 'related' : null;
+    };
+    const focusedLineage =
+        focusedNodeId === null
+            ? null
+            : getLineageNodeIds(pipelineNodes, focusedNodeId);
+    const isLinked = (nodeId: string) => focusedLineage?.has(nodeId) ?? true;
     const nodes = pipelineNodes.map<PipelineFlowNode>((node) => ({
         id: node.nodeId,
         type: 'pipeline',
         position: { x: 0, y: 0 },
         data: {
             title: node.title,
-            typeLabel: nodeTypeLabelOf(node.query),
+            query: node.query,
             isTerminal: node.isTerminal,
-            isDisplayed: node.nodeId === display.displayedNodeId,
-            isDisplayable: display.displayableNodeIds.has(node.nodeId),
+            isDimmed:
+                !isLinked(node.nodeId) && lineageRoleOf(node.nodeId) === null,
+            lineageRole: lineageRoleOf(node.nodeId),
+            status: display.nodeStatuses[node.nodeId] ?? null,
         },
     }));
     const edges = pipelineNodes.flatMap<Edge>((node) =>
@@ -42,6 +109,14 @@ export const toPipelineFlow = (
             source: readId,
             target: node.nodeId,
             type: 'pipeline',
+            className:
+                (focusedLineage !== null &&
+                    focusedLineage.has(readId) &&
+                    focusedLineage.has(node.nodeId)) ||
+                lineageRoleOf(readId) === 'hovered' ||
+                lineageRoleOf(node.nodeId) === 'hovered'
+                    ? EDGE_ACTIVE_CLASS
+                    : undefined,
         })),
     );
     return { nodes, edges };
@@ -89,4 +164,33 @@ export const layoutPipelineFlow = (
             },
         };
     });
+};
+
+export const GRAPH_FIT_PADDING = 0.08;
+// Room for the expand toggle; fitView centres, so it is kept above and below.
+const GRAPH_CHROME_HEIGHT = 72;
+
+/** Height of the laid-out nodes, in flow units (px at 100% zoom). */
+export const getPipelineFlowHeight = (nodes: PipelineFlowNode[]): number => {
+    if (nodes.length === 0) return 0;
+    const top = Math.min(...nodes.map((node) => node.position.y));
+    const bottom = Math.max(
+        ...nodes.map((node) => node.position.y + (node.measured?.height ?? 0)),
+    );
+    return bottom - top;
+};
+
+/** Graph pane share (%) that shows the nodes at 100% zoom, within the bounds. */
+export const getFittedGraphShare = (
+    contentHeight: number,
+    containerHeight: number,
+    { min, max }: { min: number; max: number },
+): number => {
+    if (contentHeight <= 0 || containerHeight <= 0) return max;
+    const needed =
+        contentHeight * (1 + GRAPH_FIT_PADDING) + GRAPH_CHROME_HEIGHT;
+    return Math.min(
+        max,
+        Math.max(min, Math.ceil((needed / containerHeight) * 100)),
+    );
 };

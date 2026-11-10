@@ -293,7 +293,6 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = memo(
                 onClose={onClose}
                 closeOnItemClick
                 closeOnEscape
-                radius={0}
                 position="bottom-end"
                 offset={{
                     mainAxis: 0,

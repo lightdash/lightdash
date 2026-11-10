@@ -232,7 +232,6 @@ describe.each(Object.values(SupportedDbtVersions))(
             controller.abort();
             await expect(
                 client.getDbtManifest({
-                    externalNodes: [],
                     signal: controller.signal,
                 }),
             ).rejects.toBeInstanceOf(DbtAbortError);

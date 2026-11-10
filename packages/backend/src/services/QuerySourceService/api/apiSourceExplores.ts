@@ -1,0 +1,335 @@
+import {
+    ApiConnectorType,
+    assertUnreachable,
+    DimensionType,
+    generateSlug,
+    isDimension,
+    SupportedDbtAdapter,
+    UnexpectedServerError,
+    type Explore,
+    type ExternalConnectionApiSource,
+    type ItemsMap,
+    type MetricQuery,
+    type ResultColumns,
+    type SortField,
+} from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import {
+    assertApiSourceQuery,
+    buildApiSourceExplore,
+    type ApiSourceExploreDefinition,
+    type ApiSourcePeriodFormat,
+    type CompiledApiSourceQuery,
+} from './apiSourceExplore';
+import {
+    type ApiSourceBaseLayer,
+    type ApiSourceScan,
+} from './ApiSourceIntegration';
+import { getApiSourceIntegration } from './apiSourceIntegrations';
+import {
+    applyLiveSourceFieldEdits,
+    type LiveSourceFieldEdits,
+    type ScannedLiveSourceField,
+} from './liveSourceFields';
+
+const DEFAULT_SQL_BUILDER = warehouseSqlBuilderFromType(
+    SupportedDbtAdapter.DUCKDB,
+);
+
+/**
+ * The naming contract of live data source explores and fields. Saved charts,
+ * dashboard filters, scheduled deliveries and field edits store these ids, so
+ * they must never change once a customer has content on them:
+ *
+ * - explore = `<prefix>_<model>`, e.g. `google_analytics_report`
+ * - field id = `<explore>_<field>`, e.g. `google_analytics_report_sessions`
+ * - the prefix is the source name, fixed when the source is first built and
+ *   stored (`liveSourceName`); a future configurable prefix follows the
+ *   same rule
+ * - display names change no id: the source's display name seeds the prefix
+ *   only at first build, and model or field labels never feed ids, so
+ *   renaming a source or relabelling a field keeps every chart working
+ * - models are only ever added: today's model of each integration stays
+ *   as its permanent wide model, and planned models reserve their names
+ *   up front (`plannedModelNames`) so a dbt explore can't take them first
+ *
+ * `apiSourceNames.test.ts` snapshots every integration's explore names and
+ * field ids; a failing snapshot means saved content would break.
+ */
+export const getApiSourceExploreName = (
+    sourceName: string,
+    definitionName: string,
+) => `${sourceName}_${definitionName}`;
+
+/** The source name of sources built before names were stored, from their id. */
+export const getLegacyLiveSourceName = (
+    connector: ApiConnectorType,
+    connectionUuid: string,
+) => `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}`;
+
+/** A new source's name before any clash suffix: `PostHog` → `posthog`. */
+export const getLiveSourceNameBase = (
+    connector: ApiConnectorType,
+    name: string,
+) => {
+    const base = generateSlug(name).replace(/-/g, '_');
+    return /^[a-z][a-z0-9_]*$/.test(base) ? base : connector;
+};
+
+export const getApiSourceBaseLayer = (
+    connector: ApiConnectorType,
+): ApiSourceBaseLayer => getApiSourceIntegration(connector).baseLayer;
+
+/** The wide model of an integration, which scans and field edits apply to. */
+export const getApiSourceWideDefinition = (
+    connector: ApiConnectorType,
+): ApiSourceExploreDefinition =>
+    getApiSourceBaseLayer(connector).definitions[0];
+
+/** The explore names a source with this name gets today. */
+export const getApiSourceExploreNames = (
+    connector: ApiConnectorType,
+    sourceName: string,
+): string[] =>
+    getApiSourceBaseLayer(connector).definitions.map(({ name }) =>
+        getApiSourceExploreName(sourceName, name),
+    );
+
+/** The explore names kept free for the integration's planned models. */
+export const getApiSourceReservedExploreNames = (
+    connector: ApiConnectorType,
+    sourceName: string,
+): string[] =>
+    getApiSourceBaseLayer(connector).plannedModelNames.map((modelName) =>
+        getApiSourceExploreName(sourceName, modelName),
+    );
+
+/** The fields a scan found beyond the integration's built-in ones. */
+export const toScannedLiveSourceFields = (
+    connector: ApiConnectorType,
+    scan: ApiSourceScan,
+): ScannedLiveSourceField[] => {
+    const definition = getApiSourceWideDefinition(connector);
+    const { withScannedFields, isInternalField } =
+        getApiSourceIntegration(connector);
+    const scanned = withScannedFields?.(definition, scan) ?? definition;
+    const builtInNames = new Set([
+        ...definition.dimensions.map(({ name }) => name),
+        ...definition.metrics.map(({ name }) => name),
+    ]);
+    const isInternal = (apiName: string) => isInternalField?.(apiName) ?? false;
+    return [
+        ...scanned.dimensions
+            .filter(({ name }) => !builtInNames.has(name))
+            .map(
+                (field): ScannedLiveSourceField => ({
+                    kind: 'dimension',
+                    definition: field,
+                    isInternal: isInternal(field.apiName),
+                }),
+            ),
+        ...scanned.metrics
+            .filter(({ name }) => !builtInNames.has(name))
+            .map(
+                (field): ScannedLiveSourceField => ({
+                    kind: 'metric',
+                    definition: field,
+                    isInternal: isInternal(field.apiName),
+                }),
+            ),
+    ];
+};
+
+/** The explores a live data source answers metric queries with. */
+export const buildApiSourceExplores = ({
+    connectionUuid,
+    sourceName,
+    name: label,
+    apiSource,
+    scannedFields,
+    edits,
+}: {
+    connectionUuid: string;
+    sourceName: string;
+    name: string;
+    apiSource: ExternalConnectionApiSource;
+    scannedFields: ScannedLiveSourceField[];
+    edits: LiveSourceFieldEdits;
+}): Explore[] => {
+    const {
+        baseVersion,
+        capabilities,
+        definitions: [wide, ...others],
+    } = getApiSourceBaseLayer(apiSource.connector);
+    const build = (definition: ApiSourceExploreDefinition, isWide: boolean) =>
+        buildApiSourceExplore({
+            definition,
+            exploreName: getApiSourceExploreName(sourceName, definition.name),
+            // The wide model keeps the source's name; the others add theirs
+            label: isWide ? label : `${label} ${definition.label}`,
+            connectionUuid,
+            integration: apiSource.connector,
+            baseVersion,
+            capabilities,
+            warehouseSqlBuilder:
+                getApiSourceIntegration(apiSource.connector)
+                    .warehouseSqlBuilder ?? DEFAULT_SQL_BUILDER,
+        });
+    return [
+        build(
+            applyLiveSourceFieldEdits({ base: wide, scannedFields, edits }),
+            true,
+        ),
+        ...others.map((definition) => build(definition, false)),
+    ];
+};
+
+/** Compiles a metric query on a live data source explore into its integration's request. */
+export const compileApiSourceMetricQuery = ({
+    explore,
+    metricQuery,
+    timezone,
+    now,
+}: {
+    explore: Explore;
+    metricQuery: MetricQuery;
+    timezone: string;
+    now: Date;
+}): CompiledApiSourceQuery => {
+    const integration = explore.apiSource?.integration;
+    if (integration === undefined) {
+        throw new UnexpectedServerError(
+            `"${explore.name}" isn't a live data source explore`,
+        );
+    }
+    assertApiSourceQuery(explore, metricQuery);
+    return getApiSourceIntegration(integration).compile({
+        explore,
+        metricQuery,
+        timezone,
+        now,
+    });
+};
+
+const compareValues = (left: unknown, right: unknown): number => {
+    if (left === right) {
+        return 0;
+    }
+    if (left === null || left === undefined) {
+        return 1;
+    }
+    if (right === null || right === undefined) {
+        return -1;
+    }
+    if (typeof left === 'number' && typeof right === 'number') {
+        return left - right;
+    }
+    return String(left).localeCompare(String(right));
+};
+
+const sortRows = (rows: Record<string, unknown>[], sorts: SortField[]) =>
+    sorts.length === 0
+        ? rows
+        : [...rows].sort((left, right) => {
+              const order = sorts
+                  .map(({ fieldId, descending }) => {
+                      const comparison = compareValues(
+                          left[fieldId],
+                          right[fieldId],
+                      );
+                      // Missing values stay last in either direction
+                      const isMissing =
+                          left[fieldId] == null || right[fieldId] == null;
+                      return descending && !isMissing
+                          ? -comparison
+                          : comparison;
+                  })
+                  .find((comparison) => comparison !== 0);
+              return order ?? 0;
+          });
+
+const DAY_MS = 86_400_000;
+
+/** The first day of a compact period such as 202644 (ISO week), 202610 or 2026. */
+export const toPeriodStart = (
+    value: unknown,
+    format: ApiSourcePeriodFormat,
+): unknown => {
+    const text = String(value);
+    const pad = (number: number) => String(number).padStart(2, '0');
+    switch (format) {
+        case 'year':
+            return /^\d{4}$/.test(text) ? `${text}-01-01` : value;
+        case 'year_month':
+            return /^\d{6}$/.test(text)
+                ? `${text.slice(0, 4)}-${text.slice(4)}-01`
+                : value;
+        case 'iso_week': {
+            if (!/^\d{6}$/.test(text)) {
+                return value;
+            }
+            // ISO week 1 holds January 4th; weeks start on Monday
+            const year = Number(text.slice(0, 4));
+            const week = Number(text.slice(4));
+            const january4 = Date.UTC(year, 0, 4);
+            const weekOneMonday =
+                january4 - ((new Date(january4).getUTCDay() + 6) % 7) * DAY_MS;
+            const monday = new Date(weekOneMonday + (week - 1) * 7 * DAY_MS);
+            return `${monday.getUTCFullYear()}-${pad(
+                monday.getUTCMonth() + 1,
+            )}-${pad(monday.getUTCDate())}`;
+        }
+        default:
+            return assertUnreachable(format, 'Unknown period format');
+    }
+};
+
+/** The connector's rows as result rows keyed by field id, sorted and limited. */
+export const toApiSourceResult = ({
+    compiled,
+    rows,
+    fields,
+}: {
+    compiled: CompiledApiSourceQuery;
+    rows: Record<string, unknown>[];
+    fields: ItemsMap;
+}): { rows: Record<string, unknown>[]; columns: ResultColumns } => {
+    const columnEntries = Object.entries(compiled.fieldIdsByColumn);
+    const periodColumns = compiled.periodColumns ?? {};
+    const resultRows = rows.map((row) =>
+        Object.fromEntries(
+            columnEntries.map(([column, fieldId]) => {
+                const value = row[column] ?? null;
+                const format = periodColumns[column];
+                return [
+                    fieldId,
+                    format && value !== null
+                        ? toPeriodStart(value, format)
+                        : value,
+                ];
+            }),
+        ),
+    );
+    const columns: ResultColumns = Object.fromEntries(
+        columnEntries.map(([, fieldId]) => {
+            const field = fields[fieldId];
+            return [
+                fieldId,
+                {
+                    reference: fieldId,
+                    type:
+                        field && isDimension(field)
+                            ? field.type
+                            : DimensionType.NUMBER,
+                },
+            ];
+        }),
+    );
+    return {
+        rows: sortRows(resultRows, compiled.localSorts).slice(
+            0,
+            compiled.limit,
+        ),
+        columns,
+    };
+};

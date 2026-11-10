@@ -1,4 +1,11 @@
 import 'express-session';
+import {
+    type GoogleOAuthSession,
+    type LinkedInAdsOAuthSession,
+    type LiveSourceReturnTo,
+    type PendingGoogleLiveSource,
+    type PostHogOAuthSession,
+} from '../ee/services/ExternalConnectionService/ExternalConnectionService';
 import { type AgentConnectAttempt } from '../services/AiAccessService/AiAccessService';
 
 declare module 'express-session' {
@@ -10,6 +17,8 @@ declare module 'express-session' {
             { organizationUuid: string; clientVersion: string | null }
         >;
         agentConnectAttempts?: Record<string, AgentConnectAttempt>;
+        /** Kept apart from `oauth`, which other sign-ins reset. */
+        pendingGoogleLiveSource?: PendingGoogleLiveSource;
         oauth: {
             inviteCode?: string | undefined;
             returnTo?: string | undefined;
@@ -31,6 +40,10 @@ declare module 'express-session' {
                 clientId: string;
                 encryptedClientSecret: string;
             };
+            postHog?: PostHogOAuthSession;
+            linkedInAds?: LinkedInAdsOAuthSession;
+            googleLiveSource?: GoogleOAuthSession;
+            liveSourceReturnTo?: LiveSourceReturnTo;
             isPopup?: boolean | undefined;
             databricks?: {
                 projectUuid?: string | undefined;

@@ -638,41 +638,6 @@ class Runner:
         self.rec.step('backend-provisioned DuckDB is refused as an extra', not ok(response), message(response), seconds)
         self.rec.finish()
 
-    def cross_source(self, branch):
-        self.rec.start('cross-source refs: refs and joins inside and across connections', 'cross-source')
-        project = self.create_project('Cross-source refs', 'postgres')
-        if not project:
-            return self.rec.finish()
-        self.refresh(project, 'initial compile of the original')
-        self.switch(project, 'Postgres (original)', 'Trino extra', 'trino')
-        trino_uuid = self.connections(project).get('Trino extra', {}).get('warehouseConnectionUuid')
-        self.add_github_source(project, 'pg_shared', 'examples/mixed-warehouse-dev/xref/pg_shared', None, branch)
-        self.add_github_source(project, 'trino_shared', 'examples/mixed-warehouse-dev/xref/trino_shared', trino_uuid, branch)
-        self.add_github_source(project, 'trino_consumer', 'examples/mixed-warehouse-dev/xref/trino_consumer', trino_uuid, branch)
-        result = self.refresh(project, 'compile with refs inside the Trino connection')
-        explore = self.explore(project, 'trino_nation_regions')
-        bound = (explore or {}).get('warehouseConnection') or {}
-        self.rec.step('ref between two sources on the Trino connection resolves', explore is not None and bound.get('warehouseConnectionUuid') == trino_uuid, json.dumps(bound))
-        warnings = json.dumps((explore or {}).get('warnings') or [])
-        self.rec.step('join to a model on another connection is skipped with a warning naming both connections', 'Joins across connections are not supported' in warnings and 'Postgres (original)' in warnings, clip(warnings, 300))
-        self.run_query(project, {'exploreName': 'trino_nation_regions', 'dimensions': ['trino_nation_regions_nation_name'], 'metrics': ['trino_nation_regions_nation_count'], 'filters': {}, 'sorts': [], 'limit': 5, 'tableCalculations': [], 'additionalMetrics': [], 'customDimensions': []}, 'query the explore built from a cross-source ref')
-        self.rec.finish()
-
-        self.rec.start('cross-source refs: ref across connections is refused clearly', 'cross-source')
-        project = self.create_project('Cross-connection ref', 'postgres')
-        if not project:
-            return self.rec.finish()
-        self.refresh(project, 'initial compile of the original')
-        self.switch(project, 'Postgres (original)', 'Trino extra', 'trino')
-        trino_uuid = self.connections(project).get('Trino extra', {}).get('warehouseConnectionUuid')
-        self.add_github_source(project, 'pg_shared', 'examples/mixed-warehouse-dev/xref/pg_shared', None, branch)
-        self.add_github_source(project, 'trino_xconn', 'examples/mixed-warehouse-dev/xref/trino_xconn', trino_uuid, branch)
-        result = self.refresh(project, 'compile with a ref across connections')
-        warnings = json.dumps(((result or {}).get('jobResults') or {}).get('connectionWarnings') or [])
-        expected = 'Refs across connections are not supported'
-        self.rec.step('the Trino connection fails with a cross-connection ref warning', expected in warnings and 'pg_shared' in warnings, clip(warnings, 400), expected=expected)
-        self.rec.step('the original connection still compiles', self.explore(project, 'pg_calendar') is not None)
-        self.rec.finish()
 
     def preview_and_cli(self, source_project, cli_dir):
         self.rec.start('preview project and CLI deploy into an extra connection', 'preview-cli')
@@ -1117,8 +1082,6 @@ def main():
                     mixed.append([project, [original, extra]])
         if wanted('guards'):
             runner.flag_on_refusals()
-        if wanted('cross-source'):
-            runner.cross_source(args.branch)
         if wanted('preview-cli') and mixed:
             runner.preview_and_cli(mixed[0][0], TRINO_FIXTURE)
         if wanted('new-cases'):

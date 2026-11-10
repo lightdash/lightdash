@@ -20,11 +20,16 @@ import {
     type DashboardParametersState,
 } from './dashboardParametersReducer';
 import {
+    dashboardSourceReducer,
+    type DashboardSourceState,
+} from './dashboardSourceReducer';
+import {
     dashboardTileStatusReducer,
     type DashboardTileStatusState,
 } from './dashboardTileStatusReducer';
 
 export type DashboardStoreState = {
+    source: DashboardSourceState;
     filters: DashboardFiltersState;
     parameters: DashboardParametersState;
     dateZoom: DashboardDateZoomState;
@@ -37,6 +42,7 @@ export type DashboardStoreState = {
 export const createDashboardStore = (preloadedState: DashboardStoreState) =>
     configureStore({
         reducer: {
+            source: dashboardSourceReducer,
             filters: dashboardFiltersReducer,
             parameters: dashboardParametersReducer,
             dateZoom: dashboardDateZoomReducer,
@@ -46,8 +52,11 @@ export const createDashboardStore = (preloadedState: DashboardStoreState) =>
         },
         preloadedState,
         middleware: (getDefaultMiddleware) =>
-            // Filter values can hold Date objects from the date inputs
-            getDefaultMiddleware({ serializableCheck: false }),
+            // Filter values can hold Date objects; `source` holds react-query results
+            getDefaultMiddleware({
+                serializableCheck: false,
+                immutableCheck: { ignoredPaths: ['source'] },
+            }),
     });
 
 export type DashboardStore = ReturnType<typeof createDashboardStore>;
@@ -68,9 +77,47 @@ export {
     getSavedDateZoomSettings,
 } from './dashboardEditReducer';
 export type { DashboardEditState } from './dashboardEditReducer';
-export * from './dashboardEditSelectors';
+export {
+    selectActiveTab,
+    selectActiveTabUuid,
+    selectControlOrder,
+    selectControlSections,
+    selectDashboardCustomMetrics,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    selectDateZoomGranularities,
+    selectDefaultDateZoomGranularity,
+    selectHasControlOrderChanged,
+    selectHasDefaultDateZoomGranularityChanged,
+    selectHaveControlSectionsChanged,
+    selectHaveCustomMetricsChanged,
+    selectHaveDateZoomGranularitiesChanged,
+    selectHaveTabsChanged,
+    selectHaveTilesChanged,
+    selectIsAddFilterDisabled,
+    selectIsDateZoomDisabled,
+    selectSavedChartUuidsAndTileUuids,
+    selectSavedChartUuidsAndTileUuidsKey,
+    selectTileQuerySources,
+    selectTileQuerySourcesKey,
+    selectTileUuidsKey,
+} from './dashboardEditSelectors';
 export * from './editHooks';
 export { dashboardChartSortActions } from './dashboardChartSortReducer';
+export {
+    dashboardSourceActions,
+    initialDashboardProviderState,
+} from './dashboardSourceReducer';
+export type {
+    DashboardProviderState,
+    DashboardSourceState,
+} from './dashboardSourceReducer';
+export {
+    getFilterableFieldsByTileUuid,
+    getTemporaryFilterLocks,
+    selectEmbedDashboard,
+} from './dashboardSourceSelectors';
+export { getDashboardContextView } from './contextView';
 export * from './hooks';
 export { hasSavedFiltersOverrides } from './savedFilterOverrides';
 export * from './selectors';

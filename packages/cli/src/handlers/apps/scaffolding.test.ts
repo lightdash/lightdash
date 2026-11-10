@@ -7,7 +7,27 @@ import {
     loadVendoredBuildScaffold,
     loadVendoredStarterSource,
     rewriteWorkspaceDeps,
+    toTemplateRelPath,
 } from './scaffolding';
+
+describe('toTemplateRelPath', () => {
+    it('maps the bundled package.json name back to package.json', () => {
+        expect(toTemplateRelPath('package.json.vendored')).toBe('package.json');
+        expect(toTemplateRelPath('nested/package.json.vendored')).toBe(
+            'nested/package.json',
+        );
+    });
+
+    it('leaves every other path unchanged', () => {
+        expect(toTemplateRelPath('package.json')).toBe('package.json');
+        expect(toTemplateRelPath('src/screenshotHandler.js')).toBe(
+            'src/screenshotHandler.js',
+        );
+        expect(toTemplateRelPath('src/not-package.json.vendored')).toBe(
+            'src/not-package.json.vendored',
+        );
+    });
+});
 
 describe('firstExistingDir', () => {
     it('returns the first path that exists when a later candidate exists', () => {

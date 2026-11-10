@@ -102,6 +102,7 @@ describe('SchedulerModel.getSchedulerLogs', () => {
                 selected_tabs: null,
                 include_links: true,
                 plain_text_email: false,
+                use_cached_results: false,
                 filters: null,
                 parameters: null,
                 thresholds: null,

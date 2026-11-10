@@ -1,10 +1,17 @@
 import {
+    isApiError,
+    type ApiError,
     type DocumentQueryReference,
     type DocumentSqlChart as DocumentSqlChartDefinition,
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
 import DocumentSqlChartView from './DocumentSqlChartView';
 import { useDocumentSqlChartResults } from './useDocumentSqlChartResults';
+
+const getErrorMessage = (error: ApiError | Error | null) => {
+    if (!error) return undefined;
+    return isApiError(error) ? error.error.message : error.message;
+};
 
 type Props = {
     projectUuid: string;
@@ -37,7 +44,7 @@ const DocumentSqlChart = ({
             config={chart.config}
             results={{
                 data: query.data,
-                errorMessage: query.error?.error.message,
+                errorMessage: getErrorMessage(query.error),
                 retry: () => void query.refetch(),
             }}
             exportChartId={reference.chartId}

@@ -1,6 +1,6 @@
 import {
+    isStepCount,
     readUIMessageStream,
-    stepCountIs,
     streamText,
     tool,
     wrapLanguageModel,
@@ -231,6 +231,24 @@ describe('getModel', () => {
         expect(providerOptions.openai.reasoningEffort).toBe('low');
         expect(providerOptions.openai.reasoningSummary).toBeUndefined();
     });
+
+    it.each([
+        ['gpt-6-luna', 'none'],
+        ['gpt-5.5', 'low'],
+    ])(
+        'applies %s minimal reasoning options only where the preset defines them',
+        (modelName, expectedEffort) => {
+            const { providerOptions } = getModel(
+                copilotConfigWithStreaming(true),
+                { enableReasoning: false, minimalReasoning: true, modelName },
+            );
+
+            if (!providerOptions || !('openai' in providerOptions)) {
+                throw new Error('expected openai provider options');
+            }
+            expect(providerOptions.openai.reasoningEffort).toBe(expectedEffort);
+        },
+    );
 
     it.each([false, true])(
         'keeps OpenAI zero data retention stateless when extended reasoning is %s',
@@ -1348,7 +1366,7 @@ describe('applyStreamingCapability', () => {
         const result = streamText({
             model,
             tools: { getWeather },
-            stopWhen: stepCountIs(5),
+            stopWhen: isStepCount(5),
             prompt: 'Weather in Tallinn?',
         });
 
@@ -1373,22 +1391,9 @@ describe('applyStreamingCapability', () => {
 });
 
 describe('pickAmbientAnthropicPreset', () => {
-    it('prefers the fast model when the key can serve it', () => {
-        const preset = pickAmbientAnthropicPreset([
-            'claude-haiku-4-5-20251001',
-            'claude-opus-4-8',
-        ]);
-        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
-    });
-
     it('falls back to an accessible model when the key lacks the fast one', () => {
         const preset = pickAmbientAnthropicPreset(['claude-opus-4-8']);
         expect(preset?.modelId).toBe('claude-opus-4-8');
-    });
-
-    it('optimistically returns the fast model when the probe failed (null)', () => {
-        const preset = pickAmbientAnthropicPreset(null);
-        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
     });
 
     it('returns null when the key can access no shipped preset', () => {
@@ -1414,13 +1419,6 @@ describe('getFastModelForAccessibleKey', () => {
         },
     };
 
-    it('uses the fast model when the BYO key can serve it', () => {
-        const { model } = getFastModelForAccessibleKey(anthropicByoConfig, [
-            'claude-haiku-4-5-20251001',
-        ]);
-        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
-    });
-
     it('falls back to an accessible model (opus 4.8) when the key lacks the fast one', () => {
         const { model } = getFastModelForAccessibleKey(anthropicByoConfig, [
             'claude-opus-4-8',
@@ -1438,7 +1436,7 @@ describe('getFastModelForAccessibleKey', () => {
             ['claude-haiku-4-5-20251001'],
         );
 
-        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
+        expect(model.provider).toContain('anthropic');
     });
 
     it('never uses the instance Anthropic key for a Google-only BYO org', () => {

@@ -5,6 +5,7 @@ import {
     type CustomFormatType,
     type DataAppTemplate,
     type HomepageRecommendedActionKey,
+    type JobStepType,
     type MapTileBackground,
     type RegistryChartTypeState,
     type SearchItemType,
@@ -15,6 +16,7 @@ import {
 import type * as rudderSDK from 'rudder-sdk-js';
 import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
 import { type AgentSuggestionsDisplayedProperties } from '../../ee/features/aiCopilot/hooks/agentSuggestionsTelemetry';
+import { type SetupGuideRowId } from '../../ee/features/homepageBuilder/blocks/setupGuide/setupGuideModel';
 import {
     type CategoryName,
     type EventName,
@@ -48,7 +50,6 @@ type GenericEvent = {
         | EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_CLI_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED
-        | EventName.CREATE_PROJECT_AGENT_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_WAREHOUSE_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_CLI_SSO_OPTION_CLICKED
         | EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED
@@ -92,21 +93,22 @@ type GenericEvent = {
 type SetupInviteSentEvent = {
     name: EventName.SETUP_INVITE_SENT;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
+        surface: 'data_source_chooser' | 'invite_expert';
     };
 };
 
 type PlaygroundProjectEnteredEvent = {
     name: EventName.PLAYGROUND_PROJECT_ENTERED;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
     };
 };
 
 type PlaygroundProjectSetupFailedEvent = {
     name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
         failureType: PlaygroundSetupFailure;
     };
 };
@@ -236,19 +238,30 @@ export type HomepageOpeningSwappedEvent = {
     };
 };
 
+export type HomepageRecommendedActionSurface =
+    | 'setup_guide'
+    | 'first_chart_banner'
+    | 'checklist';
+
+export type HomepageRecommendedActionProperties = {
+    surface: HomepageRecommendedActionSurface;
+    projectId: string | null;
+    rowId: SetupGuideRowId | null;
+    actionKey: HomepageRecommendedActionKey | null;
+    choice: 'ask' | 'explore' | null;
+};
+
 export type HomepageRecommendedActionClickedEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-        destination: string;
+    // null when the click fills the composer instead of navigating
+    properties: HomepageRecommendedActionProperties & {
+        destination: string | null;
     };
 };
 
 export type HomepageRecommendedActionSkippedEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-    };
+    properties: HomepageRecommendedActionProperties;
 };
 
 export type SetupStepClickedEvent = {
@@ -827,13 +840,7 @@ type DashboardSectionCreatedEvent = {
     properties: DashboardControlsEventBase & {
         source: DashboardSectionCreatedSource;
         filtersMoved: number;
-        wasTipShown: boolean;
     };
-};
-
-type DashboardSectionsTipDismissedEvent = {
-    name: EventName.DASHBOARD_SECTIONS_TIP_DISMISSED;
-    properties: DashboardControlsEventBase;
 };
 
 type DashboardFiltersMovedEvent = {
@@ -897,12 +904,24 @@ type CreateProjectButtonClickedEvent = {
     };
 };
 
+export type CreateProjectErrorCategory =
+    | 'authentication'
+    | 'network'
+    | 'permission'
+    | 'not_found'
+    | 'timeout'
+    | 'dbt'
+    | 'unknown';
+
 type CreateProjectFailedEvent = {
     name: EventName.CREATE_PROJECT_FAILED;
     properties: {
         warehouse: WarehouseTypes;
         errorType: string;
-        warehouseOnly?: boolean;
+        // The create job's failed step, null for sync API errors
+        failedStep: JobStepType | null;
+        errorCategory: CreateProjectErrorCategory;
+        warehouseOnly: boolean;
         onboardingFlow: 'legacy' | 'new';
     };
 };
@@ -944,6 +963,35 @@ type OrganizationBrandDetectedEvent = {
     };
 };
 
+export type OnboardingScreen =
+    | 'verify_email'
+    | 'organization'
+    | 'about_you'
+    | 'choose_source'
+    | 'warehouse_form'
+    | 'dbt_repo'
+    | 'dbt'
+    | 'tools'
+    | 'team'
+    | 'done';
+
+type OnboardingScreenViewedEvent = {
+    name: EventName.ONBOARDING_SCREEN_VIEWED;
+    properties: {
+        screen: OnboardingScreen;
+        organizationId: string | null;
+        projectId: string | null;
+        secondsOnPreviousScreen: number | null;
+    };
+};
+
+type OnboardingStepSkippedEvent = {
+    name: EventName.ONBOARDING_STEP_SKIPPED;
+    properties: {
+        screen: OnboardingScreen;
+    };
+};
+
 type OnboardingWarehouseSelectedEvent = {
     name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
     properties: {
@@ -951,6 +999,16 @@ type OnboardingWarehouseSelectedEvent = {
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
         onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type LiveDataSourceRequestedEvent = {
+    name: EventName.LIVE_DATA_SOURCE_REQUESTED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        integration: string;
+        customIntegrationName?: string;
     };
 };
 
@@ -988,25 +1046,37 @@ type OnboardingProjectReadyStartExploringClickedEvent = {
 type HomepageAskSubmittedEvent = {
     name: EventName.HOMEPAGE_ASK_SUBMITTED;
     properties: {
-        mode: string;
+        organizationId: string | null;
+        projectId: string | null;
+        mode: 'auto' | 'agent';
         hasProject: boolean;
+        source: 'typed' | 'guide_prefill' | 'starter_chip';
+        prefillEdited: boolean;
     };
 };
 
 type HomepageRecommendedActionImpressionEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-        position: number;
-        trigger: 'initial' | 'auto_rotate' | 'manual';
-    };
+    properties: HomepageRecommendedActionProperties &
+        (
+            | {
+                  surface: 'checklist';
+                  position: number;
+                  trigger: 'initial' | 'auto_rotate' | 'manual';
+              }
+            | {
+                  surface: 'setup_guide';
+                  completedCount: number;
+                  totalCount: number;
+                  isMinimized: boolean;
+              }
+            | { surface: 'first_chart_banner' }
+        );
 };
 
 type HomepageRecommendedActionRestoredEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-    };
+    properties: HomepageRecommendedActionProperties;
 };
 
 type HomepageStarsMediaCardClickedEvent = {
@@ -1024,39 +1094,13 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
     };
 };
 
-type AgentOnboardingDemoOfferProperties = {
-    organizationId: string;
-    projectUuid: string;
-    agentOnboardingRunUuid: string;
-    offerType: 'provision_demo' | 'open_existing_demo';
-};
-
-type AgentOnboardingDemoOfferShownEvent = {
-    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_SHOWN;
-    properties: AgentOnboardingDemoOfferProperties;
-};
-
-type AgentOnboardingDemoOfferAcceptedEvent = {
-    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED;
-    properties: AgentOnboardingDemoOfferProperties & {
-        demoProjectUuid: string | null;
+type OnboardingDoneActionClickedEvent = {
+    name: EventName.ONBOARDING_DONE_ACTION_CLICKED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        action: 'ask_first_question' | 'look_around';
     };
-};
-
-type AgentOnboardingCompletionToastProperties = {
-    organizationId: string;
-    projectUuid: string;
-    agentOnboardingRunUuid: string;
-};
-
-type AgentOnboardingCompletionToastShownEvent = {
-    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN;
-    properties: AgentOnboardingCompletionToastProperties;
-};
-
-type AgentOnboardingCompletionToastClickedEvent = {
-    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED;
-    properties: AgentOnboardingCompletionToastProperties;
 };
 
 /** Where a map chart was rendered when tile telemetry was captured. */
@@ -1180,7 +1224,8 @@ export type LearnStartSource =
     | 'resume'
     | 'recommended'
     | 'next_from_completion'
-    | 'deep_link';
+    | 'deep_link'
+    | 'homepage';
 
 type LearnLibraryViewedEvent = {
     name: EventName.LEARN_LIBRARY_VIEWED;
@@ -1307,10 +1352,7 @@ export type EventData =
     | DashboardWorkbookEvent
     | MapTileUsageEvent
     | MapTileFallbackEvent
-    | AgentOnboardingDemoOfferShownEvent
-    | AgentOnboardingDemoOfferAcceptedEvent
-    | AgentOnboardingCompletionToastShownEvent
-    | AgentOnboardingCompletionToastClickedEvent
+    | OnboardingDoneActionClickedEvent
     | SetupInviteSentEvent
     | PlaygroundProjectEnteredEvent
     | PlaygroundProjectSetupFailedEvent
@@ -1322,6 +1364,8 @@ export type EventData =
     | OrganizationSetupStepCompletedEvent
     | OrganizationBrandDetectedEvent
     | OnboardingWarehouseSelectedEvent
+    | OnboardingScreenViewedEvent
+    | OnboardingStepSkippedEvent
     | BigquerySsoSigninCompletedEvent
     | SnowflakeCliSsoCommandCopiedEvent
     | SnowflakeCliSsoConnectCompletedEvent
@@ -1405,7 +1449,6 @@ export type EventData =
     | FormulaTableCalculationAiGenerateClickedEvent
     | DashboardFilterLockToggledEvent
     | DashboardSectionCreatedEvent
-    | DashboardSectionsTipDismissedEvent
     | DashboardFiltersMovedEvent
     | DashboardFilterEditorOpenedEvent
     | DashboardFilterEditorClosedEvent
@@ -1418,7 +1461,8 @@ export type EventData =
     | SqlRunnerConnectionSwitchedEvent
     | SqlRunnerConnectionHintResolvedEvent
     | SqlRunnerShareLinkOpenedEvent
-    | OpenInSqlRunnerClickedEvent;
+    | OpenInSqlRunnerClickedEvent
+    | LiveDataSourceRequestedEvent;
 
 export type IdentifyData = {
     id: string;

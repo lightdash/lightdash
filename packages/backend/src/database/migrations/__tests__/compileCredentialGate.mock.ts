@@ -13,7 +13,6 @@ import {
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { JobModel } from '../../../models/JobModel/JobModel';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { RefreshTokenRotation } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
@@ -29,7 +28,6 @@ import {
     connectionFixture,
     connectionTestConfig,
     encryptionUtil,
-    matrix,
 } from './agentConnectionFixture.mock';
 import {
     githubDbtConnection,
@@ -48,12 +46,7 @@ export const compileCredentialGateFixture = async (
     await database('project_memberships')
         .where('user_id', f.user.user_id)
         .update({ role: ProjectMemberRole.ADMIN });
-    await f.savePolicy({
-        systemRoleMatrix: {
-            ...matrix([]),
-            admin: [AgentCapability.DeployUpload],
-        },
-    });
+    await f.savePolicy({ allowedCapabilities: [AgentCapability.DeployUpload] });
     const user = await f.users.findSessionUserAndOrgByUuid(
         f.userUuid,
         f.organizationUuid,
@@ -102,11 +95,6 @@ export const compileCredentialGateFixture = async (
     const warehouseConnectionModel = new WarehouseConnectionModel({
         database,
         encryptionUtil,
-        organizationWarehouseCredentialsModel:
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            }),
     });
     const projectDbtSourcesModel = new ProjectDbtSourcesModel({
         database,
@@ -189,11 +177,6 @@ export const compileCredentialGateFixture = async (
             database,
             encryptionUtil,
         }),
-        organizationWarehouseCredentialsModel:
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            }),
         jobModel,
         projectCompileLogModel: new ProjectCompileLogModel({ database }),
         featureFlagModel: { get: async () => ({ id: 'flag', enabled: false }) },

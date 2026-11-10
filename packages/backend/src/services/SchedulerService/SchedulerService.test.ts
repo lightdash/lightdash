@@ -95,6 +95,7 @@ const chartSchedulerInPrivateSpace: ChartScheduler = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
 };
 
 const dashboardScheduler = {
@@ -286,6 +287,7 @@ describe('SchedulerService', () => {
             enabled: true,
             includeLinks: true,
             plainTextEmail: false,
+            useCachedResults: false,
             targets: [{ recipient: 'recipient@example.com' }],
         } as unknown as SendNowScheduler;
 
@@ -444,10 +446,11 @@ describe('SchedulerService', () => {
                     enabled: true,
                     includeLinks: true,
                     plainTextEmail: false,
+                    useCachedResults: false,
                     targets: [{ recipient: 'recipient@example.com' }],
                 }) as unknown as SendNowScheduler;
 
-            test.each([SchedulerFormat.GSHEETS, SchedulerFormat.PDF])(
+            test.each([SchedulerFormat.GSHEETS])(
                 'rejects a %s send-now app payload',
                 async (format) => {
                     const { appSendService, appSendSchedulerClient } =
@@ -458,6 +461,52 @@ describe('SchedulerService', () => {
                             appSendActor,
                             appSendPayload(format, {}),
                         ),
+                    ).rejects.toThrowError(ParameterError);
+
+                    expect(
+                        appSendSchedulerClient.addScheduledDeliveryJob,
+                    ).not.toHaveBeenCalled();
+                },
+            );
+
+            test('accepts a send-now pdf app payload', async () => {
+                const { appSendService, appSendSchedulerClient } =
+                    buildAppSendService();
+
+                await appSendService.sendScheduler(
+                    appSendActor,
+                    appSendPayload(SchedulerFormat.PDF, {}),
+                );
+
+                expect(
+                    appSendSchedulerClient.addScheduledDeliveryJob,
+                ).toHaveBeenCalledWith(
+                    expect.any(Date),
+                    expect.objectContaining({
+                        format: SchedulerFormat.PDF,
+                        appUuid: sendAppUuid,
+                    }),
+                    undefined,
+                );
+            });
+
+            test.each([
+                ['msteams', { webhook: 'https://example.com/hook' }],
+                [
+                    'google chat',
+                    { googleChatWebhook: 'https://example.com/hook' },
+                ],
+            ])(
+                'rejects a send-now pdf app payload with a %s destination',
+                async (_label, target) => {
+                    const { appSendService, appSendSchedulerClient } =
+                        buildAppSendService();
+
+                    await expect(
+                        appSendService.sendScheduler(appSendActor, {
+                            ...appSendPayload(SchedulerFormat.PDF, {}),
+                            targets: [target],
+                        } as unknown as SendNowScheduler),
                     ).rejects.toThrowError(ParameterError);
 
                     expect(
@@ -1126,6 +1175,38 @@ describe('SchedulerService', () => {
                 );
             },
         );
+
+        test.each([true, false])(
+            'should track scheduler.updated with useCachedResults %s',
+            async (useCachedResults) => {
+                const trackSpy = vi.spyOn(analyticsMock, 'track');
+                const { updateService, updateSchedulerModel } =
+                    buildUpdateService();
+                updateSchedulerModel.updateScheduler.mockResolvedValueOnce({
+                    ...chartSchedulerInPrivateSpace,
+                    format: SchedulerFormat.GSHEETS,
+                    targets: [],
+                    enabled: false,
+                    useCachedResults,
+                });
+
+                await updateService.updateScheduler(
+                    actorWithGoogleSheets,
+                    chartSchedulerInPrivateSpace.schedulerUuid,
+                    gsheetsUpdate,
+                    { validateGoogleSheet: false },
+                );
+
+                expect(trackSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'scheduler.updated',
+                        properties: expect.objectContaining({
+                            useCachedResults,
+                        }),
+                    }),
+                );
+            },
+        );
     });
 
     describe('createAppScheduler', () => {
@@ -1241,6 +1322,7 @@ describe('SchedulerService', () => {
                 enabled: true,
                 includeLinks: true,
                 plainTextEmail: false,
+                useCachedResults: false,
                 targets: [],
             }) as unknown as Parameters<
                 SchedulerService['createAppScheduler']
@@ -1317,17 +1399,40 @@ describe('SchedulerService', () => {
             expect(scheduler.schedulerUuid).toBe('newSchedulerUuid');
         });
 
-        test.each([SchedulerFormat.PDF])(
-            'should reject %s deliveries',
-            async (format) => {
+        test('should accept pdf deliveries', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await appService.createAppScheduler(
+                appActor,
+                appUuid,
+                appSchedulerPayload(SchedulerFormat.PDF, {}),
+            );
+
+            expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    format: SchedulerFormat.PDF,
+                    appUuid,
+                }),
+            );
+        });
+
+        // Both delivery handlers reject PDFs for webhook destinations at run
+        // time, so creation must refuse to save them.
+        test.each([
+            ['msteams', { webhook: 'https://example.com/hook' }],
+            ['google chat', { googleChatWebhook: 'https://example.com/hook' }],
+        ])(
+            'should reject pdf deliveries with a %s destination',
+            async (_label, target) => {
                 const { appService, appSchedulerModel } = buildAppService();
 
                 await expect(
-                    appService.createAppScheduler(
-                        appActor,
-                        appUuid,
-                        appSchedulerPayload(format, {}),
-                    ),
+                    appService.createAppScheduler(appActor, appUuid, {
+                        ...appSchedulerPayload(SchedulerFormat.PDF, {}),
+                        targets: [target],
+                    } as unknown as Parameters<
+                        SchedulerService['createAppScheduler']
+                    >[2]),
                 ).rejects.toThrowError(ParameterError);
 
                 expect(
@@ -1653,7 +1758,20 @@ describe('SchedulerService', () => {
                 targets: [],
             }) as unknown as UpdateSchedulerAndTargetsWithoutId;
 
-        test('should reject a PDF format change on the generic update path', async () => {
+        test('should accept a PDF format change on the generic update path', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            await appUpdateService.updateScheduler(
+                appUpdateActor(),
+                'schedulerUuid',
+                appUpdatePayload(SchedulerFormat.PDF, {}),
+            );
+
+            expect(appUpdateSchedulerModel.updateScheduler).toHaveBeenCalled();
+        });
+
+        test('should reject a PDF update with a webhook destination', async () => {
             const { appUpdateService, appUpdateSchedulerModel } =
                 buildAppUpdateService();
 
@@ -1661,7 +1779,10 @@ describe('SchedulerService', () => {
                 appUpdateService.updateScheduler(
                     appUpdateActor(),
                     'schedulerUuid',
-                    appUpdatePayload(SchedulerFormat.PDF, {}),
+                    {
+                        ...appUpdatePayload(SchedulerFormat.PDF, {}),
+                        targets: [{ webhook: 'https://example.com/hook' }],
+                    } as unknown as UpdateSchedulerAndTargetsWithoutId,
                 ),
             ).rejects.toThrowError(ParameterError);
 

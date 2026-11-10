@@ -1,7 +1,19 @@
+import { FAST_MODELS } from '.';
 import {
+    DEFAULT_ANTHROPIC_MODEL_NAME,
+    DEFAULT_BEDROCK_MODEL_NAME,
+    DEFAULT_GOOGLE_MODEL_NAME,
+    DEFAULT_OPENAI_MODEL_NAME,
+    DEFAULT_OPENROUTER_MODEL_NAME,
+    DEFAULT_VERTEX_MODEL_NAME,
+} from '../../../../config/aiConfigSchema';
+import {
+    getModelPreset,
     keyGrantsModel,
     matchesPreset,
     MODEL_PRESETS,
+    openRouterPreset,
+    vertexPreset,
     type ModelPreset,
     type ModelPresetProvider,
 } from './presets';
@@ -69,4 +81,79 @@ describe('MODEL_PRESETS supersession', () => {
             expect(end?.supersededBy).toBeUndefined();
         },
     );
+});
+
+describe('MODEL_PRESETS current models', () => {
+    // Known gaps awaiting a product call; drop an entry once its data is fixed.
+    const PENDING = new Set([
+        'bedrock DEFAULT_BEDROCK_MODEL_NAME',
+        'openrouter DEFAULT_OPENROUTER_MODEL_NAME',
+        'anthropic haiku',
+        'bedrock haiku',
+        'bedrock opus',
+    ]);
+    const test = (key: string) => (PENDING.has(key) ? it.fails : it);
+    const providers = Object.keys(MODEL_PRESETS) as ModelPresetProvider[];
+
+    const configured: [ModelPresetProvider, string, string][] = [
+        ['openai', 'DEFAULT_OPENAI_MODEL_NAME', DEFAULT_OPENAI_MODEL_NAME],
+        [
+            'anthropic',
+            'DEFAULT_ANTHROPIC_MODEL_NAME',
+            DEFAULT_ANTHROPIC_MODEL_NAME,
+        ],
+        ['google', 'DEFAULT_GOOGLE_MODEL_NAME', DEFAULT_GOOGLE_MODEL_NAME],
+        ['bedrock', 'DEFAULT_BEDROCK_MODEL_NAME', DEFAULT_BEDROCK_MODEL_NAME],
+        ...providers.map((provider): [ModelPresetProvider, string, string] => [
+            provider,
+            `FAST_MODELS.${provider}`,
+            FAST_MODELS[provider],
+        ]),
+    ];
+
+    configured.forEach(([provider, label, name]) => {
+        test(`${provider} ${label}`)(
+            `${provider} ${label} (${name}) resolves to a non-deprecated preset`,
+            () => {
+                const preset = getModelPreset(provider, name);
+                expect(preset).not.toBeNull();
+                expect(preset?.deprecated).toBeFalsy();
+            },
+        );
+    });
+
+    test('vertex DEFAULT_VERTEX_MODEL_NAME')(
+        'DEFAULT_VERTEX_MODEL_NAME resolves to a known Vertex model',
+        () => {
+            expect(vertexPreset(DEFAULT_VERTEX_MODEL_NAME).custom).toBe(false);
+        },
+    );
+
+    test('openrouter DEFAULT_OPENROUTER_MODEL_NAME')(
+        'DEFAULT_OPENROUTER_MODEL_NAME resolves to a known OpenRouter model',
+        () => {
+            expect(openRouterPreset(DEFAULT_OPENROUTER_MODEL_NAME).custom).toBe(
+                false,
+            );
+        },
+    );
+
+    providers.forEach((provider) => {
+        (['haiku', 'sonnet', 'opus'] as const).forEach((family) => {
+            const familyPresets = MODEL_PRESETS[provider].filter((preset) =>
+                preset.name.startsWith(`claude-${family}-`),
+            );
+            if (familyPresets.length === 0) return;
+            test(`${provider} ${family}`)(
+                `${provider} offers at most one non-deprecated Claude ${family} preset`,
+                () => {
+                    const current = familyPresets
+                        .filter((preset) => !preset.deprecated)
+                        .map((preset) => preset.name);
+                    // Asserting on the list names the extra presets on failure.
+                    expect(current.slice(1)).toEqual([]);
+                },
+            );
+        });
+    });
 });

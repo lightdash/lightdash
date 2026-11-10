@@ -80,6 +80,7 @@ const PromptSparkline: FC<{ data: { promptCount: number }[] }> = ({ data }) => {
             option={option}
             notMerge
             opts={{ renderer: 'svg' }}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
             style={{ height: 42, width: '100%' }}
         />
     );

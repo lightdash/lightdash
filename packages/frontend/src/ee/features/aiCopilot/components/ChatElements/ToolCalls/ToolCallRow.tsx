@@ -3,7 +3,6 @@ import {
     type AiAgentToolName,
     type AiMcpServer,
     isToolName,
-    type ToolName,
 } from '@lightdash/common';
 import {
     Box,
@@ -11,6 +10,7 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
@@ -18,8 +18,8 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
-import { ToolCallIcon } from './ToolCallIcon';
 import styles from './ToolCallRow.module.css';
+import { ToolCallRowIcon } from './ToolCallRowIcon';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
 import {
@@ -28,43 +28,13 @@ import {
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
+import { isToolWithoutDescription } from './utils/toolsWithoutDescription';
 import { type ToolCallSummary } from './utils/types';
-
-// Tools whose ToolCallDescription returns an empty fragment. Tracked here
-// so the row doesn't render a chevron + clickable header that expand into
-// blank space. Keep in sync with the empty `return <></>` cases in
-// ToolCallDescription.tsx.
-const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
-    'generateHashes',
-    'generateUuids',
-    'getProjectInfo',
-    'listDataAppThemes',
-    'listDataAppConnections',
-    'listKnowledgeDocuments',
-    'listProjects',
-    'loadProjectContext',
-    'editDbtProject',
-    'runSavedChart',
-]);
-
-// Tools whose description renders something tall (e.g. a code block) and can't
-// be sensibly clipped to a single-line preview — collapse to verb + chevron.
-const HIDE_INLINE_PREVIEW = new Set<ToolName>([
-    'query',
-    'runComposerQueries',
-    'runSql',
-]);
-
-const INLINE_CHIP_PREVIEW_TOOLS = new Set<ToolName>([
-    'readContent',
-    'editContent',
-    'createContent',
-]);
 
 // Max chips shown inline when collapsed before "+N more".
 const MAX_CHIPS_COLLAPSED = 3;
 
-export type ToolCallRowStatus = 'running' | 'done' | 'error';
+export type ToolCallRowStatus = 'running' | 'done';
 
 type Props = {
     toolName: AiAgentToolName;
@@ -108,12 +78,12 @@ export const ToolCallRow: FC<Props> = ({
               toolName: builtInToolName,
               calls: toolCalls,
               display,
-              status: status === 'running' ? 'running' : 'done',
+              status,
           })
         : null;
     const hasCallDescription = (toolCall: ToolCallSummary) =>
         isToolName(toolCall.toolName) &&
-        !TOOLS_WITHOUT_DESCRIPTION.has(toolCall.toolName);
+        !isToolWithoutDescription(toolCall.toolName);
     const hasDescription =
         toolCalls.some(hasCallDescription) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
@@ -133,74 +103,33 @@ export const ToolCallRow: FC<Props> = ({
     // show a count badge — no chevron, no click target.
     const isClickable = hasDescription;
 
-    // What goes in the trailing single-line preview slot.
+    // Collapsed rows show only what each call touched; detail lives behind the row.
     const renderInlinePreview = (): React.ReactNode => {
-        if (
-            !isGrouped &&
-            visibleChips.length > 0 &&
-            isToolName(toolCalls[0].toolName) &&
-            INLINE_CHIP_PREVIEW_TOOLS.has(toolCalls[0].toolName)
-        ) {
-            return (
-                <Group gap={4} wrap="nowrap" className={styles.chips}>
-                    <ToolCallChip className={styles.chipAppear}>
-                        {visibleChips[0].label}
-                    </ToolCallChip>
-                </Group>
-            );
-        }
-
-        if (
-            !isGrouped &&
-            hasDescription &&
-            isToolName(toolCalls[0].toolName) &&
-            !HIDE_INLINE_PREVIEW.has(toolCalls[0].toolName)
-        ) {
-            // Single call: show its description; clipped to one line by CSS.
-            return (
-                <Box className={styles.inlineDescription}>
-                    <ToolCallDescription
-                        toolName={toolCalls[0].toolName}
-                        toolCall={toolCalls[0]}
-                        toolResult={toolResults?.find(
-                            (result) =>
-                                result.toolCallId === toolCalls[0].toolCallId,
-                        )}
-                    />
-                </Box>
-            );
-        }
-        if (isGrouped && visibleChips.length > 0) {
-            const shown = visibleChips.slice(0, MAX_CHIPS_COLLAPSED);
-            const overflow = visibleChips.length - shown.length;
-            return (
-                <Group gap={4} wrap="nowrap" className={styles.chips}>
-                    {shown.map(({ label: chipLabel, idx }) => (
-                        <ToolCallChip
-                            key={`chip-${idx}`}
-                            className={styles.chipAppear}
-                            style={{ animationDelay: `${idx * 28}ms` }}
-                        >
-                            {chipLabel}
-                        </ToolCallChip>
-                    ))}
-                    {overflow > 0 && (
-                        <Text size="xs" c="dimmed" className={styles.overflow}>
-                            +{overflow}
-                        </Text>
-                    )}
-                </Group>
-            );
-        }
-        // Grouped tools without chips just rely on the badge next to the
-        // label; no extra trailing slot content.
-        return null;
+        if (visibleChips.length === 0) return null;
+        const shown = visibleChips.slice(0, MAX_CHIPS_COLLAPSED);
+        const overflow = visibleChips.length - shown.length;
+        return (
+            <Tooltip
+                label={visibleChips
+                    .map(({ label: chipLabel }) => chipLabel)
+                    .join(', ')}
+                multiline
+                maw={360}
+                openDelay={400}
+            >
+                <Text size="xs" truncate className={styles.target}>
+                    {shown.map(({ label: chipLabel }) => chipLabel).join(', ')}
+                    {overflow > 0 ? ` +${overflow}` : ''}
+                </Text>
+            </Tooltip>
+        );
     };
 
     const head = (
         <Group gap={8} align="center" wrap="nowrap" className={styles.head}>
-            <ToolCallIcon
+            <ToolCallRowIcon
                 toolName={toolName}
+                toolCalls={toolCalls}
                 size={13}
                 stroke={1.6}
                 className={styles.icon}
@@ -214,7 +143,12 @@ export const ToolCallRow: FC<Props> = ({
             ) : (
                 <Text size="xs" className={styles.label}>
                     Used {mcpDisplayMetadata?.label ?? 'MCP'}:{' '}
-                    <ToolCallChip maxWidth={260} className={styles.mcpToolChip}>
+                    <ToolCallChip
+                        maxWidth={260}
+                        variant="transparent"
+                        px={0}
+                        className={styles.mcpToolChip}
+                    >
                         {mcpToolDisplayName}
                     </ToolCallChip>
                 </Text>
@@ -222,7 +156,11 @@ export const ToolCallRow: FC<Props> = ({
             {isGrouped && (
                 <Box className={styles.countBadge}>{toolCalls.length}</Box>
             )}
-            <Box className={styles.previewSlot}>{renderInlinePreview()}</Box>
+            {!expanded && (
+                <Box className={styles.previewSlot}>
+                    {renderInlinePreview()}
+                </Box>
+            )}
             {isClickable && (
                 <MantineIcon
                     icon={IconChevronRight}
@@ -235,11 +173,19 @@ export const ToolCallRow: FC<Props> = ({
     );
 
     if (!isClickable) {
-        return <Box className={styles.row}>{head}</Box>;
+        return (
+            <Box className={styles.row} data-status={status}>
+                {head}
+            </Box>
+        );
     }
 
     return (
-        <Box className={styles.row} data-expanded={expanded}>
+        <Box
+            className={styles.row}
+            data-expanded={expanded}
+            data-status={status}
+        >
             <UnstyledButton
                 onClick={() => setExpanded((prev) => !prev)}
                 aria-expanded={expanded}

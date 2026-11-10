@@ -1,0 +1,38 @@
+/* The regenerate icon shows only while its own input is hovered, its button
+   has keyboard focus, or it is generating. It keeps its space, so text never shifts when
+   it appears. */
+.action {
+    display: flex;
+    opacity: 0;
+}
+
+/* Keyboard focus on the button shows it too; a mouse click or typing in
+   the input does not keep it visible once the pointer leaves. */
+.wrapper:hover .action,
+.wrapper:has(button:focus-visible) .action,
+.action[data-visible] {
+    opacity: 1;
+}
+
+/* Touch screens have no hover, so always show it there. */
+@media (hover: none) {
+    .action {
+        opacity: 1;
+    }
+}
+
+/* Keep the textarea's icon on the first line instead of centred. */
+.textareaSection {
+    align-items: flex-start;
+    padding-top: calc(var(--mantine-spacing-xs) / 2);
+}
+
+/* A description over its max rows still scrolls (wheel, trackpad,
+   keyboard), but without a visible scrollbar beside the icon. */
+.hiddenScrollbar {
+    scrollbar-width: none;
+}
+
+.hiddenScrollbar::-webkit-scrollbar {
+    display: none;
+}

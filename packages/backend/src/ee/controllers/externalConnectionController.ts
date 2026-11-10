@@ -2,8 +2,11 @@ import {
     assertRegisteredAccount,
     ForbiddenError,
     type ApiErrorPayload,
+    type ApiExternalConnectionApiUsageResponse,
+    type ApiExternalConnectionSchemaResponse,
     type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
+    type ApiLiveSourceFieldsResponse,
     type ApiProposeExternalConnectionConfigRequest,
     type ApiProposeExternalConnectionConfigResponse,
     type ApiSaveExternalConnectionSampleRequest,
@@ -11,6 +14,7 @@ import {
     type ApiTestExternalConnectionConfigRequest,
     type ApiTestExternalConnectionRequest,
     type ApiTestExternalConnectionResponse,
+    type ApiUpdateLiveSourceFieldsRequest,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionListItem,
@@ -113,6 +117,54 @@ export class ExternalConnectionController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().list(req.account, projectUuid),
+        };
+    }
+
+    /**
+     * API calls and response bytes each live source has used, across every logged query
+     * @summary Get live source usage
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/api-usage')
+    @OperationId('getExternalConnectionApiUsage')
+    async getExternalConnectionApiUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiExternalConnectionApiUsageResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getApiSourceUsage(
+                req.account,
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * What the live source's last schema scan found, such as PostHog event names; null when it was never scanned
+     * @summary Get live source schema
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/schema')
+    @OperationId('getExternalConnectionSchema')
+    async getExternalConnectionSchema(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiExternalConnectionSchemaResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getApiSourceSchema(
+                req.account,
+                projectUuid,
+                connectionUuid,
+            ),
         };
     }
 
@@ -222,6 +274,93 @@ export class ExternalConnectionController extends BaseController {
         );
         this.setStatus(200);
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Rebuild the explores of a live data source from its integration's
+     * semantic layer and the fields it reports, such as GA4 custom
+     * dimensions or PostHog properties
+     * @summary Refresh live data source explores
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('external-connections/{connectionUuid}/refresh-explores')
+    @OperationId('refreshExternalConnectionExplores')
+    async refreshExternalConnectionExplores(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<{ status: 'ok'; results: undefined }> {
+        assertRegisteredAccount(req.account);
+        await this.getService().refreshApiSourceExplores(
+            req.account,
+            projectUuid,
+            connectionUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * List every field of a live data source, in use or available, with how
+     * many charts use each. Needs the same access as editing the source.
+     * @summary List live data source fields
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/fields')
+    @OperationId('getLiveSourceFields')
+    async getLiveSourceFields(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiLiveSourceFieldsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getLiveSourceFields(
+                req.account,
+                projectUuid,
+                connectionUuid,
+            ),
+        };
+    }
+
+    /**
+     * Put fields of a live data source in or out of use, or change their
+     * label, group, description or AI hint
+     * @summary Update live data source fields
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('external-connections/{connectionUuid}/fields')
+    @OperationId('updateLiveSourceFields')
+    async updateLiveSourceFields(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Body() body: ApiUpdateLiveSourceFieldsRequest,
+    ): Promise<ApiLiveSourceFieldsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().updateLiveSourceFields(
+                req.account,
+                projectUuid,
+                connectionUuid,
+                body.changes,
+            ),
+        };
     }
 
     /**

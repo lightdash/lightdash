@@ -36,7 +36,11 @@ strong {
 }
 
 ::selection {
-    background-color: light-dark(rgb(24 24 27 / 0.12), rgb(236 236 238 / 0.2));
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-text) 16%,
+        transparent
+    );
 }
 
 .ace_editor.ace_autocomplete {

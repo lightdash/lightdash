@@ -11,6 +11,7 @@ import AppIframePreview, {
 import { getVisiblePreviewTokenError } from '../hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../hooks/useAppPreviewToken';
 import type {
+    AppStateEvent,
     ExternalRequestEvent,
     QueryEvent,
     SdkManifest,
@@ -29,6 +30,8 @@ export type AppPreviewProps = {
     invalidateCache?: boolean;
     onQueryEvent?: (event: QueryEvent) => void;
     onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
+    /** Reports app-state reads/writes for the same inspector tab. */
+    onAppStateEvent?: (event: AppStateEvent) => void;
     inspectorEnabled?: boolean;
     onElementSelected?: (event: { label: string }) => void;
     onInspectorAvailabilityChange?: (available: boolean) => void;
@@ -52,6 +55,7 @@ export type AppPreviewProps = {
     onInsightAction?: (action: DataAppInsightAction) => void;
     onInsightsInUse?: () => void;
     onInsightInstructionsChange?: (instructions: string | null) => void;
+    onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
 
@@ -65,6 +69,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             invalidateCache,
             onQueryEvent,
             onExternalRequestEvent,
+            onAppStateEvent,
             inspectorEnabled,
             onElementSelected,
             onInspectorAvailabilityChange,
@@ -84,6 +89,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
         },
         ref,
@@ -141,6 +147,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 invalidateCache={invalidateCache}
                 onQueryEvent={onQueryEvent}
                 onExternalRequestEvent={onExternalRequestEvent}
+                onAppStateEvent={onAppStateEvent}
                 inspectorEnabled={inspectorEnabled}
                 onElementSelected={onElementSelected}
                 onInspectorAvailabilityChange={onInspectorAvailabilityChange}
@@ -161,6 +168,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onInsightAction={onInsightAction}
                 onInsightsInUse={onInsightsInUse}
                 onInsightInstructionsChange={onInsightInstructionsChange}
+                onInsightAnalyseOnLoadChange={onInsightAnalyseOnLoadChange}
                 onMountedQueriesChange={onMountedQueriesChange}
             />
         );

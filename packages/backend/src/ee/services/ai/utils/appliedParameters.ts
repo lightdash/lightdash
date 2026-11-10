@@ -1,19 +1,26 @@
 import {
-    getReferencedExploreParameterDefinitions,
+    getExploreParameterDefinitions,
+    getQueryParameterReferences,
+    getReferencedParameterDefinitions,
     type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type QueryParameterScope,
     type ToolRunQueryAppliedParameters,
 } from '@lightdash/common';
 
 export const getAppliedParameters = (
     explore: Explore,
     projectParameterDefinitions: ParameterDefinitions,
+    query: QueryParameterScope,
     provided: ParametersValuesMap | null,
 ): ToolRunQueryAppliedParameters | null => {
-    const definitions = getReferencedExploreParameterDefinitions(
-        explore,
-        projectParameterDefinitions,
+    const definitions = getReferencedParameterDefinitions(
+        {
+            ...projectParameterDefinitions,
+            ...getExploreParameterDefinitions(explore),
+        },
+        getQueryParameterReferences(explore, query),
     );
     const referenced = Object.keys(definitions);
     if (referenced.length === 0) return null;
@@ -62,8 +69,14 @@ export const renderAppliedParameters = (
 export const summarizeAppliedParameters = (
     explore: Explore,
     projectParameterDefinitions: ParameterDefinitions,
+    query: QueryParameterScope,
     provided: ParametersValuesMap | null,
 ): string =>
     renderAppliedParameters(
-        getAppliedParameters(explore, projectParameterDefinitions, provided),
+        getAppliedParameters(
+            explore,
+            projectParameterDefinitions,
+            query,
+            provided,
+        ),
     );

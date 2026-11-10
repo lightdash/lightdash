@@ -1,0 +1,88 @@
+.stepBadge {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--mantine-color-default-hover);
+    border: 1px solid var(--mantine-color-default-border);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.stepBadge[data-state='done'] {
+    background: var(--mantine-color-green-filled);
+    border-color: transparent;
+    color: var(--mantine-color-white);
+}
+
+.stepBadge[data-state='upcoming'] {
+    background: transparent;
+    color: var(--mantine-color-dimmed);
+}
+
+.stepTitle:focus {
+    outline: none;
+}
+
+.stepTitle:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+.qrFrame {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 160px;
+    height: 160px;
+    padding: 12px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-white);
+}
+
+.details {
+    flex: 1;
+    min-width: 200px;
+}
+
+.host {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.digit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 64px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    font-size: 36px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.confirmRows {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+}
+
+.confirmRow {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: var(--mantine-spacing-sm);
+}
+
+.confirmRow dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}

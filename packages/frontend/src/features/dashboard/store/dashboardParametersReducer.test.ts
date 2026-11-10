@@ -1,5 +1,9 @@
-import { type DashboardParameters } from '@lightdash/common';
+import {
+    DashboardControlRefKind,
+    type DashboardParameters,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { dashboardEditActions } from './dashboardEditReducer';
 import {
     dashboardParametersActions as actions,
     dashboardParametersReducer as reducer,
@@ -326,6 +330,109 @@ describe('dashboardParametersReducer', () => {
             });
         });
 
+        it('setTileVirtualViewSavedParameters stores values and no-ops on deep-equal ones', () => {
+            const next = reducer(
+                stateWith(),
+                actions.setTileVirtualViewSavedParameters({
+                    tileUuid: 'tile-1',
+                    values: { status: 'Shipped' },
+                }),
+            );
+            expect(next.tileVirtualViewSavedParameters).toEqual({
+                'tile-1': { status: 'Shipped' },
+            });
+            expect(
+                reducer(
+                    next,
+                    actions.setTileVirtualViewSavedParameters({
+                        tileUuid: 'tile-1',
+                        values: { status: 'Shipped' },
+                    }),
+                ),
+            ).toBe(next);
+        });
+
+        it.each([
+            ['listed first', ['listed', 'query']],
+            ['query first', ['query', 'listed']],
+        ] as const)(
+            "uses the tile's query references over the listed ones (%s)",
+            (_name, order) => {
+                const byOrigin = {
+                    listed: actions.addListedParameterReferences({
+                        tileUuid: 'tile-1',
+                        references: ['status', 'region'],
+                    }),
+                    query: actions.addParameterReferences({
+                        tileUuid: 'tile-1',
+                        references: ['status', 'week_start'],
+                    }),
+                };
+                const next = order.reduce(
+                    (state, origin) => reducer(state, byOrigin[origin]),
+                    stateWith(),
+                );
+                expect(next.tileParameterReferences['tile-1']).toEqual([
+                    'status',
+                    'week_start',
+                ]);
+            },
+        );
+
+        it('lists many tiles in one action, keeping query references that already arrived', () => {
+            const next = [
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['status'],
+                }),
+                actions.addListedParameterReferencesByTile({
+                    'tile-1': ['region'],
+                    'tile-2': ['week_start'],
+                }),
+            ].reduce(reducer, stateWith());
+            expect(next.tileListedParameterReferences).toEqual({
+                'tile-1': ['region'],
+                'tile-2': ['week_start'],
+            });
+            expect(next.tileParameterReferences).toEqual({
+                'tile-1': ['status'],
+                'tile-2': ['week_start'],
+            });
+        });
+
+        it('drops a listed reference the current query no longer uses', () => {
+            const next = [
+                actions.addListedParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['region'],
+                }),
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: [],
+                }),
+            ].reduce(reducer, stateWith());
+            expect(next.tileParameterReferences).toEqual({ 'tile-1': [] });
+        });
+
+        it('keeps the listed references while the query has none to report', () => {
+            const next = [
+                actions.addListedParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['region'],
+                }),
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: null,
+                }),
+            ].reduce(reducer, stateWith());
+            expect(next.tileParameterReferences).toEqual({
+                'tile-1': ['region'],
+            });
+            expect(next.tileQueryParameterReferences).toEqual({
+                'tile-1': null,
+            });
+        });
+
         it('setTileChartSavedParameters stores values and no-ops on deep-equal ones', () => {
             const next = reducer(
                 stateWith(),
@@ -355,11 +462,13 @@ describe('dashboardParametersReducer', () => {
                     'tile-2': ['region'],
                 },
                 tileChartSavedParameters: { 'tile-2': { region: 'EU' } },
+                tileVirtualViewSavedParameters: { 'tile-2': { region: 'EU' } },
             });
             const next = reducer(
                 state,
                 actions.keepTileParameterState(['tile-1']),
             );
+            expect(next.tileVirtualViewSavedParameters).toEqual({});
             expect(next.tileParameterReferences).toEqual({
                 'tile-1': ['status'],
             });
@@ -377,6 +486,214 @@ describe('dashboardParametersReducer', () => {
                     actions.keepTileParameterState(['tile-1', 'tile-2']),
                 ),
             ).toBe(state);
+        });
+    });
+
+    describe('parameter controls', () => {
+        const control = (key: string, id: string) => ({
+            id,
+            label: 'Label',
+            value: null,
+            valueType: { type: 'string', multiple: false } as const,
+            parameters: { [key]: 'all' as const },
+        });
+        // One control per key, applying to every tile using it
+        const filledList = (ids: Record<string, string>) =>
+            Object.entries(ids).map(([key, id]) => control(key, id));
+
+        it('seeds a saved list without marking it as changed', () => {
+            const list = filledList({ region: 'a' });
+            const next = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: list,
+                    isSaved: true,
+                }),
+            );
+            expect(next.parameterControls).toEqual(list);
+            expect(next.areParameterControlsSaved).toBe(true);
+            expect(next.haveParameterControlsChanged).toBe(false);
+        });
+
+        it('keeps the ids of filled controls when the list is refilled', () => {
+            const filled = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a' }),
+                    isSaved: false,
+                }),
+            );
+            const refilled = reducer(
+                filled,
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'b', status: 'c' }),
+                    isSaved: false,
+                }),
+            );
+            expect(refilled.parameterControls).toEqual(
+                filledList({ region: 'a', status: 'c' }),
+            );
+            expect(
+                reducer(
+                    refilled,
+                    actions.syncParameterControls({
+                        controls: filledList({ region: 'd', status: 'e' }),
+                        isSaved: false,
+                    }),
+                ),
+            ).toBe(refilled);
+        });
+
+        it('keeps never saved controls once the bar is reordered, until the save', () => {
+            const filled = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a' }),
+                    isSaved: false,
+                }),
+            );
+            const arranged = reducer(
+                filled,
+                dashboardEditActions.arrangeControls([
+                    { kind: DashboardControlRefKind.PARAMETER, id: 'a' },
+                ]),
+            );
+            expect(arranged.haveParameterControlsChanged).toBe(true);
+            // A refill from the tiles no longer replaces the listed ids
+            expect(
+                reducer(
+                    arranged,
+                    actions.syncParameterControls({
+                        controls: [control('region', 'z')],
+                        isSaved: false,
+                    }),
+                ),
+            ).toBe(arranged);
+            // Saved ones already keep their ids: nothing to mark
+            const saved = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a' }),
+                    isSaved: true,
+                }),
+            );
+            expect(
+                reducer(saved, dashboardEditActions.arrangeControls([])),
+            ).toBe(saved);
+        });
+
+        it('marks updates and removals as changed, and stops seeding until reset', () => {
+            const seeded = stateWith({
+                parameterControls: filledList({ region: 'a', status: 'b' }),
+            });
+            const updated = reducer(
+                seeded,
+                actions.updateParameterControl({
+                    id: 'a',
+                    changes: { label: 'Region' },
+                }),
+            );
+            expect(updated.parameterControls?.[0].label).toBe('Region');
+            expect(updated.haveParameterControlsChanged).toBe(true);
+
+            const removed = reducer(
+                updated,
+                actions.removeParameterControl('b'),
+            );
+            expect(removed.parameterControls).toEqual([
+                { ...control('region', 'a'), label: 'Region' },
+            ]);
+            const empty = { controls: [], isSaved: true };
+            expect(reducer(removed, actions.syncParameterControls(empty))).toBe(
+                removed,
+            );
+
+            const reset = reducer(
+                removed,
+                actions.setHaveParameterControlsChanged(false),
+            );
+            expect(
+                reducer(reset, actions.syncParameterControls(empty))
+                    .parameterControls,
+            ).toEqual([]);
+        });
+
+        it('does not edit controls before discovery is complete', () => {
+            const state = stateWith();
+            expect(
+                reducer(
+                    state,
+                    actions.setParameterControls(filledList({ region: 'a' })),
+                ),
+            ).toBe(state);
+        });
+
+        it('replaces the whole list with setParameterControls', () => {
+            const list = filledList({ region: 'a' });
+            const next = reducer(
+                stateWith({ parameterControls: [] }),
+                actions.setParameterControls(list),
+            );
+            expect(next.parameterControls).toBe(list);
+            expect(next.haveParameterControlsChanged).toBe(true);
+        });
+    });
+
+    describe('parameter picks', () => {
+        it('records a picked value by key, even when it equals the saved one', () => {
+            const next = reducer(
+                stateWith({ savedParameters }),
+                actions.setParameter({ key: 'status', value: 'Shipped' }),
+            );
+            expect(next.parameterPicks).toEqual({ status: 'Shipped' });
+        });
+
+        it('drops a pick reverted in view mode and records a clear in edit mode', () => {
+            const picked = stateWith({
+                savedParameters,
+                parameterPicks: { status: 'Pending' },
+            });
+            expect(
+                reducer(
+                    picked,
+                    actions.setParameter({ key: 'status', value: null }),
+                ).parameterPicks,
+            ).toEqual({});
+            expect(
+                reducer(
+                    { ...picked, isEditMode: true },
+                    actions.setParameter({ key: 'status', value: null }),
+                ).parameterPicks,
+            ).toEqual({ status: null });
+        });
+
+        it('starts edit mode with no picks and takes a delivery values as picks', () => {
+            const picked = stateWith({ parameterPicks: { status: 'Pending' } });
+            expect(
+                reducer(picked, actions.setIsEditMode(true)).parameterPicks,
+            ).toEqual({});
+            expect(
+                reducer(
+                    stateWith(),
+                    actions.setParameterPicks({ status: 'Returned' }),
+                ).parameterPicks,
+            ).toEqual({ status: 'Returned' });
+        });
+
+        it('clears every pick in view mode and nulls every key in edit mode', () => {
+            const picked = stateWith({
+                savedParameters,
+                parameterPicks: { region: 'EU' },
+            });
+            expect(
+                reducer(picked, actions.clearAllParameters()).parameterPicks,
+            ).toEqual({});
+            expect(
+                reducer(
+                    { ...picked, isEditMode: true },
+                    actions.clearAllParameters(),
+                ).parameterPicks,
+            ).toEqual({ status: null, region: null });
         });
     });
 });

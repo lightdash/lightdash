@@ -184,7 +184,7 @@ export const ThemePicker: FC<Props> = ({
             disabled={disabled || lockedAfterCreation}
             onClick={onSelect}
             aria-current={isActive}
-            className={classes.option}
+            classNames={{ itemLabel: classes.optionLabel }}
             rightSection={
                 isActive ? (
                     <MantineIcon icon={IconCheck} size={14} color="indigo.6" />

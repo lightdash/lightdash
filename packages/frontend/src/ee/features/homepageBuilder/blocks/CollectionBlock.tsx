@@ -642,13 +642,13 @@ const SortableTile: FC<{
             ? classes.sortableTile
             : `${classes.sortableTile} ${layoutClasses.pageGridItem}`;
     return (
-        <div
+        <Box
             ref={setNodeRef}
             className={wrapperClass}
             data-dragging={isDragging}
             style={{
-                transform: CSS.Translate.toString(transform),
-                transition,
+                '--tile-drag-transform': CSS.Translate.toString(transform),
+                '--tile-drag-transition': transition,
             }}
             {...attributes}
             {...listeners}
@@ -665,7 +665,7 @@ const SortableTile: FC<{
                 onRemove={onRemove}
                 isSortable
             />
-        </div>
+        </Box>
     );
 };
 

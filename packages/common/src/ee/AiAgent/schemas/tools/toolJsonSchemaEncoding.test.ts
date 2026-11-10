@@ -1,11 +1,20 @@
 import Ajv, { type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
+import { toJsonSchema, type JsonSchema } from '../../../../utils/zodJsonSchema';
+import { createAgentInputSchema } from '../agentInputSchema';
 import {
-    toJsonSchema,
-    toLlmJsonSchema,
-    type JsonSchema,
-} from '../../../../utils/zodJsonSchema';
-import { agentToolDefinitions } from './toolDefinitions';
+    agentToolDefinitions,
+    generateVisualizationFilterExpressionToolDefinition,
+    runQueryFilterExpressionToolDefinition,
+    searchFieldValuesFilterExpressionToolDefinition,
+} from './toolDefinitions';
+
+const testedAgentToolDefinitions = [
+    ...agentToolDefinitions,
+    generateVisualizationFilterExpressionToolDefinition,
+    runQueryFilterExpressionToolDefinition,
+    searchFieldValuesFilterExpressionToolDefinition,
+];
 
 // toLlmJsonSchema re-encodes the native Zod 4 output for models. Every rewrite
 // must be validation-equivalent to the native schema with closed objects,
@@ -193,8 +202,47 @@ const compile = (schema: JsonSchema): ValidateFunction => {
 };
 
 describe('agent tool JSON Schema encoding', () => {
+    const expectedDefinitionNames = [
+        'BooleanFilterRule',
+        'CustomMetrics',
+        'CustomMetricsExpression',
+        'DateFilterRule',
+        'DateFilterValue',
+        'FilterExpressions',
+        'FilterRule',
+        'Filters',
+        'NumberFieldType',
+        'NumberFilterRule',
+        'QueryDimensions',
+        'QueryMetrics',
+        'QuerySorts',
+        'StringFilterRule',
+    ];
+
+    test('uses only stable named definitions and keeps object roots inline', () => {
+        const definitionNames = new Set<string>();
+
+        for (const definition of testedAgentToolDefinitions) {
+            const schema = definition.for('agent').inputSchema.jsonSchema;
+            expect(isSchema(schema)).toBe(true);
+            if (!isSchema(schema)) {
+                throw new Error('unexpected boolean agent schema');
+            }
+
+            expect(schema.type).toBe('object');
+            expect(schema.$ref).toBeUndefined();
+
+            for (const name of Object.keys(schema.definitions ?? {})) {
+                expect(name).toMatch(/^[A-Z][A-Za-z0-9]*$/);
+                definitionNames.add(name);
+            }
+        }
+
+        expect([...definitionNames].sort()).toEqual(expectedDefinitionNames);
+    });
+
     test.each(
-        agentToolDefinitions.map((definition) => [
+        testedAgentToolDefinitions.map((definition) => [
             definition.name,
             definition.inputSchema,
         ]),
@@ -203,7 +251,10 @@ describe('agent tool JSON Schema encoding', () => {
             toJsonSchema(zodSchema, { io: 'input', reused: 'ref' }),
         );
         if (!isSchema(reference)) throw new Error('unexpected boolean schema');
-        const encoded = toLlmJsonSchema(zodSchema, { reused: 'ref' });
+        const encoded = createAgentInputSchema(zodSchema).jsonSchema;
+        if (!isSchema(encoded)) {
+            throw new Error('unexpected boolean agent schema');
+        }
         const validateReference = compile(reference);
         const validateEncoded = compile(encoded);
 

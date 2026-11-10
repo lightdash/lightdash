@@ -143,7 +143,10 @@ import {
     countReadyQueriesSinceBoundary,
     useTrackedAppQueries,
 } from '../features/apps/hooks/useTrackedAppQueries';
-import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
+import {
+    useTrackedAppStateEvents,
+    useTrackedExternalRequests,
+} from '../features/apps/hooks/useTrackedExternalRequests';
 import { getTemplate } from '../features/apps/templates';
 import {
     toAppClarifyParams,
@@ -230,11 +233,7 @@ const ThemeChip: FC<{
                 size="md"
                 leftSection={<MantineIcon icon={IconBrush} size={12} />}
                 disabled={disabled}
-                styles={{
-                    root: {
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                    },
-                }}
+                className={classes.themeBadge}
             >
                 {themeName}
             </Badge>
@@ -428,6 +427,12 @@ const AppGenerate: FC = () => {
         clearExternalRequests,
         interruptInFlightRequests,
     } = useTrackedExternalRequests();
+    const {
+        appStateEvents,
+        handleAppStateEvent,
+        clearAppStateEvents,
+        interruptInFlightAppStateEvents,
+    } = useTrackedAppStateEvents();
     // Parent-owned visibility so the X dismisses the panel completely and the
     // user re-opens it from the dots menu — same model as preview, for
     // consistency. Defaults to visible because the builder is the technical
@@ -545,6 +550,7 @@ const AppGenerate: FC = () => {
         // parent-owned fetch/poll of an in-flight query.
         resetQueries();
         clearExternalRequests();
+        clearAppStateEvents();
         setScreenshotAvailable(false);
         setIsCapturingScreenshot(false);
         setLineageEnabled(false);
@@ -566,6 +572,7 @@ const AppGenerate: FC = () => {
     }, [
         resetQueries,
         clearExternalRequests,
+        clearAppStateEvents,
         resetClarification,
         clearElementRefs,
         cancelElementPicker,
@@ -1186,11 +1193,15 @@ const AppGenerate: FC = () => {
     const [insightInstructions, setInsightInstructions] = useState<
         string | null
     >(null);
+    const [insightAnalyseOnLoad, setInsightAnalyseOnLoad] = useState<
+        boolean | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid: previewApp?.appUuid,
         queries: trackedQueries,
         availability: analysisAvailability,
+        analyseOnLoad: insightAnalyseOnLoad ?? false,
         instructions: insightInstructions,
         // No agent picker in the builder yet; the viewer's default agent
         // (falling back to the first accessible one) is used.
@@ -1315,6 +1326,7 @@ const AppGenerate: FC = () => {
         if (persistLogs) {
             interruptInFlightQueries();
             interruptInFlightRequests();
+            interruptInFlightAppStateEvents();
             versionQueryBoundaryRef.current = trackedQueriesRef.current.filter(
                 (q) => q.status === 'ready',
             ).length;
@@ -1324,6 +1336,7 @@ const AppGenerate: FC = () => {
             // query's late terminal event must not resurrect as a phantom row.
             resetQueries();
             clearExternalRequests();
+            clearAppStateEvents();
             versionQueryBoundaryRef.current = 0;
         }
     }, [
@@ -1332,7 +1345,9 @@ const AppGenerate: FC = () => {
         interruptInFlightQueries,
         resetQueries,
         interruptInFlightRequests,
+        interruptInFlightAppStateEvents,
         clearExternalRequests,
+        clearAppStateEvents,
     ]);
 
     // Manual refresh counter for the preview iframe. The iframe URL embeds
@@ -1431,19 +1446,23 @@ const AppGenerate: FC = () => {
         if (persistLogs) {
             interruptInFlightQueries();
             interruptInFlightRequests();
+            interruptInFlightAppStateEvents();
         } else {
             // resetQueries (not clearQueries): the reload leaves the
             // parent-owned fetch/poll running, so a late terminal event would
             // otherwise land as a phantom row.
             resetQueries();
             clearExternalRequests();
+            clearAppStateEvents();
         }
     }, [
         persistLogs,
         interruptInFlightQueries,
         resetQueries,
         interruptInFlightRequests,
+        interruptInFlightAppStateEvents,
         clearExternalRequests,
+        clearAppStateEvents,
     ]);
     refreshPreviewRef.current = handleRefreshPreview;
 
@@ -3556,6 +3575,7 @@ const AppGenerate: FC = () => {
                                         onExternalRequestEvent={
                                             handleExternalRequestEvent
                                         }
+                                        onAppStateEvent={handleAppStateEvent}
                                         {...elementPicker.iframeProps}
                                         onElementSelected={(event) => {
                                             elementPicker.select(event);
@@ -3599,6 +3619,9 @@ const AppGenerate: FC = () => {
                                         onInsightInstructionsChange={
                                             setInsightInstructions
                                         }
+                                        onInsightAnalyseOnLoadChange={
+                                            setInsightAnalyseOnLoad
+                                        }
                                         onMountedQueriesChange={
                                             analysisController.setMountedQueryUuids
                                         }
@@ -3619,6 +3642,10 @@ const AppGenerate: FC = () => {
                                         externalRequests={externalRequests}
                                         onClearExternalRequests={
                                             clearExternalRequests
+                                        }
+                                        appStateEvents={appStateEvents}
+                                        onClearAppStateEvents={
+                                            clearAppStateEvents
                                         }
                                         persistLogs={persistLogs}
                                         onPersistLogsChange={setPersistLogs}

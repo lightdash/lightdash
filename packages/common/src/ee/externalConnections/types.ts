@@ -1,13 +1,105 @@
 import { type UUID } from '../../types/api/uuid';
+import { type ApiConnectorType } from '../../types/querySources';
 
 export type ExternalConnectionAuthType =
     | 'none'
     | 'api_key'
     | 'bearer_token'
     | 'google_service_account'
-    | 'oauth_client_credentials';
+    | 'oauth_client_credentials'
+    /** Signed in through the source's OAuth flow; never set through the API. */
+    | 'oauth_authorization_code';
 
 export type OAuthClientAuthMethod = 'basic' | 'body';
+
+/** Who a connection serves: data apps through the proxy, or live API queries. */
+export type ExternalConnectionKind = 'data_app' | 'live_source';
+
+export type PostHogApiSource = {
+    connector: ApiConnectorType.POSTHOG;
+    /** The PostHog project id, the number after /project/ in its URL. */
+    projectId: string;
+};
+
+export type SearchConsoleApiSource = {
+    connector: ApiConnectorType.SEARCH_CONSOLE;
+    /** The Search Console property, such as https://example.com/ or sc-domain:example.com. */
+    siteUrl: string;
+};
+
+export type Ga4ApiSource = {
+    connector: ApiConnectorType.GA4;
+    /** The numeric GA4 property id, without the properties/ prefix. */
+    propertyId: string;
+};
+
+export type MetaAdsApiSource = {
+    connector: ApiConnectorType.META_ADS;
+    /** The numeric ad account id, without the act_ prefix. */
+    adAccountId: string;
+};
+
+export type GoogleAdsApiSource = {
+    connector: ApiConnectorType.GOOGLE_ADS;
+    /** The 10-digit Google Ads customer id, without dashes. */
+    customerId: string;
+    /** The manager account the sign-in reaches the customer through, if any. */
+    loginCustomerId: string | null;
+};
+
+export type YoutubeAnalyticsApiSource = {
+    connector: ApiConnectorType.YOUTUBE_ANALYTICS;
+    /** The YouTube channel id, starting with UC. */
+    channelId: string;
+};
+
+export type LinkedInAdsApiSource = {
+    connector: ApiConnectorType.LINKEDIN_ADS;
+    /** The numeric LinkedIn ad account id, as shown in Campaign Manager. */
+    adAccountId: string;
+};
+
+/** Connector settings of a live source; the server fixes its access rules. */
+export type ExternalConnectionApiSource =
+    | PostHogApiSource
+    | SearchConsoleApiSource
+    | Ga4ApiSource
+    | MetaAdsApiSource
+    | GoogleAdsApiSource
+    | YoutubeAnalyticsApiSource
+    | LinkedInAdsApiSource;
+
+/** The settings of one integration's sources. */
+export type ApiSourceOf<C extends ApiConnectorType> = Extract<
+    ExternalConnectionApiSource,
+    { connector: C }
+>;
+
+/** A Google property the signed-in account can query, offered after sign-in. */
+export type GoogleLiveSourceChoice = {
+    value: string;
+    label: string;
+    /** Shown under the label, e.g. the account or permission level. */
+    description: string | null;
+};
+
+/** A Google sign-in waiting for the admin to pick what the source reads. */
+export type GoogleLiveSourcePendingChoice = {
+    connector: ApiConnectorType;
+    name: string;
+    choices: GoogleLiveSourceChoice[];
+};
+
+export const POSTHOG_REGION_ORIGINS = {
+    us: 'https://us.posthog.com',
+    eu: 'https://eu.posthog.com',
+} as const;
+
+export const META_ADS_ORIGIN = 'https://graph.facebook.com';
+export const META_ADS_API_VERSION = 'v25.0';
+
+export const getMetaAdsInsightsPath = (adAccountId: string) =>
+    `/${META_ADS_API_VERSION}/act_${adAccountId}/insights`;
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */
@@ -105,6 +197,16 @@ export type ExternalConnection = {
     // Static non-secret headers sent on every proxied request, applied before
     // auth so the injected credential always wins (e.g. anthropic-version).
     customHeaders: Record<string, string> | null;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    kind?: ExternalConnectionKind;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    apiSource?: ExternalConnectionApiSource | null;
+    /**
+     * Prefix of a live source's explore names, such as `posthog`. Set once on
+     * its first build and never changed, because saved charts reference it.
+     * Optional for compatibility with older servers during rolling upgrades.
+     */
+    liveSourceName?: string | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -165,6 +267,7 @@ export type CreateExternalConnection = {
     oauthClientId?: string | null;
     oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders?: Record<string, string> | null; // static non-secret headers sent on every request
+    apiSource?: ExternalConnectionApiSource | null;
     secret?: string | null; // bearer token, api key, client secret, or service-account keyfile JSON; null for type 'none'
 };
 
@@ -324,4 +427,44 @@ export type ApiSaveExternalConnectionSampleResponse = {
 export type ApiListExternalConnectionSamplesResponse = {
     status: 'ok';
     results: ExternalConnectionSample[];
+};
+
+/** What a live source has sent its integration across every logged query. */
+export type ExternalConnectionApiUsage = {
+    externalConnectionUuid: string;
+    apiCalls: number;
+    responseBytes: number;
+    /** Median time to fetch from the integration; null until it has been called. */
+    medianDurationMs: number | null;
+};
+
+export type ApiExternalConnectionApiUsageResponse = {
+    status: 'ok';
+    results: ExternalConnectionApiUsage[];
+};
+
+export type ApiSourceSchemaEvent = {
+    name: string;
+    count: number;
+};
+
+/** What a live source's schema scan found, kept so onboarding and the AI agent know its data up front. */
+export type ApiSourceSchemaScan =
+    | { status: 'pending'; requestedAt: Date }
+    | {
+          status: 'ready';
+          scannedAt: Date;
+          windowDays: number;
+          /** Busiest first; capped, see eventsTruncated. */
+          events: ApiSourceSchemaEvent[];
+          eventsTruncated: boolean;
+          /** Null when the property scan failed. */
+          propertyKeys: string[] | null;
+      }
+    | { status: 'failed'; scannedAt: Date; error: string };
+
+export type ApiExternalConnectionSchemaResponse = {
+    status: 'ok';
+    /** Null when the connection was never scanned. */
+    results: ApiSourceSchemaScan | null;
 };

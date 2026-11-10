@@ -1044,6 +1044,8 @@ const buildCardStates: DataAppBuildCardState[] = [
         kind: 'building',
         name: 'Weekly revenue by region',
         statusMessage: 'Building your app',
+        step: { index: 1, labelKey: 'aiAgent.dataAppBuild.stage.writing' },
+        startedAt: new Date(),
         narration: {
             reasoning: ['Totals should reconcile against the revenue metric.'],
             activity: ['Ran 5 queries · 26 weeks · 4 regions'],
@@ -1277,7 +1279,7 @@ const ComponentInventory = () => (
 
             <Section
                 title="ToolCallRow"
-                description="Real row variants for running, done, and error states."
+                description="Real row variants for running and done states."
             >
                 <Stack gap="xs">
                     <ToolCallRow
@@ -1297,11 +1299,6 @@ const ComponentInventory = () => (
                             liveLabel: 'Finding relevant content',
                             doneLabel: 'Found relevant content',
                         }}
-                    />
-                    <ToolCallRow
-                        toolName="runSql"
-                        toolCalls={[runSqlCall]}
-                        status="error"
                     />
                 </Stack>
             </Section>
@@ -1343,7 +1340,7 @@ const ComponentInventory = () => (
                 description="Existing loading and reasoning components."
             >
                 <Stack gap="sm">
-                    <TypingDots label="Querying warehouse" />
+                    <TypingDots activity="Querying warehouse" />
                     <DotsLoader />
                     <ReasoningHistoryRow
                         isLive
@@ -1450,13 +1447,6 @@ const ApprovalAndFailureScenario = () => (
                     </Text>
                 </Stack>
             </ToolCallPaper>
-        </Section>
-        <Section title="Failed tool row">
-            <ToolCallRow
-                toolName="runSql"
-                toolCalls={[runSqlCall]}
-                status="error"
-            />
         </Section>
     </StorySurface>
 );

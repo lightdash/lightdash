@@ -9,19 +9,13 @@
 }
 
 .pillIndicator {
-    background: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-ldDark-3)
-    );
+    background: var(--mantine-color-ldGray-1);
     border-radius: 6px;
     box-shadow: none;
 }
 
 .pillLabel {
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldDark-6)
-    );
+    color: var(--mantine-color-ldGray-6);
     /* Equal vertical + horizontal padding so the icon sits dead-center. */
     padding: 6px 8px;
     border-radius: 6px;
@@ -39,12 +33,10 @@
 }
 
 .pillLabel:not([data-active]):hover {
-    color: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-ldDark-9)
-    );
-    background: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldGray-5)
-    );
+    color: var(--mantine-color-ldGray-8);
+    background: var(--mantine-color-default-hover);
+}
+
+.rotatedIcon {
+    rotate: 90deg;
 }

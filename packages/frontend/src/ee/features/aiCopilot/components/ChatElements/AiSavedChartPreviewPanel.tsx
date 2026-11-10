@@ -4,7 +4,6 @@ import {
     Box,
     Center,
     Group,
-    Loader,
     Menu,
     Stack,
     Text,
@@ -14,11 +13,9 @@ import {
     IconCircleCheckFilled,
     IconDots,
     IconExternalLink,
-    IconX,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
@@ -31,6 +28,9 @@ import {
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
 import { AiSavedChartVisualization } from './AiSavedChartVisualization';
+import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
+import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 
 type Props = {
     savedChartPreview: SavedChartPreviewData;
@@ -80,14 +80,11 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
         ? canExploreFromEmbed && !!onExplore && !aiAgentNavigationDisabled
         : authoringEnabled;
 
-    const closeButton = (
-        <ActionIcon
-            size="sm"
-            onClick={() => dispatch(clearPreview())}
-            aria-label="Close"
-        >
-            <MantineIcon icon={IconX} />
-        </ActionIcon>
+    const windowControls = (separated: boolean) => (
+        <ArtifactWindowControls
+            onClose={() => dispatch(clearPreview())}
+            separated={separated}
+        />
     );
 
     if (isError) {
@@ -98,7 +95,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                         <Text size="xs" c="dimmed" ta="center">
                             Failed to load chart. Please try again.
                         </Text>
-                        {closeButton}
+                        {windowControls(false)}
                     </Stack>
                 </Center>
             </div>
@@ -108,16 +105,12 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
     if (isInitialLoading || !savedChart) {
         return (
             <div className={artifactStyles.floatingPanel}>
-                <Center className={artifactStyles.loading}>
-                    <Stack gap="xs" align="center">
-                        <Loader
-                            type="dots"
-                            color="gray"
-                            delayedMessage="Loading chart..."
-                        />
-                        {closeButton}
-                    </Stack>
-                </Center>
+                <Box className={artifactStyles.floatingContent}>
+                    <Group justify="flex-end">{windowControls(false)}</Group>
+                    <Box flex={1} mih={0}>
+                        <ArtifactLoadingSketch />
+                    </Box>
+                </Box>
             </div>
         );
     }
@@ -126,16 +119,12 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
         <div className={artifactStyles.floatingPanel}>
             <div className={artifactStyles.floatingContent}>
                 <div className={artifactStyles.head}>
-                    <Stack gap={0} flex={1} miw={0}>
-                        <TruncatedText fz="sm" fw={600} maxWidth="100%">
-                            {savedChart.name}
-                        </TruncatedText>
-                        {savedChart.description && (
-                            <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
-                                {savedChart.description}
-                            </TruncatedText>
-                        )}
-                    </Stack>
+                    <ArtifactPanelHeading
+                        title={savedChart.name}
+                        description={savedChart.description ?? null}
+                        marker={null}
+                        descriptionDisplay="expandable"
+                    />
 
                     <Group gap={2} className={artifactStyles.headRight}>
                         {savedChart.verification && (
@@ -191,7 +180,9 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                                 </Menu.Dropdown>
                             </Menu>
                         )}
-                        {closeButton}
+                        {windowControls(
+                            !!savedChart.verification || hasExploreAction,
+                        )}
                     </Group>
                 </div>
 

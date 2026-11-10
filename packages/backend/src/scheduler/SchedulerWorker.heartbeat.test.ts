@@ -32,6 +32,7 @@ class TestableSchedulerWorker extends SchedulerWorker {
 
 const makeConfig = (): LightdashConfig =>
     ({
+        usageEvents: { enabled: false },
         scheduler: {
             tasks: [...ALL_TASK_NAMES],
             concurrency: 1,

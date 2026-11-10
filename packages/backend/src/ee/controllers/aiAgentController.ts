@@ -20,13 +20,14 @@ import {
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentMcpServerToolListResponse,
     ApiAiAgentMemoryResponse,
-    ApiAiAgentMessageQueryPipelinesResponse,
     ApiAiAgentModelOptionsResponse,
+    ApiAiAgentNodeCitationPipelineResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
     ApiAiAgentSqlApprovalRequest,
     ApiAiAgentSqlApprovalResponse,
     ApiAiAgentSummaryResponse,
+    ApiAiAgentThreadComposerNodesResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadDataAppRestoreRequest,
@@ -48,6 +49,7 @@ import {
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
+    ApiAiAgentVisualizeSlackPreviewRequest,
     ApiAiMcpGithubAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAiMcpServerListResponse,
@@ -84,6 +86,7 @@ import {
     KnexPaginateArgs,
     LightdashClientHeader,
     ParameterError,
+    QueryNodeId,
     type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -103,6 +106,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'stream';
 import { toSessionUser } from '../../auth/account';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
@@ -164,6 +168,30 @@ export class AiAgentController extends BaseController {
                 projectUuid,
             ),
         };
+    }
+
+    /**
+     * Draw rows with a visualize-tool viz config as the Slack chart image, for debugging the Slack renderer.
+     * @summary Preview visualize Slack chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/visualize/slack-preview')
+    @OperationId('previewVisualizeSlackChart')
+    async previewVisualizeSlackChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: ApiAiAgentVisualizeSlackPreviewRequest,
+    ): Promise<Readable> {
+        assertRegisteredAccount(req.account);
+        const image = await this.getAiAgentService().previewVisualizeSlackChart(
+            req.account,
+            projectUuid,
+            body,
+        );
+        this.setStatus(200);
+        this.setHeader('Content-Type', 'image/png');
+        return Readable.from(image);
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -1809,35 +1837,34 @@ export class AiAgentController extends BaseController {
     }
 
     /**
-     * List the composer query pipelines an assistant message ran, one per successful query call.
-     * @summary Get AI agent message query pipelines
+     * List the composer query node ids registered in a thread, used to resolve node citations.
+     * @summary Get AI agent thread composer node ids
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation(
-            'AiAgentController.getAgentThreadMessageQueryPipelines',
+            'AiAgentController.getAgentThreadComposerNodes',
         ),
     ])
     @SuccessResponse('200', 'Success')
-    @Get('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries')
-    @OperationId('getAgentThreadMessageQueryPipelines')
-    async getAgentThreadMessageQueryPipelines(
+    @Get('/{agentUuid}/threads/{threadUuid}/nodes')
+    @OperationId('getAgentThreadComposerNodes')
+    async getAgentThreadComposerNodes(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Path() agentUuid: UUID,
         @Path() threadUuid: UUID,
-        @Path() messageUuid: UUID,
-    ): Promise<ApiAiAgentMessageQueryPipelinesResponse> {
+    ): Promise<ApiAiAgentThreadComposerNodesResponse> {
         this.setStatus(200);
-        const args = { agentUuid, threadUuid, messageUuid };
+        const args = { agentUuid, threadUuid };
 
         if (req.account?.authentication.type === 'jwt') {
             assertEmbeddedAuth(req.account);
             return {
                 status: 'ok',
                 results:
-                    await this.getAiAgentService().getEmbedMessageQueryPipelines(
+                    await this.getAiAgentService().getEmbedThreadComposerNodes(
                         req.account,
                         projectUuid,
                         args,
@@ -1848,46 +1875,46 @@ export class AiAgentController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getAiAgentService().getMessageQueryPipelines(
+            results: await this.getAiAgentService().getThreadComposerNodes(
                 toSessionUser(req.account),
-                { ...args, projectUuid },
+                { ...args, projectUuid, runtimeOptions: null },
             ),
         };
     }
 
     /**
-     * Run a message's query pipeline for preview; returns each node's queryUuid.
-     * @summary Get AI agent message query pipeline viz query
+     * Get a cited node's pipeline: the node and everything it reads.
+     * @summary Get AI agent node citation pipeline
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation(
-            'AiAgentController.getAgentThreadMessageQueryPipelineVizQuery',
+            'AiAgentController.getAgentThreadNodeCitationPipeline',
         ),
     ])
     @SuccessResponse('200', 'Success')
     @Get(
-        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/viz-query',
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/nodes/{nodeId}',
     )
-    @OperationId('getAgentThreadMessageQueryPipelineVizQuery')
-    async getAgentThreadMessageQueryPipelineVizQuery(
+    @OperationId('getAgentThreadNodeCitationPipeline')
+    async getAgentThreadNodeCitationPipeline(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Path() agentUuid: UUID,
         @Path() threadUuid: UUID,
         @Path() messageUuid: UUID,
-        @Path() queryUuid: UUID,
-    ): Promise<ApiAiAgentComposerArtifactVizQueryResponse> {
+        @Path() nodeId: QueryNodeId,
+    ): Promise<ApiAiAgentNodeCitationPipelineResponse> {
         this.setStatus(200);
-        const args = { agentUuid, threadUuid, messageUuid, queryUuid };
+        const args = { agentUuid, threadUuid, messageUuid, nodeId };
 
         if (req.account?.authentication.type === 'jwt') {
             assertEmbeddedAuth(req.account);
             return {
                 status: 'ok',
                 results:
-                    await this.getAiAgentService().getEmbedMessageQueryPipelineVizQuery(
+                    await this.getAiAgentService().getEmbedNodeCitationPipeline(
                         req.account,
                         projectUuid,
                         args,
@@ -1898,37 +1925,87 @@ export class AiAgentController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results:
-                await this.getAiAgentService().getMessageQueryPipelineVizQuery(
-                    toSessionUser(req.account),
-                    { ...args, projectUuid, runtimeOptions: null },
-                ),
+            results: await this.getAiAgentService().getNodeCitationPipeline(
+                toSessionUser(req.account),
+                { ...args, projectUuid, runtimeOptions: null },
+            ),
         };
     }
 
     /**
-     * Read a node result of a message's query pipeline run.
-     * @summary Get AI agent message query pipeline results
+     * Run a cited node and what it reads for preview; returns each node's queryUuid.
+     * @summary Get AI agent node citation viz query
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation(
-            'AiAgentController.getAgentThreadMessageQueryPipelineResults',
+            'AiAgentController.getAgentThreadNodeCitationVizQuery',
         ),
     ])
     @SuccessResponse('200', 'Success')
     @Get(
-        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/query-results',
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/nodes/{nodeId}/viz-query',
     )
-    @OperationId('getAgentThreadMessageQueryPipelineResults')
-    async getAgentThreadMessageQueryPipelineResults(
+    @OperationId('getAgentThreadNodeCitationVizQuery')
+    async getAgentThreadNodeCitationVizQuery(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Path() agentUuid: UUID,
         @Path() threadUuid: UUID,
         @Path() messageUuid: UUID,
-        @Path() queryUuid: UUID,
+        @Path() nodeId: QueryNodeId,
+    ): Promise<ApiAiAgentComposerArtifactVizQueryResponse> {
+        this.setStatus(200);
+        const args = { agentUuid, threadUuid, messageUuid, nodeId };
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedNodeCitationVizQuery(
+                        req.account,
+                        projectUuid,
+                        args,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getNodeCitationVizQuery(
+                toSessionUser(req.account),
+                { ...args, projectUuid, runtimeOptions: null },
+                req.account,
+            ),
+        };
+    }
+
+    /**
+     * Read a node result of a node citation's run.
+     * @summary Get AI agent node citation query results
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadNodeCitationQueryResults',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/nodes/{nodeId}/query-results',
+    )
+    @OperationId('getAgentThreadNodeCitationQueryResults')
+    async getAgentThreadNodeCitationQueryResults(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+        @Path() nodeId: QueryNodeId,
         @Query() resultQueryUuid: UUID,
         @Query() page?: number,
         @Query() pageSize?: number,
@@ -1937,21 +2014,20 @@ export class AiAgentController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results:
-                await this.getAiAgentService().getMessageQueryPipelineQueryResults(
-                    toSessionUser(req.account),
-                    {
-                        projectUuid,
-                        agentUuid,
-                        threadUuid,
-                        messageUuid,
-                        queryUuid,
-                        resultQueryUuid,
-                        page: page ?? null,
-                        pageSize: pageSize ?? null,
-                    },
-                    req.account,
-                ),
+            results: await this.getAiAgentService().getNodeCitationQueryResults(
+                toSessionUser(req.account),
+                {
+                    projectUuid,
+                    agentUuid,
+                    threadUuid,
+                    messageUuid,
+                    nodeId,
+                    resultQueryUuid,
+                    page: page ?? null,
+                    pageSize: pageSize ?? null,
+                },
+                req.account,
+            ),
         };
     }
 

@@ -19,6 +19,7 @@ import {
     MIN_RETENTION_WINDOW_HOURS,
 } from '../../types/dataRetention';
 import { type QueryNodeId } from '../../types/querySources';
+import { type ResultColumn } from '../../types/results';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { type AllVizChartConfig } from '../../visualizations/types';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
@@ -53,6 +54,7 @@ export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
+export * from './nodeCitations';
 export * from './composerChartVizConfig';
 export * from './composerSemanticArtifact';
 export * from './composerViz';
@@ -1306,6 +1308,14 @@ export type ApiAiAgentArtifactResponseTSOACompat =
 /** Body of the composer artifact version viz config update; the terminal node's config. */
 export type ApiUpdateComposerVizConfigRequest = {
     vizConfig: AllVizChartConfig;
+};
+
+/** Rows and a visualize-tool viz config to draw as the Slack chart image; vizConfig is parsed server-side. */
+export type ApiAiAgentVisualizeSlackPreviewRequest = {
+    title: string;
+    columns: ResultColumn[];
+    rows: Record<string, unknown>[];
+    vizConfig: Record<string, unknown>;
 };
 
 export type AiAgentVerifiedArtifact = {

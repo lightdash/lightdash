@@ -1570,6 +1570,29 @@ export const SavedCharts = () => (
         );
     }
 
+    // Release days: a recorded day is never changed, a missing one comes
+    // from git, and only a scope git has never seen is stamped with today.
+    // Scopes without a walkthrough drop out.
+    {
+        const { readRecordedDays, releaseDays, renderReleased } = await import(
+            './released'
+        );
+        const days = releaseDays(
+            ['b:New', 'a:Kept', 'c:FromGit'],
+            { 'a:Kept': '2026-09-07', 'z:Gone': '2026-09-01' },
+            (scope) => (scope === 'c:FromGit' ? '2026-10-01' : null),
+            () => '2026-10-27',
+        );
+        assert.deepStrictEqual(days, {
+            'a:Kept': '2026-09-07',
+            'b:New': '2026-10-27',
+            'c:FromGit': '2026-10-01',
+        });
+        const file = path.join(fixtures, 'released.ts');
+        writeFileSync(file, renderReleased(days));
+        assert.deepStrictEqual(readRecordedDays(file), days);
+    }
+
     console.log('scope-tours: all checks passed');
 };
 

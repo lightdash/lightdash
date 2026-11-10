@@ -22,6 +22,7 @@
     height: var(--loader-size, 0.5rem);
     background: var(--loader-color, #868e96);
     animation: bounce 1.4s ease-in-out infinite both;
+    animation-delay: var(--dot-delay, 0s);
     will-change: transform;
     transform: translateZ(0);
 }

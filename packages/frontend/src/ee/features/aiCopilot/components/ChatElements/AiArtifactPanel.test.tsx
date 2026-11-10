@@ -17,7 +17,7 @@ import {
 import { Box } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { type ComponentProps, type ReactNode } from 'react';
+import { useEffect, type ComponentProps, type ReactNode } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../../../../api';
 import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
@@ -38,12 +38,9 @@ const mocks = vi.hoisted(() => ({
     rows: vi.fn(),
     retry: vi.fn(),
     saveVizConfig: vi.fn(),
+    chartEchartsRefSetter: vi.fn(),
 }));
 vi.mock('../../../../../api');
-// The switch is hidden in the app; graph mode keeps its coverage.
-vi.mock('./composerPipeline/pipelineModeSwitch', () => ({
-    SHOW_PIPELINE_MODE_SWITCH: true,
-}));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: mocks.featureFlag,
 }));
@@ -83,7 +80,8 @@ vi.mock('../../hooks/useCanViewAiAgentSql', () => ({
 vi.mock('../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: () => ({ data: undefined }),
 }));
-vi.mock('../../../../../hooks/useQueryResults', () => ({
+vi.mock('../../../../../hooks/useQueryResults', async (original) => ({
+    ...(await original<typeof QueryResultsHooks>()),
     useInfiniteQueryResults: mocks.rows,
 }));
 vi.mock('../../../../../hooks/health/useHealth', () => ({
@@ -114,24 +112,34 @@ vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
 }));
 // The headers the Lightdash table would draw.
 vi.mock('./AiComposerRunQueryChart', () => ({
-    AiComposerRunQueryChart: ({ chart }: { chart: ComposerRunQueryChart }) => (
-        <table>
-            <thead>
-                <tr>
-                    {[
-                        ...chart.metricQuery.dimensions,
-                        ...chart.metricQuery.metrics,
-                    ].map((fieldId) => (
-                        <th key={fieldId}>
-                            {getItemLabelWithoutTableName(
-                                chart.fields[fieldId],
-                            )}
-                        </th>
-                    ))}
-                </tr>
-            </thead>
-        </table>
-    ),
+    AiComposerRunQueryChart: ({
+        chart,
+        setEchartsRef,
+    }: {
+        chart: ComposerRunQueryChart;
+        setEchartsRef?: (ref: { current: null }) => void;
+    }) => {
+        mocks.chartEchartsRefSetter(setEchartsRef);
+        useEffect(() => setEchartsRef?.({ current: null }), [setEchartsRef]);
+        return (
+            <table>
+                <thead>
+                    <tr>
+                        {[
+                            ...chart.metricQuery.dimensions,
+                            ...chart.metricQuery.metrics,
+                        ].map((fieldId) => (
+                            <th key={fieldId}>
+                                {getItemLabelWithoutTableName(
+                                    chart.fields[fieldId],
+                                )}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+            </table>
+        );
+    },
 }));
 vi.mock('./AiVisualizationRenderer', () => ({
     AiVisualizationRenderer: ({
@@ -232,6 +240,19 @@ beforeEach(() => {
 });
 
 describe('artifact panel recovery and navigation', () => {
+    it('sketches a chart, not a table, while a chart artifact query loads', () => {
+        mocks.query.mockReturnValue({
+            data: undefined,
+            isLoading: true,
+            error: null,
+            refetch: mocks.retry,
+        });
+        renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+        expect(
+            screen.getByRole('status').closest('[data-shape]'),
+        ).toHaveAttribute('data-shape', 'chart');
+    });
+
     it('keeps a preview choice on rerender but resets it when opening a different version', () => {
         const { rerender } = renderWithProviders(
             <AiArtifactPanel artifact={artifact} />,
@@ -384,13 +405,13 @@ const statusResults = resultsOf(
     [{ status: 'completed' }],
 );
 
-// The pipeline bar's List / Graph switch is a SegmentedControl too.
-const PIPELINE_MODES = ['list', 'graph'];
+// The head's Chart / Lineage switch is a SegmentedControl too.
+const ARTIFACT_VIEWS = ['chart', 'lineage'];
 const vizRadioElements = () =>
     screen
         .queryAllByRole('radio')
         .filter(
-            (radio) => !PIPELINE_MODES.includes(radio.getAttribute('value')!),
+            (radio) => !ARTIFACT_VIEWS.includes(radio.getAttribute('value')!),
         );
 const vizRadios = () =>
     vizRadioElements().map((radio) => radio.getAttribute('value'));
@@ -428,15 +449,14 @@ const xAxisSelect = () => screen.getByRole('combobox', { name: 'X axis' });
 const cellOf = (nodeId: string) =>
     within(document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)!);
 
-const openPipelineGraph = () => {
-    fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
-};
-
-const openPipelineList = () => {
-    fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-    fireEvent.click(screen.getByRole('radio', { name: 'List' }));
-};
+const openLineage = () =>
+    fireEvent.click(screen.getByRole('radio', { name: 'Lineage' }));
+const showResults = (nodeId: string) =>
+    fireEvent.click(
+        cellOf(nodeId).getByRole('button', {
+            name: /^(View results|[\d,]+ rows?)/,
+        }),
+    );
 
 describe('composer artifact', () => {
     const renderComposer = (
@@ -458,17 +478,18 @@ describe('composer artifact', () => {
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
 
-    it('renders the results with a collapsed pipeline bar', () => {
+    it('opens on the chart, with its lineage a switch away', () => {
         renderComposer(composerConfig);
         expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
         expect(screen.getByRole('columnheader')).toHaveTextContent('Status');
-        expect(screen.getByText('3 steps')).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'Chart' })).toBeChecked();
         expect(document.querySelector('[data-node-id]')).toBeNull();
     });
 
-    it('expands into one cell per node, titled', () => {
+    it('switches to the lineage, one cell per node, titled', () => {
         renderComposer(composerConfig);
-        openPipelineList();
+        openLineage();
+        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
         expect(
             cellOf('orders').getByText('Orders by status'),
         ).toBeInTheDocument();
@@ -478,12 +499,164 @@ describe('composer artifact', () => {
         expect(screen.queryByText('joined')).not.toBeInTheDocument();
     });
 
+    describe('image export', () => {
+        const barConfig: AiComposerChartArtifactConfig = {
+            ...composerConfig,
+            schemaVersion: 2,
+            vizConfig: {
+                type: 'bar',
+                x: 'status',
+                y: ['n'],
+                groupBy: null,
+                stack: null,
+                horizontal: null,
+                y2: null,
+                labels: null,
+            },
+        };
+        const statusCounts = {
+            ...resultsOf(
+                {
+                    status: { reference: 'status', type: 'string' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [{ status: 'completed', n: 3 }],
+            ),
+            totalResults: 1,
+        };
+        const canExport = {
+            user: {
+                abilityRules: [
+                    {
+                        action: 'manage' as const,
+                        subject: 'ExportCsv' as const,
+                    },
+                ],
+            },
+        };
+        const renderChart = (
+            appMocks?: typeof canExport,
+            chartConfig: AiComposerChartArtifactConfig = barConfig,
+        ) => {
+            mocks.artifact.mockReturnValue({
+                data: {
+                    artifactType: 'chart',
+                    title: 'Orders vs amounts',
+                    chartConfig,
+                },
+                isLoading: false,
+                error: null,
+                refetch: mocks.retry,
+            });
+            mocks.query.mockReturnValue(composerRun);
+            mocks.rows.mockReturnValue(statusCounts);
+            return renderWithProviders(
+                <AiArtifactPanel artifact={artifact} />,
+                appMocks,
+            );
+        };
+
+        it('offers export image in the quick actions menu', async () => {
+            renderChart(canExport);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', { name: 'Export image' }),
+            ).toBeInTheDocument();
+        });
+
+        it('hides it for a chart type that does not export as an image', async () => {
+            renderChart(canExport, {
+                ...barConfig,
+                vizConfig: {
+                    type: 'big_number',
+                    x: null,
+                    y: ['n'],
+                    groupBy: null,
+                    stack: null,
+                    horizontal: null,
+                    y2: null,
+                    labels: null,
+                },
+            });
+            await screen.findByRole('table');
+            expect(mocks.chartEchartsRefSetter).toHaveBeenLastCalledWith(
+                undefined,
+            );
+        });
+
+        it('hides it without export permission', async () => {
+            renderChart();
+            await screen.findByRole('columnheader', { name: 'Status' });
+            expect(
+                screen.queryByRole('button', { name: 'Quick actions' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('shows the chart sketch, not a table, before the run has a query', () => {
+            mocks.artifact.mockReturnValue({
+                data: {
+                    artifactType: 'chart',
+                    title: 'Orders vs amounts',
+                    chartConfig: barConfig,
+                },
+                isLoading: false,
+                error: null,
+                refetch: mocks.retry,
+            });
+            mocks.query.mockReturnValue({
+                ...composerRun,
+                data: { ...composerRun.data, nodeQueryUuids: {} },
+            });
+            mocks.rows.mockReturnValue(statusCounts);
+            renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+            expect(
+                screen.getByText('Loading visualization…'),
+            ).toBeInTheDocument();
+            expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+        });
+
+        it('downloads the displayed node result as run from the same menu', async () => {
+            mockedLightdashApi.mockImplementation((async ({
+                url,
+            }: {
+                url: string;
+            }) =>
+                url.endsWith('/schedule-download')
+                    ? { jobId: 'job' }
+                    : undefined) as unknown as typeof sharedLightdashApi);
+            renderChart(canExport, composerConfig);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            expect(
+                screen.queryByRole('menuitem', { name: 'Export image' }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Download results',
+                }),
+            );
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Download' }),
+            );
+            await waitFor(() =>
+                expect(mockedLightdashApi).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        url: '/projects/project/query/query/schedule-download',
+                    }),
+                ),
+            );
+        });
+    });
+
     it('falls back to node ids when titles are missing', () => {
         renderComposer({
             ...composerConfig,
             queries: composerConfig.queries.map(({ title, ...query }) => query),
         });
-        openPipelineList();
+        openLineage();
         expect(cellOf('joined').getByText('joined')).toBeInTheDocument();
     });
 });
@@ -680,20 +853,9 @@ describe('composer viz config panel', () => {
         expect(screen.getByText('Division by zero')).toBeInTheDocument();
         expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
     });
-
-    it.skip('keeps only one of Chart and Queries open', async () => {
-        renderComposer(statusCounts);
-        await openChart();
-        expect(chartBar()).toHaveAttribute('aria-expanded', 'true');
-        openPipelineList();
-        expect(chartBar()).toHaveAttribute('aria-expanded', 'false');
-        expect(screen.getByText('Sources')).toBeInTheDocument();
-        await openChart();
-        expect(screen.queryByText('Sources')).not.toBeInTheDocument();
-    });
 });
 
-describe('composer displayed node', () => {
+describe('composer lineage', () => {
     beforeAll(mockIntersectingObserver);
 
     const ordersResults = resultsOf(
@@ -734,11 +896,11 @@ describe('composer displayed node', () => {
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
 
-    const expandPipeline = openPipelineList;
-
-    it('shows each node its own rows in List mode', async () => {
+    it('shows each node its own rows once opened', async () => {
         renderComposer();
-        expandPipeline();
+        openLineage();
+        showResults('amounts');
+        showResults('orders');
         expect(
             await cellOf('amounts').findByRole('columnheader', {
                 name: 'Avg amount',
@@ -749,50 +911,23 @@ describe('composer displayed node', () => {
         ).toBeInTheDocument();
     });
 
-    it('displays a node result from Graph mode with its title and a way back', async () => {
-        renderComposer();
-        openPipelineGraph();
-        fireEvent.click(screen.getByLabelText('Display Average amount'));
-        expect(
-            screen.getByRole('columnheader', { name: 'Avg amount' }),
-        ).toBeInTheDocument();
-        expect(screen.queryByText('Orders vs amounts')).not.toBeInTheDocument();
-        expect(screen.getByLabelText('Display Average amount')).toHaveAttribute(
-            'data-displayed',
-            'true',
-        );
-
-        fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
-        expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
-        expect(
-            screen.getByRole('columnheader', { name: 'Status' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Back to result' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('resets to the terminal node when a new version opens', async () => {
+    it('resets to the chart when a new version opens', () => {
         const { rerender } = renderComposer();
-        openPipelineGraph();
-        fireEvent.click(screen.getByLabelText('Display Average amount'));
-        expect(
-            screen.getByRole('button', { name: 'Back to result' }),
-        ).toBeInTheDocument();
+        openLineage();
         rerender(
             <AiArtifactPanel
                 artifact={{ ...artifact, versionUuid: 'another-version' }}
             />,
         );
-        expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'Chart' })).toBeChecked();
         expect(
-            screen.queryByRole('button', { name: 'Back to result' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('columnheader', { name: 'Status' }),
+        ).toBeInTheDocument();
     });
 
     it('keeps nodes inert and reads no result while the run starts', async () => {
         renderComposer({ data: undefined, isLoading: true });
-        expandPipeline();
+        openLineage();
         expect(
             cellOf('amounts').getByText('Average amount'),
         ).toBeInTheDocument();
@@ -812,14 +947,14 @@ describe('composer displayed node', () => {
             { queryUuid: 'query', status: QueryHistoryStatus.PENDING },
         ]);
         renderComposer();
-        expandPipeline();
+        openLineage();
         const row = cellOf;
         expect(await row('amounts').findByLabelText('Running')).toBeVisible();
         expect(row('orders').queryByLabelText('Completed')).toBeNull();
         expect(row('joined').getByLabelText('Queued')).toBeVisible();
     });
 
-    it("shows a failed node's error in its cell and in the chart area", async () => {
+    it("shows a failed node's error in its cell", async () => {
         nodeStatusesResponse([
             { queryUuid: 'orders-query', status: QueryHistoryStatus.READY },
             {
@@ -836,24 +971,13 @@ describe('composer displayed node', () => {
             error: { error: { message: 'column "amount" does not exist' } },
         } as unknown as ReturnType<typeof resultsOf>;
         renderComposer();
-        expandPipeline();
+        openLineage();
         const amountsCell = cellOf('amounts');
         expect(await amountsCell.findByLabelText('Failed')).toBeVisible();
         expect(
             amountsCell.getByText('column "amount" does not exist'),
         ).toBeVisible();
         expect(amountsCell.queryByRole('columnheader')).toBeNull();
-        fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
-        fireEvent.click(screen.getByLabelText('Display Average amount'));
-        expect(
-            screen.getByText('This result could not be loaded'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByText('column "amount" does not exist'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Back to result' }),
-        ).toBeInTheDocument();
     });
 
     it('shows a refused run in the chart area', async () => {
@@ -878,85 +1002,6 @@ describe('composer displayed node', () => {
                 'Pipelines with warehouse SQL are not available in embedded AI agents',
             ),
         ).toBeInTheDocument();
-    });
-});
-
-describe('composer per-node viz switcher', () => {
-    const ordersResults = resultsOf(
-        {
-            status: { reference: 'status', type: 'string' },
-            n: { reference: 'n', type: 'number' },
-        },
-        [
-            { status: 'completed', n: 3 },
-            { status: 'returned', n: 1 },
-        ],
-    );
-    const joinedResults = resultsOf(
-        {
-            day: { reference: 'day', type: 'date' },
-            total: { reference: 'total', type: 'number' },
-        },
-        [
-            { day: '2024-01-01', total: 3 },
-            { day: '2024-01-02', total: 1 },
-        ],
-    );
-    const resultsByQuery: Record<string, ReturnType<typeof resultsOf>> = {
-        query: joinedResults,
-        'orders-query': ordersResults,
-        'amounts-query': statusResults,
-    };
-
-    const renderComposer = () => {
-        mocks.artifact.mockReturnValue({
-            data: {
-                artifactType: 'chart',
-                title: 'Orders vs amounts',
-                chartConfig: composerConfig,
-            },
-            isLoading: false,
-            error: null,
-            refetch: mocks.retry,
-        });
-        mocks.query.mockReturnValue(composerRun);
-        mocks.rows.mockImplementation(
-            (_project: string, queryUuid: string | undefined) =>
-                queryUuid === undefined
-                    ? { ...statusResults, rows: [], columns: undefined }
-                    : resultsByQuery[queryUuid],
-        );
-        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
-    };
-    const display = (title: string) =>
-        fireEvent.click(
-            screen.getByRole('button', { name: `View results of ${title}` }),
-        );
-    it.skip('opens each displayed node as a table and remembers each choice', async () => {
-        renderComposer();
-        await openChart();
-        expect(selectedKind()).toBe('table');
-        openPipelineList();
-
-        // Other nodes get the switcher alone in the bar, no expand.
-        display('Orders by status');
-        expect(
-            screen.queryByRole('button', { name: /^chart/i }),
-        ).not.toBeInTheDocument();
-        expect(selectedKind()).toBe('table');
-        chooseKind('line');
-        expect(selectedKind()).toBe('line');
-
-        display('Average amount');
-        expect(kindButtons()).toHaveLength(0);
-
-        display('Orders by status');
-        expect(selectedKind()).toBe('line');
-        fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
-        expect(chartBar()).toHaveTextContent('Table');
-        expect(mocks.saveVizConfig).not.toHaveBeenCalledWith(
-            expect.objectContaining({ type: ChartKind.LINE }),
-        );
     });
 });
 
@@ -996,7 +1041,7 @@ describe('sql artifact viz switcher', () => {
                 .find((radio) => radio.getAttribute('value') === kind)!,
         );
 
-    it('opens a date + number answer as a table and can switch to a line chart', () => {
+    it('opens a date + number answer as a table and can switch to a line chart', async () => {
         renderSql(
             resultsOf(
                 {
@@ -1016,7 +1061,9 @@ describe('sql artifact viz switcher', () => {
         ).toBeInTheDocument();
         chooseSqlViz('line');
         expect(checkedViz()).toBe('line');
-        expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
+        expect(
+            await screen.findByTestId('chart-view-line'),
+        ).toBeInTheDocument();
         expect(screen.getByText('Orders per day')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'SQL artifact actions' }),

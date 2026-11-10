@@ -13,14 +13,11 @@ import {
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
-import { ActionIcon, Box, Divider, Group, Stack } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import { Box, Group, Stack } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo, useMemo, useState, type FC } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
-import MantineIcon from '../../../../../components/common/MantineIcon';
-import TruncatedText from '../../../../../components/common/TruncatedText';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -57,6 +54,10 @@ import {
     AiSqlArtifactVisualization,
 } from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
+import { isArtifactRevision } from './ArtifactButton/artifactCardMeta';
+import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
+import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 import { ChatElementsUtils } from './utils';
 
 type ArtifactRef = {
@@ -127,6 +128,13 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
         const isSqlArtifact = isAiSqlChartArtifactConfig(
             artifactData?.chartConfig,
         );
+        const isRevision =
+            !!artifactData &&
+            !!message &&
+            isArtifactRevision({
+                versionNumber: artifactData.versionNumber,
+                jevDecision: message.jevDecision,
+            });
         const { user } = useApp();
         const isEmbed = useIsEmbedded();
         const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
@@ -265,6 +273,15 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                 : 'table';
 
         const effectiveChartType = selectedChartType ?? defaultChartType;
+        // The query hasn't resolved the type yet, so read the stored one.
+        const storedChartConfig = vizConfig?.vizTool.chartConfig;
+        const loadingSketchShape =
+            (selectedChartType ??
+                (isCustomChartTypeSlugChartConfig(storedChartConfig)
+                    ? undefined
+                    : storedChartConfig?.defaultVizType)) === 'table'
+                ? 'table'
+                : 'chart';
 
         const groupByDimensions = parsedChartConfig
             ? getGroupByDimensions(parsedChartConfig)
@@ -318,6 +335,13 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
             );
         }
         if (isArtifactLoading || isThreadLoading) {
+            if (variant === 'floating') {
+                return (
+                    <Box className={styles.floatingPanel}>
+                        <ArtifactLoadingSketch />
+                    </Box>
+                );
+            }
             return <EmptyStateLoader title="Loading artifact…" />;
         }
         if (
@@ -355,6 +379,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
             return (
                 <AiComposerArtifactPanel
                     key={artifact.versionUuid}
+                    initialView="chart"
                     projectUuid={artifact.projectUuid}
                     agentUuid={artifact.agentUuid}
                     source={{
@@ -371,6 +396,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                     }
                     title={artifactData.title ?? 'Composer query results'}
                     description={artifactData.description ?? null}
+                    isRevision={isRevision}
                     config={composerConfig}
                     run={composerRun}
                     runError={queryExecutionHandle.error ?? null}
@@ -386,7 +412,11 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
         // no pill — legacy chrome owned by AiChartVisualization.
         if (variant === 'inline' && !isSqlArtifact) {
             return (
-                <Box {...ChatElementsUtils.centeredElementProps} p="md">
+                <Box
+                    {...ChatElementsUtils.centeredElementProps}
+                    maw="62rem"
+                    p="md"
+                >
                     <Stack gap="md" h="100%">
                         <AiChartVisualization
                             artifactData={artifactData}
@@ -428,7 +458,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
         ) {
             return (
                 <Box className={styles.floatingPanel}>
-                    <EmptyStateLoader title="Loading visualization…" />
+                    <ArtifactLoadingSketch shape={loadingSketchShape} />
                 </Box>
             );
         }
@@ -441,16 +471,12 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
 
         const floatingHead = (
             <Box className={clsx(styles.head, styles.flushHead)}>
-                <Stack gap={0} flex={1} miw={0}>
-                    <TruncatedText fz="sm" fw={600} maxWidth="100%">
-                        {title}
-                    </TruncatedText>
-                    {description && (
-                        <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
-                            {description}
-                        </TruncatedText>
-                    )}
-                </Stack>
+                <ArtifactPanelHeading
+                    title={title}
+                    description={description ?? null}
+                    marker={isRevision ? { kind: 'revision' } : null}
+                    descriptionDisplay="expandable"
+                />
                 <Group gap={2} className={styles.headRight}>
                     {sqlVizQueryData ? (
                         <AiSqlArtifactActions
@@ -497,23 +523,14 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                             }
                         />
                     )}
-                    {showCloseButton && (
-                        <>
-                            <Divider
-                                orientation="vertical"
-                                color="ldGray.3"
-                                mx={4}
-                                my={4}
-                            />
-                            <ActionIcon
-                                size="sm"
-                                onClick={() => dispatch(clearPreview())}
-                                aria-label="Close"
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </>
-                    )}
+                    <ArtifactWindowControls
+                        onClose={
+                            showCloseButton
+                                ? () => dispatch(clearPreview())
+                                : null
+                        }
+                        separated
+                    />
                 </Group>
             </Box>
         );

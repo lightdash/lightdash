@@ -101,11 +101,10 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                             <Tooltip
                                 label={`Verified by ${document.verification.verifiedBy.firstName} ${document.verification.verifiedBy.lastName}`}
                             >
-                                <IconCircleCheckFilled
+                                <MantineIcon
+                                    icon={IconCircleCheckFilled}
                                     size={16}
-                                    style={{
-                                        color: 'var(--mantine-color-green-6)',
-                                    }}
+                                    color="green.6"
                                     aria-label="Verified"
                                 />
                             </Tooltip>

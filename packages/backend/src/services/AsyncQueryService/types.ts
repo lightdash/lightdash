@@ -11,6 +11,7 @@ import {
     type AgentIdentityClaim,
     type AndFilterGroup,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiSourcePayload,
     type CacheMetadata,
     type ConditionalFormattingConfig,
     type DashboardFilters,
@@ -49,6 +50,7 @@ import type {
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -114,6 +116,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     documentQueryContext?: DocumentQueryContext;
     metricQuery: MetricQuery;
+    limit?: number | null | undefined;
     dataAppPreviewToken?: string;
     customSqlProvenanceChartUuid?: UUID;
     dateZoom?: DateZoom;
@@ -154,6 +157,8 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     limit?: number | null | undefined;
     pivotResults?: boolean;
     includeUnpublishedDraft?: boolean;
+    /** Keys the app's own per-tile resolution leaves to the chart; used for signed-in users only */
+    excludedParameterKeys?: string[];
     sessionTimezone?: string | null;
     preloadedSavedChart?: SavedChartDAO;
     preloadedProjectParameters?: DbProjectParameter[];
@@ -244,6 +249,14 @@ export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
     references: Record<string, UUID>;
 };
 
+export type ExecuteAsyncApiQueryArgs = CommonAsyncQueryArgs & {
+    connectionUuid: string;
+    /** Resolved through the connection, which checks the caller may use it. */
+    connector: MeteredApiConnector;
+    payload: ApiSourcePayload;
+    limit?: number;
+};
+
 export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
@@ -265,6 +278,7 @@ export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
+    excludedParameterKeys?: string[];
 };
 
 export type ExecuteAsyncDashboardSqlChartByUuidArgs =

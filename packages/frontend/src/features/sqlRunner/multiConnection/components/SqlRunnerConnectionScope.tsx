@@ -1,5 +1,5 @@
 import { type SqlRunnerWarehouseConnection } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import {
     useEffect,
     useMemo,

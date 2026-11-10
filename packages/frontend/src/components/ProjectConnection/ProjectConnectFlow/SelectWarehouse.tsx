@@ -94,14 +94,9 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                                               onSelect(item.key);
                                           }
                                 }
-                                style={{
-                                    opacity:
-                                        canCreateProject === false ? 0.5 : 1,
-                                    cursor:
-                                        canCreateProject === false
-                                            ? 'not-allowed'
-                                            : 'pointer',
-                                }}
+                                data-unavailable={
+                                    canCreateProject === false || undefined
+                                }
                             >
                                 {item.label}
                             </OnboardingButton>

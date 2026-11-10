@@ -154,6 +154,7 @@ const buildService = (overrides: Overrides = {}) => {
                 directOnly: false,
             }),
         } as AnyType,
+        projectService: {} as never,
         contentVerificationModel: {
             getByContent: vi.fn().mockResolvedValue(undefined),
         } as AnyType,
@@ -546,6 +547,19 @@ describe('DashboardService draft overlay is opt-in', () => {
 
         expect(dashboard.name).toBe('Weekly KPIs (drafted)');
         expect(dashboard.hasUnpublishedChanges).toBe(true);
+        expect(dashboard.managedFromRepository).toBeDefined();
+    });
+
+    it('flags Git-managed dashboards for viewers without a draft', async () => {
+        const { service, viewer } = buildReadService();
+
+        const dashboard = await service.getByIdOrSlugForViewer(
+            { ...viewer, userUuid: 'someone-else' } as SessionUser,
+            'weekly-kpis',
+        );
+
+        expect(dashboard.hasUnpublishedChanges).toBeUndefined();
+        expect(dashboard.managedFromRepository).toBeDefined();
     });
 
     it('returns published content with a typed failure when the author draft is corrupt', async () => {

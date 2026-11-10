@@ -3,6 +3,7 @@ import {
     AiAccessRefusedError,
     type AnyType,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import {
     APICallError,
     asSchema,
@@ -33,6 +34,7 @@ import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
     EMPTY_RESPONSE_MESSAGE,
+    OUTPUT_LIMIT_REACHED_MESSAGE,
     PROVIDER_BILLING_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
 } from '../utils/errorMessages';
@@ -68,6 +70,11 @@ import {
     type AgentMcpToolSetup,
 } from './agentV2';
 import { createIntentToolGate } from './referenceToolGating';
+
+vi.mock('@sentry/node', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@sentry/node')>()),
+    captureException: vi.fn(() => 'test-event'),
+}));
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
@@ -108,10 +115,12 @@ const buildAgentArgs = (
         callOptions: {},
         canManageAgent: false,
         canRunSql: true,
+        liveSources: [],
         compactionSummary: null,
         debugLoggingEnabled: false,
         deepResearchRuns: [],
         enableAiWriteback: false,
+        enableContentReads: false,
         enableContentTools: false,
         enableDataAccess: false,
         enableDataAnswerFastResponse: false,
@@ -627,6 +636,22 @@ describe('empty finishes and interrupts', () => {
         finishReason: 'tool-calls',
     };
 
+    const lengthFinish: Awaited<ReturnType<MockLanguageModelV4['doGenerate']>> =
+        {
+            content: [],
+            finishReason: { unified: 'length', raw: 'max_tokens' },
+            usage: {
+                inputTokens: {
+                    total: 1,
+                    noCache: 1,
+                    cacheRead: 0,
+                    cacheWrite: 0,
+                },
+                outputTokens: { total: 10, text: 0, reasoning: 10 },
+            },
+            warnings: [],
+        };
+
     const buildInterruptibleDependencies = (interrupted: boolean) => {
         const updatePrompt = vi.fn().mockResolvedValue(undefined);
         const dependencies = buildAgentDependencies(updatePrompt);
@@ -935,6 +960,33 @@ describe('empty finishes and interrupts', () => {
         });
     });
 
+    it('generate: distinguishes output exhaustion from a generic empty response', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        Object.assign(dependencies, { consumePromptSteers: async () => [] });
+        const args = buildAgentArgs();
+        args.model = new MockLanguageModelV4({ doGenerate: lengthFinish });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).rejects.toMatchObject({
+            name: 'AiAgentEmptyResponseError',
+            finishReason: 'length',
+        });
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                errorMessage: OUTPUT_LIMIT_REACHED_MESSAGE,
+            }),
+        );
+    });
+
     const runStreamOnFinish = async (
         interrupted: boolean,
         execution?: Record<string, unknown>,
@@ -954,7 +1006,7 @@ describe('empty finishes and interrupts', () => {
         });
         expect(capturedOptions.experimental_repairToolCall).toBeUndefined();
         // AI SDK 7: `usage` aggregates every step; the final step keeps its own usage.
-        await capturedOptions.onFinish({
+        await capturedOptions.onEnd({
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
             steps: [{ text: '', usage: { totalTokens: 10 } }],
@@ -989,6 +1041,54 @@ describe('empty finishes and interrupts', () => {
                 errorMessage: EMPTY_RESPONSE_MESSAGE,
             }),
         );
+    });
+
+    it('stream: distinguishes output exhaustion from a generic empty response', async () => {
+        const { streamText: streamWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(streamText).mockImplementationOnce(streamWithSdk);
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        Object.assign(dependencies, { consumePromptSteers: async () => [] });
+        const stream: Awaited<
+            ReturnType<MockLanguageModelV4['doStream']>
+        >['stream'] = new ReadableStream({
+            start(controller) {
+                controller.enqueue({ type: 'stream-start', warnings: [] });
+                controller.enqueue({
+                    type: 'finish',
+                    finishReason: lengthFinish.finishReason,
+                    usage: lengthFinish.usage,
+                });
+                controller.close();
+            },
+        });
+        const args = buildAgentArgs();
+        args.model = new MockLanguageModelV4({ doStream: { stream } });
+        const captureException = vi.mocked(Sentry.captureException);
+        captureException.mockClear();
+        try {
+            const result = await streamAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            });
+            await result.consumeStream();
+            expect(captureException).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'AiAgentEmptyResponseError',
+                    finishReason: 'length',
+                }),
+                expect.anything(),
+            );
+            expect(updatePrompt).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    errorMessage: OUTPUT_LIMIT_REACHED_MESSAGE,
+                }),
+            );
+        } finally {
+            vi.mocked(streamText).mockReset();
+        }
     });
 
     it('generate: still throws the step-cap error at the cap when not interrupted', async () => {
@@ -1073,7 +1173,7 @@ describe('generateAgentResponse token usage persistence', () => {
             await stepTotals.reduce(
                 (chain, totalTokens) =>
                     chain.then(() =>
-                        options.onStepFinish({
+                        options.onStepEnd({
                             usage: { totalTokens },
                             toolCalls: [],
                             toolResults: [],
@@ -1914,6 +2014,7 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 repoFsSupportsCodeSearch: true,
                 canManageAgent: false,
                 canRunSql: true,
+                liveSources: [],
                 enableDataAccess: true,
                 enableContentTools: true,
                 autoApproveSql: true,
@@ -2092,8 +2193,10 @@ describe('getAgentTools workstream tool gate', () => {
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
         canCreateDashboards?: boolean;
+        canCreateScheduledDeliveries?: boolean;
         canRunSql?: boolean;
         enableComposerQueries?: boolean;
+        enableContentReads?: boolean;
         enableContentTools?: boolean;
         enableDocuments?: boolean;
         enableDataAccess?: boolean;
@@ -2104,6 +2207,7 @@ describe('getAgentTools workstream tool gate', () => {
     const buildArgs = (flags: ToolFlags): AiAgentArgs =>
         ({
             canCreateDashboards: true,
+            canCreateScheduledDeliveries: true,
             agentSettings: {
                 uuid: 'agent-1',
                 name: 'test-agent',
@@ -2117,7 +2221,9 @@ describe('getAgentTools workstream tool gate', () => {
             compactionSummary: null,
             canManageAgent: false,
             canRunSql: true,
+            liveSources: [],
             debugLoggingEnabled: false,
+            enableContentReads: flags.enableContentTools ?? false,
             enableContentTools: false,
             enableDataAccess: false,
             enableEditProjectContext: false,
@@ -2382,7 +2488,7 @@ describe('getAgentTools workstream tool gate', () => {
         [true, true, false],
         [true, true, true],
     ])(
-        'gates Document schemas and instructions together (documents=%s, content=%s, data=%s)',
+        'gates Document and chart schemas and instructions separately (documents=%s, content=%s, data=%s)',
         (enableDocuments, enableContentTools, enableDataAccess) => {
             const args = buildArgs({
                 enableAiWriteback: false,
@@ -2391,8 +2497,8 @@ describe('getAgentTools workstream tool gate', () => {
                 enableDataAccess,
             });
             const tools = buildToolsForArgs(args);
-            const contentEnabled = enableContentTools && enableDataAccess;
-            const documentsEnabled = contentEnabled && enableDocuments;
+            const chartsEnabled = enableContentTools && enableDataAccess;
+            const documentsEnabled = enableDocuments && enableDataAccess;
             const systemMessage = getAgentMessages(
                 args,
                 loadoutFor(args, mcpStub),
@@ -2406,27 +2512,47 @@ describe('getAgentTools workstream tool gate', () => {
             if (!systemMessage || typeof systemMessage.content !== 'string') {
                 throw new Error('Expected a string system message');
             }
+            const contentTypes = (name: string): unknown[] => {
+                const { jsonSchema } = asSchema(tools[name].inputSchema);
+                const { type } = (
+                    jsonSchema as {
+                        properties: {
+                            type: { enum?: unknown[]; const?: unknown };
+                        };
+                    }
+                ).properties;
+                return type.enum ?? [type.const];
+            };
 
             expect(systemMessage.content.includes('## Documents')).toBe(
                 documentsEnabled,
+            );
+            expect(systemMessage.content.includes('## Content tools')).toBe(
+                chartsEnabled,
             );
             expect(
                 systemMessage.content.includes(
                     'Want me to save this as a Document you can share?',
                 ),
             ).toBe(documentsEnabled);
-            for (const name of [
-                'createContent',
-                'readContent',
-                'editContent',
-            ]) {
-                expect(Object.hasOwn(tools, name)).toBe(contentEnabled);
-                if (contentEnabled) {
-                    expect(
-                        JSON.stringify(
-                            asSchema(tools[name].inputSchema).jsonSchema,
-                        ).includes('"document"'),
-                    ).toBe(documentsEnabled);
+            // buildArgs ties content reads to the content setting.
+            expect(Object.hasOwn(tools, 'readContent')).toBe(chartsEnabled);
+            if (chartsEnabled) {
+                expect(contentTypes('readContent').includes('document')).toBe(
+                    documentsEnabled,
+                );
+            }
+            for (const name of ['createContent', 'editContent']) {
+                expect(Object.hasOwn(tools, name)).toBe(
+                    chartsEnabled || documentsEnabled,
+                );
+                if (chartsEnabled || documentsEnabled) {
+                    expect(contentTypes(name).includes('document')).toBe(
+                        documentsEnabled,
+                    );
+                    expect(contentTypes(name).includes('chart')).toBe(
+                        chartsEnabled,
+                    );
                 }
             }
         },
@@ -2554,6 +2680,33 @@ describe('getAgentTools workstream tool gate', () => {
         );
     });
 
+    it('offers content reads to users who cannot author content', () => {
+        const names = toolNames({
+            enableAiWriteback: false,
+            enableDataAccess: true,
+            enableContentReads: true,
+            enableContentTools: false,
+            canCreateDashboards: false,
+        });
+
+        expect(names).toEqual(
+            expect.arrayContaining([
+                'readContent',
+                'listContent',
+                'runContentQuery',
+            ]),
+        );
+        for (const name of [
+            'createContent',
+            'editContent',
+            'createScheduledDelivery',
+            'getDashboardCharts',
+            'generateDashboard',
+        ]) {
+            expect(names).not.toContain(name);
+        }
+    });
+
     it('withholds generateDashboard from users who cannot save one', () => {
         const names = toolNames({
             enableAiWriteback: false,
@@ -2574,6 +2727,30 @@ describe('getAgentTools workstream tool gate', () => {
                 canCreateDashboards: true,
             }),
         ).toContain('generateDashboard');
+    });
+
+    it('withholds createScheduledDelivery from users who cannot schedule', () => {
+        const names = toolNames({
+            enableAiWriteback: false,
+            enableDataAccess: true,
+            enableContentTools: true,
+            canCreateScheduledDeliveries: false,
+        });
+
+        expect(names).not.toContain('createScheduledDelivery');
+        expect(names).toContain('createContent');
+        expect(names).toContain('editContent');
+    });
+
+    it('exposes createScheduledDelivery when the user can schedule', () => {
+        expect(
+            toolNames({
+                enableAiWriteback: false,
+                enableDataAccess: true,
+                enableContentTools: true,
+                canCreateScheduledDeliveries: true,
+            }),
+        ).toContain('createScheduledDelivery');
     });
 
     it('does not expose loadMcpTools when there are no MCP tools', () => {
@@ -2955,7 +3132,7 @@ describe('buildAgentMessages', () => {
         ).toBeNull();
     });
 
-    it('finishes a document write-up once the document saves cleanly', () => {
+    it('finishes a document write-up with an absolute link once the document saves cleanly', () => {
         const save = (
             output: unknown,
             input: unknown = { type: 'document' },
@@ -2966,6 +3143,7 @@ describe('buildAgentMessages', () => {
                 toolResults: [{ toolCallId: 'save-1', toolName, output }],
             },
         ];
+        const siteUrl = 'https://app.lightdash.cloud/';
         const saved = (warnings: string[] = []) => ({
             result: '<document />',
             metadata: {
@@ -2976,23 +3154,33 @@ describe('buildAgentMessages', () => {
             },
         });
 
-        expect(getDocumentWriteFastResponse(save(saved()))).toBe(
-            'Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).',
+        expect(getDocumentWriteFastResponse(save(saved()), siteUrl)).toBe(
+            'Saved [Revenue \\[Q3\\]](https://app.lightdash.cloud/projects/p/documents/revenue).',
         );
         expect(
             getDocumentWriteFastResponse(
                 save(saved(), { type: 'document' }, 'editContent'),
+                siteUrl,
             ),
-        ).toBe('Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).');
+        ).toBe(
+            'Saved [Revenue \\[Q3\\]](https://app.lightdash.cloud/projects/p/documents/revenue).',
+        );
         expect(
-            getDocumentWriteFastResponse(save(saved(['Chart 2 failed']))),
+            getDocumentWriteFastResponse(
+                save(saved(['Chart 2 failed'])),
+                siteUrl,
+            ),
         ).toBeNull();
         expect(
-            getDocumentWriteFastResponse(save(saved(), { type: 'chart' })),
+            getDocumentWriteFastResponse(
+                save(saved(), { type: 'chart' }),
+                siteUrl,
+            ),
         ).toBeNull();
         expect(
             getDocumentWriteFastResponse(
                 save({ result: 'failed', metadata: { status: 'error' } }),
+                siteUrl,
             ),
         ).toBeNull();
     });
@@ -3419,7 +3607,7 @@ describe('external MCP tool call activity', () => {
             }
 
             const finish = (event: Record<string, unknown>) =>
-                options.experimental_onToolCallFinish?.({
+                options.onToolExecutionEnd?.({
                     stepNumber: 0,
                     messages: [],
                     ...event,
@@ -3742,7 +3930,7 @@ describe.each(['generate', 'stream'] as const)(
                     | { type: 'tool-result'; output: unknown }
                     | { type: 'tool-error'; error: unknown },
             ) =>
-                options.experimental_onToolCallFinish({
+                options.onToolExecutionEnd({
                     stepNumber: 0,
                     messages: [],
                     toolCall: {

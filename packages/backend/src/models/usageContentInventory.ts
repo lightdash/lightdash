@@ -112,14 +112,24 @@ export const usageContentInventoryQuery = (
             JOIN projects p ON p.project_id = s.project_id
             WHERE p.project_uuid = ANY(ARRAY(SELECT DISTINCT project_id FROM inventory))
                 AND d.deleted_at IS NULL AND s.deleted_at IS NULL
-        ), dashboard_references AS (
+        ), ${
+            reference
+                ? `current_dashboard_tiles AS MATERIALIZED (
+            -- Join tiles before inventory: joining on project first multiplies
+            -- every page item by every dashboard in that project.
+            SELECT d.dashboard_id, d.project_uuid, t.${reference.column} AS content_reference
+            FROM latest_project_dashboards d
+            JOIN ${reference.table} t ON t.dashboard_version_id = d.dashboard_version_id
+            WHERE t.${reference.column} = ANY(ARRAY(SELECT ${reference.inventoryColumn} FROM inventory))
+        ),`
+                : ''
+        } dashboard_references AS (
             ${
                 reference
                     ? `
             SELECT i.content_id, COUNT(DISTINCT d.dashboard_id) AS count
-            FROM latest_project_dashboards d
-            JOIN ${reference.table} t ON t.dashboard_version_id = d.dashboard_version_id
-            JOIN inventory i ON i.${reference.inventoryColumn} = t.${reference.column}
+            FROM current_dashboard_tiles d
+            JOIN inventory i ON i.${reference.inventoryColumn} = d.content_reference
                 AND i.project_id = d.project_uuid
             GROUP BY i.content_id
             `

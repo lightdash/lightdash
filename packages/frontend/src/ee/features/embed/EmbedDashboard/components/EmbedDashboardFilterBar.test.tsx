@@ -1,15 +1,16 @@
 import {
+    DashboardControlRefKind,
     DEFAULT_UI_STRINGS,
     FilterInteractivityValues,
     FilterOperator,
     type Dashboard,
+    type DashboardTile,
     type InteractivityOptions,
 } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import DashboardContext from '../../../../../providers/Dashboard/context';
-import { type DashboardContextType } from '../../../../../providers/Dashboard/types';
+import { dashboardParametersActions } from '../../../../../features/dashboard/store';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -44,28 +45,21 @@ vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
         </button>
     ),
 }));
-// Reads the context the bar provides, as the real pills do: skeletons on a first load
+// Reads the override the bar provides over the context, as the real pills do: skeletons on a first load
 vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
-    const { useContextSelector } = await import('use-context-selector');
-    const { default: DashboardContext } =
-        await import('../../../../../providers/Dashboard/context');
+    const { useContext } = await import('react');
+    const { FilterFieldsOverrideContext } =
+        await import('../../../../../providers/Dashboard/filterFieldsOverride');
     return {
-        FilterPills: ({
-            triggerClassName,
-            dropdownClassName,
-        }: {
-            triggerClassName?: string;
-            dropdownClassName?: string;
-        }) => {
-            const isFirstLoad = useContextSelector(
-                DashboardContext,
-                (c) => c?.isLoadingDashboardFilters === true,
-            );
+        FilterPills: ({ triggerClassName }: { triggerClassName?: string }) => {
+            const override = useContext(FilterFieldsOverrideContext);
+            const isFirstLoad =
+                (override ?? mockDashboardContext.current)
+                    .isLoadingDashboardFilters === true;
             return (
                 <div
                     data-testid="rail-pills"
                     className={triggerClassName}
-                    data-dropdown-class={dropdownClassName}
                     data-skeletons={isFirstLoad || undefined}
                 />
             );
@@ -76,20 +70,34 @@ vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
     SectionedFilters: ({
         viewerActions,
         triggerClassName,
-        dropdownClassName,
     }: {
         viewerActions: ReactNode;
         triggerClassName?: string;
-        dropdownClassName?: string;
     }) => (
-        <div
-            data-testid="sectioned-filters"
-            className={triggerClassName}
-            data-dropdown-class={dropdownClassName}
-        >
+        <div data-testid="sectioned-filters" className={triggerClassName}>
             {viewerActions}
         </div>
     ),
+}));
+// Reads the rail's provider, which the page puts around the bar
+vi.mock('../../../../../features/dashboardControls/ControlsBar', () => ({
+    MappingSwap: ({ children }: { children: ReactNode }) => (
+        <div data-testid="mapping-swap">{children}</div>
+    ),
+}));
+vi.mock(
+    '../../../../../features/dashboardControls/useParameterBarControls',
+    () => ({
+        useParameterBarControls: () => ({
+            entries: [{ control: { hidden: false } }],
+        }),
+    }),
+);
+vi.mock('../../../../../features/dashboardControls/ParameterPills', () => ({
+    ParameterPills: () => <div data-testid="parameter-pills" />,
+}));
+vi.mock('./EmbedDashboardParameters', () => ({
+    default: () => <div data-testid="shipped-parameters" />,
 }));
 vi.mock('./EmbedDashboardFilters', () => ({
     default: () => <div data-testid="shipped-filters" />,
@@ -99,7 +107,7 @@ vi.mock('../../../../../features/dateZoom', () => ({
     DateZoom: () => null,
 }));
 
-const dashboard = (canAddFilters: boolean) =>
+const dashboard = (canAddFilters: boolean, areParametersEnabled = false) =>
     ({
         uuid: 'dashboard-1',
         canDateZoom: false,
@@ -107,7 +115,7 @@ const dashboard = (canAddFilters: boolean) =>
             enabled: FilterInteractivityValues.all,
             canAddFilters,
         },
-        parameterInteractivity: { enabled: false },
+        parameterInteractivity: { enabled: areParametersEnabled },
     }) as unknown as Dashboard & InteractivityOptions;
 
 const savedRule = {
@@ -148,20 +156,15 @@ const barElement = (
         },
     }),
 ): ReactElement => (
-    // The page's provider, which the bar's filter area reads below it
-    <DashboardContext.Provider
-        value={mockDashboardContext.current as unknown as DashboardContextType}
-    >
-        {/* One saved filter, so the bar has something to show */}
-        <DashboardStoreTestProvider store={store}>
-            <EmbedDashboardFilterBar
-                dashboard={dashboard(canAddFilters)}
-                shouldShowFilters
-                activeTiles={[]}
-                isControlsEnabled={isControlsEnabled}
-            />
-        </DashboardStoreTestProvider>
-    </DashboardContext.Provider>
+    // One saved filter, so the bar has something to show
+    <DashboardStoreTestProvider store={store}>
+        <EmbedDashboardFilterBar
+            dashboard={dashboard(canAddFilters)}
+            shouldShowFilters
+            activeTiles={[]}
+            isControlsEnabled={isControlsEnabled}
+        />
+    </DashboardStoreTestProvider>
 );
 
 const renderBar = (canAddFilters: boolean, isControlsEnabled: boolean) =>
@@ -176,6 +179,16 @@ describe('EmbedDashboardFilterBar', () => {
         renderBar(true, false);
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
         expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('mapping-swap')).not.toBeInTheDocument();
+    });
+
+    it("gives the rail's bar the mapping row's place, so a viewer can choose tiles", () => {
+        renderBar(true, true);
+        expect(
+            within(screen.getByTestId('mapping-swap')).getByTestId(
+                'rail-pills',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('opens the rail from "Add filter" and the pills, with the class contract', () => {
@@ -193,11 +206,6 @@ describe('EmbedDashboardFilterBar', () => {
         expect(screen.getByTestId('rail-pills')).toHaveClass(
             'ld-dashboard-filter',
         );
-        // A saved pill's shipped popover carries the dropdown class
-        expect(screen.getByTestId('rail-pills')).toHaveAttribute(
-            'data-dropdown-class',
-            'ld-dashboard-filter-dropdown',
-        );
         expect(
             screen.queryByRole('button', { name: 'Reset' }),
         ).not.toBeInTheDocument();
@@ -214,10 +222,6 @@ describe('EmbedDashboardFilterBar', () => {
         renderWithProviders(barElement(false, true, sectionedStore()));
         const sectioned = screen.getByTestId('sectioned-filters');
         expect(sectioned).toHaveClass('ld-dashboard-filter');
-        expect(sectioned).toHaveAttribute(
-            'data-dropdown-class',
-            'ld-dashboard-filter-dropdown',
-        );
         // "Add filter" and the reset lead the sectioned bar
         expect(
             within(sectioned).getByRole('button', { name: 'Rail add' }),
@@ -226,14 +230,145 @@ describe('EmbedDashboardFilterBar', () => {
             within(sectioned).getByRole('button', { name: 'Reset' }),
         ).toBeInTheDocument();
         expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        // A size container, for the bar's narrow layouts
+        expect(sectioned.closest('[class*="filterArea"]')).not.toBeNull();
+    });
+
+    it("shows a stored order with no sections as the app's viewer bar", () => {
+        const store = createDashboardTestStore({
+            dashboardFilters: {
+                dimensions: [savedRule],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+        seedDashboardEditState(store, {
+            dashboard: {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlOrder: [
+                        { kind: DashboardControlRefKind.FILTER, id: 'saved' },
+                    ],
+                },
+            },
+        });
+        renderWithProviders(barElement(false, true, store));
+        expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
+        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
     });
 
     it('keeps the shipped filters for a dashboard with sections while the flag is off', () => {
         renderWithProviders(barElement(true, false, sectionedStore()));
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
         expect(
+            screen
+                .getByTestId('shipped-filters')
+                .closest('[class*="filterArea"]'),
+        ).toBeNull();
+        expect(
             screen.queryByTestId('sectioned-filters'),
         ).not.toBeInTheDocument();
+    });
+
+    describe('parameters', () => {
+        const renderParameters = ({
+            isControlsEnabled,
+            areParametersEnabled,
+            shouldShowFilters,
+            hasControls = true,
+        }: {
+            isControlsEnabled: boolean;
+            areParametersEnabled: boolean;
+            shouldShowFilters: boolean;
+            hasControls?: boolean;
+        }) => {
+            const store = createDashboardTestStore({
+                parameterDefinitions: { region: { label: 'Region' } },
+                tileParameterReferences: { 'tile-1': ['region'] },
+            });
+            if (hasControls)
+                store.dispatch(
+                    dashboardParametersActions.syncParameterControls({
+                        controls: [],
+                        isSaved: true,
+                    }),
+                );
+            return renderWithProviders(
+                <DashboardStoreTestProvider store={store}>
+                    <EmbedDashboardFilterBar
+                        dashboard={dashboard(true, areParametersEnabled)}
+                        shouldShowFilters={shouldShowFilters}
+                        activeTiles={[{ uuid: 'tile-1' } as DashboardTile]}
+                        isControlsEnabled={isControlsEnabled}
+                    />
+                </DashboardStoreTestProvider>,
+            );
+        };
+
+        it('keeps legacy parameter pills while the list is unavailable', () => {
+            renderParameters({
+                isControlsEnabled: true,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+                hasControls: false,
+            });
+            expect(
+                screen.getByTestId('shipped-parameters'),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByTestId('parameter-pills'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders parameter pills after the filters with the controls on', () => {
+            renderParameters({
+                isControlsEnabled: true,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+            });
+            expect(screen.getByTestId('rail-pills').nextElementSibling).toBe(
+                screen.getByTestId('parameter-pills'),
+            );
+            expect(
+                screen.queryByTestId('shipped-parameters'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('keeps the parameters group class when filters are hidden', () => {
+            renderParameters({
+                isControlsEnabled: true,
+                areParametersEnabled: true,
+                shouldShowFilters: false,
+            });
+            expect(
+                screen.getByTestId('parameter-pills').parentElement,
+            ).toHaveClass('ld-dashboard-parameters');
+        });
+
+        it('hides parameter pills without parameter interactivity', () => {
+            renderParameters({
+                isControlsEnabled: true,
+                areParametersEnabled: false,
+                shouldShowFilters: true,
+            });
+            expect(
+                screen.queryByTestId('parameter-pills'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('keeps the shipped parameters with the controls off', () => {
+            renderParameters({
+                isControlsEnabled: false,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+            });
+            expect(
+                screen.getByTestId('shipped-parameters'),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByTestId('parameter-pills'),
+            ).not.toBeInTheDocument();
+        });
     });
 
     it('keeps the pills while a tile change reloads the filter fields', () => {

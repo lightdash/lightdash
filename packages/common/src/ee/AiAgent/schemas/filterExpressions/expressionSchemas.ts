@@ -20,7 +20,7 @@ import {
 } from '../tools/toolRunQueryArgs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
-import { FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE } from './examples';
+import { FILTER_EXPRESSION_STRING_VALUES_EXAMPLE } from './examples';
 import {
     filterExpressionDateUnits,
     filterExpressionOperatorDefinitions,
@@ -94,7 +94,7 @@ const getFilterTypeGrammar = (filterType: FilterType): string => {
 export const getFilterExpressionGrammarDescription = (
     connectorPolicy: FilterExpressionConnectorPolicy,
 ): string => `- ${connectorInstructionByPolicy[connectorPolicy]}
-- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`${FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE}\`.
+- Double-quote every string-field value; an unquoted value stops at the first space or punctuation. Commas outside quotes separate values: \`${FILTER_EXPRESSION_STRING_VALUES_EXAMPLE}\`. Inside quotes, escape \`"\` and \`\\\` with a backslash.
 - Limits: ${FILTER_EXPRESSION_MAX_RULES} rules; ${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values including settings/rule; ${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters/literal; ${FILTER_EXPRESSION_MAX_LENGTH} characters/expression.
 
 ${Object.values(FilterType).map(getFilterTypeGrammar).join('\n\n')}`;
@@ -113,19 +113,23 @@ export const filterExpressionInputSchema = z
 export const filterExpressionsSchema = z
     .object({
         dimensions: filterExpressionInputSchema
-            .nullable()
+            .nullish()
+            .default(null)
             .describe('Flat filter expression for dimension fields.'),
         metrics: filterExpressionInputSchema
-            .nullable()
+            .nullish()
+            .default(null)
             .describe('Flat filter expression for metric fields.'),
         tableCalculations: filterExpressionInputSchema
-            .nullable()
+            .nullish()
+            .default(null)
             .describe('Flat filter expression for table calculations.'),
     })
     .strict()
     .describe(
         'Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.',
-    );
+    )
+    .meta({ id: 'FilterExpressions' });
 
 export const aggregationCustomMetricExpressionSchema =
     aggregationCustomMetricSchema.extend({
@@ -144,7 +148,8 @@ export const customMetricExpressionBaseSchema = z.discriminatedUnion('kind', [
 export const customMetricsExpressionSchema = z
     .array(customMetricExpressionBaseSchema)
     .nullable()
-    .describe(customMetricsSchema.description ?? '');
+    .describe(customMetricsSchema.description ?? '')
+    .meta({ id: 'CustomMetricsExpression' });
 
 export const queryConfigExpressionSchemaV2 = queryConfigBaseSchema.extend({
     customMetrics: customMetricsExpressionSchema,

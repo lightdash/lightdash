@@ -78,15 +78,17 @@ describe('composer viz config schemas', () => {
         ).not.toHaveProperty('customChartTypeSlug');
     });
 
-    test('builtin types require their axes', () => {
-        expect(
-            composerChartVizConfigSchema.safeParse({
-                type: 'bar',
-                customChartTypeSlug: 'ribbon',
-                fieldMapping: { x: 'status' },
-                options: null,
-            }).success,
-        ).toBe(false);
+    test('builtin types default omitted axes to null', () => {
+        expect(composerChartVizConfigSchema.parse({ type: 'bar' })).toEqual({
+            type: 'bar',
+            x: null,
+            y: null,
+            groupBy: null,
+            stack: null,
+            horizontal: null,
+            y2: null,
+            labels: null,
+        });
     });
 
     test('custom requires a slug and a field mapping', () => {

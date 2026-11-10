@@ -64,7 +64,6 @@ const app = (
     addAnalysisDismissed: false,
     icon: null,
     verification: null,
-    autoAnalysis: 'inherit',
 });
 
 const loaded = (versions: ApiAppVersionSummary[], name?: string) =>
@@ -140,6 +139,11 @@ describe('getDataAppBuildCardState', () => {
                     reasoning: ['Weekly totals by region'],
                     activity: ['Creating App.tsx'],
                 },
+                step: {
+                    index: 1,
+                    labelKey: 'aiAgent.dataAppBuild.stage.writing',
+                },
+                startedAt: new Date('2026-08-28T10:00:00.000Z'),
             });
         });
 
@@ -152,6 +156,10 @@ describe('getDataAppBuildCardState', () => {
             ).toMatchObject({
                 kind: 'building',
                 statusMessage: 'Building your app',
+                step: {
+                    index: 0,
+                    labelKey: 'aiAgent.dataAppBuild.stage.preparing',
+                },
             });
         });
 

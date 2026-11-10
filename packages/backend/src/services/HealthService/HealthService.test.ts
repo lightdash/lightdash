@@ -9,6 +9,7 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
+import { InstanceBrandService } from '../InstanceBrandService/InstanceBrandService';
 import { LicenseService } from '../LicenseService/LicenseService';
 import type { ReadinessResult } from '../ReadinessService/ReadinessService';
 import { HealthService } from './HealthService';
@@ -60,6 +61,8 @@ const learnSandboxServiceMock = {
     isRuntimeAvailable: vi.fn(async () => false),
 };
 
+const instanceBrandService = new InstanceBrandService();
+
 describe('health', () => {
     const healthService = new HealthService({
         organizationModel: organizationModel as unknown as OrganizationModel,
@@ -70,6 +73,7 @@ describe('health', () => {
             organizationSettingsModel as unknown as OrganizationSettingsModel,
         featureFlagModel: featureFlagModelMock,
         learnSandboxService: learnSandboxServiceMock,
+        instanceBrandService,
     });
 
     afterEach(() => {
@@ -81,6 +85,45 @@ describe('health', () => {
             LIGHTDASH_INSTALL_TYPE: LightdashInstallType.UNKNOWN,
         };
     });
+
+    it.each([
+        { licensed: true, storage: true, expected: true },
+        { licensed: false, storage: true, expected: false },
+        { licensed: true, storage: false, expected: false },
+    ])(
+        'exposes managed analytics availability to the UI: %j',
+        async ({ licensed, storage, expected }) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    usageEvents: {
+                        ...lightdashConfigMock.usageEvents,
+                        s3: storage
+                            ? {
+                                  endpoint: 'http://localhost:9000',
+                                  bucket: 'test',
+                                  region: 'us-east-1',
+                              }
+                            : null,
+                    },
+                },
+                licenseService: licensed
+                    ? validLicenseService
+                    : invalidLicenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
+                learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
+            });
+            expect(
+                (await service.getHealthState(userMock)).hasManagedAnalytics,
+            ).toBe(expected);
+        },
+    );
 
     it('Should get current and latest version', async () => {
         expect(await healthService.getHealthState(undefined)).toEqual(
@@ -106,6 +149,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
             });
             const health = await service.getHealthState(undefined);
             expect(health.auth.snowflakeAi.enabled).toBe(licenseKey !== null);
@@ -138,10 +182,53 @@ describe('health', () => {
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
                 featureFlagModel: featureFlagModelMock,
             });
             const health = await service.getHealthState(undefined);
             expect(health.dataApps.runtimeAvailable).toBe(expected);
+        },
+    );
+    it.each([
+        ['no', licenseService, true, false],
+        ['an invalid', invalidLicenseService, true, false],
+        ['a valid', validLicenseService, false, false],
+        ['a valid', validLicenseService, true, true],
+    ])(
+        'reports ambient AI only with a valid licence and an Anthropic key (%s licence, key %s)',
+        async (_licence, caseLicenseService, hasAnthropicKey, expected) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    ai: {
+                        ...lightdashConfigMock.ai,
+                        copilot: {
+                            ...lightdashConfigMock.ai.copilot,
+                            providers: {
+                                ...lightdashConfigMock.ai.copilot.providers,
+                                ...(hasAnthropicKey
+                                    ? {
+                                          anthropic: {
+                                              apiKey: 'mock_anthropic_key',
+                                          },
+                                      }
+                                    : {}),
+                            },
+                        },
+                    },
+                } as typeof lightdashConfigMock,
+                licenseService: caseLicenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
+                featureFlagModel: featureFlagModelMock,
+            });
+            const health = await service.getHealthState(undefined);
+            expect(health.ai.isAmbientAiEnabled).toBe(expected);
         },
     );
     it('Should return last version as undefined when fails fetch', async () => {
@@ -179,6 +266,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         expect(
@@ -208,6 +296,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         await expect(service.getHealthState(undefined)).resolves.toEqual({
@@ -238,6 +327,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         expect(
@@ -267,6 +357,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
         expect(
             (await licensedService.getHealthState(undefined))
@@ -292,6 +383,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
             });
 
             expect(
@@ -321,6 +413,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         expect(
@@ -340,6 +433,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         expect(
@@ -363,6 +457,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
         expect(await service.getHealthState(undefined)).toEqual({
             ...BaseResponse,
@@ -436,6 +531,7 @@ describe('health', () => {
             featureFlagModel: featureFlagModelMock,
             readinessService: { getReadiness },
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         await expect(service.getHealthState(undefined)).resolves.toEqual({
@@ -474,6 +570,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
             });
 
             const result = await service.getHealthState(userMock);
@@ -497,6 +594,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
             });
 
             const userWithEmail = { ...userMock, email: testEmail };
@@ -532,6 +630,7 @@ describe('fast decisions in health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
     it('is off without a decision key', async () => {

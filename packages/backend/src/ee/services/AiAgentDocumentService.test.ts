@@ -52,13 +52,37 @@ const REFUSED_ADD =
 const REFUSED_EDIT =
     'Knowledge documents cannot be edited in the training project';
 
-const setup = ({ isTrainingProject }: { isTrainingProject: boolean }) => {
+const setup = ({
+    isTrainingProject,
+    syncEnabled = false,
+    gitBacked = false,
+}: {
+    isTrainingProject: boolean;
+    syncEnabled?: boolean;
+    gitBacked?: boolean;
+}) => {
     const aiAgentDocumentModel = {
         isTrainingProject: vi.fn().mockResolvedValue(isTrainingProject),
         // The first thing a create does once it is past the check
         getOrganizationContentSize: vi
             .fn()
             .mockRejectedValue(new Error(PAST_THE_CHECK)),
+        findAccessibleForAgent: vi.fn().mockResolvedValue({
+            uuid: 'document-uuid',
+            name: 'Glossary',
+            projectUuid,
+        }),
+        updateAlwaysIncludeInContext: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+        get: vi.fn().mockResolvedValue(undefined),
+    };
+    const contentAsCodeSnapshotModel = {
+        findSlugs: vi
+            .fn()
+            .mockImplementation(async (_project, _type, slugs: string[]) =>
+                gitBacked ? new Set(slugs) : new Set(),
+            ),
+        delete: vi.fn().mockResolvedValue(undefined),
     };
     const aiAgentService = {
         getIsCopilotEnabled: vi.fn().mockResolvedValue(true),
@@ -68,14 +92,30 @@ const setup = ({ isTrainingProject }: { isTrainingProject: boolean }) => {
         getAvailableExplores: vi.fn().mockResolvedValue([]),
     };
     const service = new AiAgentDocumentService({
-        analytics: {} as LightdashAnalytics,
+        analytics: { track: vi.fn() } as unknown as LightdashAnalytics,
         aiAgentDocumentModel:
             aiAgentDocumentModel as unknown as AiAgentDocumentModel,
         aiAgentService: aiAgentService as unknown as AiAgentService,
         lightdashConfig: {} as LightdashConfig,
         orgAiCopilotConfigResolver: {} as OrgAiCopilotConfigResolver,
+        contentAsCodeProjectSettingsModel: {
+            get: vi.fn().mockResolvedValue({ syncEnabled }),
+        } as never,
+        contentAsCodeSnapshotModel: contentAsCodeSnapshotModel as never,
+        aiAgentModel: {
+            findAgentsForCode: vi
+                .fn()
+                .mockResolvedValue([
+                    { uuid: agentUuid, slug: 'glossary-agent' },
+                ]),
+        } as never,
     });
-    return { service, aiAgentDocumentModel, aiAgentService };
+    return {
+        service,
+        aiAgentDocumentModel,
+        aiAgentService,
+        contentAsCodeSnapshotModel,
+    };
 };
 
 const upload = {
@@ -154,6 +194,27 @@ describe('AiAgentDocumentService in a Learn training project or copy', () => {
         expect(aiAgentService.getAgent).not.toHaveBeenCalled();
     });
 
+    it('rejects an empty or over-long name before spending a summary', async () => {
+        const { service, aiAgentDocumentModel } = setup({
+            isTrainingProject: false,
+        });
+        await expect(
+            service.createDocument(projectAdmin, { projectUuid, agentUuid }, {
+                ...upload,
+                name: '   ',
+            } as never),
+        ).rejects.toThrow('Document name cannot be empty');
+        await expect(
+            service.createDocument(projectAdmin, { projectUuid, agentUuid }, {
+                ...upload,
+                name: 'n'.repeat(256),
+            } as never),
+        ).rejects.toThrow('Document name cannot exceed 255 characters');
+        expect(
+            aiAgentDocumentModel.getOrganizationContentSize,
+        ).not.toHaveBeenCalled();
+    });
+
     it('lets a real project add documents', async () => {
         const { service } = setup({ isTrainingProject: false });
         await expect(
@@ -163,5 +224,158 @@ describe('AiAgentDocumentService in a Learn training project or copy', () => {
                 upload as never,
             ),
         ).rejects.toThrow(PAST_THE_CHECK);
+    });
+});
+
+describe('AiAgentDocumentService with a document the repo last applied', () => {
+    const MANAGED =
+        'This knowledge document is managed by Content as Code and can only be changed from the repository.';
+
+    it('refuses toggling or deleting it from the UI once the project syncs with the repo', async () => {
+        const { service, aiAgentDocumentModel, contentAsCodeSnapshotModel } =
+            setup({
+                isTrainingProject: false,
+                syncEnabled: true,
+                gitBacked: true,
+            });
+        await expect(
+            service.updateDocument(
+                projectAdmin,
+                { projectUuid, agentUuid },
+                'document-uuid',
+                { alwaysIncludeInContext: true },
+            ),
+        ).rejects.toThrow(
+            new ForbiddenError(MANAGED, { contentAsCodeManaged: true }),
+        );
+        await expect(
+            service.deleteDocument(
+                projectAdmin,
+                { projectUuid, agentUuid },
+                'document-uuid',
+            ),
+        ).rejects.toThrow(
+            new ForbiddenError(MANAGED, { contentAsCodeManaged: true }),
+        );
+        expect(contentAsCodeSnapshotModel.findSlugs).toHaveBeenCalledWith(
+            projectUuid,
+            'ai_agent_knowledge_document',
+            ['glossary-agent/Glossary'],
+        );
+        expect(
+            aiAgentDocumentModel.updateAlwaysIncludeInContext,
+        ).not.toHaveBeenCalled();
+        expect(aiAgentDocumentModel.delete).not.toHaveBeenCalled();
+    });
+
+    it('refuses an organization admin too: the repo is the only writer', async () => {
+        const { service } = setup({
+            isTrainingProject: false,
+            syncEnabled: true,
+            gitBacked: true,
+        });
+        await expect(
+            service.deleteDocument(
+                organizationAdmin,
+                { projectUuid, agentUuid },
+                'document-uuid',
+            ),
+        ).rejects.toThrow(
+            new ForbiddenError(MANAGED, { contentAsCodeManaged: true }),
+        );
+    });
+
+    it('accepts the content-as-code upload as the writer', async () => {
+        const { service, aiAgentDocumentModel } = setup({
+            isTrainingProject: false,
+            syncEnabled: true,
+            gitBacked: true,
+        });
+        await service.updateDocument(
+            projectAdmin,
+            { projectUuid, agentUuid },
+            'document-uuid',
+            { alwaysIncludeInContext: true },
+            'repo',
+        );
+        expect(
+            aiAgentDocumentModel.updateAlwaysIncludeInContext,
+        ).toHaveBeenCalledOnce();
+    });
+
+    it('stays editable while the project is not syncing with the repo', async () => {
+        const { service, aiAgentDocumentModel, contentAsCodeSnapshotModel } =
+            setup({
+                isTrainingProject: false,
+                syncEnabled: false,
+                gitBacked: true,
+            });
+        await service.deleteDocument(
+            projectAdmin,
+            { projectUuid, agentUuid },
+            'document-uuid',
+        );
+        expect(contentAsCodeSnapshotModel.findSlugs).not.toHaveBeenCalled();
+        expect(aiAgentDocumentModel.delete).toHaveBeenCalledOnce();
+    });
+
+    it('stays editable when nobody uploaded it, even under sync', async () => {
+        const { service, aiAgentDocumentModel } = setup({
+            isTrainingProject: false,
+            syncEnabled: true,
+            gitBacked: false,
+        });
+        await service.deleteDocument(
+            projectAdmin,
+            { projectUuid, agentUuid },
+            'document-uuid',
+        );
+        expect(aiAgentDocumentModel.delete).toHaveBeenCalledOnce();
+    });
+});
+
+describe('AiAgentDocumentService keeps stamps in step with documents', () => {
+    it('drops the stamp when a document is deleted, even with sync off', async () => {
+        const { service, contentAsCodeSnapshotModel } = setup({
+            isTrainingProject: false,
+            syncEnabled: false,
+        });
+        await service.deleteDocument(
+            projectAdmin,
+            { projectUuid, agentUuid },
+            'document-uuid',
+        );
+        expect(
+            contentAsCodeSnapshotModel.delete,
+        ).toHaveBeenCalledExactlyOnceWith(
+            projectUuid,
+            'ai_agent_knowledge_document',
+            'glossary-agent/Glossary',
+        );
+    });
+
+    it('refuses the deprecated organization route on a managed document', async () => {
+        const { service, aiAgentDocumentModel } = setup({
+            isTrainingProject: false,
+            syncEnabled: true,
+            gitBacked: true,
+        });
+        const documentUuid = '4b9a1a2e-8d0c-4f6b-9e2a-1c3d5e7f9a0b';
+        aiAgentDocumentModel.get.mockResolvedValue({
+            uuid: documentUuid,
+            name: 'Glossary',
+            organizationUuid,
+            projectUuid,
+            agentAccess: [agentUuid],
+        });
+        await expect(
+            service.deleteOrganizationDocument(projectAdmin, documentUuid),
+        ).rejects.toThrow(
+            new ForbiddenError(
+                'This knowledge document is managed by Content as Code and can only be changed from the repository.',
+                { contentAsCodeManaged: true },
+            ),
+        );
+        expect(aiAgentDocumentModel.delete).not.toHaveBeenCalled();
     });
 });

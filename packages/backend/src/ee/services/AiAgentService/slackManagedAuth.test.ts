@@ -8,10 +8,7 @@ import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
-import {
-    AgentPermissionService,
-    agentSystemRoleMatrix,
-} from '../../../services/AgentPermissionService/AgentPermissionService';
+import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     expectAdmissionSql,
     setupPermissionSql,
@@ -32,7 +29,6 @@ const setup = ({
         version: 1,
         allowedCapabilities: null,
         allowedGroupUuids: restricted ? ['group'] : null,
-        systemRoleMatrix: agentSystemRoleMatrix([]),
     };
     const insert = vi.fn().mockResolvedValue(undefined);
     const permissions = new AgentPermissionService({

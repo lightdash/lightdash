@@ -18,12 +18,15 @@ import {
     isDimension,
     isFilterExpressionCurrentDateOperator,
     isFilterExpressionRelativeDateOperator,
+    isoDateTimeStringSchema,
+    MetricType,
     parseFilterExpression,
     TableCalculationType,
     toolRunQueryExpressionResolvedArgsSchema,
     toolRunQueryExpressionResolvedArgsSchemaTransformed,
     UnitOfTime,
     unitOfTimeSupportsToDate,
+    type AdditionalMetric,
     type Explore,
     type FilterExpressionArgumentCount,
     type FilterExpressionAst,
@@ -117,8 +120,43 @@ const failure = <T = never>(
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
-    z.string().datetime(),
+    isoDateTimeStringSchema,
 ]);
+
+const isTimestampField = (field: ResolvedField): boolean =>
+    field.fieldType === DimensionType.TIMESTAMP ||
+    field.fieldType === MetricType.TIMESTAMP;
+
+const isInclusiveUpperBoundArgument = (
+    rule: FilterExpressionRule,
+    index: number,
+): boolean =>
+    (rule.operator.value === FilterOperator.LESS_THAN_OR_EQUAL &&
+        index === 0) ||
+    (rule.operator.value === FilterOperator.IN_BETWEEN && index === 1);
+
+// A bare date as an inclusive upper bound on a timestamp compiles to midnight
+// and drops the whole last day.
+const widenInclusiveUpperBound = ({
+    rule,
+    field,
+    scalar,
+    index,
+}: {
+    rule: FilterExpressionRule;
+    field: ResolvedField;
+    scalar: FilterExpressionScalar;
+    index: number;
+}): string => {
+    if (
+        !isInclusiveUpperBoundArgument(rule, index) ||
+        !isTimestampField(field) ||
+        !z.string().date().safeParse(scalar.value).success
+    ) {
+        return scalar.value;
+    }
+    return `${scalar.value}T23:59:59.999Z`;
+};
 
 const strictNumberPattern = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
@@ -132,8 +170,10 @@ const relativeDateUnits = [
 
 type RelativeDateUnit = (typeof relativeDateUnits)[number];
 
-const isRelativeDateUnit = (value: string): value is RelativeDateUnit =>
-    relativeDateUnits.some((unit) => unit === value);
+// "in the current week" reads naturally, so accept singular units too.
+const toRelativeDateUnit = (value: string): RelativeDateUnit | null =>
+    relativeDateUnits.find((unit) => unit === value || unit === `${value}s`) ??
+    null;
 
 const getCategoryLabel = (category: QueryFilterExpressionCategory): string => {
     switch (category) {
@@ -284,21 +324,11 @@ const makeTableCalculationFields = (
         },
     );
 
-const makeQueryFields = ({
-    explore,
-    transformedCustomMetrics,
-    tableCalculations,
-}: {
-    explore: Parameters<typeof getFields>[0];
-    transformedCustomMetrics: ReturnType<
-        typeof customMetricsSchemaTransformed.parse
-    >;
-    tableCalculations: ExpressionQueryConfig['tableCalculations'];
-}): ResolvedField[] => {
-    const customMetricFields = populateCustomMetricsSQL(
-        filterAggregationCustomMetrics(transformedCustomMetrics),
-        explore,
-    ).flatMap((additionalMetric) => {
+const makeAdditionalMetricFields = (
+    explore: Parameters<typeof getFields>[0],
+    additionalMetrics: AdditionalMetric[],
+): ResolvedField[] =>
+    additionalMetrics.flatMap((additionalMetric) => {
         const table = explore.tables[additionalMetric.table];
         if (!table) return [];
         const metric = convertAdditionalMetric({ additionalMetric, table });
@@ -313,12 +343,27 @@ const makeQueryFields = ({
         ];
     });
 
-    return [
-        ...makeExploreFields(explore),
-        ...customMetricFields,
-        ...makeTableCalculationFields(tableCalculations),
-    ];
-};
+const makeQueryFields = ({
+    explore,
+    transformedCustomMetrics,
+    tableCalculations,
+}: {
+    explore: Parameters<typeof getFields>[0];
+    transformedCustomMetrics: ReturnType<
+        typeof customMetricsSchemaTransformed.parse
+    >;
+    tableCalculations: ExpressionQueryConfig['tableCalculations'];
+}): ResolvedField[] => [
+    ...makeExploreFields(explore),
+    ...makeAdditionalMetricFields(
+        explore,
+        populateCustomMetricsSQL(
+            filterAggregationCustomMetrics(transformedCustomMetrics),
+            explore,
+        ),
+    ),
+    ...makeTableCalculationFields(tableCalculations),
+];
 
 const getFieldMatches = (
     fields: ResolvedField[],
@@ -667,7 +712,7 @@ const getPositionalRelativeDateRepairExample = ({
         count === null ||
         !Number.isInteger(count) ||
         count <= 0 ||
-        !isRelativeDateUnit(unitScalar.value) ||
+        toRelativeDateUnit(unitScalar.value) === null ||
         strictBoolean(completedScalar) === null
     ) {
         return null;
@@ -697,7 +742,7 @@ const convertStandardValues = ({
     source: FilterExpressionSource;
 }): ResolutionResult<RawFilterValue[]> => {
     const values: RawFilterValue[] = [];
-    for (const scalar of rule.arguments) {
+    for (const [index, scalar] of rule.arguments.entries()) {
         switch (field.filterType) {
             case FilterType.STRING:
                 values.push(scalar.value);
@@ -757,7 +802,9 @@ const convertStandardValues = ({
                         }),
                     );
                 }
-                values.push(scalar.value);
+                values.push(
+                    widenInclusiveUpperBound({ rule, field, scalar, index }),
+                );
                 break;
             default:
                 return assertUnreachable(
@@ -864,7 +911,8 @@ const resolveRelativeDateRule = ({
         );
     }
 
-    if (!isRelativeDateUnit(unitSetting.value.value)) {
+    const unitOfTime = toRelativeDateUnit(unitSetting.value.value);
+    if (unitOfTime === null) {
         return failure(
             invalidValueError({
                 source,
@@ -910,7 +958,7 @@ const resolveRelativeDateRule = ({
         operator: rule.operator.value,
         values: [count],
         settings: {
-            unitOfTime: unitSetting.value.value,
+            unitOfTime,
             completed,
         },
     });
@@ -1039,7 +1087,8 @@ const resolveCurrentDateRule = ({
     source: FilterExpressionSource;
 }): ResolutionResult<RawFilterRule> => {
     const unitScalar = rule.arguments[0];
-    if (!unitScalar || !isRelativeDateUnit(unitScalar.value)) {
+    const unit = unitScalar ? toRelativeDateUnit(unitScalar.value) : null;
+    if (!unitScalar || unit === null) {
         return failure(
             invalidValueError({
                 source,
@@ -1052,7 +1101,7 @@ const resolveCurrentDateRule = ({
                 example: unitScalar
                     ? replaceScalarInRuleExample({
                           expressionInput,
-                          replacementValue: 'days',
+                          replacementValue: 'months',
                           rule,
                           scalar: unitScalar,
                       })
@@ -1066,7 +1115,7 @@ const resolveCurrentDateRule = ({
         rule,
         field,
         source,
-        unit: unitScalar.value,
+        unit,
     });
     if (!boundsResult.success) return boundsResult;
 
@@ -1077,7 +1126,7 @@ const resolveCurrentDateRule = ({
         operator: rule.operator.value,
         values: [1],
         settings: {
-            unitOfTime: unitScalar.value,
+            unitOfTime: unit,
             completed: false,
             ...boundsResult.data,
         },
@@ -2121,17 +2170,22 @@ const resolveQueryFilters = ({
 export const resolveExploreFilterExpressions = ({
     filters,
     explore,
+    additionalMetrics,
 }: {
     filters: Omit<
         NonNullable<ExpressionQueryConfig['filters']>,
         'tableCalculations'
     > | null;
     explore: Explore;
+    additionalMetrics: AdditionalMetric[];
 }): ResolutionResult<Filters | null> => {
     const result = resolveQueryFilters({
         filters:
             filters === null ? null : { ...filters, tableCalculations: null },
-        fields: makeExploreFields(explore),
+        fields: [
+            ...makeExploreFields(explore),
+            ...makeAdditionalMetricFields(explore, additionalMetrics),
+        ],
         exploreName: explore.name,
     });
     if (!result.success) return result;

@@ -303,11 +303,11 @@ const Workspace: FC<WorkspaceProps> = ({
                 gap="sm"
             >
                 <Group gap="xs" wrap="nowrap">
-                    <Text fz="sm" fw={600} c="ldGray.9">
+                    <Text fz="sm" fw={600}>
                         Workspace
                     </Text>
                     {route?.project.name ? (
-                        <Text fz="sm" c="ldGray.6" truncate>
+                        <Text fz="sm" c="dimmed" truncate>
                             {route.project.name}
                         </Text>
                     ) : null}
@@ -394,14 +394,14 @@ const Workspace: FC<WorkspaceProps> = ({
                                 >
                                     <Group gap="xs">
                                         <Loader size="sm" />
-                                        <Text fz="sm" c="ldGray.6">
+                                        <Text fz="sm" c="dimmed">
                                             Loading file…
                                         </Text>
                                     </Group>
                                 </Center>
                             ) : (
                                 <Center className={styles.editorEmpty}>
-                                    <Text fz="sm" c="ldGray.6">
+                                    <Text fz="sm" c="dimmed">
                                         Pick a file to start
                                     </Text>
                                 </Center>

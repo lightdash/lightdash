@@ -1,4 +1,4 @@
-import { generateText, stepCountIs, tool } from 'ai';
+import { generateText, isStepCount, tool } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -68,7 +68,7 @@ describe('TurnTimingTracker', () => {
         const result = await generateText({
             model: withNonStreamingProviderTiming(model, tracker),
             prompt: 'Count orders',
-            stopWhen: stepCountIs(2),
+            stopWhen: isStepCount(2),
             tools: {
                 runQuery: tool({
                     inputSchema: z.object({}),
@@ -78,17 +78,17 @@ describe('TurnTimingTracker', () => {
                     },
                 }),
             },
-            experimental_onToolCallStart: ({ toolCall }) => {
+            onToolExecutionStart: ({ toolCall }) => {
                 tracker.recordToolCallStart(
                     toolCall.toolCallId,
                     toolCall.toolName,
                 );
             },
-            experimental_onToolCallFinish: (event) => {
+            onToolExecutionEnd: (event) => {
                 expect(event.toolOutput.type).toBe('tool-error');
                 tracker.recordToolCallEnd(event.toolCall.toolCallId);
             },
-            onStepFinish: (step) => {
+            onStepEnd: (step) => {
                 tracker.completeStep(0, step.toolCalls.length);
             },
         });

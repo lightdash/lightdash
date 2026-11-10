@@ -1,9 +1,9 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { MessageTimingIndicator } from './MessageTimingIndicator';
 
 describe('MessageTimingIndicator', () => {
-    it('shows response timing by default', () => {
+    it('keeps response timing behind a clock icon tooltip', async () => {
         renderWithProviders(
             <MessageTimingIndicator
                 responseTiming={{
@@ -16,7 +16,13 @@ describe('MessageTimingIndicator', () => {
             />,
         );
 
-        expect(screen.getByText('1.3s · 12.0s')).toBeVisible();
+        expect(screen.queryByText('1.3s · 12.0s')).not.toBeInTheDocument();
+        fireEvent.mouseEnter(
+            screen.getByRole('button', { name: 'Response timing' }),
+        );
+        expect(
+            await screen.findByText('First token 1.3s · total 12.0s'),
+        ).toBeInTheDocument();
     });
 
     it('shows the battle medal and token counts', () => {

@@ -1,16 +1,9 @@
 import { type AiAgentThread } from '@lightdash/common';
-import {
-    Box,
-    Divider,
-    Flex,
-    getDefaultZIndex,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Divider, Flex, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCrop, IconInfoCircle } from '@tabler/icons-react';
 import {
     Fragment,
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -65,11 +58,7 @@ const CompactionDivider = () => (
             pos="absolute"
             top="50%"
             left="50%"
-            style={{
-                transform: 'translate(-50%, -50%)',
-                backgroundColor: 'var(--mantine-color-body)',
-                whiteSpace: 'nowrap',
-            }}
+            className={styles.compactionLabel}
         >
             <IconCrop
                 size={14}
@@ -115,6 +104,22 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     onChoiceSelect,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
+    const composerFooter = useRef<HTMLDivElement>(null);
+    const hasComposer = !!children;
+    // Reveals (scrollIntoView, focus, find) must stop above the sticky composer.
+    useEffect(() => {
+        const viewportEl = viewport.current;
+        const footerEl = composerFooter.current;
+        if (!viewportEl || !footerEl) return undefined;
+        const observer = new ResizeObserver(() => {
+            viewportEl.style.setProperty(
+                '--chat-composer-height',
+                `${footerEl.offsetHeight}px`,
+            );
+        });
+        observer.observe(footerEl);
+        return () => observer.disconnect();
+    }, [hasComposer]);
     const { data: mcpServers } = useAgentAiMcpServers(projectUuid, agentUuid, {
         enabled: !!projectUuid && !!agentUuid,
     });
@@ -191,10 +196,10 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
             ref={viewport}
             direction="column"
             h={height}
-            style={{ flexGrow: 1, overflowY: 'auto' }}
+            className={styles.viewport}
             pt="md"
         >
-            <Flex direction="column" style={{ flexGrow: 1, minHeight: '100%' }}>
+            <Flex direction="column" className={styles.content}>
                 <Stack
                     w={ChatElementsUtils.centeredElementProps.w}
                     maw={ChatElementsUtils.centeredElementProps.maw}
@@ -204,7 +209,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     gap="xl"
                     flex={1}
                 >
-                    <Stack flex={1}>
+                    <Stack flex={1} gap="lg">
                         {projectUuid && (
                             <ThreadSetupHeader
                                 thread={thread}
@@ -255,6 +260,10 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                                 }
                                                 isLastMessage={
                                                     i === xs.length - 1
+                                                }
+                                                canRetry={
+                                                    thread.createdFrom !==
+                                                    'slack'
                                                 }
                                                 debug={debug}
                                                 projectUuid={projectUuid}
@@ -324,11 +333,11 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
 
                 {children ? (
                     <Box
+                        ref={composerFooter}
                         className={styles.composerFooter}
                         pos="sticky"
                         bottom={0}
                         w="100%"
-                        style={{ zIndex: getDefaultZIndex('app') - 1 }}
                     >
                         {children}
                     </Box>

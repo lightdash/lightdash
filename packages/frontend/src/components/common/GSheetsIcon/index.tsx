@@ -1,20 +1,9 @@
 import { type TablerIconsProps } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { forwardRef } from 'react';
 import GsheetsFilledSvg from '../../../svgs/google-sheets-filled.svg?react';
 import GsheetsSvg from '../../../svgs/google-sheets.svg?react';
-
-const iconStyles = {
-    width: '16px',
-    height: '16px',
-};
-
-const filledIconStyles = {
-    width: '16px',
-    height: '16px',
-    path: {
-        strokeWidth: 4,
-    },
-};
+import classes from './GSheetsIcon.module.css';
 
 export const GSheetsIcon = forwardRef<SVGSVGElement, TablerIconsProps>(
     (props, ref) => {
@@ -29,7 +18,7 @@ export const GSheetsIcon = forwardRef<SVGSVGElement, TablerIconsProps>(
             <GsheetsSvg
                 {...svgProps}
                 ref={ref}
-                style={{ ...iconStyles, ...props.style }}
+                className={clsx(classes.icon, props.className)}
             />
         );
     },
@@ -48,7 +37,7 @@ export const GSheetsIconFilled = forwardRef<SVGSVGElement, TablerIconsProps>(
             <GsheetsFilledSvg
                 {...svgProps}
                 ref={ref}
-                style={{ ...filledIconStyles, ...props.style }}
+                className={clsx(classes.icon, props.className)}
             />
         );
     },

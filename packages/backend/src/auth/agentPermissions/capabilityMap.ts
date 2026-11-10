@@ -40,6 +40,7 @@ export const MCP_TOOL_CAPABILITIES = {
     list_projects: [AgentCapability.ReadDiscover],
     list_skills: [AgentCapability.ReadDiscover],
     list_verified_content: [AgentCapability.ReadDiscover],
+    query: [AgentCapability.Query],
     read_content: [AgentCapability.ReadDiscover],
     read_skill: [AgentCapability.ReadDiscover],
     read_skill_resource: [AgentCapability.ReadDiscover],
@@ -47,7 +48,6 @@ export const MCP_TOOL_CAPABILITIES = {
     resolve_url: [AgentCapability.ReadDiscover],
     route_agent: [AgentCapability.ReadDiscover],
     run_ai_writeback: [AgentCapability.DbtWriteback],
-    run_composer_queries: [AgentCapability.Query],
     run_metric_query: [AgentCapability.Query],
     run_sql: [AgentCapability.RawSql],
     search_field_values: [AgentCapability.Query],
@@ -300,13 +300,16 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AiAgentController.getAgentSuggestions': [AgentCapability.ReadDiscover],
     'AiAgentController.getAgentThread': [AgentCapability.ReadDiscover],
-    'AiAgentController.getAgentThreadMessageQueryPipelines': [
+    'AiAgentController.getAgentThreadComposerNodes': [
         AgentCapability.ReadDiscover,
     ],
-    'AiAgentController.getAgentThreadMessageQueryPipelineVizQuery': [
+    'AiAgentController.getAgentThreadNodeCitationPipeline': [
+        AgentCapability.ReadDiscover,
+    ],
+    'AiAgentController.getAgentThreadNodeCitationVizQuery': [
         AgentCapability.Query,
     ],
-    'AiAgentController.getAgentThreadMessageQueryPipelineResults': [
+    'AiAgentController.getAgentThreadNodeCitationQueryResults': [
         AgentCapability.ReadDiscover,
     ],
     'AiAgentController.getAgentThreadLiveStatuses': [
@@ -348,6 +351,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.listMcpServers': [AgentCapability.ReadDiscover],
     'AiAgentController.listProjectThreads': [AgentCapability.ReadDiscover],
     'AiAgentController.pinAgentThread': [AgentCapability.ContentWrite],
+    'AiAgentController.previewVisualizeSlackChart': [
+        AgentCapability.Administration,
+    ],
     'AiAgentController.refreshMcpServerTools': [AgentCapability.Administration],
     'AiAgentController.renameMcpServer': [AgentCapability.Administration],
     'AiAgentController.restoreAgentThreadDataAppVersion': [
@@ -602,6 +608,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.installRegistryChartType': [
         AgentCapability.ContentWrite,
     ],
+    'AppGenerateController.installStarterChartTypes': [
+        AgentCapability.ContentWrite,
+    ],
     'AppGenerateController.iterateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.listDataAppVisualizations': [
         AgentCapability.ReadDiscover,
@@ -623,6 +632,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.uploadImage': [AgentCapability.DeployUpload],
     'AppGenerateController.uploadThumbnail': [AgentCapability.DeployUpload],
     'AppGenerateController.verifyDataApp': [AgentCapability.Publish],
+    'BigqueryController.getBigQueryDatasetsFromKeyfile': [
+        AgentCapability.ReadDiscover,
+    ],
     'BigquerySSOController.get': [AgentCapability.ReadDiscover],
     'BigquerySSOController.getBigQueryDatabases': [
         AgentCapability.ReadDiscover,
@@ -647,6 +659,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'CatalogController.getMetadata': [AgentCapability.ReadDiscover],
     'CatalogController.getMetric': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricOwners': [AgentCapability.ReadDiscover],
+    'CatalogController.getMetricTables': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsCatalog': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsTree': [AgentCapability.ReadDiscover],
     'CatalogController.getMetricsTreeDetails': [AgentCapability.ReadDiscover],
@@ -747,8 +760,12 @@ export const REST_OPERATION_CAPABILITIES = {
     'DashboardControllerV2.getDashboardSchedulers': [
         AgentCapability.ReadDiscover,
     ],
+    'DashboardControllerV2.invalidateResultsCache': [
+        AgentCapability.Administration,
+    ],
     'AppStateController.deleteSharedState': [AgentCapability.Delete],
     'AppStateController.deleteUserState': [AgentCapability.ContentWrite],
+    'AppStateController.getAdminOverview': [AgentCapability.ReadDiscover],
     'AppStateController.getAppState': [AgentCapability.ReadDiscover],
     'AppStateController.getSharedHistory': [AgentCapability.ReadDiscover],
     'AppStateController.setSharedState': [AgentCapability.ContentWrite],
@@ -756,6 +773,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'DataAppAnalysisController.detect': [AgentCapability.Query],
     'DataAppAnalysisController.getAnalysis': [AgentCapability.ReadDiscover],
     'DataAppAnalysisController.investigate': [AgentCapability.Query],
+    'DataAppAnalysisController.investigateInstruction': [AgentCapability.Query],
     'DataAppAnalysisController.lookup': [AgentCapability.ReadDiscover],
     'DataAppAnalysisController.prompt': [AgentCapability.Query],
     'DashboardAnalysisController.detect': [AgentCapability.Query],
@@ -864,6 +882,15 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnection': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.getExternalConnectionApiUsage': [
+        AgentCapability.ReadDiscover,
+    ],
+    'ExternalConnectionController.getExternalConnectionSchema': [
+        AgentCapability.ReadDiscover,
+    ],
+    'ExternalConnectionController.getLiveSourceFields': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.linkAppExternalConnection': [
         AgentCapability.Administration,
     ],
@@ -882,6 +909,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.proposeExternalConnectionConfig': [
         AgentCapability.Administration,
     ],
+    'ExternalConnectionController.refreshExternalConnectionExplores': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.rotateExternalConnectionSecret': [
         AgentCapability.Administration,
     ],
@@ -898,6 +928,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateExternalConnection': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceFields': [
         AgentCapability.Administration,
     ],
     'ExternalSourceController.commitUpload': [
@@ -1027,11 +1060,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'NotificationsController.updateNotification': [
         AgentCapability.Administration,
     ],
-    'OnboardingAgentController.cancelRun': [AgentCapability.Administration],
-    'OnboardingAgentController.createRun': [AgentCapability.Administration],
-    'OnboardingAgentController.getActiveRun': [AgentCapability.ReadDiscover],
-    'OnboardingAgentController.getFile': [AgentCapability.ReadDiscover],
-    'OnboardingAgentController.getRun': [AgentCapability.ReadDiscover],
     'OrgAppsController.getDataAppActivity': [AgentCapability.ReadDiscover],
     'OrgRoadmapController.followProject': [AgentCapability.Administration],
     'OrgRoadmapController.getOrgRoadmap': [AgentCapability.ReadDiscover],
@@ -1123,7 +1151,7 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DeployUpload,
         AgentCapability.Administration,
     ],
-    'OrganizationController.fetchOrganizationBrand': [
+    'OrganizationBrandController.fetchOrganizationBrand': [
         AgentCapability.Administration,
     ],
     'OrganizationController.getColorPalettes': [AgentCapability.ReadDiscover],
@@ -1132,7 +1160,10 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'OrganizationController.getLearnAccess': [AgentCapability.ReadDiscover],
     'OrganizationController.getOrganization': [AgentCapability.ReadDiscover],
-    'OrganizationController.getOrganizationBrand': [
+    'OrganizationBrandController.getOrganizationBrand': [
+        AgentCapability.ReadDiscover,
+    ],
+    'OrganizationBrandController.getOrganizationBrandLogo': [
         AgentCapability.ReadDiscover,
     ],
     'OrganizationController.getOrganizationMemberByEmail': [
@@ -1160,7 +1191,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'OrganizationController.reassignUserSchedulers': [
         AgentCapability.Administration,
     ],
-    'OrganizationController.saveOrganizationBrand': [
+    'OrganizationBrandController.saveOrganizationBrand': [
         AgentCapability.Administration,
     ],
     'OrganizationController.setActiveColorPalette': [
@@ -1173,6 +1204,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'OrganizationController.updateOrganizationMember': [
+        AgentCapability.Administration,
+    ],
+    'OrganizationBrandController.uploadOrganizationBrandLogo': [
         AgentCapability.Administration,
     ],
     'OrganizationDesignController.clearDefaultDesign': [
@@ -1303,22 +1337,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'OrganizationSsoController.upsertOneLoginConfig': [
         AgentCapability.Administration,
     ],
-    'OrganizationWarehouseCredentialsController.create': [
-        AgentCapability.Administration,
-    ],
-    'OrganizationWarehouseCredentialsController.delete': [
-        AgentCapability.Delete,
-        AgentCapability.Administration,
-    ],
-    'OrganizationWarehouseCredentialsController.get': [
-        AgentCapability.ReadDiscover,
-    ],
-    'OrganizationWarehouseCredentialsController.getAll': [
-        AgentCapability.ReadDiscover,
-    ],
-    'OrganizationWarehouseCredentialsController.update': [
-        AgentCapability.Administration,
-    ],
     'ParametersController.getParameters': [AgentCapability.ReadDiscover],
     'ParametersController.getParametersList': [AgentCapability.ReadDiscover],
     'ParametersController.replaceParameters': [AgentCapability.Administration],
@@ -1446,7 +1464,13 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DbtWriteback,
         AgentCapability.ContentWrite,
     ],
+    'ProjectCoderController.pruneContentAsCodeSnapshots': [
+        AgentCapability.Administration,
+    ],
     'ProjectCoderController.rebaseContentDraft': [AgentCapability.ContentWrite],
+    'ProjectCoderController.releaseContentAsCodeSnapshot': [
+        AgentCapability.Administration,
+    ],
     'ProjectCoderController.renameContentSlug': [AgentCapability.ContentWrite],
     'ProjectCoderController.reopenContentDraft': [AgentCapability.ContentWrite],
     'ProjectCoderController.stampContentAsCodeSettings': [
@@ -1533,6 +1557,15 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.getProjectResultsCacheSettings': [
         AgentCapability.ReadDiscover,
     ],
+    'ProjectController.getProjectResultsCacheStatus': [
+        AgentCapability.ReadDiscover,
+    ],
+    'ProjectController.getProjectResultsCacheStats': [
+        AgentCapability.ReadDiscover,
+    ],
+    'ProjectController.getProjectResultsCacheTtlProjections': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectController.getProjectTableGroups': [AgentCapability.ReadDiscover],
     'ProjectController.getProjectUserWarehouseCredentials': [
         AgentCapability.ReadDiscover,
@@ -1556,6 +1589,7 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Query,
     ],
     'ProjectController.refreshPreAggregates': [AgentCapability.Query],
+    'ProjectController.replaceProjectContext': [AgentCapability.DeployUpload],
     'ProjectController.replaceProjectTableGroups': [
         AgentCapability.Administration,
     ],
@@ -1597,6 +1631,15 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.updateProjectResultsCacheSettings': [
         AgentCapability.Administration,
     ],
+    'ProjectController.invalidateExploresResultsCache': [
+        AgentCapability.Administration,
+    ],
+    'ProjectController.invalidateProjectResultsCache': [
+        AgentCapability.Administration,
+    ],
+    'ProjectController.updateProjectResultsCacheClearSchedule': [
+        AgentCapability.Administration,
+    ],
     'ProjectController.updateQueryTimezoneSettings': [
         AgentCapability.Administration,
     ],
@@ -1610,6 +1653,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectDashboardControllerV2.delete': [AgentCapability.Delete],
     'ProjectDashboardControllerV2.get': [AgentCapability.ReadDiscover],
     'ProjectDashboardControllerV2.getComments': [AgentCapability.ReadDiscover],
+    'ProjectDashboardControllerV2.getTileParameterReferences': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectDashboardControllerV2.update': [AgentCapability.ContentWrite],
     'ProjectDbtSourcesController.createProjectDbtSource': [
         AgentCapability.Administration,
@@ -1759,6 +1805,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'SavedChartControllerV2.getSavedChartSchedulers': [
         AgentCapability.ReadDiscover,
+    ],
+    'SavedChartControllerV2.invalidateResultsCache': [
+        AgentCapability.Administration,
     ],
     'SchedulerAiAugmentationController.deleteAugmentation': [
         AgentCapability.Delete,
@@ -2052,7 +2101,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'apiV1Router GET /health': [AgentCapability.ReadDiscover],
     'chartRegistryAssetRouter GET /assets': [AgentCapability.ReadDiscover],
     'dashboardRouter DELETE /:dashboardUuid': [AgentCapability.Delete],
-    'dashboardRouter GET /:dashboardUuid/views': [AgentCapability.ReadDiscover],
     'dashboardRouter GET /:dashboardUuidOrSlug': [AgentCapability.ReadDiscover],
     'dashboardRouter GET /:dashboardUuidOrSlug/view-stats': [
         AgentCapability.ReadDiscover,
@@ -2066,7 +2114,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'dashboardRouter POST /:dashboardUuid/export': [AgentCapability.Export],
     'dashboardRouter POST /:dashboardUuid/exportCsv': [AgentCapability.Export],
     'dashboardRouter POST /availableFilters': [AgentCapability.ReadDiscover],
-    'dashboardRouter.getDashboardViews': [AgentCapability.ReadDiscover],
     'jobsRouter GET /:jobUuid': [AgentCapability.ReadDiscover],
     'mcpRouter ALL /': [AgentCapability.ReadDiscover],
     'mcpRouter ALL /projects/:projectUuid': [AgentCapability.ReadDiscover],
