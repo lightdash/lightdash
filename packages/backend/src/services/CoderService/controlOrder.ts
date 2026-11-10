@@ -114,6 +114,8 @@ export const getControlOrderAsCode = (
     const slugs = getDerivedControlSlugs(sources);
     const slugOf = (kind: OrderableKind, id: string) =>
         slugs[kind].find((control) => control.id === id)?.slug;
+    // Controls saved with a shared id resolve to one slug; write it once so the file uploads
+    const written = new Set<string>();
     return reconcileDashboardControlOrder(sources).flatMap(
         (control): DashboardControlRefAsCode[] => {
             switch (control.kind) {
@@ -121,7 +123,9 @@ export const getControlOrderAsCode = (
                 case DashboardControlRefKind.PARAMETER:
                 case DashboardControlRefKind.SECTION: {
                     const slug = slugOf(control.kind, control.id);
-                    if (slug === undefined) return [];
+                    const key = `${control.kind}:${slug}`;
+                    if (slug === undefined || written.has(key)) return [];
+                    written.add(key);
                     return [
                         {
                             kind: control.kind,
