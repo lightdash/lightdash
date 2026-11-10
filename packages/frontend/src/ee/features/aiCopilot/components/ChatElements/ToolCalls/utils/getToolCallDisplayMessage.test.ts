@@ -1,7 +1,17 @@
+import { ToolNameSchema } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { getToolCallDisplayMessage } from './getToolCallDisplayMessage';
 
 describe('getToolCallDisplayMessage', () => {
+    // A tool with no label renders as an unnamed MCP call.
+    it.each(ToolNameSchema.options)('labels %s', (toolName) => {
+        (['running', 'done'] as const).forEach((status) => {
+            expect(
+                getToolCallDisplayMessage({ toolName, status, calls: [] }),
+            ).toBeTruthy();
+        });
+    });
+
     it.each([
         ['createContent', 'running', 'Creating document'],
         ['createContent', 'done', 'Created document'],
