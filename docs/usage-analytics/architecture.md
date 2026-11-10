@@ -396,6 +396,11 @@ no Terraform/IAM change or read-only cutover is included in this stack.
 - Access errors: check endpoint, bucket and configured key permissions without
   printing keys, SDK request details or signed URLs. A new query can recover from
   URL expiry; it cannot fix revoked or incorrectly scoped source credentials.
+- Query failures: search the API logs (or the warehouse worker logs when using
+  NATS) for `Usage analytics query failed` and the query UUID. The `stage` and
+  `reason` fields distinguish SQL validation, storage and DuckDB resource failures
+  without logging query text or signed URLs. For suspected pod OOM kills, check
+  the container's last termination reason (`OOMKilled`) and restart timestamp.
 - Provisioning latency includes storage access. Large org histories can hit the
   listing/file caps; freshness, caching, pagination scale and long-running query
   behavior require further work before production (PROD-11111). Caps fail rather

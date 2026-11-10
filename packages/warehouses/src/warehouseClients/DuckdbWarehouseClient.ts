@@ -39,6 +39,10 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import {
+    classifyAnalyticsQueryFailure,
+    type AnalyticsQueryStage,
+} from './AnalyticsQueryFailure';
+import {
     getEmbeddedDatabaseFileName,
     resolveEmbeddedBundleDatabasePath,
 } from './duckdbEmbeddedBundle';
@@ -83,6 +87,12 @@ type DuckdbConnection = {
     closeSync?: () => void;
     disconnectSync?: () => void;
 };
+
+type SetAnalyticsQueryStage = (stage: AnalyticsQueryStage) => void;
+type DuckdbSessionCallback<T> = (
+    db: DuckdbConnection,
+    setStage?: SetAnalyticsQueryStage,
+) => Promise<T>;
 
 type DuckdbInstance = {
     connect: () => Promise<DuckdbConnection>;
@@ -2364,8 +2374,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     }
 
     private async withEphemeralQuerySession<T>(
-        callback: (db: DuckdbConnection) => Promise<T>,
+        callback: DuckdbSessionCallback<T>,
         querySql?: string,
+        setStage?: SetAnalyticsQueryStage,
     ): Promise<T> {
         const sessionStart = performance.now();
         const budget = this.parquetConfig
@@ -2406,6 +2417,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     )
                     .catch(() => undefined);
             }
+            setStage?.('bootstrap');
             const bootstrapTiming =
                 await DuckdbWarehouseClient.bootstrapQuerySession(
                     connection,
@@ -2418,7 +2430,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 throw new Error('Analytics query deadline exceeded');
 
             const queryStart = performance.now();
-            const result = await callback(connection);
+            setStage?.('query_execution');
+            const result = await callback(connection, setStage);
             if (deadlineExceeded)
                 throw new Error('Analytics query deadline exceeded');
             const queryMs = performance.now() - queryStart;
@@ -2469,8 +2482,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 }
                 if (cleanupErrors.length > 0) {
                     this.logger?.warn?.('DuckDB query cleanup failed');
-                    // eslint-disable-next-line no-unsafe-finally -- Preserve primary errors, fail successful queries only.
-                    if (!queryFailed) throw cleanupErrors[0];
+                    if (!queryFailed) {
+                        setStage?.('cleanup');
+                        // eslint-disable-next-line no-unsafe-finally -- Preserve primary errors, fail successful queries only.
+                        throw cleanupErrors[0];
+                    }
                 }
             } finally {
                 budget?.release();
@@ -2543,7 +2559,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     }
 
     private async withSession<T>(
-        callback: (db: DuckdbConnection) => Promise<T>,
+        callback: DuckdbSessionCallback<T>,
         organizationUuid?: string,
         retryable: () => boolean = () => true,
         onPhaseTiming?: (
@@ -2551,6 +2567,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             durationMs: number,
         ) => void,
         querySql?: string,
+        queryUuid?: string,
     ): Promise<T> {
         const releaseOrganizationConcurrency =
             !this.embeddedConfig &&
@@ -2573,10 +2590,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
         try {
             if (this.parquetConfig) {
+                let stage: AnalyticsQueryStage = 'session_setup';
                 try {
                     return await this.withEphemeralQuerySession(
                         callback,
                         querySql,
+                        (nextStage) => {
+                            stage = nextStage;
+                        },
                     );
                 } catch (error) {
                     if (
@@ -2584,6 +2605,16 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                         error instanceof ParquetQueryTimeoutError
                     )
                         throw error;
+                    this.logger?.warn?.('Usage analytics query failed', {
+                        queryUuid:
+                            queryUuid &&
+                            /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(
+                                queryUuid,
+                            )
+                                ? queryUuid
+                                : null,
+                        ...classifyAnalyticsQueryFailure(error, stage),
+                    });
                     throw new WarehouseQueryError(
                         'Internal analytics query failed. Check storage access and query permissions.',
                     );
@@ -3211,7 +3242,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const reportPhase = options?.onPhaseTiming;
         let hasEmittedRows = false;
         await this.withSession(
-            async (db) => {
+            async (db, setStage) => {
                 const sessionStart = performance.now();
                 if (options?.timezone) {
                     if (!this.isMotherduck()) {
@@ -3255,6 +3286,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                         "SET disabled_filesystems = 'LocalFileSystem';",
                     );
                 }
+                setStage?.('sql_validation');
                 if (this.allowsPreAggregateFileReads) {
                     await this.validatePreAggregateSql(db, sql);
                 } else {
@@ -3263,6 +3295,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 reportPhase?.('session', performance.now() - sessionStart);
 
                 const queryStart = performance.now();
+                setStage?.('query_execution');
                 const result = await db.stream(
                     this.getSQLWithMetadata(sql, options?.tags),
                     this.getBindValues(options),
@@ -3278,7 +3311,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                         fetchStart = performance.now();
                     }
                     hasEmittedRows = true;
+                    setStage?.('result_stream');
                     await streamCallback({ fields, rows });
+                    setStage?.('query_execution');
                 }
                 if (fetchStart === undefined) {
                     reportPhase?.('query', performance.now() - queryStart);
@@ -3299,6 +3334,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             () => !hasEmittedRows,
             reportPhase,
             sql,
+            options?.tags?.query_uuid,
         );
     }
 
