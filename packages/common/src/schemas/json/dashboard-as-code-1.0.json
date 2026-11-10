@@ -474,20 +474,6 @@
                     },
                     "type": "array"
                 },
-                "parameterSections": {
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                    "properties": {},
-                    "type": "object"
-                },
-                "parameterSectionSlugs": {
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                    "properties": {},
-                    "type": "object"
-                },
                 "pinnedParameters": {
                     "items": {
                         "type": "string"
@@ -512,7 +498,7 @@
                     "type": "boolean"
                 },
                 "slug": {
-                    "description": "Slug of a filter, parameter control or section in this file",
+                    "description": "Slug of a control of this kind in this file: a filter, parameter control, date zoom control or section",
                     "type": "string"
                 }
             },
@@ -529,17 +515,11 @@
                 "collapsed": {
                     "type": "boolean"
                 },
-                "id": {
-                    "description": "Legacy section identifier accepted on upload.",
-                    "type": "string"
-                },
-                "inline": {
-                    "type": "boolean"
-                },
                 "name": {
                     "type": "string"
                 },
                 "slug": {
+                    "description": "Portable section identifier; absent, derived from the name.",
                     "type": "string"
                 }
             },
@@ -880,18 +860,11 @@
                 "hidden": {
                     "type": "boolean"
                 },
-                "id": {
-                    "description": "Legacy project-local identifier accepted on upload.",
-                    "type": "string"
-                },
                 "label": {
                     "type": ["string", "null"]
                 },
                 "parameters": {
                     "$ref": "#/$defs/Record_string.DashboardParameterTarget_"
-                },
-                "sectionId": {
-                    "type": "string"
                 },
                 "sectionSlug": {
                     "type": "string"
@@ -1227,9 +1200,6 @@
                     "type": "boolean"
                 },
                 "name": {
-                    "type": "string"
-                },
-                "sectionId": {
                     "type": "string"
                 },
                 "sectionSlug": {

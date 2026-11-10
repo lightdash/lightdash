@@ -33,7 +33,7 @@ const DashboardAnalysisAdapterBridge = () => {
     const isEditMode = mode === 'edit';
     const projectUuid = useProjectUuid();
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const availability = useAnalysisAvailability('dashboard');
+    const availability = useAnalysisAvailability();
     const { sources, inFlight } = useDashboardSelector(
         selectDashboardAnalysisSources,
     );
@@ -99,12 +99,8 @@ const DashboardAnalysisAdapterBridge = () => {
         [dashboardStore],
     );
 
-    // Hidden entirely until the org is rolled out; otherwise the panel
-    // explains any remaining reason it is unavailable.
-    const showAnalysis =
-        availability.status === 'available' ||
-        (availability.status === 'unavailable' &&
-            availability.reason !== 'not_rolled_out');
+    // When analysis is unavailable, the panel explains why.
+    const showAnalysis = availability.status !== 'loading';
     const adapter = useMemo<LauncherAnalysisAdapter | null>(
         () =>
             projectUuid && target && showAnalysis && !isEditMode

@@ -13,6 +13,7 @@ import {
 import { Button, Flex, Group, Tabs, Tooltip } from '@mantine/core';
 import { useMergedRef } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { cloneDeep } from 'es-toolkit/compat';
 import { produce } from 'immer';
 import {
@@ -62,6 +63,7 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
+import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
@@ -1068,9 +1070,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         >
                                             <Button
                                                 ml="sm"
-                                                size="sm"
-                                                fz="sm"
-                                                variant="subtle"
+                                                size="xs"
+                                                variant="default"
+                                                className={clsx(
+                                                    addFilterClasses.dashed,
+                                                    styles.newTabButton,
+                                                )}
                                                 flex="0 0 auto"
                                                 disabled={!canAddTab}
                                                 leftSection={

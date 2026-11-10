@@ -102,8 +102,6 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         embeddingEnabled,
         dataAppsFlag,
-        dataAppAnalysisFlag,
-        dashboardAnalysisFlag,
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         externalSourcesFlag,
@@ -117,8 +115,9 @@ export const useSettingsNavigation = (
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    const isDataAppAnalysisEnabled = dataAppAnalysisFlag?.enabled ?? false;
-    const isDashboardAnalysisEnabled = dashboardAnalysisFlag?.enabled ?? false;
+    // AI analysis (data apps and dashboards) is available wherever AI is; its
+    // settings page hosts the shared consent toggle.
+    const isAiAnalysisAvailable = isAiCopilotEnabledOrTrial;
     const isExternalSourcesEnabled =
         (externalSourcesFlag?.enabled ?? false) &&
         (health?.externalSources.engineAvailable ?? false);
@@ -395,7 +394,7 @@ export const useSettingsNavigation = (
             }
 
             if (
-                (isDataAppAnalysisEnabled || isDashboardAnalysisEnabled) &&
+                isAiAnalysisAvailable &&
                 ability?.can('manage', 'Organization')
             ) {
                 dataAppChildren.push({
@@ -441,7 +440,7 @@ export const useSettingsNavigation = (
             // Dashboard analysis shares the consent toggle that lives on the
             // data-apps AI-analysis page; surface it even without data apps.
             if (
-                isDashboardAnalysisEnabled &&
+                isAiAnalysisAvailable &&
                 ability?.can('manage', 'Organization')
             ) {
                 organizationItems.push({
@@ -1424,8 +1423,7 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         isEmbeddingEnabled,
         isDataAppsEnabled,
-        isDataAppAnalysisEnabled,
-        isDashboardAnalysisEnabled,
+        isAiAnalysisAvailable,
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,

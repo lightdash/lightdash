@@ -1,18 +1,15 @@
 import {
     DashboardControlRefKind,
     reconcileDashboardControlOrder,
-    type DashboardControlSection,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    groupSectionsIntoLines,
     moveControlBy,
     placeControl,
     placeSectionChanges,
     getEffectiveControlOrder,
-    removeSectionKeepingLines,
 } from './controlOrder';
 import {
     countSectionChanges,
@@ -407,28 +404,6 @@ describe('getMoveNeighbours', () => {
             before: null,
             after: null,
         });
-    });
-});
-
-describe('section lines', () => {
-    const a = { id: 'a', name: 'A' };
-    const b: DashboardControlSection = { id: 'b', name: 'B', inline: true };
-    const c = { id: 'c', name: 'C' };
-    const d: DashboardControlSection = { id: 'd', name: 'D', inline: true };
-    const lineIds = (list: DashboardControlSection[]) =>
-        groupSectionsIntoLines(list).map((line) => line.map(({ id }) => id));
-
-    it('starts a line at every section that is not inline, the first always', () => {
-        expect(lineIds([{ ...a, inline: true }, b, c, d])).toEqual([
-            ['a', 'b'],
-            ['c', 'd'],
-        ]);
-    });
-
-    it('keeps a line start when its first section is removed', () => {
-        const next = removeSectionKeepingLines([a, b, c, d], 'a');
-        expect(lineIds(next)).toEqual([['b'], ['c', 'd']]);
-        expect(next[0]).not.toHaveProperty('inline');
     });
 });
 

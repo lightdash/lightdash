@@ -116,13 +116,9 @@ export default function AppPreviewTest() {
     const { rolloverLogs } = inspector;
 
     // "Analyse this view": host-side AI analysis over the queries the app
-    // ran. Hidden entirely until the org is rolled out; otherwise the panel
-    // explains any remaining reason it is unavailable.
+    // ran. When it's unavailable, the panel explains why.
     const analysisAvailability = useDataAppAnalysisAvailability();
-    const showAnalysis =
-        analysisAvailability.status === 'available' ||
-        (analysisAvailability.status === 'unavailable' &&
-            analysisAvailability.reason !== 'not_rolled_out');
+    const showAnalysis = analysisAvailability.status !== 'loading';
     // Manual refresh: bumping the counter changes the iframe URL, forcing a
     // reload so the app's metric queries re-fire. `invalidateCache` latches on
     // with the first refresh so those re-fired queries bypass the warehouse

@@ -160,9 +160,8 @@ export const getDashboardControls = (
  * membership comes from `sectionId`. Dangling, duplicate and
  * unknown-kind refs are dropped, unmentioned controls trail their container
  * in the default order (dimension filters, metric filters, parameter
- * controls, then sections) on the line before them. With no list, lines
- * follow the sections' `inline`: the first section and every section not
- * `inline` start a line.
+ * controls, then sections) on the line before them. With no list, every
+ * section starts a line.
  */
 export const reconcileDashboardControlOrder = (
     sources: DashboardControlSources,
@@ -195,18 +194,13 @@ export const reconcileDashboardControlOrder = (
     });
     const placed = new Set(mentioned.map(({ control }) => control));
     const hasList = mentioned.length > 0;
-    let sectionsSeen = 0;
     const unmentioned = controls
         .filter((control) => !placed.has(control))
-        .map((control) => {
-            if (hasList || control.kind !== DashboardControlRefKind.SECTION)
-                return { control, newLine: false };
-            sectionsSeen += 1;
-            return {
-                control,
-                newLine: sectionsSeen === 1 || control.section.inline !== true,
-            };
-        });
+        .map((control) => ({
+            control,
+            newLine:
+                !hasList && control.kind === DashboardControlRefKind.SECTION,
+        }));
     const sequence = [...mentioned, ...unmentioned];
 
     const containerOf = (sectionId: string | null) =>

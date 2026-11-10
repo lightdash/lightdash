@@ -1,3 +1,22 @@
+# [3.201.0](https://github.com/lightdash/lightdash/compare/3.200.0...3.201.0) (2026-11-10)
+
+
+### Features
+
+* **dashboards:** condensed dashboard tab bar on short screens ([#32328](https://github.com/lightdash/lightdash/issues/32328)) ([200d976](https://github.com/lightdash/lightdash/commit/200d9762d7247ea185fad860a201e308ed12c3bc))
+
+# [3.200.0](https://github.com/lightdash/lightdash/compare/3.199.0...3.200.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **embed:** keep the app name out of iframe embed titles and PDF exports ([#32324](https://github.com/lightdash/lightdash/issues/32324)) ([93e356a](https://github.com/lightdash/lightdash/commit/93e356a68bf01d78282404753a2925a18a9b1be7))
+
+
+### Features
+
+* **data-apps:** graduate AI analysis for data apps and dashboards ([#32337](https://github.com/lightdash/lightdash/issues/32337)) ([92a8795](https://github.com/lightdash/lightdash/commit/92a879582c1233f8f7c08ff3e67f7e1f9779f3e7))
+
 # [3.199.0](https://github.com/lightdash/lightdash/compare/3.198.1...3.199.0) (2026-11-10)
 
 
