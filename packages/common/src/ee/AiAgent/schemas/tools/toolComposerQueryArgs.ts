@@ -214,7 +214,7 @@ const composerCustomMetricSchema = z.object({
     filter: filterExpressionInputSchema
         .nullish()
         .describe(
-            'Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. "orders_status equals=completed". Null aggregates every row.',
+            'Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. `orders_status equals="completed"`. Null aggregates every row.',
         ),
 });
 

@@ -20,7 +20,7 @@ import {
 } from '../tools/toolRunQueryArgs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
-import { FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE } from './examples';
+import { FILTER_EXPRESSION_STRING_VALUES_EXAMPLE } from './examples';
 import {
     filterExpressionDateUnits,
     filterExpressionOperatorDefinitions,
@@ -94,7 +94,7 @@ const getFilterTypeGrammar = (filterType: FilterType): string => {
 export const getFilterExpressionGrammarDescription = (
     connectorPolicy: FilterExpressionConnectorPolicy,
 ): string => `- ${connectorInstructionByPolicy[connectorPolicy]}
-- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`${FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE}\`.
+- Double-quote every string-field value; an unquoted value stops at the first space or punctuation. Commas outside quotes separate values: \`${FILTER_EXPRESSION_STRING_VALUES_EXAMPLE}\`. Inside quotes, escape \`"\` and \`\\\` with a backslash.
 - Limits: ${FILTER_EXPRESSION_MAX_RULES} rules; ${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values including settings/rule; ${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters/literal; ${FILTER_EXPRESSION_MAX_LENGTH} characters/expression.
 
 ${Object.values(FilterType).map(getFilterTypeGrammar).join('\n\n')}`;
