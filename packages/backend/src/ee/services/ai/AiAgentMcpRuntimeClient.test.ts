@@ -192,6 +192,28 @@ describe('hardenMcpToolDefinition', () => {
         expect(output.content[1].text).toMatch(/\n\[truncated by Lightdash\]$/);
     });
 
+    it('falls back to the placeholder when structure alone exceeds the cap', async () => {
+        const hardened = hardenMcpToolDefinition({
+            inputSchema: jsonSchema({ type: 'object' }),
+            execute: vi
+                .fn()
+                .mockResolvedValue(
+                    Array.from({ length: 1_000 }, () =>
+                        Array.from({ length: 1_000 }, () => []),
+                    ),
+                ),
+        } as never);
+
+        expect(await hardened.execute?.({}, {} as never)).toEqual({
+            content: [
+                {
+                    type: 'text',
+                    text: '[Untrusted remote MCP output; content truncated by Lightdash]',
+                },
+            ],
+        });
+    });
+
     it('keeps short escaped text output whole', async () => {
         const hardened = hardenMcpToolDefinition({
             inputSchema: jsonSchema({ type: 'object' }),

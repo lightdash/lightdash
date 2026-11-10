@@ -184,7 +184,7 @@ const hardenMcpOutput = (value: unknown): unknown => {
     // Escaping and JSON encoding grow the bounded value, so shrink the raw
     // budget until the serialized output fits.
     let budget = MCP_TOOL_OUTPUT_MAX_CHARS;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 4 && budget > 0; attempt += 1) {
         const hardened = markMcpOutputAsUntrusted(
             sanitizeBoundedMcpValue(value, budget),
         );
