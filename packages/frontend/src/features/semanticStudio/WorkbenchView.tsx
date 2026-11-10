@@ -25,7 +25,6 @@ import {
     IconEye,
     IconFileCode,
     IconSearch,
-    IconSparkles,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -678,6 +677,7 @@ const Rail: FC<{
             <Box className={classes.railHeader}>
                 <TextInput
                     size="xs"
+                    flex={1}
                     placeholder="Search"
                     aria-label="Search explores and fields"
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
@@ -696,6 +696,7 @@ const Rail: FC<{
                             : undefined
                     }
                 />
+                <AddSourceButton view={view} />
             </Box>
             {search.isSearching ? (
                 <SearchResultsList
@@ -1029,22 +1030,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             projectUuid={view.project.id}
                                         />
                                     )}
-                                    {pane === 'review' ? null : (
-                                        <AddSourceButton view={view} />
-                                    )}
                                     {chat.isAvailable && !isChatOpen ? (
                                         <Button
                                             size="xs"
-                                            variant="default"
+                                            variant="light"
+                                            color="indigo"
                                             flex="none"
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconSparkles}
-                                                />
-                                            }
                                             onClick={() => setIsChatOpen(true)}
                                         >
-                                            Ask the agent
+                                            Build
                                         </Button>
                                     ) : null}
                                 </Group>
