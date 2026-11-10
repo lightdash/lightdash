@@ -78,7 +78,7 @@ Cartesian charts support:
 - **`stack`**: Stacking mode for bar/area charts: `"stack"` for normal stacking, `"stack100"` for 100% stacking, `"none"` or omitted for no stacking
 - **`colorByCategory`**: Color each bar by its x-axis category value instead of using a single series color (default: `false`). Use this instead of adding a pivot/group-by dimension just for coloring.
 - **`categoryColorOverrides`**: Map of category value to hex color (e.g., `{"McLaren": "#FF8700"}`). Only applies when `colorByCategory` is `true`.
-- **`showIncompletePeriod`**: Marks the unfinished current period (this week, this month) with hatched bars and, on unstacked lines, a dashed segment. Set `true` when the user asks to mark, flag, or format the partial, incomplete, or in-progress period; `false` when they want it drawn like the others.
+- **`showIncompletePeriod`**: Marks the unfinished current period (this week, this month) with hatched bars and, on lines other than stacked areas, a dashed segment. Set `true` when the user asks to mark, flag, or format the partial, incomplete, or in-progress period; `false` when they want it drawn like the others.
     - Works only when `xField` is a date dimension truncated to a time interval (`_day`, `_week`, `_month`, `_quarter`, `_year`, `_hour`, `_minute`). On any other x field the setting is ignored.
     - New charts get `true` unless you set it. An existing chart without the key keeps it off, so add it when editing.
     - SQL charts cannot mark incomplete periods; see `sql-chart-reference`.

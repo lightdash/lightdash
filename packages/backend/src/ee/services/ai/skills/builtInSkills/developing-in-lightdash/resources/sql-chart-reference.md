@@ -93,7 +93,6 @@ Every `config` has `metadata: { "version": 1 }` and `type` equal to `chartKind`.
 
 ```json
 {
-    "legend": { "align": "center", "position": "bottom" },
     "series": {
         "order_count_sum": {
             "color": "#4C6EF5",
@@ -125,7 +124,6 @@ Every `config` has `metadata: { "version": 1 }` and `type` equal to `chartKind`.
 | `series.*.whichYAxis`                 | put a series on a second (right) axis        | `1` for right, `0` for left (default). Label and format the right axis in `yAxis[1]`.                                                                                          |
 | `seriesOrder`                         | reorder series or stacked segments           | Series keys, drawn first to last; the first sits at the bottom of a stack.                                                                                                     |
 | `stack`                               | stack bars                                   | `true`, `"stack"`, or `"stack100"`.                                                                                                                                            |
-| `legend`                              | move the legend                              | `{ "position": "top" \| "bottom" \| "left" \| "right", "align": "start" \| "center" \| "end" }`, both required.                                                                |
 
 Key `series` and `seriesOrder` by series column: `<reference>_<aggregation>` (`order_count_sum`), or with `groupBy` one per group value, `<reference>_<aggregation>_<value>` (`order_count_sum_completed`). A `series` entry keyed by the bare y `reference` covers every series from that column that has no exact entry. `readContent` shows the keys an existing chart uses.
 
@@ -205,6 +203,7 @@ SQL chart config has no key for these; they exist only on charts built from an e
 - **Axis ranges, tick intervals, and stack totals** (`min`/`max`, `minInterval`, `stackLabel`).
 - **Conditional formatting**, except on `big_number` (`display.conditionalFormatting` above).
 - **In-cell bars in tables** (`displayStyle: "bar"`): SQL tables render plain values.
+- **Legend position**: SQL charts place the legend at the top whenever there is more than one series.
 
 ## Reading
 
