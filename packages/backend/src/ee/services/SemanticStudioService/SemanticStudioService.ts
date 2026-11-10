@@ -361,10 +361,11 @@ export class SemanticStudioService extends BaseService {
             proposed.writes,
         );
         const results = proposed.results[draft.changes.length].map((result) => {
+            if (result.status !== 'ready') return result;
             const error = check.rejected.get(result.model);
-            return result.status === 'ready' && error !== undefined
-                ? failed(result, error)
-                : result;
+            return error === undefined
+                ? { ...result, notes: check.notes.get(result.model) ?? [] }
+                : failed(result, error);
         });
         const passing = models.filter(
             (_model, index) => results[index].status === 'ready',

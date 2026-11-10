@@ -13,7 +13,14 @@ import type {
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 const renderProposedModel = (
-    { model, status, changes, refusals, error }: SemanticLayerDraftItemResult,
+    {
+        model,
+        status,
+        changes,
+        refusals,
+        error,
+        notes,
+    }: SemanticLayerDraftItemResult,
     advice: string[],
 ): string =>
     [
@@ -29,6 +36,7 @@ const renderProposedModel = (
               ]
             : []),
         ...(error ? [`  error: ${error}`] : []),
+        ...notes.map((note) => `  note: ${note}`),
         ...advice.map((line) => `  advice: ${line}`),
     ].join('\n');
 

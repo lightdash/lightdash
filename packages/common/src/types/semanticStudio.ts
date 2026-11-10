@@ -51,6 +51,8 @@ export type SemanticLayerDraftItemResult = {
     changes: ModelFragmentChange[];
     refusals: ModelFragmentRefusal[];
     error: string | null;
+    /** What a person should confirm about a model that passed, such as a relationship measured on part of a table. */
+    notes: string[];
 };
 
 /** What one drafted change does to one model, as the agent asked for it. */

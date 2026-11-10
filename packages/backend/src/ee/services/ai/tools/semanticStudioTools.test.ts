@@ -52,6 +52,7 @@ describe('getProposeSemanticLayerChange', () => {
                         changes: [{ path: 'metrics.total', action: 'added' }],
                         refusals: [],
                         error: null,
+                        notes: [],
                     },
                 ],
                 diffs: [
@@ -85,6 +86,7 @@ describe('getProposeSemanticLayerChange', () => {
                         changes: [],
                         refusals: [],
                         error: 'bad YAML',
+                        notes: [],
                     },
                 ],
                 diffs: [],
