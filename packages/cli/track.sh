@@ -1,8 +1,6 @@
 #!/bin/bash
 # Send anonymous tracking events to rudderstack so we can monitor installations and errors
 
-INSTALLATION_ID=$(curl -s 'https://www.uuidgenerator.net/api/version4')
-
 os=""
 
 is_mac() {
@@ -93,6 +91,7 @@ fi
 track() {
 
   check_os
+  INSTALLATION_ID=$(curl -s 'https://www.uuidgenerator.net/api/version4')
   
   DATA='{
     "anonymousId":"'"$INSTALLATION_ID"'",
