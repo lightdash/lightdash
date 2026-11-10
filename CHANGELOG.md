@@ -1,3 +1,10 @@
+# [3.196.0](https://github.com/lightdash/lightdash/compare/3.195.2...3.196.0) (2026-11-10)
+
+
+### Features
+
+* **autopilot:** make Autopilot available wherever AI is, and check AI credits ([#32279](https://github.com/lightdash/lightdash/issues/32279)) ([a51a14b](https://github.com/lightdash/lightdash/commit/a51a14b247f6fce0eb59c6cd6a9f8c78d61ef72c))
+
 ## [3.195.2](https://github.com/lightdash/lightdash/compare/3.195.1...3.195.2) (2026-11-10)
 
 
