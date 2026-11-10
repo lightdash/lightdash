@@ -148,7 +148,7 @@ export const getStableIds = <U, S extends { id: string }>(
             uploadedCounts[key] === 1 && savedCounts[key] === 1
                 ? saved.find((candidate) => keyOf(candidate) === key)
                 : undefined;
-        const id = match && !usedIds.has(match.id) ? match.id : uuidv4();
+        const id = match?.id && !usedIds.has(match.id) ? match.id : uuidv4();
         usedIds.add(id);
         return id;
     });

@@ -836,6 +836,18 @@ describe('CoderService', () => {
             expect(new Set(ids).size).toBe(2);
         });
 
+        it('gives a saved filter stored without an id a new one', () => {
+            const saved = [
+                { target, operator: 'equals', values: [1] },
+            ] as AnyType;
+            const uploaded = CoderService.getFiltersWithTileUuids(
+                { filters: { metrics: saved } } as AnyType,
+                [],
+                { metrics: saved },
+            );
+            expect(uploaded.metrics[0].id).toEqual(expect.any(String));
+        });
+
         it('leaves lists absent when the saved dashboard predates them', () => {
             const result = CoderService.getFiltersWithTileSlugs({
                 filters: { dimensions: [] },
