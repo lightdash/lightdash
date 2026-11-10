@@ -8928,6 +8928,23 @@ export class ProjectModel {
         return row !== undefined;
     }
 
+    /** Removes the named explores, never user-managed ones such as virtual views. */
+    async deleteCachedExplores(
+        projectUuid: string,
+        names: string[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            await trx(CachedExploreTableName)
+                .where('project_uuid', projectUuid)
+                .whereIn('name', names)
+                .whereRaw("coalesce(explore->>'type', '') <> ALL(?)", [
+                    [...USER_MANAGED_EXPLORE_TYPES],
+                ])
+                .delete();
+        });
+    }
+
     async deleteApiSourceExplores(
         projectUuid: string,
         connectionUuid: string,

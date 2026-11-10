@@ -191,6 +191,13 @@ export enum FeatureFlags {
     ApiQuerySources = 'api-query-sources',
 
     /**
+     * Keeps the models of a project that has no dbt connection on the server,
+     * and lets the Semantic Studio agent draft changes to them for a person to
+     * apply. Off by default; organization-scoped.
+     */
+    SemanticStudioEditing = 'semantic-studio-editing',
+
+    /**
      * Configurable retention for AI agent threads. Off by default; enabled
      * per-org on demand for enterprise customers.
      */

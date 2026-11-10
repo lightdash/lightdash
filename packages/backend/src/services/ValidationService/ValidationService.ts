@@ -411,10 +411,12 @@ export class ValidationService extends BaseService {
         selectedExplores?: (Explore | ExploreError)[],
         chartUuid?: string,
         allExplores: (Explore | ExploreError)[] = selectedExplores ?? [],
+        chartExploreNames?: string[],
     ): Promise<CreateChartValidation[]> {
         const charts = await this.savedChartModel.findChartsForValidation(
             projectUuid,
             chartUuid,
+            chartExploreNames,
         );
 
         // Only validate charts that are using selected explores
@@ -1071,6 +1073,8 @@ export class ValidationService extends BaseService {
         compiledExplores?: (Explore | ExploreError)[],
         validationTargets?: Set<ValidationTarget>,
         onlyValidateExploresInArgs?: boolean,
+        /** Only charts built on these explores are loaded and checked; the explores given are still the whole project. */
+        chartExploreNames?: string[],
     ): Promise<CreateValidation[]> {
         const hasValidationTargets =
             validationTargets && validationTargets.size > 0;
@@ -1178,6 +1182,7 @@ export class ValidationService extends BaseService {
                       onlyValidateExploresInArgs ? compiledExplores : undefined,
                       undefined,
                       explores,
+                      chartExploreNames,
                   )
                 : [];
 

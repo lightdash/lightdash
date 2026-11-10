@@ -3,6 +3,7 @@ import {
     type ModelFragmentRefusal,
 } from '../lightdash/applyModelFragment';
 import { type ApiSuccess } from './api/success';
+import { type UUID } from './api/uuid';
 import { type Explore } from './explore';
 
 export type SemanticLayerStatus = {
@@ -41,6 +42,16 @@ export type SemanticLayerModelCode = {
 
 export type ApiSemanticLayerModelResponse =
     ApiSuccess<SemanticLayerModelCode | null>;
+
+/** How one model's part of a change fared when it was checked on top of a draft. */
+export type SemanticLayerDraftItemResult = {
+    model: string;
+    /** `ready` passed its checks, `unchanged` changes nothing, `failed` carries the error. */
+    status: 'ready' | 'unchanged' | 'failed';
+    changes: ModelFragmentChange[];
+    refusals: ModelFragmentRefusal[];
+    error: string | null;
+};
 
 /** What one drafted change does to one model, as the agent asked for it. */
 export type SemanticLayerDraftModelInput = {
@@ -114,7 +125,7 @@ export type ApiSemanticLayerDraftImpactResponse =
     ApiSuccess<SemanticLayerDraftImpact>;
 
 export type SemanticLayerUndoRequest = {
-    changeSetUuids: string[];
+    changeSetUuids: UUID[];
 };
 
 export type ApiSemanticLayerUndoResponse = ApiSuccess<{
