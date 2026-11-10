@@ -254,6 +254,20 @@ run = "pnpm -F backend migrate"
 env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
 memory = "12gb"
 
+# A fork inherits the parent's database, seeded once at image build, so a dev
+# seed a branch adds or edits has never run there. This is a full re-seed, not
+# an upsert: the first seed deletes every user and organization, and the
+# cascade takes projects, spaces, charts and dashboards with them, so
+# anything made by hand in the preview is lost and most seeded content gets
+# new uuids. The `jaffle` warehouse schema is untouched, so the dbt steps of
+# [seed] are not repeated. After `migrate`: seeds need the branch's schema.
+[[tier]]
+name = "seed"
+files = ["packages/backend/src/database/seeds/**", "packages/backend/src/ee/database/seeds/**"]
+run = "pnpm -F backend seed"
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # the knexfile adds the EE seeds only with a key set
+memory = "12gb"
+
 [[tier]]
 name = "api-routes"
 files = ["packages/backend/src/controllers/**", "packages/backend/src/ee/controllers/**"]
