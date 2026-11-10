@@ -2927,6 +2927,7 @@ export class SavedChartModel {
     async findChartsForValidation(
         projectUuid: string,
         chartUuid?: string,
+        exploreNames?: string[],
     ): Promise<
         Array<{
             uuid: string;
@@ -3003,6 +3004,13 @@ export class SavedChartModel {
         // Filter by specific chart UUID if provided
         if (chartUuid) {
             query = query.where(`${cteName}.saved_query_uuid`, chartUuid);
+        }
+
+        if (exploreNames) {
+            query = query.whereIn(
+                'saved_queries_versions.explore_name',
+                exploreNames,
+            );
         }
 
         const savedCharts = await query;

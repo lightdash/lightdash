@@ -1026,6 +1026,20 @@ export const REST_OPERATION_CAPABILITIES = {
     'HomepageRecommendedActionSkipsController.unskip': [
         AgentCapability.Administration,
     ],
+    'SemanticStudioController.applyDraft': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.applyDraftModel': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.discardDraftModel': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.discardDraft': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.discardDraftChange': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.getDraft': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getDraftImpact': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getModel': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getBuilderStatus': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.undo': [AgentCapability.DbtWriteback],
     'InviteLinksController.createInviteLink': [AgentCapability.Administration],
     'InviteLinksController.revokeAllInviteLinks': [
         AgentCapability.Administration,

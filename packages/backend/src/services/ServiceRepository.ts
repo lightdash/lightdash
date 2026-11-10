@@ -227,6 +227,7 @@ interface ServiceManifest {
     aiDeepResearchService: unknown;
     aiAgentMemoryService: unknown;
     homepageRecommendedActionSkipsService: unknown;
+    semanticStudioService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
     appGenerateService: unknown;
@@ -2184,6 +2185,12 @@ export class ServiceRepository
         HomepageRecommendedActionSkipsServiceImplT,
     >(): HomepageRecommendedActionSkipsServiceImplT {
         return this.getService('homepageRecommendedActionSkipsService');
+    }
+
+    public getSemanticStudioService<
+        SemanticStudioServiceImplT,
+    >(): SemanticStudioServiceImplT {
+        return this.getService('semanticStudioService');
     }
 
     public getAiAgentCoderService<

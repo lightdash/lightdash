@@ -467,6 +467,11 @@ import {
 } from './scheduler';
 import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
+import {
+    type ApiSemanticLayerDraftApplyResponse,
+    type ApiSemanticLayerDraftImpactResponse,
+    type ApiSemanticLayerDraftResponse,
+} from './semanticStudio';
 import { type ShareUrl } from './share';
 import { type SharedSignInStatus } from './sharedSignIn';
 import { type ApiSlackChannelsResponse } from './slack';
@@ -1873,7 +1878,10 @@ type ApiResults =
     | ApiLearnCommandOutputResponse['results']
     | ApiAiProviderCredentialsResponse['results']
     | ApiAiProviderCredentialCreatedResponse['results']
-    | ApiProjectAiCredentialResponse['results'];
+    | ApiProjectAiCredentialResponse['results']
+    | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerDraftApplyResponse['results']
+    | ApiSemanticLayerDraftImpactResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

@@ -1237,6 +1237,18 @@ describe('findChartsForValidation', () => {
         expect(query.sql).toContain('"sq"."project_uuid"');
     });
 
+    test('loads only charts on the given explores', async () => {
+        tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+        await model.findChartsForValidation('project', undefined, ['orders']);
+
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain(
+            '"saved_queries_versions"."explore_name" in',
+        );
+        expect(query.bindings).toContain('orders');
+    });
+
     test('excludes dashboard charts without tiles', async () => {
         const projectUuid = '22222222-2222-4222-8222-222222222222';
         const dashboardUuid = '33333333-3333-4333-8333-333333333333';

@@ -138,6 +138,7 @@ import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/Re
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
+import { SemanticStudioService } from './services/SemanticStudioService/SemanticStudioService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
 import { SupportService } from './services/SupportService/SupportService';
@@ -409,6 +410,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spaceModel: models.getSpaceModel(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                }),
+            semanticStudioService: ({ models, repository }) =>
+                new SemanticStudioService({
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    projectModel: models.getProjectModel(),
+                    projectModelDocumentModel:
+                        models.getProjectModelDocumentModel<ProjectModelDocumentModel>(),
+                    projectService: repository.getProjectService(),
+                    validationService: repository.getValidationService(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
