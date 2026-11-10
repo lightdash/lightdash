@@ -6,9 +6,9 @@
  */
 import { assertUnreachable } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Box,
+    Button,
     Breadcrumbs,
     Center,
     Group,
@@ -24,8 +24,8 @@ import {
     IconCode,
     IconEye,
     IconFileCode,
-    IconLayoutSidebarRightExpand,
     IconSearch,
+    IconSparkles,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -1033,20 +1033,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         <AddSourceButton view={view} />
                                     )}
                                     {chat.isAvailable && !isChatOpen ? (
-                                        <Tooltip label="Show chat">
-                                            <ActionIcon
-                                                aria-label="Show chat"
-                                                onClick={() =>
-                                                    setIsChatOpen(true)
-                                                }
-                                            >
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            flex="none"
+                                            leftSection={
                                                 <MantineIcon
-                                                    icon={
-                                                        IconLayoutSidebarRightExpand
-                                                    }
+                                                    icon={IconSparkles}
                                                 />
-                                            </ActionIcon>
-                                        </Tooltip>
+                                            }
+                                            onClick={() => setIsChatOpen(true)}
+                                        >
+                                            Ask the agent
+                                        </Button>
                                     ) : null}
                                 </Group>
                             </Group>
