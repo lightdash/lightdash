@@ -1,6 +1,7 @@
 import {
     MetricType,
     parseModelDocument,
+    type DimensionType,
     type LightdashModel,
     type LightdashModelMetric,
 } from '@lightdash/common';
@@ -85,4 +86,50 @@ export const findNewModelAdvice = (
               ]
             : []),
     ];
+};
+
+const COLUMN_REFERENCE = /\$\{TABLE\}\.(\w+)/g;
+const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.(\w+)\s*$/;
+const MAX_LISTED_COLUMNS = 30;
+
+/** Why a model does not fit its table as the catalog describes it: a column that is not there, or a new dimension typed differently from its column. */
+export const findColumnError = (
+    name: string,
+    contents: string,
+    columns: Map<string, DimensionType>,
+    changedDimensions: Set<string>,
+): string | null => {
+    const model = parseModelDocument(contents, toModelPath(name));
+    const sqls = [
+        ...model.dimensions.map(({ sql }) => sql),
+        ...metricsOf(model).flatMap(([, { sql }]) =>
+            typeof sql === 'string' ? [sql] : [],
+        ),
+    ];
+    const missing = [
+        ...new Set(
+            sqls.flatMap((sql) =>
+                [...sql.matchAll(COLUMN_REFERENCE)].map(([, column]) => column),
+            ),
+        ),
+    ].filter((column) => !columns.has(column.toLowerCase()));
+    if (missing.length > 0) {
+        const known = [...columns.keys()];
+        return `${name} reads ${missing.join(', ')}, which ${missing.length === 1 ? 'is not a column' : 'are not columns'} of its table. Its columns: ${known.slice(0, MAX_LISTED_COLUMNS).join(', ')}${known.length > MAX_LISTED_COLUMNS ? ', and more' : ''}.`;
+    }
+    const mistyped = model.dimensions.flatMap((dimension) => {
+        const column = PLAIN_COLUMN.exec(dimension.sql)?.[1];
+        const columnType =
+            column === undefined
+                ? undefined
+                : columns.get(column.toLowerCase());
+        return changedDimensions.has(dimension.name) &&
+            columnType !== undefined &&
+            columnType !== dimension.type
+            ? [`${dimension.name} reads a ${columnType} column`]
+            : [];
+    });
+    return mistyped.length > 0
+        ? `${mistyped.join(', ')}, but ${mistyped.length === 1 ? 'is' : 'are'} typed differently. Use the column's type, or cast in sql to change it.`
+        : null;
 };
