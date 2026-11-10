@@ -1,3 +1,10 @@
+## [3.194.2](https://github.com/lightdash/lightdash/compare/3.194.1...3.194.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ai:** accept singular date units in filter expressions ([#32289](https://github.com/lightdash/lightdash/issues/32289)) ([61671da](https://github.com/lightdash/lightdash/commit/61671da92a8e033ea7f496d1ad49bf5a71e20694))
+
 ## [3.194.1](https://github.com/lightdash/lightdash/compare/3.194.0...3.194.1) (2026-11-10)
 
 
