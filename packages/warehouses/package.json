@@ -40,7 +40,7 @@
     "pg": "8.13.1",
     "pg-cursor": "2.10.0",
     "pg-protocol": "1.10.3",
-    "snowflake-sdk": "2.3.4",
+    "snowflake-sdk": "3.3.0",
     "ssh2": "1.14.0",
     "trino-client": "0.2.9"
   },
