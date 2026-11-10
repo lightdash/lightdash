@@ -1,8 +1,10 @@
 import {
     DimensionType,
     isExploreError,
+    PartitionType,
     WarehouseTableType,
     WarehouseTypes,
+    type TablePartitioning,
     type WarehouseTablesCatalog,
 } from '@lightdash/common';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
@@ -46,7 +48,18 @@ const warehouse: {
     /** What the warehouse's metadata says a table holds; null when it has no answer. */
     rowCount: number | null;
     catalog: WarehouseTablesCatalog;
-} = { queries: [], keyRow: {}, keyError: null, rowCount: null, catalog: {} };
+    /** What the catalog says every table it knows holds. */
+    columns: Record<string, DimensionType>;
+    partitioning: TablePartitioning | null;
+} = {
+    queries: [],
+    keyRow: {},
+    keyError: null,
+    rowCount: null,
+    catalog: {},
+    columns: { id: DimensionType.NUMBER },
+    partitioning: null,
+};
 
 const checker = () =>
     new DraftChecker({
@@ -75,6 +88,12 @@ const checker = () =>
             };
         },
         getWarehouseTables: async () => warehouse.catalog,
+        describeWarehouseTable: async () => ({
+            fields: warehouse.columns,
+            nativeTypes: {},
+            partitioning: warehouse.partitioning,
+            warehouseType: WarehouseTypes.POSTGRES,
+        }),
         compileQuery: async () => ({ query: '', compilationErrors: [] }),
     });
 
@@ -87,6 +106,8 @@ describe('DraftChecker.compile', () => {
         warehouse.keyError = null;
         warehouse.rowCount = null;
         warehouse.catalog = {};
+        warehouse.columns = { id: DimensionType.NUMBER };
+        warehouse.partitioning = null;
     });
 
     test('the same documents compile once, and each caller gets its own copy', async () => {
@@ -326,6 +347,68 @@ describe('DraftChecker.compile', () => {
             await drafts.check(user, 'project', new Map(), proposed());
             await drafts.check(user, 'project', new Map(), proposed());
             expect(keyChecks()).toHaveLength(2);
+        });
+    });
+
+    describe('with the table in the catalog', () => {
+        const table = { tableType: WarehouseTableType.TABLE };
+        const check = (contents: string) => {
+            warehouse.catalog = { shop: { public: { orders: table } } };
+            return checker().check(
+                user,
+                'project',
+                new Map(),
+                new Map([['orders', contents]]),
+            );
+        };
+
+        test('a column that is not there is named, with the ones that are, before any query', async () => {
+            warehouse.columns = {
+                id: DimensionType.NUMBER,
+                total: DimensionType.NUMBER,
+            };
+            const { rejected } = await check(
+                model('orders').replace('${TABLE}.id', '${TABLE}.amount'),
+            );
+            expect(rejected.get('orders')).toBe(
+                'orders reads amount, which is not a column of its table. Its columns: id, total.',
+            );
+            expect(warehouse.queries).toEqual([]);
+        });
+
+        test('a dimension typed differently from its column is rejected before any query', async () => {
+            warehouse.columns = { id: DimensionType.TIMESTAMP };
+            const { rejected } = await check(model('orders'));
+            expect(rejected.get('orders')).toContain(
+                'id reads a timestamp column, but is typed differently.',
+            );
+            expect(warehouse.queries).toEqual([]);
+        });
+
+        test('a table that requires a partition filter gets one in the dry run and is not read for its keys', async () => {
+            warehouse.partitioning = {
+                partitionColumn: {
+                    field: 'created_on',
+                    partitionType: PartitionType.DATE,
+                },
+                granularity: null,
+                requiresPartitionFilter: true,
+            };
+            const { rejected, notes } = await check(
+                `${model('orders')}primary_key: id\n`,
+            );
+            expect(rejected.size).toBe(0);
+            expect(warehouse.queries[0]).toContain(
+                'WHERE 1 = 0 AND no_rows."created_on" IS NOT NULL',
+            );
+            expect(
+                warehouse.queries.filter((sql) =>
+                    sql.includes('duplicate_keys'),
+                ),
+            ).toEqual([]);
+            expect(notes.get('orders')?.[0]).toContain(
+                'orders requires a partition filter, so it is not read for a check.',
+            );
         });
     });
 });

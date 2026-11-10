@@ -8,12 +8,15 @@ import {
     JoinRelationship,
     MetricType,
     parseModelDocument,
+    QueryExecutionContext,
     setModelJoinRelationships,
     type Account,
+    type DimensionType,
     type Explore,
     type ExploreError,
     type MetricQuery,
     type SessionUser,
+    type TablePartitioning,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { isEqual } from 'es-toolkit/compat';
@@ -22,16 +25,20 @@ import { fromSession } from '../../../auth/account';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type WarehouseSqlBuilderSettings } from '../../../services/ProjectService/warehouseSqlBuilderSettings';
 import { toModelPath, withWrites } from './draftFold';
-import { findChangedFields } from './draftLint';
+import { findChangedFields, findColumnError } from './draftLint';
 import {
     findCatalogTable,
     getRowCountSql,
     parseTableReference,
+    type CatalogTable,
 } from './tableSize';
 
 export type DraftCheckerProjectService = Pick<
     ProjectService,
-    'getWarehouseSqlBuilderSettings' | 'runSqlQuery' | 'getWarehouseTables'
+    | 'getWarehouseSqlBuilderSettings'
+    | 'runSqlQuery'
+    | 'getWarehouseTables'
+    | 'describeWarehouseTable'
 > & {
     compileQuery: (args: {
         account: Account;
@@ -62,8 +69,16 @@ type KeyRead = {
     isWholeTable: boolean;
 };
 
-/** A key that was read, or the size of a table known to be too large to read. */
-type KeyCheck = KeyRead | { tooLargeRows: number };
+/** A key that was read, or why its table was left unread. */
+type KeyCheck = KeyRead | { unread: string };
+
+/** What the warehouse catalog says about the table a model reads. */
+type TableFacts = {
+    table: CatalogTable;
+    /** Column types by lower-cased name. */
+    columns: Map<string, DimensionType>;
+    partitioning: TablePartitioning | null;
+};
 
 // Computed over the result set, so they cannot be selected on their own.
 const POST_CALCULATION_METRICS = new Set<MetricType>([
@@ -142,6 +157,11 @@ export class DraftChecker {
     private readonly keyChecks = new Map<
         string,
         { at: number; check: Promise<KeyCheck> }
+    >();
+
+    private readonly tableFacts = new Map<
+        string,
+        { at: number; facts: Promise<TableFacts | null> }
     >();
 
     constructor(projectService: DraftCheckerProjectService) {
@@ -267,9 +287,34 @@ export class DraftChecker {
     ): Promise<string | null> {
         const base = explore.tables[explore.baseTable];
         const alias = (name: string) => `${quote}${name}${quote}`;
+        const tables = [
+            base,
+            ...explore.joinedTables.map(({ table }) => explore.tables[table]),
+        ];
+        // A table that requires a partition filter refuses a query without a predicate on its partition column, even one that reads nothing.
+        const partitionFilters = new Map(
+            await Promise.all(
+                tables.map(async ({ sqlTable }) => {
+                    const facts = await this.findTableFacts(
+                        user,
+                        projectUuid,
+                        sqlTable,
+                    );
+                    const column = facts?.partitioning?.requiresPartitionFilter
+                        ? facts.partitioning.partitionColumn.field
+                        : null;
+                    return [
+                        sqlTable,
+                        column
+                            ? ` AND no_rows.${column.startsWith('_PARTITION') ? column : alias(column)} IS NOT NULL`
+                            : '',
+                    ] as const;
+                }),
+            ),
+        );
         // ponytail: misses errors only a real value raises, such as a bad cast; run one row if that matters.
         const noRows = (sqlTable: string) =>
-            `(SELECT * FROM ${sqlTable} AS no_rows WHERE 1 = 0)`;
+            `(SELECT * FROM ${sqlTable} AS no_rows WHERE 1 = 0${partitionFilters.get(sqlTable) ?? ''})`;
         const from = [
             `${noRows(base.sqlTable)} AS ${alias(base.name)}`,
             ...explore.joinedTables.map(
@@ -344,15 +389,31 @@ export class DraftChecker {
         const memoKey = [projectUuid, table.sqlTable, ...keys].join('|');
         const kept = this.keyChecks.get(memoKey);
         if (kept && Date.now() - kept.at < KEY_CHECK_TTL_MS) return kept.check;
-        const check = this.findRowCount(user, projectUuid, table.sqlTable).then(
-            (rowCount): Promise<KeyCheck> | KeyCheck =>
-                rowCount !== null && rowCount > MAX_KEY_CHECK_ROWS
-                    ? { tooLargeRows: rowCount }
-                    : this.readKey(user, projectUuid, table.sqlTable, {
-                          alias: `${quote}${tableName}${quote}`,
-                          keys,
-                      }),
-        );
+        const check = (async (): Promise<KeyCheck> => {
+            const facts = await this.findTableFacts(
+                user,
+                projectUuid,
+                table.sqlTable,
+            );
+            // Whoever required the filter does not want this table read whole.
+            if (facts?.partitioning?.requiresPartitionFilter) {
+                return {
+                    unread: `${tableName} requires a partition filter, so it is not read for a check.`,
+                };
+            }
+            const rowCount = facts
+                ? await this.findRowCount(user, projectUuid, facts.table)
+                : null;
+            if (rowCount !== null && rowCount > MAX_KEY_CHECK_ROWS) {
+                return {
+                    unread: `${tableName} has about ${rowCount.toLocaleString('en-US')} rows, more than a check reads.`,
+                };
+            }
+            return this.readKey(user, projectUuid, table.sqlTable, {
+                alias: `${quote}${tableName}${quote}`,
+                keys,
+            });
+        })();
         this.keyChecks.set(memoKey, { at: Date.now(), check });
         if (this.keyChecks.size > MAX_KEPT_KEY_CHECKS) {
             const [oldest] = this.keyChecks.keys();
@@ -362,13 +423,16 @@ export class DraftChecker {
         return check;
     }
 
-    /** A table's approximate row count from the warehouse's own metadata, which scans nothing; null when it is not known. */
-    private async findRowCount(
+    /** The catalog's columns and partitioning for the table a model reads; null for a query, or a table the catalog cannot place. */
+    private findTableFacts(
         user: SessionUser,
         projectUuid: string,
         sqlTable: string,
-    ): Promise<number | null> {
-        try {
+    ): Promise<TableFacts | null> {
+        const memoKey = `${projectUuid}|${sqlTable}`;
+        const kept = this.tableFacts.get(memoKey);
+        if (kept && Date.now() - kept.at < KEY_CHECK_TTL_MS) return kept.facts;
+        const facts = (async (): Promise<TableFacts | null> => {
             const reference = parseTableReference(sqlTable);
             if (!reference) return null;
             const table = findCatalogTable(
@@ -376,6 +440,43 @@ export class DraftChecker {
                 reference,
             );
             if (!table) return null;
+            const { fields, partitioning } =
+                await this.projectService.describeWarehouseTable(
+                    user,
+                    projectUuid,
+                    QueryExecutionContext.SQL_RUNNER,
+                    {
+                        tableName: table.table,
+                        schemaName: table.schema,
+                        databaseName: table.database,
+                    },
+                );
+            return {
+                table,
+                columns: new Map(
+                    Object.entries(fields).map(([column, type]) => [
+                        column.toLowerCase(),
+                        type,
+                    ]),
+                ),
+                partitioning,
+            };
+        })().catch(() => null);
+        this.tableFacts.set(memoKey, { at: Date.now(), facts });
+        if (this.tableFacts.size > MAX_KEPT_KEY_CHECKS) {
+            const [oldest] = this.tableFacts.keys();
+            this.tableFacts.delete(oldest);
+        }
+        return facts;
+    }
+
+    /** A table's approximate row count from the warehouse's own metadata, which scans nothing; null when it is not known. */
+    private async findRowCount(
+        user: SessionUser,
+        projectUuid: string,
+        table: CatalogTable,
+    ): Promise<number | null> {
+        try {
             const settings =
                 await this.projectService.getWarehouseSqlBuilderSettings(
                     projectUuid,
@@ -482,10 +583,8 @@ GROUP BY ${aliases.join(', ')}
                     dimensions,
                     quote,
                 );
-                if (!('tooLargeRows' in check)) return check;
-                unread.push(
-                    `${table} has about ${check.tooLargeRows.toLocaleString('en-US')} rows, more than a check reads.`,
-                );
+                if (!('unread' in check)) return check;
+                unread.push(check.unread);
             } catch (error) {
                 unread.push(
                     `The warehouse said: ${getErrorMessage(error).slice(0, 200)}`,
@@ -733,6 +832,27 @@ GROUP BY ${aliases.join(', ')}
         changed.forEach(({ metricError }, name) => {
             if (metricError) reject(name, metricError);
         });
+        // The catalog knows a table's columns, so a wrong name or type is caught before any query, in the same words on every warehouse.
+        const inCatalog = new Set<string>();
+        await Promise.all(
+            [...writes].map(async ([name, contents]) => {
+                if (contents === null) return;
+                const facts = await this.findTableFacts(
+                    user,
+                    projectUuid,
+                    parseModelDocument(contents, toModelPath(name)).sql_from,
+                );
+                if (!facts) return;
+                inCatalog.add(name);
+                const error = findColumnError(
+                    name,
+                    contents,
+                    facts.columns,
+                    changed.get(name)?.dimensions ?? new Set(),
+                );
+                if (error) reject(name, error);
+            }),
+        );
         [...writes].forEach(([name, contents]) => {
             const stored = live.get(name);
             if (contents === null || stored === undefined) return;
@@ -762,7 +882,11 @@ GROUP BY ${aliases.join(', ')}
                         projectUuid,
                         explore,
                         afterCompile.quote,
-                        changed.get(explore.name)?.dimensions ?? new Set(),
+                        // A model the catalog already vouched for needs no second opinion on its types.
+                        inCatalog.has(explore.name)
+                            ? new Set()
+                            : (changed.get(explore.name)?.dimensions ??
+                                  new Set()),
                     ),
                 })),
         );
