@@ -1,3 +1,10 @@
+# [3.208.0](https://github.com/lightdash/lightdash/compare/3.207.0...3.208.0) (2026-11-10)
+
+
+### Features
+
+* support additional_dimensions at the model level ([#32352](https://github.com/lightdash/lightdash/issues/32352)) ([807de1b](https://github.com/lightdash/lightdash/commit/807de1b1584cebf74a3c8a3c8b67841380c8a898))
+
 # [3.207.0](https://github.com/lightdash/lightdash/compare/3.206.0...3.207.0) (2026-11-10)
 
 
