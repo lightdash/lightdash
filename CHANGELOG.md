@@ -1,3 +1,10 @@
+## [3.205.2](https://github.com/lightdash/lightdash/compare/3.205.1...3.205.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboards-as-code:** metric and table calculation filters keep ids and tile targets ([#32354](https://github.com/lightdash/lightdash/issues/32354)) ([fa5fbd1](https://github.com/lightdash/lightdash/commit/fa5fbd18ae39018a6fea7c67630a132b77a500d4))
+
 ## [3.205.1](https://github.com/lightdash/lightdash/compare/3.205.0...3.205.1) (2026-11-10)
 
 
