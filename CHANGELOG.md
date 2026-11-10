@@ -1,3 +1,11 @@
+## [3.204.1](https://github.com/lightdash/lightdash/compare/3.204.0...3.204.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **bigquery:** let service accounts query Google Sheets external tables ([#32333](https://github.com/lightdash/lightdash/issues/32333)) ([169b231](https://github.com/lightdash/lightdash/commit/169b231243abc5ca42c3e2d107bdd0cd563904be))
+* **dashboard-controls:** show the parameter default on unset pills ([#32351](https://github.com/lightdash/lightdash/issues/32351)) ([34f1096](https://github.com/lightdash/lightdash/commit/34f1096f946e371ebbf6aa6bc1be8f62b6f440a2))
+
 # [3.204.0](https://github.com/lightdash/lightdash/compare/3.203.1...3.204.0) (2026-11-10)
 
 
