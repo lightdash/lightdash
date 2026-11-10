@@ -111,6 +111,7 @@ import {
 import TileQueryQueueProvider from '../features/dashboard/tileQueryQueue/TileQueryQueueProvider';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
+import { type EditFiltersVisibility } from '../features/dashboardFilters/EditFiltersVisibilityControl';
 import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
@@ -1112,6 +1113,16 @@ const Dashboard: FC = () => {
         CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
     );
 
+    const editErgonomicsFlag = useServerFeatureFlag(
+        FeatureFlags.DashboardEditErgonomics,
+    );
+    const [editFiltersVisibility, setEditFiltersVisibility] =
+        useState<EditFiltersVisibility>('all');
+    const effectiveEditFiltersVisibility: EditFiltersVisibility | null =
+        isEditMode && editErgonomicsFlag.data?.enabled === true
+            ? editFiltersVisibility
+            : null;
+
     // With the flag on, dashboards always fit and viewers get no toggle
     const fitToScreenDefaultFlag = useServerFeatureFlag(
         FeatureFlags.DashboardFitToScreenDefault,
@@ -1524,6 +1535,8 @@ const Dashboard: FC = () => {
         isFitToScreenAvailable:
             fitToScreen.isAvailable && !isFitToScreenDefault,
         onToggleFitToScreen: handleToggleFitToScreen,
+        editFiltersVisibility: effectiveEditFiltersVisibility,
+        onEditFiltersVisibilityChange: setEditFiltersVisibility,
         hasDashboardChanged,
         onAddTiles: handleAddTiles,
         onNewChart:
@@ -1736,6 +1749,12 @@ const Dashboard: FC = () => {
                         <FilterBarPopoversProvider>
                             <DashboardTabs
                                 isEditMode={isEditMode}
+                                editFiltersVisibility={
+                                    effectiveEditFiltersVisibility ?? 'all'
+                                }
+                                onEditFiltersVisibilityChange={
+                                    setEditFiltersVisibility
+                                }
                                 hasTilesThatSupportFilters={
                                     hasTilesThatSupportFilters
                                 }

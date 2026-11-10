@@ -78,3 +78,8 @@
     color: inherit;
     border: 1px solid var(--mantine-color-default-border);
 }
+
+/* The dashboard controls' floating bars take the same spot while shown */
+:global(body:has([data-dashboard-floating-bar]:not(:empty))) .editBar {
+    display: none;
+}

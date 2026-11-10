@@ -41,6 +41,7 @@ export const useBarHost = (
         if (grid === null) return;
         const element = document.createElement('div');
         element.className = classes.host;
+        element.dataset.dashboardFloatingBar = '';
         grid.after(element);
         setHost(element);
         return () => {

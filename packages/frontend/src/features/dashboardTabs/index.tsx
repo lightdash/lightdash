@@ -66,6 +66,7 @@ import { ControlsBar } from '../dashboardControls/ControlsBar';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
+import { type EditFiltersVisibility } from '../dashboardFilters/EditFiltersVisibilityControl';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
 import { getDateZoomSummaryLabel } from '../dateZoom/utils';
@@ -100,6 +101,8 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
+// Room for the floating edit action bar, so it never covers the last row
+const EDIT_ACTION_BAR_CLEARANCE = 80;
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -223,6 +226,9 @@ const TabGridPanel = memo<TabGridPanelProps>(
 
 type DashboardTabsProps = {
     isEditMode: boolean;
+    // 'all' outside edit mode
+    editFiltersVisibility: EditFiltersVisibility;
+    onEditFiltersVisibilityChange: (value: EditFiltersVisibility) => void;
     addingTab: boolean;
     dashboardTiles: DashboardTile[] | undefined;
     activeTab: DashboardTab | undefined;
@@ -257,6 +263,8 @@ type DashboardTabsProps = {
 
 const DashboardTabs: FC<DashboardTabsProps> = ({
     isEditMode,
+    editFiltersVisibility,
+    onEditFiltersVisibilityChange,
     addingTab,
     dashboardTiles,
     activeTab,
@@ -400,6 +408,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isFiltersCollapsed, setIsFiltersCollapsed] =
         useState<boolean>(false);
 
+    const isFiltersSummaryShown = isEditMode
+        ? editFiltersVisibility === 'summary'
+        : isFiltersCollapsed;
+
     const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
 
     const isLauncherMounted = useIsLauncherMounted(projectUuid);
@@ -487,12 +499,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         );
     }, [dashboardTiles, dashboardTabs, isEditMode]);
 
+    const isEditActionBarShown =
+        isEditMode && editErgonomicsFlag?.enabled === true;
     const dashboardGridBottomPadding =
-        fitToScreenRowHeight !== null
+        (fitToScreenRowHeight !== null
             ? FIT_TO_SCREEN_GRID_BOTTOM_PADDING
             : DASHBOARD_GRID_BOTTOM_PADDING +
               scrollToTopBottom -
-              SCROLL_TO_TOP_BOTTOM;
+              SCROLL_TO_TOP_BOTTOM) +
+        (isEditActionBarShown ? EDIT_ACTION_BAR_CLEARANCE : 0);
 
     const gridProps = useMemo(
         () =>
@@ -1094,56 +1109,81 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 </Tabs.List>
                             )}
 
-                            {/* Filters bar - collapsed or expanded view */}
-                            <div className={styles.filtersBar}>
-                                {isFiltersCollapsed && !isEditMode ? (
-                                    <DashboardFiltersBarSummary
-                                        filtersCount={totalFiltersCount}
-                                        parametersCount={totalParametersCount}
-                                        dateZoomLabel={
-                                            isDateZoomDisabled
-                                                ? null
-                                                : getDateZoomSummaryLabel(
-                                                      dateZoomGranularity,
-                                                      getUiString,
-                                                  )
-                                        }
-                                        onExpand={() =>
-                                            setIsFiltersCollapsed(false)
-                                        }
-                                    />
-                                ) : (
-                                    <FiltersBar
-                                        isEditMode={isEditMode}
-                                        activeTabUuid={activeTab?.uuid}
-                                        hasTilesThatSupportFilters={
-                                            hasTilesThatSupportFilters
-                                        }
-                                        hasDashboardTiles={!!hasDashboardTiles}
-                                        parameters={activeTabParameters}
-                                        shadowedReservedNames={
-                                            shadowedReservedNames
-                                        }
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onParameterClearAll={
-                                            onParameterClearAll
-                                        }
-                                        isParameterLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        parameterOrder={parameterOrder}
-                                        onParameterReorder={onParameterReorder}
-                                        isDateZoomDisabled={isDateZoomDisabled}
-                                        onCollapse={() =>
-                                            setIsFiltersCollapsed(true)
-                                        }
-                                    />
-                                )}
-                            </div>
+                            {editFiltersVisibility !== 'hidden' && (
+                                <div className={styles.filtersBar}>
+                                    {isFiltersSummaryShown ? (
+                                        <DashboardFiltersBarSummary
+                                            filtersCount={totalFiltersCount}
+                                            parametersCount={
+                                                totalParametersCount
+                                            }
+                                            dateZoomLabel={
+                                                isDateZoomDisabled
+                                                    ? null
+                                                    : getDateZoomSummaryLabel(
+                                                          dateZoomGranularity,
+                                                          getUiString,
+                                                      )
+                                            }
+                                            onExpand={() =>
+                                                isEditMode
+                                                    ? onEditFiltersVisibilityChange(
+                                                          'all',
+                                                      )
+                                                    : setIsFiltersCollapsed(
+                                                          false,
+                                                      )
+                                            }
+                                        />
+                                    ) : (
+                                        <FiltersBar
+                                            isEditMode={isEditMode}
+                                            activeTabUuid={activeTab?.uuid}
+                                            hasTilesThatSupportFilters={
+                                                hasTilesThatSupportFilters
+                                            }
+                                            hasDashboardTiles={
+                                                !!hasDashboardTiles
+                                            }
+                                            parameters={activeTabParameters}
+                                            shadowedReservedNames={
+                                                shadowedReservedNames
+                                            }
+                                            parameterValues={parameterValues}
+                                            onParameterChange={
+                                                onParameterChange
+                                            }
+                                            onParameterClearAll={
+                                                onParameterClearAll
+                                            }
+                                            isParameterLoading={
+                                                isParameterLoading
+                                            }
+                                            missingRequiredParameters={
+                                                missingRequiredParameters
+                                            }
+                                            pinnedParameters={pinnedParameters}
+                                            onParameterPin={onParameterPin}
+                                            parameterOrder={parameterOrder}
+                                            onParameterReorder={
+                                                onParameterReorder
+                                            }
+                                            isDateZoomDisabled={
+                                                isDateZoomDisabled
+                                            }
+                                            onCollapse={() =>
+                                                isEditMode
+                                                    ? onEditFiltersVisibilityChange(
+                                                          'summary',
+                                                      )
+                                                    : setIsFiltersCollapsed(
+                                                          true,
+                                                      )
+                                            }
+                                        />
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </StickyWithDetection>
 

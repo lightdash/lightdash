@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    ActionBar,
     ActionIcon,
     Box,
     Button,
@@ -72,6 +73,10 @@ import DashboardAsCodeModal from '../../../features/contentAsCode/components/Das
 import ProjectContentAsCodeUploadModal from '../../../features/contentAsCode/components/ProjectContentAsCodeUploadModal';
 import { useCanUploadContentAsCode } from '../../../features/contentAsCode/hooks/useCanUploadContentAsCode';
 import {
+    EditFiltersVisibilityControl,
+    type EditFiltersVisibility,
+} from '../../../features/dashboardFilters/EditFiltersVisibilityControl';
+import {
     DirectAccessModal,
     useCanManageDirectAccess,
     useDirectAccessAvailability,
@@ -130,6 +135,13 @@ import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
 
+// The dashboard controls' floating bars sit this far from the bottom too
+const EDIT_BAR_POSITION = {
+    bottom: 'md',
+    left: 0,
+    right: 0,
+};
+
 type DashboardHeaderProps = {
     dashboard: Dashboard;
     organizationUuid?: string;
@@ -164,6 +176,9 @@ type DashboardHeaderProps = {
     isFitToScreen: boolean;
     isFitToScreenAvailable: boolean;
     onToggleFitToScreen: () => void;
+    // null when the control is not offered
+    editFiltersVisibility: EditFiltersVisibility | null;
+    onEditFiltersVisibilityChange: (value: EditFiltersVisibility) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     onEditClicked: () => void;
     className?: string;
@@ -198,6 +213,8 @@ const DashboardHeader = memo(
         isFitToScreen,
         isFitToScreenAvailable,
         onToggleFitToScreen,
+        editFiltersVisibility,
+        onEditFiltersVisibilityChange,
         setAddingTab,
         onEditClicked,
         className,
@@ -714,15 +731,40 @@ const DashboardHeader = memo(
                             dashboardTabs={dashboardTabs}
                         />
 
-                        <AddTileButton
-                            onAddTiles={onAddTiles}
-                            disabled={isSaving}
-                            setAddingTab={setAddingTab}
-                            activeTabUuid={activeTabUuid}
-                            dashboardTabs={dashboardTabs}
-                            onNewChart={onNewChart}
-                            radius="md"
-                        />
+                        {editFiltersVisibility === null ? (
+                            <AddTileButton
+                                onAddTiles={onAddTiles}
+                                disabled={isSaving}
+                                setAddingTab={setAddingTab}
+                                activeTabUuid={activeTabUuid}
+                                dashboardTabs={dashboardTabs}
+                                onNewChart={onNewChart}
+                                radius="md"
+                            />
+                        ) : (
+                            <ActionBar
+                                opened
+                                shadow="md"
+                                aria-label="Dashboard editing tools"
+                                position={EDIT_BAR_POSITION}
+                                className={headerClasses.editBar}
+                            >
+                                <AddTileButton
+                                    onAddTiles={onAddTiles}
+                                    disabled={isSaving}
+                                    setAddingTab={setAddingTab}
+                                    activeTabUuid={activeTabUuid}
+                                    dashboardTabs={dashboardTabs}
+                                    onNewChart={onNewChart}
+                                    radius="md"
+                                />
+                                <ActionBar.Divider />
+                                <EditFiltersVisibilityControl
+                                    value={editFiltersVisibility}
+                                    onChange={onEditFiltersVisibilityChange}
+                                />
+                            </ActionBar>
+                        )}
 
                         <Tooltip
                             fz="xs"
