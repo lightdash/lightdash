@@ -50,11 +50,8 @@ test.describe('Space', () => {
             .click();
         await page.getByText('Restricted access', { exact: true }).click();
         const nameInput = page.getByPlaceholder('eg. KPIs');
-        await nameInput.click();
-        await nameInput.clear();
-        await nameInput.pressSequentially(`Private space ${timestamp}`, {
-            delay: 50,
-        });
+        // The home Ask AI composer takes focus when it mounts, so set the name in one step
+        await nameInput.fill(`Private space ${timestamp}`);
         await page.getByRole('button', { name: 'Create' }).click();
 
         // Wait for space page to load
@@ -137,8 +134,14 @@ test.describe('Space', () => {
 
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/home`);
         // Complete user onboarding
-        await page.getByPlaceholder('Select your role').click();
-        await page.getByText('Product', { exact: true }).click();
+        // The composer taking focus closes the dropdown, so reopen it until the option is picked
+        const roleSelect = page.getByPlaceholder('Select your role');
+        await expect(async () => {
+            await roleSelect.click();
+            await page
+                .getByText('Product', { exact: true })
+                .click({ timeout: 2_000 });
+        }).toPass();
         await page.getByText('Next', { exact: true }).click();
 
         // Don't show private spaces in navbar
