@@ -26,10 +26,6 @@
     color: var(--mantine-color-ldGray-7);
 }
 
-.icon[data-status='error'] {
-    color: var(--mantine-color-red-text);
-}
-
 .label {
     flex-shrink: 0;
     line-height: var(--mantine-line-height-xs);
@@ -40,22 +36,6 @@
 /* The step running now reads first; finished steps stay at label colour. */
 .row[data-status='running'] .label {
     color: var(--mantine-color-text);
-}
-
-.failedLabel {
-    flex-shrink: 0;
-    line-height: 1;
-    font-weight: 500;
-    color: var(--mantine-color-red-text);
-}
-
-.failureMessages {
-    padding: 0 0 6px 22px;
-}
-
-.failureMessage {
-    color: var(--mantine-color-dimmed);
-    overflow-wrap: anywhere;
 }
 
 .mcpToolChip {

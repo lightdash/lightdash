@@ -1279,7 +1279,7 @@ const ComponentInventory = () => (
 
             <Section
                 title="ToolCallRow"
-                description="Real row variants for running, done, and error states."
+                description="Real row variants for running and done states."
             >
                 <Stack gap="xs">
                     <ToolCallRow
@@ -1299,11 +1299,6 @@ const ComponentInventory = () => (
                             liveLabel: 'Finding relevant content',
                             doneLabel: 'Found relevant content',
                         }}
-                    />
-                    <ToolCallRow
-                        toolName="runSql"
-                        toolCalls={[runSqlCall]}
-                        status="error"
                     />
                 </Stack>
             </Section>
@@ -1452,13 +1447,6 @@ const ApprovalAndFailureScenario = () => (
                     </Text>
                 </Stack>
             </ToolCallPaper>
-        </Section>
-        <Section title="Failed tool row">
-            <ToolCallRow
-                toolName="runSql"
-                toolCalls={[runSqlCall]}
-                status="error"
-            />
         </Section>
     </StorySurface>
 );

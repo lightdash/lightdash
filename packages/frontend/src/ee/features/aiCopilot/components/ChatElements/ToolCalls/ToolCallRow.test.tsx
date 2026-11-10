@@ -71,7 +71,7 @@ describe.each([
     });
 
     it('keeps the pipeline card when the run failed', () => {
-        renderRow({ status: 'error', toolResults: [result('error')] });
+        renderRow({ status: 'done', toolResults: [result('error')] });
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
     });
 
@@ -101,40 +101,6 @@ describe.each([
             'aria-expanded',
             'false',
         );
-    });
-});
-
-describe('ToolCallRow failure', () => {
-    it('shows the failed status and error message for a failed SQL run', () => {
-        renderWithProviders(
-            <ToolCallRow
-                toolName="runSql"
-                toolCalls={[
-                    {
-                        toolCallId: 'call-1',
-                        toolName: 'runSql',
-                        toolArgs: { sql: 'select * from marketing.ad_spend' },
-                    },
-                ]}
-                toolResults={[
-                    {
-                        uuid: 'result-1',
-                        promptUuid: 'prompt-1',
-                        createdAt: new Date(),
-                        toolCallId: 'call-1',
-                        toolType: 'built-in',
-                        toolName: 'runSql',
-                        result: 'Error running SQL.\n\n```\nrelation "marketing.ad_spend" does not exist\n```',
-                        metadata: { status: 'error' },
-                    },
-                ]}
-            />,
-        );
-
-        expect(screen.getByRole('button', { name: /failed/i })).toBeVisible();
-        expect(
-            screen.getByText('relation "marketing.ad_spend" does not exist'),
-        ).toBeVisible();
     });
 });
 

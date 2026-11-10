@@ -845,7 +845,6 @@ const AssistantBubbleContent: FC<{
                                 ),
                                 isLive: isStreaming,
                             }}
-                            isFailureSummarized={finalStepFailure !== null}
                         />
                         {/* With prose, the failure detail sits after it, next to the recovery actions. */}
                         {!hasAnswerText && failureSummary}

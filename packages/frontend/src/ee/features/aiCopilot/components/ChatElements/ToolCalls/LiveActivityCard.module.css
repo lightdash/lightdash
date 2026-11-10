@@ -32,17 +32,6 @@
     transition: color 220ms ease;
 }
 
-.latestIcon[data-status='error'] {
-    color: var(--mantine-color-red-text);
-}
-
-.failedLabel {
-    flex-shrink: 0;
-    line-height: 1;
-    font-weight: 500;
-    color: var(--mantine-color-red-text);
-}
-
 .latestLabel {
     flex-shrink: 0;
     line-height: var(--mantine-line-height-xs);

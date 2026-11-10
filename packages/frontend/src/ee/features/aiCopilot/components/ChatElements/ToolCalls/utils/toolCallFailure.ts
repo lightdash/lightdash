@@ -1,7 +1,4 @@
-import {
-    isComposerQueryToolName,
-    type AiAgentToolResult,
-} from '@lightdash/common';
+import { type AiAgentToolResult } from '@lightdash/common';
 import { stripMarkdown } from './stripMarkdown';
 import { type ToolCallSummary } from './types';
 
@@ -73,16 +70,6 @@ export const getToolCallFailures = (
         const failure = getToolCallFailure(call, toolResults);
         return failure ? [failure] : [];
     });
-
-/** Failures the step list marks; query failures stay quiet since the agent retries them itself. */
-export const getStepListFailures = (
-    calls: ToolCallSummary[],
-    toolResults?: AiAgentToolResult[],
-): ToolCallFailure[] =>
-    getToolCallFailures(
-        calls.filter((call) => !isComposerQueryToolName(call.toolName)),
-        toolResults,
-    );
 
 /** A call is settled once its final (non-preliminary) output has landed. */
 export const isToolCallSettled = (
