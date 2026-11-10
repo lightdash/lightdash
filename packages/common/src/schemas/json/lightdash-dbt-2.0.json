@@ -420,6 +420,269 @@
     "additionalProperties": false,
     "required": [],
     "$defs": {
+        "additionalDimension": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "timestamp", "date", "boolean"]
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "description": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "ai_hint": {
+                    "$ref": "#/$defs/aiHint",
+                    "description": "Hints for AI-powered query generation"
+                },
+                "sql": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "time_intervals": {
+                    "anyOf": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "anyOf": [
+                                    {
+                                        "type": "string",
+                                        "enum": [
+                                            "RAW",
+                                            "DAY",
+                                            "WEEK",
+                                            "MONTH",
+                                            "QUARTER",
+                                            "YEAR",
+                                            "HOUR",
+                                            "MINUTE",
+                                            "SECOND",
+                                            "MILLISECOND",
+                                            "WEEK_NUM",
+                                            "MONTH_NUM",
+                                            "MONTH_NAME",
+                                            "DAY_OF_WEEK_NAME",
+                                            "QUARTER_NAME",
+                                            "DAY_OF_WEEK_INDEX",
+                                            "DAY_OF_MONTH_NUM",
+                                            "DAY_OF_YEAR_NUM",
+                                            "QUARTER_NUM",
+                                            "YEAR_NUM",
+                                            "HOUR_OF_DAY_NUM",
+                                            "MINUTE_OF_HOUR_NUM"
+                                        ]
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "type": "string",
+                            "enum": ["default", "OFF"]
+                        }
+                    ]
+                },
+                "convert_timezone": {
+                    "type": "boolean",
+                    "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
+                },
+                "timestamp_domain": {
+                    "type": "string",
+                    "enum": ["aware", "naive"],
+                    "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
+                },
+                "hidden": {
+                    "type": "boolean"
+                },
+                "round": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "format": {
+                    "type": "string"
+                },
+                "separator": {
+                    "$ref": "#/$defs/separator"
+                },
+                "compact": {
+                    "type": "string",
+                    "enum": [
+                        "auto",
+                        "thousands",
+                        "millions",
+                        "billions",
+                        "trillions",
+                        "thousand",
+                        "million",
+                        "billion",
+                        "trillion",
+                        "K",
+                        "M",
+                        "B",
+                        "T",
+                        "kilobytes",
+                        "megabytes",
+                        "gigabytes",
+                        "terabytes",
+                        "petabytes",
+                        "kilobyte",
+                        "megabyte",
+                        "gigabyte",
+                        "terabyte",
+                        "petabyte",
+                        "KB",
+                        "MB",
+                        "GB",
+                        "TB",
+                        "PB",
+                        "kibibytes",
+                        "mebibytes",
+                        "gibibytes",
+                        "tebibytes",
+                        "pebibytes",
+                        "kibibyte",
+                        "mebibyte",
+                        "gibibyte",
+                        "tebibyte",
+                        "pebibyte",
+                        "KiB",
+                        "MiB",
+                        "GiB",
+                        "TiB",
+                        "PiB"
+                    ]
+                },
+                "group_label": {
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated: use groups instead"
+                },
+                "urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string",
+                                "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "image": {
+                    "type": "object",
+                    "description": "Displays the dimension value as an image",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
+                        }
+                    },
+                    "required": ["url"]
+                },
+                "tags": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
+                "required_attributes": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    }
+                },
+                "any_attributes": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    }
+                },
+                "filter_autocomplete": {
+                    "type": "object",
+                    "description": "Configure static filter autocomplete suggestions and warehouse fetching for this dimension.",
+                    "properties": {
+                        "values": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "value": {
+                                        "type": "string"
+                                    },
+                                    "label": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["value"]
+                            }
+                        },
+                        "fetch_from_warehouse": {
+                            "type": "boolean",
+                            "description": "When false, filter autocomplete will not fetch values from the warehouse for this dimension. Defaults to true."
+                        },
+                        "label_dimension": {
+                            "type": "string",
+                            "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                        },
+                        "options_from_dimension": {
+                            "type": "object",
+                            "description": "Fetch autocomplete values from a dimension in another model. Cascading filters are not applied.",
+                            "properties": {
+                                "model": {
+                                    "type": "string"
+                                },
+                                "dimension": {
+                                    "type": "string"
+                                },
+                                "label_dimension": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["model", "dimension"]
+                        }
+                    }
+                }
+            }
+        },
         "separator": {
             "type": "string",
             "enum": [
@@ -462,6 +725,21 @@
         "modelMeta": {
             "type": "object",
             "properties": {
+                "additional_dimensions": {
+                    "type": "object",
+                    "description": "Dimensions that are not derived from a single column",
+                    "patternProperties": {
+                        "^[a-z0-9_]+$": {
+                            "allOf": [
+                                { "$ref": "#/$defs/additionalDimension" },
+                                {
+                                    "type": "object",
+                                    "required": ["type", "sql"]
+                                }
+                            ]
+                        }
+                    }
+                },
                 "combine_joined_fields": {
                     "type": "boolean",
                     "description": "Combine visible joined fields into shared Dimensions and Metrics sections. Defaults to false; named explores inherit the model setting."
@@ -1213,6 +1491,23 @@
                         "^[a-zA-Z0-9_]+$": {
                             "type": "object",
                             "properties": {
+                                "additional_dimensions": {
+                                    "type": "object",
+                                    "description": "Dimensions that are not derived from a single column",
+                                    "patternProperties": {
+                                        "^[a-z0-9_]+$": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/$defs/additionalDimension"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "required": ["type", "sql"]
+                                                }
+                                            ]
+                                        }
+                                    }
+                                },
                                 "combine_joined_fields": {
                                     "type": "boolean",
                                     "description": "Combine visible joined fields into shared Dimensions and Metrics sections. Defaults to false; named explores inherit the model setting."
@@ -1867,273 +2162,7 @@
                     "type": "object",
                     "patternProperties": {
                         "^[a-z0-9_]+$": {
-                            "type": "object",
-                            "properties": {
-                                "type": {
-                                    "type": "string",
-                                    "enum": [
-                                        "string",
-                                        "number",
-                                        "timestamp",
-                                        "date",
-                                        "boolean"
-                                    ]
-                                },
-                                "label": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "description": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "ai_hint": {
-                                    "$ref": "#/$defs/aiHint",
-                                    "description": "Hints for AI-powered query generation"
-                                },
-                                "sql": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "time_intervals": {
-                                    "anyOf": [
-                                        {
-                                            "type": "array",
-                                            "items": {
-                                                "anyOf": [
-                                                    {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "RAW",
-                                                            "DAY",
-                                                            "WEEK",
-                                                            "MONTH",
-                                                            "QUARTER",
-                                                            "YEAR",
-                                                            "HOUR",
-                                                            "MINUTE",
-                                                            "SECOND",
-                                                            "MILLISECOND",
-                                                            "WEEK_NUM",
-                                                            "MONTH_NUM",
-                                                            "MONTH_NAME",
-                                                            "DAY_OF_WEEK_NAME",
-                                                            "QUARTER_NAME",
-                                                            "DAY_OF_WEEK_INDEX",
-                                                            "DAY_OF_MONTH_NUM",
-                                                            "DAY_OF_YEAR_NUM",
-                                                            "QUARTER_NUM",
-                                                            "YEAR_NUM",
-                                                            "HOUR_OF_DAY_NUM",
-                                                            "MINUTE_OF_HOUR_NUM"
-                                                        ]
-                                                    },
-                                                    {
-                                                        "type": "string"
-                                                    }
-                                                ]
-                                            }
-                                        },
-                                        {
-                                            "type": "string",
-                                            "enum": ["default", "OFF"]
-                                        }
-                                    ]
-                                },
-                                "convert_timezone": {
-                                    "type": "boolean",
-                                    "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
-                                },
-                                "timestamp_domain": {
-                                    "type": "string",
-                                    "enum": ["aware", "naive"],
-                                    "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
-                                },
-                                "hidden": {
-                                    "type": "boolean"
-                                },
-                                "round": {
-                                    "type": "number",
-                                    "minimum": 0
-                                },
-                                "format": {
-                                    "type": "string"
-                                },
-                                "separator": {
-                                    "$ref": "#/$defs/separator"
-                                },
-                                "compact": {
-                                    "type": "string",
-                                    "enum": [
-                                        "auto",
-                                        "thousands",
-                                        "millions",
-                                        "billions",
-                                        "trillions",
-                                        "thousand",
-                                        "million",
-                                        "billion",
-                                        "trillion",
-                                        "K",
-                                        "M",
-                                        "B",
-                                        "T",
-                                        "kilobytes",
-                                        "megabytes",
-                                        "gigabytes",
-                                        "terabytes",
-                                        "petabytes",
-                                        "kilobyte",
-                                        "megabyte",
-                                        "gigabyte",
-                                        "terabyte",
-                                        "petabyte",
-                                        "KB",
-                                        "MB",
-                                        "GB",
-                                        "TB",
-                                        "PB",
-                                        "kibibytes",
-                                        "mebibytes",
-                                        "gibibytes",
-                                        "tebibytes",
-                                        "pebibytes",
-                                        "kibibyte",
-                                        "mebibyte",
-                                        "gibibyte",
-                                        "tebibyte",
-                                        "pebibyte",
-                                        "KiB",
-                                        "MiB",
-                                        "GiB",
-                                        "TiB",
-                                        "PiB"
-                                    ]
-                                },
-                                "group_label": {
-                                    "type": "string",
-                                    "deprecated": true,
-                                    "description": "Deprecated: use groups instead"
-                                },
-                                "urls": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "url": {
-                                                "type": "string",
-                                                "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
-                                            },
-                                            "label": {
-                                                "type": "string"
-                                            }
-                                        }
-                                    }
-                                },
-                                "image": {
-                                    "type": "object",
-                                    "description": "Displays the dimension value as an image",
-                                    "properties": {
-                                        "url": {
-                                            "type": "string",
-                                            "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
-                                        }
-                                    },
-                                    "required": ["url"]
-                                },
-                                "tags": {
-                                    "oneOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            }
-                                        }
-                                    ]
-                                },
-                                "required_attributes": {
-                                    "type": "object",
-                                    "properties": {},
-                                    "additionalProperties": {
-                                        "oneOf": [
-                                            {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            {
-                                                "type": "string"
-                                            }
-                                        ]
-                                    }
-                                },
-                                "any_attributes": {
-                                    "type": "object",
-                                    "properties": {},
-                                    "additionalProperties": {
-                                        "oneOf": [
-                                            {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            {
-                                                "type": "string"
-                                            }
-                                        ]
-                                    }
-                                },
-                                "filter_autocomplete": {
-                                    "type": "object",
-                                    "description": "Configure static filter autocomplete suggestions and warehouse fetching for this dimension.",
-                                    "properties": {
-                                        "values": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "value": {
-                                                        "type": "string"
-                                                    },
-                                                    "label": {
-                                                        "type": "string"
-                                                    }
-                                                },
-                                                "required": ["value"]
-                                            }
-                                        },
-                                        "fetch_from_warehouse": {
-                                            "type": "boolean",
-                                            "description": "When false, filter autocomplete will not fetch values from the warehouse for this dimension. Defaults to true."
-                                        },
-                                        "label_dimension": {
-                                            "type": "string",
-                                            "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
-                                        },
-                                        "options_from_dimension": {
-                                            "type": "object",
-                                            "description": "Fetch autocomplete values from a dimension in another model. Cascading filters are not applied.",
-                                            "properties": {
-                                                "model": {
-                                                    "type": "string"
-                                                },
-                                                "dimension": {
-                                                    "type": "string"
-                                                },
-                                                "label_dimension": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": ["model", "dimension"]
-                                        }
-                                    }
-                                }
-                            }
+                            "$ref": "#/$defs/additionalDimension"
                         }
                     }
                 }

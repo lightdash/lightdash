@@ -17,12 +17,14 @@ import {
     patchPathParts,
     RESERVED_MODEL_META_KEYS,
     SupportedDbtAdapter,
+    type DbtColumnLightdashAdditionalDimension,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
     type DbtExploreLightdashAdditionalDimension,
     type DbtModelColumn,
     type DbtModelJoin,
     type DbtModelNode,
+    type DbtRawModelNode,
     type LineageGraph,
     type ModelInventoryEntry,
 } from '../types/dbt';
@@ -710,6 +712,24 @@ function dropMapValuedModelFilters(
     return { filters: validFilters, warnings };
 }
 
+// Model-level additional dimensions have no column to fall back on.
+const isCompleteAdditionalDimension = (
+    config: DbtColumnLightdashAdditionalDimension,
+): config is DbtExploreLightdashAdditionalDimension =>
+    Boolean(config.type && config.sql);
+
+const getModelAdditionalDimensions = (
+    model: Pick<DbtRawModelNode, 'meta' | 'config'>,
+): Record<string, DbtColumnLightdashAdditionalDimension> =>
+    merge({}, model.meta, model.config?.meta).additional_dimensions ?? {};
+
+export const hasModelAdditionalDimension = (
+    model: Pick<DbtRawModelNode, 'meta' | 'config'>,
+): boolean =>
+    Object.values(getModelAdditionalDimensions(model)).some(
+        isCompleteAdditionalDimension,
+    );
+
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
@@ -726,7 +746,167 @@ export const convertTable = (
     const tableLabel = meta.label || friendlyName(model.name);
     const tableWarnings: InlineError[] = [];
 
-    const [dimensions, metrics]: [
+    const processIntervalDimension = (
+        dim: Dimension,
+        overrideTimeIntervals: DbtColumnLightdashDimension['time_intervals'],
+        column: DbtModelColumn,
+        columnMeta: DbtColumnMetadata,
+        index: number,
+    ) => {
+        if (dim.isIntervalBase) {
+            let allIntervals: (TimeFrames | string)[] = [];
+
+            if (
+                !dim.isAdditionalDimension &&
+                columnMeta.dimension?.time_intervals &&
+                Array.isArray(columnMeta?.dimension.time_intervals)
+            ) {
+                allIntervals = columnMeta.dimension.time_intervals;
+            } else if (
+                dim.isAdditionalDimension &&
+                Array.isArray(overrideTimeIntervals)
+            ) {
+                allIntervals = overrideTimeIntervals;
+            } else {
+                allIntervals = getTimeFramesWithProjectDefaults(
+                    dim.type,
+                    additionalTimeIntervals,
+                );
+            }
+
+            // Split into standard TimeFrames and custom granularity names
+            const intervals = validateTimeFrames(allIntervals);
+            const customIntervalNames = allIntervals.filter(
+                (v) => !isTimeInterval(v.toUpperCase()),
+            );
+
+            const dimensionMeta = {
+                ...columnMeta.dimension,
+                type: dim.type,
+                label: dim.label,
+                groups: dim.groups,
+                sql: dim.sql,
+                description: dim.description,
+                hidden: dim.hidden,
+                // Additional-dim children must inherit the additional
+                // dimension's own resolved domain, not the parent
+                // column's annotation riding in the meta spread.
+                timestamp_domain: dim.timestampDomain,
+            };
+
+            // Generate standard interval dimensions
+            const standardDims = intervals.reduce<Record<string, Dimension>>(
+                (acc, interval) => ({
+                    ...acc,
+                    [`${dim.name}_${interval.toLowerCase()}`]: convertDimension(
+                        index,
+                        adapterType,
+                        model,
+                        tableLabel,
+                        {
+                            ...column,
+                            ...('isAdditionalDimension' in dim &&
+                            dim.isAdditionalDimension
+                                ? {
+                                      name: dim.name,
+                                      meta: {
+                                          dimension: dimensionMeta,
+                                      },
+                                      // In dbt 1.10+, config.meta takes precedence over meta
+                                      // so we must set config.meta.dimension to prevent
+                                      // the base dimension's properties from overwriting
+                                      config: {
+                                          meta: {
+                                              dimension: dimensionMeta,
+                                          },
+                                      },
+                                  }
+                                : {}),
+                        },
+                        undefined,
+                        interval,
+                        startOfWeek,
+                        'isAdditionalDimension' in dim &&
+                            dim.isAdditionalDimension,
+                        // Additional-dim children derive from the
+                        // parent's compiled sql, which already
+                        // carries the timestamp conversion.
+                        dim.isAdditionalDimension
+                            ? true
+                            : disableTimestampConversion,
+                        undefined,
+                        granularityLabels,
+                    ),
+                }),
+                {},
+            );
+
+            // Generate custom granularity dimensions
+            const customDims = customIntervalNames.reduce<
+                Record<string, Dimension>
+            >((acc, customName) => {
+                const granularity = customGranularities?.[customName];
+                if (!granularity) {
+                    tableWarnings.push({
+                        type: InlineErrorType.FIELD_ERROR,
+                        message: `Unknown time interval "${customName}" on column "${dim.name}" in model "${model.name}". It is not a standard time frame or a custom granularity defined in lightdash.config.yml.`,
+                    });
+                    return acc;
+                }
+
+                const customSql = granularity.sql.replace(
+                    /\$\{COLUMN\}/g,
+                    () => dim.sql,
+                );
+                const customType = granularity.type || DimensionType.DATE;
+                const customDimName = `${dim.name}_${customName}`;
+
+                const groups: string[] = [...(dim.groups || [])];
+                if (!groups.includes(dim.label)) {
+                    groups.push(dim.label);
+                }
+
+                return {
+                    ...acc,
+                    [customDimName]: {
+                        index,
+                        fieldType: FieldType.DIMENSION,
+                        name: customDimName,
+                        label: granularity.label,
+                        sql: customSql,
+                        table: model.name,
+                        tableLabel,
+                        type: customType,
+                        description: dim.description,
+                        source: undefined,
+                        timeInterval: undefined,
+                        timeIntervalBaseDimensionName: dim.name,
+                        timeIntervalBaseDimensionType: dim.type,
+                        customTimeInterval: customName,
+                        hidden: dim.hidden,
+                        format: undefined,
+                        round: undefined,
+                        compact: undefined,
+                        requiredAttributes: dim.requiredAttributes,
+                        anyAttributes: dim.anyAttributes,
+                        groups,
+                        isIntervalBase: false,
+                        isAdditionalDimension: dim.isAdditionalDimension,
+                        ...(dim.skipTimezoneConversion
+                            ? { skipTimezoneConversion: true }
+                            : {}),
+                        // Custom granularity SQL may change the base
+                        // column's domain, so keep its output unknown.
+                    } satisfies Dimension,
+                };
+            }, {});
+
+            return { ...standardDims, ...customDims };
+        }
+        return {};
+    };
+
+    const [columnDimensions, metrics]: [
         Record<string, Dimension>,
         Record<string, Metric>,
     ] = Object.values(model.columns).reduce(
@@ -765,171 +945,16 @@ export const convertTable = (
                       granularityLabels,
                   );
 
-            const processIntervalDimension = (
-                dim: Dimension,
-                overrideTimeIntervals: DbtColumnLightdashDimension['time_intervals'],
-            ) => {
-                if (dim.isIntervalBase) {
-                    let allIntervals: (TimeFrames | string)[] = [];
-
-                    if (
-                        !dim.isAdditionalDimension &&
-                        columnMeta.dimension?.time_intervals &&
-                        Array.isArray(columnMeta?.dimension.time_intervals)
-                    ) {
-                        allIntervals = columnMeta.dimension.time_intervals;
-                    } else if (
-                        dim.isAdditionalDimension &&
-                        Array.isArray(overrideTimeIntervals)
-                    ) {
-                        allIntervals = overrideTimeIntervals;
-                    } else {
-                        allIntervals = getTimeFramesWithProjectDefaults(
-                            dim.type,
-                            additionalTimeIntervals,
-                        );
-                    }
-
-                    // Split into standard TimeFrames and custom granularity names
-                    const intervals = validateTimeFrames(allIntervals);
-                    const customIntervalNames = allIntervals.filter(
-                        (v) => !isTimeInterval(v.toUpperCase()),
-                    );
-
-                    const dimensionMeta = {
-                        ...columnMeta.dimension,
-                        type: dim.type,
-                        label: dim.label,
-                        groups: dim.groups,
-                        sql: dim.sql,
-                        description: dim.description,
-                        hidden: dim.hidden,
-                        // Additional-dim children must inherit the additional
-                        // dimension's own resolved domain, not the parent
-                        // column's annotation riding in the meta spread.
-                        timestamp_domain: dim.timestampDomain,
-                    };
-
-                    // Generate standard interval dimensions
-                    const standardDims = intervals.reduce<
-                        Record<string, Dimension>
-                    >(
-                        (acc, interval) => ({
-                            ...acc,
-                            [`${dim.name}_${interval.toLowerCase()}`]:
-                                convertDimension(
-                                    index,
-                                    adapterType,
-                                    model,
-                                    tableLabel,
-                                    {
-                                        ...column,
-                                        ...('isAdditionalDimension' in dim &&
-                                        dim.isAdditionalDimension
-                                            ? {
-                                                  name: dim.name,
-                                                  meta: {
-                                                      dimension: dimensionMeta,
-                                                  },
-                                                  // In dbt 1.10+, config.meta takes precedence over meta
-                                                  // so we must set config.meta.dimension to prevent
-                                                  // the base dimension's properties from overwriting
-                                                  config: {
-                                                      meta: {
-                                                          dimension:
-                                                              dimensionMeta,
-                                                      },
-                                                  },
-                                              }
-                                            : {}),
-                                    },
-                                    undefined,
-                                    interval,
-                                    startOfWeek,
-                                    'isAdditionalDimension' in dim &&
-                                        dim.isAdditionalDimension,
-                                    // Additional-dim children derive from the
-                                    // parent's compiled sql, which already
-                                    // carries the timestamp conversion.
-                                    dim.isAdditionalDimension
-                                        ? true
-                                        : disableTimestampConversion,
-                                    undefined,
-                                    granularityLabels,
-                                ),
-                        }),
-                        {},
-                    );
-
-                    // Generate custom granularity dimensions
-                    const customDims = customIntervalNames.reduce<
-                        Record<string, Dimension>
-                    >((acc, customName) => {
-                        const granularity = customGranularities?.[customName];
-                        if (!granularity) {
-                            tableWarnings.push({
-                                type: InlineErrorType.FIELD_ERROR,
-                                message: `Unknown time interval "${customName}" on column "${dim.name}" in model "${model.name}". It is not a standard time frame or a custom granularity defined in lightdash.config.yml.`,
-                            });
-                            return acc;
-                        }
-
-                        const customSql = granularity.sql.replace(
-                            /\$\{COLUMN\}/g,
-                            () => dim.sql,
-                        );
-                        const customType =
-                            granularity.type || DimensionType.DATE;
-                        const customDimName = `${dim.name}_${customName}`;
-
-                        const groups: string[] = [...(dim.groups || [])];
-                        if (!groups.includes(dim.label)) {
-                            groups.push(dim.label);
-                        }
-
-                        return {
-                            ...acc,
-                            [customDimName]: {
-                                index,
-                                fieldType: FieldType.DIMENSION,
-                                name: customDimName,
-                                label: granularity.label,
-                                sql: customSql,
-                                table: model.name,
-                                tableLabel,
-                                type: customType,
-                                description: dim.description,
-                                source: undefined,
-                                timeInterval: undefined,
-                                timeIntervalBaseDimensionName: dim.name,
-                                timeIntervalBaseDimensionType: dim.type,
-                                customTimeInterval: customName,
-                                hidden: dim.hidden,
-                                format: undefined,
-                                round: undefined,
-                                compact: undefined,
-                                requiredAttributes: dim.requiredAttributes,
-                                anyAttributes: dim.anyAttributes,
-                                groups,
-                                isIntervalBase: false,
-                                isAdditionalDimension:
-                                    dim.isAdditionalDimension,
-                                ...(dim.skipTimezoneConversion
-                                    ? { skipTimezoneConversion: true }
-                                    : {}),
-                                // Custom granularity SQL may change the base
-                                // column's domain, so keep its output unknown.
-                            } satisfies Dimension,
-                        };
-                    }, {});
-
-                    return { ...standardDims, ...customDims };
-                }
-                return {};
-            };
-
             let extraDimensions = dimension
-                ? { ...processIntervalDimension(dimension, undefined) }
+                ? {
+                      ...processIntervalDimension(
+                          dimension,
+                          undefined,
+                          column,
+                          columnMeta,
+                          index,
+                      ),
+                  }
                 : {};
 
             extraDimensions = Object.entries(
@@ -968,6 +993,9 @@ export const convertTable = (
                     ...processIntervalDimension(
                         additionalDim,
                         subDimension.time_intervals,
+                        column,
+                        columnMeta,
+                        index,
                     ),
                 };
             }, extraDimensions);
@@ -1020,6 +1048,76 @@ export const convertTable = (
             ];
         },
         [{}, {}],
+    );
+
+    const dimensions: Record<string, Dimension> = { ...columnDimensions };
+    const metricNames = new Set([
+        ...Object.keys(metrics),
+        ...Object.keys(meta.metrics ?? {}),
+    ]);
+    const isDuplicateDimension = (name: string) => {
+        const existing =
+            (dimensions[name] && 'dimension') ||
+            (metricNames.has(name) && 'metric');
+        if (!existing) return false;
+        tableWarnings.push({
+            type: InlineErrorType.DUPLICATE_FIELD_NAME,
+            message: `Skipped additional dimension "${name}" in model "${model.name}" because a ${existing} with the same name exists.`,
+        });
+        return true;
+    };
+    const columnCount = Object.keys(model.columns).length;
+    Object.entries(getModelAdditionalDimensions(model)).forEach(
+        ([name, config], position) => {
+            if (!isCompleteAdditionalDimension(config)) {
+                const missing = [
+                    ...(config.type ? [] : ['type']),
+                    ...(config.sql ? [] : ['sql']),
+                ]
+                    .map((key) => `"${key}"`)
+                    .join(' and ');
+                tableWarnings.push({
+                    type: InlineErrorType.FIELD_ERROR,
+                    message: `Skipped additional dimension "${name}" in model "${model.name}" because it is missing ${missing}. Model-level additional dimensions need both "type" and "sql".`,
+                });
+                return;
+            }
+            if (isDuplicateDimension(name)) return;
+            const index = columnCount + position;
+            const column: DbtModelColumn = {
+                name,
+                data_type: config.type,
+                meta: { dimension: config },
+            };
+            const baseDimension = convertDimension(
+                index,
+                adapterType,
+                model,
+                tableLabel,
+                column,
+                undefined,
+                undefined,
+                startOfWeek,
+                true,
+                disableTimestampConversion,
+                tableWarnings,
+                granularityLabels,
+            );
+            dimensions[name] = baseDimension;
+            Object.entries(
+                processIntervalDimension(
+                    baseDimension,
+                    config.time_intervals,
+                    column,
+                    { dimension: config },
+                    index,
+                ),
+            ).forEach(([intervalName, intervalDimension]) => {
+                if (!isDuplicateDimension(intervalName)) {
+                    dimensions[intervalName] = intervalDimension;
+                }
+            });
+        },
     );
 
     const modelMetrics = Object.fromEntries(
