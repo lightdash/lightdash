@@ -21,6 +21,7 @@ import {
     getModelInventoryFromManifest,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
+    hasModelAdditionalDimension,
     haveMissingCatalogEntriesChanged,
     InlineError,
     InlineErrorType,
@@ -737,10 +738,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 } else if (
                     isValid &&
                     Object.values(model.columns).length <= 0 &&
-                    Object.keys({
-                        ...model.meta.additional_dimensions,
-                        ...model.config?.meta?.additional_dimensions,
-                    }).length === 0
+                    !hasModelAdditionalDimension(model)
                 ) {
                     error = {
                         type: InlineErrorType.NO_DIMENSIONS_FOUND,

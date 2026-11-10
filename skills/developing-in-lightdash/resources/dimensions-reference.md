@@ -249,7 +249,12 @@ columns:
 
 ### Model-level additional dimensions
 
-Use model-level `additional_dimensions` for a dimension that spans several columns or isn't tied to one. `type` and `sql` are required. The dimension belongs to the model, so it's available in every explore that includes it. If its name matches an existing dimension, the existing dimension is kept and a warning is shown.
+Use model-level `additional_dimensions` for a dimension that spans several columns or isn't tied to one. It takes the same properties as a column-level additional dimension, including `time_intervals`.
+
+- `type` and `sql` are required, because there is no column to inherit them from. An entry missing either is skipped with a warning.
+- The dimension belongs to the model, so it's available in every explore that includes the model, joins included.
+- It can reference a joined table with `${other_table.field}`. That works in every explore where the other table is also joined. In an explore where it isn't, the dimension is dropped with a warning. For a dimension that should exist in only one explore, use `explores.<name>.additional_dimensions`.
+- If its name matches an existing dimension or metric, the existing field is kept and a warning is shown.
 
 ```yaml
 models:

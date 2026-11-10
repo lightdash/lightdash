@@ -189,6 +189,14 @@ export type FieldSetDefinition = {
 
 export type DbtModelLightdashConfig = ExploreConfig &
     SharedDbtModelLightdashConfig & {
+        /**
+         * Model-level dimensions. They belong to the table, so they are
+         * available in every explore that includes it, joins included.
+         */
+        additional_dimensions?: Record<
+            string,
+            DbtExploreLightdashAdditionalDimension
+        >;
         metrics?: Record<string, DbtModelLightdashMetric>;
         sets?: Record<string, FieldSetDefinition>;
         order_fields_by?: OrderFieldsByStrategy;

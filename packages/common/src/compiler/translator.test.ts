@@ -5643,6 +5643,97 @@ describe('model-level additional dimensions', () => {
         ]);
     });
 
+    it('keeps an existing metric when the name collides and warns', () => {
+        const table = convert(
+            {
+                additional_dimensions: {
+                    total_amount: orderSizeBand,
+                    order_count: orderSizeBand,
+                },
+                metrics: {
+                    order_count: { type: MetricType.COUNT, sql: '${amount}' },
+                },
+            },
+            {
+                amount: {
+                    ...amountColumn,
+                    meta: {
+                        metrics: { total_amount: { type: MetricType.SUM } },
+                    },
+                },
+            },
+        );
+
+        expect(Object.keys(table.dimensions)).toEqual(['amount']);
+        expect(Object.keys(table.metrics).sort()).toEqual([
+            'order_count',
+            'total_amount',
+        ]);
+        expect(table.warnings).toEqual([
+            expect.objectContaining({
+                type: InlineErrorType.DUPLICATE_FIELD_NAME,
+                message: expect.stringContaining(
+                    '"total_amount" in model "orders" because a metric',
+                ),
+            }),
+            expect.objectContaining({
+                type: InlineErrorType.DUPLICATE_FIELD_NAME,
+                message: expect.stringContaining(
+                    '"order_count" in model "orders" because a metric',
+                ),
+            }),
+        ]);
+    });
+
+    it('skips a dimension missing type or sql and warns', () => {
+        const table = convert({
+            additional_dimensions: {
+                order_size_band: orderSizeBand,
+                no_sql: { type: DimensionType.STRING },
+                no_type: { sql: '${amount}' },
+                empty: {},
+            },
+        } as unknown as DbtModelNode['meta']);
+
+        expect(Object.keys(table.dimensions)).toEqual([
+            'amount',
+            'order_size_band',
+        ]);
+        expect(table.warnings).toEqual([
+            expect.objectContaining({
+                type: InlineErrorType.FIELD_ERROR,
+                message: expect.stringContaining('"no_sql"'),
+            }),
+            expect.objectContaining({
+                type: InlineErrorType.FIELD_ERROR,
+                message: expect.stringContaining('"no_type"'),
+            }),
+            expect.objectContaining({
+                type: InlineErrorType.FIELD_ERROR,
+                message: expect.stringContaining('missing "type" and "sql"'),
+            }),
+        ]);
+    });
+
+    it('gives interval dimensions the configuration of their own dimension', () => {
+        const table = convert({
+            additional_dimensions: {
+                shipped: {
+                    type: DimensionType.TIMESTAMP,
+                    sql: '${TABLE}.shipped_at',
+                    time_intervals: [TimeFrames.MONTH],
+                    required_attributes: { is_admin: 'true' },
+                    convert_timezone: false,
+                },
+            },
+        });
+
+        expect(table.dimensions.shipped_month).toMatchObject({
+            requiredAttributes: { is_admin: 'true' },
+            skipTimezoneConversion: true,
+        });
+    });
+
     it('keeps a generated interval when an interval name collides and warns', () => {
         const table = convert(
             {

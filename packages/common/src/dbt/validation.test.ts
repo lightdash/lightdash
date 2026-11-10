@@ -271,7 +271,7 @@ describe('ManifestValidator model additional dimensions', () => {
         }) as unknown as DbtRawModelNode;
 
     test.each(Object.values(DbtManifestVersion))(
-        'requires type and sql for %s',
+        'accepts model-level dimensions and leaves missing keys to the compiler for %s',
         (manifestVersion) => {
             const validator = new ManifestValidator(manifestVersion);
             const withRootPath = (node: DbtRawModelNode) =>
@@ -295,13 +295,18 @@ describe('ManifestValidator model additional dimensions', () => {
             expect(
                 validator.isModelValid(
                     withRootPath(withModelDimension({ type: 'string' })),
-                )[1],
-            ).toContain("required property 'sql'");
+                ),
+            ).toEqual([true, undefined]);
             expect(
                 validator.isModelValid(
-                    withRootPath(withModelDimension({ sql: '${TABLE}.band' })),
-                )[1],
-            ).toContain("required property 'type'");
+                    withRootPath(
+                        withModelDimension({
+                            type: 'varchar',
+                            sql: '${TABLE}.band',
+                        }),
+                    ),
+                )[0],
+            ).toBe(false);
         },
     );
 });

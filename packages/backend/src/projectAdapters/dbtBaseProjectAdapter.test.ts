@@ -334,4 +334,13 @@ describe('_validateDbtModel with no documented columns', () => {
         expect(invalid).toEqual([]);
         expect(valid).toHaveLength(1);
     });
+
+    it('rejects a model whose only additional dimension is incomplete', () => {
+        const [valid, invalid] = validate(
+            rawModel({ additional_dimensions: { band: { type: 'string' } } }),
+        );
+
+        expect(valid).toHaveLength(0);
+        expect(invalid[0].errors?.[0].message).toBe('No dimensions available');
+    });
 });

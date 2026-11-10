@@ -17,12 +17,14 @@ import {
     patchPathParts,
     RESERVED_MODEL_META_KEYS,
     SupportedDbtAdapter,
+    type DbtColumnLightdashAdditionalDimension,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
     type DbtExploreLightdashAdditionalDimension,
     type DbtModelColumn,
     type DbtModelJoin,
     type DbtModelNode,
+    type DbtRawModelNode,
     type LineageGraph,
     type ModelInventoryEntry,
 } from '../types/dbt';
@@ -710,6 +712,24 @@ function dropMapValuedModelFilters(
     return { filters: validFilters, warnings };
 }
 
+// Model-level additional dimensions have no column to fall back on.
+const isCompleteAdditionalDimension = (
+    config: DbtColumnLightdashAdditionalDimension,
+): config is DbtExploreLightdashAdditionalDimension =>
+    Boolean(config.type && config.sql);
+
+const getModelAdditionalDimensions = (
+    model: Pick<DbtRawModelNode, 'meta' | 'config'>,
+): Record<string, DbtColumnLightdashAdditionalDimension> =>
+    merge({}, model.meta, model.config?.meta).additional_dimensions ?? {};
+
+export const hasModelAdditionalDimension = (
+    model: Pick<DbtRawModelNode, 'meta' | 'config'>,
+): boolean =>
+    Object.values(getModelAdditionalDimensions(model)).some(
+        isCompleteAdditionalDimension,
+    );
+
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
@@ -1031,17 +1051,37 @@ export const convertTable = (
     );
 
     const dimensions: Record<string, Dimension> = { ...columnDimensions };
+    const metricNames = new Set([
+        ...Object.keys(metrics),
+        ...Object.keys(meta.metrics ?? {}),
+    ]);
     const isDuplicateDimension = (name: string) => {
-        if (!dimensions[name]) return false;
+        const existing =
+            (dimensions[name] && 'dimension') ||
+            (metricNames.has(name) && 'metric');
+        if (!existing) return false;
         tableWarnings.push({
             type: InlineErrorType.DUPLICATE_FIELD_NAME,
-            message: `Skipped additional dimension "${name}" in model "${model.name}" because a dimension with the same name exists.`,
+            message: `Skipped additional dimension "${name}" in model "${model.name}" because a ${existing} with the same name exists.`,
         });
         return true;
     };
     const columnCount = Object.keys(model.columns).length;
-    Object.entries(meta.additional_dimensions ?? {}).forEach(
+    Object.entries(getModelAdditionalDimensions(model)).forEach(
         ([name, config], position) => {
+            if (!isCompleteAdditionalDimension(config)) {
+                const missing = [
+                    ...(config.type ? [] : ['type']),
+                    ...(config.sql ? [] : ['sql']),
+                ]
+                    .map((key) => `"${key}"`)
+                    .join(' and ');
+                tableWarnings.push({
+                    type: InlineErrorType.FIELD_ERROR,
+                    message: `Skipped additional dimension "${name}" in model "${model.name}" because it is missing ${missing}. Model-level additional dimensions need both "type" and "sql".`,
+                });
+                return;
+            }
             if (isDuplicateDimension(name)) return;
             const index = columnCount + position;
             const column: DbtModelColumn = {
