@@ -328,7 +328,7 @@ describe('ParameterPills', () => {
             );
             expect(pill('currency')).toHaveAttribute('data-missing');
             expect(pill('currency')).toHaveAccessibleDescription(
-                'A tile using this parameter has no value',
+                'Required: set a value to run its tiles',
             );
             expect(pill('currency')).not.toHaveTextContent('any value');
         });

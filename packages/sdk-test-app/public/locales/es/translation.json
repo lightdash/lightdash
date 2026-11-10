@@ -499,7 +499,7 @@
         "controls.parameter.unavailableOptions": "No disponible entre las opciones actuales",
         "controls.parameter.refreshOptions": "Actualizar opciones",
         "controls.parameter.needsValue": "necesita un valor",
-        "controls.parameter.needsValueTooltip": "Un mosaico que usa este parámetro no tiene valor",
+        "controls.parameter.needsValueTooltip": "Obligatorio: establece un valor para ejecutar sus mosaicos",
         "controls.parameter.removeParameter": "Quitar parámetro",
         "controls.parameter.isNotSet": "no está definido",
         "controls.parameter.notSetTooltip": "Los mosaicos usan su propio valor o el valor predeterminado del parámetro",

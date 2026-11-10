@@ -499,7 +499,7 @@
         "controls.parameter.unavailableOptions": "მიმდინარე ვარიანტებში მიუწვდომელია",
         "controls.parameter.refreshOptions": "ვარიანტების განახლება",
         "controls.parameter.needsValue": "საჭიროებს მნიშვნელობას",
-        "controls.parameter.needsValueTooltip": "ამ პარამეტრის მქონე ფილას მნიშვნელობა არ აქვს",
+        "controls.parameter.needsValueTooltip": "სავალდებულოა: დააყენეთ მნიშვნელობა მისი ფილების გასაშვებად",
         "controls.parameter.removeParameter": "პარამეტრის წაშლა",
         "controls.parameter.isNotSet": "არ არის დაყენებული",
         "controls.parameter.notSetTooltip": "ფილები იყენებს საკუთარ მნიშვნელობას ან პარამეტრის ნაგულისხმევს",
