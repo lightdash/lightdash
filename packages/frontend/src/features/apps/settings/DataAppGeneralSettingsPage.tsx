@@ -18,6 +18,7 @@ import {
 } from '../../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
+import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import useHealth from '../../../hooks/health/useHealth';
 import {
     useOrganizationSettings,
@@ -36,6 +37,10 @@ export const DataAppGeneralSettingsPage: FC = () => {
     } = useOrganizationSettings();
     const { mutate: updateSettings, isLoading: isUpdating } =
         useUpdateOrganizationSettings();
+    // The AI analysis page only exists where AI does.
+    const { data: aiSettings } = useAiOrganizationSettings();
+    const isAiAvailable =
+        aiSettings?.isCopilotEnabled === true || aiSettings?.isTrial === true;
 
     // The instance env is the ceiling: when it is off the org switch is shown
     // off and cannot be turned on here.
@@ -152,30 +157,32 @@ export const DataAppGeneralSettingsPage: FC = () => {
                             </Stack>
                         </SettingsCard>
                     </SettingsSection>
-                    <SettingsSection label="AI analysis" description={null}>
-                        <SettingsCard>
-                            <SettingRow
-                                icon={IconSparkles}
-                                title="AI analysis"
-                                description={
-                                    <>
-                                        AI analysis in data apps is configured
-                                        under{' '}
-                                        <Text
-                                            span
-                                            inherit
-                                            component={Link}
-                                            to={AI_ANALYSIS_SETTINGS_PATH}
-                                            td="underline"
-                                        >
-                                            Ask AI · AI analysis
-                                        </Text>
-                                        .
-                                    </>
-                                }
-                            />
-                        </SettingsCard>
-                    </SettingsSection>
+                    {isAiAvailable && (
+                        <SettingsSection label="AI analysis" description={null}>
+                            <SettingsCard>
+                                <SettingRow
+                                    icon={IconSparkles}
+                                    title="AI analysis"
+                                    description={
+                                        <>
+                                            AI analysis in data apps is
+                                            configured under{' '}
+                                            <Text
+                                                span
+                                                inherit
+                                                component={Link}
+                                                to={AI_ANALYSIS_SETTINGS_PATH}
+                                                td="underline"
+                                            >
+                                                Ask AI · AI analysis
+                                            </Text>
+                                            .
+                                        </>
+                                    }
+                                />
+                            </SettingsCard>
+                        </SettingsSection>
+                    )}
                 </>
             )}
         </SettingsPage>
