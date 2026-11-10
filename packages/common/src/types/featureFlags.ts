@@ -183,6 +183,15 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
+     * Allow creating composer charts: saving an AI composer artifact to a
+     * dashboard and uploading a composer chart file through content as code.
+     * Needs `compose-sql-runner` as well. Gates writers only: existing
+     * composer charts keep running, downloading and deleting with it off.
+     * Off by default; enable per org.
+     */
+    ComposerSqlRunnerCharts = 'composer-sql-runner-charts',
+
+    /**
      * Enable api query sources: queries sent live to an external API (HogQL
      * to PostHog) through a project connection, and the Live data sources
      * project settings page. Off by default; enable per org. Also on wherever

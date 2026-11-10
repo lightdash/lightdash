@@ -183,6 +183,20 @@ resolver while its backend checked only ENV. Enabling Console made the menu
 visible but could never enable the API. An ENV workaround can restore availability;
 the proper fix is to use the standard resolver across entry points.
 
+## Composer charts
+
+`composer-sql-runner-charts` gates the writers of composer charts: saving an AI
+composer artifact to a dashboard (`POST .../save-to-dashboard` and its button)
+and uploading a composer chart file through content as code. Both also need
+`compose-sql-runner`. It is organization-scoped, off by default, and uses the
+standard resolver with no custom handler.
+
+It does not gate readers. A composer chart that already exists keeps running,
+rendering, downloading as code and deleting with the flag off, so disabling it
+stops new charts without stranding existing ones. Running one still needs
+`compose-sql-runner`. The frontend reads the flag through
+`useServerFeatureFlag`; a change applies on the next flag refetch, no restart.
+
 ## Pre-aggregates
 
 Pre-aggregates are not behind a feature flag. They are on for every

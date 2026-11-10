@@ -152,6 +152,9 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
         const { mutate: saveComposerVizConfig } =
             useUpdateComposerVizConfig(artifact);
         const composeFlag = useServerFeatureFlag(FeatureFlags.ComposeSqlRunner);
+        const composerChartsFlag = useServerFeatureFlag(
+            FeatureFlags.ComposerSqlRunnerCharts,
+        );
         const canCreateChart = useCreateInAnySpaceAccess(
             artifact.projectUuid,
             'SavedChart',
@@ -408,6 +411,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                         canEditThread &&
                         canCreateChart &&
                         composeFlag.data?.enabled === true &&
+                        composerChartsFlag.data?.enabled === true &&
                         composerConfig.schemaVersion === 2
                     }
                     savedDashboardUuid={

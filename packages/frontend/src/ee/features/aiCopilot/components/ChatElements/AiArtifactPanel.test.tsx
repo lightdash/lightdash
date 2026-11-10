@@ -784,6 +784,20 @@ describe('composer artifact', () => {
             ).not.toBeInTheDocument();
         });
 
+        it('hides it while the composer charts flag is off', async () => {
+            mocks.canCreateInAnySpace.mockReturnValue(true);
+            mocks.featureFlag.mockImplementation((flag: FeatureFlags) => ({
+                data: {
+                    enabled: flag !== FeatureFlags.ComposerSqlRunnerCharts,
+                },
+            }));
+            renderArtifact(barConfig, null);
+            await screen.findByRole('table');
+            expect(
+                screen.queryByRole('button', { name: 'Quick actions' }),
+            ).not.toBeInTheDocument();
+        });
+
         it('hides it without create access', async () => {
             renderArtifact(barConfig, null);
             await screen.findByRole('table');

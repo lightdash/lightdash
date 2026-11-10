@@ -1,5 +1,6 @@
 import {
     ChartType,
+    FeatureFlags,
     ForbiddenError,
     NotSupportedError,
     ParameterError,
@@ -146,6 +147,7 @@ const buildService = (
     overrides: {
         chartConfig?: Record<string, unknown>;
         flagEnabled?: boolean;
+        chartsFlagEnabled?: boolean;
         appendTileError?: Error;
     } = {},
 ) => {
@@ -190,9 +192,14 @@ const buildService = (
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
         featureFlagService: {
-            get: vi
-                .fn()
-                .mockResolvedValue({ enabled: overrides.flagEnabled ?? true }),
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    enabled:
+                        featureFlagId === FeatureFlags.ComposerSqlRunnerCharts
+                            ? (overrides.chartsFlagEnabled ?? true)
+                            : (overrides.flagEnabled ?? true),
+                }),
+            ),
         },
         projectModel: {
             getSummary: vi
@@ -304,6 +311,18 @@ describe('AiAgentService.saveComposerArtifactToDashboard', () => {
         expect(written.pivotConfig).toEqual({
             columns: ['composer_result_orders_status'],
         });
+    });
+
+    it('refuses when the composer charts flag is off, before running anything', async () => {
+        const deps = buildService({ chartsFlagEnabled: false });
+
+        await expect(
+            deps.service.saveComposerArtifactToDashboard(makeUser(true), args),
+        ).rejects.toThrow('Composer charts are not enabled');
+        expect(deps.querySourceService.submitQueries).not.toHaveBeenCalled();
+        expect(
+            deps.savedChartService.createComposerChart,
+        ).not.toHaveBeenCalled();
     });
 
     it('refuses when the compose flag is off, before running anything', async () => {

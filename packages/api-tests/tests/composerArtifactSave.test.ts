@@ -24,6 +24,8 @@ import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 // artifact version to a dashboard, and a viewer runs the resulting tile.
 const projectUuid = SEED_PROJECT.project_uuid;
 const COMPOSE_FLAG = FeatureFlags.ComposeSqlRunner;
+const CHARTS_FLAG = FeatureFlags.ComposerSqlRunnerCharts;
+const REQUIRED_FLAGS = [COMPOSE_FLAG, CHARTS_FLAG];
 const resultsCacheUrl = `/api/v1/projects/${projectUuid}/results-cache-config`;
 
 type ArtifactRef = { artifactUuid: string; versionUuid: string };
@@ -59,7 +61,7 @@ describe('Save a composer artifact to a dashboard', () => {
     let viewer: ApiClient;
     let agentUuid: string;
     let dashboardUuid: string;
-    let flagWasEnabled: boolean;
+    const flagsToRestore: FeatureFlags[] = [];
     let cacheWasEnabled: boolean;
     const tracker = new TestResourceTracker();
 
@@ -154,15 +156,18 @@ describe('Save a composer artifact to a dashboard', () => {
         admin = await login();
         viewer = await loginAsViewer();
 
-        const flag = await admin.get<Body<FeatureFlag>>(
-            `/api/v2/feature-flag/${COMPOSE_FLAG}`,
+        await Promise.all(
+            REQUIRED_FLAGS.map(async (flagId) => {
+                const flag = await admin.get<Body<FeatureFlag>>(
+                    `/api/v2/feature-flag/${flagId}`,
+                );
+                if (flag.body.results.enabled) return;
+                flagsToRestore.push(flagId);
+                await admin.post(`/api/v2/feature-flag/${flagId}`, {
+                    enabled: true,
+                });
+            }),
         );
-        flagWasEnabled = flag.body.results.enabled;
-        if (!flagWasEnabled) {
-            await admin.post(`/api/v2/feature-flag/${COMPOSE_FLAG}`, {
-                enabled: true,
-            });
-        }
         const cache =
             await admin.get<Body<{ cacheEnabled: boolean }>>(resultsCacheUrl);
         cacheWasEnabled = cache.body.results.cacheEnabled;
@@ -190,11 +195,13 @@ describe('Save a composer artifact to a dashboard', () => {
 
     afterAll(async () => {
         await tracker.cleanup(admin);
-        if (!flagWasEnabled) {
-            await admin.post(`/api/v2/feature-flag/${COMPOSE_FLAG}`, {
-                enabled: false,
-            });
-        }
+        await Promise.all(
+            flagsToRestore.map((flagId) =>
+                admin.post(`/api/v2/feature-flag/${flagId}`, {
+                    enabled: false,
+                }),
+            ),
+        );
         if (!cacheWasEnabled) {
             await admin.patch(resultsCacheUrl, { cacheEnabled: false });
         }
@@ -334,8 +341,15 @@ describe('Save a composer artifact to a dashboard', () => {
                 /permission/i,
             ));
 
-        it('the compose feature flag off', async () => {
-            await admin.post(`/api/v2/feature-flag/${COMPOSE_FLAG}`, {
+        it.each([
+            ['the compose feature flag off', COMPOSE_FLAG, /not enabled/],
+            [
+                'the composer charts feature flag off',
+                CHARTS_FLAG,
+                /Composer charts are not enabled/,
+            ],
+        ])('%s', async (_name, flagId, message) => {
+            await admin.post(`/api/v2/feature-flag/${flagId}`, {
                 enabled: false,
             });
             try {
@@ -343,10 +357,10 @@ describe('Save a composer artifact to a dashboard', () => {
                     admin,
                     SEED_COMPOSER_ARTIFACT.pythonNode,
                     403,
-                    /not enabled/,
+                    message,
                 );
             } finally {
-                await admin.post(`/api/v2/feature-flag/${COMPOSE_FLAG}`, {
+                await admin.post(`/api/v2/feature-flag/${flagId}`, {
                     enabled: true,
                 });
             }

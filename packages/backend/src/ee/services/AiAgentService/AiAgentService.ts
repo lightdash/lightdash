@@ -11494,6 +11494,13 @@ export class AiAgentService extends BaseService {
         if (!enabled) {
             throw new ForbiddenError('Multi-source queries are not enabled');
         }
+        const { enabled: chartsEnabled } = await this.featureFlagService.get({
+            user: { userUuid: user.userUuid, organizationUuid },
+            featureFlagId: FeatureFlags.ComposerSqlRunnerCharts,
+        });
+        if (!chartsEnabled) {
+            throw new ForbiddenError('Composer charts are not enabled');
+        }
         const config = artifact.chartConfig;
         if (
             !isAiComposerChartArtifactConfig(config) ||
