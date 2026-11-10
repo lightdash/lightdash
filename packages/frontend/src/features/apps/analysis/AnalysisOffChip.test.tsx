@@ -32,10 +32,7 @@ describe('AnalysisOffChip', () => {
         const chip = await screen.findByRole('link', {
             name: 'AI analysis off',
         });
-        expect(chip).toHaveAttribute(
-            'href',
-            '/generalSettings/dataApps/aiAnalysis',
-        );
+        expect(chip).toHaveAttribute('href', '/generalSettings/ai/analysis');
     });
 
     it('is inert for everyone else', async () => {

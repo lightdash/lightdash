@@ -1,5 +1,15 @@
-import { Button, Code, Group, Loader, Stack, Switch } from '@mantine/core';
+import {
+    Button,
+    Code,
+    Group,
+    Loader,
+    Stack,
+    Switch,
+    Text,
+} from '@mantine/core';
+import { IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import ErrorState from '../../../components/common/ErrorState';
 import {
@@ -13,6 +23,7 @@ import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
+import { AI_ANALYSIS_SETTINGS_PATH } from '../analysis/useDataAppAnalysisAvailability';
 
 export const DataAppGeneralSettingsPage: FC = () => {
     const health = useHealth();
@@ -139,6 +150,30 @@ export const DataAppGeneralSettingsPage: FC = () => {
                                     }
                                 />
                             </Stack>
+                        </SettingsCard>
+                    </SettingsSection>
+                    <SettingsSection label="AI analysis" description={null}>
+                        <SettingsCard>
+                            <SettingRow
+                                icon={IconSparkles}
+                                title="AI analysis"
+                                description={
+                                    <>
+                                        AI analysis in data apps is configured
+                                        under{' '}
+                                        <Text
+                                            span
+                                            inherit
+                                            component={Link}
+                                            to={AI_ANALYSIS_SETTINGS_PATH}
+                                            td="underline"
+                                        >
+                                            Ask AI · AI analysis
+                                        </Text>
+                                        .
+                                    </>
+                                }
+                            />
                         </SettingsCard>
                     </SettingsSection>
                 </>
