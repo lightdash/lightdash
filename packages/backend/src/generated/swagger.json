@@ -6157,9 +6157,6 @@
                     "sectionSlug": {
                         "type": "string"
                     },
-                    "sectionId": {
-                        "type": "string"
-                    },
                     "hidden": {
                         "type": "boolean"
                     },
@@ -6210,21 +6207,15 @@
             },
             "DashboardControlSectionAsCode": {
                 "properties": {
-                    "inline": {
-                        "type": "boolean"
-                    },
                     "collapsed": {
                         "type": "boolean"
                     },
                     "name": {
                         "type": "string"
                     },
-                    "id": {
-                        "type": "string",
-                        "description": "Legacy section identifier accepted on upload."
-                    },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Portable section identifier; absent, derived from the name."
                     }
                 },
                 "required": ["name"],
@@ -6295,9 +6286,6 @@
                     "sectionSlug": {
                         "type": "string"
                     },
-                    "sectionId": {
-                        "type": "string"
-                    },
                     "valueType": {
                         "$ref": "#/components/schemas/Required_Pick_LightdashProjectParameter.type-or-multiple__"
                     },
@@ -6312,10 +6300,6 @@
                     "label": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Legacy project-local identifier accepted on upload."
                     },
                     "slug": {
                         "type": "string",
@@ -6338,7 +6322,7 @@
                     },
                     "slug": {
                         "type": "string",
-                        "description": "Slug of a filter, parameter control or section in this file"
+                        "description": "Slug of a control of this kind in this file: a filter, parameter control, date zoom control or section"
                     },
                     "kind": {
                         "$ref": "#/components/schemas/DashboardControlRefKind"
@@ -6362,20 +6346,6 @@
                             "$ref": "#/components/schemas/DashboardParameterControlAsCode"
                         },
                         "type": "array"
-                    },
-                    "parameterSectionSlugs": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "type": "object"
-                    },
-                    "parameterSections": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "type": "object"
                     },
                     "controlSections": {
                         "items": {
@@ -9809,10 +9779,6 @@
             },
             "DashboardControlSection": {
                 "properties": {
-                    "inline": {
-                        "type": "boolean",
-                        "description": "Sits on the bar line of the section before it; absent, starts a line of its own"
-                    },
                     "collapsed": {
                         "type": "boolean",
                         "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section"
@@ -9901,14 +9867,6 @@
                         },
                         "type": "array",
                         "description": "Absent: filled from the parameters tiles use. Present (even empty): exactly these."
-                    },
-                    "parameterSections": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "type": "object",
-                        "description": "Parameter name to section id. Parameters have no saved object of their own."
                     },
                     "controlSections": {
                         "items": {
@@ -77392,7 +77350,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.199.0",
+        "version": "3.201.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
