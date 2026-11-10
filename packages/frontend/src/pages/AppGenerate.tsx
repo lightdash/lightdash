@@ -133,6 +133,7 @@ import { useCaptureThumbnail } from '../features/apps/hooks/useCaptureThumbnail'
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useDataAppCapturesEnabled } from '../features/apps/hooks/useDataAppCapturesEnabled';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
+import { useDataAppProjectContext } from '../features/apps/hooks/useDataAppProjectContext';
 import { useElementPicker } from '../features/apps/hooks/useElementPicker';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -185,6 +186,7 @@ import { useAppExternalConnections } from '../features/externalConnections/hooks
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
+import { useProject } from '../hooks/useProject';
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -337,6 +339,8 @@ const AppGenerate: FC = () => {
     );
     const { appUuid: urlAppUuid } = useParams();
     const projectUuid = useProjectUuid();
+    const dataAppProjectContext = useDataAppProjectContext(projectUuid);
+    const { isInitialLoading: isProjectLoading } = useProject(projectUuid);
     const projectRoute = useOptionalProjectRoute();
     const navigate = useNavigate();
     const location = useLocation();
@@ -1620,19 +1624,17 @@ const AppGenerate: FC = () => {
         ? ability.can(
               'manage',
               subject('DataApp', {
-                  organizationUuid: user.data?.organizationUuid,
-                  projectUuid,
+                  ...dataAppProjectContext,
                   access: userSpaceAccess ? [userSpaceAccess] : [],
                   createdByUserUuid: appCreatedByUserUuid,
               }),
           )
         : ability.can(
               'create',
-              subject('DataApp', {
-                  organizationUuid: user.data?.organizationUuid,
-                  projectUuid,
-              }),
+              subject('DataApp', { ...dataAppProjectContext }),
           );
+    // Preview-only grants need the project's type and creator before they match.
+    if (isProjectLoading) return null;
     if (!canAccessApp) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }

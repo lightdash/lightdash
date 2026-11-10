@@ -20,6 +20,10 @@ import { useLocation, useNavigate } from 'react-router';
 import { useContentReviewEligibility } from '../../../ee/features/contentReview';
 import { FavoritePersonalDataAppModal } from '../../../features/apps/components/FavoritePersonalDataAppModal';
 import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
+import {
+    useDataAppProjectContext,
+    type DataAppProjectContext,
+} from '../../../features/apps/hooks/useDataAppProjectContext';
 import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
 import {
     DirectAccessModal,
@@ -81,6 +85,7 @@ type ResourceAccessContext = {
     user: ReturnType<typeof useApp>['user'];
     organizationUuid: string | undefined;
     projectUuid: string | undefined;
+    dataAppProjectContext: DataAppProjectContext;
 };
 
 const getResourceUserCanManage = (
@@ -92,6 +97,7 @@ const getResourceUserCanManage = (
         user,
         organizationUuid,
         projectUuid,
+        dataAppProjectContext,
     }: ResourceAccessContext & { isSqlChart: boolean },
 ): boolean => {
     switch (item.type) {
@@ -186,8 +192,7 @@ const getResourceUserCanManage = (
                 user.data?.ability?.can(
                     'manage',
                     subject('DataApp', {
-                        organizationUuid,
-                        projectUuid,
+                        ...dataAppProjectContext,
                         access: [
                             ...(userAccess ? [userAccess] : []),
                             ...grantAccess,
@@ -264,6 +269,7 @@ const ExistingResourceViewActionMenu: FC<
     const { mutate: duplicateApp } = useDuplicateApp();
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
+    const dataAppProjectContext = useDataAppProjectContext(projectUuid);
     // Direct grants are the second path to a resource: without them the
     // per-type checks below see an empty access list and hide every action.
     const grantAccess = user.data?.userUuid
@@ -400,6 +406,7 @@ const ExistingResourceViewActionMenu: FC<
         user,
         organizationUuid,
         projectUuid,
+        dataAppProjectContext,
     };
     const userCanManage = getResourceUserCanManage(item, {
         ...accessContext,
@@ -414,10 +421,7 @@ const ExistingResourceViewActionMenu: FC<
         item.type === ResourceViewItemType.DATA_APP &&
         user.data?.ability?.can(
             'create',
-            subject('DataApp', {
-                organizationUuid,
-                projectUuid,
-            }),
+            subject('DataApp', { ...dataAppProjectContext }),
         ) === true;
 
     if (!userCanManage && !canDuplicateDataApp && !favoritesContext) {

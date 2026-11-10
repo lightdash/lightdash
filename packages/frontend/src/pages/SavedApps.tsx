@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import { ContentType, FeatureFlags } from '@lightdash/common';
 import { Group, Stack, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
@@ -6,16 +5,15 @@ import { Link, Navigate } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
+import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import { Can } from '../providers/Ability';
-import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 
 const SavedApps = () => {
     const projectUuid = useProjectUuid();
-    const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const canCreateDataApp = useCanCreateDataApp(projectUuid);
 
     if (!projectUuid) {
         return null;
@@ -47,13 +45,7 @@ const SavedApps = () => {
                             ]}
                         />
 
-                        <Can
-                            I="create"
-                            this={subject('DataApp', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                        {canCreateDataApp && (
                             <Button
                                 component={Link}
                                 to={`/projects/${projectUuid}/apps/generate`}
@@ -61,7 +53,7 @@ const SavedApps = () => {
                             >
                                 Create data app
                             </Button>
-                        </Can>
+                        )}
                     </Group>
 
                     <InfiniteResourceTable

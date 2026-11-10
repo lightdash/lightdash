@@ -6,7 +6,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { Can } from '../../../providers/Ability';
-import useApp from '../../../providers/App/useApp';
+import { useDataAppProjectContext } from '../../apps/hooks/useDataAppProjectContext';
 import { useChartStudioAvailable } from '../hooks/useChartStudioAvailable';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 
@@ -20,7 +20,7 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({
     projectUuid,
     onBrowseLibrary,
 }) => {
-    const { user } = useApp();
+    const dataAppProjectContext = useDataAppProjectContext(projectUuid);
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -59,10 +59,7 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({
                 {chartStudioAvailable && (
                     <Can
                         I="create"
-                        this={subject('DataApp', {
-                            organizationUuid: user.data?.organizationUuid,
-                            projectUuid,
-                        })}
+                        this={subject('DataApp', { ...dataAppProjectContext })}
                     >
                         <Button
                             component={Link}

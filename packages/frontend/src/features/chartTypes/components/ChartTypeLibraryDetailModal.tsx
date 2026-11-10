@@ -11,10 +11,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { Can } from '../../../providers/Ability';
-import useApp from '../../../providers/App/useApp';
 import { useAppColorScheme } from '../../../providers/ColorSchemeContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { useDataAppProjectContext } from '../../apps/hooks/useDataAppProjectContext';
 import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { registryThumbnailPath } from '../utils/registryAssetUrl';
 import classes from './ChartTypeLibraryDetailModal.module.css';
@@ -36,7 +36,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
     onClose,
     onInstalled,
 }) => {
-    const { user } = useApp();
+    const dataAppProjectContext = useDataAppProjectContext(projectUuid);
     const publishedAgo = useTimeAgo(item.publishedAt);
     const installMutation = useInstallRegistryChartType();
     const { track } = useTracking();
@@ -89,13 +89,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
     // permission — the informational states below (view-in-gallery,
     // incompatible explanation) render for every viewer.
     const canInstallGate = (button: ReactNode) => (
-        <Can
-            I="create"
-            this={subject('DataApp', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            })}
-        >
+        <Can I="create" this={subject('DataApp', { ...dataAppProjectContext })}>
             {button}
         </Can>
     );

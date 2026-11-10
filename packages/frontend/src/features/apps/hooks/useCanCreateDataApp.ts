@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { useMemo } from 'react';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
-import useApp from '../../../providers/App/useApp';
+import { useDataAppProjectContext } from './useDataAppProjectContext';
 
 /**
  * Whether the current user can author new data apps in a project. Unlike
@@ -13,16 +13,10 @@ export const useCanCreateDataApp = (
     projectUuid: string | undefined,
 ): boolean => {
     const ability = useAbilityContext();
-    const { user } = useApp();
+    const projectContext = useDataAppProjectContext(projectUuid);
 
     return useMemo(() => {
         if (!projectUuid) return false;
-        return ability.can(
-            'create',
-            subject('DataApp', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        );
-    }, [ability, user.data?.organizationUuid, projectUuid]);
+        return ability.can('create', subject('DataApp', { ...projectContext }));
+    }, [ability, projectUuid, projectContext]);
 };
