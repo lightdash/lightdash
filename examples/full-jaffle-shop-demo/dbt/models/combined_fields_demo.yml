@@ -1,0 +1,121 @@
+version: 2
+models:
+    - name: combined_fields_orders
+      description: Compare combined and separate field layouts using the same orders and customers.
+      config:
+          tags: ['core']
+          meta:
+              label: Combined fields demo
+              primary_key: order_id
+              combine_joined_fields: true
+              order_fields_by: label
+              group_details:
+                  identifiers:
+                      label: Identifiers
+                      description: IDs from both orders and customers. Duplicate labels retain their source tables.
+                  sales:
+                      label: Sales
+                      description: Order and customer fields share this group across the join.
+                  customer:
+                      label: Customer
+              joins:
+                  - join: combined_fields_customers
+                    label: Customers
+                    sql_on: ${combined_fields_orders.customer_id} = ${combined_fields_customers.customer_id}
+                    relationship: many-to-one
+              explores:
+                  separate_fields_demo:
+                      label: Separate fields demo
+                      description: The same fields and groups as Combined fields demo, displayed separately by table.
+                      combine_joined_fields: false
+      columns:
+          - name: order_id
+            description: Unique order identifier. Compare with the customer ID in the same group.
+            config:
+                meta:
+                    dimension:
+                        label: ID
+                        groups: [identifiers]
+                    metrics:
+                        order_count:
+                            label: Order count
+                            type: count_distinct
+                            groups: [sales]
+          - name: customer_id
+            config:
+                meta:
+                    dimension:
+                        hidden: true
+          - name: order_date
+            description: The date of the order. Its intervals stay separate from the customer's first order date.
+            config:
+                meta:
+                    dimension:
+                        label: Date
+                        type: date
+                        time_intervals: [DAY, MONTH, YEAR]
+                        groups: [sales]
+          - name: status
+            config:
+                meta:
+                    dimension:
+                        groups: [sales]
+          - name: amount
+            config:
+                meta:
+                    dimension:
+                        hidden: true
+                    metrics:
+                        order_revenue:
+                            label: Order revenue
+                            type: sum
+                            format: usd
+                            groups: [sales]
+
+    - name: combined_fields_customers
+      description: Customer fields used by the combined-fields demo.
+      config:
+          tags: ['core']
+          meta:
+              hidden: true
+              label: Customers
+              primary_key: customer_id
+              group_details:
+                  identifiers:
+                      label: Identifiers
+                  sales:
+                      label: Sales
+                  customer:
+                      label: Customer
+      columns:
+          - name: customer_id
+            description: Unique customer identifier. This shares its label with the order ID.
+            config:
+                meta:
+                    dimension:
+                        label: ID
+                        groups: [identifiers]
+                    metrics:
+                        customer_count:
+                            label: Customer count
+                            type: count_distinct
+                            groups: [sales]
+          - name: first_name
+            config:
+                meta:
+                    dimension:
+                        groups: [customer]
+          - name: last_name
+            config:
+                meta:
+                    dimension:
+                        groups: [customer]
+          - name: first_order
+            description: The customer's first order date. Its intervals stay separate from the order date.
+            config:
+                meta:
+                    dimension:
+                        label: Date
+                        type: date
+                        time_intervals: [DAY, MONTH, YEAR]
+                        groups: [sales]

@@ -38,3 +38,17 @@ This changes presentation only. Original field IDs, SQL, metric ownership, join
 field restrictions, and visibility rules remain unchanged. No database migration
 or saved-chart update is required. The main explore and merge-query sidebars use
 the same field tree and respect this setting.
+
+## Demo project
+
+The Jaffle shop project includes **Combined fields demo** and **Separate fields
+demo** explores, both defined in
+`examples/full-jaffle-shop-demo/dbt/models/combined_fields_demo.yml`.
+They use the same orders-to-customers join, with the combined setting enabled
+on the base model and explicitly disabled on the separate named explore.
+
+Compare the shared Sales group under Metrics (Customer count, Order count,
+Order revenue), the two ID fields under Identifiers, and the two Date groups
+under Sales. Duplicate IDs and date groups show their source tables, and the
+hidden customer join key stays out of the field list. The demo uses alphabetical
+ordering; existing explores are unchanged.
