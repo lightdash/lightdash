@@ -79,6 +79,10 @@ vi.mock('../../../../../features/apps/hooks/useGetApp', () => ({
     }),
 }));
 
+vi.mock('../../../../../hooks/useProject', async (importOriginal) => ({
+    ...(await importOriginal<typeof UseProjectModule>()),
+    useProject: () => ({ data: undefined }),
+}));
 vi.mock('../../../../../features/apps/previewOrigin', () => ({
     usePreviewOrigin: () => 'https://preview.example.com',
 }));
@@ -127,6 +131,7 @@ vi.mock('../../../../../features/apps/hooks/useDataAppCapturesEnabled', () => ({
     useDataAppCapturesEnabled: () => true,
 }));
 
+import type * as UseProjectModule from '../../../../../hooks/useProject';
 // eslint-disable-next-line import/first
 import { AgentChatInput } from './AgentChatInput';
 // eslint-disable-next-line import/first
