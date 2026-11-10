@@ -143,10 +143,7 @@ export type DashboardControlSectionAsCode = {
     collapsed?: DashboardControlSection['collapsed'];
 };
 
-export type DashboardFilterRuleAsCode = Omit<
-    DashboardFilterRule,
-    'sectionId'
-> & {
+export type DashboardFilterRuleAsCode = DashboardFilterRule & {
     sectionSlug?: string;
     /** Resolves `controlOrder` refs in this file; derived on download, never stored */
     slug?: string;
